@@ -144,9 +144,12 @@ export const valuesTableCardStyle: CSSProperties = {
   border: `1px solid ${C.border}`, background: '#fff', overflow: 'hidden',
 };
 
+// Colunas: Descrição | Und | Qtde | Valor unitário | Calculado | remover
+const VALUES_GRID_COLUMNS = 'minmax(0, 1.4fr) minmax(0, 0.6fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.1fr) 22px';
+
 export const valuesTableHeaderStyle: CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)',
-  alignItems: 'center', gap: 16, padding: '9px 16px', background: C.panelBg, borderBottom: `1px solid ${C.border}`,
+  display: 'grid', gridTemplateColumns: VALUES_GRID_COLUMNS,
+  alignItems: 'center', gap: 12, padding: '9px 16px', background: C.panelBg, borderBottom: `1px solid ${C.border}`,
 };
 
 export const valuesTableColLabelStyle: CSSProperties = {
@@ -154,8 +157,8 @@ export const valuesTableColLabelStyle: CSSProperties = {
 };
 
 export const valuesRowStyle: CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr)',
-  alignItems: 'center', gap: 16, padding: '10px 16px', borderBottom: `1px solid ${C.border}`,
+  display: 'grid', gridTemplateColumns: VALUES_GRID_COLUMNS,
+  alignItems: 'center', gap: 12, padding: '10px 16px', borderBottom: `1px solid ${C.border}`,
 };
 
 export const valuesRowLastStyle: CSSProperties = { ...valuesRowStyle, borderBottom: 'none' };
@@ -175,6 +178,17 @@ export const valuesInlineInputStyle: CSSProperties = {
 
 export const valuesComputedStyle: CSSProperties = {
   fontSize: 13.5, fontWeight: 700, color: C.textSoft, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+};
+
+export const valuesRemoveButtonStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 999,
+  border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer', fontSize: 15, lineHeight: 1,
+};
+
+export const valuesAddRowButtonStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 12px', borderRadius: 9,
+  border: `1.5px dashed ${C.chipOffBorder}`, background: 'transparent', color: C.textMuted,
+  fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
 };
 
 // ── Linha de chips em bloco (label + chips lado a lado, layout do mockup) ──

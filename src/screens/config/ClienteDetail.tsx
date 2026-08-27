@@ -11,16 +11,17 @@ import {
   type Cliente, type Contrato, type ServicoContrato, type ContratoAnexo, type AditivoContratoValues,
 } from '../../services/clientesService';
 import { fetchServicos, saveServico, type Servico } from '../../services/servicosService';
-import { fetchRepresentantes, saveRepresentante, type Representante } from '../../services/representantesService';
+import { fetchRepresentantes, type Representante } from '../../services/representantesService';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import {
-  C, labelStyle, fieldInputStyle, cardStyle, chipStyle,
+  C, labelStyle, fieldInputStyle, cardStyle,
   valuesTableCardStyle, valuesTableHeaderStyle, valuesTableColLabelStyle,
   valuesRowStyle, valuesRowLastStyle, valuesRowTitleStyle, valuesRowSubtitleStyle,
   valuesInlineFieldStyle, valuesInlineInputStyle, valuesComputedStyle,
-  chipGroupLabelStyle, chipRowStyle,
+  valuesRemoveButtonStyle, valuesAddRowButtonStyle,
+  chipGroupLabelStyle,
 } from '../../ui/dialogFormTokens';
 import { EmptyState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
@@ -43,19 +44,15 @@ const fv = (v: number | string | null | undefined): string => {
 
 function ContratoForm({
   clienteId, initial, representantes, onSave, readOnly = false,
-  onCreateRepresentante, isCreatingRepresentante = false,
 }: {
   clienteId: number;
   initial?: Partial<Contrato>;
   representantes: Representante[];
   onSave: (data: Parameters<typeof saveContrato>[0]) => void;
   readOnly?: boolean;
-  onCreateRepresentante?: (nome: string) => void;
-  isCreatingRepresentante?: boolean;
 }) {
   const [form, setForm] = useState({
     numero:                  initial?.numero ?? '',
-    data_assinatura:         initial?.data_assinatura ?? '',
     vencimento:              initial?.vencimento ?? '',
     data_inicio_faturamento: initial?.data_inicio_faturamento ?? '',
     ajuste:                  initial?.ajuste ?? 'NADA CONSTA',
@@ -63,18 +60,6 @@ function ContratoForm({
     descricao:               initial?.descricao ?? '',
     representante_id:        String(initial?.representante_id ?? ''),
   });
-  const [showRepForm, setShowRepForm] = useState(false);
-  const representantesCountRef = useRef(representantes.length);
-
-  // Ao criar representante inline, a lista cresce em 1 — seleciona o recém-criado e fecha o mini-form.
-  useEffect(() => {
-    if (showRepForm && representantes.length > representantesCountRef.current) {
-      const criado = representantes[representantes.length - 1];
-      if (criado) set('representante_id', String(criado.id));
-      setShowRepForm(false);
-    }
-    representantesCountRef.current = representantes.length;
-  }, [representantes, showRepForm]);
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1', {
@@ -82,7 +67,7 @@ function ContratoForm({
     layer: GUIDE_LAYER_MODAL,
   });
   const representanteGuide = useFirstAccessGuide('clientes:representante-v1', {
-    enabled: !readOnly && (representantes.length > 0 || !!onCreateRepresentante),
+    enabled: !readOnly,
     layer: GUIDE_LAYER_MODAL,
   });
 
@@ -91,7 +76,6 @@ function ContratoForm({
     onSave({
       cliente_id:                clienteId,
       numero:                    form.numero || null,
-      data_assinatura:           form.data_assinatura || null,
       vencimento:                form.vencimento,
       data_aditivo:              initial?.data_aditivo ?? null,
       num_aditivo:               initial?.num_aditivo ?? 0,
@@ -114,7 +98,7 @@ function ContratoForm({
     const repNome = representantes.find((r) => String(r.id) === form.representante_id)?.nome;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 1.6fr) repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={labelStyle}>Número</label>
             <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{form.numero || '—'}</p>
@@ -122,10 +106,6 @@ function ContratoForm({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={labelStyle}>Descrição</label>
             <p style={{ fontSize: 14, fontWeight: 500, color: C.text }}>{form.descricao || '—'}</p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={labelStyle}>Assinatura</label>
-            <p style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{form.data_assinatura || '—'}</p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <label style={labelStyle}>Vencimento</label>
@@ -166,7 +146,7 @@ function ContratoForm({
     <form id="contrato-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
       {/* Identificação */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 1.6fr) repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Número</label>
           <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
@@ -174,10 +154,6 @@ function ContratoForm({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Descrição</label>
           <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 42, fontSize: 14 }} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <label style={labelStyle}>Assinatura</label>
-          <input type="date" value={form.data_assinatura} onChange={(e) => set('data_assinatura', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Vencimento <span style={{ color: C.danger }}>*</span></label>
@@ -189,115 +165,44 @@ function ContratoForm({
         </div>
       </div>
 
-      {/* Reajuste + Representante */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)', gap: 28, alignItems: 'start' }}>
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={chipGroupLabelStyle}>Reajuste</span>
-          <div style={chipRowStyle}>
-            {[
-              { value: 'NADA CONSTA', label: 'Nada consta' },
-              { value: 'IGPM', label: 'IGPM' },
-              { value: 'IPCA', label: 'IPCA' },
-            ].map((opt) => (
-              <div
-                key={opt.value}
-                onClick={() => set('ajuste', opt.value)}
-                style={chipStyle((['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA') === opt.value, { h: 38, size: 12.5 })}
-              >
-                {opt.label}
-              </div>
-            ))}
-          </div>
-          {reajusteGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
-              icon={Info}
-              description={firstAccessGuideMessages.clientesReajuste}
-              onDismiss={reajusteGuide.dismiss}
-            />
-          )}
-        </div>
-
-        {/* Representante */}
-        {(representantes.length > 0 || onCreateRepresentante) && (
+      {/* Reajuste + Representante (empilhados) ao lado de Observações */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 260px) minmax(0, 1fr)', gap: 28, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={chipGroupLabelStyle}>Representante</span>
-            {representantes.length <= 5 ? (
-              <div style={chipRowStyle}>
-                {[{ value: '', label: 'Nenhum' }, ...representantes.map((r) => ({ value: String(r.id), label: r.nome }))].map((opt) => (
-                  <div key={opt.value} onClick={() => set('representante_id', opt.value)} style={chipStyle(form.representante_id === opt.value, { h: 38, size: 12.5 })}>
-                    {opt.label}
-                  </div>
-                ))}
-                {onCreateRepresentante && (
-                  <button
-                    type="button"
-                    onClick={() => setShowRepForm(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, height: 38, padding: '0 12px', borderRadius: 9, border: `1.5px dashed ${C.chipOffBorder}`, background: 'transparent', fontSize: 12.5, fontWeight: 600, color: C.textMuted, cursor: 'pointer' }}
-                  >
-                    <Plus size={13} /> novo
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <select
-                  value={form.representante_id}
-                  onChange={(e) => set('representante_id', e.target.value)}
-                  style={{ ...fieldInputStyle, height: 42, flex: 1, fontSize: 14 }}
-                >
-                  <option value="">— Nenhum —</option>
-                  {representantes.map((r) => (
-                    <option key={r.id} value={String(r.id)}>{r.nome}</option>
-                  ))}
-                </select>
-                {onCreateRepresentante && (
-                  <button
-                    type="button"
-                    onClick={() => setShowRepForm(true)}
-                    style={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 5, height: 42, padding: '0 14px', borderRadius: 9, border: `1.5px dashed ${C.chipOffBorder}`, background: 'transparent', fontSize: 12.5, fontWeight: 600, color: C.textMuted, cursor: 'pointer' }}
-                  >
-                    <Plus size={13} /> novo
-                  </button>
-                )}
-              </div>
+            <label style={labelStyle}>Reajuste</label>
+            <select
+              value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
+              onChange={(e) => set('ajuste', e.target.value)}
+              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+            >
+              <option value="NADA CONSTA">Nada consta</option>
+              <option value="IGPM">IGPM</option>
+              <option value="IPCA">IPCA</option>
+            </select>
+            {reajusteGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="bottom"
+                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                icon={Info}
+                description={firstAccessGuideMessages.clientesReajuste}
+                onDismiss={reajusteGuide.dismiss}
+              />
             )}
-            {showRepForm && onCreateRepresentante && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 12, border: `1.5px solid ${C.primarySoftBorder}`, background: C.primarySoft, padding: 8 }}>
-                <input
-                  type="text"
-                  id="novo-representante-input"
-                  autoFocus
-                  placeholder="Nome do representante"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      const v = e.currentTarget.value.trim();
-                      if (v) onCreateRepresentante(v);
-                    }
-                    if (e.key === 'Escape') { e.preventDefault(); setShowRepForm(false); }
-                  }}
-                  style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-                />
-                <button
-                  type="button"
-                  disabled={isCreatingRepresentante}
-                  onClick={() => {
-                    const el = document.getElementById('novo-representante-input') as HTMLInputElement | null;
-                    const v = el?.value.trim();
-                    if (v) onCreateRepresentante(v);
-                  }}
-                  style={{ height: 36, padding: '0 14px', borderRadius: 8, border: 'none', background: C.primary, color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: isCreatingRepresentante ? 'not-allowed' : 'pointer', opacity: isCreatingRepresentante ? 0.6 : 1, whiteSpace: 'nowrap' }}
-                >
-                  {isCreatingRepresentante ? '...' : 'Criar'}
-                </button>
-                <button type="button" onClick={() => setShowRepForm(false)} style={{ display: 'flex', alignItems: 'center', color: C.textMuted, background: 'none', border: 'none', cursor: 'pointer' }}>
-                  <X size={14} />
-                </button>
-              </div>
-            )}
+          </div>
+
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={labelStyle}>Representante</label>
+            <select
+              value={form.representante_id}
+              onChange={(e) => set('representante_id', e.target.value)}
+              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+            >
+              <option value="">Nenhum</option>
+              {representantes.map((r) => (
+                <option key={r.id} value={String(r.id)}>{r.nome}</option>
+              ))}
+            </select>
             {representanteGuide.isVisible && (
               <FirstAccessGuideCard
                 floating
@@ -309,19 +214,19 @@ function ContratoForm({
               />
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Observações */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <label style={labelStyle}>Observações</label>
-        <textarea
-          value={form.observacoes}
-          onChange={(e) => set('observacoes', e.target.value)}
-          placeholder="Anotações sobre o contrato…"
-          rows={3}
-          style={{ ...fieldInputStyle, height: 'auto', minHeight: 86, padding: '10px 12px', fontSize: 13.5, fontWeight: 400, lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
-        />
+        {/* Observações */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={labelStyle}>Observações</label>
+          <textarea
+            value={form.observacoes}
+            onChange={(e) => set('observacoes', e.target.value)}
+            placeholder="Anotações sobre o contrato…"
+            rows={3}
+            style={{ ...fieldInputStyle, flex: 1, height: 'auto', minHeight: 108, padding: '10px 12px', fontSize: 13.5, fontWeight: 400, lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
+          />
+        </div>
       </div>
 
     </form>
@@ -635,28 +540,55 @@ function ContratoModal({
   });
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
   const [showServicoForm, setShowServicoForm] = useState(false);
-  const [valMensal, setValMensal]   = useState(fv(contrato?.valor_mensal));
-  const [implTotal, setImplTotal]   = useState(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
-  const [implParc, setImplParc]     = useState(fv(contrato?.implantacao_parcelas));
-  const [hpValor, setHpValor]       = useState(fv(contrato?.horas_presenciais_valor));
-  const [hpIni, setHpIni]           = useState(fv(contrato?.horas_presenciais_saldo_ini));
-  const [hrValor, setHrValor]       = useState(fv(contrato?.horas_remotas_valor));
-  const [hrIni, setHrIni]           = useState(fv(contrato?.horas_remotas_saldo_ini));
+  const [valMensal, setValMensal]           = useState(fv(contrato?.valor_mensal));
+  const [implValorParcela, setImplValorParcela] = useState(fv(contrato?.implantacao_valor_parcela));
+  const [implParc, setImplParc]             = useState(fv(contrato?.implantacao_parcelas));
+  const [hpValor, setHpValor]               = useState(fv(contrato?.horas_presenciais_valor));
+  const [hpIni, setHpIni]                   = useState(fv(contrato?.horas_presenciais_saldo_ini));
+  const [hrValor, setHrValor]               = useState(fv(contrato?.horas_remotas_valor));
+  const [hrIni, setHrIni]                   = useState(fv(contrato?.horas_remotas_saldo_ini));
 
-  const vMensalNum   = parseFloat(valMensal) || 0;
-  const implTotalNum = parseFloat(implTotal)  || 0;
+  type LinhaValor = 'mensalidade' | 'implantacao' | 'horaPresencial' | 'horaRemoto';
+  const linhaPresenteInicial = (linha: LinhaValor): boolean => {
+    if (!contrato) return true;
+    switch (linha) {
+      case 'mensalidade':     return (contrato.valor_mensal ?? 0) > 0;
+      case 'implantacao':     return (contrato.implantacao_valor_parcela ?? 0) > 0;
+      case 'horaPresencial':  return (contrato.horas_presenciais_valor ?? 0) > 0 || (contrato.horas_presenciais_saldo_ini ?? 0) > 0;
+      case 'horaRemoto':      return (contrato.horas_remotas_valor ?? 0) > 0 || (contrato.horas_remotas_saldo_ini ?? 0) > 0;
+    }
+  };
+  const [linhasVisiveis, setLinhasVisiveis] = useState<Record<LinhaValor, boolean>>({
+    mensalidade:    linhaPresenteInicial('mensalidade'),
+    implantacao:    linhaPresenteInicial('implantacao'),
+    horaPresencial: linhaPresenteInicial('horaPresencial'),
+    horaRemoto:     linhaPresenteInicial('horaRemoto'),
+  });
+
+  const removerLinha = (linha: LinhaValor) => {
+    setLinhasVisiveis((v) => ({ ...v, [linha]: false }));
+    if (linha === 'mensalidade') setValMensal('');
+    if (linha === 'implantacao') { setImplValorParcela(''); setImplParc(''); }
+    if (linha === 'horaPresencial') { setHpValor(''); setHpIni(''); }
+    if (linha === 'horaRemoto') { setHrValor(''); setHrIni(''); }
+  };
+  const adicionarLinha = (linha: LinhaValor) => setLinhasVisiveis((v) => ({ ...v, [linha]: true }));
+
+  const vMensalNum        = parseFloat(valMensal) || 0;
+  const implValorParcelaNum = parseFloat(implValorParcela) || 0;
+  const implParcNum       = parseInt(implParc) || 1;
+  const implTotalNum      = implValorParcelaNum * implParcNum;
   const hpIniNum     = parseFloat(hpIni)      || 0;
   const hpValorNum   = parseFloat(hpValor)    || 0;
   const hrIniNum     = parseFloat(hrIni)      || 0;
   const hrValorNum   = parseFloat(hrValor)    || 0;
-  const totalAnual   = vMensalNum * 12 + implTotalNum + hpIniNum * hpValorNum + hrIniNum * hrValorNum;
+  const totalAnual   =
+    (linhasVisiveis.mensalidade ? vMensalNum * 12 : 0) +
+    (linhasVisiveis.implantacao ? implTotalNum : 0) +
+    (linhasVisiveis.horaPresencial ? hpIniNum * hpValorNum : 0) +
+    (linhasVisiveis.horaRemoto ? hrIniNum * hrValorNum : 0);
 
   const qc = useQueryClient();
-
-  const criarRepresentanteMut = useMutation({
-    mutationFn: (nome: string) => saveRepresentante({ nome, comissoes: [] }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.representantes }),
-  });
 
   const criarServicoMut = useMutation({
     mutationFn: (nome: string) => saveServico({ nome, valor_mensal_padrao: 0 }),
@@ -672,37 +604,48 @@ function ContratoModal({
 
   useEffect(() => {
     setValMensal(fv(contrato?.valor_mensal));
-    setImplTotal(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
+    setImplValorParcela(fv(contrato?.implantacao_valor_parcela));
     setImplParc(fv(contrato?.implantacao_parcelas));
     setHpValor(fv(contrato?.horas_presenciais_valor));
     setHpIni(fv(contrato?.horas_presenciais_saldo_ini));
     setHrValor(fv(contrato?.horas_remotas_valor));
     setHrIni(fv(contrato?.horas_remotas_saldo_ini));
+    setLinhasVisiveis({
+      mensalidade:    linhaPresenteInicial('mensalidade'),
+      implantacao:    linhaPresenteInicial('implantacao'),
+      horaPresencial: linhaPresenteInicial('horaPresencial'),
+      horaRemoto:     linhaPresenteInicial('horaRemoto'),
+    });
   }, [contrato?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancelEdit = () => {
     setValMensal(fv(contrato?.valor_mensal));
-    setImplTotal(fv((contrato?.implantacao_parcelas ?? 1) * (contrato?.implantacao_valor_parcela ?? 0)));
+    setImplValorParcela(fv(contrato?.implantacao_valor_parcela));
     setImplParc(fv(contrato?.implantacao_parcelas));
     setHpValor(fv(contrato?.horas_presenciais_valor));
     setHpIni(fv(contrato?.horas_presenciais_saldo_ini));
     setHrValor(fv(contrato?.horas_remotas_valor));
     setHrIni(fv(contrato?.horas_remotas_saldo_ini));
+    setLinhasVisiveis({
+      mensalidade:    linhaPresenteInicial('mensalidade'),
+      implantacao:    linhaPresenteInicial('implantacao'),
+      horaPresencial: linhaPresenteInicial('horaPresencial'),
+      horaRemoto:     linhaPresenteInicial('horaRemoto'),
+    });
     setIsEditing(false);
   };
 
   const handleSaveWithValores = (formData: Parameters<typeof saveContrato>[0]) => {
-    const parc = parseInt(implParc) || 1;
     onSave(
       {
         ...formData,
-        valor_mensal: vMensalNum || 0,
-        implantacao_parcelas: parc,
-        implantacao_valor_parcela: parseFloat((implTotalNum / parc).toFixed(2)),
-        horas_presenciais_valor: hpValorNum || 0,
-        horas_presenciais_saldo_ini: hpIniNum || 0,
-        horas_remotas_valor: hrValorNum || 0,
-        horas_remotas_saldo_ini: hrIniNum || 0,
+        valor_mensal: linhasVisiveis.mensalidade ? (vMensalNum || 0) : 0,
+        implantacao_parcelas: linhasVisiveis.implantacao ? implParcNum : 1,
+        implantacao_valor_parcela: linhasVisiveis.implantacao ? implValorParcelaNum : 0,
+        horas_presenciais_valor: linhasVisiveis.horaPresencial ? (hpValorNum || 0) : 0,
+        horas_presenciais_saldo_ini: linhasVisiveis.horaPresencial ? (hpIniNum || 0) : 0,
+        horas_remotas_valor: linhasVisiveis.horaRemoto ? (hrValorNum || 0) : 0,
+        horas_remotas_saldo_ini: linhasVisiveis.horaRemoto ? (hrIniNum || 0) : 0,
       },
       pendingServicos,
     );
@@ -765,8 +708,10 @@ function ContratoModal({
       description={onEncerrar ? 'Em vigor' : undefined}
       onClose={onClose}
       size="xxl"
+      scrollBody={false}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <div className="scrollbar-thin overflow-y-auto" style={{ display: 'flex', flexDirection: 'column', gap: 22, flex: 1, minHeight: 0 }}>
 
         {/* ── Dados do contrato ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -781,8 +726,6 @@ function ContratoModal({
             representantes={representantes}
             readOnly={!isEditing}
             onSave={handleSaveWithValores}
-            onCreateRepresentante={(nome) => criarRepresentanteMut.mutate(nome)}
-            isCreatingRepresentante={criarRepresentanteMut.isPending}
           />
         </div>
 
@@ -796,130 +739,190 @@ function ContratoModal({
           <div style={valuesTableCardStyle}>
             <div style={valuesTableHeaderStyle}>
               <span />
-              <span style={valuesTableColLabelStyle}>Valor</span>
-              <span style={valuesTableColLabelStyle}>Quantidade</span>
+              <span style={valuesTableColLabelStyle}>Und</span>
+              <span style={valuesTableColLabelStyle}>Qtde</span>
+              <span style={valuesTableColLabelStyle}>Valor unitário</span>
               <span style={valuesTableColLabelStyle}>Calculado</span>
+              <span />
             </div>
 
             {/* Mensalidade */}
-            <div style={valuesRowStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                <span style={valuesRowTitleStyle}>Mensalidade</span>
-                <span style={valuesRowSubtitleStyle}>recorrente</span>
-              </div>
-              <div style={valuesInlineFieldStyle}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+            {linhasVisiveis.mensalidade && (
+              <div style={valuesRowStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                  <span style={valuesRowTitleStyle}>Mensalidade</span>
+                  <span style={valuesRowSubtitleStyle}>recorrente</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 12.5, color: C.placeholder }}>Mês</div>
+                <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 13.5, fontWeight: 600, color: C.text }}>12</div>
+                <div style={valuesInlineFieldStyle}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{vMensalNum > 0 ? valMensal : '—'}</span>
+                  )}
+                </div>
+                <span style={valuesComputedStyle}>{formatCurrency(vMensalNum * 12)}</span>
                 {isEditing ? (
-                  <input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{vMensalNum > 0 ? valMensal : '—'}</span>
-                )}
+                  <button type="button" onClick={() => removerLinha('mensalidade')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
+                ) : <span />}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 13.5, fontWeight: 600, color: C.text }}>—</div>
-              <span style={valuesComputedStyle}>{formatCurrency(vMensalNum * 12)}</span>
-            </div>
+            )}
 
             {/* Implantação */}
-            <div style={valuesRowStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, position: 'relative' }}>
-                <span style={valuesRowTitleStyle}>Implantação</span>
-                <span style={valuesRowSubtitleStyle}>taxa única</span>
-                {isEditing && implantacaoGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
-                    icon={Info}
-                    description={firstAccessGuideMessages.clientesImplantacao}
-                    onDismiss={implantacaoGuide.dismiss}
-                  />
-                )}
-              </div>
-              <div style={valuesInlineFieldStyle}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+            {linhasVisiveis.implantacao && (
+              <div style={valuesRowStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, position: 'relative' }}>
+                  <span style={valuesRowTitleStyle}>Implantação</span>
+                  <span style={valuesRowSubtitleStyle}>taxa única</span>
+                  {isEditing && implantacaoGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="bottom"
+                      className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                      icon={Info}
+                      description={firstAccessGuideMessages.clientesImplantacao}
+                      onDismiss={implantacaoGuide.dismiss}
+                    />
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 12.5, color: C.placeholder }}>Parcela</div>
+                <div style={valuesInlineFieldStyle}>
+                  {isEditing ? (
+                    <input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} placeholder="1" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{implParc || '1'}</span>
+                  )}
+                </div>
+                <div style={valuesInlineFieldStyle}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.01" value={implValorParcela} onChange={(e) => setImplValorParcela(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{implValorParcelaNum > 0 ? implValorParcela : '—'}</span>
+                  )}
+                </div>
+                <span style={valuesComputedStyle}>{formatCurrency(implTotalNum)}</span>
                 {isEditing ? (
-                  <input type="number" min="0" step="0.01" value={implTotal} onChange={(e) => setImplTotal(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{implTotalNum > 0 ? implTotal : '—'}</span>
-                )}
+                  <button type="button" onClick={() => removerLinha('implantacao')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
+                ) : <span />}
               </div>
-              <div style={valuesInlineFieldStyle}>
-                {isEditing ? (
-                  <input type="number" min="1" value={implParc} onChange={(e) => setImplParc(e.target.value)} placeholder="1" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{implParc || '1'}</span>
-                )}
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder, whiteSpace: 'nowrap' }}>{(parseInt(implParc) || 1) === 1 ? 'parcela' : 'parcelas'}</span>
-              </div>
-              <span style={valuesComputedStyle}>{formatCurrency(implTotalNum / (parseInt(implParc) || 1))}</span>
-            </div>
+            )}
 
             {/* Hora presencial */}
-            <div style={valuesRowStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, position: 'relative' }}>
-                <span style={valuesRowTitleStyle}>Hora presencial</span>
-                <span style={valuesRowSubtitleStyle}>banco de horas</span>
-                {horasGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
-                    icon={ClockIcon}
-                    description={firstAccessGuideMessages.clientesHoras}
-                    onDismiss={horasGuide.dismiss}
-                  />
-                )}
-              </div>
-              <div style={valuesInlineFieldStyle}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+            {linhasVisiveis.horaPresencial && (
+              <div style={valuesRowStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, position: 'relative' }}>
+                  <span style={valuesRowTitleStyle}>Hora presencial</span>
+                  <span style={valuesRowSubtitleStyle}>banco de horas</span>
+                  {horasGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="bottom"
+                      className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                      icon={ClockIcon}
+                      description={firstAccessGuideMessages.clientesHoras}
+                      onDismiss={horasGuide.dismiss}
+                    />
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 12.5, color: C.placeholder }}>Hora</div>
+                <div style={valuesInlineFieldStyle}>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.5" value={hpIni} onChange={(e) => setHpIni(e.target.value)} placeholder="0" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{hpIni || '0'}</span>
+                  )}
+                </div>
+                <div style={valuesInlineFieldStyle}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.01" value={hpValor} onChange={(e) => setHpValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{hpValorNum > 0 ? hpValor : '—'}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                  <span style={valuesComputedStyle}>{formatCurrency(hpIniNum * hpValorNum)}</span>
+                  <span style={{ fontSize: 10, color: C.placeholder }}>
+                    {contrato ? `${parseFloat(String(contrato.horas_presenciais_saldo_atual ?? 0)) || 0}h restantes` : ''}
+                  </span>
+                </div>
                 {isEditing ? (
-                  <input type="number" min="0" step="0.01" value={hpValor} onChange={(e) => setHpValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{hpValorNum > 0 ? hpValor : '—'}</span>
-                )}
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>/h</span>
+                  <button type="button" onClick={() => removerLinha('horaPresencial')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
+                ) : <span />}
               </div>
-              <div style={valuesInlineFieldStyle}>
-                {isEditing ? (
-                  <input type="number" min="0" step="0.5" value={hpIni} onChange={(e) => setHpIni(e.target.value)} placeholder="0" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{hpIni || '0'}</span>
-                )}
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder, whiteSpace: 'nowrap' }}>horas</span>
-              </div>
-              <span style={valuesComputedStyle}>
-                {contrato ? `${parseFloat(String(contrato.horas_presenciais_saldo_atual ?? 0)) || 0}h` : '—'}
-              </span>
-            </div>
+            )}
 
             {/* Hora remoto */}
-            <div style={valuesRowLastStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                <span style={valuesRowTitleStyle}>Hora remoto</span>
-                <span style={valuesRowSubtitleStyle}>banco de horas</span>
-              </div>
-              <div style={valuesInlineFieldStyle}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+            {linhasVisiveis.horaRemoto && (
+              <div style={valuesRowLastStyle}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+                  <span style={valuesRowTitleStyle}>Hora remoto</span>
+                  <span style={valuesRowSubtitleStyle}>banco de horas</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 12.5, color: C.placeholder }}>Hora</div>
+                <div style={valuesInlineFieldStyle}>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.5" value={hrIni} onChange={(e) => setHrIni(e.target.value)} placeholder="0" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{hrIni || '0'}</span>
+                  )}
+                </div>
+                <div style={valuesInlineFieldStyle}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
+                  {isEditing ? (
+                    <input type="number" min="0" step="0.01" value={hrValor} onChange={(e) => setHrValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
+                  ) : (
+                    <span style={valuesInlineInputStyle}>{hrValorNum > 0 ? hrValor : '—'}</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                  <span style={valuesComputedStyle}>{formatCurrency(hrIniNum * hrValorNum)}</span>
+                  <span style={{ fontSize: 10, color: C.placeholder }}>
+                    {contrato ? `${parseFloat(String(contrato.horas_remotas_saldo_atual ?? 0)) || 0}h restantes` : ''}
+                  </span>
+                </div>
                 {isEditing ? (
-                  <input type="number" min="0" step="0.01" value={hrValor} onChange={(e) => setHrValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{hrValorNum > 0 ? hrValor : '—'}</span>
-                )}
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>/h</span>
+                  <button type="button" onClick={() => removerLinha('horaRemoto')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
+                ) : <span />}
               </div>
-              <div style={valuesInlineFieldStyle}>
-                {isEditing ? (
-                  <input type="number" min="0" step="0.5" value={hrIni} onChange={(e) => setHrIni(e.target.value)} placeholder="0" style={valuesInlineInputStyle} />
-                ) : (
-                  <span style={valuesInlineInputStyle}>{hrIni || '0'}</span>
-                )}
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder, whiteSpace: 'nowrap' }}>horas</span>
+            )}
+
+            {/* Linha de totais */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 16px', background: C.panelBg, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Total do contrato</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalAnual)}</span>
               </div>
-              <span style={valuesComputedStyle}>
-                {contrato ? `${parseFloat(String(contrato.horas_remotas_saldo_atual ?? 0)) || 0}h` : '—'}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Mensal</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(linhasVisiveis.mensalidade ? vMensalNum : 0)}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Faturando</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: C.primaryDark, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalFaturando)}</span>
+              </div>
             </div>
           </div>
+
+          {isEditing && (!linhasVisiveis.mensalidade || !linhasVisiveis.implantacao || !linhasVisiveis.horaPresencial || !linhasVisiveis.horaRemoto) && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {!linhasVisiveis.mensalidade && (
+                <button type="button" onClick={() => adicionarLinha('mensalidade')} style={valuesAddRowButtonStyle}><Plus size={12} /> Mensalidade</button>
+              )}
+              {!linhasVisiveis.implantacao && (
+                <button type="button" onClick={() => adicionarLinha('implantacao')} style={valuesAddRowButtonStyle}><Plus size={12} /> Implantação</button>
+              )}
+              {!linhasVisiveis.horaPresencial && (
+                <button type="button" onClick={() => adicionarLinha('horaPresencial')} style={valuesAddRowButtonStyle}><Plus size={12} /> Hora presencial</button>
+              )}
+              {!linhasVisiveis.horaRemoto && (
+                <button type="button" onClick={() => adicionarLinha('horaRemoto')} style={valuesAddRowButtonStyle}><Plus size={12} /> Hora remoto</button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Botão Serviços ── */}
@@ -1092,25 +1095,10 @@ function ContratoModal({
           </div>
         )}
 
-        {/* ── Footer ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Mensal</span>
-              <span style={{ fontSize: 16, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>{formatCurrency(vMensalNum)}</span>
-            </div>
-            <span style={{ width: 1, height: 26, background: C.border }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Total do contrato</span>
-              <span style={{ fontSize: 16, fontWeight: 800, color: C.text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>{formatCurrency(totalAnual)}</span>
-            </div>
-            <span style={{ width: 1, height: 26, background: C.border }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.placeholder }}>Faturando</span>
-              <span style={{ fontSize: 16, fontWeight: 800, color: C.primaryDark, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>{formatCurrency(totalFaturando)}</span>
-            </div>
-          </div>
+      </div>
 
+        {/* ── Footer ── */}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {onEncerrar && (
               <div style={{ position: 'relative' }}>
@@ -1177,7 +1165,7 @@ function AditivoModal({
   onSave: (data: AditivoContratoValues) => void;
 }) {
   const [form, setForm] = useState({
-    novo_numero: '', nova_data_assinatura: '', novo_vencimento: '',
+    novo_numero: '', novo_vencimento: '',
     nova_data_inicio_faturamento: '', observacoes: '',
   });
 
@@ -1185,7 +1173,6 @@ function AditivoModal({
     if (!open) return;
     setForm({
       novo_numero: contrato?.numero ?? '',
-      nova_data_assinatura: '',
       novo_vencimento: '',
       nova_data_inicio_faturamento: '',
       observacoes: contrato?.observacoes ?? '',
@@ -1198,7 +1185,6 @@ function AditivoModal({
     e.preventDefault();
     onSave({
       novo_numero: form.novo_numero || null,
-      nova_data_assinatura: form.nova_data_assinatura || null,
       novo_vencimento: form.novo_vencimento,
       novo_num_aditivo: (contrato?.num_aditivo ?? 0) + 1,
       nova_data_aditivo: null,
@@ -1215,14 +1201,10 @@ function AditivoModal({
           <p style={{ margin: '0 26px 14px', fontSize: 12.5, color: C.textMuted }}>
             Encerra o contrato atual e cria um novo, copiando valores, horas e serviços vinculados.
           </p>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo número</label>
               <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={labelStyle}>Nova assinatura</label>
-              <input type="date" value={form.nova_data_assinatura} onChange={(e) => set('nova_data_assinatura', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo vencimento <span style={{ color: C.danger }}>*</span></label>
