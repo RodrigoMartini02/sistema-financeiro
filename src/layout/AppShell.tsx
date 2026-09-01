@@ -2,18 +2,16 @@ import { type ReactNode, useState, useEffect } from 'react';
 import {
   Activity, BarChart3, Bell, Bot, Briefcase, Building2, ChevronDown,
   CreditCard, FileText, LayoutDashboard, Layers,
-  LogOut, Moon, Settings, Sun, Tag, TrendingDown, User,
+  Moon, Settings, Sun, Tag, TrendingDown, User,
   UserCheck, Users, Wallet, X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
-import { logout } from '../services/session';
 import { apiRequest, getActiveProfileId } from '../services/apiClient';
-import { fetchPerfis } from '../services/configService';
-import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
-import { Z_DROPDOWN, Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
+import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
+import { AccountProfileMenu } from './AccountProfileMenu';
 
 export type AppSection =
   | 'painel' | 'movimentacoes' | 'reservas'
@@ -73,72 +71,6 @@ const CONFIG_SUBS: { id: ConfigTab; label: string; icon: React.ElementType }[] =
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
-
-function PerfilSwitcher() {
-  const [open, setOpen] = useState(false);
-  const perfis = useQuery({ queryKey: queryKeys.perfis, queryFn: fetchPerfis });
-  const data = perfis.data ?? [];
-  const activeId = localStorage.getItem('perfilAtivoId');
-  const activePerfil = data.find((p) => String(p.id) === activeId) ?? data[0];
-
-  useEffect(() => {
-    if (!activePerfil) return;
-
-    if (String(activePerfil.id) !== activeId) {
-      localStorage.setItem('perfilAtivoId', String(activePerfil.id));
-      localStorage.setItem('perfilAtivoNome', activePerfil.nome);
-      localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
-      window.location.reload();
-      return;
-    }
-
-    if (localStorage.getItem('perfilAtivoTipo') !== activePerfil.tipo) {
-      localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
-    }
-  }, [activeId, activePerfil]);
-
-  if (data.length <= 1) return null;
-  const select = (id: number, nome: string, tipo: string) => {
-    localStorage.setItem('perfilAtivoId', String(id));
-    localStorage.setItem('perfilAtivoNome', nome);
-    localStorage.setItem('perfilAtivoTipo', tipo);
-    setOpen(false);
-    window.location.reload();
-  };
-  return (
-    <div className="relative px-3 pb-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg border border-[rgba(14,196,216,0.22)] bg-[rgba(14,196,216,0.07)] px-3 py-2 text-xs font-semibold text-[rgba(14,196,216,0.85)] hover:bg-[rgba(14,196,216,0.12)] transition"
-      >
-        <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[rgba(14,196,216,0.14)] text-[#0EC4D8]">
-          <User size={11} />
-        </div>
-        <span className="flex-1 truncate text-left">{activePerfil?.nome ?? 'Perfil'}</span>
-        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className={['absolute left-3 right-3 top-full mt-1 rounded-xl border border-[rgba(14,196,216,0.22)] bg-[#0A2530] shadow-xl overflow-hidden', Z_DROPDOWN].join(' ')}>
-          {data.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => select(p.id, p.nome, p.tipo)}
-              className={[
-                'flex w-full items-center gap-2 px-3 py-2.5 text-xs transition',
-                String(p.id) === activeId
-                  ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                  : 'text-[rgba(14,196,216,0.65)] hover:bg-[rgba(14,196,216,0.06)]',
-              ].join(' ')}
-            >
-              <span className="flex-1 text-left font-medium">{p.nome}</span>
-              <span className="rounded-full bg-[rgba(14,196,216,0.08)] px-1.5 py-0.5 text-[10px] uppercase text-[rgba(14,196,216,0.5)]">{p.tipo}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function NotificationPanel({ onClose }: { onClose: () => void }) {
   const now = new Date();
@@ -250,12 +182,6 @@ export function AppShell({
     if (activeSection === 'configuracoes') setConfigOpen(true);
   }, [activeSection]);
 
-  const handleLogout = () => {
-    if (isDemoMode) return;
-    logout();
-    window.location.replace('/index.html');
-  };
-  const userInitial = (user?.nome ?? user?.name ?? 'U')[0].toUpperCase();
   const userDocument = (user?.documento ?? user?.document ?? '').replace(/\D/g, '');
   const canViewAnalytics = userDocument === ANALYTICS_ALLOWED_DOCUMENT;
   const isMaster = (user?.tipo ?? user?.type) === 'master';
@@ -278,13 +204,6 @@ export function AppShell({
           </div>
         </div>
       </div>
-
-      {/* Perfil switcher */}
-      {!isDemoMode && (
-        <div className="pt-3">
-          <PerfilSwitcher />
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
@@ -404,24 +323,9 @@ export function AppShell({
         )}
       </nav>
 
-      {/* User footer */}
-      <div className="border-t border-[rgba(14,196,216,0.18)] p-4 space-y-2">
-        <div className="flex items-center gap-3 rounded-xl bg-[rgba(14,196,216,0.07)] px-3 py-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-xs font-bold text-[#040E12] shadow-sm">
-            {userInitial}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-sm font-semibold text-[#E8F4F5]">{user?.nome ?? user?.name ?? 'Usuário'}</p>
-            <p className="truncate text-xs text-[rgba(14,196,216,0.45)]">{user?.email ?? 'Sessão ativa'}</p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[rgba(14,196,216,0.5)] hover:bg-red-900/20 hover:text-red-400 transition"
-        >
-          <LogOut size={15} />
-          Sair da conta
-        </button>
+      {/* App version */}
+      <div className="border-t border-[rgba(14,196,216,0.12)] px-4 py-3">
+        <p className="text-[10.5px] text-[rgba(14,196,216,0.3)]">FINGERENCE</p>
       </div>
     </div>
   );
@@ -444,7 +348,7 @@ export function AppShell({
 
       <div className={isDemoMode ? 'h-full overflow-y-auto lg:pl-64' : 'lg:pl-64'}>
         <header className="sticky top-0 z-30 border-b border-[rgba(14,196,216,0.18)] bg-[#0D2E3C]/95 backdrop-blur">
-          <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+          <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
             <button
               className="lg:hidden flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] transition"
               onClick={() => setMobileOpen(true)}
@@ -490,15 +394,15 @@ export function AppShell({
               </div>
             )}
 
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-xs font-bold text-[#040E12] shadow-sm lg:hidden">
-              {userInitial}
-            </div>
+            <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />
+
+            <AccountProfileMenu user={user} isDemoMode={isDemoMode} />
           </div>
         </header>
 
         <main
           className={fillViewport
-            ? ['flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8', isDemoMode ? 'h-[calc(100%-56px)]' : 'h-[calc(100vh-56px)]'].join(' ')
+            ? ['flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8', isDemoMode ? 'h-[calc(100%-64px)]' : 'h-[calc(100vh-64px)]'].join(' ')
             : 'px-4 py-6 sm:px-6 lg:px-8'}
         >
           {children}
