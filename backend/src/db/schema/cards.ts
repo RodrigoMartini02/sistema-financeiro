@@ -25,6 +25,7 @@ export const cards = pgTable(
     dueDay: integer('dia_vencimento').notNull(),
     color: varchar('cor', { length: 7 }).default('#3498db'),
     active: boolean('ativo').default(true),
+    type: varchar('tipo', { length: 10 }),
     cardNumber: integer('numero_cartao'),
     brand: varchar('bandeira', { length: 20 }),
     lastDigits: varchar('ultimos_digitos', { length: 4 }),

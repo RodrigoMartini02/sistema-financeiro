@@ -6,6 +6,7 @@ import { authenticate } from '../middleware/auth';
 
 const router = Router();
 const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
+const TIPOS_VALIDOS = ['credito', 'debito', 'ambos'];
 
 // GET /api/cards
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
@@ -23,7 +24,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 
     const result = await pool.query(
       `SELECT c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento, c.cor, c.ativo,
-              c.numero_cartao, c.validade, c.perfil_id, c.data_criacao, c.data_atualizacao
+              c.numero_cartao, c.validade, c.perfil_id, c.tipo, c.data_criacao, c.data_atualizacao
        FROM cartoes c
        ${whereClause}
        ORDER BY c.numero_cartao ASC NULLS LAST, c.id ASC`,
@@ -64,7 +65,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // POST /api/cards
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, limite, dia_fechamento, dia_vencimento, cor, validade, perfil_id } =
+    const { nome, limite, dia_fechamento, dia_vencimento, cor, validade, perfil_id, tipo } =
       req.body as Record<string, string | number | undefined>;
 
     if (!nome || String(nome).trim() === '') {
@@ -85,6 +86,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
     if (validade && !VALIDADE_REGEX.test(String(validade))) {
       res.status(400).json({ success: false, message: 'Validade must be in MM/AA format' });
+      return;
+    }
+    if (tipo && !TIPOS_VALIDOS.includes(String(tipo))) {
+      res.status(400).json({ success: false, message: 'Tipo must be one of: credito, debito, ambos' });
       return;
     }
 
@@ -115,11 +120,11 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const nextNum = (nextNumResult.rows[0] as { next: number }).next;
 
     const result = await pool.query(
-      `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, tipo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (usuario_id, LOWER(nome), COALESCE(perfil_id, 0)) DO NOTHING
-       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, data_criacao, data_atualizacao`,
-      [req.user!.id, String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', true, nextNum, validade ?? null, profileId],
+       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, tipo, data_criacao, data_atualizacao`,
+      [req.user!.id, String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', true, nextNum, validade ?? null, profileId, tipo ?? null],
     );
 
     res.status(201).json({ success: true, message: 'Card created', data: result.rows[0] });
@@ -133,7 +138,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const cardId = parseInt(req.params['id']!);
-    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id } =
+    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, tipo } =
       req.body as Record<string, string | number | boolean | undefined>;
 
     if (isNaN(cardId)) {
@@ -150,6 +155,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
     if (validade && !VALIDADE_REGEX.test(String(validade))) {
       res.status(400).json({ success: false, message: 'Validade must be in MM/AA format' });
+      return;
+    }
+    if (tipo && !TIPOS_VALIDOS.includes(String(tipo))) {
+      res.status(400).json({ success: false, message: 'Tipo must be one of: credito, debito, ambos' });
       return;
     }
 
@@ -173,10 +182,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const result = await pool.query(
       `UPDATE cartoes
        SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5,
-           ativo = $6, validade = $7, perfil_id = $8, data_atualizacao = CURRENT_TIMESTAMP
-       WHERE id = $9 AND usuario_id = $10
-       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, data_criacao, data_atualizacao`,
-      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, perfil_id ? parseInt(String(perfil_id)) : null, cardId, req.user!.id],
+           ativo = $6, validade = $7, perfil_id = $8, tipo = $9, data_atualizacao = CURRENT_TIMESTAMP
+       WHERE id = $10 AND usuario_id = $11
+       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, tipo, data_criacao, data_atualizacao`,
+      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, perfil_id ? parseInt(String(perfil_id)) : null, tipo ?? null, cardId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Card updated', data: result.rows[0] });

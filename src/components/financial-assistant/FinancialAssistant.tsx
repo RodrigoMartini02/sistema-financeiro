@@ -300,7 +300,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const conversationsQuery = useQuery({
     queryKey: queryKeys.copilotConversations,
     queryFn: fetchFinancialCopilotConversations,
-    enabled: open,
     staleTime: 30_000,
   });
   const categories = (categoriesQuery.data ?? []).filter((category) => category.ativo);
@@ -340,6 +339,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setIntentHint(nextIntent);
     setLastVoiceTranscript(null);
     setError(null);
+    setMessages((current) => [...current, {
+      id: newMessageId(),
+      role: 'user',
+      content: INTENT_DETAILS[nextIntent].label,
+      createdAt: new Date().toISOString(),
+    }]);
     window.setTimeout(() => composerRef.current?.focus(), 0);
   };
 
@@ -931,23 +936,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
             <footer className="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               {error && <p className="mb-2 text-xs font-medium text-red-600 dark:text-red-300">{error}</p>}
-              {activeIntent && (
-                <div className="mb-2 flex items-center gap-2 border-l-2 border-[#0891b2] bg-cyan-50 px-2.5 py-2 dark:bg-cyan-950/30">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-cyan-900 dark:text-cyan-100">{activeIntent.label}</p>
-                    <p className="truncate text-[11px] text-cyan-800/75 dark:text-cyan-200/75">{activeIntent.description}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIntentHint(null)}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center text-cyan-800 transition hover:bg-cyan-100 dark:text-cyan-200 dark:hover:bg-cyan-900/50"
-                    aria-label="Remover contexto da mensagem"
-                    title="Remover contexto"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              )}
               {lastVoiceTranscript && (
                 <p className="mb-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                   <Mic size={13} className="mt-0.5 shrink-0 text-[#0891b2]" />

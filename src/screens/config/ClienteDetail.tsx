@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Plus, RefreshCw, X,
-  AlertTriangle, ChevronRight, Paperclip, Info, Users, Clock as ClockIcon,
+  AlertTriangle, Paperclip, Info, Users, Clock as ClockIcon,
 } from 'lucide-react';
 import {
   fetchContratos, saveContrato, encerrarContrato, gerarPrevistas, criarReceitaImplantacao, registrarAditivo,
@@ -149,19 +149,19 @@ function ContratoForm({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Número</label>
-          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
+          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Descrição</label>
-          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 42, fontSize: 14 }} />
+          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Vencimento <span style={{ color: C.danger }}>*</span></label>
-          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Início fatur.</label>
-          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
         </div>
       </div>
 
@@ -173,7 +173,7 @@ function ContratoForm({
             <select
               value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
               onChange={(e) => set('ajuste', e.target.value)}
-              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
             >
               <option value="NADA CONSTA">Nada consta</option>
               <option value="IGPM">IGPM</option>
@@ -196,7 +196,7 @@ function ContratoForm({
             <select
               value={form.representante_id}
               onChange={(e) => set('representante_id', e.target.value)}
-              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
             >
               <option value="">Nenhum</option>
               {representantes.map((r) => (
@@ -449,9 +449,10 @@ function ContratoAnexos({ contratoId }: { contratoId: number }) {
 
 // ─── Contrato Row ─────────────────────────────────────────────────────────────
 
-function ContratoRow({ contrato, index, onClick }: {
+function ContratoRow({ contrato, index, active, onClick }: {
   contrato: Contrato;
   index: number;
+  active: boolean;
   onClick: () => void;
 }) {
   const isAtivo = contrato.status === 'ativo';
@@ -460,82 +461,70 @@ function ContratoRow({ contrato, index, onClick }: {
       type="button"
       onClick={onClick}
       className={[
-        'group flex w-full items-center gap-4 rounded-xl border px-5 py-4 text-left shadow-sm transition hover:shadow-md',
-        isAtivo
-          ? 'border-brand-300 bg-brand-50/40 hover:border-brand-400'
-          : 'border-slate-200 bg-white opacity-60 hover:opacity-100 hover:border-slate-300',
+        'group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition',
+        active
+          ? 'border-brand-400 bg-brand-50 shadow-sm'
+          : isAtivo
+            ? 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/30'
+            : 'border-slate-200 bg-white opacity-60 hover:opacity-100 hover:border-slate-300',
       ].join(' ')}
     >
       <span className={[
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-semibold transition',
-        isAtivo ? 'bg-brand-100 text-brand-700 group-hover:bg-brand-200' : 'bg-slate-100 text-slate-500',
+        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-semibold transition',
+        active || isAtivo ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500',
       ].join(' ')}>
         {String(index + 1).padStart(2, '0')}
       </span>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-semibold text-slate-900 truncate">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-[13px] font-semibold text-slate-900">
             {contrato.numero ? `Contrato ${contrato.numero}` : 'Sem número'}
           </p>
-          <span className={[
-            'rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0',
-            isAtivo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500',
-          ].join(' ')}>
-            {isAtivo ? 'Em vigor' : 'Encerrado'}
-          </span>
           {contrato.num_aditivo > 0 && (
-            <span className="text-[10px] text-slate-400 shrink-0">{contrato.num_aditivo}º Aditivo</span>
+            <span className="shrink-0 text-[10px] text-slate-400">{contrato.num_aditivo}º Adit.</span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
-          {contrato.vencimento && <span>Vence: {contrato.vencimento}</span>}
-          {contrato.representante_nome && <span>· {contrato.representante_nome}</span>}
-        </div>
+        <span className={[
+          'text-[11px] font-medium',
+          isAtivo ? 'text-green-600' : 'text-slate-400',
+        ].join(' ')}>
+          {isAtivo ? 'Em vigor' : 'Encerrado'}
+        </span>
       </div>
-
-      <ChevronRight
-        size={15}
-        className={[
-          'shrink-0 text-slate-300 transition group-hover:translate-x-0.5',
-          isAtivo ? 'group-hover:text-brand-400' : 'group-hover:text-slate-400',
-        ].join(' ')}
-      />
     </button>
   );
 }
 
-// ─── Contrato Modal ───────────────────────────────────────────────────────────
+// ─── Contrato Detail Pane (coluna direita do master-detail) ──────────────────
 
-function ContratoModal({
-  open, contrato, clienteId, representantes, isSaving, onSave, onClose, onEncerrar, onRegistrarAditivo,
+function ContratoDetailPane({
+  contrato, clienteId, representantes, isSaving, onSave, onEncerrar, onRegistrarAditivo,
 }: {
-  open: boolean;
   contrato?: Contrato;
   clienteId: number;
   representantes: Representante[];
   isSaving: boolean;
   onSave: (data: Parameters<typeof saveContrato>[0], pendingServicos?: Map<number, number>) => void;
-  onClose: () => void;
   onEncerrar?: () => void;
   onRegistrarAditivo?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(!contrato);
-  const [showServicos, setShowServicos] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dados' | 'servicos' | 'anexos'>('dados');
   const servicosVinculoGuide = useFirstAccessGuide('clientes:servicos-vinculo-v1', {
-    enabled: open && showServicos && !!contrato,
+    enabled: activeTab === 'servicos' && !!contrato,
     layer: GUIDE_LAYER_MODAL,
   });
   const implantacaoGuide = useFirstAccessGuide('clientes:implantacao-v1', {
-    enabled: open && isEditing,
+    enabled: isEditing,
     layer: GUIDE_LAYER_MODAL,
   });
   const horasGuide = useFirstAccessGuide('clientes:horas-v1', {
-    enabled: open,
+    enabled: true,
     layer: GUIDE_LAYER_MODAL,
   });
   const encerrarGuide = useFirstAccessGuide('clientes:encerrar-contrato-v1', {
-    enabled: open && !!onEncerrar,
+    enabled: !!onEncerrar,
     layer: GUIDE_LAYER_MODAL,
   });
   const [pendingServicos, setPendingServicos] = useState<Map<number, number>>(new Map());
@@ -596,11 +585,10 @@ function ContratoModal({
   });
 
   useEffect(() => {
-    if (open) {
-      setIsEditing(!contrato);
-      setPendingServicos(new Map());
-    }
-  }, [open, contrato?.id]);
+    setIsEditing(!contrato);
+    setPendingServicos(new Map());
+    setActiveTab('dados');
+  }, [contrato?.id]);
 
   useEffect(() => {
     setValMensal(fv(contrato?.valor_mensal));
@@ -654,13 +642,12 @@ function ContratoModal({
   const catalogoQ = useQuery({
     queryKey: queryKeys.servicos,
     queryFn: () => fetchServicos(true),
-    enabled: open,
   });
 
   const servicosContratoQ = useQuery({
     queryKey: queryKeys.contratosServicos(contrato?.id ?? 0),
     queryFn: () => fetchContratosServicos(contrato!.id),
-    enabled: open && !!contrato,
+    enabled: !!contrato,
   });
 
   const vincularMut = useMutation({
@@ -701,18 +688,53 @@ function ContratoModal({
     .filter((s) => s.faturando)
     .reduce((acc, s) => acc + parseFloat(String(s.valor_mensal ?? 0)), 0);
 
-  return (
-    <Dialog
-      open={open}
-      title={contrato ? `Contrato ${contrato.numero || '—'}` : 'Novo contrato'}
-      description={onEncerrar ? 'Em vigor' : undefined}
-      onClose={onClose}
-      size="xxl"
-      scrollBody={false}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <div className="scrollbar-thin overflow-y-auto" style={{ display: 'flex', flexDirection: 'column', gap: 22, flex: 1, minHeight: 0 }}>
+  const tabs: { id: 'dados' | 'servicos' | 'anexos'; label: string; count?: number }[] = [
+    { id: 'dados', label: 'Dados' },
+    { id: 'servicos', label: 'Serviços', count: servicosContrato.length > 0 ? servicosContrato.length : undefined },
+    { id: 'anexos', label: 'Anexos' },
+  ];
 
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, borderRadius: 14, border: `1px solid ${C.border}`, background: '#fff' }}>
+      <div style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '16px 20px', borderBottom: `1px solid ${C.border}` }}>
+        <div>
+          <p style={{ fontSize: 15.5, fontWeight: 700, color: C.text }}>
+            {contrato ? `Contrato ${contrato.numero || '—'}` : 'Novo contrato'}
+          </p>
+          {onEncerrar && <p style={{ fontSize: 12, color: C.textMuted }}>Em vigor</p>}
+        </div>
+      </div>
+
+      <div className="scrollbar-thin" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+        {/* ── Abas ── */}
+        <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${C.border}` }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, height: 38, padding: '0 4px', marginBottom: -1,
+                border: 'none', borderBottom: `2px solid ${activeTab === tab.id ? C.primary : 'transparent'}`,
+                background: 'transparent', cursor: 'pointer',
+                fontSize: 13.5, fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id ? C.primaryDark : C.textMuted,
+              }}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: 18, padding: '0 6px', borderRadius: 999, background: C.primarySoft, color: C.primaryDark, fontSize: 10, fontWeight: 700 }}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'dados' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* ── Dados do contrato ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -924,33 +946,11 @@ function ContratoModal({
             </div>
           )}
         </div>
-
-        {/* ── Botão Serviços ── */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            type="button"
-            onClick={() => setShowServicos(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, height: 46, padding: '0 14px', borderRadius: 12, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: C.text }}
-          >
-            <span>Discriminação de prestação de serviço</span>
-            {servicosContrato.length > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px', borderRadius: 999, background: C.primarySoft, color: C.primaryDark, fontSize: 11, fontWeight: 700 }}>
-                {servicosContrato.length}
-              </span>
-            )}
-            <ChevronRight size={14} style={{ color: C.placeholder }} />
-          </button>
         </div>
+        )}
 
-        {/* ── Sub-modal Serviços ── */}
-        <Dialog
-          open={showServicos}
-          title="Discriminação de prestação de serviço"
-          onClose={() => setShowServicos(false)}
-          size="xl"
-          scrollBody={false}
-        >
-          <div className="flex flex-col flex-1 min-h-0 gap-3">
+        {activeTab === 'servicos' && (
+          <div className="flex flex-col gap-3">
             {catalogoQ.isLoading ? (
               <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: C.placeholder }}>Carregando serviços...</p>
             ) : catalogo.length === 0 ? (
@@ -1069,87 +1069,74 @@ function ContratoModal({
                 </div>
               </>
             )}
-          </div>
-          {catalogo.length > 0 && (
-            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 0 0', marginTop: 8, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            {catalogo.length > 0 && (
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0 0', marginTop: 8, borderTop: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.placeholder }}>Faturando</span>
                 <span style={{ fontSize: 17, fontWeight: 800, color: C.primaryDark, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalFaturando)}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowServicos(false)}
-                style={{ height: 38, padding: '0 18px', borderRadius: 11, border: 'none', background: C.primary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-              >
-                Concluir
-              </button>
-            </div>
-          )}
-        </Dialog>
-
-        {/* ── Anexos ── */}
-        {contrato && (
-          <div>
-            <div style={{ margin: '0 -4px 14px', borderTop: `1px solid ${C.border}` }} />
-            <ContratoAnexos contratoId={contrato.id} />
+            )}
           </div>
         )}
 
+        {activeTab === 'anexos' && (
+          contrato
+            ? <ContratoAnexos contratoId={contrato.id} />
+            : <p style={{ fontSize: 13, color: C.placeholder, padding: '24px 0', textAlign: 'center' }}>Salve o contrato para anexar arquivos.</p>
+        )}
+
+      </div>
       </div>
 
-        {/* ── Footer ── */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {onEncerrar && (
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={onEncerrar}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 11, border: 'none', background: 'transparent', color: C.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <AlertTriangle size={13} /> Encerrar
-                </button>
-                {encerrarGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
-                    icon={AlertTriangle}
-                    description={firstAccessGuideMessages.clientesEncerrarContrato}
-                    onDismiss={encerrarGuide.dismiss}
-                  />
-                )}
-              </div>
-            )}
-            {onRegistrarAditivo && (
+      <div style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 24, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, padding: '14px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {onEncerrar && (
+            <div style={{ position: 'relative' }}>
               <button
                 type="button"
-                onClick={onRegistrarAditivo}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 11, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                onClick={onEncerrar}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 11, border: 'none', background: 'transparent', color: C.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
-                <RefreshCw size={13} /> Registrar aditivo
+                <AlertTriangle size={13} /> Encerrar
               </button>
-            )}
-            {!isEditing && contrato ? (
-              <Button onClick={() => setIsEditing(true)}>Editar</Button>
-            ) : (
-              <>
-                {contrato && (
-                  <Button variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
-                )}
-                <Button
-                  disabled={isSaving}
-                  onClick={() => (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit()}
-                >
-                  {isSaving ? 'Salvando...' : contrato ? 'Salvar alterações' : 'Criar contrato'}
-                </Button>
-              </>
-            )}
-          </div>
+              {encerrarGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="top"
+                  className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  icon={AlertTriangle}
+                  description={firstAccessGuideMessages.clientesEncerrarContrato}
+                  onDismiss={encerrarGuide.dismiss}
+                />
+              )}
+            </div>
+          )}
+          {onRegistrarAditivo && (
+            <button
+              type="button"
+              onClick={onRegistrarAditivo}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 11, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              <RefreshCw size={13} /> Registrar aditivo
+            </button>
+          )}
+          {!isEditing && contrato ? (
+            <Button onClick={() => setIsEditing(true)}>Editar</Button>
+          ) : (
+            <>
+              {contrato && (
+                <Button variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
+              )}
+              <Button
+                disabled={isSaving}
+                onClick={() => (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit()}
+              >
+                {isSaving ? 'Salvando...' : contrato ? 'Salvar alterações' : 'Criar contrato'}
+              </Button>
+            </>
+          )}
         </div>
-
       </div>
-    </Dialog>
+    </div>
   );
 }
 
@@ -1204,15 +1191,15 @@ function AditivoModal({
           <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo número</label>
-              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
+              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo vencimento <span style={{ color: C.danger }}>*</span></label>
-              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo início fatur.</label>
-              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
             </div>
           </div>
           <div style={cardStyle}>
@@ -1261,7 +1248,9 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [contratoModal, setContratoModal] = useState<{ open: boolean; contrato?: Contrato }>({ open: false });
+  // undefined = nenhum contrato ainda selecionado (padrão: cai no ativo mais recente);
+  // 'new' = formulário de novo contrato; number = id de um contrato existente selecionado.
+  const [selectedId, setSelectedId] = useState<number | 'new' | undefined>(undefined);
   const gerarPrevistasGuide = useFirstAccessGuide('clientes:gerar-previstas-v1');
 
   const contratosQ = useQuery({
@@ -1274,12 +1263,14 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
     queryFn: fetchRepresentantes,
   });
 
-  const contratos      = contratosQ.data ?? [];
-  const contrato       = contratos.find((c) => c.status === 'ativo') ?? contratos[0];
-  // Deriva o contrato do modal da query viva para que saves parciais (patchValoresMut) reflitam imediatamente
-  const contratoParaModal = contratoModal.contrato
-    ? (contratos.find((c) => c.id === contratoModal.contrato!.id) ?? contratoModal.contrato)
-    : undefined;
+  const contratos = contratosQ.data ?? [];
+  const contratoAtivo = contratos.find((c) => c.status === 'ativo') ?? contratos[0];
+  const selectedContrato = selectedId === 'new'
+    ? undefined
+    : selectedId !== undefined
+      ? contratos.find((c) => c.id === selectedId)
+      : contratoAtivo;
+  const isNewForm = selectedId === 'new' || (selectedId === undefined && !contratoAtivo);
   const representantes = (representantesQ.data ?? []).filter((r) => r.ativo);
 
   const saveContratoMut = useMutation({
@@ -1287,8 +1278,8 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
       data: Parameters<typeof saveContrato>[0];
       pendingServicos?: Map<number, number>;
     }) => {
-      const saved = await saveContrato(data, contratoModal.contrato?.id);
-      if (!contratoModal.contrato && pendingServicos?.size) {
+      const saved = await saveContrato(data, selectedContrato?.id);
+      if (!selectedContrato && pendingServicos?.size) {
         await Promise.all(
           Array.from(pendingServicos.entries()).map(([servicoId, valorMensal]) =>
             vincularServico(saved.id, servicoId, valorMensal),
@@ -1304,11 +1295,11 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
       if (saved.data_inicio_faturamento) {
         gerarMut.mutate(saved.id);
       }
-      if (!contratoModal.contrato && (saved.implantacao_valor_parcela ?? 0) > 0) {
+      if (!selectedContrato && (saved.implantacao_valor_parcela ?? 0) > 0) {
         // Receita de implantação só faz sentido na criação do contrato.
         void criarReceitaImplantacao(saved.id);
       }
-      setContratoModal({ open: false });
+      setSelectedId(saved.id);
     },
   });
 
@@ -1316,7 +1307,6 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
     mutationFn: (id: number) => encerrarContrato(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
-      setContratoModal({ open: false });
     },
   });
 
@@ -1333,10 +1323,10 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 
   const aditivoMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: AditivoContratoValues }) => registrarAditivo(id, data),
-    onSuccess: () => {
+    onSuccess: (novoContrato) => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratos(cliente.id) });
       setAditivoModal({ open: false });
-      setContratoModal({ open: false });
+      setSelectedId(novoContrato.id);
     },
   });
 
@@ -1345,10 +1335,10 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
   });
 
   return (
-    <div className="grid gap-4">
+    <div className="flex h-full flex-col gap-4">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <button
           onClick={onBack}
           className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
@@ -1363,13 +1353,13 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
           {onEditCliente && (
             <Button variant="secondary" onClick={onEditCliente}>Editar cliente</Button>
           )}
-          {contrato && (
+          {contratoAtivo && (
             <div className="relative">
               <div className="flex flex-col items-end gap-0.5">
                 <Button
                   variant="secondary"
                   icon={<RefreshCw size={14} />}
-                  onClick={() => gerarMut.mutate(contrato.id)}
+                  onClick={() => gerarMut.mutate(contratoAtivo.id)}
                   disabled={gerarMut.isPending}
                 >
                   {gerarMut.isPending ? 'Gerando...' : 'Gerar previstas'}
@@ -1396,64 +1386,67 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
         </div>
       </div>
 
-      {/* Lista de contratos */}
-      <div className="grid gap-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            {contratos.length > 0
-              ? `${contratos.length} contrato${contratos.length !== 1 ? 's' : ''}`
-              : 'Nenhum contrato'}
-          </p>
-          <Button icon={<Plus size={14} />} onClick={() => setContratoModal({ open: true })}>
-            Novo contrato
-          </Button>
+      {/* Master-detail: lista de contratos à esquerda, detalhe à direita */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+        <div className="flex shrink-0 flex-col gap-3 lg:w-[260px]">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">
+              {contratos.length > 0
+                ? `${contratos.length} contrato${contratos.length !== 1 ? 's' : ''}`
+                : 'Nenhum contrato'}
+            </p>
+            <Button icon={<Plus size={14} />} onClick={() => setSelectedId('new')}>
+              Novo
+            </Button>
+          </div>
+
+          {contratosQ.isLoading && (
+            <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>
+          )}
+
+          {!contratosQ.isLoading && contratos.length === 0 && !isNewForm && (
+            <EmptyState
+              title="Sem contratos"
+              description="Nenhum contrato cadastrado para este cliente."
+            />
+          )}
+
+          {contratos.length > 0 && (
+            <div className="scrollbar-thin grid gap-2 overflow-y-auto lg:max-h-full">
+              {contratos.map((c, i) => (
+                <ContratoRow
+                  key={c.id}
+                  contrato={c}
+                  index={i}
+                  active={!isNewForm && selectedContrato?.id === c.id}
+                  onClick={() => setSelectedId(c.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {contratosQ.isLoading && (
-          <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>
-        )}
-
-        {!contratosQ.isLoading && contratos.length === 0 && (
-          <EmptyState
-            title="Sem contratos"
-            description="Nenhum contrato cadastrado para este cliente."
+        <div className="min-h-0 flex-1">
+          <ContratoDetailPane
+            key={isNewForm ? 'new' : selectedContrato?.id}
+            contrato={selectedContrato}
+            clienteId={cliente.id}
+            representantes={representantes}
+            isSaving={saveContratoMut.isPending}
+            onSave={(data, pendingServicos) => saveContratoMut.mutate({ data, pendingServicos })}
+            onEncerrar={
+              selectedContrato?.status === 'ativo'
+                ? () => handleEncerrarContrato(selectedContrato.id)
+                : undefined
+            }
+            onRegistrarAditivo={
+              selectedContrato?.status === 'ativo'
+                ? () => setAditivoModal({ open: true, contrato: selectedContrato })
+                : undefined
+            }
           />
-        )}
-
-        {contratos.length > 0 && (
-          <div className="grid gap-2">
-            {contratos.map((c, i) => (
-              <ContratoRow
-                key={c.id}
-                contrato={c}
-                index={i}
-                onClick={() => setContratoModal({ open: true, contrato: c })}
-              />
-            ))}
-          </div>
-        )}
+        </div>
       </div>
-
-      {/* Modal */}
-      <ContratoModal
-        open={contratoModal.open}
-        contrato={contratoParaModal}
-        clienteId={cliente.id}
-        representantes={representantes}
-        isSaving={saveContratoMut.isPending}
-        onSave={(data, pendingServicos) => saveContratoMut.mutate({ data, pendingServicos })}
-        onClose={() => setContratoModal({ open: false })}
-        onEncerrar={
-          contratoModal.contrato?.status === 'ativo'
-            ? () => handleEncerrarContrato(contratoModal.contrato!.id)
-            : undefined
-        }
-        onRegistrarAditivo={
-          contratoModal.contrato?.status === 'ativo'
-            ? () => setAditivoModal({ open: true, contrato: contratoModal.contrato })
-            : undefined
-        }
-      />
 
       <AditivoModal
         open={aditivoModal.open}

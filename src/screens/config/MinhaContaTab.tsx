@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Save, CheckCircle2 } from 'lucide-react';
-import { fetchMe, updateMe } from '../../services/usuariosService';
+import { User, Save, CheckCircle2, Pencil, X } from 'lucide-react';
+import { fetchMe, updateMe, updateFoto } from '../../services/usuariosService';
 import { fetchPerfis, savePerfil } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
@@ -10,6 +10,7 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { Z_GUIDE } from '../../ui/zIndex';
+import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 
 const TYPE_BADGE: Record<string, string> = {
   master: 'bg-purple-100 text-purple-700',
@@ -38,13 +39,19 @@ export function MinhaContaTab() {
   const [cidade, setCidade] = useState('');
   const [nomeFantasia, setNomeFantasia] = useState('');
 
-  const [senhaAtual, setSenhaAtual] = useState('');
-  const [senhaNova, setSenhaNova] = useState('');
-  const [senhaConfirm, setSenhaConfirm] = useState('');
-
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const saveGuide = useFirstAccessGuide('conta:salvar-v1');
+
+  const fotoMut = useMutation({
+    mutationFn: updateFoto,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['usuario-me'] });
+      qc.invalidateQueries({ queryKey: queryKeys.session });
+      setAvatarDialogOpen(false);
+    },
+  });
 
   useEffect(() => {
     if (user) {
@@ -72,18 +79,8 @@ export function MinhaContaTab() {
     e.preventDefault();
     setFormError('');
 
-    const isChangingPassword = senhaAtual || senhaNova || senhaConfirm;
-    if (isChangingPassword) {
-      if (!senhaAtual) { setFormError('Informe a senha atual para trocar a senha'); return; }
-      if (senhaNova !== senhaConfirm) { setFormError('As senhas não coincidem'); return; }
-      if (senhaNova.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres'); return; }
-    }
-
     try {
-      await updateMut.mutateAsync({
-        nome, email, documento, pais, estado, cidade,
-        ...(isChangingPassword ? { senha_atual: senhaAtual, nova_senha: senhaNova } : {}),
-      });
+      await updateMut.mutateAsync({ nome, email, documento, pais, estado, cidade });
 
       if (perfilEmpresa) {
         await savePerfilMut.mutateAsync({
@@ -99,7 +96,6 @@ export function MinhaContaTab() {
       }
 
       qc.invalidateQueries({ queryKey: ['usuario-me'] });
-      setSenhaAtual(''); setSenhaNova(''); setSenhaConfirm('');
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -115,8 +111,22 @@ export function MinhaContaTab() {
       <form onSubmit={handleSubmit} className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {/* Info do usuário */}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 shrink-0">
-            <User size={26} className="text-brand-600" />
+          <div className="relative shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-brand-100">
+              {user.foto ? (
+                <img src={user.foto} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <User size={26} className="text-brand-600" />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAvatarDialogOpen(true)}
+              aria-label="Alterar foto de perfil"
+              className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-brand-600 text-white shadow-sm transition hover:bg-brand-700 dark:border-slate-800"
+            >
+              <Pencil size={11} />
+            </button>
           </div>
           <div className="flex-1 min-w-0">
             <p className="truncate text-base font-bold text-slate-900">{user.nome}</p>
@@ -128,6 +138,16 @@ export function MinhaContaTab() {
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_BADGE[user.status] ?? STATUS_BADGE.ativo}`}>
                 {user.status}
               </span>
+              {user.foto && (
+                <button
+                  type="button"
+                  onClick={() => fotoMut.mutate(null)}
+                  disabled={fotoMut.isPending}
+                  className="flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-red-500"
+                >
+                  <X size={11} /> Remover foto
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -160,22 +180,6 @@ export function MinhaContaTab() {
           </Field>
         </div>
 
-        <SectionDivider label="Alterar senha" />
-
-        <div className="grid gap-4">
-          <Field label="Senha atual" hint="Necessária apenas se for trocar a senha">
-            <Input type="password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} placeholder="••••••••" />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nova senha" hint="Mínimo 8 caracteres">
-              <Input type="password" value={senhaNova} onChange={(e) => setSenhaNova(e.target.value)} placeholder="••••••••" />
-            </Field>
-            <Field label="Confirmar senha">
-              <Input type="password" value={senhaConfirm} onChange={(e) => setSenhaConfirm(e.target.value)} placeholder="••••••••" />
-            </Field>
-          </div>
-        </div>
-
         {formError && (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
         )}
@@ -202,6 +206,13 @@ export function MinhaContaTab() {
           )}
         </div>
       </form>
+
+      <AvatarUploadDialog
+        open={avatarDialogOpen}
+        onClose={() => setAvatarDialogOpen(false)}
+        onConfirm={(dataUrl) => fotoMut.mutate(dataUrl)}
+        isSaving={fotoMut.isPending}
+      />
     </div>
   );
 }

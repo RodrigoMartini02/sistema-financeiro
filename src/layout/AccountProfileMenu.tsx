@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, LogOut } from 'lucide-react';
+import { Check, ChevronDown, LogOut, Settings } from 'lucide-react';
 import type { AuthUser } from '../types/auth';
 import type { Perfil } from '../types/config';
 import { logout } from '../services/session';
 import { useActiveProfile } from '../hooks/useActiveProfile';
 import { formatDocumento } from '../utils/document';
 import { Z_DROPDOWN } from '../ui/zIndex';
+import type { ConfigItemId } from './ConfigPanel';
 
 function getInitials(nome: string): string {
   const words = nome.trim().split(/\s+/).filter(Boolean);
@@ -17,9 +18,10 @@ function getInitials(nome: string): string {
 interface AccountProfileMenuProps {
   user?: AuthUser;
   isDemoMode?: boolean;
+  onOpenConfig?: (item?: ConfigItemId) => void;
 }
 
-export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileMenuProps) {
+export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: AccountProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -79,8 +81,14 @@ export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileM
     window.location.replace('/index.html');
   };
 
+  const handleOpenConfig = () => {
+    setOpen(false);
+    onOpenConfig?.();
+  };
+
   const menuItems: Array<{ onSelect: () => void }> = [
     ...(data.length > 1 ? data.map((p) => ({ onSelect: () => select(p) })) : []),
+    { onSelect: handleOpenConfig },
     { onSelect: handleLogout },
   ];
 
@@ -132,8 +140,12 @@ export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileM
               : 'border-transparent bg-transparent hover:bg-[rgba(14,196,216,0.12)]',
           ].join(' ')}
         >
-          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-            {activePerfil ? getInitials(activePerfil.nome) : userInitial}
+          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
+            {!activePerfil && user?.foto ? (
+              <img src={user.foto} alt="" className="h-full w-full object-cover" />
+            ) : (
+              activePerfil ? getInitials(activePerfil.nome) : userInitial
+            )}
           </div>
           <div className="hidden min-w-0 flex-col items-start max-[480px]:hidden sm:flex">
             <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">
@@ -211,14 +223,28 @@ export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileM
 
             <div className="border-t border-[rgba(14,196,216,0.12)] px-[14px] pb-[9px] pt-[11px]">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-                  {userInitial}
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
+                  {user?.foto ? <img src={user.foto} alt="" className="h-full w-full object-cover" /> : userInitial}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px] font-bold text-[#E8F4F5]">{userName}</p>
                   <p className="truncate text-[10.5px] text-[rgba(14,196,216,0.5)]">{user?.email ?? 'Sessão ativa'}</p>
                 </div>
               </div>
+            </div>
+
+            <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
+              <button
+                ref={(el) => { itemRefs.current[data.length > 1 ? data.length : 0] = el; }}
+                role="menuitem"
+                type="button"
+                onClick={handleOpenConfig}
+                onKeyDown={(e) => handleItemKeyDown(e, data.length > 1 ? data.length : 0)}
+                className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
+              >
+                <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
+                <span className="flex-1 text-left">Configurações</span>
+              </button>
             </div>
 
             <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">

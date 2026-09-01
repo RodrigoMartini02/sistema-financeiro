@@ -16,20 +16,21 @@ import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReservasScreen } from './screens/reservas/ReservasScreen';
 import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
-import { ConfigScreen } from './screens/config/ConfigScreen';
+import { ClientesTab } from './screens/config/ClientesTab';
 import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { UpdatePwaBanner } from './components/UpdatePwaBanner';
-import type { AppSection, ConfigTab } from './layout/AppShell';
+import type { AppSection } from './layout/AppShell';
+import type { ConfigItemId } from './layout/ConfigPanel';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/ExpenseDialog';
 import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import { apiRequest } from './services/apiClient';
 import { trackPageView } from './services/analyticsService';
-import { useOnboardingChecklist } from './hooks/useOnboardingChecklist';
+import { useOnboardingChecklist, type OnboardingTarget } from './hooks/useOnboardingChecklist';
 import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
 import { queryKeys } from './services/queryKeys';
 
@@ -104,7 +105,7 @@ function AppContent() {
   const isAppRoute = window.location.pathname.endsWith('/app.html') || window.location.pathname.includes('app.html');
   const session = useAuthSession({ enabled: isAppRoute });
   const [section, setSection] = useState<AppSection>('movimentacoes');
-  const [configTab, setConfigTab] = useState<ConfigTab>('conta');
+  const [openConfigRequest, setOpenConfigRequest] = useState<{ token: number; item: ConfigItemId } | undefined>();
   const now = new Date();
   const month = now.getMonth();
   const year = now.getFullYear();
@@ -150,9 +151,12 @@ function AppContent() {
     setSection(sec);
   };
 
-  const handleConfigTab = (tab: ConfigTab) => {
-    setSection('configuracoes');
-    setConfigTab(tab);
+  const handleOnboardingGoTo = (target: OnboardingTarget) => {
+    if (target.kind === 'clientes') {
+      setSection('clientes');
+      return;
+    }
+    setOpenConfigRequest((prev) => ({ token: (prev?.token ?? 0) + 1, item: target.item }));
   };
 
   const renderContent = () => {
@@ -162,7 +166,7 @@ function AppContent() {
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
       case 'planos':        return <PlanosScreen />;
-      case 'configuracoes': return <ConfigScreen activeTab={configTab} onTabChange={setConfigTab} />;
+      case 'clientes':      return <ClientesTab />;
     }
   };
 
@@ -171,8 +175,7 @@ function AppContent() {
       user={session.user}
       activeSection={section}
       onNavigate={(s) => handleNavigate(s)}
-      configTab={configTab}
-      onConfigTab={handleConfigTab}
+      openConfigRequest={openConfigRequest}
       fillViewport={section === 'movimentacoes' && fillViewport}
     >
       {renderContent()}
@@ -197,7 +200,7 @@ function AppContent() {
         open={onboarding.isVisible}
         items={onboarding.items}
         onDismiss={onboarding.dismiss}
-        onGoToTab={handleConfigTab}
+        onGoToTarget={handleOnboardingGoTo}
       />
     </AppShell>
   );

@@ -35,21 +35,21 @@ export const labelStyle: CSSProperties = {
 };
 
 export const fieldInputStyle: CSSProperties = {
-  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 54, borderRadius: 12,
-  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px',
-  fontSize: 17, fontWeight: 500, color: C.text, outline: 'none',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 40, borderRadius: 10,
+  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
+  fontSize: 14, fontWeight: 500, color: C.text, outline: 'none',
 };
 
 export const smallInputStyle: CSSProperties = {
-  width: 168, height: 42, boxSizing: 'border-box', borderRadius: 10,
+  width: 168, height: 40, boxSizing: 'border-box', borderRadius: 10,
   border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
   fontSize: 14, color: C.text, outline: 'none',
 };
 
 export const numericInputStyle: CSSProperties = {
-  width: 76, height: 42, boxSizing: 'border-box', borderRadius: 10,
+  width: 76, height: 40, boxSizing: 'border-box', borderRadius: 10,
   border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
-  fontSize: 17, fontWeight: 700, color: C.text, textAlign: 'center',
+  fontSize: 14, fontWeight: 700, color: C.text, textAlign: 'center',
   fontVariantNumeric: 'tabular-nums', outline: 'none',
 };
 

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Pencil, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import { fetchCartoes, saveCartao, deleteCartao } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
-import type { Cartao, CartaoFormValues } from '../../types/config';
+import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
@@ -13,6 +13,12 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { Z_GUIDE } from '../../ui/zIndex';
+
+const TIPO_OPCOES: { value: CartaoTipo; label: string }[] = [
+  { value: 'credito', label: 'Crédito' },
+  { value: 'debito', label: 'Débito' },
+  { value: 'ambos', label: 'Ambos' },
+];
 
 const COR_OPCOES = [
   { value: '#1e40af', label: 'Azul' },
@@ -38,6 +44,7 @@ function CartaoDialog({
   onClose: () => void; onSave: (v: CartaoFormValues) => void;
 }) {
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
+  const [tipo, setTipo] = useState<CartaoTipo | undefined>(cartao?.tipo ?? undefined);
   const [validade, setValidade] = useState(cartao?.validade ?? '');
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const validadeGuide = useFirstAccessGuide('cartoes:validade-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
@@ -57,6 +64,7 @@ function CartaoDialog({
       cor,
       numero_cartao: fd.get('numero_cartao') as string || undefined,
       validade: validade || undefined,
+      tipo,
     });
   };
 
@@ -144,6 +152,31 @@ function CartaoDialog({
                 onDismiss={fechamentoGuide.dismiss}
               />
             )}
+          </div>
+
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>TIPO</label>
+              <span style={{ fontSize: 12, color: C.textFaint }}>Define quais despesas podem usar este cartão</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {TIPO_OPCOES.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setTipo(opt.value)}
+                    style={{
+                      flex: 1, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', transition: 'all .13s ease',
+                      border: tipo === opt.value ? `1.5px solid ${C.primary}` : '1.5px solid #e6edf1',
+                      background: tipo === opt.value ? 'rgba(8,145,178,0.08)' : '#fff',
+                      color: tipo === opt.value ? C.primary : C.textMuted,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div style={cardStyle}>
@@ -267,7 +300,7 @@ export function CartaoTab() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {data.map((c) => {
           const cor = c.cor ?? '#1e293b';
           return (
@@ -301,7 +334,12 @@ export function CartaoTab() {
               <p className="font-mono text-sm tracking-widest text-white/60 mb-1">
                 •••• •••• •••• {c.numero_cartao ?? '????'}
               </p>
-              <p className="text-base font-bold text-white mb-4">{c.nome}</p>
+              <div className="mb-4 flex items-center gap-2">
+                <p className="text-base font-bold text-white">{c.nome}</p>
+                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
+                  {c.tipo === 'credito' ? 'Crédito' : c.tipo === 'debito' ? 'Débito' : c.tipo === 'ambos' ? 'Ambos' : 'Tipo não definido'}
+                </span>
+              </div>
 
               <div className="flex items-end justify-between">
                 <div>

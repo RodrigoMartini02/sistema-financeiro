@@ -1,9 +1,7 @@
-import { type ReactNode, useState, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import {
-  Activity, BarChart3, Bell, Bot, Briefcase, Building2, ChevronDown,
-  CreditCard, FileText, LayoutDashboard, Layers,
-  Moon, Settings, Sun, Tag, TrendingDown, User,
-  UserCheck, Users, Wallet, X,
+  BarChart3, Bell, Building2, FileText, LayoutDashboard,
+  Moon, Settings, Sun, TrendingDown, Wallet, X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
@@ -12,22 +10,21 @@ import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
 import { AccountProfileMenu } from './AccountProfileMenu';
+import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
   | 'painel' | 'movimentacoes' | 'reservas'
-  | 'relatorios' | 'planos' | 'configuracoes';
-
-export type ConfigTab =
-  | 'conta' | 'categorias' | 'cartoes' | 'perfis'
-  | 'representantes' | 'socios' | 'usuarios' | 'clientes' | 'servicos' | 'acessos' | 'integracoes-ia';
+  | 'relatorios' | 'planos' | 'clientes';
 
 interface AppShellProps {
   user?: AuthUser;
   children: ReactNode;
   activeSection?: AppSection;
   onNavigate?: (section: AppSection) => void;
-  configTab?: ConfigTab;
-  onConfigTab?: (tab: ConfigTab) => void;
+  // Pulso externo para abrir o drawer de Configurações num item específico (ex.: a partir
+  // do checklist de onboarding). Incrementar `token` a cada disparo reabre mesmo se `item`
+  // não mudar entre um clique e outro.
+  openConfigRequest?: { token: number; item: ConfigItemId };
   // Faz o <main> ocupar exatamente a altura restante da viewport (sem scroll
   // de página), com o próprio conteúdo controlando seu scroll interno.
   // Usado por telas que precisam caber inteiras na tela, como o calendário.
@@ -53,24 +50,15 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementTy
       { label: 'Planos',     icon: FileText,  section: 'planos' },
     ],
   },
-];
-
-const CONFIG_SUBS: { id: ConfigTab; label: string; icon: React.ElementType }[] = [
-  { id: 'conta',          label: 'Minha conta',    icon: User },
-  { id: 'categorias',     label: 'Categorias',     icon: Tag },
-  { id: 'cartoes',        label: 'Cartões',        icon: CreditCard },
-  { id: 'perfis',         label: 'Perfis',         icon: Layers },
-  { id: 'representantes', label: 'Representantes', icon: UserCheck },
-  { id: 'socios',         label: 'Sócios',         icon: Briefcase },
-  { id: 'usuarios',       label: 'Usuários',       icon: Users },
-  { id: 'acessos',        label: 'Acessos',        icon: Activity },
-  { id: 'clientes',       label: 'Clientes',       icon: Building2 },
-  { id: 'servicos',       label: 'Serviços',       icon: Layers },
-  { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot },
+  {
+    label: 'Consultoria',
+    items: [
+      { label: 'Clientes', icon: Building2, section: 'clientes' },
+    ],
+  },
 ];
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
-const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 function NotificationPanel({ onClose }: { onClose: () => void }) {
   const now = new Date();
@@ -169,28 +157,60 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+const CONFIG_ITEM_IDS: ConfigItemId[] = [
+  'conta', 'seguranca', 'perfis', 'categorias', 'cartoes', 'servicos',
+  'representantes', 'socios', 'usuarios', 'acessos', 'integracoes-ia',
+];
+
+function readConfigParam(): ConfigItemId | undefined {
+  const value = new URLSearchParams(window.location.search).get('config');
+  return CONFIG_ITEM_IDS.includes(value as ConfigItemId) ? (value as ConfigItemId) : undefined;
+}
+
 export function AppShell({
   user, children, activeSection = 'painel', onNavigate,
-  configTab = 'conta', onConfigTab, fillViewport = false, isDemoMode = false,
+  openConfigRequest, fillViewport = false, isDemoMode = false,
 }: AppShellProps) {
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [configOpen, setConfigOpen] = useState(activeSection === 'configuracoes');
+  const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
+    const item = isDemoMode ? undefined : readConfigParam();
+    return { open: !!item, item };
+  });
+
+  const openConfig = (item?: ConfigItemId) => {
+    setConfigPanel({ open: true, item });
+    setMobileOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('config', item ?? 'conta');
+    window.history.pushState({ fingerenceConfig: true }, '', url);
+  };
+
+  const closeConfig = () => {
+    setConfigPanel({ open: false });
+    if (new URLSearchParams(window.location.search).has('config')) {
+      window.history.back();
+    }
+  };
 
   useEffect(() => {
-    if (activeSection === 'configuracoes') setConfigOpen(true);
-  }, [activeSection]);
+    if (openConfigRequest) openConfig(openConfigRequest.item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openConfigRequest?.token]);
 
-  const userDocument = (user?.documento ?? user?.document ?? '').replace(/\D/g, '');
-  const canViewAnalytics = userDocument === ANALYTICS_ALLOWED_DOCUMENT;
-  const isMaster = (user?.tipo ?? user?.type) === 'master';
+  useEffect(() => {
+    if (isDemoMode) return;
+    const handlePopState = () => {
+      const item = readConfigParam();
+      setConfigPanel({ open: !!item, item });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isDemoMode]);
 
   const currentNav = ALL_NAV.find((n) => n.section === activeSection);
-  const currentConfigSub = CONFIG_SUBS.find((s) => s.id === configTab);
-  const sectionLabel = activeSection === 'configuracoes'
-    ? `Config. › ${currentConfigSub?.label ?? ''}`
-    : currentNav?.label;
+  const sectionLabel = currentNav?.label;
 
   const sidebar = (
     <div className="flex h-full flex-col bg-[#0D2E3C]">
@@ -247,78 +267,13 @@ export function AppShell({
         {!isDemoMode && (
         <div className="mt-4 flex flex-col">
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
-          <div className="flex flex-col space-y-0.5">
-            <button
-              onClick={() => {
-                const wasOpen = configOpen;
-                setConfigOpen((o) => !o);
-                if (!wasOpen) {
-                  onNavigate?.('configuracoes');
-                  setMobileOpen(false);
-                }
-              }}
-              className={[
-                'relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg text-sm font-medium transition',
-                activeSection === 'configuracoes'
-                  ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                  : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
-              ].join(' ')}
-              style={{
-                paddingLeft: activeSection === 'configuracoes' ? '10px' : '12px',
-                paddingRight: '12px',
-              }}
-            >
-              {activeSection === 'configuracoes' && (
-                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />
-              )}
-              <Settings size={17} className={activeSection === 'configuracoes' ? 'text-[#0EC4D8]' : ''} />
-              <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform ${configOpen ? 'rotate-180' : ''}`}
-              />
-            </button>
-
-            {configOpen && (
-              <div className="ml-3 mt-1 space-y-0.5 border-l border-[rgba(14,196,216,0.15)] pl-2.5 pr-1">
-                {CONFIG_SUBS.filter((sub) => {
-                  const perfilTipo = localStorage.getItem('perfilAtivoTipo');
-                  if (sub.id === 'acessos') {
-                    return canViewAnalytics;
-                  }
-                  if (sub.id === 'integracoes-ia') {
-                    return isMaster;
-                  }
-                  if (sub.id === 'representantes' || sub.id === 'socios') {
-                    return perfilTipo !== 'pessoal';
-                  }
-                  return true;
-                }).map((sub) => {
-                  const Icon = sub.icon;
-                  const isActiveSub = activeSection === 'configuracoes' && configTab === sub.id;
-                  return (
-                    <button
-                      key={sub.id}
-                      onClick={() => {
-                        onNavigate?.('configuracoes');
-                        onConfigTab?.(sub.id);
-                        setMobileOpen(false);
-                      }}
-                      className={[
-                        'flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium transition',
-                        isActiveSub
-                          ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                          : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
-                      ].join(' ')}
-                    >
-                      <Icon size={14} className={isActiveSub ? 'text-[#0EC4D8]' : 'text-[rgba(14,196,216,0.35)]'} />
-                      {sub.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <button
+            onClick={() => openConfig()}
+            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[rgba(14,196,216,0.5)] transition hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]"
+          >
+            <Settings size={17} />
+            <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
+          </button>
         </div>
         )}
       </nav>
@@ -360,10 +315,7 @@ export function AppShell({
 
             {sectionLabel && (
               <div className="hidden lg:flex items-center gap-2 border-r border-[rgba(14,196,216,0.15)] pr-4">
-                {activeSection === 'configuracoes' && currentConfigSub
-                  ? <currentConfigSub.icon size={16} className="text-[#0EC4D8]" />
-                  : currentNav && <currentNav.icon size={16} className="text-[#0EC4D8]" />
-                }
+                {currentNav && <currentNav.icon size={16} className="text-[#0EC4D8]" />}
                 <span className="text-sm font-semibold text-[#E8F4F5]">{sectionLabel}</span>
               </div>
             )}
@@ -396,7 +348,7 @@ export function AppShell({
 
             <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />
 
-            <AccountProfileMenu user={user} isDemoMode={isDemoMode} />
+            <AccountProfileMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode ? undefined : openConfig} />
           </div>
         </header>
 
@@ -409,6 +361,18 @@ export function AppShell({
         </main>
       </div>
       {!isDemoMode && <FinancialAssistant />}
+      {!isDemoMode && (
+        <ConfigPanel
+          open={configPanel.open}
+          initialItem={configPanel.item}
+          onClose={closeConfig}
+          onItemChange={(item) => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('config', item);
+            window.history.replaceState(window.history.state, '', url);
+          }}
+        />
+      )}
     </div>
   );
 }

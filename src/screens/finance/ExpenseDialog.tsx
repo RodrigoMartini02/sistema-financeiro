@@ -146,7 +146,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   }, [repeticao, valorInputMode]);
 
   const cats = useMemo(() => (categorias.data ?? []).filter((c) => c.ativo), [categorias.data]);
-  const activeCards = useMemo(() => (cartoes.data ?? []).filter((c) => c.ativo), [cartoes.data]);
+  const activeCards = useMemo(
+    () => (cartoes.data ?? []).filter((c) => c.ativo && (!c.tipo || c.tipo === 'ambos' || c.tipo === formaPagamento)),
+    [cartoes.data, formaPagamento],
+  );
   const selectedCard = activeCards.find((c) => c.id === cartaoId) ?? activeCards[0];
 
   const cachedExpenses = useMemo(() => {
@@ -229,6 +232,15 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     form.setValue('formaPagamento', v);
     setMethodTouched(true);
   };
+
+  // Cartão selecionado deixou de ser compatível com a forma de pagamento
+  // (ex.: cartão só-crédito com formaPagamento trocada para débito) — limpa
+  // a seleção para não submeter uma combinação inválida.
+  useEffect(() => {
+    if (cartaoId && !activeCards.some((c) => c.id === cartaoId)) {
+      form.setValue('cartao_id', undefined);
+    }
+  }, [cartaoId, activeCards]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Reset ao abrir/fechar ─────────────────────────────────────────────
   useEffect(() => {
