@@ -13,7 +13,7 @@ import { fetchReservas, movimentar } from '../../services/reservasService';
 import type { MovimentacaoFormValues } from '../../types/reservas';
 import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
-import { DespesasScreen } from '../despesas/DespesasScreen';
+import { DespesasScreen, type FilteredSummary } from '../despesas/DespesasScreen';
 import { ReceitasScreen } from '../receitas/ReceitasScreen';
 import { ReserveMovementDialog } from '../reservas/ReserveMovementDialog';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
@@ -25,6 +25,8 @@ import { BudgetPanel } from './BudgetPanel';
 
 type MovementTab = 'receitas' | 'despesas' | 'planejamento';
 type ViewMode = 'lista' | 'calendario';
+
+const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   return (
@@ -160,6 +162,22 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   });
   const mesFechado = mesStatusQuery.data === true;
 
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const mesAnteriorStatusQuery = useQuery({
+    queryKey: queryKeys.mesStatus(prevYear, prevMonth),
+    queryFn: async () => {
+      const profileId = getActiveProfileId();
+      const query = profileId ? `?perfil_id=${profileId}` : '';
+      const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
+      return months.find((item) => item.ano === prevYear && item.mes === prevMonth)?.fechado ?? false;
+    },
+  });
+  const mesAnteriorFechado = mesAnteriorStatusQuery.data === true;
+
+  const [despesasSummary, setDespesasSummary] = useState<FilteredSummary | null>(null);
+  const [receitasSummary, setReceitasSummary] = useState<FilteredSummary | null>(null);
+
   const [mesActionError, setMesActionError] = useState('');
 
   const fecharMut = useMutation({
@@ -200,11 +218,14 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
   const dashboard = finance.dashboard.data;
   const annualMonth = annual.data?.[month];
-  const receitas = annualMonth?.receitas ?? dashboard?.balance.receitas ?? 0;
-  const despesas = annualMonth?.despesas ?? dashboard?.balance.despesas ?? 0;
+  const receitasMes = annualMonth?.receitas ?? dashboard?.balance.receitas ?? 0;
+  const despesasMes = annualMonth?.despesas ?? dashboard?.balance.despesas ?? 0;
+  const receitas = receitasSummary?.active ? receitasSummary.total : receitasMes;
+  const despesas = despesasSummary?.active ? despesasSummary.total : despesasMes;
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
-  const saldoProjetado = saldoAnterior + receitas - despesas;
-  const comprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
+  const saldoAtual = mesAnteriorFechado ? saldoAnterior + receitasMes : receitasMes;
+  const saldoProjetado = saldoAtual - despesasMes;
+  const comprometimento = receitasMes > 0 ? (despesasMes / receitasMes) * 100 : 0;
 
   const handleTabChange = (tab: MovementTab) => {
     setActiveTab(tab);
@@ -350,13 +371,32 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
         {!isCalendario && (
           <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <MovementMetricCard label="Saldo anterior" value={formatCurrency(saldoAnterior)} tone="slate" note="Fechamento do mês anterior" />
-            <MovementMetricCard label="Receitas" value={formatCurrency(receitas)} tone="income" progressPct={receitas > 0 ? 100 : 0} note={`${finance.dashboard.data?.incomes.length ?? 0} lançamento(s)`} />
-            <MovementMetricCard label="Despesas" value={formatCurrency(despesas)} tone="expense" progressPct={comprometimento} note={`${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`} />
+            <MovementMetricCard
+              label="Saldo atual"
+              value={formatCurrency(saldoAtual)}
+              tone="slate"
+              note={mesAnteriorFechado
+                ? `Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)}`
+                : `${MONTH_NAMES_SHORT[prevMonth]}/${prevYear} ainda está aberto`}
+            />
+            <MovementMetricCard
+              label="Receitas"
+              value={formatCurrency(receitas)}
+              tone="income"
+              progressPct={receitas > 0 ? 100 : 0}
+              note={receitasSummary?.active ? `${receitasSummary.count} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.incomes.length ?? 0} lançamento(s)`}
+            />
+            <MovementMetricCard
+              label="Despesas"
+              value={formatCurrency(despesas)}
+              tone="expense"
+              progressPct={comprometimento}
+              note={despesasSummary?.active ? `${despesasSummary.count} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
+            />
             <MovementMetricCard label="Saldo projetado" value={formatCurrency(saldoProjetado)} tone={saldoProjetado >= 0 ? 'income' : 'expense'} note="Se tudo for pago em dia" />
             <MovementMetricCard
               label="Comprometimento"
-              value={receitas > 0 ? `${comprometimento.toFixed(0)}%` : '-'}
+              value={receitasMes > 0 ? `${comprometimento.toFixed(0)}%` : '-'}
               tone={comprometimento > 90 ? 'expense' : comprometimento > 70 ? 'warning' : 'income'}
               progressPct={comprometimento}
               note={comprometimento > 85 ? 'Acima do limite de 85%' : 'Dentro do limite saudável'}
@@ -366,9 +406,9 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
         {isLista
           ? (activeTab === 'receitas'
-              ? <ReceitasScreen month={month} year={year} toolbarStart={movementTabs} />
+              ? <ReceitasScreen month={month} year={year} toolbarStart={movementTabs} onFilteredSummaryChange={setReceitasSummary} />
               : activeTab === 'despesas'
-                ? <DespesasScreen month={month} year={year} toolbarStart={movementTabs} />
+                ? <DespesasScreen month={month} year={year} toolbarStart={movementTabs} onFilteredSummaryChange={setDespesasSummary} />
                 : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
           : (
             <div className="min-h-0 flex-1">

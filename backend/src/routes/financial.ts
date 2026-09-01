@@ -106,9 +106,9 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
         GROUP BY mes
       ) r ON r.mes = gs.mes
       LEFT JOIN (
-        SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END) AS total
+        SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) AS total
         FROM despesas
-        WHERE ano = $1 AND usuario_id = $2
+        WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
           AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
             SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
           )))

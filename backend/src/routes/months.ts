@@ -60,7 +60,7 @@ async function calculateBalanceBreakdown(userId: number, year: number, month: nu
       [userId, year, month, ...extra],
     ),
     pool.query(
-      `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END) / numero_parcelas ELSE (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+      `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) / numero_parcelas ELSE (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
       [userId, year, month, ...extra],
     ),
     pool.query(

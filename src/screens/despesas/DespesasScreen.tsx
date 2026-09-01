@@ -181,13 +181,20 @@ function ActionBtn({
   );
 }
 
+export interface FilteredSummary {
+  total: number;
+  count: number;
+  active: boolean;
+}
+
 interface DespesasScreenProps {
   month: number;
   year: number;
   toolbarStart?: ReactNode;
+  onFilteredSummaryChange?: (summary: FilteredSummary) => void;
 }
 
-export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProps) {
+export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryChange }: DespesasScreenProps) {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
     open: false, title: '', anexos: [],
@@ -301,6 +308,14 @@ export function DespesasScreen({ month, year, toolbarStart }: DespesasScreenProp
 
   const hasFilter2 =
     filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroDataPag !== 'qualquer';
+
+  useEffect(() => {
+    onFilteredSummaryChange?.({
+      total: filtered.reduce((s, i) => s + i.valorFinal, 0),
+      count: filtered.length,
+      active: hasFilter2,
+    });
+  }, [filtered, hasFilter2, onFilteredSummaryChange]);
 
   useEffect(() => { setSelecionadas(new Set()); }, [month, year]);
 
