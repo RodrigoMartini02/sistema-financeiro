@@ -9,7 +9,7 @@
 
 ## Resumo
 
-Configurações deixa de ser uma tela cheia com submenu na sidebar e passa a abrir como um **drawer de 820px** sobre a tela atual, sem navegar e sem perder o estado da tela de fundo (filtro de mês, scroll, sem refetch). O menu de conta no header (`AccountProfileMenu.tsx`, já existente) ganha ajustes de destino (abrir o drawer já na aba certa) e mantém o resto do comportamento atual. Contratos passam a abrir em drawer também, no lugar do `Dialog xxl` atual — que hoje já empilha um segundo `Dialog` por cima (violação do princípio "nunca dois modais centralizados" que este redesign corrige).
+Configurações deixa de ser uma tela cheia com submenu na sidebar e passa a abrir como um **drawer de 820px** sobre a tela atual, sem navegar e sem perder o estado da tela de fundo (filtro de mês, scroll, sem refetch). O menu de conta no header (`AccountProfileMenu.tsx`, já existente) ganha ajustes de destino (abrir o drawer já na aba certa) e mantém o resto do comportamento atual. Contrato deixa de usar o `Dialog xxl` empilhado que existia antes (violação do princípio "nunca dois modais centralizados") e, após teste visual do usuário, também deixou de usar o `Drawer` planejado inicialmente — virou um **layout master-detail dentro da tela de Cliente** (lista de contratos à esquerda, detalhe à direita, sem overlay), por ser conteúdo de consultoria, não uma configuração de camada leve.
 
 ## Decisões e divergências do spec original
 
@@ -30,6 +30,8 @@ O usuário aprovou o spec com as seguintes mudanças/decisões explícitas:
    - Fora do PWA: comportamento não muda quando rodando como PWA instalado (nenhuma diferenciação especial a fazer).
 8. **`ChangePasswordModal.tsx` fica como está, não é removido (correção de escopo pós-revisão)**: é usado em `AssistantHeaderMenu.tsx:189` (menu do assistente financeiro "Redefinir senha"), uma tela separada de `AppShell`/Configurações. O plano original tratava isso como risco a decidir na implementação; a decisão agora é explícita: o novo formulário de senha do `ConfigPanel` (Fase 3) é um componente novo, e `ChangePasswordModal` continua existindo e funcionando exatamente como hoje no assistente. Nenhuma tentativa de unificação nesta rodada.
 9. **`Drawer` (Fase 1) precisa registrar presença em `FirstAccessGuideContext` (correção de escopo pós-revisão)**: `Dialog` hoje chama `useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open)` (`ui/dialog.tsx:31`) para pausar guias de "primeiro acesso" da tela de fundo enquanto ele está aberto. Sem o mesmo registro, um guia de onboarding da tela de fundo pode aparecer visualmente por cima do drawer. O `Drawer` deve chamar o mesmo hook com o mesmo `GUIDE_LAYER_MODAL` (ou um layer equivalente, se fizer sentido distinguir drawer de modal — a definir na implementação, mas nunca deixar de registrar).
+10. **Contrato deixa de usar Drawer/modal e vira layout master-detail dentro da tela de Cliente (revisão pós-implementação da Fase 4, feita após teste visual do usuário)**: o usuário testou a Fase 4 (Contrato em `Drawer`) e decidiu que contrato tem conteúdo demais (dados, tabela de valores, catálogo de serviços, anexos) para um painel lateral de 820px — e conceitualmente pertence à consultoria do cliente, não a uma "configuração". **Nova decisão**: dentro de `ClienteDetail.tsx`, ao entrar num cliente a tela vira duas colunas — lista de contratos compacta e sempre visível à esquerda (substitui os cards empilhados atuais), e o contrato selecionado ocupando o restante da largura à direita, sem overlay/fechar (é conteúdo da própria tela, não uma camada). O cabeçalho do cliente (nome, "Editar cliente", "Gerar previstas") continua no topo, acima das duas colunas. `AditivoModal` continua como modal pequeno de verdade (registro pontual, consistente com a regra "registro pequeno = modal"). Isso substitui o que a Fase 4 original implementou (`ContratoModal` em `Drawer`) — ver Fase 4 revisada na Estratégia de implementação.
+11. **Drawer de Configurações vira modal centralizado; popover do header simplificado (revisão pós-teste visual)**: após ver o `ConfigPanel` funcionando (ancorado à direita, altura cheia — exatamente como especificado), o usuário decidiu que prefere um **modal centralizado** para Configurações, não mais ancorado à borda. **Decisão**: `Drawer` (`src/ui/drawer.tsx`) ganhou uma prop `variant?: 'side' | 'centered'` — `'side'` mantém o comportamento original (ancorado à direita, sem cantos arredondados, para uso futuro caso outro consumidor precise); `'centered'` é um modal centralizado com cantos arredondados (`rounded-2xl`) e altura limitada (`max-h-[calc(100vh-64px)]`), com sua própria keyframe de entrada (`drawer-in-centered`, fade + scale, em vez do slide lateral). `ConfigPanel` passou a usar `variant="centered"`. Além disso, o usuário achou redundante ter 3 atalhos no popover do `AccountProfileMenu` (Minha conta, Segurança, Gerenciar perfis) apontando para a mesma sidebar interna do drawer — **os 3 itens foram consolidados em um único item "Configurações"**, que abre o drawer no item padrão (Minha conta); a navegação para os itens específicos passa a ser só pela sidebar interna do próprio modal.
 
 ## Escopo
 
@@ -43,10 +45,10 @@ O usuário aprovou o spec com as seguintes mudanças/decisões explícitas:
   - **Clientes sai de Configurações** e vira item próprio na sidebar principal (`AppSection`), como o spec pede (§2.3).
   - `Acessos` e `Integrações de IA` (permissões especiais, fora do spec) mantidos como estão hoje, listados na mesma sidebar única quando o usuário tem permissão (mesmas regras de visibilidade de hoje).
 - **Fase 3.5** — Padronizar inputs: reduzir `src/ui/dialogFormTokens.tsx` (`fieldInputStyle`, `smallInputStyle`, `numericInputStyle`, `MoneyField`/`MoneyFieldSmall`) e os inline styles equivalentes em `ClienteDetail.tsx`/`ClientesTab.tsx` para o mesmo padrão de 40px (`h-10`) já usado em `src/ui/form.tsx`. Aplica-se a todos os campos de texto/data/select do módulo de Clientes/Contratos; `MoneyField` (valor grande, 26px) mantém destaque tipográfico só onde já é usado como valor principal de destaque (ex.: total do contrato), não como padrão de input comum.
-- **Fase 4** — `ContratoModal`/`ContratoForm` (`ClienteDetail.tsx`) passam a abrir em `Drawer` de 820px no lugar do `Dialog size="xxl"`. O sub-modal de "Discriminação de prestação de serviço" (hoje um `Dialog` empilhado sobre outro `Dialog`) vira aba dentro do mesmo drawer, eliminando o empilhamento de dois modais centralizados. Anexos também viram aba.
+- **Fase 4 (revisada — ver decisão 10)** — `ClienteDetail.tsx` vira layout master-detail: lista de contratos compacta e sempre visível à esquerda, contrato selecionado (com abas Dados/Serviços/Anexos) ocupando o resto da largura à direita, sem overlay. `AditivoModal` continua como `Dialog` pequeno.
 - **Fase 5** — `AppShell.tsx`: remove submenu de Configurações da sidebar, adiciona item único "Configurações" que abre o drawer; ajusta altura do header conforme necessário; mantém `AccountProfileMenu` no lugar atual (já é o menu de conta do header).
-- **Fase 6** — Mobile: drawer vira folha de largura cheia; sidebar interna do drawer também se adapta (lista colapsável ou topo, a definir na implementação); modo demo com drawer em leitura.
-- **Fase 7** — Endereçamento por URL (`?config=item`, `?config=item&id=12`) para o drawer de Configurações e o drawer de Contrato, com reconstituição após F5 e fechamento de uma camada por vez via `Escape`/botão voltar do navegador.
+- **Fase 6** — Mobile: drawer vira folha de largura cheia; sidebar interna do drawer também se adapta (lista colapsável ou topo, a definir na implementação); modo demo com drawer em leitura; layout master-detail de Contrato empilha em coluna única no mobile (lista acima, detalhe abaixo).
+- **Fase 7** — Endereçamento por URL (`?config=item`) para o drawer de Configurações, com reconstituição após F5 e fechamento de uma camada por vez via `Escape`/botão voltar do navegador. (O `&id=12` para o contrato selecionado deixou de fazer sentido como "camada" já que Contrato não é mais overlay — fica fora de escopo desta fase.)
 - **Fase 8** — Reativar upload de foto de perfil: UI de upload com recorte circular no item "Minha conta" do `ConfigPanel`, usando a rota `PUT /api/users/current/photo` já existente; propagar `foto` para `AuthUser`/`types/auth.ts`; exibir a foto (com fallback para iniciais) em todo avatar circular do `AccountProfileMenu` (trigger, bloco usuário, lista de troca de perfil).
 
 ### Fora do escopo
@@ -130,10 +132,14 @@ Sem impacto esperado.
 4. Não alterar `MoneyField`/`MoneyFieldSmall` como destaque tipográfico (usados para valores grandes de contrato) — apenas os campos de texto/data/select comuns.
 5. Build de frontend para conferir que nada quebrou visualmente (checagem manual no navegador, já que é mudança puramente visual).
 
-**Fase 4 — Contrato em Drawer**
-1. `ClienteDetail.tsx`: `ContratoModal` passa a usar `Drawer` (820px) em vez de `Dialog size="xxl"`.
-2. "Discriminação de prestação de serviço" e "Anexos" viram abas dentro do mesmo drawer, eliminando o `Dialog` empilhado atual.
-3. Profundidade máxima do fluxo: tela (Cliente) → drawer (Contrato) → modal pequeno só para registros de um serviço/lançamento pontual, se necessário.
+**Fase 4 (revisada) — Contrato em layout master-detail**
+1. `ClienteDetail.tsx`: manter o cabeçalho do cliente (nome, "Editar cliente", "Gerar previstas") no topo, sem mudanças.
+2. Abaixo do cabeçalho, layout de duas colunas: coluna esquerda estreita e fixa com a lista de contratos (reaproveita `ContratoRow`, compactado para caber numa coluna, com scroll próprio se a lista crescer); coluna direita com o conteúdo do contrato selecionado.
+3. Substituir o `Drawer` do `ContratoModal` (implementado na Fase 4 original) por um painel inline sem overlay/fechar — vira componente de conteúdo puro (título, abas Dados/Serviços/Anexos, footer de ações), renderizado direto na coluna direita.
+4. Seleção de contrato via estado local (`selectedContratoId: number | 'new' | undefined`) em vez de `contratoModal: { open, contrato }` — não existe mais "abrir/fechar", só "trocar qual contrato está selecionado". Estado vazio (nenhum selecionado) mostra uma chamada para criar o primeiro contrato ou selecionar um da lista.
+5. Botão "+ Novo contrato" fica no topo da coluna esquerda (lista), não mais como ação isolada.
+6. `AditivoModal` continua como `Dialog` pequeno — não faz parte do master-detail, é um fluxo pontual de registro.
+7. Mobile (Fase 6): as duas colunas empilham — lista em cima, detalhe abaixo, sem sidebar lateral fixa.
 
 **Fase 5 — AppShell**
 1. Remover submenu de Configurações da sidebar; adicionar item único que abre o `ConfigPanel`.
@@ -228,8 +234,9 @@ cd backend && npm run build
 - [ ] Abrir/fechar Configurações ou Contrato devolve a tela de fundo intacta (mesmo filtro, mesmo scroll).
 - [ ] Nenhuma lista de cadastro abre em modal centralizado.
 - [ ] Nenhum fluxo empilha dois modais centralizados (corrige o `ContratoModal` atual).
-- [ ] Contrato abre em drawer, com Serviços e Anexos como abas internas.
-- [ ] Menu de conta abre o drawer já na seção certa (Minha conta, Segurança, Gerenciar perfis).
+- [ ] Contrato é exibido em layout master-detail dentro da tela de Cliente (lista à esquerda, detalhe à direita), com Serviços e Anexos como abas internas — não abre mais como overlay/drawer.
+- [ ] Menu de conta tem um único item "Configurações" que abre o modal centralizado (não mais 3 atalhos redundantes); a navegação entre Minha conta/Segurança/Perfis/etc. acontece pela sidebar interna do próprio modal.
+- [ ] O modal de Configurações abre centralizado, com cantos arredondados, não mais ancorado à borda direita da tela.
 - [ ] Novo formulário de senha do `ConfigPanel`, com medidor de força, sem menção a "sessões ativas"; `ChangePasswordModal.tsx` continua funcionando normalmente no assistente financeiro, sem remoção.
 - [ ] Modo demo mantém o drawer visualmente idêntico, com ações inertes.
 - [ ] `?config=usuarios&id=12` reconstitui drawer e modal depois de um F5; `Escape` e o botão voltar fecham uma camada por vez.

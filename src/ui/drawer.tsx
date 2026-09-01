@@ -12,6 +12,13 @@ interface DrawerProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'md' | 'sm';
+  // 'side' (padrão): ancorado à direita, altura cheia, sem cantos arredondados.
+  // 'centered': modal centralizado com cantos arredondados, altura limitada.
+  variant?: 'side' | 'centered';
+  // false quando o conteúdo controla seu próprio scroll internamente (ex.: layout
+  // de colunas onde cada uma rola independente) — evita que a sidebar suba junto
+  // com o scroll do conteúdo. Default true (o corpo do drawer rola como um todo).
+  scrollBody?: boolean;
 }
 
 const widthBySize: Record<NonNullable<DrawerProps['size']>, string> = {
@@ -19,7 +26,7 @@ const widthBySize: Record<NonNullable<DrawerProps['size']>, string> = {
   sm: 'sm:w-[620px]',
 };
 
-export function Drawer({ open, title, subtitle, onClose, onBack, children, footer, size = 'md' }: DrawerProps) {
+export function Drawer({ open, title, subtitle, onClose, onBack, children, footer, size = 'md', variant = 'side', scrollBody = true }: DrawerProps) {
   useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
 
   const openerRef = useRef<HTMLElement | null>(null);
@@ -72,18 +79,28 @@ export function Drawer({ open, title, subtitle, onClose, onBack, children, foote
 
   if (!open) return null;
 
+  const isCentered = variant === 'centered';
+
   return (
     <div className={['fixed inset-0', Z_DRAWER].join(' ')} role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-[#040E12]/45" onClick={onClose} />
       <div
         ref={panelRef}
-        className={[
-          'motion-safe:animate-[drawer-in_180ms_cubic-bezier(0.22,1,0.36,1)]',
-          'absolute inset-y-0 right-0 flex h-full w-full max-w-full flex-col border-l border-slate-200 bg-white shadow-[-30px_0_80px_rgba(2,12,17,0.28)]',
-          'dark:border-slate-700 dark:bg-slate-900',
-          'sm:max-w-[calc(100vw-48px)]',
-          widthBySize[size],
-        ].join(' ')}
+        className={isCentered
+          ? [
+              'motion-safe:animate-[drawer-in-centered_180ms_cubic-bezier(0.22,1,0.36,1)]',
+              'absolute left-1/2 top-1/2 flex h-[calc(100vh-64px)] max-h-[840px] w-full max-w-full -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38)]',
+              'dark:border-slate-700 dark:bg-slate-900',
+              'sm:max-w-[calc(100vw-48px)]',
+              widthBySize[size],
+            ].join(' ')
+          : [
+              'motion-safe:animate-[drawer-in_180ms_cubic-bezier(0.22,1,0.36,1)]',
+              'absolute inset-y-0 right-0 flex h-full w-full max-w-full flex-col border-l border-slate-200 bg-white shadow-[-30px_0_80px_rgba(2,12,17,0.28)]',
+              'dark:border-slate-700 dark:bg-slate-900',
+              'sm:max-w-[calc(100vw-48px)]',
+              widthBySize[size],
+            ].join(' ')}
       >
         <div className="flex h-[60px] shrink-0 items-center gap-3 border-b border-[#eef2f7] px-4 dark:border-slate-800 sm:h-[68px] sm:px-6">
           {onBack && (
@@ -112,7 +129,10 @@ export function Drawer({ open, title, subtitle, onClose, onBack, children, foote
           </button>
         </div>
 
-        <div className="scrollbar-thin flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+        <div className={[
+          'px-4 py-4 sm:px-6 sm:py-5',
+          scrollBody ? 'scrollbar-thin flex-1 overflow-y-auto' : 'flex flex-1 flex-col overflow-hidden',
+        ].join(' ')}>{children}</div>
 
         {footer && (
           <div className="shrink-0 border-t border-[#eef2f7] px-4 py-3 dark:border-slate-800 sm:px-6 sm:py-4">{footer}</div>

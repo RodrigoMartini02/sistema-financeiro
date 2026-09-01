@@ -87,9 +87,9 @@ export function ConfigPanel({ open, initialItem = 'conta', onClose, onItemChange
   const current = ITEMS.find((item) => item.id === activeItem) ?? ITEMS[0]!;
 
   return (
-    <Drawer open={open} title="Configurações" subtitle={current.label} onClose={onClose}>
+    <Drawer open={open} title="Configurações" subtitle={current.label} onClose={onClose} variant="centered" scrollBody={false}>
       <div className="flex h-full min-h-[420px] flex-col gap-4 sm:flex-row sm:gap-6">
-        <nav className="flex shrink-0 gap-1 overflow-x-auto pb-2 sm:w-[188px] sm:flex-col sm:gap-0.5 sm:overflow-visible sm:space-y-0.5 sm:border-r sm:border-slate-100 sm:pb-0 sm:pr-4 dark:sm:border-slate-800">
+        <nav className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto pb-2 sm:w-[188px] sm:flex-col sm:gap-0.5 sm:overflow-y-auto sm:overflow-x-visible sm:space-y-0.5 sm:border-r sm:border-slate-100 sm:pb-0 sm:pr-4 dark:sm:border-slate-800">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.id === activeItem;
@@ -112,7 +112,7 @@ export function ConfigPanel({ open, initialItem = 'conta', onClose, onItemChange
           })}
         </nav>
 
-        <div className="min-w-0 flex-1">
+        <div className="scrollbar-thin min-w-0 flex-1 overflow-y-auto">
           {activeItem === 'conta' && <MinhaContaTab />}
           {activeItem === 'seguranca' && <SecurityTab />}
           {activeItem === 'perfis' && <PerfisTab />}

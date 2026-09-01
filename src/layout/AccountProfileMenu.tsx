@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, KeyRound, LogOut, Settings, UserCog } from 'lucide-react';
+import { Check, ChevronDown, LogOut, Settings } from 'lucide-react';
 import type { AuthUser } from '../types/auth';
 import type { Perfil } from '../types/config';
 import { logout } from '../services/session';
@@ -81,20 +81,14 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
     window.location.replace('/index.html');
   };
 
-  const handleOpenConfig = (item: ConfigItemId) => {
+  const handleOpenConfig = () => {
     setOpen(false);
-    onOpenConfig?.(item);
+    onOpenConfig?.();
   };
-
-  const configItems: Array<{ label: string; icon: typeof UserCog; target: ConfigItemId }> = [
-    { label: 'Minha conta',      icon: UserCog,   target: 'conta' },
-    { label: 'Segurança',        icon: KeyRound,  target: 'seguranca' },
-    { label: 'Gerenciar perfis', icon: Settings,  target: 'perfis' },
-  ];
 
   const menuItems: Array<{ onSelect: () => void }> = [
     ...(data.length > 1 ? data.map((p) => ({ onSelect: () => select(p) })) : []),
-    ...configItems.map((item) => ({ onSelect: () => handleOpenConfig(item.target) })),
+    { onSelect: handleOpenConfig },
     { onSelect: handleLogout },
   ];
 
@@ -240,24 +234,17 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
             </div>
 
             <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
-              {configItems.map((item, i) => {
-                const index = (data.length > 1 ? data.length : 0) + i;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.target}
-                    ref={(el) => { itemRefs.current[index] = el; }}
-                    role="menuitem"
-                    type="button"
-                    onClick={() => handleOpenConfig(item.target)}
-                    onKeyDown={(e) => handleItemKeyDown(e, index)}
-                    className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
-                  >
-                    <Icon size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
-                    <span className="flex-1 text-left">{item.label}</span>
-                  </button>
-                );
-              })}
+              <button
+                ref={(el) => { itemRefs.current[data.length > 1 ? data.length : 0] = el; }}
+                role="menuitem"
+                type="button"
+                onClick={handleOpenConfig}
+                onKeyDown={(e) => handleItemKeyDown(e, data.length > 1 ? data.length : 0)}
+                className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
+              >
+                <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
+                <span className="flex-1 text-left">Configurações</span>
+              </button>
             </div>
 
             <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
