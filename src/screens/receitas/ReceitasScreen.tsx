@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -6,6 +6,7 @@ import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import type { Income, IncomeFormValues } from '../../types/finance';
 import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
+import type { FilteredSummary } from '../despesas/DespesasScreen';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { EmptyState, ErrorState } from '../../ui/states';
@@ -45,9 +46,10 @@ interface ReceitasScreenProps {
   month: number;
   year: number;
   toolbarStart?: ReactNode;
+  onFilteredSummaryChange?: (summary: FilteredSummary) => void;
 }
 
-export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProps) {
+export function ReceitasScreen({ month, year, toolbarStart, onFilteredSummaryChange }: ReceitasScreenProps) {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
   const [busca, setBusca] = useState('');
@@ -137,6 +139,14 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
         (i.tipoReceita ?? '').toLowerCase().includes(busca.toLowerCase())
       )
     : allItems;
+
+  useEffect(() => {
+    onFilteredSummaryChange?.({
+      total: items.reduce((s, i) => s + i.valor, 0),
+      count: items.length,
+      active: busca.trim() !== '',
+    });
+  }, [items, busca, onFilteredSummaryChange]);
 
   const handleSave = async (values: IncomeFormValues) => {
     await finance.saveIncome.mutateAsync({ values, id: dialog.item?.id });
