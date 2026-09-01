@@ -45,6 +45,25 @@ async function validateCardId(cardId: unknown, userId: number): Promise<number |
   return result.rows.length > 0 ? Number(cardId) : null;
 }
 
+// Confirma que o cartao (quando informado) e compativel com a forma de
+// pagamento da despesa. Cartoes sem tipo definido (ainda nao classificados)
+// sao sempre aceitos, para nao bloquear cartoes cadastrados antes deste
+// campo existir. Retorna null quando valido, ou uma mensagem de erro.
+async function validateCardTypeCompatibility(
+  cardId: number | null,
+  formaPagamento: unknown,
+  userId: number,
+): Promise<string | null> {
+  if (!cardId) return null;
+  const result = await pool.query('SELECT tipo FROM cartoes WHERE id = $1 AND usuario_id = $2', [cardId, userId]);
+  const tipo = (result.rows[0] as { tipo: string | null } | undefined)?.tipo;
+  if (!tipo || tipo === 'ambos') return null;
+  if (tipo !== formaPagamento) {
+    return `Card does not support payment method "${String(formaPagamento)}"`;
+  }
+  return null;
+}
+
 async function createFutureInstallments(
   userId: number,
   baseExpense: Record<string, unknown>,
@@ -188,9 +207,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const { where, params } = buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, perfil_id);
 
     const result = await pool.query(
-      `SELECT d.*, c.nome AS categoria_nome
+      `SELECT d.*, c.nome AS categoria_nome, ct.nome AS cartao_nome, ct.tipo AS cartao_tipo
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
+       LEFT JOIN cartoes ct ON d.cartao_id = ct.id
        ${where}
        ORDER BY d.data_vencimento ASC`,
       params,
@@ -341,6 +361,11 @@ router.post(
       const totalInstallments = total_parcelas ?? null;
       const currentInstallment = parcela_atual ?? (parcelado ? 1 : null);
       const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
+      const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
+      if (cardCompatibilityError) {
+        res.status(400).json({ success: false, message: cardCompatibilityError });
+        return;
+      }
       const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
       const parsedCategoryId = categoria_id ? parseInt(String(categoria_id), 10) : NaN;
@@ -421,6 +446,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     } = req.body as Record<string, unknown>;
 
     const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
+    const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
+    if (cardCompatibilityError) {
+      res.status(400).json({ success: false, message: cardCompatibilityError });
+      return;
+    }
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
     const valorFinalCalculado = valor_final

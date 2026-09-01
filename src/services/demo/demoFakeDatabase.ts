@@ -25,6 +25,7 @@ export interface RawExpenseDemo {
   categoria_id: number | null;
   forma_pagamento: string;
   cartao_id: number | null;
+  cartao_nome?: string | null;
   data_vencimento: string;
   data_compra: string | null;
   data_pagamento: string | null;
@@ -70,6 +71,7 @@ export interface CartaoDemo {
   numero_cartao: string | null;
   validade: string | null;
   perfil_id: number | null;
+  tipo: 'credito' | 'debito' | 'ambos' | null;
 }
 
 export interface ReservaDemo {
@@ -115,7 +117,7 @@ function createSeed() {
   ];
 
   const cartoes: CartaoDemo[] = [
-    { id: 1, nome: 'Cartão principal', limite: 5000, dia_fechamento: 20, dia_vencimento: 28, cor: '#0EC4D8', ativo: true, numero_cartao: null, validade: null, perfil_id: null },
+    { id: 1, nome: 'Cartão principal', limite: 5000, dia_fechamento: 20, dia_vencimento: 28, cor: '#0EC4D8', ativo: true, numero_cartao: null, validade: null, perfil_id: null, tipo: 'credito' },
   ];
 
   const receitas: RawIncomeDemo[] = [

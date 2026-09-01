@@ -72,7 +72,7 @@ export function ExpenseCard({
           <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
             {item.categoria}
           </span>
-          <span>{getFormaLabel(item.formaPagamento)}</span>
+          <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {isCancelada ? (

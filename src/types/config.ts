@@ -20,6 +20,8 @@ export interface CategoriaFormValues {
   parent_id?: number | null;
 }
 
+export type CartaoTipo = 'credito' | 'debito' | 'ambos';
+
 export interface Cartao {
   id: number;
   nome: string;
@@ -31,6 +33,7 @@ export interface Cartao {
   numero_cartao?: string | null;
   validade?: string | null;
   perfil_id?: number | null;
+  tipo?: CartaoTipo | null;
 }
 
 export interface CartaoFormValues {
@@ -41,6 +44,7 @@ export interface CartaoFormValues {
   cor?: string;
   numero_cartao?: string;
   validade?: string;
+  tipo?: CartaoTipo;
 }
 
 export type Enquadramento = 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA';

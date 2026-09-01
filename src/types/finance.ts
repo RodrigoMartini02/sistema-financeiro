@@ -62,6 +62,8 @@ export interface Expense {
   valorPago?: number | null;    // valor efetivamente pago (pode diferir do valorFinal por acréscimo/desconto)
   categoria: string;
   formaPagamento: string;
+  cartaoId?: number | null;
+  cartaoNome?: string | null;
   dataVencimento: string;
   dataCompra?: string | null;
   dataPagamento?: string | null;

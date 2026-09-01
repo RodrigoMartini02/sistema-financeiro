@@ -205,6 +205,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroFormaPag, setFiltroFormaPag] = useState('');
+  const [filtroCartao, setFiltroCartao] = useState('');
   const [filtroDataPag, setFiltroDataPag] = useState<FiltroDataPag>('qualquer');
   const [ordenar, setOrdenar] = useState<Ordenar>('vencimento_asc');
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
@@ -281,6 +282,9 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
+  const cartoesUsados = [...new Map(
+    allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
+  ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
   const hoje = todayStr();
   const semanaAgo = daysAgoLocalIso(7);
@@ -291,6 +295,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       if (filtroStatus !== 'todos' && getStatus(i) !== filtroStatus) return false;
       if (filtroCategoria && i.categoria !== filtroCategoria) return false;
       if (filtroFormaPag && i.formaPagamento !== filtroFormaPag) return false;
+      if (filtroCartao && String(i.cartaoId ?? '') !== filtroCartao) return false;
       if (filtroDataPag === 'hoje' && i.dataPagamento !== hoje) return false;
       if (filtroDataPag === 'semana' && (!i.dataPagamento || i.dataPagamento < semanaAgo || i.dataPagamento > hoje)) return false;
       if (filtroDataPag === 'mes' && (!i.dataPagamento || !i.dataPagamento.startsWith(mesPrefixo))) return false;
@@ -307,7 +312,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     });
 
   const hasFilter2 =
-    filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroDataPag !== 'qualquer';
+    filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroCartao !== '' || filtroDataPag !== 'qualquer';
 
   useEffect(() => {
     onFilteredSummaryChange?.({
@@ -444,6 +449,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   ...formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
                 ]}
               />
+              {cartoesUsados.length > 0 && (
+                <FilterChip
+                  value={filtroCartao}
+                  onChange={setFiltroCartao}
+                  options={[
+                    { value: '', label: 'Cartão' },
+                    ...cartoesUsados.map(([id, nome]) => ({ value: id, label: nome })),
+                  ]}
+                />
+              )}
               <FilterChip
                 value={filtroDataPag}
                 onChange={(v) => setFiltroDataPag(v as FiltroDataPag)}
@@ -472,6 +487,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     setFiltroStatus('todos');
                     setFiltroCategoria('');
                     setFiltroFormaPag('');
+                    setFiltroCartao('');
                     setFiltroDataPag('qualquer');
                   }}
                   className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100 transition dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
@@ -645,6 +661,9 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                       {/* Pagamento */}
                       <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                         {getFormaLabel(item.formaPagamento)}
+                        {item.cartaoNome && (
+                          <span className="text-slate-400"> · {item.cartaoNome}</span>
+                        )}
                       </td>
 
                       {/* Status */}
