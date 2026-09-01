@@ -4,8 +4,10 @@ import { fetchCartoes, fetchCategorias } from '../services/configService';
 import { fetchClientes } from '../services/clientesService';
 import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
-import type { ConfigTab } from '../layout/AppShell';
+import type { ConfigItemId } from '../layout/ConfigPanel';
 import { getFirstAccessGuideUserScope } from '../services/userScope';
+
+export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 'clientes' };
 
 const STORAGE_PREFIX = 'fingerence:onboarding-checklist';
 
@@ -50,7 +52,7 @@ export interface OnboardingChecklistItem {
   label: string;
   description: string;
   done: boolean;
-  targetTab: ConfigTab;
+  target: OnboardingTarget;
 }
 
 export function useOnboardingChecklist(enabled: boolean) {
@@ -75,14 +77,14 @@ export function useOnboardingChecklist(enabled: boolean) {
         label: 'Cadastrar um cartão',
         description: 'Necessário para lançar despesas parceladas ou pagas no crédito/débito.',
         done: (cartoesQuery.data?.length ?? 0) > 0,
-        targetTab: 'cartoes',
+        target: { kind: 'config', item: 'cartoes' },
       },
       {
         id: 'categoria',
         label: 'Personalizar suas categorias',
         description: 'O sistema já vem com categorias padrão, mas você pode ajustá-las conforme sua rotina.',
         done: (categoriasQuery.data?.length ?? 0) > 0,
-        targetTab: 'categorias',
+        target: { kind: 'config', item: 'categorias' },
       },
     ];
 
@@ -93,14 +95,14 @@ export function useOnboardingChecklist(enabled: boolean) {
           label: 'Cadastrar um cliente',
           description: 'Necessário para vincular receitas a contratos e faturamento.',
           done: (clientesQuery.data?.length ?? 0) > 0,
-          targetTab: 'clientes',
+          target: { kind: 'clientes' },
         },
         {
           id: 'representante',
           label: 'Cadastrar um representante',
           description: 'Opcional — apenas se você calcula comissões automáticas por receita.',
           done: (representantesQuery.data?.length ?? 0) > 0,
-          targetTab: 'representantes',
+          target: { kind: 'config', item: 'representantes' },
         },
       );
     }

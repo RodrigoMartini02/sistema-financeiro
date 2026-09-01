@@ -42,6 +42,12 @@ export async function updateMe(body: UsuarioMePutBody): Promise<UsuarioMe> {
   });
 }
 
+export async function updateFoto(foto: string | null): Promise<void> {
+  await apiRequest<{ success: boolean; message: string }>('/usuarios/current/photo', {
+    method: 'PUT', body: JSON.stringify({ foto }),
+  });
+}
+
 export async function fetchUsuarios(params: {
   page?: number; limit?: number; search?: string; tipo?: string; status?: string;
 }): Promise<UsuarioListResponse> {

@@ -116,6 +116,7 @@ router.post(
             documento: user.document,
             tipo: user.type,
             status: user.status,
+            foto: user.photo,
           },
         },
       });
@@ -230,6 +231,7 @@ router.post(
             documento: newUser!.document,
             tipo: newUser!.type,
             status: newUser!.status,
+            foto: null,
           },
         },
       });
@@ -251,6 +253,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
         document: users.document,
         type: users.type,
         status: users.status,
+        photo: users.photo,
       })
       .from(users)
       .where(eq(users.id, req.user!.id))
@@ -271,6 +274,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
           documento: user.document,
           tipo: user.type,
           status: user.status,
+          foto: user.photo,
         },
       },
     });
@@ -567,7 +571,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         token,
-        usuario: { id: user.id, nome: user.name, email: user.email, documento: user.document, tipo: user.type },
+        usuario: { id: user.id, nome: user.name, email: user.email, documento: user.document, tipo: user.type, foto: user.photo },
       },
     });
   } catch (error) {

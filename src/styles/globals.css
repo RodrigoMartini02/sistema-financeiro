@@ -377,6 +377,11 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes drawer-in {
+  0% { opacity: 0; transform: translateX(28px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fingerence-how-active-path,
   .fingerence-how-card,

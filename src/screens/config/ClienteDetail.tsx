@@ -15,6 +15,7 @@ import { fetchRepresentantes, type Representante } from '../../services/represen
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
+import { Drawer } from '../../ui/drawer';
 import {
   C, labelStyle, fieldInputStyle, cardStyle,
   valuesTableCardStyle, valuesTableHeaderStyle, valuesTableColLabelStyle,
@@ -149,19 +150,19 @@ function ContratoForm({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Número</label>
-          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
+          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Descrição</label>
-          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 42, fontSize: 14 }} />
+          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Vencimento <span style={{ color: C.danger }}>*</span></label>
-          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Início fatur.</label>
-          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
         </div>
       </div>
 
@@ -173,7 +174,7 @@ function ContratoForm({
             <select
               value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
               onChange={(e) => set('ajuste', e.target.value)}
-              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
             >
               <option value="NADA CONSTA">Nada consta</option>
               <option value="IGPM">IGPM</option>
@@ -196,7 +197,7 @@ function ContratoForm({
             <select
               value={form.representante_id}
               onChange={(e) => set('representante_id', e.target.value)}
-              style={{ ...fieldInputStyle, height: 42, fontSize: 14 }}
+              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
             >
               <option value="">Nenhum</option>
               {representantes.map((r) => (
@@ -521,9 +522,9 @@ function ContratoModal({
   onRegistrarAditivo?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(!contrato);
-  const [showServicos, setShowServicos] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dados' | 'servicos' | 'anexos'>('dados');
   const servicosVinculoGuide = useFirstAccessGuide('clientes:servicos-vinculo-v1', {
-    enabled: open && showServicos && !!contrato,
+    enabled: open && activeTab === 'servicos' && !!contrato,
     layer: GUIDE_LAYER_MODAL,
   });
   const implantacaoGuide = useFirstAccessGuide('clientes:implantacao-v1', {
@@ -599,6 +600,7 @@ function ContratoModal({
     if (open) {
       setIsEditing(!contrato);
       setPendingServicos(new Map());
+      setActiveTab('dados');
     }
   }, [open, contrato?.id]);
 
@@ -701,18 +703,99 @@ function ContratoModal({
     .filter((s) => s.faturando)
     .reduce((acc, s) => acc + parseFloat(String(s.valor_mensal ?? 0)), 0);
 
+  const tabs: { id: 'dados' | 'servicos' | 'anexos'; label: string; count?: number }[] = [
+    { id: 'dados', label: 'Dados' },
+    { id: 'servicos', label: 'Serviços', count: servicosContrato.length > 0 ? servicosContrato.length : undefined },
+    { id: 'anexos', label: 'Anexos' },
+  ];
+
   return (
-    <Dialog
+    <Drawer
       open={open}
       title={contrato ? `Contrato ${contrato.numero || '—'}` : 'Novo contrato'}
-      description={onEncerrar ? 'Em vigor' : undefined}
+      subtitle={onEncerrar ? 'Em vigor' : undefined}
       onClose={onClose}
-      size="xxl"
-      scrollBody={false}
+      footer={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {onEncerrar && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={onEncerrar}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 11, border: 'none', background: 'transparent', color: C.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  <AlertTriangle size={13} /> Encerrar
+                </button>
+                {encerrarGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    icon={AlertTriangle}
+                    description={firstAccessGuideMessages.clientesEncerrarContrato}
+                    onDismiss={encerrarGuide.dismiss}
+                  />
+                )}
+              </div>
+            )}
+            {onRegistrarAditivo && (
+              <button
+                type="button"
+                onClick={onRegistrarAditivo}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 11, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                <RefreshCw size={13} /> Registrar aditivo
+              </button>
+            )}
+            {!isEditing && contrato ? (
+              <Button onClick={() => setIsEditing(true)}>Editar</Button>
+            ) : (
+              <>
+                {contrato && (
+                  <Button variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
+                )}
+                <Button
+                  disabled={isSaving}
+                  onClick={() => (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit()}
+                >
+                  {isSaving ? 'Salvando...' : contrato ? 'Salvar alterações' : 'Criar contrato'}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <div className="scrollbar-thin overflow-y-auto" style={{ display: 'flex', flexDirection: 'column', gap: 22, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
+        {/* ── Abas ── */}
+        <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${C.border}` }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, height: 38, padding: '0 4px', marginBottom: -1,
+                border: 'none', borderBottom: `2px solid ${activeTab === tab.id ? C.primary : 'transparent'}`,
+                background: 'transparent', cursor: 'pointer',
+                fontSize: 13.5, fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id ? C.primaryDark : C.textMuted,
+              }}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', height: 18, padding: '0 6px', borderRadius: 999, background: C.primarySoft, color: C.primaryDark, fontSize: 10, fontWeight: 700 }}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'dados' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* ── Dados do contrato ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -924,33 +1007,11 @@ function ContratoModal({
             </div>
           )}
         </div>
-
-        {/* ── Botão Serviços ── */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            type="button"
-            onClick={() => setShowServicos(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, height: 46, padding: '0 14px', borderRadius: 12, border: `1px solid ${C.border}`, background: '#fff', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: C.text }}
-          >
-            <span>Discriminação de prestação de serviço</span>
-            {servicosContrato.length > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px', borderRadius: 999, background: C.primarySoft, color: C.primaryDark, fontSize: 11, fontWeight: 700 }}>
-                {servicosContrato.length}
-              </span>
-            )}
-            <ChevronRight size={14} style={{ color: C.placeholder }} />
-          </button>
         </div>
+        )}
 
-        {/* ── Sub-modal Serviços ── */}
-        <Dialog
-          open={showServicos}
-          title="Discriminação de prestação de serviço"
-          onClose={() => setShowServicos(false)}
-          size="xl"
-          scrollBody={false}
-        >
-          <div className="flex flex-col flex-1 min-h-0 gap-3">
+        {activeTab === 'servicos' && (
+          <div className="flex flex-col gap-3">
             {catalogoQ.isLoading ? (
               <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: C.placeholder }}>Carregando serviços...</p>
             ) : catalogo.length === 0 ? (
@@ -1069,87 +1130,23 @@ function ContratoModal({
                 </div>
               </>
             )}
-          </div>
-          {catalogo.length > 0 && (
-            <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '12px 0 0', marginTop: 8, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            {catalogo.length > 0 && (
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: '12px 0 0', marginTop: 8, borderTop: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.placeholder }}>Faturando</span>
                 <span style={{ fontSize: 17, fontWeight: 800, color: C.primaryDark, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(totalFaturando)}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowServicos(false)}
-                style={{ height: 38, padding: '0 18px', borderRadius: 11, border: 'none', background: C.primary, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-              >
-                Concluir
-              </button>
-            </div>
-          )}
-        </Dialog>
-
-        {/* ── Anexos ── */}
-        {contrato && (
-          <div>
-            <div style={{ margin: '0 -4px 14px', borderTop: `1px solid ${C.border}` }} />
-            <ContratoAnexos contratoId={contrato.id} />
+            )}
           </div>
         )}
 
-      </div>
-
-        {/* ── Footer ── */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 24, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 16, marginTop: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {onEncerrar && (
-              <div style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={onEncerrar}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 11, border: 'none', background: 'transparent', color: C.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-                >
-                  <AlertTriangle size={13} /> Encerrar
-                </button>
-                {encerrarGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
-                    icon={AlertTriangle}
-                    description={firstAccessGuideMessages.clientesEncerrarContrato}
-                    onDismiss={encerrarGuide.dismiss}
-                  />
-                )}
-              </div>
-            )}
-            {onRegistrarAditivo && (
-              <button
-                type="button"
-                onClick={onRegistrarAditivo}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 11, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >
-                <RefreshCw size={13} /> Registrar aditivo
-              </button>
-            )}
-            {!isEditing && contrato ? (
-              <Button onClick={() => setIsEditing(true)}>Editar</Button>
-            ) : (
-              <>
-                {contrato && (
-                  <Button variant="secondary" onClick={handleCancelEdit}>Cancelar</Button>
-                )}
-                <Button
-                  disabled={isSaving}
-                  onClick={() => (document.getElementById('contrato-form') as HTMLFormElement | null)?.requestSubmit()}
-                >
-                  {isSaving ? 'Salvando...' : contrato ? 'Salvar alterações' : 'Criar contrato'}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+        {activeTab === 'anexos' && (
+          contrato
+            ? <ContratoAnexos contratoId={contrato.id} />
+            : <p style={{ fontSize: 13, color: C.placeholder, padding: '24px 0', textAlign: 'center' }}>Salve o contrato para anexar arquivos.</p>
+        )}
 
       </div>
-    </Dialog>
+    </Drawer>
   );
 }
 
@@ -1204,15 +1201,15 @@ function AditivoModal({
           <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo número</label>
-              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 42, fontSize: 14, fontWeight: 600 }} />
+              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo vencimento <span style={{ color: C.danger }}>*</span></label>
-              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={labelStyle}>Novo início fatur.</label>
-              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 42, fontSize: 13 }} />
+              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
             </div>
           </div>
           <div style={cardStyle}>

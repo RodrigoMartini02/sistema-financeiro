@@ -1,17 +1,16 @@
 import { useEffect } from 'react';
 import { Check, Compass, X } from 'lucide-react';
-import type { OnboardingChecklistItem } from '../hooks/useOnboardingChecklist';
-import type { ConfigTab } from '../layout/AppShell';
+import type { OnboardingChecklistItem, OnboardingTarget } from '../hooks/useOnboardingChecklist';
 import { Z_MODAL } from '../ui/zIndex';
 
 interface OnboardingChecklistModalProps {
   open: boolean;
   items: OnboardingChecklistItem[];
   onDismiss: () => void;
-  onGoToTab: (tab: ConfigTab) => void;
+  onGoToTarget: (target: OnboardingTarget) => void;
 }
 
-export function OnboardingChecklistModal({ open, items, onDismiss, onGoToTab }: OnboardingChecklistModalProps) {
+export function OnboardingChecklistModal({ open, items, onDismiss, onGoToTarget }: OnboardingChecklistModalProps) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss(); };
@@ -56,7 +55,7 @@ export function OnboardingChecklistModal({ open, items, onDismiss, onGoToTab }: 
             <button
               key={item.id}
               type="button"
-              onClick={() => { onGoToTab(item.targetTab); onDismiss(); }}
+              onClick={() => { onGoToTarget(item.target); onDismiss(); }}
               className="flex items-start gap-3 rounded-xl border border-cyan-200 bg-white px-3 py-2.5 text-left transition hover:border-cyan-400 hover:bg-cyan-50 dark:border-cyan-800 dark:bg-cyan-900/40 dark:hover:border-cyan-600 dark:hover:bg-cyan-900/70"
             >
               <span

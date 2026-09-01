@@ -7,4 +7,5 @@ export interface AuthUser {
   document?: string;
   tipo?: string;
   type?: string;
+  foto?: string | null;
 }
