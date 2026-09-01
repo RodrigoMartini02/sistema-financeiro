@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, LogOut } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import type { Perfil } from '../types/config';
 import { logout } from '../services/session';
-import { fetchPerfis } from '../services/configService';
-import { queryKeys } from '../services/queryKeys';
+import { useActiveProfile } from '../hooks/useActiveProfile';
 import { formatDocumento } from '../utils/document';
 import { Z_DROPDOWN } from '../ui/zIndex';
 
@@ -28,30 +26,7 @@ export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileM
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const perfis = useQuery({
-    queryKey: queryKeys.perfis,
-    queryFn: fetchPerfis,
-    enabled: !isDemoMode,
-  });
-  const data = perfis.data ?? [];
-  const activeId = localStorage.getItem('perfilAtivoId');
-  const activePerfil = data.find((p) => String(p.id) === activeId) ?? data[0];
-
-  useEffect(() => {
-    if (isDemoMode || !activePerfil) return;
-
-    if (String(activePerfil.id) !== activeId) {
-      localStorage.setItem('perfilAtivoId', String(activePerfil.id));
-      localStorage.setItem('perfilAtivoNome', activePerfil.nome);
-      localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
-      window.location.reload();
-      return;
-    }
-
-    if (localStorage.getItem('perfilAtivoTipo') !== activePerfil.tipo) {
-      localStorage.setItem('perfilAtivoTipo', activePerfil.tipo);
-    }
-  }, [isDemoMode, activeId, activePerfil]);
+  const { perfis: data, activeId, activePerfil, select: selectProfile } = useActiveProfile({ enabled: !isDemoMode });
 
   useEffect(() => {
     if (!open) return;
@@ -94,15 +69,8 @@ export function AccountProfileMenu({ user, isDemoMode = false }: AccountProfileM
   }
 
   const select = (p: Perfil) => {
-    if (String(p.id) === activeId) {
-      setOpen(false);
-      return;
-    }
-    localStorage.setItem('perfilAtivoId', String(p.id));
-    localStorage.setItem('perfilAtivoNome', p.nome);
-    localStorage.setItem('perfilAtivoTipo', p.tipo);
+    selectProfile(p);
     setOpen(false);
-    window.location.reload();
   };
 
   const handleLogout = () => {
