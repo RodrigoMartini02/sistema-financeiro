@@ -8,7 +8,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const months = pgTable(
   'meses',
@@ -17,7 +17,7 @@ export const months = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     year: integer('ano').notNull(),
     month: integer('mes').notNull(),
     closed: boolean('fechado').default(false),
@@ -31,7 +31,7 @@ export const months = pgTable(
       table.year,
       table.month,
     ),
-    profileIdx: index('idx_meses_perfil').on(table.profileId),
+    accountIdx: index('idx_meses_conta').on(table.accountId),
   }),
 );
 

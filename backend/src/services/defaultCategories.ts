@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client';
 
-export type DefaultCategoryProfileType = 'pessoal' | 'empresa';
+export type DefaultCategoryAccountType = 'pessoal' | 'empresa';
 type CategoryExecutor = Pick<typeof db, 'execute'>;
 
 export const PERSONAL_DEFAULT_CATEGORIES = [
@@ -47,23 +47,23 @@ const DEFAULT_CATEGORY_COLORS = [
   '#14b8a6',
 ] as const;
 
-export function getDefaultCategories(profileType: DefaultCategoryProfileType): readonly string[] {
-  return profileType === 'empresa' ? BUSINESS_DEFAULT_CATEGORIES : PERSONAL_DEFAULT_CATEGORIES;
+export function getDefaultCategories(accountType: DefaultCategoryAccountType): readonly string[] {
+  return accountType === 'empresa' ? BUSINESS_DEFAULT_CATEGORIES : PERSONAL_DEFAULT_CATEGORIES;
 }
 
 export async function ensureDefaultCategories(
   userId: number,
-  profileType: DefaultCategoryProfileType = 'pessoal',
+  accountType: DefaultCategoryAccountType = 'pessoal',
   executor: CategoryExecutor = db,
 ): Promise<void> {
-  const names = getDefaultCategories(profileType);
+  const names = getDefaultCategories(accountType);
 
   for (const [index, name] of names.entries()) {
     const color = DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length] ?? '#6366f1';
     await executor.execute(sql`
       INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
-      VALUES (${userId}, ${name}, ${color}, NULL, NULL, ${profileType})
-      ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE perfil_id IS NULL DO NOTHING
+      VALUES (${userId}, ${name}, ${color}, NULL, NULL, ${accountType})
+      ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
     `);
   }
 }

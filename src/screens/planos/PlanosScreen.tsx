@@ -14,7 +14,6 @@ import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 // ─── types ───────────────────────────────────────────────────
 
@@ -449,7 +448,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
             <FirstAccessGuideCard
               floating
               placement="bottom"
-              className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+              className="w-[min(24rem,calc(100vw-2rem))]"
               icon={CreditCard}
               description={firstAccessGuideMessages.planosFormasPagamento}
               onDismiss={tabsGuide.dismiss}

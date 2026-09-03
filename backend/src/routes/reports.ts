@@ -4,18 +4,15 @@ import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { generateReportPdf, formatDate, type DespesaReportRow, type ReceitaReportRow } from '../services/reportPdf';
+import { accountWhere as accountWhereBase } from '../utils/accountFilter';
 
 const router = Router();
 
 const TIPO_VALUES = ['todos', 'despesas', 'receitas'] as const;
 const STATUS_VALUES = ['todos', 'pago', 'pendente'] as const;
 
-function profileWhere(tableAlias: string, profileId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
-  if (!profileId) return { clause: '', params: [] };
-  return {
-    clause: ` AND (${tableAlias}.perfil_id = $${paramIndex} OR (${tableAlias}.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramIndex} AND p.tipo = 'pessoal' AND p.usuario_id = ${tableAlias}.usuario_id)))`,
-    params: [profileId],
-  };
+function accountWhere(tableAlias: string, accountId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
+  return accountWhereBase(accountId, paramIndex, tableAlias);
 }
 
 interface DespesaRow {
@@ -46,7 +43,7 @@ async function fetchDespesas(
   userId: number,
   dataInicio: string,
   dataFim: string,
-  profileId: number | null,
+  accountId: number | null,
   formaFiltro: string | undefined,
   statusFiltro: (typeof STATUS_VALUES)[number],
 ): Promise<DespesaRow[]> {
@@ -66,9 +63,9 @@ async function fetchDespesas(
     where += ' AND d.pago = false';
   }
 
-  const { clause: profileClause, params: profileParams } = profileWhere('d', profileId, paramIndex);
-  where += profileClause;
-  params.push(...profileParams);
+  const { clause: accountClause, params: accountParams } = accountWhere('d', accountId, paramIndex);
+  where += accountClause;
+  params.push(...accountParams);
 
   const result = await pool.query<DespesaRow>(
     `SELECT d.descricao, c.nome AS categoria_nome, d.forma_pagamento,
@@ -88,11 +85,11 @@ async function fetchReceitas(
   userId: number,
   dataInicio: string,
   dataFim: string,
-  profileId: number | null,
+  accountId: number | null,
 ): Promise<ReceitaRow[]> {
-  const { clause: profileClause, params: profileParams } = profileWhere('r', profileId, 4);
-  const where = `WHERE r.usuario_id = $1 AND r.data_recebimento >= $2 AND r.data_recebimento <= $3 AND r.status != 'cancelada'${profileClause}`;
-  const params: unknown[] = [userId, dataInicio, dataFim, ...profileParams];
+  const { clause: accountClause, params: accountParams } = accountWhere('r', accountId, 4);
+  const where = `WHERE r.usuario_id = $1 AND r.data_recebimento >= $2 AND r.data_recebimento <= $3 AND r.status != 'cancelada'${accountClause}`;
+  const params: unknown[] = [userId, dataInicio, dataFim, ...accountParams];
 
   const result = await pool.query<ReceitaRow>(
     `SELECT r.descricao, r.tipo_receita, r.data_recebimento, r.status,
@@ -119,7 +116,7 @@ router.get(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { data_inicio, data_fim, tipo, forma, status, perfil_id } = req.query as Record<string, string | undefined>;
+      const { data_inicio, data_fim, tipo, forma, status, conta_id } = req.query as Record<string, string | undefined>;
 
       if (data_inicio! > data_fim!) {
         res.status(400).json({ success: false, message: 'data_inicio must not be after data_fim' });
@@ -128,15 +125,15 @@ router.get(
 
       const tipoFiltro = (tipo as (typeof TIPO_VALUES)[number] | undefined) ?? 'todos';
       const statusFiltro = (status as (typeof STATUS_VALUES)[number] | undefined) ?? 'todos';
-      const profileId = perfil_id ? parseInt(perfil_id) : null;
+      const accountId = conta_id ? parseInt(conta_id) : null;
       const userId = req.user!.id;
 
       const [despesas, receitas] = await Promise.all([
         tipoFiltro !== 'receitas'
-          ? fetchDespesas(userId, data_inicio!, data_fim!, profileId, forma, statusFiltro)
+          ? fetchDespesas(userId, data_inicio!, data_fim!, accountId, forma, statusFiltro)
           : Promise.resolve([]),
         tipoFiltro !== 'despesas'
-          ? fetchReceitas(userId, data_inicio!, data_fim!, profileId)
+          ? fetchReceitas(userId, data_inicio!, data_fim!, accountId)
           : Promise.resolve([]),
       ]);
 

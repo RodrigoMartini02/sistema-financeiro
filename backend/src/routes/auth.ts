@@ -4,11 +4,12 @@ import jwt from 'jsonwebtoken';
 import { body } from 'express-validator';
 import { eq, or } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { users, profiles } from '../db/schema';
+import { users, accounts } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { validate, validateDocument, authRateLimiter } from '../middleware/validation';
 import { recordAnalyticsEvent } from '../services/analytics';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { ensureUserHasAccount } from '../services/accountBackfill';
 
 const router = Router();
 
@@ -167,9 +168,9 @@ router.post(
 
       const hashedPassword = await bcrypt.hash(senha!, 10);
 
-      // Criação de usuário + perfil + categorias padrão precisa ser atômica:
+      // Criação de usuário + conta + categorias padrão precisa ser atômica:
       // se qualquer etapa falhar, o usuário não deve ficar registrado sem
-      // perfil/categorias (cadastro incompleto).
+      // conta/categorias (cadastro incompleto).
       const newUser = await db.transaction(async (transaction) => {
         const [createdUser] = await transaction
           .insert(users)
@@ -187,21 +188,24 @@ router.post(
           })
           .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
 
-        // Create useful defaults for the initial profile — 'empresa' when
-        // registering with a CNPJ, 'pessoal' (CPF) otherwise.
+        // Create useful defaults for the initial account — 'empresa' when
+        // registering with a CNPJ, 'pessoal' (CPF) otherwise. Esta é sempre a
+        // Conta Padrão do usuário (nasceu no cadastro externo, vinculada à
+        // cobrança do plano em `usuarios`).
         if (isCnpj) {
           await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
-          await transaction.insert(profiles).values({
+          await transaction.insert(accounts).values({
             userId: createdUser!.id,
             type: 'empresa',
             name: nome_fantasia!.trim(),
             document: cleanDoc,
             tradeName: nome_fantasia!.trim(),
             active: true,
+            isDefault: true,
           });
         } else {
           await ensureDefaultCategories(createdUser!.id, 'pessoal', transaction);
-          await transaction.insert(profiles).values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true });
+          await transaction.insert(accounts).values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true, isDefault: true });
         }
 
         return createdUser;
@@ -263,6 +267,8 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
+
+    await ensureUserHasAccount(user.id);
 
     res.json({
       success: true,

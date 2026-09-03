@@ -23,8 +23,8 @@ export function getApiUrl() {
   return port === '5173' ? '/api' : 'http://localhost:3010/api';
 }
 
-export function getActiveProfileId() {
-  const raw = localStorage.getItem('perfilAtivoId');
+export function getActiveAccountId() {
+  const raw = localStorage.getItem('contaAtivaId');
   if (!raw) return null;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;

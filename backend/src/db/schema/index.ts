@@ -1,5 +1,5 @@
 export * from './users';
-export * from './profiles';
+export * from './accounts';
 export * from './categories';
 export * from './cards';
 export * from './incomes';

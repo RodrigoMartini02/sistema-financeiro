@@ -6,7 +6,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchReservas, movimentar } from '../../services/reservasService';
@@ -154,8 +154,8 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const mesStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(year, month),
     queryFn: async () => {
-      const profileId = getActiveProfileId();
-      const query = profileId ? `?perfil_id=${profileId}` : '';
+      const accountId = getActiveAccountId();
+      const query = accountId ? `?conta_id=${accountId}` : '';
       const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
       return months.find((item) => item.ano === year && item.mes === month)?.fechado ?? false;
     },
@@ -167,8 +167,8 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const mesAnteriorStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(prevYear, prevMonth),
     queryFn: async () => {
-      const profileId = getActiveProfileId();
-      const query = profileId ? `?perfil_id=${profileId}` : '';
+      const accountId = getActiveAccountId();
+      const query = accountId ? `?conta_id=${accountId}` : '';
       const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
       return months.find((item) => item.ano === prevYear && item.mes === prevMonth)?.fechado ?? false;
     },
@@ -181,10 +181,10 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
   const fecharMut = useMutation({
     mutationFn: async () => {
-      const profileId = getActiveProfileId();
+      const accountId = getActiveAccountId();
       await apiRequest<void>(`/meses/${year}/${month}/fechar`, {
         method: 'POST',
-        body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
+        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
       });
     },
     onSuccess: () => {
@@ -195,10 +195,10 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   });
   const reabrirMut = useMutation({
     mutationFn: async () => {
-      const profileId = getActiveProfileId();
+      const accountId = getActiveAccountId();
       await apiRequest<void>(`/meses/${year}/${month}/reabrir`, {
         method: 'POST',
-        body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
+        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
       });
     },
     onSuccess: () => {

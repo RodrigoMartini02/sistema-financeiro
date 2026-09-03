@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Loader2, Printer, TrendingDown, TrendingUp, ArrowUpDown, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { downloadReportPdf } from '../../services/reportsService';
 import { MONTH_NAMES } from '../../types/finance';
 import { Card } from '../../ui/card';
@@ -9,7 +9,6 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { Z_GUIDE } from '../../ui/zIndex';
 import { ReportCard } from './ReportCard';
 
 // ── types ──────────────────────────────────────────────────────────────────────
@@ -56,16 +55,16 @@ function lastDayOf(ano: number, mes1indexed: number) {
 }
 
 async function fetchDespesasMes(mes: number, ano: number): Promise<RawDespesa[]> {
-  const pid = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const q = new URLSearchParams({ mes: String(mes), ano: String(ano) });
-  if (pid) q.set('perfil_id', String(pid));
+  if (accountId) q.set('conta_id', String(accountId));
   return apiRequest<RawDespesa[]>(`/despesas?${q}`);
 }
 
 async function fetchReceitasMes(mes: number, ano: number): Promise<RawReceita[]> {
-  const pid = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const q = new URLSearchParams({ mes: String(mes), ano: String(ano) });
-  if (pid) q.set('perfil_id', String(pid));
+  if (accountId) q.set('conta_id', String(accountId));
   return apiRequest<RawReceita[]>(`/receitas?${q}`);
 }
 
@@ -416,7 +415,7 @@ export function RelatoriosScreen() {
                 align="right"
                 floating
                 placement="top"
-                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                className="w-[min(24rem,calc(100vw-2rem))]"
                 onDismiss={consultGuide.dismiss}
               />
             )}
@@ -436,7 +435,7 @@ export function RelatoriosScreen() {
                   align="right"
                   floating
                   placement="top"
-                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={exportGuide.dismiss}
                 />
               )}

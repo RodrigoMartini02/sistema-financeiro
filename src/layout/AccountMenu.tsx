@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, LogOut, Settings } from 'lucide-react';
 import type { AuthUser } from '../types/auth';
-import type { Perfil } from '../types/config';
+import type { Conta } from '../types/config';
 import { logout } from '../services/session';
-import { useActiveProfile } from '../hooks/useActiveProfile';
+import { useActiveAccount } from '../hooks/useActiveAccount';
 import { formatDocumento } from '../utils/document';
 import { Z_DROPDOWN } from '../ui/zIndex';
 import type { ConfigItemId } from './ConfigPanel';
@@ -15,20 +15,20 @@ function getInitials(nome: string): string {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
-interface AccountProfileMenuProps {
+interface AccountMenuProps {
   user?: AuthUser;
   isDemoMode?: boolean;
   onOpenConfig?: (item?: ConfigItemId) => void;
 }
 
-export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: AccountProfileMenuProps) {
+export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loggingOut, setLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const { perfis: data, activeId, activePerfil, select: selectProfile } = useActiveProfile({ enabled: !isDemoMode });
+  const { contas: data, activeId, activeAccount, select: selectAccount } = useActiveAccount({ enabled: !isDemoMode });
 
   useEffect(() => {
     if (!open) return;
@@ -57,12 +57,12 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
     return (
       <div className="flex h-[46px] items-center gap-2.5 rounded-xl px-3 pl-1.5 opacity-90">
         <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-          {getInitials(user?.nome ?? user?.name ?? 'Usuário')}
+          {getInitials(user?.nome ?? 'Usuário')}
         </div>
         <div className="hidden min-w-0 flex-col items-start max-[480px]:hidden sm:flex">
           <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">Demonstração</span>
           <span className="truncate text-[10.5px] font-medium text-[rgba(14,196,216,0.55)]">
-            {user?.nome ?? user?.name ?? 'Usuário'}
+            {user?.nome ?? 'Usuário'}
           </span>
         </div>
         <ChevronDown size={14} className="text-[rgba(14,196,216,0.4)]" />
@@ -70,8 +70,8 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
     );
   }
 
-  const select = (p: Perfil) => {
-    selectProfile(p);
+  const select = (c: Conta) => {
+    selectAccount(c);
     setOpen(false);
   };
 
@@ -87,7 +87,7 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
   };
 
   const menuItems: Array<{ onSelect: () => void }> = [
-    ...(data.length > 1 ? data.map((p) => ({ onSelect: () => select(p) })) : []),
+    ...data.map((c) => ({ onSelect: () => select(c) })),
     { onSelect: handleOpenConfig },
     { onSelect: handleLogout },
   ];
@@ -113,8 +113,8 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
     }
   };
 
-  const userInitial = getInitials(user?.nome ?? user?.name ?? 'Usuário');
-  const userName = user?.nome ?? user?.name ?? 'Usuário';
+  const userInitial = getInitials(user?.nome ?? 'Usuário');
+  const userName = user?.nome ?? 'Usuário';
 
   return (
     <>
@@ -141,15 +141,15 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
           ].join(' ')}
         >
           <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-            {!activePerfil && user?.foto ? (
-              <img src={user.foto} alt="" className="h-full w-full object-cover" />
+            {activeAccount?.foto ? (
+              <img src={activeAccount.foto} alt="" className="h-full w-full object-cover" />
             ) : (
-              activePerfil ? getInitials(activePerfil.nome) : userInitial
+              activeAccount ? getInitials(activeAccount.nome) : userInitial
             )}
           </div>
           <div className="hidden min-w-0 flex-col items-start max-[480px]:hidden sm:flex">
             <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">
-              {activePerfil?.nome ?? userName}
+              {activeAccount?.nome ?? userName}
             </span>
             <span className="whitespace-nowrap text-[10.5px] font-medium text-[rgba(14,196,216,0.55)]">
               {userName}
@@ -169,21 +169,21 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
               Z_DROPDOWN,
             ].join(' ')}
           >
-            {data.length > 1 && (
+            {data.length > 0 && (
               <div>
                 <p className="px-[14px] pb-[7px] pt-[13px] text-[10px] font-bold uppercase tracking-[0.12em] text-[rgba(14,196,216,0.4)]">
-                  Trocar perfil
+                  Trocar conta
                 </p>
-                {data.map((p, i) => {
-                  const isActive = String(p.id) === activeId;
-                  const documento = p.documento ? formatDocumento(p.documento, p.tipo) : null;
+                {data.map((c, i) => {
+                  const isActive = String(c.id) === activeId;
+                  const documento = c.documento ? formatDocumento(c.documento, c.tipo) : null;
                   return (
                     <button
-                      key={p.id}
+                      key={c.id}
                       ref={(el) => { itemRefs.current[i] = el; }}
                       role="menuitem"
                       type="button"
-                      onClick={() => select(p)}
+                      onClick={() => select(c)}
                       onKeyDown={(e) => handleItemKeyDown(e, i)}
                       className={[
                         'flex min-h-[44px] w-full items-center gap-2.5 px-[14px] py-2 text-left transition',
@@ -192,25 +192,25 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
                     >
                       <div
                         className={[
-                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold',
+                          'flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg text-[11px] font-bold',
                           isActive ? 'bg-[#0EC4D8] text-[#04222b]' : 'bg-[rgba(14,196,216,0.14)] text-[rgba(14,196,216,0.8)]',
                         ].join(' ')}
                       >
-                        {getInitials(p.nome)}
+                        {c.foto ? <img src={c.foto} alt="" className="h-full w-full object-cover" /> : getInitials(c.nome)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className={[
                           'truncate text-[12.5px] font-semibold',
                           isActive ? 'text-[#0EC4D8]' : 'text-[#E8F4F5]',
                         ].join(' ')}>
-                          {p.nome}
+                          {c.nome}
                         </p>
                         {documento && (
                           <p className="truncate text-[10px] text-[rgba(14,196,216,0.45)]">{documento}</p>
                         )}
                       </div>
                       <span className="shrink-0 rounded-full border border-[rgba(14,196,216,0.2)] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[rgba(14,196,216,0.7)]">
-                        {p.tipo === 'empresa' ? 'PJ' : 'PF'}
+                        {c.eh_padrao ? 'Padrão' : c.tipo === 'empresa' ? 'PJ' : 'PF'}
                       </span>
                       <span className="flex w-[15px] shrink-0 justify-center">
                         {isActive && <Check size={15} className="text-[#0EC4D8]" />}
@@ -221,25 +221,13 @@ export function AccountProfileMenu({ user, isDemoMode = false, onOpenConfig }: A
               </div>
             )}
 
-            <div className="border-t border-[rgba(14,196,216,0.12)] px-[14px] pb-[9px] pt-[11px]">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-                  {user?.foto ? <img src={user.foto} alt="" className="h-full w-full object-cover" /> : userInitial}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-bold text-[#E8F4F5]">{userName}</p>
-                  <p className="truncate text-[10.5px] text-[rgba(14,196,216,0.5)]">{user?.email ?? 'Sessão ativa'}</p>
-                </div>
-              </div>
-            </div>
-
             <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
               <button
-                ref={(el) => { itemRefs.current[data.length > 1 ? data.length : 0] = el; }}
+                ref={(el) => { itemRefs.current[data.length] = el; }}
                 role="menuitem"
                 type="button"
                 onClick={handleOpenConfig}
-                onKeyDown={(e) => handleItemKeyDown(e, data.length > 1 ? data.length : 0)}
+                onKeyDown={(e) => handleItemKeyDown(e, data.length)}
                 className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
               >
                 <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />

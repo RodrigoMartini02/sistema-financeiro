@@ -5,11 +5,11 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
-import { apiRequest, getActiveProfileId } from '../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../services/apiClient';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
-import { AccountProfileMenu } from './AccountProfileMenu';
+import { AccountMenu } from './AccountMenu';
 import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
@@ -30,7 +30,7 @@ interface AppShellProps {
   // Usado por telas que precisam caber inteiras na tela, como o calendário.
   fillViewport?: boolean;
   // Renderizado dentro da seção de demonstração pública: desabilita logout real,
-  // notificações reais, troca de perfil e o assistente financeiro (fora do escopo
+  // notificações reais, troca de conta e o assistente financeiro (fora do escopo
   // da demonstração), mantendo a mesma moldura visual do app real.
   isDemoMode?: boolean;
 }
@@ -69,8 +69,8 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
     queryKey: ['notif-despesas', month, year],
     queryFn: async () => {
       const params = new URLSearchParams({ mes: String(month), ano: String(year) });
-      const profileId = getActiveProfileId();
-      if (profileId) params.set('perfil_id', String(profileId));
+      const accountId = getActiveAccountId();
+      if (accountId) params.set('conta_id', String(accountId));
       return apiRequest<Array<{
         id: number; descricao: string; valor_final: number;
         categoria_nome?: string; forma_pagamento?: string;
@@ -158,7 +158,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 }
 
 const CONFIG_ITEM_IDS: ConfigItemId[] = [
-  'conta', 'seguranca', 'perfis', 'categorias', 'cartoes', 'servicos',
+  'seguranca', 'contas', 'categorias', 'cartoes', 'servicos',
   'representantes', 'socios', 'usuarios', 'acessos', 'integracoes-ia',
 ];
 
@@ -183,7 +183,7 @@ export function AppShell({
     setConfigPanel({ open: true, item });
     setMobileOpen(false);
     const url = new URL(window.location.href);
-    url.searchParams.set('config', item ?? 'conta');
+    url.searchParams.set('config', item ?? 'contas');
     window.history.pushState({ fingerenceConfig: true }, '', url);
   };
 
@@ -348,7 +348,7 @@ export function AppShell({
 
             <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />
 
-            <AccountProfileMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode ? undefined : openConfig} />
+            <AccountMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode ? undefined : openConfig} />
           </div>
         </header>
 

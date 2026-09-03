@@ -12,7 +12,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 import { formatCurrency } from '../finance/formatters';
 
 function calcContribuicao(valorAtual: number, meta: number, prazo: string): number | null {
@@ -125,7 +124,7 @@ function ReservaCard({
               floating
               placement="top"
               align="right"
-              className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(22rem,calc(100vw-2rem))]`}
+              className="w-[min(22rem,calc(100vw-2rem))]"
               icon={TrendingUp}
               description={moveGuide.description}
               onDismiss={moveGuide.onDismiss}
@@ -212,7 +211,8 @@ export function ReservasScreen() {
               <FirstAccessGuideCard
                 floating
                 placement="top"
-                className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                align="right"
+                className="w-[min(25rem,calc(100vw-2rem))]"
                 icon={PiggyBank}
                 description={firstAccessGuideMessages.reservasNova}
                 onDismiss={guide.dismiss}

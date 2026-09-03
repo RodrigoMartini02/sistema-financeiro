@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa } from '../../services/financeService';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
-import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
 import type { Attachment } from '../../types/finance';
 import { Button } from '../../ui/button';
@@ -25,7 +25,6 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { daysAgoLocalIso, getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from './ExpenseCard';
 import { DeleteInstallmentDialog } from './DeleteInstallmentDialog';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
@@ -41,13 +40,9 @@ export function getFormaLabel(forma: string): string {
   return FORMA_LABELS[(forma ?? '').toLowerCase()] ?? forma ?? '—';
 }
 
-function todayStr(): string {
-  return getLocalTodayIso();
-}
-
 export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
-  return item.dataVencimento < todayStr() ? 'atrasada' : 'em_dia';
+  return item.dataVencimento < getLocalTodayIso() ? 'atrasada' : 'em_dia';
 }
 
 export function StatusBadge({ item }: { item: Expense }) {
@@ -211,7 +206,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
 
-  const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
+  const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
   const qc = useQueryClient();
   const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
@@ -220,8 +215,8 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const mesStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(year, month),
     queryFn: async () => {
-      const pid = getActiveProfileId();
-      const q = pid ? `?perfil_id=${pid}` : '';
+      const accountId = getActiveAccountId();
+      const q = accountId ? `?conta_id=${accountId}` : '';
       const all = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${q}`);
       return all.find((m) => m.ano === year && m.mes === month)?.fechado ?? false;
     },
@@ -286,7 +281,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
   ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
-  const hoje = todayStr();
+  const hoje = getLocalTodayIso();
   const semanaAgo = daysAgoLocalIso(7);
   const mesPrefixo = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -403,7 +398,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={CheckSquare}
                     description={firstAccessGuideMessages.despesasPagarSelecionadas}
                     onDismiss={pagarSelecionadasGuide.dismiss}
@@ -419,7 +414,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   align="right"
                   floating
                   placement="top"
-                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={filterGuide.dismiss}
                 />
               )}
@@ -520,7 +515,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className={`absolute left-3 top-0 ${Z_GUIDE} w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   icon={CheckSquare}
                   description={firstAccessGuideMessages.despesasLote}
                   onDismiss={loteGuide.dismiss}
@@ -531,7 +526,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   floating
                   placement="top"
                   align="right"
-                  className={`absolute right-3 top-0 ${Z_GUIDE} w-[min(22rem,calc(100vw-2rem))]`}
+                  className="w-[min(22rem,calc(100vw-2rem))]"
                   icon={ArrowRight}
                   description={firstAccessGuideMessages.despesasMoverMes}
                   onDismiss={moverMesGuide.dismiss}

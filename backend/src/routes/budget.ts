@@ -4,7 +4,7 @@ import { BudgetInputError, deleteBudgetTarget, getBudgetOverview, saveBudgetTarg
 
 const router = Router();
 
-function parseProfileId(value: unknown): number | null {
+function parseAccountId(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -37,7 +37,7 @@ router.get('/resumo', authenticate, async (req: Request, res: Response): Promise
         };
     const result = await getBudgetOverview({
       userId: req.user!.id,
-      profileId: parseProfileId(query['perfil_id']),
+      accountId: parseAccountId(query['conta_id']),
       ...period,
     });
     res.json({ success: true, data: result });
@@ -56,7 +56,7 @@ router.put('/metas', authenticate, async (req: Request, res: Response): Promise<
     const body = req.body as Record<string, unknown>;
     await saveBudgetTarget({
       userId: req.user!.id,
-      profileId: parseProfileId(body['perfil_id']),
+      accountId: parseAccountId(body['conta_id']),
       categoryId: body['categoria_id'],
       mode: body['modo'],
       targetValue: body['valor_meta'],
@@ -77,7 +77,7 @@ router.delete('/metas/:categoryId', authenticate, async (req: Request, res: Resp
     const categoryId = Number(req.params['categoryId']);
     if (!Number.isInteger(categoryId) || categoryId <= 0) throw new BudgetInputError('Categoria inválida.');
     const query = req.query as Record<string, unknown>;
-    await deleteBudgetTarget({ userId: req.user!.id, profileId: parseProfileId(query['perfil_id']), categoryId });
+    await deleteBudgetTarget({ userId: req.user!.id, accountId: parseAccountId(query['conta_id']), categoryId });
     res.json({ success: true, message: 'Meta removida.' });
   } catch (error) {
     if (error instanceof BudgetInputError) {

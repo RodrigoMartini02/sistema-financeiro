@@ -23,7 +23,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -62,7 +61,7 @@ interface Props {
 
 export function ExpenseDialog({ open, month, year, expense, isSaving, error, presetDate, onClose, onSave }: Props) {
   const qc = useQueryClient();
-  const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
+  const isEmpresa = useMemo(() => localStorage.getItem('contaAtivaTipo') === 'empresa', []);
   const isEditing = !!expense;
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -688,7 +687,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   icon={Repeat2}
                   description={firstAccessGuideMessages.despesasTogglesTipo}
                   onDismiss={repetitionGuide.dismiss}

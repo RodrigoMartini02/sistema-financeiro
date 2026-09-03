@@ -3,6 +3,7 @@ import { body } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { accountWhere } from '../utils/accountFilter';
 
 const router = Router();
 
@@ -85,15 +86,6 @@ async function checkAvailableBalance(
   }
 }
 
-function profileFilter(perfilId: string | undefined, paramStart: number): { clause: string; params: unknown[] } {
-  if (!perfilId) return { clause: '', params: [] };
-  const p = paramStart;
-  return {
-    clause: ` AND (perfil_id = $${p} OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $${p} AND pf.tipo = 'pessoal' AND pf.usuario_id = $1)))`,
-    params: [parseInt(perfilId)],
-  };
-}
-
 class InvalidMovementPeriodError extends Error {}
 
 interface MovementPeriod {
@@ -129,8 +121,8 @@ function movementPeriodFilter(period: MovementPeriod | null, paramStart: number)
 // GET /api/reserves/objectives — must come before /:id
 router.get('/objectives', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { perfil_id } = req.query as Record<string, string | undefined>;
-    const { clause, params: extra } = profileFilter(perfil_id, 2);
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const { clause, params: extra } = accountWhere(conta_id ? parseInt(conta_id) : null, 2);
 
     const result = await pool.query(
       `SELECT *,
@@ -151,7 +143,7 @@ router.get('/objectives', authenticate, async (req: Request, res: Response): Pro
 // GET /api/reserves
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, perfil_id } = req.query as Record<string, string | undefined>;
+    const { mes, ano, conta_id } = req.query as Record<string, string | undefined>;
 
     let where = 'WHERE usuario_id = $1';
     const params: unknown[] = [req.user!.id];
@@ -165,10 +157,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       params.push(parseInt(ano));
     }
 
-    if (perfil_id) {
-      where += ` AND (perfil_id = $${++p} OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $${p} AND pf.tipo = 'pessoal' AND pf.usuario_id = $1)))`;
-      params.push(parseInt(perfil_id));
-    }
+    const accountClause = accountWhere(conta_id ? parseInt(conta_id) : null, p + 1);
+    where += accountClause.clause;
+    params.push(...accountClause.params);
 
     const result = await pool.query(
       `SELECT * FROM reservas ${where} ORDER BY data DESC, id DESC`,
@@ -195,7 +186,7 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id } =
+      const { valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, conta_id } =
         req.body as Record<string, unknown>;
 
       const amount = parseFloat(String(valor));
@@ -222,7 +213,7 @@ router.post(
       }
 
       const result = await pool.query(
-        `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, perfil_id)
+        `INSERT INTO reservas (usuario_id, valor, mes, ano, data, observacoes, tipo_reserva, objetivo_valor, objetivo_atingido, data_objetivo, conta_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
@@ -231,7 +222,7 @@ router.post(
           objetivo_valor ? parseFloat(String(objetivo_valor)) : null,
           objetivo_atingido ?? false,
           data_objetivo ?? null,
-          perfil_id ? parseInt(String(perfil_id)) : null,
+          conta_id ? parseInt(String(conta_id)) : null,
         ],
       );
 

@@ -8,7 +8,7 @@ export interface Categoria {
   cartao_favorito_nome?: string | null;
   parent_id?: number | null;
   tipo?: 'pessoal' | 'empresa' | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
   tipo_despesa?: 'opex' | 'capex' | null;
   ativo: boolean;
   data_criacao: string;
@@ -32,7 +32,7 @@ export interface Cartao {
   ativo: boolean;
   numero_cartao?: string | null;
   validade?: string | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
   tipo?: CartaoTipo | null;
 }
 
@@ -49,7 +49,7 @@ export interface CartaoFormValues {
 
 export type Enquadramento = 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA';
 
-export interface Perfil {
+export interface Conta {
   id: number;
   usuario_id: number;
   tipo: 'pessoal' | 'empresa';
@@ -62,6 +62,8 @@ export interface Perfil {
   telefone?: string | null;
   data_nascimento?: string | null;
   email?: string | null;
+  foto?: string | null;
+  eh_padrao: boolean;
   ativo: boolean;
   data_criacao?: string;
 }

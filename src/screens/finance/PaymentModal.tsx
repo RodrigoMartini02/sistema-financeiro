@@ -13,17 +13,13 @@ interface PaymentModalProps {
   onConfirm: (dataPagamento: string, valorPago: number) => void;
 }
 
-function today() {
-  return getLocalTodayIso();
-}
-
 export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModalProps) {
-  const [dataPagamento, setDataPagamento] = useState(today);
+  const [dataPagamento, setDataPagamento] = useState(getLocalTodayIso);
   const [valorPago, setValorPago] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (open) {
-      setDataPagamento(today());
+      setDataPagamento(getLocalTodayIso());
       setValorPago(undefined);
     }
   }, [open]);

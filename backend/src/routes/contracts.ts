@@ -2,15 +2,12 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { getTodayIsoInTimezone } from '../utils/date';
+import { accountWhere as accountWhereBase } from '../utils/accountFilter';
 
 const router = Router();
 
-function profileWhere(profileId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
-  if (!profileId) return { clause: '', params: [] };
-  return {
-    clause: ` AND (ct.perfil_id = $${paramIndex} OR (ct.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramIndex} AND p.tipo = 'pessoal' AND p.usuario_id = ct.usuario_id)))`,
-    params: [profileId],
-  };
+function accountWhere(accountId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
+  return accountWhereBase(accountId, paramIndex, 'ct');
 }
 
 // Cancel all future predicted revenues for a contract
@@ -28,7 +25,7 @@ async function gerarPrevistas(
   clientName: string,
   startDate: string,
   endDate: string,
-  profileId: number | null,
+  accountId: number | null,
 ): Promise<number> {
   const valorResult = await pool.query(
     `SELECT COALESCE(SUM(valor_mensal), 0) AS total
@@ -72,11 +69,11 @@ async function gerarPrevistas(
 
   const params: unknown[] = [];
   for (const row of monthRows) {
-    params.push(userId, `Mensalidade - ${clientName}`, monthlyAmount, row.dueDate, row.monthIndex, row.year, contractId, profileId);
+    params.push(userId, `Mensalidade - ${clientName}`, monthlyAmount, row.dueDate, row.monthIndex, row.year, contractId, accountId);
   }
 
   await pool.query(
-    `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, perfil_id)
+    `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id)
      VALUES ${valueGroups.join(', ')}`,
     params,
   );
@@ -87,7 +84,7 @@ async function gerarPrevistas(
 // GET /api/contratos?cliente_id=X&status=ativo
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { cliente_id, status, perfil_id } = req.query as Record<string, string | undefined>;
+    const { cliente_id, status, conta_id } = req.query as Record<string, string | undefined>;
 
     let where = 'WHERE ct.usuario_id = $1';
     const params: unknown[] = [req.user!.id];
@@ -102,10 +99,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       params.push(status);
     }
 
-    const profileId = perfil_id ? parseInt(perfil_id) : null;
-    const { clause: profileClause, params: profileParams } = profileWhere(profileId, params.length + 1);
-    where += profileClause;
-    params.push(...profileParams);
+    const accountId = conta_id ? parseInt(conta_id) : null;
+    const { clause: accountClause, params: accountParams } = accountWhere(accountId, params.length + 1);
+    where += accountClause;
+    params.push(...accountParams);
 
     const result = await pool.query(
       `SELECT ct.*, cl.nome AS cliente_nome, r.nome AS representante_nome
@@ -127,7 +124,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // IMPORTANT: must be declared before /:id to avoid Express matching "faturamento" as an ID
 router.get('/faturamento', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, perfil_id } = req.query as Record<string, string | undefined>;
+    const { mes, ano, conta_id } = req.query as Record<string, string | undefined>;
 
     if (!mes || !ano) {
       res.status(400).json({ success: false, message: 'mes e ano são obrigatórios' });
@@ -142,12 +139,10 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
       return;
     }
 
-    const profileId = perfil_id ? parseInt(perfil_id) : null;
-    const profileClause = profileId
-      ? ` AND (c.perfil_id = $4 OR (c.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $4 AND p.tipo = 'pessoal' AND p.usuario_id = c.usuario_id)))`
-      : '';
+    const accountId = conta_id ? parseInt(conta_id) : null;
     const params: unknown[] = [req.user!.id, mesNum, anoNum];
-    if (profileId) params.push(profileId);
+    const { clause: accountClause, params: accountParams } = accountWhereBase(accountId, 4, 'c');
+    params.push(...accountParams);
 
     const result = await pool.query(
       `SELECT
@@ -166,7 +161,7 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
          AND r.usuario_id = $1
          AND r.status != 'cancelada'
        WHERE c.status = 'ativo'
-         AND c.usuario_id = $1${profileClause}
+         AND c.usuario_id = $1${accountClause}
        ORDER BY cl.nome, c.id`,
       params,
     );
@@ -207,7 +202,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       cliente_id, numero, vencimento,
       num_aditivo, data_aditivo, ajuste, data_inicio_faturamento,
       observacoes, descricao,
-      representante_id, perfil_id,
+      representante_id, conta_id,
       implantacao_parcelas, implantacao_valor_parcela,
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
@@ -230,7 +225,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       `INSERT INTO contratos
          (usuario_id, cliente_id, numero, vencimento,
           num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes, descricao,
-          representante_id, perfil_id, implantacao_parcelas, implantacao_valor_parcela,
+          representante_id, conta_id, implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
           valor_mensal)
@@ -247,7 +242,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         observacoes ?? null,
         descricao ?? null,
         representante_id ? parseInt(String(representante_id)) : null,
-        perfil_id ? parseInt(String(perfil_id)) : null,
+        conta_id ? parseInt(String(conta_id)) : null,
         implantacao_parcelas ? parseInt(String(implantacao_parcelas)) : 1,
         parseFloat(String(implantacao_valor_parcela ?? 0)) || 0,
         parseFloat(String(horas_presenciais_valor ?? 0)) || 0,
@@ -352,7 +347,7 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
       vencimento: string;
       data_inicio_faturamento: string | null;
       cliente_nome: string;
-      perfil_id: number | null;
+      conta_id: number | null;
     };
 
     if (!contract.data_inicio_faturamento) {
@@ -369,7 +364,7 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
       contract.cliente_nome,
       contract.data_inicio_faturamento,
       contract.vencimento,
-      contract.perfil_id,
+      contract.conta_id,
     );
 
     res.json({ success: true, message: `${count} predicted revenues generated`, data: { count } });
@@ -450,7 +445,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
       `INSERT INTO contratos
          (usuario_id, cliente_id, numero, vencimento,
           num_aditivo, data_aditivo, ajuste, data_inicio_faturamento, observacoes,
-          representante_id, perfil_id,
+          representante_id, conta_id,
           implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
@@ -467,7 +462,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento'],               // $8
         observacoes ?? currentContract['observacoes'],                                             // $9
         currentContract['representante_id'] ?? null,                                              // $10
-        currentContract['perfil_id'] ?? null,                                                     // $11
+        currentContract['conta_id'] ?? null,                                                      // $11
         parseFloat(String(currentContract['implantacao_parcelas'] ?? 1)) || 1,                   // $12
         parseFloat(String(currentContract['implantacao_valor_parcela'] ?? 0)) || 0,              // $13
         parseFloat(String(currentContract['horas_presenciais_valor'] ?? 0)) || 0,                // $14
@@ -505,7 +500,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         String(currentContract['cliente_nome']),
         String(nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento']),
         String(novo_vencimento),
-        currentContract['perfil_id'] as number | null,
+        currentContract['conta_id'] as number | null,
       );
     }
 
@@ -547,7 +542,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
     const contrato = contratoResult.rows[0] as {
       valor_mensal: string | number;
       cliente_nome: string;
-      perfil_id: number | null;
+      conta_id: number | null;
     };
 
     // Check if a receita already exists for this contract + month
@@ -596,7 +591,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
 
       const inserted = await pool.query(
         `INSERT INTO receitas
-           (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, perfil_id)
+           (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id)
          VALUES ($1, $2, $3, $4, $5, $6, 'faturada', $7, $8)
          RETURNING *`,
         [
@@ -607,7 +602,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
           monthIndex,
           anoNum,
           contratoId,
-          contrato.perfil_id,
+          contrato.conta_id,
         ],
       );
       resultRow = inserted.rows[0] as Record<string, unknown>;
@@ -643,7 +638,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
       implantacao_valor_parcela: number | null;
       data_inicio_faturamento: string | null;
       cliente_nome: string;
-      perfil_id: number | null;
+      conta_id: number | null;
     };
 
     const parcelas = ct.implantacao_parcelas ?? 1;
@@ -670,7 +665,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
     const mes = parseInt(mesStr!) - 1;
 
     const result = await pool.query(
-      `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, tipo_receita, perfil_id)
+      `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, tipo_receita, conta_id)
        VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, 'Implantação', $8)
        RETURNING *`,
       [
@@ -681,7 +676,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
         mes,
         parseInt(String(ano)),
         contractId,
-        ct.perfil_id,
+        ct.conta_id,
       ],
     );
 

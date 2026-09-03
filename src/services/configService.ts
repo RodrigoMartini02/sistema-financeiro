@@ -1,24 +1,20 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
-import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Perfil } from '../types/config';
+import { apiRequest, getActiveAccountId } from './apiClient';
+import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta } from '../types/config';
 
 export async function fetchCategorias(): Promise<Categoria[]> {
-  const profileId = getActiveProfileId();
-  const q = profileId ? `?perfil_id=${profileId}` : '';
+  const accountId = getActiveAccountId();
+  const q = accountId ? `?conta_id=${accountId}` : '';
   return apiRequest<Categoria[]>(`/categorias${q}`);
 }
 
 export async function saveCategoria(values: CategoriaFormValues, id?: number): Promise<Categoria> {
   const body: Record<string, unknown> = { nome: values.nome.trim() };
   if (values.parent_id !== undefined) body.parent_id = values.parent_id;
-  if (!id) body.perfil_id = getActiveProfileId();
+  if (!id) body.conta_id = getActiveAccountId();
   return apiRequest<Categoria>(id ? `/categorias/${id}` : '/categorias', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),
   });
-}
-
-export async function deleteCategoria(id: number): Promise<void> {
-  return apiRequest<void>(`/categorias/${id}`, { method: 'DELETE' });
 }
 
 export async function toggleCategoria(id: number): Promise<void> {
@@ -26,14 +22,14 @@ export async function toggleCategoria(id: number): Promise<void> {
 }
 
 export async function fetchCartoes(): Promise<Cartao[]> {
-  const profileId = getActiveProfileId();
-  const q = profileId ? `?perfil_id=${profileId}` : '';
+  const accountId = getActiveAccountId();
+  const q = accountId ? `?conta_id=${accountId}` : '';
   return apiRequest<Cartao[]>(`/cartoes${q}`);
 }
 
 export async function saveCartao(values: CartaoFormValues, id?: number): Promise<Cartao> {
-  const profileId = getActiveProfileId();
-  const body = { ...values, perfil_id: profileId };
+  const accountId = getActiveAccountId();
+  const body = { ...values, conta_id: accountId };
   return apiRequest<Cartao>(id ? `/cartoes/${id}` : '/cartoes', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),
@@ -44,24 +40,36 @@ export async function deleteCartao(id: number): Promise<void> {
   return apiRequest<void>(`/cartoes/${id}`, { method: 'DELETE' });
 }
 
-export async function fetchPerfis(): Promise<Perfil[]> {
-  const r = await apiRequest<{ success: boolean; data: Perfil[] }>('/perfis');
+export async function fetchContas(incluirInativos = false): Promise<Conta[]> {
+  const q = incluirInativos ? '?incluir_inativos=true' : '';
+  const r = await apiRequest<{ success: boolean; data: Conta[] }>(`/contas${q}`);
   return Array.isArray(r) ? r : (r as any).data ?? [];
 }
 
-export async function savePerfil(values: {
+export async function saveConta(values: {
   tipo: 'pessoal' | 'empresa'; nome: string; documento?: string;
   razao_social?: string; nome_fantasia?: string; atividade?: string;
   enquadramento?: string;
   telefone?: string; data_nascimento?: string; email?: string;
-}, id?: number): Promise<Perfil> {
-  const r = await apiRequest<{ success: boolean; data: Perfil }>(
-    id ? `/perfis/${id}` : '/perfis',
+}, id?: number): Promise<Conta> {
+  const r = await apiRequest<{ success: boolean; data: Conta }>(
+    id ? `/contas/${id}` : '/contas',
     { method: id ? 'PUT' : 'POST', body: JSON.stringify(values) }
   );
   return (r as any).data ?? r;
 }
 
-export async function deletePerfil(id: number): Promise<void> {
-  await apiRequest<void>(`/perfis/${id}`, { method: 'DELETE' });
+export async function deleteConta(id: number): Promise<void> {
+  await apiRequest<void>(`/contas/${id}`, { method: 'DELETE' });
+}
+
+export async function reactivateConta(id: number): Promise<Conta> {
+  const r = await apiRequest<{ success: boolean; data: Conta }>(`/contas/${id}/reactivate`, { method: 'PUT' });
+  return (r as any).data ?? r;
+}
+
+export async function updateFotoConta(id: number, foto: string | null): Promise<void> {
+  await apiRequest<{ success: boolean; message: string }>(`/contas/${id}/photo`, {
+    method: 'PUT', body: JSON.stringify({ foto }),
+  });
 }

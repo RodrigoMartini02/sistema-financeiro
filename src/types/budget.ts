@@ -14,7 +14,7 @@ export interface BudgetOverviewItem {
 }
 
 export interface BudgetOverview {
-  profileType: 'pessoal' | 'empresa';
+  accountType: 'pessoal' | 'empresa';
   month: number;
   year: number;
   incomeTotal: number;

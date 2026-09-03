@@ -11,7 +11,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
-import { Z_GUIDE } from '../../ui/zIndex';
 import { TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../finance/formatters';
 
@@ -169,7 +168,7 @@ export function ReservaDialog({
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                className="w-[min(24rem,calc(100vw-2rem))]"
                 icon={TrendingUp}
                 description={firstAccessGuideMessages.reservasAbaMovimentar}
                 onDismiss={tabsGuide.dismiss}
@@ -282,7 +281,7 @@ export function ReservaDialog({
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={TrendingUp}
                     description={firstAccessGuideMessages.reservasContribuicaoSugerida}
                     onDismiss={contribuicaoGuide.dismiss}

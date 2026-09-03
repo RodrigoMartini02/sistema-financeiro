@@ -9,7 +9,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const partners = pgTable(
   'socios',
@@ -18,7 +18,7 @@ export const partners = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id, { onDelete: 'set null' }),
+    accountId: integer('conta_id').references(() => accounts.id, { onDelete: 'set null' }),
     name: varchar('nome', { length: 100 }).notNull(),
     percentage: decimal('percentual', { precision: 5, scale: 2 }).notNull(),
     active: boolean('ativo').default(true),

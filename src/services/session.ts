@@ -21,7 +21,7 @@ export function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('usuarioAtual');
   localStorage.removeItem('dadosUsuarioLogado');
-  localStorage.removeItem('perfilAtivoId');
-  localStorage.removeItem('perfilAtivoNome');
-  localStorage.removeItem('perfilAtivoTipo');
+  localStorage.removeItem('contaAtivaId');
+  localStorage.removeItem('contaAtivaNome');
+  localStorage.removeItem('contaAtivaTipo');
 }

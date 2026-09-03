@@ -7,7 +7,7 @@ const router = Router();
 // GET /api/representatives
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { perfil_id } = req.query as Record<string, string | undefined>;
+    const { conta_id } = req.query as Record<string, string | undefined>;
 
     const result = await pool.query(
       `SELECT r.*,
@@ -15,10 +15,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
        FROM representantes r
        LEFT JOIN comissoes c ON c.representante_id = r.id AND c.ativo = true
        WHERE r.usuario_id = $1 AND r.ativo = true
-         AND ($2::int IS NULL OR r.perfil_id = $2)
+         AND ($2::int IS NULL OR r.conta_id = $2)
        GROUP BY r.id
        ORDER BY r.nome ASC`,
-      [req.user!.id, perfil_id ? parseInt(perfil_id) : null],
+      [req.user!.id, conta_id ? parseInt(conta_id) : null],
     );
 
     res.json({ success: true, data: result.rows });
@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/representatives
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, telefone, perfil_id, comissoes: commissionsInput } =
+    const { nome, email, telefone, conta_id, comissoes: commissionsInput } =
       req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
@@ -40,9 +40,9 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const result = await pool.query(
-      `INSERT INTO representantes (usuario_id, perfil_id, nome, email, telefone)
+      `INSERT INTO representantes (usuario_id, conta_id, nome, email, telefone)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.user!.id, perfil_id ? parseInt(String(perfil_id)) : null, String(nome).trim(), email ?? null, telefone ?? null],
+      [req.user!.id, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), email ?? null, telefone ?? null],
     );
 
     const rep = result.rows[0] as Record<string, unknown>;

@@ -7,36 +7,36 @@ import { ensureDefaultCategories } from '../services/defaultCategories';
 
 const router = Router();
 
-// Resolve o tipo de perfil ('pessoal' | 'empresa') a partir do perfil_id
-// recebido do client, validando que o perfil pertence ao usuario autenticado.
-async function resolveProfileType(perfilId: string, userId: number): Promise<string | null> {
-  const result = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(perfilId), userId]);
+// Resolve o tipo de conta ('pessoal' | 'empresa') a partir do conta_id
+// recebido do client, validando que a conta pertence ao usuario autenticado.
+async function resolveAccountType(contaId: string, userId: number): Promise<string | null> {
+  const result = await pool.query('SELECT tipo FROM contas WHERE id = $1 AND usuario_id = $2', [parseInt(contaId), userId]);
   return result.rows.length > 0 ? (result.rows[0] as { tipo: string }).tipo : null;
 }
 
 // GET /api/categories
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { usuario_id, perfil_id } = req.query as Record<string, string | undefined>;
+    const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'master' ? parseInt(usuario_id) : req.user!.id;
 
     let whereClause = 'WHERE c.usuario_id = $1';
     const params: unknown[] = [targetUserId];
 
-    if (perfil_id) {
-      const profileType = await resolveProfileType(perfil_id, targetUserId);
-      if (profileType) {
-        // Uniao: categorias PADRAO do tipo do perfil ativo (globais, tipo
-        // preenchido) OU categorias CUSTOM exclusivas deste perfil_id
-        // especifico (perfil_id preenchido).
-        params.push(profileType, parseInt(perfil_id));
-        whereClause += ` AND (c.tipo = $${params.length - 1} OR c.perfil_id = $${params.length})`;
+    if (conta_id) {
+      const accountType = await resolveAccountType(conta_id, targetUserId);
+      if (accountType) {
+        // Uniao: categorias PADRAO do tipo da conta ativa (globais, tipo
+        // preenchido) OU categorias CUSTOM exclusivas deste conta_id
+        // especifico (conta_id preenchido).
+        params.push(accountType, parseInt(conta_id));
+        whereClause += ` AND (c.tipo = $${params.length - 1} OR c.conta_id = $${params.length})`;
       }
     }
 
     const result = await pool.query(
       `SELECT
-        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id, c.tipo, c.perfil_id,
+        c.id, c.nome, c.cor, c.icone, c.forma_favorita, c.cartao_favorito_id, c.parent_id, c.tipo, c.conta_id,
         p.nome AS parent_nome, ct.nome AS cartao_favorito_nome,
         c.data_criacao, c.data_atualizacao,
         COALESCE(c.ativo, true) AS ativo
@@ -129,7 +129,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // POST /api/categories
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, cor, icone, parent_id, perfil_id } = req.body as Record<string, string | undefined>;
+    const { nome, cor, icone, parent_id, conta_id } = req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
       res.status(400).json({ success: false, message: 'Category name is required' });
@@ -143,16 +143,16 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const parentId = parent_id ? parseInt(parent_id) : null;
 
     // Toda categoria criada manualmente pelo usuario e CUSTOM — exclusiva
-    // do perfil onde foi criada, nunca compartilhada com outros perfis do
+    // da conta onde foi criada, nunca compartilhada com outras contas do
     // mesmo tipo. Categorias PADRAO so sao gravadas por ensureDefaultCategories.
-    let profileId: number | null = null;
-    if (perfil_id) {
-      const profileType = await resolveProfileType(perfil_id, req.user!.id);
-      if (!profileType) {
-        res.status(400).json({ success: false, message: 'Profile not found' });
+    let accountId: number | null = null;
+    if (conta_id) {
+      const accountType = await resolveAccountType(conta_id, req.user!.id);
+      if (!accountType) {
+        res.status(400).json({ success: false, message: 'Account not found' });
         return;
       }
-      profileId = parseInt(perfil_id);
+      accountId = parseInt(conta_id);
     }
 
     if (parentId) {
@@ -171,8 +171,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const dupResult = await pool.query(
-      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND perfil_id IS NOT DISTINCT FROM $3`,
-      [req.user!.id, nome.trim(), profileId],
+      `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND conta_id IS NOT DISTINCT FROM $3`,
+      [req.user!.id, nome.trim(), accountId],
     );
 
     if (dupResult.rows.length > 0) {
@@ -181,10 +181,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const result = await pool.query(
-      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, perfil_id)
+      `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, conta_id)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, nome, cor, icone, parent_id, perfil_id, data_criacao, data_atualizacao`,
-      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, profileId],
+       RETURNING id, nome, cor, icone, parent_id, conta_id, data_criacao, data_atualizacao`,
+      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, accountId],
     );
 
     res.status(201).json({ success: true, message: 'Category created', data: result.rows[0] });
@@ -209,7 +209,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [existing] = await db.select({ id: categories.id, type: categories.type, profileId: categories.profileId }).from(categories)
+    const [existing] = await db.select({ id: categories.id, type: categories.type, accountId: categories.accountId }).from(categories)
       .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
@@ -218,15 +218,15 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     // Categoria padrao (tipo preenchido) checa duplicidade por tipo;
-    // categoria custom (perfil_id preenchido) checa duplicidade por perfil_id.
+    // categoria custom (conta_id preenchido) checa duplicidade por conta_id.
     const duplicateResult = existing.type
       ? await pool.query(
           `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND tipo = $4`,
           [req.user!.id, nome.trim(), categoryId, existing.type],
         )
       : await pool.query(
-          `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND perfil_id IS NOT DISTINCT FROM $4`,
-          [req.user!.id, nome.trim(), categoryId, existing.profileId],
+          `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND conta_id IS NOT DISTINCT FROM $4`,
+          [req.user!.id, nome.trim(), categoryId, existing.accountId],
         );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A category with this name already exists' });
@@ -237,7 +237,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       `UPDATE categorias
        SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $4 AND usuario_id = $5
-       RETURNING id, nome, cor, icone, parent_id, data_criacao, data_atualizacao`,
+       RETURNING id, nome, cor, icone, parent_id, tipo, conta_id, data_criacao, data_atualizacao`,
       [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id],
     );
 

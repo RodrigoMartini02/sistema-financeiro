@@ -12,7 +12,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 import { categories } from './categories';
 import { cards } from './cards';
 
@@ -23,7 +23,7 @@ export const expenses = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     categoryId: integer('categoria_id').references(() => categories.id),
     cardId: integer('cartao_id').references(() => cards.id),
     description: varchar('descricao', { length: 255 }).notNull(),
@@ -55,7 +55,7 @@ export const expenses = pgTable(
       table.month,
       table.year,
     ),
-    profileIdx: index('idx_despesas_perfil').on(table.profileId),
+    accountIdx: index('idx_despesas_conta').on(table.accountId),
     installmentGroupIdx: index('idx_despesas_grupo_parcelamento').on(table.installmentGroupId),
   }),
 );

@@ -3,21 +3,14 @@ import { body } from 'express-validator';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
+import { accountWhere } from '../utils/accountFilter';
 
 const router = Router();
 
-function profileWhere(profileId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
-  if (!profileId) return { clause: '', params: [] };
-  return {
-    clause: ` AND (perfil_id = $${paramIndex} OR (perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $${paramIndex} AND p.tipo = 'pessoal' AND p.usuario_id = compromissos.usuario_id)))`,
-    params: [profileId],
-  };
-}
-
-// GET /api/appointments?mes=X&ano=Y&perfil_id=Z
+// GET /api/appointments?mes=X&ano=Y&conta_id=Z
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, perfil_id } = req.query as Record<string, string | undefined>;
+    const { mes, ano, conta_id } = req.query as Record<string, string | undefined>;
 
     let where = 'WHERE usuario_id = $1';
     const params: unknown[] = [req.user!.id];
@@ -28,10 +21,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       params.push(parseInt(mes) + 1, parseInt(ano));
     }
 
-    const profileId = perfil_id ? parseInt(perfil_id) : null;
-    const { clause: profileClause, params: profileParams } = profileWhere(profileId, p + 1);
-    where += profileClause;
-    params.push(...profileParams);
+    const accountId = conta_id ? parseInt(conta_id) : null;
+    const { clause: accountClause, params: accountParams } = accountWhere(accountId, p + 1);
+    where += accountClause;
+    params.push(...accountParams);
 
     const result = await pool.query(
       `SELECT * FROM compromissos ${where} ORDER BY data ASC, hora ASC NULLS LAST`,
@@ -58,15 +51,15 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { titulo, descricao, data, hora, duracao_minutos, local, perfil_id } = req.body as Record<string, unknown>;
+      const { titulo, descricao, data, hora, duracao_minutos, local, conta_id } = req.body as Record<string, unknown>;
 
       const result = await pool.query(
-        `INSERT INTO compromissos (usuario_id, perfil_id, titulo, descricao, data, hora, duracao_minutos, local)
+        `INSERT INTO compromissos (usuario_id, conta_id, titulo, descricao, data, hora, duracao_minutos, local)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
         [
           req.user!.id,
-          perfil_id ? parseInt(String(perfil_id)) : null,
+          conta_id ? parseInt(String(conta_id)) : null,
           titulo,
           descricao ?? null,
           data,

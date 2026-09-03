@@ -8,7 +8,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const representatives = pgTable(
   'representantes',
@@ -17,7 +17,7 @@ export const representatives = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id, { onDelete: 'set null' }),
+    accountId: integer('conta_id').references(() => accounts.id, { onDelete: 'set null' }),
     name: varchar('nome', { length: 100 }).notNull(),
     email: varchar('email', { length: 150 }),
     phone: varchar('telefone', { length: 20 }),
@@ -26,7 +26,7 @@ export const representatives = pgTable(
   },
   (table) => ({
     userIdx: index('idx_representantes_usuario').on(table.userId),
-    profileIdx: index('idx_representantes_perfil').on(table.profileId),
+    accountIdx: index('idx_representantes_conta').on(table.accountId),
   }),
 );
 

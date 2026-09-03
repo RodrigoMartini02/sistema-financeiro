@@ -11,7 +11,7 @@ export interface Reserva {
   data_objetivo?: string | null;
   cor?: string | null;
   icone?: string | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
 }
 
 export interface ReservaFormValues {

@@ -70,7 +70,7 @@ export interface CartaoDemo {
   ativo: boolean;
   numero_cartao: string | null;
   validade: string | null;
-  perfil_id: number | null;
+  conta_id: number | null;
   tipo: 'credito' | 'debito' | 'ambos' | null;
 }
 
@@ -87,7 +87,7 @@ export interface ReservaDemo {
   data_objetivo: string | null;
   cor: string | null;
   icone: string | null;
-  perfil_id: number | null;
+  conta_id: number | null;
 }
 
 let nextId = 1000;
@@ -117,7 +117,7 @@ function createSeed() {
   ];
 
   const cartoes: CartaoDemo[] = [
-    { id: 1, nome: 'Cartão principal', limite: 5000, dia_fechamento: 20, dia_vencimento: 28, cor: '#0EC4D8', ativo: true, numero_cartao: null, validade: null, perfil_id: null, tipo: 'credito' },
+    { id: 1, nome: 'Cartão principal', limite: 5000, dia_fechamento: 20, dia_vencimento: 28, cor: '#0EC4D8', ativo: true, numero_cartao: null, validade: null, conta_id: null, tipo: 'credito' },
   ];
 
   const receitas: RawIncomeDemo[] = [
@@ -143,7 +143,7 @@ function createSeed() {
     {
       id: generateId(), observacoes: 'Viagem de férias', valor: 900, data: todayIso(-10), mes, ano,
       tipo_reserva: 'objetivo', objetivo_valor: 3000, objetivo_atingido: false, data_objetivo: null,
-      cor: '#0EC4D8', icone: null, perfil_id: null,
+      cor: '#0EC4D8', icone: null, conta_id: null,
     },
   ];
 

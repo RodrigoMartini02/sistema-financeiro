@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Users, User as UserIcon, Activity,
+  Tag, UserCheck, Users, Activity,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { fetchMe } from '../services/usuariosService';
-import { MinhaContaTab } from '../screens/config/MinhaContaTab';
 import { SecurityTab } from '../screens/config/SecurityTab';
-import { PerfisTab } from '../screens/config/PerfisTab';
+import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
 import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
@@ -19,16 +18,15 @@ import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 
 export type ConfigItemId =
-  | 'conta' | 'seguranca' | 'perfis'
+  | 'seguranca' | 'contas'
   | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios'
   | 'acessos' | 'integracoes-ia';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
-  { id: 'conta',          label: 'Minha conta',    icon: UserIcon },
+  { id: 'contas',         label: 'Contas',         icon: Layers },
   { id: 'seguranca',      label: 'Segurança',      icon: KeyRound },
-  { id: 'perfis',         label: 'Perfis',         icon: Layers },
   { id: 'categorias',     label: 'Categorias',     icon: Tag },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers },
@@ -62,14 +60,14 @@ function useResettableItem(open: boolean, initialItem: ConfigItemId) {
   return [item, setItem] as const;
 }
 
-export function ConfigPanel({ open, initialItem = 'conta', onClose, onItemChange }: ConfigPanelProps) {
+export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChange }: ConfigPanelProps) {
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
   const meTipo = me?.tipo;
   const meDocument = (me?.documento ?? '').replace(/\D/g, '');
   const isAdminOrMaster = meTipo === 'admin' || meTipo === 'master';
   const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
   const isMaster = meTipo === 'master';
-  const perfilTipo = localStorage.getItem('perfilAtivoTipo');
+  const contaTipo = localStorage.getItem('contaAtivaTipo');
 
   const [activeItem, setActiveItemState] = useResettableItem(open, initialItem);
   const setActiveItem = (item: ConfigItemId) => {
@@ -80,7 +78,7 @@ export function ConfigPanel({ open, initialItem = 'conta', onClose, onItemChange
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isMaster;
-    if (item.id === 'representantes' || item.id === 'socios') return perfilTipo !== 'pessoal';
+    if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
     return true;
   });
 
@@ -113,9 +111,8 @@ export function ConfigPanel({ open, initialItem = 'conta', onClose, onItemChange
         </nav>
 
         <div className="scrollbar-thin min-w-0 flex-1 overflow-y-auto">
-          {activeItem === 'conta' && <MinhaContaTab />}
           {activeItem === 'seguranca' && <SecurityTab />}
-          {activeItem === 'perfis' && <PerfisTab />}
+          {activeItem === 'contas' && <ContasTab />}
           {activeItem === 'categorias' && <CategoriasTab />}
           {activeItem === 'cartoes' && <CartaoTab />}
           {activeItem === 'servicos' && <ServicosTab />}

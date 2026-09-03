@@ -4,6 +4,8 @@ import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate } from '../utils/date';
+import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
+import { createCommissionExpense } from '../services/commissionService';
 
 const router = Router();
 
@@ -13,36 +15,16 @@ function buildWhereClause(
   queryUserId: string | undefined,
   mes: string | undefined,
   ano: string | undefined,
-  perfilId: string | undefined,
+  accountId: string | undefined,
 ): { where: string; params: unknown[] } {
-  const params: unknown[] = [];
-  let p = 0;
-
-  const targetUserId = queryUserId && userType === 'master' ? parseInt(queryUserId) : userId;
-  p++;
-  let where = `WHERE r.usuario_id = $${p}`;
-  params.push(targetUserId);
-
-  if (mes !== undefined && ano !== undefined) {
-    where += ` AND r.mes = $${p + 1} AND r.ano = $${p + 2}`;
-    params.push(parseInt(mes), parseInt(ano));
-    p += 2;
-  }
-
-  if (perfilId) {
-    p++;
-    where += ` AND (r.perfil_id = $${p} OR (r.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $${p} AND pf.tipo = 'pessoal' AND pf.usuario_id = r.usuario_id)))`;
-    params.push(parseInt(perfilId));
-  }
-
-  return { where, params };
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, 'r');
 }
 
 // GET /api/incomes
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, usuario_id, perfil_id } = req.query as Record<string, string | undefined>;
-    const { where, params } = buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, perfil_id);
+    const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
+    const { where, params } = buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id);
 
     const result = await pool.query(
       `SELECT r.*, rep.nome AS representante_nome
@@ -99,7 +81,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
-        descricao, valor, data_recebimento, observacoes, anexos, perfil_id,
+        descricao, valor, data_recebimento, observacoes, anexos, conta_id,
         cliente, tipo_receita, representante_id, valor_comissao,
         contrato_id, tipo_hora, quantidade_horas,
       } = req.body as Record<string, unknown>;
@@ -113,13 +95,21 @@ router.post(
       const contratoIdInt = contrato_id ? parseInt(String(contrato_id)) : null;
       const qtdHoras = quantidade_horas ? parseFloat(String(quantidade_horas)) : null;
 
+      // Auto-criar despesa de comissão apenas quando há match real de comissão
+      // (valor_comissao positivo enviado pelo client). Sem match, não criar
+      // despesa nenhuma — evita lançamentos-fantasma de valor simbólico.
+      const valorComissaoValido = valor_comissao != null && parseFloat(String(valor_comissao)) > 0
+        ? parseFloat(String(valor_comissao))
+        : null;
+      const comissaoContaId = conta_id ? parseInt(String(conta_id)) : null;
+
       const client = await pool.connect();
       let result: { rows: unknown[] } = { rows: [] };
       try {
         await client.query('BEGIN');
 
         result = await client.query(
-          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, perfil_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id)
+          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING *`,
           [
@@ -131,7 +121,7 @@ router.post(
             ano,
             observacoes ?? null,
             attachmentsJson,
-            perfil_id ? parseInt(String(perfil_id)) : null,
+            comissaoContaId,
             cliente ?? null,
             tipo_receita ?? null,
             representanteIdInt,
@@ -151,70 +141,25 @@ router.post(
           );
         }
 
+        if (representanteIdInt && valorComissaoValido != null) {
+          await createCommissionExpense({
+            client,
+            userId: req.user!.id,
+            representanteId: representanteIdInt,
+            valorComissao: valorComissaoValido,
+            dataRecebimento: data_recebimento as string,
+            mes,
+            ano,
+            contaId: comissaoContaId,
+          });
+        }
+
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
       } finally {
         client.release();
-      }
-
-      // Auto-criar despesa de comissão apenas quando há match real de comissão
-      // (valor_comissao positivo enviado pelo client). Sem match, não criar
-      // despesa nenhuma — evita lançamentos-fantasma de valor simbólico.
-      const valorComissaoValido = valor_comissao != null && parseFloat(String(valor_comissao)) > 0
-        ? parseFloat(String(valor_comissao))
-        : null;
-
-      if (representanteIdInt && valorComissaoValido != null) {
-        const repResult = await pool.query(
-          'SELECT nome FROM representantes WHERE id = $1 AND usuario_id = $2',
-          [representanteIdInt, req.user!.id],
-        );
-
-        if (repResult.rows.length > 0) {
-          const repNome = (repResult.rows[0] as { nome: string }).nome;
-
-          // Buscar ou criar categoria "Comissão" CUSTOM, exclusiva do perfil
-          // da receita que a originou — nao se espalha para outros perfis
-          // do mesmo tipo (mesma regra de qualquer categoria criada pelo
-          // usuario/sistema sob demanda, nao e uma categoria padrao).
-          const comissaoPerfilId = perfil_id ? parseInt(String(perfil_id)) : null;
-          let catResult = await pool.query(
-            `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = 'comissão' AND perfil_id IS NOT DISTINCT FROM $2 LIMIT 1`,
-            [req.user!.id, comissaoPerfilId],
-          );
-          if (catResult.rows.length === 0) {
-            catResult = await pool.query(
-              `INSERT INTO categorias (usuario_id, nome, cor, icone, perfil_id) VALUES ($1, 'Comissão', '#f59e0b', 'handshake', $2) RETURNING id`,
-              [req.user!.id, comissaoPerfilId],
-            );
-          }
-          const categoriaId = (catResult.rows[0] as { id: number }).id;
-
-          const numResult = await pool.query(
-            'SELECT COALESCE(MAX(numero), 0) + 1 AS proximo FROM despesas WHERE usuario_id = $1',
-            [req.user!.id],
-          );
-          const proximoNumero = (numResult.rows[0] as { proximo: number }).proximo;
-
-          await pool.query(
-            `INSERT INTO despesas (usuario_id, descricao, valor_original, valor_final,
-              data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, perfil_id, numero)
-             VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8, $9)`,
-            [
-              req.user!.id,
-              `Comissão - ${repNome}`,
-              valorComissaoValido,
-              data_recebimento,
-              mes,
-              ano,
-              categoriaId,
-              perfil_id ? parseInt(String(perfil_id)) : null,
-              proximoNumero,
-            ],
-          );
-        }
       }
 
       res.status(201).json({ success: true, message: 'Income created', data: result.rows[0] });
@@ -229,7 +174,7 @@ router.post(
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incomeId = parseInt(req.params['id']!);
-    const { descricao, valor, data_recebimento, observacoes, anexos, perfil_id, cliente, tipo_receita, representante_id } =
+    const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id } =
       req.body as Record<string, unknown>;
 
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
@@ -240,7 +185,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const result = await pool.query(
       `UPDATE receitas
        SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5,
-           perfil_id = COALESCE($6, perfil_id),
+           conta_id = COALESCE($6, conta_id),
            cliente = $7, tipo_receita = $8, representante_id = $9,
            mes = $12, ano = $13
        WHERE id = $10 AND usuario_id = $11
@@ -251,7 +196,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         data_recebimento,
         observacoes ?? null,
         attachmentsJson,
-        perfil_id ? parseInt(String(perfil_id)) : null,
+        conta_id ? parseInt(String(conta_id)) : null,
         cliente ?? null,
         tipo_receita ?? null,
         representante_id ? parseInt(String(representante_id)) : null,

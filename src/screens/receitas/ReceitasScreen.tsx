@@ -16,7 +16,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 import type { Attachment } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
 import { IncomeCard, tipoBadge } from './IncomeCard';
@@ -56,7 +55,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
   const allItems = finance.dashboard.data?.incomes ?? [];
-  const isEmpresa = localStorage.getItem('perfilAtivoTipo') === 'empresa';
+  const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
 
   const cancelarReceita = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/cancelar`, { method: 'PUT' }),
@@ -163,7 +162,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                  className="w-[min(25rem,calc(100vw-2rem))]"
                   icon={Building2}
                   description={firstAccessGuideMessages.receitasContratosFaturamento}
                   onDismiss={contratosGuide.dismiss}
@@ -235,7 +234,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                   align="right"
                   floating
                   placement="top"
-                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={searchGuide.dismiss}
                 />
               )}

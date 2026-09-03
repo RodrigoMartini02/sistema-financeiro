@@ -14,7 +14,7 @@ export const queryKeys = {
   movimentacoes: (reservaId: number) => ['movimentacoes', reservaId] as const,
   categorias: ['categorias'] as const,
   cartoes: ['cartoes'] as const,
-  perfis: ['perfis'] as const,
+  contas: ['contas'] as const,
   representantes: ['representantes'] as const,
   socios: ['socios'] as const,
   avaliacoes: ['avaliacoes'] as const,

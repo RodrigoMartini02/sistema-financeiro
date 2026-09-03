@@ -10,7 +10,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useBudgetOverviewRange } from '../../hooks/useBudgetOverview';
-import { Z_GUIDE } from '../../ui/zIndex';
 import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
@@ -70,7 +69,7 @@ export function FinanceDashboard() {
   const parcelasFuturas = singleMonth ? parcelasQ.data ?? [] : [];
 
   const overviewQ = useBudgetOverviewRange(query);
-  const profileTypeLabel = overviewQ.data?.profileType === 'empresa' ? 'empresa' : 'pessoal';
+  const accountTypeLabel = overviewQ.data?.accountType === 'empresa' ? 'empresa' : 'pessoal';
   const updatedAgo = useRelativeTime(panoramaQ.dataUpdatedAt);
 
   const receitas = data?.receitas ?? 0;
@@ -162,7 +161,7 @@ export function FinanceDashboard() {
         <div className="flex flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
           <p className="m-0 text-[13px] text-[#7b93a1] dark:text-slate-400">
-            {periodoDescricao} · perfil {profileTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
+            {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
             {data?.primeiraData && data?.ultimaData && (
               <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
             )}
@@ -181,7 +180,7 @@ export function FinanceDashboard() {
               align="right"
               floating
               placement="top"
-              className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+              className="w-[min(24rem,calc(100vw-2rem))]"
               onDismiss={guide.dismiss}
             />
           </div>
@@ -241,7 +240,7 @@ export function FinanceDashboard() {
                   floating
                   placement="top"
                   align="right"
-                  className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(25rem,calc(100vw-2rem))]`}
+                  className="w-[min(25rem,calc(100vw-2rem))]"
                   icon={AlertTriangle}
                   description={firstAccessGuideMessages.painelComprometimento}
                   onDismiss={comprometimentoGuide.dismiss}
@@ -372,10 +371,10 @@ export function FinanceDashboard() {
             )}
           </Card>
 
-          {/* Card: Perfil das despesas */}
+          {/* Card: Composição das despesas */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px]">
             <div className="flex items-baseline gap-2.5">
-              <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Perfil das despesas</h3>
+              <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Composição das despesas</h3>
               <div className="flex-1" />
               <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">{formatCurrency(despesas)} no período</span>
             </div>

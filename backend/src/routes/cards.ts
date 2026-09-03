@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { accountWhere } from '../utils/accountFilter';
 
 const router = Router();
 const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
@@ -11,20 +12,19 @@ const TIPOS_VALIDOS = ['credito', 'debito', 'ambos'];
 // GET /api/cards
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { usuario_id, perfil_id } = req.query as Record<string, string | undefined>;
+    const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'master' ? parseInt(usuario_id) : req.user!.id;
 
     let whereClause = 'WHERE c.usuario_id = $1';
     const params: unknown[] = [targetUserId];
 
-    if (perfil_id) {
-      whereClause += ` AND (c.perfil_id = $2 OR (c.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = $1)))`;
-      params.push(parseInt(perfil_id));
-    }
+    const accountClause = accountWhere(conta_id ? parseInt(conta_id) : null, 2, 'c');
+    whereClause += accountClause.clause;
+    params.push(...accountClause.params);
 
     const result = await pool.query(
       `SELECT c.id, c.nome, c.limite, c.dia_fechamento, c.dia_vencimento, c.cor, c.ativo,
-              c.numero_cartao, c.validade, c.perfil_id, c.tipo, c.data_criacao, c.data_atualizacao
+              c.numero_cartao, c.validade, c.conta_id, c.tipo, c.data_criacao, c.data_atualizacao
        FROM cartoes c
        ${whereClause}
        ORDER BY c.numero_cartao ASC NULLS LAST, c.id ASC`,
@@ -65,7 +65,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // POST /api/cards
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, limite, dia_fechamento, dia_vencimento, cor, validade, perfil_id, tipo } =
+    const { nome, limite, dia_fechamento, dia_vencimento, cor, validade, conta_id, tipo } =
       req.body as Record<string, string | number | undefined>;
 
     if (!nome || String(nome).trim() === '') {
@@ -93,14 +93,14 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const profileId = perfil_id ? parseInt(String(perfil_id)) : null;
+    const accountId = conta_id ? parseInt(String(conta_id)) : null;
 
     const countResult = await pool.query(
-      'SELECT COUNT(*) AS total FROM cartoes WHERE usuario_id = $1 AND perfil_id IS NOT DISTINCT FROM $2',
-      [req.user!.id, profileId],
+      'SELECT COUNT(*) AS total FROM cartoes WHERE usuario_id = $1 AND conta_id IS NOT DISTINCT FROM $2',
+      [req.user!.id, accountId],
     );
     if (parseInt((countResult.rows[0] as { total: string }).total) >= 3) {
-      res.status(400).json({ success: false, message: 'Maximum of 3 cards allowed per profile' });
+      res.status(400).json({ success: false, message: 'Maximum of 3 cards allowed per account' });
       return;
     }
 
@@ -120,11 +120,11 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const nextNum = (nextNumResult.rows[0] as { next: number }).next;
 
     const result = await pool.query(
-      `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, tipo)
+      `INSERT INTO cartoes (usuario_id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, conta_id, tipo)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       ON CONFLICT (usuario_id, LOWER(nome), COALESCE(perfil_id, 0)) DO NOTHING
-       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, perfil_id, tipo, data_criacao, data_atualizacao`,
-      [req.user!.id, String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', true, nextNum, validade ?? null, profileId, tipo ?? null],
+       ON CONFLICT (usuario_id, LOWER(nome), COALESCE(conta_id, 0)) DO NOTHING
+       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, numero_cartao, validade, conta_id, tipo, data_criacao, data_atualizacao`,
+      [req.user!.id, String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', true, nextNum, validade ?? null, accountId, tipo ?? null],
     );
 
     res.status(201).json({ success: true, message: 'Card created', data: result.rows[0] });
@@ -138,7 +138,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const cardId = parseInt(req.params['id']!);
-    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, tipo } =
+    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo } =
       req.body as Record<string, string | number | boolean | undefined>;
 
     if (isNaN(cardId)) {
@@ -182,10 +182,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const result = await pool.query(
       `UPDATE cartoes
        SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5,
-           ativo = $6, validade = $7, perfil_id = $8, tipo = $9, data_atualizacao = CURRENT_TIMESTAMP
+           ativo = $6, validade = $7, conta_id = $8, tipo = $9, data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $10 AND usuario_id = $11
-       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, perfil_id, tipo, data_criacao, data_atualizacao`,
-      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, perfil_id ? parseInt(String(perfil_id)) : null, tipo ?? null, cardId, req.user!.id],
+       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo, data_criacao, data_atualizacao`,
+      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, conta_id ? parseInt(String(conta_id)) : null, tipo ?? null, cardId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Card updated', data: result.rows[0] });

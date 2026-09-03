@@ -9,7 +9,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const cards = pgTable(
   'cartoes',
@@ -18,7 +18,7 @@ export const cards = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     name: varchar('nome', { length: 255 }).notNull(),
     limit: decimal('limite', { precision: 10, scale: 2 }).notNull(),
     closingDay: integer('dia_fechamento').notNull(),
@@ -35,7 +35,7 @@ export const cards = pgTable(
   },
   (table) => ({
     userIdx: index('idx_cartoes_usuario').on(table.userId),
-    profileIdx: index('idx_cartoes_perfil').on(table.profileId),
+    accountIdx: index('idx_cartoes_conta').on(table.accountId),
   }),
 );
 

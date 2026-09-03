@@ -665,7 +665,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 {conversationsQuery.isLoading && <p className="py-3 text-xs text-slate-500">Carregando histórico...</p>}
                 {conversationsQuery.error && <p className="py-3 text-xs text-red-600 dark:text-red-300">Não foi possível carregar o histórico.</p>}
                 {!conversationsQuery.isLoading && !conversationsQuery.error && (conversationsQuery.data?.length ?? 0) === 0 && (
-                  <p className="py-3 text-xs text-slate-500 dark:text-slate-400">Nenhuma conversa salva neste perfil.</p>
+                  <p className="py-3 text-xs text-slate-500 dark:text-slate-400">Nenhuma conversa salva nesta conta.</p>
                 )}
                 <div className="grid gap-1">
                   {conversationsQuery.data?.map((conversation) => (

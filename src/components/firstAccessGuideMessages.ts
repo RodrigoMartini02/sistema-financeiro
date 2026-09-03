@@ -7,10 +7,9 @@ export const firstAccessGuideMessages = {
   reservasNova: 'Clique em Nova reserva para separar dinheiro para uma meta.',
   relatoriosConsultar: 'Depois de alterar o per\u00edodo, clique em Consultar para atualizar o relat\u00f3rio.',
   relatoriosExportar: 'Clique em Exportar PDF para baixar o relat\u00f3rio completo em um documento PDF.',
-  contaSalvar: 'Altere seus dados ou preencha os campos de senha para trocá-la, depois clique em Salvar.',
   categoriasNova: 'Clique em Nova categoria para organizar seus lan\u00e7amentos por tipo.',
   categoriasSub: 'Crie subcategorias quando precisar detalhar melhor seus gastos.',
-  perfisNovo: 'Clique em Novo perfil para separar finan\u00e7as pessoais, empresas ou opera\u00e7\u00f5es diferentes.',
+  perfisNovo: 'Clique em Nova conta para separar finan\u00e7as pessoais, empresas ou opera\u00e7\u00f5es diferentes.',
   usuariosFiltros: 'Use os filtros para encontrar usu\u00e1rios por status ou tipo de acesso.',
 
   // Despesas
@@ -43,8 +42,8 @@ export const firstAccessGuideMessages = {
   cartoesValidade: 'A validade \u00e9 apenas informativa e n\u00e3o afeta lan\u00e7amentos ou faturas.',
   cartoesLimite: 'O limite \u00e9 informativo: o sistema n\u00e3o bloqueia lan\u00e7amentos que o ultrapassem.',
 
-  // Perfis
-  perfisEnquadramento: 'Escolher um enquadramento cria categorias de despesas automaticamente para esse perfil.',
+  // Contas
+  contasEnquadramento: 'Escolher um enquadramento cria categorias de despesas automaticamente para essa conta.',
 
   // Usu\u00e1rios
   usuariosDesativarExcluir: 'Desativar bloqueia o login e pode ser revertido. Excluir \u00e9 permanente e s\u00f3 o usu\u00e1rio master pode fazer.',
@@ -72,9 +71,6 @@ export const firstAccessGuideMessages = {
 
   // Planos
   planosFormasPagamento: 'Escolha entre PIX, Cart\u00e3o ou D\u00e9bito autom\u00e1tico recorrente para assinar o plano.',
-
-  // Meses
-  mesesFecharReabrir: 'Feche um m\u00eas para travar seus lan\u00e7amentos ou reabra para voltar a edit\u00e1-lo.',
 
   // Painel
   painelComprometimento: 'Comprometimento mostra quanto das receitas j\u00e1 foi consumido por despesas: acima de 70% fica em alerta, acima de 90% fica cr\u00edtico.',

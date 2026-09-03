@@ -145,7 +145,7 @@ export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false 
   };
 
   return (
-    <Dialog open={open} title="Foto de perfil" description="Selecione uma imagem e ajuste o enquadramento" onClose={handleClose}>
+    <Dialog open={open} title="Foto da conta" description="Selecione uma imagem e ajuste o enquadramento" onClose={handleClose}>
       <div className="flex flex-col items-center gap-5">
         <input
           ref={fileInputRef}

@@ -88,7 +88,6 @@ export interface ExpenseFormValues {
   valor_pago?: number;          // valor efetivamente pago, quando divergir do valor da compra
   dataVencimento: string;
   dataCompra?: string;
-  categoria?: string;
   categoria_id?: number;
   cartao_id?: number;
   formaPagamento: string;

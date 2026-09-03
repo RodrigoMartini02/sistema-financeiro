@@ -6,6 +6,7 @@ import { users, categories, cards as cardsTable, expenses, incomes, reserves, mo
 import { authenticate, requireAdmin, requireMaster } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { accountWhere } from '../utils/accountFilter';
 
 const router = Router();
 
@@ -21,6 +22,8 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
         pais: users.country,
         estado: users.state,
         cidade: users.city,
+        telefone: users.telefone,
+        data_nascimento: users.dataNascimento,
         tipo: users.type,
         status: users.status,
         plano_status: users.planStatus,
@@ -47,7 +50,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
 // PUT /api/users/me
 router.put('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, pais, estado, cidade, senha_atual, nova_senha } =
+    const { nome, email, documento, pais, estado, cidade, telefone, data_nascimento, senha_atual, nova_senha } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -131,6 +134,8 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       country: pais ?? null,
       state: estado ?? null,
       city: cidade ?? null,
+      telefone: telefone ?? null,
+      dataNascimento: data_nascimento ?? null,
       updatedAt: new Date(),
     };
     if (newHashedPassword) updateData.password = newHashedPassword;
@@ -139,7 +144,11 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       .update(users)
       .set(updateData)
       .where(eq(users.id, req.user!.id))
-      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, pais: users.country, estado: users.state, cidade: users.city });
+      .returning({
+        id: users.id, nome: users.name, email: users.email, documento: users.document,
+        pais: users.country, estado: users.state, cidade: users.city,
+        telefone: users.telefone, data_nascimento: users.dataNascimento,
+      });
 
     res.json({ success: true, message: 'Profile updated successfully', data: updated });
   } catch (error) {
@@ -474,17 +483,14 @@ router.get('/:id/cartoes', authenticate, async (req: Request, res: Response): Pr
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
-    const { perfil_id } = req.query as Record<string, string | undefined>;
+    const { conta_id } = req.query as Record<string, string | undefined>;
     let queryStr = `SELECT c.id, c.nome AS banco, c.limite, c.dia_fechamento, c.dia_vencimento, c.cor, c.ativo, c.numero_cartao
                     FROM cartoes c
                     WHERE c.usuario_id = $1`;
     const params: unknown[] = [userId];
-    if (perfil_id) {
-      queryStr += ` AND (c.perfil_id = $2 OR (c.perfil_id IS NULL AND EXISTS (
-        SELECT 1 FROM perfis p WHERE p.id = $2 AND p.tipo = 'pessoal' AND p.usuario_id = c.usuario_id
-      )))`;
-      params.push(parseInt(perfil_id));
-    }
+    const accountClause = accountWhere(conta_id ? parseInt(conta_id) : null, 2, 'c');
+    queryStr += accountClause.clause;
+    params.push(...accountClause.params);
     queryStr += ' ORDER BY c.id ASC';
     const result = await pool.query(queryStr, params);
     const cartoes = result.rows.map((c: Record<string, unknown>, index: number) => ({

@@ -1,15 +1,15 @@
-import { apiRequest, getApiUrl, getActiveProfileId } from './apiClient';
+import { apiRequest, getApiUrl, getActiveAccountId } from './apiClient';
 
 function appendProfile(q: URLSearchParams) {
-  const id = getActiveProfileId();
-  if (id) q.set('perfil_id', String(id));
+  const id = getActiveAccountId();
+  if (id) q.set('conta_id', String(id));
 }
 
 export interface Cliente {
   id: number;
   nome: string;
   cnpj?: string | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
   total_contratos?: number;
   contratos_ativos?: number;
 }
@@ -38,7 +38,7 @@ export interface Contrato {
   horas_remotas_saldo_ini?: number | null;
   horas_remotas_saldo_atual?: number | null;
   valor_mensal?: number | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
 }
 
 
@@ -50,8 +50,8 @@ export async function fetchClientes(): Promise<Cliente[]> {
   return apiRequest<Cliente[]>(`/clientes${suffix}`);
 }
 
-export async function saveCliente(data: Omit<Cliente, 'id' | 'total_contratos' | 'contratos_ativos' | 'perfil_id'>, id?: number): Promise<Cliente> {
-  const body = { ...data, perfil_id: getActiveProfileId() };
+export async function saveCliente(data: Omit<Cliente, 'id' | 'total_contratos' | 'contratos_ativos' | 'conta_id'>, id?: number): Promise<Cliente> {
+  const body = { ...data, conta_id: getActiveAccountId() };
   if (id) {
     return apiRequest<Cliente>(`/clientes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   }
@@ -91,8 +91,8 @@ export async function criarReceitaImplantacao(contratoId: number): Promise<void>
   return apiRequest<void>(`/contratos/${contratoId}/receita-implantacao`, { method: 'POST' });
 }
 
-export async function saveContrato(data: Omit<Contrato, 'id' | 'cliente_nome' | 'num_aditivo' | 'status' | 'perfil_id'>, id?: number): Promise<Contrato> {
-  const body = { ...data, perfil_id: getActiveProfileId() };
+export async function saveContrato(data: Omit<Contrato, 'id' | 'cliente_nome' | 'num_aditivo' | 'status' | 'conta_id'>, id?: number): Promise<Contrato> {
+  const body = { ...data, conta_id: getActiveAccountId() };
   if (id) {
     return apiRequest<Contrato>(`/contratos/${id}`, { method: 'PUT', body: JSON.stringify(body) });
   }

@@ -1,15 +1,15 @@
-﻿import { apiRequest, getActiveProfileId } from './apiClient';
+﻿import { apiRequest, getActiveAccountId } from './apiClient';
 import { getLocalTodayIso } from '../utils/date';
 import type { Reserva, ReservaFormValues, Movimentacao, MovimentacaoFormValues } from '../types/reservas';
 
 export async function fetchReservas(): Promise<Reserva[]> {
-  const id = getActiveProfileId();
-  const q = id ? `?perfil_id=${id}` : '';
+  const id = getActiveAccountId();
+  const q = id ? `?conta_id=${id}` : '';
   return apiRequest<Reserva[]>(`/reservas${q}`);
 }
 
 export async function saveReserva(values: ReservaFormValues, id?: number): Promise<Reserva> {
-  const profileId = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const hoje = new Date();
 
   const body = {
@@ -23,7 +23,7 @@ export async function saveReserva(values: ReservaFormValues, id?: number): Promi
     data_objetivo: values.data_objetivo || null,
     cor: values.cor ?? '#6366f1',
     icone: values.icone ?? '\u{1F4B0}',
-    perfil_id: profileId,
+    conta_id: accountId,
   };
 
   return apiRequest<Reserva>(id ? `/reservas/${id}` : '/reservas', {

@@ -11,13 +11,13 @@ export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 
 
 const STORAGE_PREFIX = 'fingerence:onboarding-checklist';
 
-function isEmpresaPerfil() {
+function isEmpresaConta() {
   if (typeof window === 'undefined') {
     return false;
   }
 
   try {
-    return window.localStorage.getItem('perfilAtivoTipo') === 'empresa';
+    return window.localStorage.getItem('contaAtivaTipo') === 'empresa';
   } catch {
     return false;
   }
@@ -58,7 +58,7 @@ export interface OnboardingChecklistItem {
 export function useOnboardingChecklist(enabled: boolean) {
   const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getFirstAccessGuideUserScope(), []);
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
-  const isEmpresa = useMemo(() => isEmpresaPerfil(), []);
+  const isEmpresa = useMemo(() => isEmpresaConta(), []);
 
   const canQuery = enabled && !isDismissed;
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes, enabled: canQuery });

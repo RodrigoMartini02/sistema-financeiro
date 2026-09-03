@@ -5,7 +5,7 @@ import type { BudgetOverviewItem, BudgetTargetMode } from '../../types/budget';
 import { deleteBudgetTarget, fetchBudgetOverview, saveBudgetTarget } from '../../services/budgetService';
 import { queryKeys } from '../../services/queryKeys';
 import { Card } from '../../ui/card';
-import { formatCurrency } from './formatters';
+import { budgetPercentage, formatCurrency } from './formatters';
 
 interface BudgetPanelProps {
   month: number;
@@ -15,8 +15,7 @@ interface BudgetPanelProps {
 
 function statusLabel(item: BudgetOverviewItem): string {
   if (!item.targetAmount) return 'Sem meta';
-  const percentage = (item.projectedAmount / item.targetAmount) * 100;
-  return `${percentage.toFixed(0)}% da meta`;
+  return `${budgetPercentage(item).toFixed(0)}% da meta`;
 }
 
 function statusClass(item: BudgetOverviewItem): string {
@@ -82,7 +81,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
       </Card>
     );
   }
-  if (overview.profileType === 'empresa') {
+  if (overview.accountType === 'empresa') {
     return (
       <Card className="p-5">
         {toolbarStart && <div className="mb-4">{toolbarStart}</div>}
@@ -90,7 +89,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300"><Target size={17} /></span>
           <div>
             <p className="font-semibold text-slate-800 dark:text-slate-100">Planejamento pessoal</p>
-            <p className="mt-1">Metas de orçamento por categoria ficam disponíveis apenas no perfil pessoal.</p>
+            <p className="mt-1">Metas de orçamento por categoria ficam disponíveis apenas na conta pessoal.</p>
           </div>
         </div>
       </Card>

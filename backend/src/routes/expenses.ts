@@ -4,6 +4,7 @@ import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
+import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 
 const router = Router();
 
@@ -13,30 +14,10 @@ function buildWhereClause(
   queryUserId: string | undefined,
   mes: string | undefined,
   ano: string | undefined,
-  perfilId: string | undefined,
+  accountId: string | undefined,
   tableAlias: string = 'd',
 ): { where: string; params: unknown[] } {
-  const params: unknown[] = [];
-  let p = 0;
-
-  const targetUserId = queryUserId && userType === 'master' ? parseInt(queryUserId) : userId;
-  p++;
-  let where = `WHERE ${tableAlias}.usuario_id = $${p}`;
-  params.push(targetUserId);
-
-  if (mes !== undefined && ano !== undefined) {
-    where += ` AND ${tableAlias}.mes = $${p + 1} AND ${tableAlias}.ano = $${p + 2}`;
-    params.push(parseInt(mes), parseInt(ano));
-    p += 2;
-  }
-
-  if (perfilId) {
-    p++;
-    where += ` AND (${tableAlias}.perfil_id = $${p} OR (${tableAlias}.perfil_id IS NULL AND EXISTS (SELECT 1 FROM perfis pf WHERE pf.id = $${p} AND pf.tipo = 'pessoal' AND pf.usuario_id = ${tableAlias}.usuario_id)))`;
-    params.push(parseInt(perfilId));
-  }
-
-  return { where, params };
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias);
 }
 
 async function validateCardId(cardId: unknown, userId: number): Promise<number | null> {
@@ -108,7 +89,7 @@ async function createFutureInstallments(
       installmentIsPaid,
       baseExpense['id'],
       baseExpense['recorrente'] ?? false,
-      baseExpense['perfil_id'] ?? null,
+      baseExpense['conta_id'] ?? null,
       valorParcela,
       valorParcela,
       valorParcela,
@@ -121,7 +102,7 @@ async function createFutureInstallments(
         usuario_id, descricao, data_vencimento, data_compra,
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-        grupo_parcelamento_id, recorrente, perfil_id,
+        grupo_parcelamento_id, recorrente, conta_id,
         valor_original, valor_final, valor
       ) VALUES ${values.join(', ')}`,
       params,
@@ -174,7 +155,7 @@ async function createRecurringOccurrences(
       false,
       baseExpense['id'],
       true,
-      baseExpense['perfil_id'] ?? null,
+      baseExpense['conta_id'] ?? null,
       baseExpense['valor_original'],
       baseExpense['valor_final'],
       baseExpense['valor_final'],
@@ -187,7 +168,7 @@ async function createRecurringOccurrences(
         usuario_id, descricao, data_vencimento, data_compra,
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         observacoes, pago,
-        grupo_parcelamento_id, recorrente, perfil_id,
+        grupo_parcelamento_id, recorrente, conta_id,
         valor_original, valor_final, valor
       ) VALUES ${values.join(', ')}`,
       params,
@@ -203,8 +184,8 @@ async function createRecurringOccurrences(
 // GET /api/expenses
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, usuario_id, perfil_id } = req.query as Record<string, string | undefined>;
-    const { where, params } = buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, perfil_id);
+    const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
+    const { where, params } = buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id);
 
     const result = await pool.query(
       `SELECT d.*, c.nome AS categoria_nome, ct.nome AS cartao_nome, ct.tipo AS cartao_tipo
@@ -226,18 +207,18 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // GET /api/expenses/categories (dropdown helper)
 router.get('/categories', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { perfil_id } = req.query as Record<string, string | undefined>;
+    const { conta_id } = req.query as Record<string, string | undefined>;
 
     let whereClause = 'WHERE usuario_id = $1';
     const params: unknown[] = [req.user!.id];
 
-    if (perfil_id) {
-      const profileResult = await pool.query('SELECT tipo FROM perfis WHERE id = $1 AND usuario_id = $2', [parseInt(perfil_id), req.user!.id]);
-      if (profileResult.rows.length > 0) {
-        // Uniao: categorias PADRAO do tipo do perfil ativo OU categorias
-        // CUSTOM exclusivas deste perfil_id especifico.
-        params.push((profileResult.rows[0] as { tipo: string }).tipo, parseInt(perfil_id));
-        whereClause += ` AND (tipo = $${params.length - 1} OR perfil_id = $${params.length})`;
+    if (conta_id) {
+      const accountResult = await pool.query('SELECT tipo FROM contas WHERE id = $1 AND usuario_id = $2', [parseInt(conta_id), req.user!.id]);
+      if (accountResult.rows.length > 0) {
+        // Uniao: categorias PADRAO do tipo da conta ativa OU categorias
+        // CUSTOM exclusivas deste conta_id especifico.
+        params.push((accountResult.rows[0] as { tipo: string }).tipo, parseInt(conta_id));
+        whereClause += ` AND (tipo = $${params.length - 1} OR conta_id = $${params.length})`;
       }
     }
 
@@ -354,7 +335,7 @@ router.post(
         descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
         categoria_id, cartao_id, forma_pagamento,
         parcelado, total_parcelas, parcela_atual, parcelas_ja_pagas, observacoes, pago,
-        valor_pago, anexos, recorrente, recorrencia_mensal, perfil_id,
+        valor_pago, anexos, recorrente, recorrencia_mensal, conta_id,
         numero_nf, data_emissao_nf, tipo_despesa,
       } = req.body as Record<string, unknown>;
 
@@ -394,7 +375,7 @@ router.post(
           usuario_id, descricao, data_vencimento, data_compra, data_pagamento,
           mes, ano, categoria_id, cartao_id, forma_pagamento,
           parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-          valor_original, valor_final, valor, valor_pago, anexos, recorrente, perfil_id,
+          valor_original, valor_final, valor, valor_pago, anexos, recorrente, conta_id,
           numero_nf, data_emissao_nf, tipo_despesa
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
         RETURNING *`,
@@ -409,7 +390,7 @@ router.post(
           valorFinalCalculado,
           valorPagoFinal,
           attachmentsJson, recorrente ?? false,
-          perfil_id ? parseInt(String(perfil_id)) : null,
+          conta_id ? parseInt(String(conta_id)) : null,
           (numero_nf as string) || null, (data_emissao_nf as string) || null,
           (tipo_despesa as string) || null,
         ],
@@ -441,7 +422,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
       categoria_id, cartao_id, forma_pagamento, observacoes, pago,
       total_parcelas, parcela_atual, valor_pago,
-      anexos, parcelado, recorrente, perfil_id,
+      anexos, parcelado, recorrente, conta_id,
       numero_nf, data_emissao_nf, tipo_despesa,
     } = req.body as Record<string, unknown>;
 
@@ -479,7 +460,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
            mes = $16, ano = $17,
            parcelado = COALESCE($18, parcelado),
            recorrente = COALESCE($19, recorrente),
-           perfil_id = COALESCE($20, perfil_id),
+           conta_id = COALESCE($20, conta_id),
            numero_nf = $21, data_emissao_nf = $22, tipo_despesa = $23
        WHERE id = $24 AND usuario_id = $25
        RETURNING *`,
@@ -496,7 +477,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         ano,
         parcelado !== undefined ? parcelado : null,
         recorrente !== undefined ? recorrente : null,
-        perfil_id ? parseInt(String(perfil_id)) : null,
+        conta_id ? parseInt(String(conta_id)) : null,
         (numero_nf as string) || null, (data_emissao_nf as string) || null, (tipo_despesa as string) || null,
         expenseId, req.user!.id,
       ],
@@ -649,7 +630,7 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
 // GET /api/despesas/parcelas-futuras?mes=X&ano=Y&meses=3
 router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes: mesQ, ano: anoQ, meses: mesesQ, perfil_id } = req.query as Record<string, string | undefined>;
+    const { mes: mesQ, ano: anoQ, meses: mesesQ, conta_id } = req.query as Record<string, string | undefined>;
     const mes = parseInt(mesQ ?? '');
     const ano = parseInt(anoQ ?? '');
     const meses = parseInt(mesesQ ?? '3');
@@ -664,7 +645,7 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
     }
 
     const userId = req.user!.id;
-    const perfilId = perfil_id ? parseInt(perfil_id) : null;
+    const accountId = conta_id ? parseInt(conta_id) : null;
     const limiteMeses = Math.min(Math.max(meses || 3, 1), 12);
 
     const result = await pool.query(
@@ -681,12 +662,12 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
          AND pago = false
          AND (ano * 12 + mes) > ($2 * 12 + $3)
          AND (ano * 12 + mes) <= ($2 * 12 + $3 + $4)
-         AND ($5::int IS NULL OR perfil_id = $5 OR (perfil_id IS NULL AND EXISTS (
-           SELECT 1 FROM perfis pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+         AND ($5::int IS NULL OR conta_id = $5 OR (conta_id IS NULL AND EXISTS (
+           SELECT 1 FROM contas pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
          )))
        GROUP BY mes, ano
        ORDER BY ano, mes`,
-      [userId, ano, mes, limiteMeses, perfilId],
+      [userId, ano, mes, limiteMeses, accountId],
     );
 
     res.json({ success: true, data: result.rows });

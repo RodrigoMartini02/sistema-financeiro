@@ -12,7 +12,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { categories } from './categories';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 import { users } from './users';
 
 export const aiIntegrations = pgTable(
@@ -38,13 +38,13 @@ export const copilotConversations = pgTable(
   {
     id: serial('id').primaryKey(),
     userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
     title: varchar('titulo', { length: 120 }).notNull().default('Nova conversa'),
     createdAt: timestamp('criado_em').notNull().defaultNow(),
     updatedAt: timestamp('atualizado_em').notNull().defaultNow(),
   },
   (table) => ({
-    userProfileUpdatedIdx: index('idx_copilot_conversas_usuario_perfil_atualizado').on(table.userId, table.profileId, table.updatedAt),
+    userAccountUpdatedIdx: index('idx_copilot_conversas_usuario_conta_atualizado').on(table.userId, table.accountId, table.updatedAt),
   }),
 );
 
@@ -68,7 +68,7 @@ export const budgetTargets = pgTable(
   {
     id: serial('id').primaryKey(),
     userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
     categoryId: integer('categoria_id').notNull().references(() => categories.id, { onDelete: 'cascade' }),
     mode: varchar('modo', { length: 20 }).notNull().$type<'amount' | 'income_percent'>(),
     targetValue: decimal('valor_meta', { precision: 12, scale: 2 }).notNull(),
@@ -76,8 +76,8 @@ export const budgetTargets = pgTable(
     updatedAt: timestamp('atualizado_em').notNull().defaultNow(),
   },
   (table) => ({
-    targetUnique: unique('orcamento_metas_usuario_perfil_categoria_unico').on(table.userId, table.profileId, table.categoryId),
-    userProfileIdx: index('idx_orcamento_metas_usuario_perfil').on(table.userId, table.profileId),
+    targetUnique: unique('orcamento_metas_usuario_id_conta_id_categoria_id_key').on(table.userId, table.accountId, table.categoryId),
+    userAccountIdx: index('idx_orcamento_metas_usuario_conta').on(table.userId, table.accountId),
   }),
 );
 
@@ -86,7 +86,7 @@ export const aiUsageEvents = pgTable(
   {
     id: serial('id').primaryKey(),
     userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
     provider: varchar('provedor', { length: 20 }).notNull().$type<'openai' | 'anthropic' | 'gemini' | 'deterministic'>(),
     model: varchar('modelo', { length: 120 }),
     inputTokens: integer('tokens_entrada').notNull().default(0),
