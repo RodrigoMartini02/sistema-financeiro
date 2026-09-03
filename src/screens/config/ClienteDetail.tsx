@@ -186,6 +186,7 @@ function ContratoForm({
                 icon={Info}
                 description={firstAccessGuideMessages.clientesReajuste}
                 onDismiss={reajusteGuide.dismiss}
+                onSilenceAll={reajusteGuide.silenceAll}
               />
             )}
           </div>
@@ -210,6 +211,7 @@ function ContratoForm({
                 icon={Users}
                 description={firstAccessGuideMessages.clientesRepresentante}
                 onDismiss={representanteGuide.dismiss}
+                onSilenceAll={representanteGuide.silenceAll}
               />
             )}
           </div>
@@ -805,6 +807,7 @@ function ContratoDetailPane({
                       icon={Info}
                       description={firstAccessGuideMessages.clientesImplantacao}
                       onDismiss={implantacaoGuide.dismiss}
+                      onSilenceAll={implantacaoGuide.silenceAll}
                     />
                   )}
                 </div>
@@ -845,6 +848,7 @@ function ContratoDetailPane({
                       icon={ClockIcon}
                       description={firstAccessGuideMessages.clientesHoras}
                       onDismiss={horasGuide.dismiss}
+                      onSilenceAll={horasGuide.silenceAll}
                     />
                   )}
                 </div>
@@ -1022,6 +1026,7 @@ function ContratoDetailPane({
                       icon={Info}
                       description={firstAccessGuideMessages.clientesServicosVinculo}
                       onDismiss={servicosVinculoGuide.dismiss}
+                      onSilenceAll={servicosVinculoGuide.silenceAll}
                     />
                   )}
                 </div>
@@ -1105,6 +1110,7 @@ function ContratoDetailPane({
                   icon={AlertTriangle}
                   description={firstAccessGuideMessages.clientesEncerrarContrato}
                   onDismiss={encerrarGuide.dismiss}
+                  onSilenceAll={encerrarGuide.silenceAll}
                 />
               )}
             </div>
@@ -1378,6 +1384,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
                   icon={RefreshCw}
                   description={firstAccessGuideMessages.clientesGerarPrevistas}
                   onDismiss={gerarPrevistasGuide.dismiss}
+                  onSilenceAll={gerarPrevistasGuide.silenceAll}
                 />
               )}
             </div>

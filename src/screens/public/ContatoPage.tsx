@@ -107,8 +107,8 @@ export function ContatoPage() {
       <SitePageHero
         tone="light"
         label="CONTATO"
-        title="Fale com a gente."
-        description="Dúvidas, sugestões ou suporte: estamos disponíveis pelo e-mail ou WhatsApp."
+        title="Fale com a gente, estamos aqui para ajudar."
+        description="Dúvidas, sugestões ou suporte: nossa equipe está disponível pelo e-mail ou WhatsApp para ajudar no que você precisar."
       />
 
       <section className="border-b border-slate-200 bg-white">

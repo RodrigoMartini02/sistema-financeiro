@@ -137,6 +137,7 @@ function UsuarioDialog({
                   icon={UserX}
                   description={firstAccessGuideMessages.usuariosDesativarExcluir}
                   onDismiss={desativarGuide.dismiss}
+                  onSilenceAll={desativarGuide.silenceAll}
                 />
               )}
               {isMaster && onDelete && (
@@ -233,6 +234,7 @@ export function UsuariosTab({ userTipo }: Props) {
               placement="bottom"
               className="w-[min(24rem,calc(100vw-2rem))]"
               onDismiss={filterGuide.dismiss}
+              onSilenceAll={filterGuide.silenceAll}
             />
           )}
         </div>

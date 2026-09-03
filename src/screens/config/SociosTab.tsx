@@ -137,6 +137,7 @@ export function SociosTab() {
             placement="top"
             className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
+            onSilenceAll={createGuide.silenceAll}
           />
         )}
       </div>

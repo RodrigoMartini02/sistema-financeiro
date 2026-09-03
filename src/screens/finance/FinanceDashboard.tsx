@@ -182,6 +182,7 @@ export function FinanceDashboard() {
               placement="top"
               className="w-[min(24rem,calc(100vw-2rem))]"
               onDismiss={guide.dismiss}
+              onSilenceAll={guide.silenceAll}
             />
           </div>
         )}
@@ -245,6 +246,7 @@ export function FinanceDashboard() {
               icon={AlertTriangle}
               description={firstAccessGuideMessages.painelComprometimento}
               onDismiss={comprometimentoGuide.dismiss}
+              onSilenceAll={comprometimentoGuide.silenceAll}
             />
           )}
         </Card>

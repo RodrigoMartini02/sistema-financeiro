@@ -697,6 +697,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   icon={Repeat2}
                   description={firstAccessGuideMessages.despesasTogglesTipo}
                   onDismiss={repetitionGuide.dismiss}
+                  onSilenceAll={repetitionGuide.silenceAll}
                 />
               )}
 

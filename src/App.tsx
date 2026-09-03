@@ -200,6 +200,7 @@ function AppContent() {
         open={onboarding.isVisible}
         items={onboarding.items}
         onDismiss={onboarding.dismiss}
+        onSilenceAll={onboarding.silenceAll}
         onGoToTarget={handleOnboardingGoTo}
       />
     </AppShell>

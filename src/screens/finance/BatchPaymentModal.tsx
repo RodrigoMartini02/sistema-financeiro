@@ -101,6 +101,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
                 icon={CircleCheck}
                 description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
                 onDismiss={tabGuide.dismiss}
+                onSilenceAll={tabGuide.silenceAll}
               />
             )}
           </div>

@@ -172,6 +172,7 @@ export function ReservaDialog({
                 icon={TrendingUp}
                 description={firstAccessGuideMessages.reservasAbaMovimentar}
                 onDismiss={tabsGuide.dismiss}
+                onSilenceAll={tabsGuide.silenceAll}
               />
             )}
           </div>
@@ -285,6 +286,7 @@ export function ReservaDialog({
                     icon={TrendingUp}
                     description={firstAccessGuideMessages.reservasContribuicaoSugerida}
                     onDismiss={contribuicaoGuide.dismiss}
+                    onSilenceAll={contribuicaoGuide.silenceAll}
                   />
                 )}
               </div>

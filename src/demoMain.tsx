@@ -66,7 +66,7 @@ function DemoApp() {
   return (
     <QueryClientProvider client={demoQueryClient}>
       <ConfirmProvider>
-        <FirstAccessGuideProvider>
+        <FirstAccessGuideProvider isDemoMode>
           <AppProvider>
             <DemoAppContent />
           </AppProvider>

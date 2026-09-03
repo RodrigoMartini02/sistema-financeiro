@@ -612,6 +612,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                     icon={Users}
                     description={firstAccessGuideMessages.receitasRepresentante}
                     onDismiss={representanteGuide.dismiss}
+                    onSilenceAll={representanteGuide.silenceAll}
                   />
                 )}
 
@@ -665,6 +666,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                     icon={Clock}
                     description={firstAccessGuideMessages.receitasHoras}
                     onDismiss={horasGuide.dismiss}
+                    onSilenceAll={horasGuide.silenceAll}
                   />
                 )}
                 {horasFaturar && (
@@ -762,6 +764,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                     icon={ChevronDown}
                     description={firstAccessGuideMessages.receitasReplicar}
                     onDismiss={replicarGuide.dismiss}
+                    onSilenceAll={replicarGuide.silenceAll}
                   />
                 )}
                 {replicar && (

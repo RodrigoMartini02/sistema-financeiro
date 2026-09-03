@@ -113,6 +113,7 @@ function CategoriaDialog({
                   icon={Tag}
                   description={firstAccessGuideMessages.categoriasDesativar}
                   onDismiss={desativarGuide.dismiss}
+                  onSilenceAll={desativarGuide.silenceAll}
                 />
               )}
             </div>
@@ -303,6 +304,7 @@ export function CategoriasTab() {
                 icon={Tag}
                 description={firstAccessGuideMessages.categoriasNova}
                 onDismiss={guideNovaCategoria.dismiss}
+                onSilenceAll={guideNovaCategoria.silenceAll}
               />
             )}
           </div>

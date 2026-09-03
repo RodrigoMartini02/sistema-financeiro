@@ -5,6 +5,32 @@ export type FirstAccessGuideLayer = 'page' | 'modal';
 export const GUIDE_LAYER_PAGE: FirstAccessGuideLayer = 'page';
 export const GUIDE_LAYER_MODAL: FirstAccessGuideLayer = 'modal';
 
+const SILENCE_ALL_STORAGE_KEY = 'fingerence:first-access-guide:silenced-all';
+
+function readSilencedAll(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(SILENCE_ALL_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeSilencedAll() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(SILENCE_ALL_STORAGE_KEY, 'true');
+  } catch {
+    return;
+  }
+}
+
 const MODULE_PRIORITY: Record<string, number> = {
   cartoes: 1,
   categorias: 1,
@@ -56,15 +82,29 @@ interface FirstAccessGuideContextValue {
   registerSurface: (layer: FirstAccessGuideLayer) => void;
   unregisterSurface: (layer: FirstAccessGuideLayer) => void;
   isActive: (scope: string, layer?: FirstAccessGuideLayer) => boolean;
+  isDemoMode: boolean;
+  isSilencedAll: boolean;
+  silenceAll: () => void;
 }
 
 const FirstAccessGuideContext = createContext<FirstAccessGuideContextValue | null>(null);
 
-export function FirstAccessGuideProvider({ children }: { children: ReactNode }) {
+interface FirstAccessGuideProviderProps {
+  children: ReactNode;
+  isDemoMode?: boolean;
+}
+
+export function FirstAccessGuideProvider({ children, isDemoMode = false }: FirstAccessGuideProviderProps) {
   const [eligible, setEligible] = useState<Set<string>>(new Set());
   const [activeSurfaces, setActiveSurfaces] = useState<Set<FirstAccessGuideLayer>>(new Set([GUIDE_LAYER_PAGE]));
+  const [isSilencedAll, setIsSilencedAll] = useState(() => readSilencedAll());
   const countsRef = useRef<Map<string, number>>(new Map());
   const surfaceCountsRef = useRef<Map<FirstAccessGuideLayer, number>>(new Map([[GUIDE_LAYER_PAGE, 1]]));
+
+  const silenceAll = useCallback(() => {
+    writeSilencedAll();
+    setIsSilencedAll(true);
+  }, []);
 
   const register = useCallback((scope: string, layer: FirstAccessGuideLayer = GUIDE_LAYER_PAGE) => {
     const key = makeRegistrationKey(scope, layer);
@@ -156,13 +196,14 @@ export function FirstAccessGuideProvider({ children }: { children: ReactNode }) 
   }, [activeLayer, eligible]);
 
   const isActive = useCallback(
-    (scope: string, layer: FirstAccessGuideLayer = GUIDE_LAYER_PAGE) => layer === activeLayer && scope === activeScope,
-    [activeLayer, activeScope],
+    (scope: string, layer: FirstAccessGuideLayer = GUIDE_LAYER_PAGE) =>
+      !isDemoMode && !isSilencedAll && layer === activeLayer && scope === activeScope,
+    [isDemoMode, isSilencedAll, activeLayer, activeScope],
   );
 
   const value = useMemo(
-    () => ({ register, unregister, registerSurface, unregisterSurface, isActive }),
-    [register, unregister, registerSurface, unregisterSurface, isActive],
+    () => ({ register, unregister, registerSurface, unregisterSurface, isActive, isDemoMode, isSilencedAll, silenceAll }),
+    [register, unregister, registerSurface, unregisterSurface, isActive, isDemoMode, isSilencedAll, silenceAll],
   );
 
   return (
