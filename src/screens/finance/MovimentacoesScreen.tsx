@@ -266,13 +266,19 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
             )}
           </div>
 
-          <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+          <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+            <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+            {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
+          </div>
 
-          {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
-          {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+          {!isPlanning && (
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+            </div>
+          )}
 
           {!isCalendario && !isPlanning && (
-            <>
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
               <div className="relative">
                 <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
                 {novaReceitaGuide.isVisible && (
@@ -315,7 +321,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                   />
                 )}
               </div>
-            </>
+            </div>
           )}
         </div>
 
