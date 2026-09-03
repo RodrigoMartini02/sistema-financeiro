@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Briefcase, ChevronDown, ChevronUp, Tag } from 'lucide-react';
-import { fetchPerfis, savePerfil, deletePerfil } from '../../services/configService';
+import { Plus, Briefcase, ChevronDown, ChevronUp, Tag, User, Pencil, X, AlertCircle } from 'lucide-react';
+import { fetchContas, saveConta, deleteConta, updateFotoConta, reactivateConta } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
-import type { Perfil } from '../../types/config';
+import type { Conta } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
@@ -13,7 +13,17 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
-import { Z_GUIDE } from '../../ui/zIndex';
+import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
+
+// Conta é considerada incompleta quando falta email, ou (se empresa) razão
+// social/enquadramento, ou (se pessoa física) telefone/data de nascimento.
+function isContaIncompleta(c: Conta): boolean {
+  if (!c.email?.trim()) return true;
+  if (c.tipo === 'empresa') {
+    return !c.razao_social?.trim() || !c.enquadramento;
+  }
+  return !c.telefone?.trim() || !c.data_nascimento?.trim();
+}
 
 // ─── Category preview data (mirrors backend presets) ─────────────────────────
 
@@ -167,62 +177,39 @@ function CategoryPreview({ enquadramento }: { enquadramento: string }) {
   );
 }
 
-// ─── Linha de opção selecionável (estilo do padrão aprovado) ─────────────────
-
-function OptionRow({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: () => void }) {
-  return (
-    <div
-      onClick={onChange}
-      style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer',
-        borderRadius: 10, border: `1.5px solid ${checked ? C.primary : C.borderInput}`,
-        background: checked ? C.primarySoft : '#fff', padding: '10px 12px', transition: 'all .13s ease',
-      }}
-    >
-      <div>
-        <p style={{ fontSize: 13.5, fontWeight: 600, color: checked ? C.primaryDark : C.text, margin: 0 }}>{label}</p>
-        <p style={{ fontSize: 12, color: checked ? C.primaryDark : C.textMuted, margin: 0 }}>{description}</p>
-      </div>
-      <span
-        style={{
-          width: 18, height: 18, borderRadius: '50%', border: `2px solid ${checked ? C.primary : C.chipOffBorder}`,
-          background: checked ? C.primary : 'transparent', flexShrink: 0,
-        }}
-      />
-    </div>
-  );
-}
-
 // ─── Dialog ──────────────────────────────────────────────────────────────────
 
-function PerfilDialog({
-  open, perfil, isSaving, error, onClose, onSave, onDelete,
+function ContaDialog({
+  open, conta, isSaving, error, onClose, onSave, onDelete, onSaveFoto,
 }: {
-  open: boolean; perfil?: Perfil; isSaving: boolean; error?: string;
+  open: boolean; conta?: Conta;
+  isSaving: boolean; error?: string;
   onClose: () => void;
   onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; telefone?: string; data_nascimento?: string; email?: string }) => void;
   onDelete?: () => void;
+  onSaveFoto?: (dataUrl: string | null) => void;
 }) {
-  const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(perfil?.tipo ?? 'empresa');
-  const [enquadramento, setEnquadramento] = useState<string>(perfil?.enquadramento ?? '');
+  const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(conta?.tipo ?? 'empresa');
+  const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const confirm = useConfirm();
 
-  const isNew = !perfil;
-  const enquadramentoGuide = useFirstAccessGuide('perfis:enquadramento-v1', {
+  const isNew = !conta;
+  const enquadramentoGuide = useFirstAccessGuide('contas:enquadramento-v1', {
     enabled: open && isNew && tipo === 'empresa',
     layer: GUIDE_LAYER_MODAL,
   });
 
   useEffect(() => {
     if (!open) return;
-    setEnquadramento(perfil?.enquadramento ?? '');
-  }, [open, perfil]);
+    setEnquadramento(conta?.enquadramento ?? '');
+  }, [open, conta]);
 
   const handleDelete = async () => {
     if (!onDelete) return;
     const ok = await confirm({
-      title: 'Arquivar perfil',
-      message: `Arquivar "${perfil?.nome}"? Ele deixará de aparecer na lista de perfis ativos.`,
+      title: 'Arquivar conta',
+      message: `Arquivar "${conta?.nome}"? Ela deixará de aparecer na lista de contas ativas.`,
       confirmLabel: 'Arquivar',
     });
     if (ok) onDelete();
@@ -241,21 +228,58 @@ function PerfilDialog({
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
       atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
       enquadramento: tipo === 'empresa' && enquadramento ? enquadramento : undefined,
-      telefone: tipo === 'pessoal' ? (fd.get('telefone') as string || undefined) : undefined,
+      telefone: fd.get('telefone') as string || undefined,
+      email: fd.get('email') as string || undefined,
       data_nascimento: tipo === 'pessoal' ? (fd.get('data_nascimento') as string || undefined) : undefined,
-      email: tipo === 'pessoal' ? (fd.get('email') as string || undefined) : undefined,
     });
   };
 
   return (
-    <Dialog open={open} title={perfil ? 'Editar perfil' : 'Novo perfil'} onClose={onClose} size="lg" scrollBody={false}>
+    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="lg" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
-          {!perfil && (
+          {onSaveFoto && (
+            <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ display: 'flex', height: 56, width: 56, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '50%', background: C.primarySoft }}>
+                  {conta?.foto ? (
+                    <img src={conta.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={24} color={C.primary} />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAvatarDialogOpen(true)}
+                  aria-label="Alterar foto da conta"
+                  style={{ position: 'absolute', bottom: -2, right: -2, display: 'flex', height: 22, width: 22, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '2px solid #fff', background: C.primary, color: '#fff', cursor: 'pointer' }}
+                >
+                  <Pencil size={10} />
+                </button>
+              </div>
+              {conta?.foto && (
+                <button
+                  type="button"
+                  onClick={() => onSaveFoto(null)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, color: C.textMuted, background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  <X size={11} /> Remover foto
+                </button>
+              )}
+              <AvatarUploadDialog
+                open={avatarDialogOpen}
+                onClose={() => setAvatarDialogOpen(false)}
+                onConfirm={(dataUrl) => { onSaveFoto(dataUrl); setAvatarDialogOpen(false); }}
+                isSaving={false}
+              />
+            </div>
+          )}
+
+          {!conta && (
             <div style={cardStyle}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}>TIPO DE PERFIL</label>
+                <label style={labelStyle}>TIPO DE CONTA</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   {TIPO_OPTIONS.map((opt) => (
                     <div
@@ -283,11 +307,11 @@ function PerfilDialog({
                   <label style={{ ...labelStyle, height: 'auto' }}>RAZÃO SOCIAL</label>
                   <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
                 </div>
-                <input name="razao_social" defaultValue={perfil?.razao_social ?? ''} placeholder="Ex: Empresa ABC Ltda." style={fieldInputStyle} />
+                <input name="razao_social" defaultValue={conta?.razao_social ?? ''} placeholder="Ex: Empresa ABC Ltda." style={fieldInputStyle} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 <label style={labelStyle}><span>NOME FANTASIA</span><span style={{ color: C.primary }}>*</span></label>
-                <input name="nome_fantasia" defaultValue={perfil?.nome_fantasia ?? perfil?.nome ?? ''} placeholder="Ex: ABC Stores" autoFocus required style={fieldInputStyle} />
+                <input name="nome_fantasia" defaultValue={conta?.nome_fantasia ?? conta?.nome ?? ''} placeholder="Ex: ABC Stores" autoFocus required style={fieldInputStyle} />
               </div>
             </div>
           )}
@@ -295,8 +319,8 @@ function PerfilDialog({
           {tipo === 'pessoal' && (
             <div style={cardStyle}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}><span>NOME DO PERFIL</span><span style={{ color: C.primary }}>*</span></label>
-                <input name="nome" defaultValue={perfil?.nome} placeholder="Ex: Pessoal" autoFocus required style={fieldInputStyle} />
+                <label style={labelStyle}><span>NOME DA CONTA</span><span style={{ color: C.primary }}>*</span></label>
+                <input name="nome" defaultValue={conta?.nome} placeholder="Ex: Pessoal" autoFocus required style={fieldInputStyle} />
               </div>
             </div>
           )}
@@ -305,8 +329,8 @@ function PerfilDialog({
             <>
               <div style={cardStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}><span>CNPJ</span>{!perfil && <span style={{ color: C.primary }}>*</span>}</label>
-                  <input name="documento" defaultValue={perfil?.documento ?? ''} placeholder="00000000000000" maxLength={18} required={!perfil} style={fieldInputStyle} />
+                  <label style={labelStyle}><span>CNPJ</span>{!conta && <span style={{ color: C.primary }}>*</span>}</label>
+                  <input name="documento" defaultValue={conta?.documento ?? ''} placeholder="00000000000000" maxLength={18} required={!conta} style={fieldInputStyle} />
                   <span style={{ fontSize: 12, color: C.textFaint }}>14 dígitos sem pontuação</span>
                 </div>
               </div>
@@ -314,17 +338,18 @@ function PerfilDialog({
               <div style={{ ...cardStyle, position: 'relative' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   <label style={labelStyle}>ENQUADRAMENTO</label>
-                  <div style={{ display: 'grid', gap: 6 }}>
+                  <select
+                    value={enquadramento}
+                    onChange={(e) => setEnquadramento(e.target.value)}
+                    style={fieldInputStyle}
+                  >
+                    <option value="">Selecione...</option>
                     {ENQUADRAMENTO_OPTIONS.map((opt) => (
-                      <OptionRow
-                        key={opt.value}
-                        label={opt.label}
-                        description={opt.description}
-                        checked={enquadramento === opt.value}
-                        onChange={() => setEnquadramento((prev) => prev === opt.value ? '' : opt.value)}
-                      />
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label} — {opt.description}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                   <span style={{ fontSize: 12, color: C.textFaint }}>
                     {isNew ? 'Cria categorias de despesas automaticamente (opcional)' : 'Tipo jurídico da empresa'}
                   </span>
@@ -333,9 +358,9 @@ function PerfilDialog({
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={Briefcase}
-                    description={firstAccessGuideMessages.perfisEnquadramento}
+                    description={firstAccessGuideMessages.contasEnquadramento}
                     onDismiss={enquadramentoGuide.dismiss}
                   />
                 )}
@@ -350,42 +375,44 @@ function PerfilDialog({
           )}
 
           {tipo === 'pessoal' && (
-            <>
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                    <label style={{ ...labelStyle, height: 'auto' }}>CPF</label>
-                    <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                  </div>
-                  <input name="documento" defaultValue={perfil?.documento ?? ''} placeholder="000.000.000-00" maxLength={14} style={fieldInputStyle} />
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                  <label style={{ ...labelStyle, height: 'auto' }}>CPF</label>
+                  <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
                 </div>
+                <input name="documento" defaultValue={conta?.documento ?? ''} placeholder="000.000.000-00" maxLength={14} style={fieldInputStyle} />
               </div>
-              <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                    <label style={{ ...labelStyle, height: 'auto' }}>TELEFONE</label>
-                    <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                  </div>
-                  <input name="telefone" defaultValue={perfil?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                    <label style={{ ...labelStyle, height: 'auto' }}>DATA DE NASCIMENTO</label>
-                    <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                  </div>
-                  <input name="data_nascimento" type="date" defaultValue={perfil?.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
-                </div>
+            </div>
+          )}
+
+          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>TELEFONE</label>
+                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
               </div>
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                    <label style={{ ...labelStyle, height: 'auto' }}>E-MAIL DO PERFIL</label>
-                    <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                  </div>
-                  <input name="email" type="email" defaultValue={perfil?.email ?? ''} placeholder="contato@email.com" style={fieldInputStyle} />
-                </div>
+              <input name="telefone" defaultValue={conta?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                <label style={{ ...labelStyle, height: 'auto' }}>E-MAIL</label>
+                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
               </div>
-            </>
+              <input name="email" type="email" defaultValue={conta?.email ?? ''} placeholder="contato@email.com" style={fieldInputStyle} />
+            </div>
+          </div>
+
+          {tipo === 'pessoal' && (
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
+                  <label style={{ ...labelStyle, height: 'auto' }}>DATA DE NASCIMENTO</label>
+                  <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
+                </div>
+                <input name="data_nascimento" type="date" defaultValue={conta?.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
+              </div>
+            </div>
           )}
 
           {error && (
@@ -396,7 +423,7 @@ function PerfilDialog({
         </div>
 
         <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {perfil && onDelete && (
+          {conta && !conta.eh_padrao && onDelete && (
             <Button type="button" variant="danger" onClick={handleDelete}>Arquivar</Button>
           )}
           <div style={{ marginLeft: 'auto' }}>
@@ -422,34 +449,76 @@ function PerfilDialog({
 
 // ─── Tab ─────────────────────────────────────────────────────────────────────
 
-export function PerfisTab() {
+export function ContasTab() {
   const qc = useQueryClient();
-  const [dialog, setDialog] = useState<{ open: boolean; item?: Perfil }>({ open: false });
+  const [dialog, setDialog] = useState<{ open: boolean; item?: Conta }>({ open: false });
   const [mutError, setMutError] = useState('');
+  const [mostrarDesativados, setMostrarDesativados] = useState(false);
 
-  const perfis = useQuery({ queryKey: queryKeys.perfis, queryFn: fetchPerfis });
-  const data = perfis.data ?? [];
+  const contasQuery = useQuery({
+    queryKey: [...queryKeys.contas, mostrarDesativados],
+    queryFn: () => fetchContas(mostrarDesativados),
+  });
+  const data = contasQuery.data ?? [];
   const createGuide = useFirstAccessGuide('perfis:novo-v1');
 
+  const listaExibida = mostrarDesativados ? data.filter((c) => !c.ativo) : data.filter((c) => c.ativo);
+
   const saveMut = useMutation({
-    mutationFn: ({ v, id }: { v: Parameters<typeof savePerfil>[0]; id?: number }) => savePerfil(v, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.perfis }); setDialog({ open: false }); },
+    mutationFn: ({ v, id }: { v: Parameters<typeof saveConta>[0]; id?: number }) => saveConta(v, id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.contas }); setDialog({ open: false }); },
     onError: (e) => setMutError(e.message),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deletePerfil,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.perfis }); setDialog({ open: false }); },
+  const fotoMut = useMutation({
+    mutationFn: ({ id, foto }: { id: number; foto: string | null }) => updateFotoConta(id, foto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.contas });
+      qc.invalidateQueries({ queryKey: queryKeys.session });
+    },
   });
+
+  const deleteMut = useMutation({
+    mutationFn: deleteConta,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.contas }); setDialog({ open: false }); },
+    onError: (e) => setMutError(e.message),
+  });
+
+  const reactivateMut = useMutation({
+    mutationFn: reactivateConta,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.contas }),
+  });
+
+  const handleSave = (v: Parameters<typeof saveConta>[0]) => {
+    saveMut.mutate({ v, id: dialog.item?.id });
+  };
 
   return (
     <div className="grid gap-4">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          {data.length} perfil/perfis ativo(s)
-        </p>
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-slate-500">
+            {listaExibida.length} conta(s) {mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}
+          </p>
+          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setMostrarDesativados(false)}
+              className={`rounded-md px-2.5 py-1 transition ${!mostrarDesativados ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Ativas
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarDesativados(true)}
+              className={`rounded-md px-2.5 py-1 transition ${mostrarDesativados ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              Desativadas
+            </button>
+          </div>
+        </div>
         <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
-          Novo perfil
+          Nova conta
         </Button>
         {createGuide.isVisible && (
           <FirstAccessGuideCard
@@ -458,39 +527,66 @@ export function PerfisTab() {
             align="right"
             floating
             placement="top"
-            className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+            className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
           />
         )}
       </div>
 
       <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Os perfis separam os dados financeiros. Cada empresa ou perfil pessoal tem suas próprias receitas, despesas e reservas.
+        As contas separam os dados financeiros. Cada empresa ou conta pessoal tem suas próprias receitas, despesas e reservas.
       </div>
 
-      {perfis.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {contasQuery.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
       <div className="grid gap-2">
-        {data.map((p, i) => (
-          <ConfigListRow
-            key={p.id}
-            index={i}
-            nome={p.nome}
-            dataCriacao={p.data_criacao}
-            onClick={() => { setMutError(''); setDialog({ open: true, item: p }); }}
-          />
+        {listaExibida.map((c, i) => (
+          <div key={c.id} className="relative">
+            <ConfigListRow
+              index={i}
+              nome={c.nome}
+              dataCriacao={c.data_criacao}
+              foto={c.foto}
+              onClick={() => { setMutError(''); setDialog({ open: true, item: c }); }}
+            />
+            <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+              {c.eh_padrao && (
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Conta Padrão</span>
+              )}
+              {isContaIncompleta(c) && (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                  <AlertCircle size={12} /> Conta incompleta
+                </span>
+              )}
+              {!c.ativo && (
+                <button
+                  type="button"
+                  className="pointer-events-auto rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                  onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(c.id); }}
+                >
+                  Reativar
+                </button>
+              )}
+            </div>
+          </div>
         ))}
-        {data.length === 0 && !perfis.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">Nenhum perfil adicional. Apenas o perfil padrão está ativo.</p>
+        {listaExibida.length === 0 && !contasQuery.isLoading && (
+          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
+            {mostrarDesativados ? 'Nenhuma conta desativada.' : 'Nenhuma conta encontrada.'}
+          </p>
         )}
       </div>
 
-      <PerfilDialog
-        open={dialog.open} perfil={dialog.item}
-        isSaving={saveMut.isPending} error={mutError}
+      <ContaDialog
+        key={dialog.item ? String(dialog.item.id) : 'new'}
+        open={dialog.open}
+        conta={dialog.item}
+        isSaving={saveMut.isPending}
+        error={mutError}
         onClose={() => setDialog({ open: false })}
-        onSave={(v) => saveMut.mutate({ v: v as Parameters<typeof savePerfil>[0], id: dialog.item?.id })}
-        onDelete={dialog.item ? () => deleteMut.mutate(dialog.item!.id) : undefined}
+        onSave={handleSave}
+        onSaveFoto={dialog.item ? (dataUrl) => fotoMut.mutate({ id: (dialog.item as Conta).id, foto: dataUrl }) : undefined}
+        onDelete={dialog.item ? () => deleteMut.mutate((dialog.item as Conta).id) : undefined}
       />
     </div>
   );

@@ -41,7 +41,7 @@ const MODULOS: ModuleFeature[] = [
   {
     icon: TrendingUp,
     title: 'Receitas',
-    description: 'Registre entradas únicas ou recorrentes e acompanhe o histórico por período, perfil e origem.',
+    description: 'Registre entradas únicas ou recorrentes e acompanhe o histórico por período, conta e origem.',
     accent: 'border-emerald-100 bg-emerald-50 text-emerald-600',
   },
   {
@@ -73,7 +73,7 @@ const MODULOS: ModuleFeature[] = [
 const FLUXO = [
   {
     icon: Layers,
-    title: 'Separe por perfil',
+    title: 'Separe por conta',
     description: 'Pessoal, empresa ou CNPJ ficam em ambientes independentes dentro da mesma conta.',
   },
   {
@@ -155,7 +155,7 @@ function ProductPreview() {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[13px] font-semibold text-slate-950">Julho 2026</p>
-            <p className="truncate text-[11px] text-slate-500">Perfil empresarial</p>
+            <p className="truncate text-[11px] text-slate-500">Conta empresarial</p>
           </div>
         </div>
         <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
@@ -268,7 +268,7 @@ export function FuncionalidadesPage() {
               Do lançamento ao relatório, tudo fica conectado.
             </h2>
             <p className="mt-5 max-w-[680px] text-[15px] leading-[1.8] text-slate-600">
-              Controle lançamentos, cartões, reservas e relatórios em uma sequência simples, com dados separados por perfil e sempre prontos para consulta.
+              Controle lançamentos, cartões, reservas e relatórios em uma sequência simples, com dados separados por conta e sempre prontos para consulta.
             </p>
             <div className="mt-8 grid gap-4">
               {FLUXO.map(({ icon: Icon, title, description }) => (

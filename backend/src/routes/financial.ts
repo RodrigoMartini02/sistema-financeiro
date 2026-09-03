@@ -20,11 +20,11 @@ function calcAnnualRate(monthlyRate: number): number {
   return (Math.pow(1 + monthlyRate / 100, 12) - 1) * 100;
 }
 
-async function fetchAporteInicial(userId: number, profileId: number | null): Promise<number> {
-  if (!profileId) return 0;
+async function fetchAporteInicial(userId: number, accountId: number | null): Promise<number> {
+  if (!accountId) return 0;
   const result = await pool.query(
-    `SELECT aporte_inicial FROM perfis WHERE id = $1 AND usuario_id = $2`,
-    [profileId, userId],
+    `SELECT aporte_inicial FROM contas WHERE id = $1 AND usuario_id = $2`,
+    [accountId, userId],
   );
   const raw = (result.rows[0] as { aporte_inicial: string | null } | undefined)?.aporte_inicial;
   return raw ? parseFloat(raw) : 0;
@@ -78,7 +78,7 @@ router.get('/selic', async (_req: Request, res: Response): Promise<void> => {
 // GET /api/financial/anual?ano=2026
 router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { ano: anoQ, perfil_id } = req.query as Record<string, string | undefined>;
+    const { ano: anoQ, conta_id } = req.query as Record<string, string | undefined>;
     const ano = parseInt(anoQ ?? '');
     if (!ano || ano < 2000 || ano > 2100) {
       res.status(400).json({ success: false, message: 'Parâmetro ano inválido' });
@@ -86,7 +86,7 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
     }
 
     const userId = req.user!.id;
-    const perfilId = perfil_id ? parseInt(perfil_id) : null;
+    const accountId = conta_id ? parseInt(conta_id) : null;
 
     const result = await pool.query(
       `SELECT
@@ -100,8 +100,8 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
         SELECT mes, SUM(valor) AS total
         FROM receitas
         WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-          AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-            SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
           )))
         GROUP BY mes
       ) r ON r.mes = gs.mes
@@ -109,8 +109,8 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
         SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) AS total
         FROM despesas
         WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-          AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-            SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
           )))
         GROUP BY mes
       ) d ON d.mes = gs.mes
@@ -118,22 +118,22 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
         SELECT DISTINCT ON (mes) mes, saldo_final
         FROM meses
         WHERE ano = $1 AND usuario_id = $2
-          AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-            SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
           )))
-        ORDER BY mes, perfil_id NULLS LAST
+        ORDER BY mes, conta_id NULLS LAST
       ) m ON m.mes = gs.mes
       LEFT JOIN (
         SELECT mes, SUM(valor) AS total
         FROM receitas
         WHERE ano = $1 AND usuario_id = $2 AND status IN ('prevista', 'faturada')
-          AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-            SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
           )))
         GROUP BY mes
       ) p ON p.mes = gs.mes
       ORDER BY gs.mes`,
-      [ano, userId, perfilId],
+      [ano, userId, accountId],
     );
 
     res.json({ success: true, data: result.rows });
@@ -143,11 +143,11 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
   }
 });
 
-// GET /api/financial/panorama?de_mes=&de_ano=&ate_mes=&ate_ano=&perfil_id=
+// GET /api/financial/panorama?de_mes=&de_ano=&ate_mes=&ate_ano=&conta_id=
 // Todos os parâmetros de período são opcionais — ausência de todos = todo o histórico do usuário.
 router.get('/panorama', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { de_mes, de_ano, ate_mes, ate_ano, perfil_id } = req.query as Record<string, string | undefined>;
+    const { de_mes, de_ano, ate_mes, ate_ano, conta_id } = req.query as Record<string, string | undefined>;
 
     const deMes = de_mes !== undefined ? parseInt(de_mes) : null;
     const deAno = de_ano !== undefined ? parseInt(de_ano) : null;
@@ -176,16 +176,16 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     }
 
     const userId = req.user!.id;
-    const perfilId = perfil_id ? parseInt(perfil_id) : null;
+    const accountId = conta_id ? parseInt(conta_id) : null;
 
-    const perfilFiltro = `($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-      SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+    const contaFiltro = `($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+      SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
     )))`;
 
     // Intervalo comparado como (ano * 12 + mes), cobrindo o mês inteiro em cada extremo.
     const periodoFiltro = `(ano * 12 + mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)`;
 
-    const params = [userId, userId, perfilId, deChave, ateChave];
+    const params = [userId, userId, accountId, deChave, ateChave];
 
     const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult] = await Promise.all([
       pool.query(
@@ -199,11 +199,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         FROM (
           SELECT valor, data_recebimento AS data, 'receita' AS origem
           FROM receitas
-          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           UNION ALL
           SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END AS valor, data_vencimento AS data, 'despesa' AS origem
           FROM despesas
-          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
         ) t`,
         params,
       ),
@@ -212,8 +212,8 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
          FROM despesas d
          LEFT JOIN categorias c ON d.categoria_id = c.id
          WHERE d.usuario_id = $1 AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
-           AND ($3::int IS NULL OR d.perfil_id = $3 OR (d.perfil_id IS NULL AND EXISTS (
-             SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+           AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
+             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
            )))
          GROUP BY c.nome
          ORDER BY total DESC`,
@@ -222,7 +222,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       pool.query(
         `SELECT COALESCE(forma_pagamento, 'dinheiro') AS forma_pagamento, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END)::float AS total
          FROM despesas
-         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
          GROUP BY forma_pagamento
          ORDER BY total DESC`,
         params,
@@ -230,15 +230,15 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       pool.query(
         `SELECT CASE WHEN contrato_id IS NOT NULL THEN 'contrato' ELSE 'avulsa' END AS origem, SUM(valor)::float AS total
          FROM receitas
-         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
          GROUP BY (contrato_id IS NOT NULL)`,
         params,
       ),
       // No modo "todo o período" (deChave null) o filtro já cobre desde sempre — não
       // há "antes" a consultar, então o saldo anterior é resolvido depois só com o
-      // aporte inicial do perfil, sem query aqui. Quando deChave existe, a query usa
-      // índices de parâmetro próprios ($1 = userId, $3 = perfilId) — não reaproveita
-      // o `perfilFiltro` do escopo externo, que assume $2 = userId vindo de `params`;
+      // aporte inicial da conta, sem query aqui. Quando deChave existe, a query usa
+      // índices de parâmetro próprios ($1 = userId, $3 = accountId) — não reaproveita
+      // o `contaFiltro` do escopo externo, que assume $2 = userId vindo de `params`;
       // aqui $2 é `deChave`, não userId.
       deChave === null
         ? Promise.resolve({ rows: [{ saldo_anterior: 0, eh_inicio_historico: true }] })
@@ -246,31 +246,31 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
             `SELECT COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE -valor END), 0)::float AS saldo_anterior,
               NOT EXISTS (
                 SELECT 1 FROM receitas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                  AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-                    SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
                   )))
                 UNION ALL
                 SELECT 1 FROM despesas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                  AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-                    SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
                   )))
               ) AS eh_inicio_historico
              FROM (
                SELECT valor, 'receita' AS origem
                FROM receitas
                WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                 AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-                   SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                 AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
                  )))
                UNION ALL
                SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END AS valor, 'despesa' AS origem
                FROM despesas
                WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                 AND ($3::int IS NULL OR perfil_id = $3 OR (perfil_id IS NULL AND EXISTS (
-                   SELECT 1 FROM perfis pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                 AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
                  )))
              ) t`,
-            [userId, deChave, perfilId],
+            [userId, deChave, accountId],
           ),
       pool.query(
         `SELECT
@@ -283,7 +283,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE 0 END), 0)::float AS pagas,
           COALESCE(SUM(CASE WHEN NOT pago THEN COALESCE(valor_final, valor_original) ELSE 0 END), 0)::float AS pendentes
         FROM despesas
-        WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}`,
+        WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
         params,
       ),
     ]);
@@ -315,11 +315,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           FROM (
             SELECT ano, mes, valor, 'receita' AS origem
             FROM receitas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
             SELECT ano, mes, CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END AS valor, 'despesa' AS origem
             FROM despesas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
           GROUP BY ano, mes
           ORDER BY ano, mes`,
@@ -333,11 +333,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           FROM (
             SELECT ano, valor, 'receita' AS origem
             FROM receitas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
             SELECT ano, CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original) ELSE COALESCE(valor_final, valor_original) END AS valor, 'despesa' AS origem
             FROM despesas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${perfilFiltro}
+            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
           GROUP BY ano
           ORDER BY ano`,
@@ -353,12 +353,12 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       opex: number; capex: number; pagas: number; pendentes: number;
     };
 
-    // Aplica o aporte inicial do perfil (saldo de abertura) uma única vez, quando o
-    // período filtrado começa no início real do histórico do perfil — nunca em
+    // Aplica o aporte inicial da conta (saldo de abertura) uma única vez, quando o
+    // período filtrado começa no início real do histórico da conta — nunca em
     // "buracos" no meio do histórico, para não contar o aporte mais de uma vez.
     const anterior = anteriorResult.rows[0] as { saldo_anterior: number; eh_inicio_historico: boolean };
     const saldoAnterior = anterior.eh_inicio_historico
-      ? anterior.saldo_anterior + await fetchAporteInicial(userId, perfilId)
+      ? anterior.saldo_anterior + await fetchAporteInicial(userId, accountId)
       : anterior.saldo_anterior;
 
     res.json({

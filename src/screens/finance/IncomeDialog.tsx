@@ -22,7 +22,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { formatCurrency } from './formatters';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -46,7 +45,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   const qc = useQueryClient();
   const defaultDate = presetDate ?? `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   const isNew = !income;
-  const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
+  const isEmpresa = useMemo(() => localStorage.getItem('contaAtivaTipo') === 'empresa', []);
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const attachmentRef = useRef<AttachmentSectionHandle>(null);
@@ -208,7 +207,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
     return allCached.flatMap(([, data]) => data?.incomes ?? []);
   }, [qc, month, year]);
 
-  // ── Sugestão de tipo de receita por histórico de descrição parecida (perfil PJ apenas) ──
+  // ── Sugestão de tipo de receita por histórico de descrição parecida (conta PJ apenas) ──
   useEffect(() => {
     if (!isEmpresa || (descricaoWatch?.length ?? 0) < 3 || tipoReceitaWatch) {
       setTipoSugestao(null);
@@ -519,7 +518,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
             </div>
           </div>
 
-          {/* ── Tipo de receita (perfil PJ apenas) ────────────────── */}
+          {/* ── Tipo de receita (conta PJ apenas) ────────────────── */}
           {isEmpresa && (tiposReceita.length > 0 || showTipoForm !== null) && (
             <div style={cardStyle}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -583,7 +582,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
             </div>
           )}
 
-          {/* ── Representante (perfil PJ apenas) ──────────────────── */}
+          {/* ── Representante (conta PJ apenas) ──────────────────── */}
           {isEmpresa && representantes.length > 0 && (
             <div style={cardStyle}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
@@ -609,7 +608,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={Users}
                     description={firstAccessGuideMessages.receitasRepresentante}
                     onDismiss={representanteGuide.dismiss}
@@ -662,7 +661,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
-                    className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={Clock}
                     description={firstAccessGuideMessages.receitasHoras}
                     onDismiss={horasGuide.dismiss}
@@ -759,7 +758,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <FirstAccessGuideCard
                     floating
                     placement="top"
-                    className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
+                    className="w-[min(24rem,calc(100vw-2rem))]"
                     icon={ChevronDown}
                     description={firstAccessGuideMessages.receitasReplicar}
                     onDismiss={replicarGuide.dismiss}

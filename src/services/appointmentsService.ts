@@ -1,16 +1,16 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
 import type { Appointment, AppointmentFormValues } from '../types/appointments';
 
 export async function fetchAppointments(month: number, year: number): Promise<Appointment[]> {
-  const profileId = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const params = new URLSearchParams({ mes: String(month), ano: String(year) });
-  if (profileId) params.set('perfil_id', String(profileId));
+  if (accountId) params.set('conta_id', String(accountId));
   return apiRequest<Appointment[]>(`/appointments?${params}`);
 }
 
 export async function saveAppointment(values: AppointmentFormValues, id?: number): Promise<Appointment> {
-  const profileId = getActiveProfileId();
-  const body = { ...values, perfil_id: profileId };
+  const accountId = getActiveAccountId();
+  const body = { ...values, conta_id: accountId };
 
   return apiRequest<Appointment>(id ? `/appointments/${id}` : '/appointments', {
     method: id ? 'PUT' : 'POST',

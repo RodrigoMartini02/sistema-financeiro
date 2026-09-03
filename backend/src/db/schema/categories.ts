@@ -7,21 +7,22 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
-// Uma categoria e PADRAO do sistema (tipo preenchido, perfil_id nulo) OU
-// CUSTOM criada pelo usuario (perfil_id preenchido, tipo nulo) — nunca os
+// Uma categoria e PADRAO do sistema (tipo preenchido, conta_id nulo) OU
+// CUSTOM criada pelo usuario (conta_id preenchido, tipo nulo) — nunca os
 // dois ao mesmo tempo.
 //
-// Padrao: global, compartilhada entre todos os perfis do mesmo `tipo`
+// Padrao: global, compartilhada entre todas as contas do mesmo `tipo`
 // ('pessoal' | 'empresa') do usuario. Vem de defaultCategories.ts.
 //
-// Custom: exclusiva do `perfil_id` especifico onde foi criada — nao aparece
-// em outros perfis, mesmo do mesmo tipo (ex: uma categoria criada em "PJ"
-// nao aparece em "Aether", mesmo os dois sendo tipo empresa).
+// Custom: exclusiva da `conta_id` especifica onde foi criada — nao aparece
+// em outras contas, mesmo do mesmo tipo (ex: uma categoria criada em "PJ"
+// nao aparece em "Aether", mesmo as duas sendo tipo empresa).
 //
 // Unicidade aplicada via indices unicos funcionais na migration
-// (0018_categorias_perfil_custom.sql), nao expressavel diretamente pelo
+// (0018_categorias_perfil_custom.sql, colunas renomeadas em
+// 0024_renomear_perfis_para_contas.sql), nao expressavel diretamente pelo
 // helper `unique()` do Drizzle.
 export const categories = pgTable(
   'categorias',
@@ -31,7 +32,7 @@ export const categories = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     type: varchar('tipo', { length: 10 }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     name: varchar('nome', { length: 255 }).notNull(),
     color: varchar('cor', { length: 7 }).default('#3498db'),
     icon: varchar('icone', { length: 10 }),
@@ -44,7 +45,7 @@ export const categories = pgTable(
   (table) => ({
     userIdx: index('idx_categorias_usuario').on(table.userId),
     typeIdx: index('idx_categorias_tipo').on(table.type),
-    profileIdx: index('idx_categorias_perfil').on(table.profileId),
+    accountIdx: index('idx_categorias_conta').on(table.accountId),
   }),
 );
 

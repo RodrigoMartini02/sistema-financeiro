@@ -8,6 +8,7 @@ interface ConfigListRowProps {
   dataCriacao?: string;
   dataAtualizacao?: string;
   colorScheme?: ColorScheme;
+  foto?: string | null;
   onClick: () => void;
 }
 
@@ -38,7 +39,7 @@ const SCHEME = {
   },
 };
 
-export function ConfigListRow({ index, nome, dataCriacao, dataAtualizacao, colorScheme = 'brand', onClick }: ConfigListRowProps) {
+export function ConfigListRow({ index, nome, dataCriacao, dataAtualizacao, colorScheme = 'brand', foto, onClick }: ConfigListRowProps) {
   const criado = fmtDate(dataCriacao);
   const atualizado = fmtDate(dataAtualizacao);
   const s = SCHEME[colorScheme];
@@ -49,9 +50,13 @@ export function ConfigListRow({ index, nome, dataCriacao, dataAtualizacao, color
       onClick={onClick}
       className={`group flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md ${s.border}`}
     >
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
-        {String(index + 1).padStart(2, '0')}
-      </span>
+      {foto ? (
+        <img src={foto} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
+          {String(index + 1).padStart(2, '0')}
+        </span>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="lg:hidden">

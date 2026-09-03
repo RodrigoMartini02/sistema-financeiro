@@ -15,7 +15,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 const TIPO_ACESSO_OPTIONS = [
   { value: 'padrao', label: 'Padrão', description: 'Acesso básico ao sistema' },
@@ -134,7 +133,7 @@ function UsuarioDialog({
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(25rem,calc(100vw-2rem))]`}
+                  className="w-[min(25rem,calc(100vw-2rem))]"
                   icon={UserX}
                   description={firstAccessGuideMessages.usuariosDesativarExcluir}
                   onDismiss={desativarGuide.dismiss}
@@ -232,7 +231,7 @@ export function UsuariosTab({ userTipo }: Props) {
               description={firstAccessGuideMessages.usuariosFiltros}
               floating
               placement="bottom"
-              className={`absolute left-0 bottom-full ${Z_GUIDE} mb-3 w-[min(24rem,calc(100vw-2rem))]`}
+              className="w-[min(24rem,calc(100vw-2rem))]"
               onDismiss={filterGuide.dismiss}
             />
           )}

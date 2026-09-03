@@ -5,6 +5,7 @@ import {
   text,
   boolean,
   timestamp,
+  date,
   jsonb,
   index,
 } from 'drizzle-orm/pg-core';
@@ -40,6 +41,8 @@ export const users = pgTable(
     country: varchar('pais', { length: 100 }),
     state: varchar('estado', { length: 100 }),
     city: varchar('cidade', { length: 100 }),
+    telefone: varchar('telefone', { length: 20 }),
+    dataNascimento: date('data_nascimento'),
     createdAt: timestamp('data_cadastro').defaultNow(),
     updatedAt: timestamp('data_atualizacao').defaultNow(),
   },

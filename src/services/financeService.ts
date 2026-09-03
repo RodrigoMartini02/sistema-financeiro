@@ -1,4 +1,4 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
   Attachment, DashboardPanoramaData, DashboardPanoramaFiltro, Expense, ExpenseFormValues, FinanceDashboardData,
   Income, IncomeFormValues, MonthBalance,
@@ -40,8 +40,8 @@ function asNumber(v: string | number | null | undefined) {
 }
 
 function appendProfile(q: URLSearchParams) {
-  const id = getActiveProfileId();
-  if (id) q.set('perfil_id', String(id));
+  const id = getActiveAccountId();
+  if (id) q.set('conta_id', String(id));
 }
 
 function incomeFromApi(r: RawIncome): Income {
@@ -113,12 +113,12 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
 }
 
 export async function saveIncome(month: number, year: number, values: IncomeFormValues, id?: number) {
-  const profileId = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const body = {
     descricao: values.descricao, valor: values.valor,
     data_recebimento: values.data, mes: month, ano: year,
     observacoes: values.observacoes || null, cliente: values.cliente || null,
-    tipo_receita: values.tipoReceita || null, perfil_id: profileId,
+    tipo_receita: values.tipoReceita || null, conta_id: accountId,
     representante_id: values.representanteId ?? null,
     valor_comissao: values.valorComissao ?? null,
     anexos: values.anexos && values.anexos.length > 0 ? values.anexos : null,
@@ -153,7 +153,7 @@ export async function deleteIncome(id: number) {
 }
 
 export async function saveExpense(month: number, year: number, values: ExpenseFormValues, id?: number) {
-  const profileId = getActiveProfileId();
+  const accountId = getActiveAccountId();
   const valorOriginal = values.valor_original ?? 0;
   const valorFinal = values.valor_final ?? valorOriginal;
   const body: Record<string, unknown> = {
@@ -173,7 +173,7 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
     total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
     parcelas_ja_pagas: values.parcelado ? (values.parcelasJaPagas ?? 0) : null,
     recorrencia_mensal: values.recorrenciaMensal ?? false,
-    perfil_id: profileId,
+    conta_id: accountId,
   };
   if (values.categoria_id) body.categoria_id = Number(values.categoria_id);
   if (values.cartao_id) body.cartao_id = Number(values.cartao_id);

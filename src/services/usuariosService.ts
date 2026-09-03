@@ -4,6 +4,7 @@ export interface UsuarioMe {
   id: number; nome: string; email: string;
   documento?: string; tipo: string; status: string;
   pais?: string | null; estado?: string | null; cidade?: string | null;
+  telefone?: string | null; data_nascimento?: string | null;
   foto?: string | null; data_cadastro?: string;
   plano_status?: string; plano_tipo?: string;
 }
@@ -11,6 +12,7 @@ export interface UsuarioMe {
 export interface UsuarioMePutBody {
   nome: string; email?: string; documento?: string;
   pais?: string; estado?: string; cidade?: string;
+  telefone?: string; data_nascimento?: string;
   senha_atual?: string; nova_senha?: string;
 }
 
@@ -63,13 +65,6 @@ export async function fetchUsuarios(params: {
 export async function createUsuario(body: UsuarioCreateBody): Promise<UsuarioListItem> {
   const r = await apiRequest<{ success: boolean; data: UsuarioListItem }>('/usuarios', {
     method: 'POST', body: JSON.stringify(body),
-  });
-  return r.data;
-}
-
-export async function updateUsuario(id: number, body: Partial<UsuarioListItem & { senha?: string }>): Promise<UsuarioListItem> {
-  const r = await apiRequest<{ success: boolean; data: UsuarioListItem }>(`/usuarios/${id}`, {
-    method: 'PUT', body: JSON.stringify(body),
   });
   return r.data;
 }

@@ -5,7 +5,7 @@ import { getTodayIsoInTimezone } from '../utils/date';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
 import { inferDeterministicCopilotIntent, type CopilotIntentHint } from './copilotIntent';
 import { AiUsageLimitError, assertAiUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
-import { getBudgetOverview, resolveFinancialProfile, type FinancialProfile } from './budgetService';
+import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
   createFinancialAssistantDraft,
   type AssistantAttachmentInput,
@@ -83,25 +83,25 @@ function isMissingTableError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === '42P01');
 }
 
-function profileExpenseCondition(userId: number, profile: FinancialProfile, month: number, year: number) {
+function accountExpenseCondition(userId: number, account: FinancialAccount, month: number, year: number) {
   const conditions = [eq(expenses.userId, userId), eq(expenses.month, month), eq(expenses.year, year)];
-  if (profile.type === 'pessoal') conditions.push(or(eq(expenses.profileId, profile.id), isNull(expenses.profileId))!);
-  else conditions.push(eq(expenses.profileId, profile.id));
+  if (account.type === 'pessoal') conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);
+  else conditions.push(eq(expenses.accountId, account.id));
   return and(...conditions);
 }
 
-function profileIncomeCondition(userId: number, profile: FinancialProfile, month: number, year: number) {
+function accountIncomeCondition(userId: number, account: FinancialAccount, month: number, year: number) {
   const conditions = [eq(incomes.userId, userId), eq(incomes.month, month), eq(incomes.year, year)];
-  if (profile.type === 'pessoal') conditions.push(or(eq(incomes.profileId, profile.id), isNull(incomes.profileId))!);
-  else conditions.push(eq(incomes.profileId, profile.id));
+  if (account.type === 'pessoal') conditions.push(or(eq(incomes.accountId, account.id), isNull(incomes.accountId))!);
+  else conditions.push(eq(incomes.accountId, account.id));
   return and(...conditions);
 }
 
-async function createConversation(userId: number, profileId: number, initialMessage: string): Promise<number | null> {
+async function createConversation(userId: number, accountId: number, initialMessage: string): Promise<number | null> {
   try {
     const [conversation] = await db.insert(copilotConversations).values({
       userId,
-      profileId,
+      accountId,
       title: initialMessage.trim().slice(0, 80) || 'Nova conversa',
     }).returning({ id: copilotConversations.id });
     return conversation?.id ?? null;
@@ -114,16 +114,16 @@ async function createConversation(userId: number, profileId: number, initialMess
 async function ensureConversation(input: {
   conversationId: number | null;
   userId: number;
-  profileId: number;
+  accountId: number;
   initialMessage: string;
 }): Promise<number | null> {
-  if (!input.conversationId) return createConversation(input.userId, input.profileId, input.initialMessage);
+  if (!input.conversationId) return createConversation(input.userId, input.accountId, input.initialMessage);
   try {
     const [conversation] = await db.select({ id: copilotConversations.id }).from(copilotConversations)
       .where(and(
         eq(copilotConversations.id, input.conversationId),
         eq(copilotConversations.userId, input.userId),
-        eq(copilotConversations.profileId, input.profileId),
+        eq(copilotConversations.accountId, input.accountId),
       )).limit(1);
     if (!conversation) throw new FinancialCopilotInputError('Conversa não encontrada.');
     return conversation.id;
@@ -171,11 +171,11 @@ async function storeMessage(input: {
   }
 }
 
-async function buildSummaryCard(userId: number, profile: FinancialProfile, month: number, year: number): Promise<CopilotCard> {
+async function buildSummaryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: expenses.finalAmount, originalAmount: expenses.originalAmount }).from(expenses)
-      .where(profileExpenseCondition(userId, profile, month, year)),
-    db.select({ amount: incomes.amount }).from(incomes).where(profileIncomeCondition(userId, profile, month, year)),
+      .where(accountExpenseCondition(userId, account, month, year)),
+    db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year)),
   ]);
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
   const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0);
@@ -190,13 +190,13 @@ async function buildSummaryCard(userId: number, profile: FinancialProfile, month
   };
 }
 
-async function buildCategoryCard(userId: number, profile: FinancialProfile, month: number, year: number): Promise<CopilotCard> {
+async function buildCategoryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const rows = await db.select({
     categoryName: categories.name,
     amount: expenses.finalAmount,
     originalAmount: expenses.originalAmount,
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
-    .where(profileExpenseCondition(userId, profile, month, year));
+    .where(accountExpenseCondition(userId, account, month, year));
   const totals = new Map<string, number>();
   for (const row of rows) {
     const name = row.categoryName ?? 'Sem categoria';
@@ -212,16 +212,16 @@ async function buildCategoryCard(userId: number, profile: FinancialProfile, mont
 
 async function buildTransactionsCard(input: {
   userId: number;
-  profile: FinancialProfile;
+  account: FinancialAccount;
   month: number;
   year: number;
   searchTerm: string | null;
 }): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ description: expenses.description, amount: expenses.finalAmount, originalAmount: expenses.originalAmount, date: expenses.dueDate })
-      .from(expenses).where(profileExpenseCondition(input.userId, input.profile, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
+      .from(expenses).where(accountExpenseCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
     db.select({ description: incomes.description, amount: incomes.amount, date: incomes.receiptDate })
-      .from(incomes).where(profileIncomeCondition(input.userId, input.profile, input.month, input.year)).orderBy(desc(incomes.receiptDate)).limit(30),
+      .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(incomes.receiptDate)).limit(30),
   ]);
   const normalizedSearch = input.searchTerm ? normalizeText(input.searchTerm) : '';
   const records = [
@@ -242,9 +242,9 @@ async function buildTransactionsCard(input: {
   };
 }
 
-async function buildUpcomingCard(userId: number, profile: FinancialProfile, month: number, year: number): Promise<CopilotCard> {
+async function buildUpcomingCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const rows = await db.select({ description: expenses.description, amount: expenses.finalAmount, originalAmount: expenses.originalAmount, dueDate: expenses.dueDate, paid: expenses.paid })
-    .from(expenses).where(profileExpenseCondition(userId, profile, month, year)).orderBy(asc(expenses.dueDate));
+    .from(expenses).where(accountExpenseCondition(userId, account, month, year)).orderBy(asc(expenses.dueDate));
   const today = getTodayIsoInTimezone();
   const upcoming = rows.filter((row) => !row.paid && String(row.dueDate) >= today).slice(0, 8);
   return {
@@ -259,11 +259,11 @@ async function buildUpcomingCard(userId: number, profile: FinancialProfile, mont
   };
 }
 
-async function buildBudgetCard(userId: number, profile: FinancialProfile, month: number, year: number): Promise<CopilotCard> {
-  const overview = await getBudgetOverview({ userId, profileId: profile.id, month, year });
+async function buildBudgetCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
+  const overview = await getBudgetOverview({ userId, accountId: account.id, month, year });
   return {
     type: 'budget',
-    title: overview.profileType === 'empresa' ? 'Orçamento pessoal indisponível neste perfil' : 'Acompanhamento do orçamento',
+    title: overview.accountType === 'empresa' ? 'Orçamento pessoal indisponível nesta conta' : 'Acompanhamento do orçamento',
     items: overview.items.filter((item) => item.targetAmount !== null).slice(0, 8).map((item) => ({
       label: item.categoryName,
       value: item.projectedAmount,
@@ -282,34 +282,34 @@ function responseForCard(intent: CopilotIntent, card: CopilotCard): string {
   return 'Este é o acompanhamento das metas que você definiu.';
 }
 
-export async function listCopilotConversations(input: { userId: number; profileId: number | null }): Promise<Array<{ id: number; title: string; updatedAt: Date | string }>> {
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+export async function listCopilotConversations(input: { userId: number; accountId: number | null }): Promise<Array<{ id: number; title: string; updatedAt: Date | string }>> {
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
   return db.select({ id: copilotConversations.id, title: copilotConversations.title, updatedAt: copilotConversations.updatedAt })
     .from(copilotConversations)
-    .where(and(eq(copilotConversations.userId, input.userId), eq(copilotConversations.profileId, profile.id)))
+    .where(and(eq(copilotConversations.userId, input.userId), eq(copilotConversations.accountId, account.id)))
     .orderBy(desc(copilotConversations.updatedAt)).limit(30);
 }
 
-export async function getCopilotConversation(input: { userId: number; profileId: number | null; conversationId: number }): Promise<StoredMessage[]> {
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+export async function getCopilotConversation(input: { userId: number; accountId: number | null; conversationId: number }): Promise<StoredMessage[]> {
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
   const [conversation] = await db.select({ id: copilotConversations.id }).from(copilotConversations)
-    .where(and(eq(copilotConversations.id, input.conversationId), eq(copilotConversations.userId, input.userId), eq(copilotConversations.profileId, profile.id))).limit(1);
+    .where(and(eq(copilotConversations.id, input.conversationId), eq(copilotConversations.userId, input.userId), eq(copilotConversations.accountId, account.id))).limit(1);
   if (!conversation) throw new FinancialCopilotInputError('Conversa não encontrada.');
   return loadConversationHistory(conversation.id);
 }
 
-export async function deleteCopilotConversation(input: { userId: number; profileId: number | null; conversationId: number }): Promise<void> {
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+export async function deleteCopilotConversation(input: { userId: number; accountId: number | null; conversationId: number }): Promise<void> {
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
   await db.delete(copilotConversations).where(and(
     eq(copilotConversations.id, input.conversationId),
     eq(copilotConversations.userId, input.userId),
-    eq(copilotConversations.profileId, profile.id),
+    eq(copilotConversations.accountId, account.id),
   ));
 }
 
 export async function runFinancialCopilot(input: {
   userId: number;
-  profileId: number | null;
+  accountId: number | null;
   month: number;
   year: number;
   message: string;
@@ -319,11 +319,11 @@ export async function runFinancialCopilot(input: {
   intentHint: AssistantIntentHint | null;
 }): Promise<FinancialCopilotResponse> {
   validateInput(input);
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
   const conversationId = await ensureConversation({
     conversationId: input.conversationId,
     userId: input.userId,
-    profileId: profile.id,
+    accountId: account.id,
     initialMessage: input.message,
   });
   const history = await loadConversationHistory(conversationId);
@@ -378,7 +378,7 @@ export async function runFinancialCopilot(input: {
     };
     await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode, draft: response.draft } });
     try {
-      await recordAiUsage({ userId: input.userId, profileId: profile.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
+      await recordAiUsage({ userId: input.userId, accountId: account.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
     } catch (error) {
       if (!isMissingTableError(error)) throw error;
     }
@@ -386,11 +386,11 @@ export async function runFinancialCopilot(input: {
   }
 
   let card: CopilotCard | null = null;
-  if (intent === 'summary') card = await buildSummaryCard(input.userId, profile, input.month, input.year);
-  if (intent === 'categories') card = await buildCategoryCard(input.userId, profile, input.month, input.year);
-  if (intent === 'transactions') card = await buildTransactionsCard({ userId: input.userId, profile, month: input.month, year: input.year, searchTerm });
-  if (intent === 'upcoming') card = await buildUpcomingCard(input.userId, profile, input.month, input.year);
-  if (intent === 'budget') card = await buildBudgetCard(input.userId, profile, input.month, input.year);
+  if (intent === 'summary') card = await buildSummaryCard(input.userId, account, input.month, input.year);
+  if (intent === 'categories') card = await buildCategoryCard(input.userId, account, input.month, input.year);
+  if (intent === 'transactions') card = await buildTransactionsCard({ userId: input.userId, account, month: input.month, year: input.year, searchTerm });
+  if (intent === 'upcoming') card = await buildUpcomingCard(input.userId, account, input.month, input.year);
+  if (intent === 'budget') card = await buildBudgetCard(input.userId, account, input.month, input.year);
 
   const response: FinancialCopilotResponse = card
     ? { conversationId, mode: 'answer', reply: responseForCard(intent, card), cards: [card], draft: null, missingFields: [] }
@@ -404,7 +404,7 @@ export async function runFinancialCopilot(input: {
     };
   await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode, cards: response.cards } });
   try {
-    await recordAiUsage({ userId: input.userId, profileId: profile.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
+    await recordAiUsage({ userId: input.userId, accountId: account.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
   } catch (error) {
     if (!isMissingTableError(error)) throw error;
   }

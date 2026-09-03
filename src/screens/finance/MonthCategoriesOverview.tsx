@@ -1,7 +1,7 @@
 import { Target } from 'lucide-react';
 import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
 import { Card } from '../../ui/card';
-import { formatCurrency } from './formatters';
+import { budgetPercentage, formatCurrency } from './formatters';
 
 interface MonthCategoriesOverviewProps {
   overview: BudgetOverview | undefined;
@@ -16,8 +16,7 @@ function statusColor(item: BudgetOverviewItem): string {
 
 function statusLabel(item: BudgetOverviewItem): string {
   if (!item.targetAmount) return 'sem meta';
-  const percentage = (item.projectedAmount / item.targetAmount) * 100;
-  return `${percentage.toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
+  return `${budgetPercentage(item).toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
 }
 
 export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategoriesOverviewProps) {

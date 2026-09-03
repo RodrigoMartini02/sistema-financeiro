@@ -34,7 +34,7 @@ const PLANOS = [
     funcionalidades: [
       'Tudo do Plus',
       'Múltiplos perfis (pessoal + CNPJ)',
-      'Perfil empresa com clientes e representantes',
+      'Conta empresa com clientes e representantes',
       'Cadastro em lote de despesas e receitas',
       'Exportação de dados',
       'Suporte prioritário',
@@ -50,7 +50,7 @@ const COMPARATIVO = [
   { item: 'Relatórios detalhados', plus: true, premium: true },
   { item: 'Categorias personalizadas', plus: true, premium: true },
   { item: 'Múltiplos perfis (pessoal + CNPJ)', plus: false, premium: true },
-  { item: 'Perfil empresa (clientes e representantes)', plus: false, premium: true },
+  { item: 'Conta empresa (clientes e representantes)', plus: false, premium: true },
   { item: 'Cadastro em lote', plus: false, premium: true },
   { item: 'Exportação de dados', plus: false, premium: true },
   { item: 'Suporte prioritário', plus: false, premium: true },

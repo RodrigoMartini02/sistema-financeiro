@@ -15,7 +15,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 function ServicoDialog({
   open, servico, isSaving, error, onClose, onSave, onDelete,
@@ -155,7 +154,7 @@ export function ServicosTab() {
             align="right"
             floating
             placement="top"
-            className={`absolute right-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+            className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
           />
         )}

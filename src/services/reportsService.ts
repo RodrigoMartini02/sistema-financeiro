@@ -1,4 +1,4 @@
-import { getApiUrl, getActiveProfileId } from './apiClient';
+import { getApiUrl, getActiveAccountId } from './apiClient';
 
 interface DownloadReportPdfParams {
   dataInicio: string;
@@ -10,13 +10,13 @@ interface DownloadReportPdfParams {
 
 export async function downloadReportPdf({ dataInicio, dataFim, tipoFiltro, formaFiltro, statusFiltro }: DownloadReportPdfParams): Promise<void> {
   const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
-  const pid = getActiveProfileId();
+  const accountId = getActiveAccountId();
 
   const params = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
   if (tipoFiltro !== 'todos') params.set('tipo', tipoFiltro);
   if (formaFiltro !== 'todos') params.set('forma', formaFiltro);
   if (statusFiltro !== 'todos') params.set('status', statusFiltro);
-  if (pid) params.set('perfil_id', String(pid));
+  if (accountId) params.set('conta_id', String(accountId));
 
   const response = await fetch(`${getApiUrl()}/relatorios/pdf?${params}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},

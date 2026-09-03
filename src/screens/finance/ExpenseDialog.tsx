@@ -15,6 +15,7 @@ import {
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDate';
 import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/configService';
+import { fetchCardLimits } from '../../services/cardLimitsService';
 import { fetchExpenseSuggestions, type ExpenseSuggestionMatch } from '../../services/expenseSuggestionsService';
 import { queryKeys } from '../../services/queryKeys';
 import { getLocalTodayIso } from '../../utils/date';
@@ -23,7 +24,6 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
@@ -62,7 +62,7 @@ interface Props {
 
 export function ExpenseDialog({ open, month, year, expense, isSaving, error, presetDate, onClose, onSave }: Props) {
   const qc = useQueryClient();
-  const isEmpresa = useMemo(() => localStorage.getItem('perfilAtivoTipo') === 'empresa', []);
+  const isEmpresa = useMemo(() => localStorage.getItem('contaAtivaTipo') === 'empresa', []);
   const isEditing = !!expense;
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -82,6 +82,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const categorias = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
   const cartoes    = useQuery({ queryKey: queryKeys.cartoes,    queryFn: fetchCartoes });
+  const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
   const repetitionGuide = useFirstAccessGuide('despesas:toggles-tipo-v1', {
     enabled: open && !isEditing,
     layer: GUIDE_LAYER_MODAL,
@@ -647,7 +648,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                     {selectedCard && (
                       <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
                         {activeCards.length <= 1 ? `${selectedCard.nome} · ` : ''}
-                        {isCredito ? `limite disponível ${formatCurrency(selectedCard.limite ?? 0)}` : 'conta corrente'}
+                        {isCredito
+                          ? `limite disponível ${formatCurrency(
+                              cardLimits.data?.find((c) => c.id === selectedCard.id)?.disponivel ?? selectedCard.limite ?? 0,
+                            )}`
+                          : 'conta corrente'}
                       </span>
                     )}
                   </div>
@@ -688,7 +693,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
-                  className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                  className="w-[min(24rem,calc(100vw-2rem))]"
                   icon={Repeat2}
                   description={firstAccessGuideMessages.despesasTogglesTipo}
                   onDismiss={repetitionGuide.dismiss}

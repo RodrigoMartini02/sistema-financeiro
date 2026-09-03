@@ -193,7 +193,7 @@ export function resolveFakeApiRequest(
       data_objetivo: (body.data_objetivo as string | null) ?? null,
       cor: (body.cor as string | null) ?? null,
       icone: (body.icone as string | null) ?? null,
-      perfil_id: null,
+      conta_id: null,
     };
     db.reservas = [...db.reservas, novaReserva];
     return novaReserva;

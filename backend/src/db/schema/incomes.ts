@@ -12,7 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const incomes = pgTable(
   'receitas',
@@ -21,7 +21,7 @@ export const incomes = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     description: varchar('descricao', { length: 255 }).notNull(),
     amount: decimal('valor', { precision: 10, scale: 2 }).notNull(),
     receiptDate: date('data_recebimento').notNull(),
@@ -40,7 +40,7 @@ export const incomes = pgTable(
       table.month,
       table.year,
     ),
-    profileIdx: index('idx_receitas_perfil').on(table.profileId),
+    accountIdx: index('idx_receitas_conta').on(table.accountId),
   }),
 );
 

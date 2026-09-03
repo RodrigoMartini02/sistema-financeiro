@@ -10,7 +10,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { getLocalTodayIso } from '../../utils/date';
-import { Z_GUIDE } from '../../ui/zIndex';
 
 interface BatchPaymentModalProps {
   open: boolean;
@@ -21,13 +20,9 @@ interface BatchPaymentModalProps {
 
 type Tab = 'original' | 'personalizado';
 
-function todayStr() {
-  return getLocalTodayIso();
-}
-
 export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchPaymentModalProps) {
   const [tab, setTab] = useState<Tab>('original');
-  const [dataPagamento, setDataPagamento] = useState(todayStr);
+  const [dataPagamento, setDataPagamento] = useState(getLocalTodayIso);
   const [valoresPorId, setValoresPorId] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -39,7 +34,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
   useEffect(() => {
     if (open) {
       setTab('original');
-      setDataPagamento(todayStr());
+      setDataPagamento(getLocalTodayIso());
       setValoresPorId({});
       setLoading(false);
       setErro(null);
@@ -102,7 +97,7 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
-                className={`absolute left-0 top-full ${Z_GUIDE} mt-3 w-[min(24rem,calc(100vw-2rem))]`}
+                className="w-[min(24rem,calc(100vw-2rem))]"
                 icon={CircleCheck}
                 description={tab === 'original' ? firstAccessGuideMessages.batchValorOriginal : firstAccessGuideMessages.batchValorPersonalizado}
                 onDismiss={tabGuide.dismiss}

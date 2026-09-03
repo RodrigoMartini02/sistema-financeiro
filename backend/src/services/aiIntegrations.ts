@@ -141,7 +141,7 @@ export async function assertAiUsageWithinLimits(userId: number): Promise<void> {
 
 export async function recordAiUsage(input: {
   userId: number;
-  profileId: number;
+  accountId: number;
   provider: AiProviderName | 'deterministic';
   model?: string | null;
   inputTokens?: number;
@@ -150,7 +150,7 @@ export async function recordAiUsage(input: {
 }): Promise<void> {
   await db.insert(aiUsageEvents).values({
     userId: input.userId,
-    profileId: input.profileId,
+    accountId: input.accountId,
     provider: input.provider,
     model: input.model ?? null,
     inputTokens: input.inputTokens ?? 0,

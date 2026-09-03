@@ -6,8 +6,9 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { apiRequest, getActiveProfileId } from '../../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
+import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchReservas, movimentar } from '../../services/reservasService';
 import type { MovimentacaoFormValues } from '../../types/reservas';
@@ -18,8 +19,9 @@ import { ReceitasScreen } from '../receitas/ReceitasScreen';
 import { ReserveMovementDialog } from '../reservas/ReserveMovementDialog';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
-import { CompactPeriodSelector } from './CompactPeriodSelector';
+import { MonthYearPicker } from './MonthYearPicker';
 import { MovementMetricCard } from './MovementMetricCard';
+import { CardLimitRow } from './CardLimitRow';
 import { formatCurrency } from './formatters';
 import { BudgetPanel } from './BudgetPanel';
 
@@ -150,12 +152,13 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     staleTime: 60_000,
   });
   const reservas = useQuery({ queryKey: queryKeys.reservas, queryFn: fetchReservas });
+  const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
   const mesStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(year, month),
     queryFn: async () => {
-      const profileId = getActiveProfileId();
-      const query = profileId ? `?perfil_id=${profileId}` : '';
+      const accountId = getActiveAccountId();
+      const query = accountId ? `?conta_id=${accountId}` : '';
       const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
       return months.find((item) => item.ano === year && item.mes === month)?.fechado ?? false;
     },
@@ -167,8 +170,8 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   const mesAnteriorStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(prevYear, prevMonth),
     queryFn: async () => {
-      const profileId = getActiveProfileId();
-      const query = profileId ? `?perfil_id=${profileId}` : '';
+      const accountId = getActiveAccountId();
+      const query = accountId ? `?conta_id=${accountId}` : '';
       const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
       return months.find((item) => item.ano === prevYear && item.mes === prevMonth)?.fechado ?? false;
     },
@@ -181,10 +184,10 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
 
   const fecharMut = useMutation({
     mutationFn: async () => {
-      const profileId = getActiveProfileId();
+      const accountId = getActiveAccountId();
       await apiRequest<void>(`/meses/${year}/${month}/fechar`, {
         method: 'POST',
-        body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
+        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
       });
     },
     onSuccess: () => {
@@ -195,10 +198,10 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   });
   const reabrirMut = useMutation({
     mutationFn: async () => {
-      const profileId = getActiveProfileId();
+      const accountId = getActiveAccountId();
       await apiRequest<void>(`/meses/${year}/${month}/reabrir`, {
         method: 'POST',
-        body: JSON.stringify(profileId ? { perfil_id: profileId } : {}),
+        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
       });
     },
     onSuccess: () => {
@@ -234,134 +237,87 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   return (
     <>
       <div className={isCalendario ? 'flex h-full flex-col gap-3' : 'grid gap-5'}>
-        {isCalendario ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="pr-1 text-base font-bold text-slate-950 dark:text-white">Movimentações</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Button
+              variant="secondary"
+              icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+              onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+              disabled={fecharMut.isPending || reabrirMut.isPending}
+              className={mesFechado ? '!bg-slate-200 !text-slate-600 hover:!bg-slate-300 dark:!bg-slate-700 dark:!text-slate-300' : ''}
+            >
+              {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+            </Button>
+            {fecharMesGuide.isVisible && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                align="right"
+                className="w-[min(24rem,calc(100vw-2rem))]"
+                icon={mesFechado ? LockOpen : Lock}
+                description={firstAccessGuideMessages.despesasFecharMes}
+                onDismiss={fecharMesGuide.dismiss}
+              />
+            )}
+            {mesActionError && (
+              <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
+                {mesActionError}
+              </p>
+            )}
+          </div>
+
+          <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+
+          {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
+          {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+
+          {!isCalendario && !isPlanning && (
+            <>
               <div className="relative">
-                <Button
-                  variant="secondary"
-                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                  disabled={fecharMut.isPending || reabrirMut.isPending}
-                >
-                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-                </Button>
-                {fecharMesGuide.isVisible && (
+                <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                {novaReceitaGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(25rem,calc(100vw-2rem))]"
+                    icon={TrendingUp}
+                    description={firstAccessGuideMessages.receitasNova}
+                    onDismiss={novaReceitaGuide.dismiss}
+                  />
+                )}
+              </div>
+              <div className="relative">
+                <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                {novaDespesaGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(25rem,calc(100vw-2rem))]"
+                    icon={TrendingDown}
+                    description={firstAccessGuideMessages.despesasNova}
+                    onDismiss={novaDespesaGuide.dismiss}
+                  />
+                )}
+              </div>
+              <div className="relative">
+                <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+                {reservaGuide.isVisible && (
                   <FirstAccessGuideCard
                     floating
                     placement="top"
                     align="right"
                     className="w-[min(24rem,calc(100vw-2rem))]"
-                    icon={mesFechado ? LockOpen : Lock}
-                    description={firstAccessGuideMessages.despesasFecharMes}
-                    onDismiss={fecharMesGuide.dismiss}
+                    icon={PiggyBank}
+                    description={firstAccessGuideMessages.reservasMovimentar}
+                    onDismiss={reservaGuide.dismiss}
                   />
                 )}
-                {mesActionError && (
-                  <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
-                    {mesActionError}
-                  </p>
-                )}
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
-              <CalendarSubViewToggle value={subView} onChange={setSubView} />
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
-              <h2 className="text-xl font-bold text-slate-950 dark:text-white">Movimentações</h2>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <Button
-                    variant="secondary"
-                    icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                    onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                    disabled={fecharMut.isPending || reabrirMut.isPending}
-                  >
-                    {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-                  </Button>
-                  {fecharMesGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(24rem,calc(100vw-2rem))]"
-                      icon={mesFechado ? LockOpen : Lock}
-                      description={firstAccessGuideMessages.despesasFecharMes}
-                      onDismiss={fecharMesGuide.dismiss}
-                    />
-                  )}
-                  {mesActionError && (
-                    <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
-                      {mesActionError}
-                    </p>
-                  )}
-                </div>
-                {!isPlanning && (
-                  <>
-                    <div className="relative">
-                      <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
-                      {novaReceitaGuide.isVisible && (
-                        <FirstAccessGuideCard
-                          floating
-                          placement="top"
-                          align="right"
-                          className="w-[min(25rem,calc(100vw-2rem))]"
-                          icon={TrendingUp}
-                          description={firstAccessGuideMessages.receitasNova}
-                          onDismiss={novaReceitaGuide.dismiss}
-                        />
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
-                      {novaDespesaGuide.isVisible && (
-                        <FirstAccessGuideCard
-                          floating
-                          placement="top"
-                          align="right"
-                          className="w-[min(25rem,calc(100vw-2rem))]"
-                          icon={TrendingDown}
-                          description={firstAccessGuideMessages.despesasNova}
-                          onDismiss={novaDespesaGuide.dismiss}
-                        />
-                      )}
-                    </div>
-                    <div className="relative">
-                      <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
-                      {reservaGuide.isVisible && (
-                        <FirstAccessGuideCard
-                          floating
-                          placement="top"
-                          align="right"
-                          className="w-[min(24rem,calc(100vw-2rem))]"
-                          icon={PiggyBank}
-                          description={firstAccessGuideMessages.reservasMovimentar}
-                          onDismiss={reservaGuide.dismiss}
-                        />
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-              <CompactPeriodSelector month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} mesFechado={mesFechado} />
-              {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
-            </div>
-          </div>
-        )}
-
-        {saldoProjetado < 0 && !isCalendario && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
-            Despesas superam receitas em <strong>{formatCurrency(Math.abs(saldoProjetado))}</strong> neste mês.
-          </div>
-        )}
+            </>
+          )}
+        </div>
 
         {(finance.dashboard.error ?? annual.error) && (
           <ErrorState title="Não foi possível carregar as movimentações" description={(finance.dashboard.error ?? annual.error)?.message} />
@@ -392,6 +348,17 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
               progressPct={comprometimento}
               note={comprometimento > 85 ? 'Acima do limite de 85%' : 'Dentro do limite saudável'}
             />
+          </div>
+        )}
+
+        {!isCalendario && (cardLimits.data?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Limite de crédito</span>
+            {cardLimits.data!.map((card) => (
+              <div key={card.id} className="flex min-w-[140px] flex-1 items-center gap-2">
+                <CardLimitRow nome={card.nome} usado={card.usado} limite={card.limite} />
+              </div>
+            ))}
           </div>
         )}
 

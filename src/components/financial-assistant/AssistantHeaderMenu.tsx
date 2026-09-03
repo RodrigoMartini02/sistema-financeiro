@@ -3,7 +3,7 @@ import {
   Check, ChevronLeft, ChevronRight, History, KeyRound, LayoutDashboard, MoreVertical, Plus, UserRound,
 } from 'lucide-react';
 import { Z_DROPDOWN } from '../../ui/zIndex';
-import { useActiveProfile } from '../../hooks/useActiveProfile';
+import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { formatDocumento } from '../../utils/document';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import type { AssistantFontSize } from './fontSize';
@@ -14,7 +14,7 @@ const FONT_SIZE_OPTIONS: Array<{ value: AssistantFontSize; label: string }> = [
   { value: 'large', label: 'Grande' },
 ];
 
-type MenuScreen = 'main' | 'font-size' | 'switch-profile';
+type MenuScreen = 'main' | 'font-size' | 'switch-account';
 
 interface AssistantHeaderMenuProps {
   onOpenHistory: () => void;
@@ -31,7 +31,7 @@ export function AssistantHeaderMenu({
   const [screen, setScreen] = useState<MenuScreen>('main');
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { perfis, activeId, select: selectProfile } = useActiveProfile();
+  const { contas, activeId, select: selectAccount } = useActiveAccount();
 
   useEffect(() => {
     if (!open) return;
@@ -89,14 +89,14 @@ export function AssistantHeaderMenu({
                   Abrir painel financeiro
                 </button>
               )}
-              {perfis.length > 1 && (
+              {contas.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => setScreen('switch-profile')}
+                  onClick={() => setScreen('switch-account')}
                   className="flex w-full items-center gap-3 border-t border-slate-100 px-5 py-3.5 text-left text-[15px] font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
                   <UserRound size={17} className="shrink-0 text-slate-400 dark:text-slate-500" />
-                  <span className="flex-1">Alterar perfil</span>
+                  <span className="flex-1">Alterar conta</span>
                   <ChevronRight size={16} className="shrink-0 text-slate-400" />
                 </button>
               )}
@@ -119,7 +119,7 @@ export function AssistantHeaderMenu({
             </div>
           )}
 
-          {screen === 'switch-profile' && (
+          {screen === 'switch-account' && (
             <div className="py-1.5">
               <button
                 type="button"
@@ -127,16 +127,16 @@ export function AssistantHeaderMenu({
                 className="flex w-full items-center gap-2 border-b border-slate-100 px-4 py-3 text-left text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 <ChevronLeft size={18} className="shrink-0" />
-                Alterar perfil
+                Alterar conta
               </button>
-              {perfis.map((p) => {
-                const isActive = String(p.id) === activeId;
-                const documento = p.documento ? formatDocumento(p.documento, p.tipo) : null;
+              {contas.map((c) => {
+                const isActive = String(c.id) === activeId;
+                const documento = c.documento ? formatDocumento(c.documento, c.tipo) : null;
                 return (
                   <button
-                    key={p.id}
+                    key={c.id}
                     type="button"
-                    onClick={() => { selectProfile(p); closeMenu(); }}
+                    onClick={() => { selectAccount(c); closeMenu(); }}
                     className={[
                       'flex w-full items-center gap-3 px-5 py-3 text-left text-[15px] transition',
                       isActive
@@ -145,7 +145,7 @@ export function AssistantHeaderMenu({
                     ].join(' ')}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate">{p.nome}</p>
+                      <p className="truncate">{c.nome}</p>
                       {documento && (
                         <p className="truncate text-xs font-normal text-slate-400 dark:text-slate-500">{documento}</p>
                       )}

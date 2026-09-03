@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 
 export interface DashboardPeriod {
@@ -15,14 +15,6 @@ interface Props {
   primeiraData: string | null;
 }
 
-const now = new Date();
-const THIS_YEAR = now.getFullYear();
-
-function anoInicioHistorico(primeiraData: string | null): number {
-  if (!primeiraData) return THIS_YEAR;
-  return Number(primeiraData.slice(0, 4));
-}
-
 export function describePeriod(period: DashboardPeriod): string {
   if (period.mes === period.ateMes && period.ano === period.ateAno) {
     return `${MONTH_NAMES[period.mes]} de ${period.ano}`;
@@ -30,81 +22,100 @@ export function describePeriod(period: DashboardPeriod): string {
   return `${MONTH_NAMES[period.mes]}/${period.ano} até ${MONTH_NAMES[period.ateMes]}/${period.ateAno}`;
 }
 
-export function DashboardPeriodFilter({ value, onChange, primeiraData }: Props) {
-  const [open, setOpen] = useState(false);
-  const anoMin = anoInicioHistorico(primeiraData);
-  const anosDisponiveis = Array.from({ length: THIS_YEAR - anoMin + 1 }, (_, i) => anoMin + i);
+// Formata dígitos digitados livremente em dd/mm/aaaa, inserindo as barras
+// automaticamente conforme o usuário digita (sem exigir que ele mesmo as digite).
+function maskDate(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  const day = digits.slice(0, 2);
+  const month = digits.slice(2, 4);
+  const year = digits.slice(4, 8);
+  if (digits.length <= 2) return day;
+  if (digits.length <= 4) return `${day}/${month}`;
+  return `${day}/${month}/${year}`;
+}
 
-  const [deMes, setDeMes] = useState(value.mes);
-  const [deAno, setDeAno] = useState(value.ano);
-  const [ateMes, setAteMes] = useState(value.ateMes);
-  const [ateAno, setAteAno] = useState(value.ateAno);
+function parseDate(masked: string): { day: number; month: number; year: number } | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(masked);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (month < 1 || month > 12) return null;
+  const daysInMonth = new Date(year, month, 0).getDate();
+  if (day < 1 || day > daysInMonth) return null;
+  if (year < 1900 || year > 2200) return null;
+  return { day, month, year };
+}
 
-  const invalido = deAno * 12 + deMes > ateAno * 12 + ateMes;
+function periodToDateStrings(period: DashboardPeriod): { de: string; ate: string } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    de: `01/${pad(period.mes + 1)}/${period.ano}`,
+    ate: `01/${pad(period.ateMes + 1)}/${period.ateAno}`,
+  };
+}
+
+export function DashboardPeriodFilter({ value, onChange, primeiraData: _primeiraData }: Props) {
+  const initial = periodToDateStrings(value);
+  const [de, setDe] = useState(initial.de);
+  const [ate, setAte] = useState(initial.ate);
+
+  const deParsed = parseDate(de);
+  const ateParsed = parseDate(ate);
+  const invalido =
+    !deParsed || !ateParsed ||
+    deParsed.year * 12 + (deParsed.month - 1) > ateParsed.year * 12 + (ateParsed.month - 1);
 
   const apply = () => {
-    if (invalido) return;
-    onChange({ mes: deMes, ano: deAno, ateMes, ateAno });
-    setOpen(false);
+    if (!deParsed || !ateParsed || invalido) return;
+    onChange({
+      mes: deParsed.month - 1,
+      ano: deParsed.year,
+      ateMes: ateParsed.month - 1,
+      ateAno: ateParsed.year,
+    });
   };
 
-  const toggle = () => {
-    if (!open) {
-      setDeMes(value.mes);
-      setDeAno(value.ano);
-      setAteMes(value.ateMes);
-      setAteAno(value.ateAno);
-    }
-    setOpen((o) => !o);
-  };
+  const inputCls = `w-[104px] rounded-lg border px-2 py-1.5 text-[12.5px] focus:outline-none dark:bg-slate-800 dark:text-slate-200 ${
+    de && !deParsed ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
+  }`;
+  const inputCls2 = `w-[104px] rounded-lg border px-2 py-1.5 text-[12.5px] focus:outline-none dark:bg-slate-800 dark:text-slate-200 ${
+    ate && !ateParsed ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
+  }`;
 
   return (
-    <div className="relative">
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#dcebf1] bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+      <Calendar size={14} className="shrink-0 text-[#0891b2]" />
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-medium text-[#7b93a1]">De</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="dd/mm/aaaa"
+          value={de}
+          onChange={(e) => setDe(maskDate(e.target.value))}
+          className={inputCls}
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-medium text-[#7b93a1]">Até</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="dd/mm/aaaa"
+          value={ate}
+          onChange={(e) => setAte(maskDate(e.target.value))}
+          className={inputCls2}
+        />
+      </div>
       <button
         type="button"
-        onClick={toggle}
-        className="flex items-center gap-2 rounded-lg border border-[#dcebf1] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#0f2b38] hover:border-[#b9e6ef] dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+        onClick={apply}
+        disabled={invalido}
+        className="rounded-lg bg-[#0891b2] px-3 py-1.5 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <Calendar size={14} className="text-[#0891b2]" />
-        {describePeriod(value)}
-        <ChevronDown size={14} className={`text-[#7b93a1] transition-transform ${open ? 'rotate-180' : ''}`} />
+        Aplicar
       </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-20 mt-2 w-[280px] rounded-xl border border-[#e6eef3] bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#7b93a1]">De</p>
-            <div className="grid grid-cols-2 gap-2">
-              <select value={deMes} onChange={(e) => setDeMes(Number(e.target.value))} className="rounded-lg border border-[#dcebf1] bg-white px-2 py-1.5 text-[12.5px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {MONTH_NAMES.map((n, i) => <option key={n} value={i}>{n}</option>)}
-              </select>
-              <select value={deAno} onChange={(e) => setDeAno(Number(e.target.value))} className="rounded-lg border border-[#dcebf1] bg-white px-2 py-1.5 text-[12.5px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-
-            <p className="mb-2 mt-3 text-[11px] font-bold uppercase tracking-[0.08em] text-[#7b93a1]">Até</p>
-            <div className="grid grid-cols-2 gap-2">
-              <select value={ateMes} onChange={(e) => setAteMes(Number(e.target.value))} className="rounded-lg border border-[#dcebf1] bg-white px-2 py-1.5 text-[12.5px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {MONTH_NAMES.map((n, i) => <option key={n} value={i}>{n}</option>)}
-              </select>
-              <select value={ateAno} onChange={(e) => setAteAno(Number(e.target.value))} className="rounded-lg border border-[#dcebf1] bg-white px-2 py-1.5 text-[12.5px] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={apply}
-              disabled={invalido}
-              className="mt-3 w-full rounded-lg bg-[#0891b2] px-3 py-1.5 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Aplicar
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }

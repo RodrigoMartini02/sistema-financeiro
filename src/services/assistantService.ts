@@ -6,7 +6,7 @@ import type {
   FinancialCopilotResponse,
   FinancialCopilotStoredMessage,
 } from '../types/financialCopilot';
-import { getActiveProfileId } from './apiClient';
+import { getActiveAccountId } from './apiClient';
 
 export async function createFinancialDraft(
   payload: FinancialAssistantRequest,
@@ -18,8 +18,8 @@ export async function createFinancialDraft(
 }
 
 function profileQuery(): string {
-  const profileId = getActiveProfileId();
-  return profileId ? `?perfil_id=${profileId}` : '';
+  const accountId = getActiveAccountId();
+  return accountId ? `?conta_id=${accountId}` : '';
 }
 
 export async function sendFinancialCopilotMessage(
@@ -31,7 +31,7 @@ export async function sendFinancialCopilotMessage(
       message: payload.message,
       mes: payload.month,
       ano: payload.year,
-      perfil_id: getActiveProfileId(),
+      conta_id: getActiveAccountId(),
       attachments: payload.attachments ?? [],
       context: payload.context,
       conversa_id: payload.conversationId ?? null,

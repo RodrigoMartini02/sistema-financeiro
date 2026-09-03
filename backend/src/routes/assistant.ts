@@ -111,7 +111,7 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
     const body = req.body as Record<string, unknown>;
     const result = await runFinancialCopilot({
       userId: req.user!.id,
-      profileId: asOptionalPositiveInteger(body['perfil_id']),
+      accountId: asOptionalPositiveInteger(body['conta_id']),
       month: asMonth(body['mes']),
       year: asYear(body['ano']),
       message: asMessage(body['message']),
@@ -136,7 +136,7 @@ router.get('/conversations', async (req: Request, res: Response): Promise<void> 
     const query = req.query as Record<string, unknown>;
     const conversations = await listCopilotConversations({
       userId: req.user!.id,
-      profileId: asOptionalPositiveInteger(query['perfil_id']),
+      accountId: asOptionalPositiveInteger(query['conta_id']),
     });
     res.json({ success: true, data: conversations });
   } catch (error) {
@@ -154,7 +154,7 @@ router.get('/conversations/:id', async (req: Request, res: Response): Promise<vo
     const query = req.query as Record<string, unknown>;
     const messages = await getCopilotConversation({
       userId: req.user!.id,
-      profileId: asOptionalPositiveInteger(query['perfil_id']),
+      accountId: asOptionalPositiveInteger(query['conta_id']),
       conversationId: asOptionalPositiveInteger(req.params['id'])!,
     });
     res.json({ success: true, data: messages });
@@ -173,7 +173,7 @@ router.delete('/conversations/:id', async (req: Request, res: Response): Promise
     const query = req.query as Record<string, unknown>;
     await deleteCopilotConversation({
       userId: req.user!.id,
-      profileId: asOptionalPositiveInteger(query['perfil_id']),
+      accountId: asOptionalPositiveInteger(query['conta_id']),
       conversationId: asOptionalPositiveInteger(req.params['id'])!,
     });
     res.json({ success: true, message: 'Conversa removida.' });

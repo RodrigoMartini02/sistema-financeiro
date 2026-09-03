@@ -18,7 +18,7 @@ export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = 
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-      <div className="relative flex w-full justify-center sm:w-auto" style={{ width: SIZE, height: SIZE }} role="img" aria-label={`${centerLabel}: ${centerValue}`}>
+      <div className="relative mx-auto shrink-0 sm:mx-0" style={{ width: SIZE, height: SIZE }} role="img" aria-label={`${centerLabel}: ${centerValue}`}>
         <ResponsiveContainer width={SIZE} height={SIZE}>
           <PieChart>
             <Pie
@@ -45,15 +45,15 @@ export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = 
           <span className="text-[15px] font-bold text-[#0f2b38]">{centerValue}</span>
         </div>
       </div>
-      <ul className="flex-1 space-y-2.5 text-xs">
+      <ul className="min-w-0 flex-1 space-y-2.5 text-xs">
         {segments.map((s) => (
           <li key={s.name} className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5">
+            <span className="flex min-w-0 items-center gap-1.5" title={s.name}>
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
-              <span className={`text-slate-700 dark:text-slate-300 ${capitalizeLabels ? 'capitalize' : ''}`}>{s.name}</span>
-              <span className="text-[11px] text-slate-400">{(s.fraction * 100).toFixed(0)}%</span>
+              <span className={`truncate text-slate-700 dark:text-slate-300 ${capitalizeLabels ? 'capitalize' : ''}`}>{s.name}</span>
+              <span className="shrink-0 text-[11px] text-slate-400">{(s.fraction * 100).toFixed(0)}%</span>
             </span>
-            <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(s.value)}</span>
+            <span className="shrink-0 font-semibold text-slate-900 dark:text-white">{formatCurrency(s.value)}</span>
           </li>
         ))}
       </ul>

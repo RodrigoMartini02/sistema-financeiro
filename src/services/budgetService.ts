@@ -1,9 +1,9 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
 import type { BudgetOverview, BudgetTargetMode } from '../types/budget';
 
-function profileQuery(): string {
-  const profileId = getActiveProfileId();
-  return profileId ? `&perfil_id=${profileId}` : '';
+function contaQuery(): string {
+  const accountId = getActiveAccountId();
+  return accountId ? `&conta_id=${accountId}` : '';
 }
 
 export interface BudgetOverviewRangeQuery {
@@ -14,7 +14,7 @@ export interface BudgetOverviewRangeQuery {
 }
 
 export function fetchBudgetOverview(month: number, year: number): Promise<BudgetOverview> {
-  return apiRequest<BudgetOverview>(`/orcamento/resumo?mes=${month}&ano=${year}${profileQuery()}`);
+  return apiRequest<BudgetOverview>(`/orcamento/resumo?mes=${month}&ano=${year}${contaQuery()}`);
 }
 
 export function fetchBudgetOverviewRange(query: BudgetOverviewRangeQuery): Promise<BudgetOverview> {
@@ -23,7 +23,7 @@ export function fetchBudgetOverviewRange(query: BudgetOverviewRangeQuery): Promi
   if (query.deAno !== undefined) params.set('de_ano', String(query.deAno));
   if (query.ateMes !== undefined) params.set('ate_mes', String(query.ateMes));
   if (query.ateAno !== undefined) params.set('ate_ano', String(query.ateAno));
-  return apiRequest<BudgetOverview>(`/orcamento/resumo?${params}${profileQuery()}`);
+  return apiRequest<BudgetOverview>(`/orcamento/resumo?${params}${contaQuery()}`);
 }
 
 export async function saveBudgetTarget(input: {
@@ -37,13 +37,13 @@ export async function saveBudgetTarget(input: {
       categoria_id: input.categoryId,
       modo: input.mode,
       valor_meta: input.targetValue,
-      perfil_id: getActiveProfileId(),
+      conta_id: getActiveAccountId(),
     }),
   });
 }
 
 export async function deleteBudgetTarget(categoryId: number): Promise<void> {
-  const profileId = getActiveProfileId();
-  const query = profileId ? `?perfil_id=${profileId}` : '';
+  const accountId = getActiveAccountId();
+  const query = accountId ? `?conta_id=${accountId}` : '';
   await apiRequest<void>(`/orcamento/metas/${categoryId}${query}`, { method: 'DELETE' });
 }

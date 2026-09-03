@@ -1,8 +1,8 @@
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { budgetTargets, categories, expenses, incomes, profiles } from '../db/schema';
+import { accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
 
-export interface FinancialProfile {
+export interface FinancialAccount {
   id: number;
   type: 'pessoal' | 'empresa';
   name: string;
@@ -22,7 +22,7 @@ export interface BudgetOverviewItem {
 }
 
 export interface BudgetOverview {
-  profileType: 'pessoal' | 'empresa';
+  accountType: 'pessoal' | 'empresa';
   month: number;
   year: number;
   incomeTotal: number;
@@ -104,45 +104,45 @@ function resolvePeriod(period: BudgetPeriodInput): ResolvedPeriod {
   };
 }
 
-export async function resolveFinancialProfile(userId: number, requestedProfileId: number | null): Promise<FinancialProfile> {
-  const where = requestedProfileId
-    ? and(eq(profiles.id, requestedProfileId), eq(profiles.userId, userId), eq(profiles.active, true))
-    : and(eq(profiles.userId, userId), eq(profiles.type, 'pessoal'), eq(profiles.active, true));
-  const [profile] = await db
-    .select({ id: profiles.id, type: profiles.type, name: profiles.name })
-    .from(profiles)
+export async function resolveFinancialAccount(userId: number, requestedAccountId: number | null): Promise<FinancialAccount> {
+  const where = requestedAccountId
+    ? and(eq(accounts.id, requestedAccountId), eq(accounts.userId, userId), eq(accounts.active, true))
+    : and(eq(accounts.userId, userId), eq(accounts.type, 'pessoal'), eq(accounts.active, true));
+  const [account] = await db
+    .select({ id: accounts.id, type: accounts.type, name: accounts.name })
+    .from(accounts)
     .where(where)
     .limit(1);
 
-  if (!profile) throw new BudgetInputError('Perfil financeiro não encontrado.');
-  return profile;
+  if (!account) throw new BudgetInputError('Conta financeira não encontrada.');
+  return account;
 }
 
 // deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de
 // COALESCE($n, ±infinito) usada em /financial/panorama, aqui expressa via sql template
 // porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
-function expenseProfileCondition(userId: number, profile: FinancialProfile, deChave: number | null, ateChave: number | null) {
+function expenseAccountCondition(userId: number, account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
     eq(expenses.userId, userId),
     sql`(${expenses.year} * 12 + ${expenses.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
   ];
-  if (profile.type === 'pessoal') {
-    conditions.push(or(eq(expenses.profileId, profile.id), isNull(expenses.profileId))!);
+  if (account.type === 'pessoal') {
+    conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);
   } else {
-    conditions.push(eq(expenses.profileId, profile.id));
+    conditions.push(eq(expenses.accountId, account.id));
   }
   return and(...conditions);
 }
 
-function incomeProfileCondition(userId: number, profile: FinancialProfile, deChave: number | null, ateChave: number | null) {
+function incomeAccountCondition(userId: number, account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
     eq(incomes.userId, userId),
     sql`(${incomes.year} * 12 + ${incomes.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
   ];
-  if (profile.type === 'pessoal') {
-    conditions.push(or(eq(incomes.profileId, profile.id), isNull(incomes.profileId))!);
+  if (account.type === 'pessoal') {
+    conditions.push(or(eq(incomes.accountId, account.id), isNull(incomes.accountId))!);
   } else {
-    conditions.push(eq(incomes.profileId, profile.id));
+    conditions.push(eq(incomes.accountId, account.id));
   }
   return and(...conditions);
 }
@@ -158,11 +158,11 @@ function previousThreePeriods(month: number, year: number): Array<{ month: numbe
 
 export async function getBudgetOverview(input: {
   userId: number;
-  profileId: number | null;
+  accountId: number | null;
 } & BudgetPeriodInput): Promise<BudgetOverview> {
-  const { userId, profileId, ...period } = input;
+  const { userId, accountId, ...period } = input;
   const resolved = resolvePeriod(period);
-  const profile = await resolveFinancialProfile(userId, profileId);
+  const account = await resolveFinancialAccount(userId, accountId);
   const [categoryRows, expenseRows, incomeRows] = await Promise.all([
     db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId)),
     db.select({
@@ -170,13 +170,13 @@ export async function getBudgetOverview(input: {
       amount: expenses.finalAmount,
       originalAmount: expenses.originalAmount,
       paid: expenses.paid,
-    }).from(expenses).where(expenseProfileCondition(userId, profile, resolved.deChave, resolved.ateChave)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeProfileCondition(userId, profile, resolved.deChave, resolved.ateChave)),
+    }).from(expenses).where(expenseAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
   ]);
 
-  if (profile.type === 'empresa') {
+  if (account.type === 'empresa') {
     return {
-      profileType: profile.type,
+      accountType: account.type,
       month: resolved.referenceMonth,
       year: resolved.referenceYear,
       incomeTotal: incomeRows.reduce((total, row) => total + asNumber(row.amount), 0),
@@ -191,14 +191,14 @@ export async function getBudgetOverview(input: {
       categoryId: budgetTargets.categoryId,
       mode: budgetTargets.mode,
       targetValue: budgetTargets.targetValue,
-    }).from(budgetTargets).where(and(eq(budgetTargets.userId, userId), eq(budgetTargets.profileId, profile.id))),
+    }).from(budgetTargets).where(and(eq(budgetTargets.userId, userId), eq(budgetTargets.accountId, account.id))),
     db.select({
       categoryId: expenses.categoryId,
       amount: expenses.finalAmount,
       originalAmount: expenses.originalAmount,
       month: expenses.month,
       year: expenses.year,
-    }).from(expenses).where(expenseProfileCondition(userId, profile, null, null)),
+    }).from(expenses).where(expenseAccountCondition(userId, account, null, null)),
   ]);
 
   // Número de meses do período consultado — usado para escalar a meta mensal cadastrada
@@ -264,7 +264,7 @@ export async function getBudgetOverview(input: {
   }).sort((left, right) => right.projectedAmount - left.projectedAmount || left.categoryName.localeCompare(right.categoryName));
 
   return {
-    profileType: profile.type,
+    accountType: account.type,
     month: resolved.referenceMonth,
     year: resolved.referenceYear,
     incomeTotal,
@@ -276,13 +276,13 @@ export async function getBudgetOverview(input: {
 
 export async function saveBudgetTarget(input: {
   userId: number;
-  profileId: number | null;
+  accountId: number | null;
   categoryId: unknown;
   mode: unknown;
   targetValue: unknown;
 }): Promise<void> {
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
-  if (profile.type !== 'pessoal') throw new BudgetInputError('Metas de orçamento estão disponíveis apenas no perfil pessoal.');
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
+  if (account.type !== 'pessoal') throw new BudgetInputError('Metas de orçamento estão disponíveis apenas na conta pessoal.');
   const categoryId = Number(input.categoryId);
   const mode: 'amount' | 'income_percent' | null = input.mode === 'amount' || input.mode === 'income_percent'
     ? input.mode
@@ -300,7 +300,7 @@ export async function saveBudgetTarget(input: {
   if (!category) throw new BudgetInputError('Categoria não encontrada.');
 
   const [existing] = await db.select({ id: budgetTargets.id }).from(budgetTargets)
-    .where(and(eq(budgetTargets.userId, input.userId), eq(budgetTargets.profileId, profile.id), eq(budgetTargets.categoryId, categoryId))).limit(1);
+    .where(and(eq(budgetTargets.userId, input.userId), eq(budgetTargets.accountId, account.id), eq(budgetTargets.categoryId, categoryId))).limit(1);
   const values = { mode, targetValue: targetValue.toFixed(2), updatedAt: new Date() };
   if (existing) {
     await db.update(budgetTargets).set(values).where(eq(budgetTargets.id, existing.id));
@@ -308,18 +308,18 @@ export async function saveBudgetTarget(input: {
   }
   await db.insert(budgetTargets).values({
     userId: input.userId,
-    profileId: profile.id,
+    accountId: account.id,
     categoryId,
     mode,
     targetValue: targetValue.toFixed(2),
   });
 }
 
-export async function deleteBudgetTarget(input: { userId: number; profileId: number | null; categoryId: number }): Promise<void> {
-  const profile = await resolveFinancialProfile(input.userId, input.profileId);
+export async function deleteBudgetTarget(input: { userId: number; accountId: number | null; categoryId: number }): Promise<void> {
+  const account = await resolveFinancialAccount(input.userId, input.accountId);
   await db.delete(budgetTargets).where(and(
     eq(budgetTargets.userId, input.userId),
-    eq(budgetTargets.profileId, profile.id),
+    eq(budgetTargets.accountId, account.id),
     eq(budgetTargets.categoryId, input.categoryId),
   ));
 }

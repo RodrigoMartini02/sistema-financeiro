@@ -1,4 +1,4 @@
-import { apiRequest, getActiveProfileId } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
 
 export type CommissionTipo = 'mensal' | 'unica';
 
@@ -26,19 +26,19 @@ export interface RepresentanteFormValues {
   comissoes: Comissao[];
 }
 
-function perfilQuery() {
-  const pid = getActiveProfileId();
-  return pid ? `?perfil_id=${pid}` : '';
+function contaQuery() {
+  const accountId = getActiveAccountId();
+  return accountId ? `?conta_id=${accountId}` : '';
 }
 
 export async function fetchRepresentantes(): Promise<Representante[]> {
-  const r = await apiRequest<{ success: boolean; data: Representante[] }>(`/representantes${perfilQuery()}`);
+  const r = await apiRequest<{ success: boolean; data: Representante[] }>(`/representantes${contaQuery()}`);
   return Array.isArray(r) ? r : (r as any).data ?? [];
 }
 
 export async function saveRepresentante(values: RepresentanteFormValues, id?: number): Promise<Representante> {
-  const pid = getActiveProfileId();
-  const body = { ...values, perfil_id: pid };
+  const accountId = getActiveAccountId();
+  const body = { ...values, conta_id: accountId };
   const r = await apiRequest<{ success: boolean; data: Representante }>(
     id ? `/representantes/${id}` : '/representantes',
     { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) }

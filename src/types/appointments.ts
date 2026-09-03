@@ -6,7 +6,7 @@ export interface Appointment {
   hora?: string | null;
   duracao_minutos?: number | null;
   local?: string | null;
-  perfil_id?: number | null;
+  conta_id?: number | null;
 }
 
 export interface AppointmentFormValues {

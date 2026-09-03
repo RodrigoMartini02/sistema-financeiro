@@ -7,14 +7,14 @@ const router = Router();
 // GET /api/partners
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { perfil_id } = req.query as Record<string, string | undefined>;
+    const { conta_id } = req.query as Record<string, string | undefined>;
 
     const result = await pool.query(
       `SELECT * FROM socios
        WHERE usuario_id = $1 AND ativo = true
-         AND ($2::int IS NULL OR perfil_id = $2)
+         AND ($2::int IS NULL OR conta_id = $2)
        ORDER BY nome ASC`,
-      [req.user!.id, perfil_id ? parseInt(perfil_id) : null],
+      [req.user!.id, conta_id ? parseInt(conta_id) : null],
     );
 
     res.json({ success: true, data: result.rows });
@@ -27,7 +27,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/partners
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, percentual, perfil_id } = req.body as Record<string, unknown>;
+    const { nome, percentual, conta_id } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
       res.status(400).json({ success: false, message: 'Name is required' });
@@ -41,9 +41,9 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const result = await pool.query(
-      `INSERT INTO socios (usuario_id, perfil_id, nome, percentual)
+      `INSERT INTO socios (usuario_id, conta_id, nome, percentual)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user!.id, perfil_id ? parseInt(String(perfil_id)) : null, String(nome).trim(), pct],
+      [req.user!.id, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), pct],
     );
 
     res.status(201).json({ success: true, message: 'Partner created', data: result.rows[0] });

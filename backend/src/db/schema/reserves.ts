@@ -11,7 +11,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
-import { profiles } from './profiles';
+import { accounts } from './accounts';
 
 export const reserves = pgTable(
   'reservas',
@@ -20,7 +20,7 @@ export const reserves = pgTable(
     userId: integer('usuario_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    profileId: integer('perfil_id').references(() => profiles.id),
+    accountId: integer('conta_id').references(() => accounts.id),
     amount: decimal('valor', { precision: 10, scale: 2 }).notNull(),
     month: integer('mes').notNull(),
     year: integer('ano').notNull(),
@@ -38,7 +38,7 @@ export const reserves = pgTable(
       table.month,
       table.year,
     ),
-    profileIdx: index('idx_reservas_perfil').on(table.profileId),
+    accountIdx: index('idx_reservas_conta').on(table.accountId),
   }),
 );
 
