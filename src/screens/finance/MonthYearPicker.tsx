@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 
 interface Props {
@@ -49,7 +49,7 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
   };
 
   return (
-    <div className="relative flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900" ref={containerRef}>
+    <div className="relative flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900" ref={containerRef}>
       <button
         type="button"
         onClick={goPrev}
@@ -60,9 +60,11 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="min-w-[104px] px-1 text-center text-[13.5px] font-semibold capitalize tracking-tight text-slate-900 hover:bg-slate-50 dark:text-white dark:hover:bg-slate-800"
+        className="flex items-center gap-1.5 px-1 text-center text-[13.5px] font-semibold capitalize tracking-tight text-slate-900 hover:bg-slate-50 dark:text-white dark:hover:bg-slate-800"
       >
+        <Calendar size={13} className="text-slate-400" />
         {MONTH_NAMES[month]?.toLowerCase()} {year}
+        <ChevronDown size={13} className={['text-slate-400 transition-transform', open ? 'rotate-180' : ''].join(' ')} />
       </button>
       <button
         type="button"
