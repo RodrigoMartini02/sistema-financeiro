@@ -92,7 +92,7 @@ export function PlanosPage() {
         tone="light"
         label="PLANOS"
         title="Escolha o plano certo para você."
-        description="15 dias grátis ao criar conta. Depois, Plus ou Premium — sem surpresas."
+        description="15 dias grátis ao criar sua conta, sem cartão de crédito. Depois, escolha entre os planos Plus ou Premium — sem surpresas."
       />
 
       <section className="border-b border-slate-200 bg-[#f8fbfb]">

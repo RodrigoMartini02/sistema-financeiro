@@ -417,6 +417,7 @@ export function RelatoriosScreen() {
                 placement="top"
                 className="w-[min(24rem,calc(100vw-2rem))]"
                 onDismiss={consultGuide.dismiss}
+                onSilenceAll={consultGuide.silenceAll}
               />
             )}
             <div className="relative">
@@ -437,6 +438,7 @@ export function RelatoriosScreen() {
                   placement="top"
                   className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={exportGuide.dismiss}
+                  onSilenceAll={exportGuide.silenceAll}
                 />
               )}
               {exportError && (

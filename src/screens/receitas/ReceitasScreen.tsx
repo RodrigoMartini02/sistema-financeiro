@@ -166,6 +166,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                   icon={Building2}
                   description={firstAccessGuideMessages.receitasContratosFaturamento}
                   onDismiss={contratosGuide.dismiss}
+                  onSilenceAll={contratosGuide.silenceAll}
                 />
               )}
             </div>
@@ -236,6 +237,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                   placement="top"
                   className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={searchGuide.dismiss}
+                  onSilenceAll={searchGuide.silenceAll}
                 />
               )}
             </div>

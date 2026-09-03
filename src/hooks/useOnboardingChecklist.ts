@@ -6,6 +6,7 @@ import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
 import type { ConfigItemId } from '../layout/ConfigPanel';
 import { getFirstAccessGuideUserScope } from '../services/userScope';
+import { useFirstAccessGuideCoordinator } from '../context/FirstAccessGuideContext';
 
 export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 'clientes' };
 
@@ -59,8 +60,9 @@ export function useOnboardingChecklist(enabled: boolean) {
   const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getFirstAccessGuideUserScope(), []);
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
   const isEmpresa = useMemo(() => isEmpresaConta(), []);
+  const { isDemoMode, isSilencedAll, silenceAll } = useFirstAccessGuideCoordinator();
 
-  const canQuery = enabled && !isDismissed;
+  const canQuery = enabled && !isDismissed && !isDemoMode && !isSilencedAll;
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes, enabled: canQuery });
   const categoriasQuery = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias, enabled: canQuery });
   const clientesQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: canQuery && isEmpresa });
@@ -116,8 +118,9 @@ export function useOnboardingChecklist(enabled: boolean) {
   }, [storageKey]);
 
   return {
-    isVisible: enabled && !isDismissed,
+    isVisible: enabled && !isDismissed && !isDemoMode && !isSilencedAll,
     items,
     dismiss,
+    silenceAll,
   };
 }

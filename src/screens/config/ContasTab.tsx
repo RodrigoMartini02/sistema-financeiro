@@ -362,6 +362,7 @@ function ContaDialog({
                     icon={Briefcase}
                     description={firstAccessGuideMessages.contasEnquadramento}
                     onDismiss={enquadramentoGuide.dismiss}
+                    onSilenceAll={enquadramentoGuide.silenceAll}
                   />
                 )}
               </div>
@@ -529,6 +530,7 @@ export function ContasTab() {
             placement="top"
             className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
+            onSilenceAll={createGuide.silenceAll}
           />
         )}
       </div>

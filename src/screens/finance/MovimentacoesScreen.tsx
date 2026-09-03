@@ -257,6 +257,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                 icon={mesFechado ? LockOpen : Lock}
                 description={firstAccessGuideMessages.despesasFecharMes}
                 onDismiss={fecharMesGuide.dismiss}
+                onSilenceAll={fecharMesGuide.silenceAll}
               />
             )}
             {mesActionError && (
@@ -290,6 +291,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                     icon={TrendingUp}
                     description={firstAccessGuideMessages.receitasNova}
                     onDismiss={novaReceitaGuide.dismiss}
+                    onSilenceAll={novaReceitaGuide.silenceAll}
                   />
                 )}
               </div>
@@ -304,6 +306,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                     icon={TrendingDown}
                     description={firstAccessGuideMessages.despesasNova}
                     onDismiss={novaDespesaGuide.dismiss}
+                    onSilenceAll={novaDespesaGuide.silenceAll}
                   />
                 )}
               </div>
@@ -318,6 +321,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                     icon={PiggyBank}
                     description={firstAccessGuideMessages.reservasMovimentar}
                     onDismiss={reservaGuide.dismiss}
+                    onSilenceAll={reservaGuide.silenceAll}
                   />
                 )}
               </div>

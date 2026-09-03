@@ -83,8 +83,6 @@ export function HomePage({ notice }: HomePageProps) {
           label="HOME"
           title="Controle financeiro com clareza."
           description="Organize sua vida financeira e sua empresa em perfis separados, com saldos, cartões, reservas e relatórios sempre visíveis."
-          scrollHintLabel="Veja funcionando abaixo"
-          scrollHintTargetId="demo-interativa-title"
         />
         <HomeBenefitsHighlights />
         <HomeInteractiveDemo />

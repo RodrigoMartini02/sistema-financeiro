@@ -402,6 +402,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     icon={CheckSquare}
                     description={firstAccessGuideMessages.despesasPagarSelecionadas}
                     onDismiss={pagarSelecionadasGuide.dismiss}
+                    onSilenceAll={pagarSelecionadasGuide.silenceAll}
                   />
                 )}
               </div>
@@ -416,6 +417,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   placement="top"
                   className="w-[min(24rem,calc(100vw-2rem))]"
                   onDismiss={filterGuide.dismiss}
+                  onSilenceAll={filterGuide.silenceAll}
                 />
               )}
               <FilterChip
@@ -519,6 +521,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   icon={CheckSquare}
                   description={firstAccessGuideMessages.despesasLote}
                   onDismiss={loteGuide.dismiss}
+                  onSilenceAll={loteGuide.silenceAll}
                 />
               )}
               {moverMesGuide.isVisible && (
@@ -530,6 +533,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   icon={ArrowRight}
                   description={firstAccessGuideMessages.despesasMoverMes}
                   onDismiss={moverMesGuide.dismiss}
+                  onSilenceAll={moverMesGuide.silenceAll}
                 />
               )}
               {/* Cards — mobile only */}

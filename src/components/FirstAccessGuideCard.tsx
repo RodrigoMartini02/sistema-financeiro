@@ -19,10 +19,54 @@ interface FirstAccessGuideCardProps {
   steps?: string[];
   actions?: FirstAccessGuideAction[];
   onDismiss?: () => void;
+  onSilenceAll?: () => void;
   className?: string;
   align?: 'left' | 'center' | 'right';
   floating?: boolean;
   placement?: GuidePlacement;
+}
+
+const ACTION_VARIANT_CLASSES: Record<NonNullable<FirstAccessGuideAction['variant']>, string> = {
+  primary: 'bg-cyan-600 text-white hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-400',
+  secondary: 'border border-cyan-300 text-cyan-800 hover:bg-white dark:border-cyan-700 dark:text-cyan-100 dark:hover:bg-cyan-900',
+  ghost: 'text-cyan-700 hover:bg-white/60 dark:text-cyan-100 dark:hover:bg-cyan-900/60',
+};
+
+function GuideFooter({ actions, onSilenceAll }: { actions?: FirstAccessGuideAction[]; onSilenceAll?: () => void }) {
+  if (!actions?.length && !onSilenceAll) return null;
+
+  return (
+    <div className="mt-2.5 flex items-center justify-between gap-3 pt-0.5">
+      {onSilenceAll ? (
+        <button
+          type="button"
+          onClick={onSilenceAll}
+          className="text-[11.5px] font-medium text-cyan-700/60 underline-offset-2 transition hover:text-cyan-900 hover:underline dark:text-cyan-100/60 dark:hover:text-white"
+        >
+          Não ver mais guias
+        </button>
+      ) : <span />}
+
+      {actions?.length ? (
+        <div className="flex items-center gap-2">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={action.onClick}
+              className={[
+                'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                ACTION_VARIANT_CLASSES[action.variant ?? 'primary'],
+              ].join(' ')}
+            >
+              {action.icon}
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 const GAP = 12;
@@ -37,7 +81,9 @@ function extractWidth(className: string): number {
 export function FirstAccessGuideCard({
   description,
   icon: Icon,
+  actions,
   onDismiss,
+  onSilenceAll,
   className = '',
   align = 'left',
   floating = false,
@@ -113,7 +159,10 @@ export function FirstAccessGuideCard({
         </span>
       )}
 
-      <p className="min-w-0 flex-1 pr-1 font-normal">{description}</p>
+      <div className="min-w-0 flex-1 pr-1">
+        <p className="font-normal">{description}</p>
+        <GuideFooter actions={actions} onSilenceAll={onSilenceAll} />
+      </div>
 
       {onDismiss && (
         <button
@@ -138,7 +187,10 @@ export function FirstAccessGuideCard({
               <Icon size={17} strokeWidth={1.9} />
             </span>
           )}
-          <p className="min-w-0 flex-1 pr-1 font-normal">{description}</p>
+          <div className="min-w-0 flex-1 pr-1">
+            <p className="font-normal">{description}</p>
+            <GuideFooter actions={actions} onSilenceAll={onSilenceAll} />
+          </div>
           {onDismiss && (
             <button
               type="button"

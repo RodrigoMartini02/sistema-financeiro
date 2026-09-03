@@ -216,6 +216,7 @@ export function ReservasScreen() {
                 icon={PiggyBank}
                 description={firstAccessGuideMessages.reservasNova}
                 onDismiss={guide.dismiss}
+                onSilenceAll={guide.silenceAll}
               />
             )}
           </div>

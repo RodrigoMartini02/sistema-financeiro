@@ -452,6 +452,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
               icon={CreditCard}
               description={firstAccessGuideMessages.planosFormasPagamento}
               onDismiss={tabsGuide.dismiss}
+              onSilenceAll={tabsGuide.silenceAll}
             />
           )}
         </div>

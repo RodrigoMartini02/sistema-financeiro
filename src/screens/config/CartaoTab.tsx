@@ -115,6 +115,7 @@ function CartaoDialog({
                 icon={DollarSign}
                 description={firstAccessGuideMessages.cartoesLimite}
                 onDismiss={limiteGuide.dismiss}
+                onSilenceAll={limiteGuide.silenceAll}
               />
             )}
             {validadeGuide.isVisible && (
@@ -126,6 +127,7 @@ function CartaoDialog({
                 icon={Calendar}
                 description={firstAccessGuideMessages.cartoesValidade}
                 onDismiss={validadeGuide.dismiss}
+                onSilenceAll={validadeGuide.silenceAll}
               />
             )}
           </div>
@@ -149,6 +151,7 @@ function CartaoDialog({
                 icon={Calendar}
                 description={firstAccessGuideMessages.cartoesFechamentoVencimento}
                 onDismiss={fechamentoGuide.dismiss}
+                onSilenceAll={fechamentoGuide.silenceAll}
               />
             )}
           </div>
@@ -283,6 +286,7 @@ export function CartaoTab() {
             placement="top"
             className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
+            onSilenceAll={createGuide.silenceAll}
           />
         )}
       </div>

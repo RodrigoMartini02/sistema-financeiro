@@ -198,6 +198,7 @@ export function ClientesTab() {
               placement="top"
               className="w-[min(25rem,calc(100vw-2rem))]"
               onDismiss={createGuide.dismiss}
+              onSilenceAll={createGuide.silenceAll}
             />
           )}
         </div>

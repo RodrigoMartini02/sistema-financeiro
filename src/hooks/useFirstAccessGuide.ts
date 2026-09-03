@@ -37,7 +37,7 @@ export function useFirstAccessGuide(scope: string, options: UseFirstAccessGuideO
   const { enabled = true, layer = GUIDE_LAYER_PAGE } = options;
   const storageKey = useMemo(() => STORAGE_PREFIX + ':' + getFirstAccessGuideUserScope() + ':' + scope, [scope]);
   const [isDismissed, setIsDismissed] = useState(() => readDismissed(storageKey));
-  const { register, unregister, isActive } = useFirstAccessGuideCoordinator();
+  const { register, unregister, isActive, silenceAll } = useFirstAccessGuideCoordinator();
 
   useEffect(() => {
     setIsDismissed(readDismissed(storageKey));
@@ -57,5 +57,6 @@ export function useFirstAccessGuide(scope: string, options: UseFirstAccessGuideO
   return {
     isVisible: enabled && !isDismissed && isActive(scope, layer),
     dismiss,
+    silenceAll,
   };
 }

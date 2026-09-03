@@ -298,6 +298,7 @@ function RepresentanteDialog({
                 icon={Percent}
                 description={firstAccessGuideMessages.representantesComissoes}
                 onDismiss={comissoesGuide.dismiss}
+                onSilenceAll={comissoesGuide.silenceAll}
               />
             )}
           </div>
@@ -370,6 +371,7 @@ export function RepresentantesTab() {
             placement="top"
             className="w-[min(24rem,calc(100vw-2rem))]"
             onDismiss={createGuide.dismiss}
+            onSilenceAll={createGuide.silenceAll}
           />
         )}
       </div>
