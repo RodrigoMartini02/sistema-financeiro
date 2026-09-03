@@ -4,6 +4,7 @@ import { db, pool } from '../db/client';
 import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
+import { getCardLimits } from '../services/cardLimitService';
 
 const router = Router();
 const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
@@ -35,6 +36,19 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('List cards error:', error);
     res.status(500).json({ success: false, message: 'Failed to list cards' });
+  }
+});
+
+// GET /api/cards/limites — deve vir antes de /:id para não colidir com o parâmetro
+router.get('/limites', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const accountId = conta_id ? parseInt(conta_id) : null;
+    const data = await getCardLimits(req.user!.id, accountId);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Get card limits error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get card limits' });
   }
 });
 

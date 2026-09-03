@@ -40,4 +40,5 @@ export const queryKeys = {
     ['budget-overview-range', deMes, deAno, ateMes, ateAno] as const,
   copilotConversations: ['copilot-conversations'] as const,
   aiIntegrations: ['ai-integrations'] as const,
+  cardLimits: ['card-limits'] as const,
 };

@@ -195,84 +195,83 @@ export function FinanceDashboard() {
       )}
 
       {/* Resumo consolidado */}
-      <Card className="overflow-hidden rounded-2xl p-0">
-        <div className="flex flex-col lg:flex-row">
-          <div className="flex-none border-b border-[#e6eef3] bg-gradient-to-b from-[#fbfdfe] to-white p-[22px] dark:border-slate-700 dark:bg-slate-900/40 lg:w-[336px] lg:border-b-0 lg:border-r">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo do período</span>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
-              <span className={`text-[40px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
-                {Math.abs(saldoFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
-              {saldoFinal >= 0 ? 'Sobra acumulada depois de todas as despesas do período.' : 'Despesas superam as receitas neste período.'}
-            </p>
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-5">
+        <Card className="flex flex-col rounded-2xl p-5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo do período</span>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
+            <span className={`text-[32px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
+              {Math.abs(saldoFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
           </div>
+          <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+            {saldoFinal >= 0 ? 'Sobra acumulada depois de todas as despesas do período.' : 'Despesas superam as receitas neste período.'}
+          </p>
+        </Card>
 
-          <div className="grid flex-1 grid-cols-2 xl:grid-cols-4">
-            <div className="relative p-5">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
-              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
-            </div>
-            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
-              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
-            </div>
-            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
-              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
-            </div>
-            <div className="relative border-l border-[#eef4f7] p-5 dark:border-slate-700">
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
-              <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">
-                {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
-              </p>
-              <div className="relative mt-3 flex h-1.5 gap-0.5">
-                <div className="flex-[70] rounded-l bg-[#b7e4c7]" />
-                <div className="flex-[20] bg-[#f0e0b0]" />
-                <div className="flex-[10] rounded-r bg-[#fbd5d1]" />
-                <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#067647]" style={{ left: `${Math.min(100, txComprometimento)}%` }} />
-              </div>
-              <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas no período</p>
-              {comprometimentoGuide.isVisible && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="top"
-                  align="right"
-                  className="w-[min(25rem,calc(100vw-2rem))]"
-                  icon={AlertTriangle}
-                  description={firstAccessGuideMessages.painelComprometimento}
-                  onDismiss={comprometimentoGuide.dismiss}
-                />
-              )}
-            </div>
+        <Card className="flex flex-col rounded-2xl p-5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
+        </Card>
+
+        <Card className="flex flex-col rounded-2xl p-5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
+        </Card>
+
+        <Card className="flex flex-col rounded-2xl p-5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
+        </Card>
+
+        <Card className="relative flex flex-col rounded-2xl p-5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">
+            {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
+          </p>
+          <div className="relative mt-3 flex h-1.5 gap-0.5">
+            <div className="flex-[70] rounded-l bg-[#b7e4c7]" />
+            <div className="flex-[20] bg-[#f0e0b0]" />
+            <div className="flex-[10] rounded-r bg-[#fbd5d1]" />
+            <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#067647]" style={{ left: `${Math.min(100, txComprometimento)}%` }} />
+          </div>
+          <p className="mt-2 text-[11.5px] text-[#5f7885] dark:text-slate-400">da renda comprometida com despesas no período</p>
+          {comprometimentoGuide.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="w-[min(25rem,calc(100vw-2rem))]"
+              icon={AlertTriangle}
+              description={firstAccessGuideMessages.painelComprometimento}
+              onDismiss={comprometimentoGuide.dismiss}
+            />
+          )}
+        </Card>
+      </div>
+
+      <Card className="flex flex-col gap-4 rounded-2xl p-[18px_22px] sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2 text-xs">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#10b981]" />
+            <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
+            <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
+          </div>
+          <div className="mt-[7px] h-2 rounded bg-[#10b981]" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-baseline gap-2 text-xs">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
+            <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas</span>
+            <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</span>
+          </div>
+          <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
+            <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesas / healthBase) * 100)}%` }} />
           </div>
         </div>
-
-        <div className="flex flex-col gap-4 border-t border-[#eef4f7] bg-[#fbfdfe] px-[22px] py-[15px] dark:border-slate-700 dark:bg-slate-900/40 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <div className="flex items-baseline gap-2 text-xs">
-              <span className="h-[7px] w-[7px] rounded-full bg-[#10b981]" />
-              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
-              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
-            </div>
-            <div className="mt-[7px] h-2 rounded bg-[#10b981]" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-baseline gap-2 text-xs">
-              <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
-              <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas</span>
-              <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</span>
-            </div>
-            <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
-              <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesas / healthBase) * 100)}%` }} />
-            </div>
-          </div>
-          <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
-            Você gastou <b className="text-[#0f2b38] dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
-          </span>
-        </div>
+        <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
+          Você gastou <b className="text-[#0f2b38] dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
+        </span>
       </Card>
 
       {/* Contratos panel — só quando o filtro é um único mês */}

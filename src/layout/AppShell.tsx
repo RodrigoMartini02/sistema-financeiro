@@ -248,7 +248,7 @@ export function AppShell({
                         'relative flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium transition',
                         isActive
                           ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                          : 'text-[rgba(14,196,216,0.5)] hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]',
+                          : 'text-[#E8F4F5] hover:bg-[rgba(14,196,216,0.06)]',
                       ].join(' ')}
                       style={{ paddingLeft: isActive ? '10px' : '12px', paddingRight: '12px' }}
                     >

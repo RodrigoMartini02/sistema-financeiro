@@ -8,6 +8,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
+import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchReservas, movimentar } from '../../services/reservasService';
 import type { MovimentacaoFormValues } from '../../types/reservas';
@@ -20,6 +21,7 @@ import { CalendarSubViewToggle, type CalendarSubView } from './calendar/Calendar
 import { CalendarView } from './calendar/CalendarView';
 import { CompactPeriodSelector } from './CompactPeriodSelector';
 import { MovementMetricCard } from './MovementMetricCard';
+import { CardLimitRow } from './CardLimitRow';
 import { formatCurrency } from './formatters';
 import { BudgetPanel } from './BudgetPanel';
 
@@ -150,6 +152,7 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     staleTime: 60_000,
   });
   const reservas = useQuery({ queryKey: queryKeys.reservas, queryFn: fetchReservas });
+  const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
   const mesStatusQuery = useQuery({
     queryKey: queryKeys.mesStatus(year, month),
@@ -391,7 +394,15 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
               tone={comprometimento > 90 ? 'expense' : comprometimento > 70 ? 'warning' : 'income'}
               progressPct={comprometimento}
               note={comprometimento > 85 ? 'Acima do limite de 85%' : 'Dentro do limite saudável'}
-            />
+            >
+              {(cardLimits.data?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-col gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-700">
+                  {cardLimits.data!.map((card) => (
+                    <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} />
+                  ))}
+                </div>
+              )}
+            </MovementMetricCard>
           </div>
         )}
 

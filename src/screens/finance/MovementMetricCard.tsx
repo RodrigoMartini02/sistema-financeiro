@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 type Tone = 'income' | 'expense' | 'slate' | 'warning';
 
 interface MovementMetricCardProps {
@@ -6,6 +8,7 @@ interface MovementMetricCardProps {
   tone?: Tone;
   progressPct?: number; // 0-100
   note?: string;
+  children?: ReactNode;
 }
 
 const toneColors: Record<Tone, { value: string; bar: string }> = {
@@ -15,7 +18,7 @@ const toneColors: Record<Tone, { value: string; bar: string }> = {
   warning: { value: 'text-amber-600 dark:text-amber-400',      bar: 'bg-amber-500' },
 };
 
-export function MovementMetricCard({ label, value, tone = 'slate', progressPct, note }: MovementMetricCardProps) {
+export function MovementMetricCard({ label, value, tone = 'slate', progressPct, note, children }: MovementMetricCardProps) {
   const colors = toneColors[tone];
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3.5 dark:border-slate-700 dark:bg-slate-900">
@@ -28,6 +31,7 @@ export function MovementMetricCard({ label, value, tone = 'slate', progressPct, 
         />
       </div>
       {note && <span className="text-[11.5px] text-slate-400">{note}</span>}
+      {children}
     </div>
   );
 }

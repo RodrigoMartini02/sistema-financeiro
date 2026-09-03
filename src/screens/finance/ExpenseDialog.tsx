@@ -15,6 +15,7 @@ import {
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDate';
 import { fetchCategorias, fetchCartoes, saveCategoria } from '../../services/configService';
+import { fetchCardLimits } from '../../services/cardLimitsService';
 import { fetchExpenseSuggestions, type ExpenseSuggestionMatch } from '../../services/expenseSuggestionsService';
 import { queryKeys } from '../../services/queryKeys';
 import { getLocalTodayIso } from '../../utils/date';
@@ -81,6 +82,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const categorias = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
   const cartoes    = useQuery({ queryKey: queryKeys.cartoes,    queryFn: fetchCartoes });
+  const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
   const repetitionGuide = useFirstAccessGuide('despesas:toggles-tipo-v1', {
     enabled: open && !isEditing,
     layer: GUIDE_LAYER_MODAL,
@@ -646,7 +648,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                     {selectedCard && (
                       <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
                         {activeCards.length <= 1 ? `${selectedCard.nome} · ` : ''}
-                        {isCredito ? `limite disponível ${formatCurrency(selectedCard.limite ?? 0)}` : 'conta corrente'}
+                        {isCredito
+                          ? `limite disponível ${formatCurrency(
+                              cardLimits.data?.find((c) => c.id === selectedCard.id)?.disponivel ?? selectedCard.limite ?? 0,
+                            )}`
+                          : 'conta corrente'}
                       </span>
                     )}
                   </div>
