@@ -206,6 +206,9 @@ export function AppShell({
   const currentNav = ALL_NAV.find((n) => n.section === activeSection);
   const sectionLabel = currentNav?.label;
 
+  const contaTipo = localStorage.getItem('contaAtivaTipo');
+  const navGroups = contaTipo === 'pessoal' ? NAV_GROUPS.filter((g) => g.label !== 'Consultoria') : NAV_GROUPS;
+
   const sidebar = (
     <div className="flex h-full flex-col bg-[#0D2E3C]">
       {/* Logo */}
@@ -222,7 +225,7 @@ export function AppShell({
       {/* Navigation */}
       <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
         <div className="shrink-0 space-y-4">
-          {NAV_GROUPS.map((group) => {
+          {navGroups.map((group) => {
             return (
             <div key={group.label}>
               <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
