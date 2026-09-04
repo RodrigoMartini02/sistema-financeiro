@@ -237,49 +237,49 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
   return (
     <>
       <div className={isCalendario ? 'flex h-full flex-col gap-3' : 'grid gap-5'}>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Button
-              variant="secondary"
-              icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-              onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-              disabled={fecharMut.isPending || reabrirMut.isPending}
-              className={mesFechado ? '!bg-slate-200 !text-slate-600 hover:!bg-slate-300 dark:!bg-slate-700 dark:!text-slate-300' : ''}
-            >
-              {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-            </Button>
-            {fecharMesGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="top"
-                align="right"
-                className="w-[min(24rem,calc(100vw-2rem))]"
-                icon={mesFechado ? LockOpen : Lock}
-                description={firstAccessGuideMessages.despesasFecharMes}
-                onDismiss={fecharMesGuide.dismiss}
-                onSilenceAll={fecharMesGuide.silenceAll}
-              />
-            )}
-            {mesActionError && (
-              <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
-                {mesActionError}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
             {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
+
+            {!isPlanning && (
+              <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+                <ViewModeToggle mode={viewMode} onChange={setViewMode} />
+              </div>
+            )}
           </div>
 
-          {!isPlanning && (
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
-              <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-            </div>
-          )}
-
           {!isCalendario && !isPlanning && (
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Button
+                  variant="secondary"
+                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
+                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
+                  disabled={fecharMut.isPending || reabrirMut.isPending}
+                  className={mesFechado ? '!bg-slate-200 !text-slate-600 hover:!bg-slate-300 dark:!bg-slate-700 dark:!text-slate-300' : ''}
+                >
+                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
+                </Button>
+                {fecharMesGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(24rem,calc(100vw-2rem))]"
+                    icon={mesFechado ? LockOpen : Lock}
+                    description={firstAccessGuideMessages.despesasFecharMes}
+                    onDismiss={fecharMesGuide.dismiss}
+                    onSilenceAll={fecharMesGuide.silenceAll}
+                  />
+                )}
+                {mesActionError && (
+                  <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
+                    {mesActionError}
+                  </p>
+                )}
+              </div>
+
               <div className="relative">
                 <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
                 {novaReceitaGuide.isVisible && (
@@ -311,7 +311,14 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
                 )}
               </div>
               <div className="relative">
-                <Button variant="secondary" icon={<PiggyBank size={15} />} onClick={() => setReserveDialogOpen(true)}>Movimentar reserva</Button>
+                <Button
+                  variant="secondary"
+                  icon={<PiggyBank size={15} />}
+                  onClick={() => setReserveDialogOpen(true)}
+                  aria-label="Movimentar reserva"
+                  title="Movimentar reserva"
+                  className="!px-2.5"
+                />
                 {reservaGuide.isVisible && (
                   <FirstAccessGuideCard
                     floating
