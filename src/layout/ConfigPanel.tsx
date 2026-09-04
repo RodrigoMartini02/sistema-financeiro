@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Users, Activity, Crown,
+  Tag, UserCheck, Users, Activity, Crown, UsersRound,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { fetchMe } from '../services/usuariosService';
@@ -36,7 +36,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
   { id: 'representantes', label: 'Representantes', icon: UserCheck },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase },
   { id: 'usuarios',       label: 'Usuários',       icon: Users },
-  { id: 'membros',        label: 'Membros',        icon: Users },
+  { id: 'membros',        label: 'Membros da família', icon: UsersRound },
   { id: 'acessos',        label: 'Acessos',        icon: Activity },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot },
 ];
@@ -86,9 +86,16 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     if (item.id === 'membros') return isGestor;
     if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
     return true;
+  }).map((item) => {
+    // Mesma tela/dado por trás (conta_membros) — só o rótulo muda conforme
+    // o tipo da conta ativa: PF fala em "família", PJ em "colaboradores".
+    if (item.id === 'membros' && contaTipo === 'empresa') {
+      return { ...item, label: 'Colaboradores' };
+    }
+    return item;
   });
 
-  const current = ITEMS.find((item) => item.id === activeItem) ?? ITEMS[0]!;
+  const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;
 
   return (
     <Drawer open={open} title="Configurações" subtitle={current.label} onClose={onClose} variant="centered" scrollBody={false}>
@@ -126,7 +133,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {activeItem === 'representantes' && <RepresentantesTab />}
           {activeItem === 'socios' && <SociosTab />}
           {activeItem === 'usuarios' && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
-          {activeItem === 'membros' && <MembrosTab />}
+          {activeItem === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {activeItem === 'acessos' && canViewAnalytics && <AcessosTab />}
           {activeItem === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
         </div>

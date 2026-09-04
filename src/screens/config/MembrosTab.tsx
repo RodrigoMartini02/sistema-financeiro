@@ -18,10 +18,19 @@ import { ListToolbar } from '../../ui/ListToolbar';
 import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
 
+// Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
+// conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
+// "colaborador" (da equipe).
+interface Termo { singular: string; artigo: string; }
+const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
+  pessoal: { singular: 'membro', artigo: 'o' },
+  empresa: { singular: 'colaborador', artigo: 'o' },
+};
+
 function NovoMembroDialog({
-  open, isSaving, error, onClose, onSave,
+  open, isSaving, error, termo, onClose, onSave,
 }: {
-  open: boolean; isSaving: boolean; error?: string;
+  open: boolean; isSaving: boolean; error?: string; termo: Termo;
   onClose: () => void; onSave: (body: MembroCreateBody) => void;
 }) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -37,17 +46,17 @@ function NovoMembroDialog({
   };
 
   return (
-    <Dialog open={open} title="Novo membro" onClose={onClose} size="lg" scrollBody={false}>
+    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="lg" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
           <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="nome" placeholder="Nome do membro" autoFocus required style={fieldInputStyle} />
+              <input name="nome" placeholder={`Nome do ${termo.singular}`} autoFocus required style={fieldInputStyle} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}><span>E-MAIL</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="email" type="email" placeholder="membro@email.com" required style={fieldInputStyle} />
+              <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
             </div>
           </div>
 
@@ -55,7 +64,7 @@ function NovoMembroDialog({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}><span>DOCUMENTO (CPF/CNPJ)</span></label>
               <input name="documento" placeholder="000.000.000-00 (opcional)" style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Opcional — deixe em branco se o membro não tiver CPF (ex.: menor de idade)</span>
+              <span style={{ fontSize: 12, color: C.textFaint }}>Opcional — deixe em branco se {termo.artigo} {termo.singular} não tiver CPF (ex.: menor de idade)</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}><span>SENHA</span><span style={{ color: C.primary }}>*</span></label>
@@ -159,10 +168,10 @@ function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: M
 }
 
 function TransferirPendenciasDialog({
-  open, membro, pendencias, outrosMembros, isSaving, error, onClose, onConfirm,
+  open, membro, pendencias, outrosMembros, isSaving, error, termo, onClose, onConfirm,
 }: {
   open: boolean; membro?: MembroListItem; pendencias: PendingExpense[]; outrosMembros: MembroListItem[];
-  isSaving: boolean; error?: string;
+  isSaving: boolean; error?: string; termo: Termo;
   onClose: () => void; onConfirm: (transferirParaUsuarioId: number) => void;
 }) {
   const [destino, setDestino] = useState<string>('gestor');
@@ -175,7 +184,7 @@ function TransferirPendenciasDialog({
     <Dialog open={open} title={`Desativar "${membro?.nome}"`} onClose={onClose} size="lg" scrollBody={false}>
       <div style={{ padding: '0 26px 20px' }}>
         <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
-          Este membro tem {pendencias.length} lançamento(s) parcelado(s) ou recorrente(s) ainda em aberto.
+          Este {termo.singular} tem {pendencias.length} lançamento(s) parcelado(s) ou recorrente(s) ainda em aberto.
           Escolha para quem essas pendências futuras devem ser transferidas antes de desativar.
         </p>
 
@@ -217,7 +226,8 @@ function TransferirPendenciasDialog({
   );
 }
 
-export function MembrosTab() {
+export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 'empresa' }) {
+  const termo = TERMOS[contaTipo];
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [search, setSearch] = useState('');
@@ -248,7 +258,7 @@ export function MembrosTab() {
 
   const handleDeactivate = async (membro: MembroListItem) => {
     const ok = await confirm({
-      title: 'Desativar membro',
+      title: `Desativar ${termo.singular}`,
       message: `Desativar "${membro.nome}"? O login dele será bloqueado e os dados ficam ocultos, mas preservados.`,
       confirmLabel: 'Desativar',
     });
@@ -283,15 +293,15 @@ export function MembrosTab() {
         search={{ value: search, onChange: setSearch, placeholder: 'Buscar por nome ou email...' }}
         action={
           <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setNovoDialogOpen(true); }}>
-            Novo membro
+            Novo {termo.singular}
           </Button>
         }
       />
 
       {listQuery.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Carregando membros...</p>
+        <p className="py-10 text-center text-sm text-slate-400">Carregando {termo.singular}s...</p>
       ) : list.length === 0 ? (
-        <EmptyState icon={ShieldAlert} title="Nenhum membro vinculado ainda" />
+        <EmptyState icon={ShieldAlert} title={`Nenhum ${termo.singular} vinculado ainda`} />
       ) : (
         <div className="grid gap-2">
           {list.map((m, i) => (
@@ -318,7 +328,7 @@ export function MembrosTab() {
                     type="button"
                     onClick={() => handleDeactivate(m)}
                     className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
-                    title="Desativar membro"
+                    title={`Desativar ${termo.singular}`}
                   >
                     <UserX size={13} /> Desativar
                   </button>
@@ -342,6 +352,7 @@ export function MembrosTab() {
         open={novoDialogOpen}
         isSaving={createMut.isPending}
         error={mutError}
+        termo={termo}
         onClose={() => setNovoDialogOpen(false)}
         onSave={(body) => createMut.mutate(body)}
       />
@@ -354,6 +365,7 @@ export function MembrosTab() {
           outrosMembros={outrosMembros}
           isSaving={deactivateMut.isPending}
           error={mutError}
+          termo={termo}
           onClose={() => setPendingDialog(null)}
           onConfirm={handleConfirmTransfer}
         />
