@@ -264,7 +264,7 @@ export function AppShell({
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
           <button
             onClick={() => openConfig()}
-            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[rgba(14,196,216,0.5)] transition hover:bg-[rgba(14,196,216,0.06)] hover:text-[#E8F4F5]"
+            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
           >
             <Settings size={17} />
             <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
