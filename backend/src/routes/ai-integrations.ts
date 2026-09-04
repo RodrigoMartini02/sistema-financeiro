@@ -1,5 +1,5 @@
 import { Request, Response, Router } from 'express';
-import { authenticate, requireMaster } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import {
   AiIntegrationInputError,
   listAiIntegrationSettings,
@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-router.get('/', authenticate, requireMaster, async (_req: Request, res: Response): Promise<void> => {
+router.get('/', authenticate, requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     res.json({ success: true, data: await listAiIntegrationSettings() });
   } catch (error) {
@@ -18,7 +18,7 @@ router.get('/', authenticate, requireMaster, async (_req: Request, res: Response
   }
 });
 
-router.put('/:provider', authenticate, requireMaster, async (req: Request, res: Response): Promise<void> => {
+router.put('/:provider', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as Record<string, unknown>;
     const saved = await saveAiIntegration({
@@ -40,7 +40,7 @@ router.put('/:provider', authenticate, requireMaster, async (req: Request, res: 
   }
 });
 
-router.post('/test', authenticate, requireMaster, async (req: Request, res: Response): Promise<void> => {
+router.post('/test', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as Record<string, unknown>;
     await testAiIntegration({ provider: body['provedor'], model: body['modelo'], apiKey: body['token'] });

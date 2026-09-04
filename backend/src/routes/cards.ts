@@ -14,7 +14,7 @@ const TIPOS_VALIDOS = ['credito', 'debito', 'ambos'];
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    const targetUserId = usuario_id && req.user!.type === 'master' ? parseInt(usuario_id) : req.user!.id;
+    const targetUserId = usuario_id && req.user!.type === 'admin' ? parseInt(usuario_id) : req.user!.id;
 
     let whereClause = 'WHERE c.usuario_id = $1';
     const params: unknown[] = [targetUserId];

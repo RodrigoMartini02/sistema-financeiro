@@ -23,7 +23,7 @@ type PlanTipo = 'mensal' | 'premium' | 'anual' | 'premium_anual';
 
 interface PlanoStatus {
   status: 'trial' | 'ativo' | 'expirado';
-  plano_tipo: PlanTipo | 'master' | null;
+  plano_tipo: PlanTipo | 'admin' | null;
   plano_expiracao: string | null;
   dias_restantes_trial: number | null;
   data_cadastro: string;
@@ -650,7 +650,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="flex-1">
               <p className="font-bold text-slate-900">
-                {s.status === 'ativo'    ? `Plano ${s.plano_tipo === 'master' ? 'Master' : s.plano_tipo?.includes('premium') ? 'Premium' : 'Plus'} ativo` :
+                {s.status === 'ativo'    ? `Plano ${s.plano_tipo === 'admin' ? 'Admin' : s.plano_tipo?.includes('premium') ? 'Premium' : 'Plus'} ativo` :
                  s.status === 'trial'   ? 'Período de teste gratuito' : 'Plano expirado'}
               </p>
               <p className="text-sm text-slate-500">

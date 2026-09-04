@@ -18,15 +18,15 @@ import { useConfirm } from '../../context/ConfirmContext';
 
 const TIPO_ACESSO_OPTIONS = [
   { value: 'padrao', label: 'Padrão', description: 'Acesso básico ao sistema' },
-  { value: 'admin',  label: 'Admin',  description: 'Gerencia usuários e configurações' },
-  { value: 'master', label: 'Master', description: 'Acesso total ao sistema' },
+  { value: 'gestor', label: 'Gestor', description: 'Dono de conta' },
+  { value: 'admin',  label: 'Admin',  description: 'Acesso total à plataforma' },
 ];
 
 function UsuarioDialog({
-  open, usuario, isSaving, error, isMaster, onClose, onSave, onDelete, onToggleStatus,
+  open, usuario, isSaving, error, isAdmin, onClose, onSave, onDelete, onToggleStatus,
 }: {
   open: boolean; usuario?: UsuarioListItem; isSaving: boolean; error?: string;
-  isMaster: boolean;
+  isAdmin: boolean;
   onClose: () => void; onSave: (body: UsuarioCreateBody) => void;
   onDelete?: () => void;
   onToggleStatus?: (status: string) => void;
@@ -56,7 +56,7 @@ function UsuarioDialog({
       email:     fd.get('email') as string,
       documento: fd.get('documento') as string,
       senha:     fd.get('senha') as string,
-      tipo:      isMaster ? tipoAcesso : 'padrao',
+      tipo:      isAdmin ? tipoAcesso : 'padrao',
       status:    'ativo',
     });
   };
@@ -92,7 +92,7 @@ function UsuarioDialog({
             )}
           </div>
 
-          {isMaster && (
+          {isAdmin && (
             <div style={cardStyle}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 <label style={labelStyle}>PERMISSÃO DE ACESSO</label>
@@ -140,7 +140,7 @@ function UsuarioDialog({
                   onSilenceAll={desativarGuide.silenceAll}
                 />
               )}
-              {isMaster && onDelete && (
+              {isAdmin && onDelete && (
                 <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
               )}
             </div>
@@ -170,7 +170,7 @@ interface Props { userTipo: string }
 
 export function UsuariosTab({ userTipo }: Props) {
   const qc = useQueryClient();
-  const isMaster = userTipo === 'master';
+  const isAdmin = userTipo === 'admin';
 
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState('');
@@ -243,8 +243,8 @@ export function UsuariosTab({ userTipo }: Props) {
           options={[
             { value: 'todos', label: 'Todos' },
             { value: 'padrao', label: 'Padrão' },
-            { value: 'admin', label: 'Admin' },
-            ...(isMaster ? [{ value: 'master', label: 'Master' }] : []),
+            { value: 'gestor', label: 'Gestor' },
+            ...(isAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
           ]}
           onChange={(v) => { setTipo(v); setPage(1); }}
         />
@@ -258,7 +258,7 @@ export function UsuariosTab({ userTipo }: Props) {
           ]}
           onChange={(v) => { setStatus(v); setPage(1); }}
         />
-        {isMaster && (
+        {isAdmin && (
           <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
             Novo usuário
           </Button>
@@ -316,7 +316,7 @@ export function UsuariosTab({ userTipo }: Props) {
       <UsuarioDialog
         open={dialog.open}
         usuario={dialog.item}
-        isMaster={isMaster}
+        isAdmin={isAdmin}
         isSaving={createMut.isPending}
         error={mutError}
         onClose={() => setDialog({ open: false })}

@@ -4,9 +4,9 @@ import { getEffectivePlanAccess, PLAN_STATUS } from './plan-access';
 
 const now = new Date('2026-08-08T12:00:00-03:00');
 
-test('keeps master access active regardless of stored plan data', () => {
+test('keeps admin access active regardless of stored plan data', () => {
   const result = getEffectivePlanAccess({
-    userType: 'master',
+    userType: 'admin',
     planStatus: PLAN_STATUS.expired,
     planExpiration: '2026-01-01 00:00:00',
     createdAt: '2026-01-01 00:00:00',

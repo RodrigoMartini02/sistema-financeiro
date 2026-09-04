@@ -37,7 +37,7 @@ router.get('/status', authenticate, async (req: Request, res: Response): Promise
       success: true,
       data: {
         status: planStatus.status,
-        plano_tipo: planStatus.userType === 'master' ? 'master' : planStatus.planType,
+        plano_tipo: planStatus.userType === 'admin' ? 'admin' : planStatus.planType,
         plano_expiracao: planStatus.planExpiration,
         dias_restantes_trial: planStatus.trialDaysLeft,
         data_cadastro: planStatus.createdAt,

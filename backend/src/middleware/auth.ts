@@ -5,8 +5,8 @@ import { getPlanStatusForUser, isPlanAccessActive } from '../services/plan-lifec
 interface TokenPayload {
   id: number;
   document: string;
-  type: 'padrao' | 'admin' | 'master';
-  tipo?: 'padrao' | 'admin' | 'master';
+  type: 'padrao' | 'gestor' | 'admin';
+  tipo?: 'padrao' | 'gestor' | 'admin';
   documento?: string;
 }
 
@@ -55,17 +55,19 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || (req.user.type !== 'admin' && req.user.type !== 'master')) {
-    res.status(403).json({ success: false, message: 'Access denied. Admins only.' });
+// Gestor (dono de conta) ou Admin (plataforma) — acesso de escopo de conta.
+export function requireGestor(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user || (req.user.type !== 'gestor' && req.user.type !== 'admin')) {
+    res.status(403).json({ success: false, message: 'Access denied. Account managers only.' });
     return;
   }
   next();
 }
 
-export function requireMaster(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.type !== 'master') {
-    res.status(403).json({ success: false, message: 'Access denied. Master user only.' });
+// Admin (desenvolvedor/dono da plataforma) — acesso total, único papel de backoffice.
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user || req.user.type !== 'admin') {
+    res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
     return;
   }
   next();

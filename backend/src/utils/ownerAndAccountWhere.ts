@@ -1,7 +1,7 @@
 import { accountWhere } from './accountFilter';
 
 // Cláusula WHERE compartilhada por rotas de despesas/receitas: resolve o
-// usuário-alvo (permitindo `master` consultar por outro usuário via query
+// usuário-alvo (permitindo `admin` consultar por outro usuário via query
 // param), filtra por mês/ano quando informados, e aplica o filtro de conta
 // (delegado a accountWhere, mesma regra de fallback usada em todo o backend).
 export function buildOwnerAndAccountWhere(
@@ -16,7 +16,7 @@ export function buildOwnerAndAccountWhere(
   const params: unknown[] = [];
   let p = 0;
 
-  const targetUserId = queryUserId && userType === 'master' ? parseInt(queryUserId) : userId;
+  const targetUserId = queryUserId && userType === 'admin' ? parseInt(queryUserId) : userId;
   p++;
   let where = `WHERE ${tableAlias}.usuario_id = $${p}`;
   params.push(targetUserId);

@@ -179,7 +179,7 @@ router.post(
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
-            type: (tipo as 'padrao' | 'admin' | 'master' | undefined) ?? 'padrao',
+            type: (tipo as 'padrao' | 'gestor' | 'admin' | undefined) ?? 'padrao',
             status: 'ativo',
             googleId: google_id ?? null,
             country: pais ?? null,

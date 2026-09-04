@@ -66,9 +66,8 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
   const meTipo = me?.tipo;
   const meDocument = (me?.documento ?? '').replace(/\D/g, '');
-  const isAdminOrMaster = meTipo === 'admin' || meTipo === 'master';
+  const isAdmin = meTipo === 'admin';
   const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
-  const isMaster = meTipo === 'master';
   const contaTipo = localStorage.getItem('contaAtivaTipo');
 
   const [activeItem, setActiveItemState] = useResettableItem(open, initialItem);
@@ -79,7 +78,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
 
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
-    if (item.id === 'integracoes-ia') return isMaster;
+    if (item.id === 'integracoes-ia') return isAdmin;
     if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
     return true;
   });
@@ -121,12 +120,12 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {activeItem === 'servicos' && <ServicosTab />}
           {activeItem === 'representantes' && <RepresentantesTab />}
           {activeItem === 'socios' && <SociosTab />}
-          {activeItem === 'usuarios' && isAdminOrMaster && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
-          {activeItem === 'usuarios' && !isAdminOrMaster && (
+          {activeItem === 'usuarios' && isAdmin && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
+          {activeItem === 'usuarios' && !isAdmin && (
             <p className="py-8 text-center text-sm text-slate-400">Acesso restrito a administradores.</p>
           )}
           {activeItem === 'acessos' && canViewAnalytics && <AcessosTab />}
-          {activeItem === 'integracoes-ia' && isMaster && <IntegracoesIaTab />}
+          {activeItem === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
         </div>
       </div>
     </Drawer>
