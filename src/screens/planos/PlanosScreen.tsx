@@ -593,7 +593,7 @@ function CancelarDialog({ onClose, onCanceled }: { onClose: () => void; onCancel
 
 // ─── main screen ──────────────────────────────────────────────
 
-export function PlanosScreen() {
+export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient();
   const [pagDialog, setPagDialog] = useState<SelectedPlan | null>(null);
   const [cancelDialog, setCancelDialog] = useState(false);
@@ -620,12 +620,14 @@ export function PlanosScreen() {
   const isAtual = (key: PlanKey) => planoCurrent === PLANO_DEF[key].tipo;
 
   return (
-    <div className="mx-auto grid max-w-4xl gap-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-sm font-semibold text-brand-700">Assinatura</p>
-          <h2 className="mt-1 text-2xl font-bold text-slate-950">Planos e cobrança</h2>
-        </div>
+    <div className={embedded ? 'grid gap-6' : 'mx-auto grid max-w-4xl gap-6'}>
+      <div className={embedded ? 'flex justify-end' : 'flex items-end justify-between'}>
+        {!embedded && (
+          <div>
+            <p className="text-sm font-semibold text-brand-700">Assinatura</p>
+            <h2 className="mt-1 text-2xl font-bold text-slate-950">Planos e cobrança</h2>
+          </div>
+        )}
         <button
           onClick={() => { qc.invalidateQueries({ queryKey: queryKeys.planStatus }); }}
           className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition"
