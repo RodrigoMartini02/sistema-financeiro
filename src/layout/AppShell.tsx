@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import {
-  BarChart3, Bell, Building2, FileText, LayoutDashboard,
+  BarChart3, Bell, Building2, LayoutDashboard,
   Moon, Settings, Sun, TrendingDown, Wallet, X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
   | 'painel' | 'movimentacoes' | 'reservas'
-  | 'relatorios' | 'planos' | 'clientes';
+  | 'relatorios' | 'clientes';
 
 interface AppShellProps {
   user?: AuthUser;
@@ -41,13 +41,7 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementTy
     items: [
       { label: 'Painel',    icon: LayoutDashboard, section: 'painel' },
       { label: 'Movimenta\u00e7\u00f5es', icon: Wallet, section: 'movimentacoes' },
-    ],
-  },
-  {
-    label: 'Análise',
-    items: [
-      { label: 'Relatórios', icon: BarChart3, section: 'relatorios' },
-      { label: 'Planos',     icon: FileText,  section: 'planos' },
+      { label: 'Relat\u00f3rios', icon: BarChart3, section: 'relatorios' },
     ],
   },
   {
@@ -158,7 +152,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 }
 
 const CONFIG_ITEM_IDS: ConfigItemId[] = [
-  'seguranca', 'contas', 'categorias', 'cartoes', 'servicos',
+  'seguranca', 'contas', 'assinatura', 'categorias', 'cartoes', 'servicos',
   'representantes', 'socios', 'usuarios', 'acessos', 'integracoes-ia',
 ];
 
@@ -229,15 +223,13 @@ export function AppShell({
       <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
         <div className="shrink-0 space-y-4">
           {NAV_GROUPS.map((group) => {
-            const items = isDemoMode ? group.items.filter((item) => item.section !== 'planos') : group.items;
-            if (items.length === 0) return null;
             return (
             <div key={group.label}>
               <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
                 {group.label}
               </p>
               <div className="space-y-0.5">
-                {items.map((item) => {
+                {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.section;
                   return (

@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Users, Activity, ShoppingBag,
+  Tag, UserCheck, Users, Activity, ShoppingBag, Crown,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { fetchMe } from '../services/usuariosService';
+import { PlanosScreen } from '../screens/planos/PlanosScreen';
 import { SecurityTab } from '../screens/config/SecurityTab';
 import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
@@ -19,7 +20,7 @@ import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
-  | 'seguranca' | 'contas'
+  | 'seguranca' | 'contas' | 'assinatura'
   | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
@@ -27,6 +28,7 @@ const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
   { id: 'contas',         label: 'Contas',         icon: Layers },
+  { id: 'assinatura',     label: 'Assinatura',     icon: Crown },
   { id: 'seguranca',      label: 'Segurança',      icon: KeyRound },
   { id: 'categorias',     label: 'Categorias',     icon: Tag },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard },
@@ -115,6 +117,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
         <div className="scrollbar-thin min-w-0 flex-1 overflow-y-auto">
           {activeItem === 'seguranca' && <SecurityTab />}
           {activeItem === 'contas' && <ContasTab />}
+          {activeItem === 'assinatura' && <PlanosScreen embedded />}
           {activeItem === 'categorias' && <CategoriasTab />}
           {activeItem === 'cartoes' && <CartaoTab />}
           {activeItem === 'servicos' && <ServicosTab />}

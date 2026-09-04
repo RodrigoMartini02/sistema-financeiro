@@ -167,7 +167,6 @@ function AppContent() {
       case 'movimentacoes': return <MovimentacoesScreen onManageReserves={() => handleNavigate('reservas')} />;
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
-      case 'planos':        return <PlanosScreen />;
       case 'clientes':      return <ClientesTab />;
     }
   };
