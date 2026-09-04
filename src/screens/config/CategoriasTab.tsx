@@ -7,6 +7,7 @@ import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -275,81 +276,75 @@ export function CategoriasTab() {
   });
 
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-4 content-start rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-            <h3 className="text-sm font-semibold text-red-700">Despesas</h3>
-            <span className="text-xs text-slate-400">
-              {roots.length} raiz{allCats.length > roots.length ? ` - ${allCats.length - roots.length} sub` : ''}
-            </span>
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setDialog({ open: true })}
-              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
-            >
-              <Plus size={14} />
-              Nova categoria
-            </button>
-
-            {guideNovaCategoria.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="top"
-                align="right"
-                className="w-[min(25rem,calc(100vw-2rem))]"
-                icon={Tag}
-                description={firstAccessGuideMessages.categoriasNova}
-                onDismiss={guideNovaCategoria.dismiss}
-                onSilenceAll={guideNovaCategoria.silenceAll}
-              />
-            )}
-          </div>
+    <div className="grid gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+          <h3 className="text-sm font-semibold text-red-700">Despesas</h3>
+          <span className="text-xs text-slate-400">
+            {roots.length} raiz{allCats.length > roots.length ? ` - ${allCats.length - roots.length} sub` : ''}
+          </span>
         </div>
+        <div className="relative">
+          <Button size="sm" variant="danger" icon={<Plus size={14} />} onClick={() => setDialog({ open: true })}>
+            Nova categoria
+          </Button>
 
-        {cats.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
-
-        <div className="grid gap-2">
-          {tree.map((c, i) => (
-            <CategoriaRow
-              key={c.id}
-              cat={c}
-              index={i}
-              colorScheme="red"
-              onEdit={(item) => setDialog({ open: true, item })}
-              onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
-              subcategoryGuide={i === 0 && guideSubcategoria.isVisible
-                ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
-                : undefined}
+          {guideNovaCategoria.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="w-[min(25rem,calc(100vw-2rem))]"
+              icon={Tag}
+              description={firstAccessGuideMessages.categoriasNova}
+              onDismiss={guideNovaCategoria.dismiss}
+              onSilenceAll={guideNovaCategoria.silenceAll}
             />
-          ))}
-          {tree.length === 0 && !cats.isLoading && (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center shadow-sm">
-              <p className="text-sm font-semibold text-slate-600">Nenhuma categoria cadastrada</p>
-              <p className="mt-1 text-xs text-slate-400">Crie categorias para organizar despesas e relatorios.</p>
-              <div className="mt-4">
-                <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-                  Criar categoria
-                </Button>
-              </div>
-            </div>
           )}
         </div>
-
-        <CategoriaDialog
-          open={dialog.open}
-          cat={dialog.item}
-          initialParentId={dialog.parentId}
-          isSaving={saveMut.isPending}
-          error={saveMut.error?.message}
-          onClose={() => setDialog({ open: false })}
-          onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
-          onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
-        />
       </div>
+
+      {cats.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+
+      <div className="grid gap-2">
+        {tree.map((c, i) => (
+          <CategoriaRow
+            key={c.id}
+            cat={c}
+            index={i}
+            colorScheme="red"
+            onEdit={(item) => setDialog({ open: true, item })}
+            onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
+            subcategoryGuide={i === 0 && guideSubcategoria.isVisible
+              ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
+              : undefined}
+          />
+        ))}
+        {tree.length === 0 && !cats.isLoading && (
+          <EmptyState
+            icon={Tag}
+            title="Nenhuma categoria cadastrada"
+            description="Crie categorias para organizar despesas e relatórios."
+            action={
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setDialog({ open: true })}>
+                Criar categoria
+              </Button>
+            }
+          />
+        )}
+      </div>
+
+      <CategoriaDialog
+        open={dialog.open}
+        cat={dialog.item}
+        initialParentId={dialog.parentId}
+        isSaving={saveMut.isPending}
+        error={saveMut.error?.message}
+        onClose={() => setDialog({ open: false })}
+        onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
+        onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
+      />
     </div>
   );
 }

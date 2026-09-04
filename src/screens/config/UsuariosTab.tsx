@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ChevronLeft, ChevronRight, ShieldAlert, UserCheck, UserX } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, ShieldAlert, UserCheck, UserX } from 'lucide-react';
 import {
   fetchUsuarios, createUsuario, updateUsuarioStatus, deleteUsuario,
   type UsuarioListItem, type UsuarioCreateBody,
@@ -10,6 +10,8 @@ import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { ToggleGroup } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ListToolbar } from '../../ui/ListToolbar';
+import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -209,70 +211,58 @@ export function UsuariosTab({ userTipo }: Props) {
     onSuccess: () => { invalidate(); setDialog({ open: false }); },
   });
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setPage(1);
-  };
-
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-3">
       {/* Toolbar */}
-      <div className="relative flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={handleSearch}
-            placeholder="Buscar por nome, email ou documento..."
-            className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-          {filterGuide.isVisible && (
-            <FirstAccessGuideCard
-              icon={Search}
-              description={firstAccessGuideMessages.usuariosFiltros}
-              floating
-              placement="bottom"
-              className="w-[min(24rem,calc(100vw-2rem))]"
-              onDismiss={filterGuide.dismiss}
-              onSilenceAll={filterGuide.silenceAll}
-            />
+      <div className="relative flex flex-col gap-2">
+        <ListToolbar
+          search={{ value: search, onChange: (v) => { setSearch(v); setPage(1); }, placeholder: 'Buscar por nome, email ou documento...' }}
+          action={isAdmin && (
+            <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
+              Novo usuário
+            </Button>
           )}
-        </div>
-        <ToggleGroup
-          value={tipo}
-          options={[
-            { value: 'todos', label: 'Todos' },
-            { value: 'padrao', label: 'Padrão' },
-            { value: 'gestor', label: 'Gestor' },
-            ...(isAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
-          ]}
-          onChange={(v) => { setTipo(v); setPage(1); }}
         />
-        <ToggleGroup
-          value={status}
-          options={[
-            { value: 'todos',    label: 'Todos' },
-            { value: 'ativo',    label: 'Ativo' },
-            { value: 'inativo',  label: 'Inativo' },
-            { value: 'bloqueado', label: 'Bloqueado' },
-          ]}
-          onChange={(v) => { setStatus(v); setPage(1); }}
-        />
-        {isAdmin && (
-          <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
-            Novo usuário
-          </Button>
+        {filterGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={ShieldAlert}
+            description={firstAccessGuideMessages.usuariosFiltros}
+            floating
+            placement="bottom"
+            className="w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={filterGuide.dismiss}
+            onSilenceAll={filterGuide.silenceAll}
+          />
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            value={tipo}
+            options={[
+              { value: 'todos', label: 'Todos' },
+              { value: 'padrao', label: 'Padrão' },
+              { value: 'gestor', label: 'Gestor' },
+              ...(isAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
+            ]}
+            onChange={(v) => { setTipo(v); setPage(1); }}
+          />
+          <ToggleGroup
+            value={status}
+            options={[
+              { value: 'todos',    label: 'Todos' },
+              { value: 'ativo',    label: 'Ativo' },
+              { value: 'inativo',  label: 'Inativo' },
+              { value: 'bloqueado', label: 'Bloqueado' },
+            ]}
+            onChange={(v) => { setStatus(v); setPage(1); }}
+          />
+        </div>
       </div>
 
       {/* List */}
       {listQuery.isLoading ? (
         <p className="py-10 text-center text-sm text-slate-400">Carregando usuários...</p>
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-slate-400">
-          <ShieldAlert size={32} strokeWidth={1.5} />
-          <p className="text-sm">Nenhum usuário encontrado</p>
-        </div>
+        <EmptyState icon={ShieldAlert} title="Nenhum usuário encontrado" />
       ) : (
         <div className="grid gap-2">
           {list.map((u, i) => (

@@ -10,6 +10,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -122,10 +124,10 @@ export function SociosTab() {
   });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} sócio{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
+        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
           Novo sócio
         </Button>
         {createGuide.isVisible && (
@@ -142,14 +144,14 @@ export function SociosTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <InfoBanner variant="warn">
         Sócios representam participações no negócio. O total de participações deve somar 100%.
         {totalPct > 0 && (
           <span className={['ml-2 font-bold', totalPct > 100 ? 'text-red-700' : totalPct === 100 ? 'text-green-700' : 'text-amber-700'].join(' ')}>
             Total atual: {totalPct.toFixed(2)}%
           </span>
         )}
-      </div>
+      </InfoBanner>
 
       {socios.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
@@ -165,7 +167,7 @@ export function SociosTab() {
           />
         ))}
         {data.length === 0 && !socios.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">Nenhum sócio cadastrado</p>
+          <EmptyState title="Nenhum sócio cadastrado" />
         )}
       </div>
 

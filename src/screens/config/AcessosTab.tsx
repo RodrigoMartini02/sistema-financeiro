@@ -4,6 +4,8 @@ import { AlertCircle, LogIn, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { fetchAnalyticsOverview } from '../../services/analyticsService';
 import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
+import { ToggleGroup } from '../../ui/form';
+import { InfoBanner } from '../../ui/InfoBanner';
 
 const PERIOD_OPTIONS = [
   { value: 7, label: '7 dias' },
@@ -74,33 +76,22 @@ export function AcessosTab() {
   ];
 
   return (
-    <div className="grid gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-slate-700">Resumo dos últimos {days} dias</p>
           <p className="mt-1 text-xs text-slate-400">Logins e novas contas do sistema.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-            {PERIOD_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setDays(option.value)}
-                className={[
-                  'rounded-md px-3 py-1.5 text-xs font-semibold transition',
-                  days === option.value
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
-                ].join(' ')}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <ToggleGroup
+            value={String(days)}
+            options={PERIOD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+            onChange={(v) => setDays(Number(v))}
+          />
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             icon={<RefreshCw size={14} className={overviewQuery.isFetching ? 'animate-spin' : ''} />}
             onClick={() => overviewQuery.refetch()}
           >
@@ -110,13 +101,15 @@ export function AcessosTab() {
       </div>
 
       {overview && !overview.eventsAvailable && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold">Estatísticas de acesso ainda não disponíveis</p>
-            <p className="mt-1 text-xs text-amber-700">As contas criadas já aparecem pela tabela de usuários.</p>
+        <InfoBanner variant="warn">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="font-semibold">Estatísticas de acesso ainda não disponíveis</p>
+              <p className="mt-1 text-xs text-amber-700">As contas criadas já aparecem pela tabela de usuários.</p>
+            </div>
           </div>
-        </div>
+        </InfoBanner>
       )}
 
       <div className="grid gap-3 sm:grid-cols-3">

@@ -10,6 +10,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -139,12 +141,12 @@ export function ServicosTab() {
   });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">
           {data.length} serviço{data.length !== 1 ? 's' : ''} no catálogo
         </p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
+        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
           Novo serviço
         </Button>
         {createGuide.isVisible && (
@@ -161,9 +163,9 @@ export function ServicosTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+      <InfoBanner>
         Serviços do catálogo são reutilizáveis entre contratos. O valor padrão pode ser ajustado por contrato.
-      </div>
+      </InfoBanner>
 
       {servicosQ.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
@@ -178,9 +180,11 @@ export function ServicosTab() {
           />
         ))}
         {data.length === 0 && !servicosQ.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-            Nenhum serviço cadastrado. Crie serviços para vincular aos contratos dos clientes.
-          </p>
+          <EmptyState
+            icon={Layers}
+            title="Nenhum serviço cadastrado"
+            description="Crie serviços para vincular aos contratos dos clientes."
+          />
         )}
       </div>
 

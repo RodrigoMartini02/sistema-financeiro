@@ -8,6 +8,9 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ToggleGroup } from '../../ui/form';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -495,30 +498,22 @@ export function ContasTab() {
   };
 
   return (
-    <div className="grid gap-4">
-      <div className="relative flex items-center justify-between gap-3">
+    <div className="grid gap-3">
+      <div className="relative flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <p className="text-sm text-slate-500">
             {listaExibida.length} conta(s) {mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}
           </p>
-          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setMostrarDesativados(false)}
-              className={`rounded-md px-2.5 py-1 transition ${!mostrarDesativados ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Ativas
-            </button>
-            <button
-              type="button"
-              onClick={() => setMostrarDesativados(true)}
-              className={`rounded-md px-2.5 py-1 transition ${mostrarDesativados ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Desativadas
-            </button>
-          </div>
+          <ToggleGroup
+            value={mostrarDesativados ? 'desativadas' : 'ativas'}
+            options={[
+              { value: 'ativas', label: 'Ativas' },
+              { value: 'desativadas', label: 'Desativadas' },
+            ]}
+            onChange={(v) => setMostrarDesativados(v === 'desativadas')}
+          />
         </div>
-        <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
+        <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
           Nova conta
         </Button>
         {createGuide.isVisible && (
@@ -535,9 +530,9 @@ export function ContasTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <InfoBanner variant="warn">
         As contas separam os dados financeiros. Cada empresa ou conta pessoal tem suas próprias receitas, despesas e reservas.
-      </div>
+      </InfoBanner>
 
       {contasQuery.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
@@ -573,9 +568,7 @@ export function ContasTab() {
           </div>
         ))}
         {listaExibida.length === 0 && !contasQuery.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-            {mostrarDesativados ? 'Nenhuma conta desativada.' : 'Nenhuma conta encontrada.'}
-          </p>
+          <EmptyState title={mostrarDesativados ? 'Nenhuma conta desativada' : 'Nenhuma conta encontrada'} />
         )}
       </div>
 

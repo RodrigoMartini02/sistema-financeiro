@@ -7,6 +7,7 @@ import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -271,10 +272,10 @@ export function CartaoTab() {
   const data = cartoes.data ?? [];
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} cartão/cartões cadastrado(s)</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
+        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
           Novo cartão
         </Button>
         {createGuide.isVisible && (
@@ -294,69 +295,55 @@ export function CartaoTab() {
       {cartoes.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
       {data.length === 0 && !cartoes.isLoading && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-10 text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <CreditCard size={36} strokeWidth={1.5} />
-          <div className="text-center">
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum cartão cadastrado</p>
-            <p className="mt-1 text-xs text-slate-400">Cadastre um cartão para acompanhar limite e vencimento.</p>
-          </div>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="Nenhum cartão cadastrado"
+          description="Cadastre um cartão para acompanhar limite e vencimento."
+        />
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid gap-2">
         {data.map((c) => {
           const cor = c.cor ?? '#1e293b';
           return (
             <div
               key={c.id}
-              className="relative overflow-hidden rounded-2xl p-5 shadow-md"
-              style={{ background: `linear-gradient(135deg, ${cor} 0%, ${cor}cc 100%)` }}
+              className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white py-3 pl-3 pr-4 shadow-sm transition hover:shadow-md"
+              style={{ borderLeft: `3px solid ${cor}` }}
             >
-              <div className="flex items-start justify-between mb-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <CreditCard size={20} className="text-white" />
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white hover:bg-white/25 transition"
-                    onClick={() => setDialog({ open: true, item: c })}
-                    title="Editar"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white hover:bg-red-400/40 transition"
-                    onClick={() => handleDeleteCartao(c)}
-                    title="Excluir"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `${cor}1a`, color: cor }}>
+                <CreditCard size={16} />
               </div>
 
-              <p className="font-mono text-sm tracking-widest text-white/60 mb-1">
-                •••• •••• •••• {c.numero_cartao ?? '????'}
-              </p>
-              <div className="mb-4 flex items-center gap-2">
-                <p className="text-base font-bold text-white">{c.nome}</p>
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
-                  {c.tipo === 'credito' ? 'Crédito' : c.tipo === 'debito' ? 'Débito' : c.tipo === 'ambos' ? 'Ambos' : 'Tipo não definido'}
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold text-slate-900">{c.nome}</p>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {c.tipo === 'credito' ? 'Crédito' : c.tipo === 'debito' ? 'Débito' : c.tipo === 'ambos' ? 'Ambos' : 'Sem tipo'}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate font-mono text-xs text-slate-400">
+                  •••• {c.numero_cartao ?? '????'}
+                  {c.limite ? ` · Limite R$ ${Number(c.limite).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
+                  {c.dia_vencimento ? ` · Venc. dia ${c.dia_vencimento}` : ''}
+                </p>
               </div>
 
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Limite</p>
-                  <p className="text-sm font-bold text-white">
-                    {c.limite ? `R$ ${Number(c.limite).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Vencimento</p>
-                  <p className="text-sm font-bold text-white">
-                    {c.dia_vencimento ? `Dia ${c.dia_vencimento}` : '—'}
-                  </p>
-                </div>
+              <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                  onClick={() => setDialog({ open: true, item: c })}
+                  title="Editar"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                  onClick={() => handleDeleteCartao(c)}
+                  title="Excluir"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
           );

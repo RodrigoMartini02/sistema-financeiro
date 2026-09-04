@@ -11,6 +11,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -356,10 +358,10 @@ export function RepresentantesTab() {
   });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="relative flex items-center justify-between">
         <p className="text-sm text-slate-500">{data.length} representante{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
+        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
           Novo representante
         </Button>
         {createGuide.isVisible && (
@@ -376,9 +378,9 @@ export function RepresentantesTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <InfoBanner>
         Representantes recebem comissão automática calculada sobre receitas por tipo. Configure os percentuais por categoria.
-      </div>
+      </InfoBanner>
 
       {reps.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
 
@@ -394,7 +396,7 @@ export function RepresentantesTab() {
           />
         ))}
         {data.length === 0 && !reps.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">Nenhum representante cadastrado</p>
+          <EmptyState title="Nenhum representante cadastrado" />
         )}
       </div>
 

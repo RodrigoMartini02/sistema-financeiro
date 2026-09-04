@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
+import { Plus, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
 import {
   fetchMembros, createMembro, deactivateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
@@ -14,6 +14,8 @@ import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ToggleRow } from '../../ui/form';
+import { ListToolbar } from '../../ui/ListToolbar';
+import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
 
 function NovoMembroDialog({
@@ -276,29 +278,20 @@ export function MembrosTab() {
     : [];
 
   return (
-    <div className="grid gap-5">
-      <div className="relative flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou email..."
-            className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
-        <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setNovoDialogOpen(true); }}>
-          Novo membro
-        </Button>
-      </div>
+    <div className="grid gap-3">
+      <ListToolbar
+        search={{ value: search, onChange: setSearch, placeholder: 'Buscar por nome ou email...' }}
+        action={
+          <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setNovoDialogOpen(true); }}>
+            Novo membro
+          </Button>
+        }
+      />
 
       {listQuery.isLoading ? (
         <p className="py-10 text-center text-sm text-slate-400">Carregando membros...</p>
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-slate-400">
-          <ShieldAlert size={32} strokeWidth={1.5} />
-          <p className="text-sm">Nenhum membro vinculado ainda</p>
-        </div>
+        <EmptyState icon={ShieldAlert} title="Nenhum membro vinculado ainda" />
       ) : (
         <div className="grid gap-2">
           {list.map((m, i) => (
