@@ -359,7 +359,7 @@ export async function processPlanLifecycle(): Promise<PlanLifecycleResult> {
   let createdNotifications = 0;
 
   for (const candidate of candidates) {
-    if (candidate.userType === 'master') {
+    if (candidate.userType === 'admin') {
       continue;
     }
 

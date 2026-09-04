@@ -46,7 +46,7 @@ export const firstAccessGuideMessages = {
   contasEnquadramento: 'Escolher um enquadramento cria categorias de despesas automaticamente para essa conta.',
 
   // Usu\u00e1rios
-  usuariosDesativarExcluir: 'Desativar bloqueia o login e pode ser revertido. Excluir \u00e9 permanente e s\u00f3 o usu\u00e1rio master pode fazer.',
+  usuariosDesativarExcluir: 'Desativar bloqueia o login e pode ser revertido. Excluir \u00e9 permanente e s\u00f3 o administrador pode fazer.',
 
   // Clientes/Contratos
   clientesNovo: 'Clique em Novo cliente para cadastrar uma empresa e depois criar contratos vinculados a ela.',

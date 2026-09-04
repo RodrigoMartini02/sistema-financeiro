@@ -3,10 +3,11 @@ import bcrypt from 'bcryptjs';
 import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, categories, cards as cardsTable, expenses, incomes, reserves, months } from '../db/schema';
-import { authenticate, requireAdmin, requireMaster } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { accountWhere } from '../utils/accountFilter';
+import { canActOnResource } from '../middleware/permissions';
 
 const router = Router();
 
@@ -178,8 +179,8 @@ router.delete('/me/cancel', authenticate, async (req: Request, res: Response): P
       return;
     }
 
-    if (user.type === 'master') {
-      res.status(403).json({ success: false, message: 'Master account cannot be cancelled through this flow' });
+    if (user.type === 'admin') {
+      res.status(403).json({ success: false, message: 'Admin account cannot be cancelled through this flow' });
       return;
     }
 
@@ -276,8 +277,8 @@ router.put('/current/photo', authenticate, async (req: Request, res: Response): 
   }
 });
 
-// GET /api/users/stats/general (Master only)
-router.get('/stats/general', authenticate, requireMaster, async (_req: Request, res: Response): Promise<void> => {
+// GET /api/users/stats/general (Admin only)
+router.get('/stats/general', authenticate, requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(`
       SELECT
@@ -286,11 +287,11 @@ router.get('/stats/general', authenticate, requireMaster, async (_req: Request, 
         COUNT(CASE WHEN status = 'inativo' THEN 1 END) AS inactive_users,
         COUNT(CASE WHEN status = 'bloqueado' THEN 1 END) AS blocked_users,
         COUNT(CASE WHEN tipo = 'padrao' THEN 1 END) AS standard_users,
+        COUNT(CASE WHEN tipo = 'gestor' THEN 1 END) AS gestor_users,
         COUNT(CASE WHEN tipo = 'admin' THEN 1 END) AS admin_users,
-        COUNT(CASE WHEN tipo = 'master' THEN 1 END) AS master_users,
-        COUNT(CASE WHEN plano_status = 'ativo' AND tipo != 'master' THEN 1 END) AS paying_users,
-        COUNT(CASE WHEN (plano_status = 'trial' OR plano_status IS NULL) AND tipo != 'master' THEN 1 END) AS trial_users,
-        COUNT(CASE WHEN plano_status = 'expirado' AND tipo != 'master' THEN 1 END) AS expired_users,
+        COUNT(CASE WHEN plano_status = 'ativo' AND tipo != 'admin' THEN 1 END) AS paying_users,
+        COUNT(CASE WHEN (plano_status = 'trial' OR plano_status IS NULL) AND tipo != 'admin' THEN 1 END) AS trial_users,
+        COUNT(CASE WHEN plano_status = 'expirado' AND tipo != 'admin' THEN 1 END) AS expired_users,
         COUNT(CASE WHEN status = 'cancelado' THEN 1 END) AS cancelled_users
       FROM usuarios
     `);
@@ -301,7 +302,7 @@ router.get('/stats/general', authenticate, requireMaster, async (_req: Request, 
   }
 });
 
-// GET /api/users (Admin/Master)
+// GET /api/users (Admin only)
 router.get('/', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '10', search = '', tipo = '', status: statusFilter = '' } = req.query as Record<string, string>;
@@ -328,11 +329,6 @@ router.get('/', authenticate, requireAdmin, async (req: Request, res: Response):
       conditions.push(`status = $${p}`);
       params.push(statusFilter);
     }
-    if (req.user!.type === 'admin') {
-      p++;
-      conditions.push(`tipo = $${p}`);
-      params.push('padrao');
-    }
 
     const where = `WHERE ${conditions.join(' AND ')}`;
 
@@ -358,10 +354,10 @@ router.get('/', authenticate, requireAdmin, async (req: Request, res: Response):
   }
 });
 
-// POST /api/users (Master only)
-router.post('/', authenticate, requireMaster, async (req: Request, res: Response): Promise<void> => {
+// POST /api/users (Admin only)
+router.post('/', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, senha, tipo = 'admin', status = 'ativo', pais, estado, cidade } =
+    const { nome, email, documento, senha, tipo = 'gestor', status = 'ativo', pais, estado, cidade } =
       req.body as Record<string, string | undefined>;
 
     if (!nome || !email || !documento || !senha) {
@@ -398,7 +394,7 @@ router.post('/', authenticate, requireMaster, async (req: Request, res: Response
         email,
         document: cleanDoc,
         password: hashedPassword,
-        type: tipo as 'padrao' | 'admin' | 'master',
+        type: tipo as 'padrao' | 'gestor' | 'admin',
         status: status as 'ativo' | 'inativo' | 'bloqueado',
         country: pais ?? null,
         state: estado ?? null,
@@ -421,7 +417,7 @@ router.get('/:id/categorias', authenticate, async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -447,7 +443,7 @@ router.put('/:id/categorias', authenticate, async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -479,7 +475,7 @@ router.get('/:id/cartoes', authenticate, async (req: Request, res: Response): Pr
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -511,7 +507,7 @@ router.get('/:id/cartoes', authenticate, async (req: Request, res: Response): Pr
   }
 });
 
-// GET /api/users/:id (Admin/Master)
+// GET /api/users/:id (Admin only)
 router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
@@ -531,11 +527,6 @@ router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       return;
     }
 
-    if (req.user!.type === 'admin' && user.tipo !== 'padrao') {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     res.json({ success: true, data: user });
   } catch (error) {
     console.error('Get user error:', error);
@@ -543,7 +534,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// PUT /api/users/:id (Admin/Master)
+// PUT /api/users/:id (Admin only)
 router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
@@ -558,17 +549,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       return;
     }
 
-    if (req.user!.type === 'admin' && target.type !== 'padrao') {
-      res.status(403).json({ success: false, message: 'Admin can only edit standard users' });
-      return;
-    }
-
     const { nome, email, senha, tipo, status: newStatus, pais, estado, cidade } = req.body as Record<string, string | undefined>;
-
-    if (tipo && req.user!.type !== 'master') {
-      res.status(403).json({ success: false, message: 'Only master can change user type' });
-      return;
-    }
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       res.status(400).json({ success: false, message: 'Invalid email' });
@@ -592,7 +573,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
     if (nome) updateData.name = nome;
     if (email) updateData.email = email;
     if (senha) updateData.password = await bcrypt.hash(senha, 10);
-    if (tipo && req.user!.type === 'master') updateData.type = tipo as 'padrao' | 'admin' | 'master';
+    if (tipo) updateData.type = tipo as 'padrao' | 'gestor' | 'admin';
     if (newStatus) updateData.status = newStatus as 'ativo' | 'inativo' | 'bloqueado';
     if (pais !== undefined) updateData.country = pais || null;
     if (estado !== undefined) updateData.state = estado || null;
@@ -611,7 +592,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
   }
 });
 
-// PUT /api/users/:id/status (Admin/Master)
+// PUT /api/users/:id/status (Admin only)
 router.put('/:id/status', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
@@ -631,10 +612,6 @@ router.put('/:id/status', authenticate, requireAdmin, async (req: Request, res: 
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
-    if (req.user!.type === 'admin' && target.type !== 'padrao') {
-      res.status(403).json({ success: false, message: 'Admin can only change status of standard users' });
-      return;
-    }
 
     const [updated] = await db
       .update(users)
@@ -649,8 +626,8 @@ router.put('/:id/status', authenticate, requireAdmin, async (req: Request, res: 
   }
 });
 
-// DELETE /api/users/:id (Master only)
-router.delete('/:id', authenticate, requireMaster, async (req: Request, res: Response): Promise<void> => {
+// DELETE /api/users/:id (Admin only)
+router.delete('/:id', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
     if (userId === req.user!.id) {
@@ -690,7 +667,7 @@ router.delete('/:id', authenticate, requireMaster, async (req: Request, res: Res
 router.delete('/:id/clear-data', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }

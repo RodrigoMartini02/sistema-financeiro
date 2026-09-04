@@ -66,10 +66,15 @@ router.post(
       const { documento, senha } = req.body as { documento: string; senha: string };
       const cleanDoc = documento.replace(/[^\d]+/g, '');
 
+      // O campo "documento" do formulário de login também aceita um email —
+      // necessário para membros sem CPF/CNPJ cadastrado (ex.: filho menor de
+      // idade, criado pelo gestor com documento opcional). Login de quem tem
+      // documento continua resolvendo exclusivamente por ele, sem mudança.
+      const isEmailLike = documento.includes('@');
       const [user] = await db
         .select()
         .from(users)
-        .where(eq(users.document, cleanDoc))
+        .where(isEmailLike ? eq(users.email, documento.toLowerCase()) : eq(users.document, cleanDoc))
         .limit(1);
 
       if (!user) {
@@ -179,7 +184,7 @@ router.post(
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
-            type: (tipo as 'padrao' | 'admin' | 'master' | undefined) ?? 'padrao',
+            type: (tipo as 'padrao' | 'gestor' | 'admin' | undefined) ?? 'padrao',
             status: 'ativo',
             googleId: google_id ?? null,
             country: pais ?? null,

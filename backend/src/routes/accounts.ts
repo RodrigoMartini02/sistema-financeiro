@@ -11,6 +11,27 @@ const router = Router();
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incluirInativos = req.query['incluir_inativos'] === 'true';
+
+    // Membro vinculado (conta_membros) não é dono de nenhuma `conta` própria
+    // — ele enxerga apenas a conta compartilhada do gestor ao qual está
+    // vinculado, nunca uma lista própria (accounts.usuario_id).
+    const membership = await pool.query(
+      `SELECT conta_id FROM conta_membros WHERE usuario_id = $1 AND status = 'ativo'`,
+      [req.user!.id],
+    );
+
+    if (membership.rows.length > 0) {
+      const contaId = (membership.rows[0] as { conta_id: number }).conta_id;
+      const result = await pool.query(
+        `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
+                telefone, email, data_nascimento, foto, ativo, eh_padrao, data_criacao
+         FROM contas WHERE id = $1`,
+        [contaId],
+      );
+      res.json({ success: true, data: result.rows });
+      return;
+    }
+
     const result = await pool.query(
       `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
               telefone, email, data_nascimento, foto, ativo, eh_padrao, data_criacao

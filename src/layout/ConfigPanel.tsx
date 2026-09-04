@@ -15,12 +15,13 @@ import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { SociosTab } from '../screens/config/SociosTab';
 import { UsuariosTab } from '../screens/config/UsuariosTab';
+import { MembrosTab } from '../screens/config/MembrosTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 
 export type ConfigItemId =
   | 'seguranca' | 'contas' | 'assinatura'
-  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios'
+  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'membros'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
@@ -35,6 +36,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
   { id: 'representantes', label: 'Representantes', icon: UserCheck },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase },
   { id: 'usuarios',       label: 'Usuários',       icon: Users },
+  { id: 'membros',        label: 'Membros',        icon: Users },
   { id: 'acessos',        label: 'Acessos',        icon: Activity },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot },
 ];
@@ -66,9 +68,9 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
   const meTipo = me?.tipo;
   const meDocument = (me?.documento ?? '').replace(/\D/g, '');
-  const isAdminOrMaster = meTipo === 'admin' || meTipo === 'master';
+  const isAdmin = meTipo === 'admin';
+  const isGestor = meTipo === 'gestor' || isAdmin;
   const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
-  const isMaster = meTipo === 'master';
   const contaTipo = localStorage.getItem('contaAtivaTipo');
 
   const [activeItem, setActiveItemState] = useResettableItem(open, initialItem);
@@ -79,7 +81,9 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
 
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
-    if (item.id === 'integracoes-ia') return isMaster;
+    if (item.id === 'integracoes-ia') return isAdmin;
+    if (item.id === 'usuarios') return isAdmin;
+    if (item.id === 'membros') return isGestor;
     if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
     return true;
   });
@@ -121,12 +125,10 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {activeItem === 'servicos' && <ServicosTab />}
           {activeItem === 'representantes' && <RepresentantesTab />}
           {activeItem === 'socios' && <SociosTab />}
-          {activeItem === 'usuarios' && isAdminOrMaster && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
-          {activeItem === 'usuarios' && !isAdminOrMaster && (
-            <p className="py-8 text-center text-sm text-slate-400">Acesso restrito a administradores.</p>
-          )}
+          {activeItem === 'usuarios' && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
+          {activeItem === 'membros' && <MembrosTab />}
           {activeItem === 'acessos' && canViewAnalytics && <AcessosTab />}
-          {activeItem === 'integracoes-ia' && isMaster && <IntegracoesIaTab />}
+          {activeItem === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
         </div>
       </div>
     </Drawer>

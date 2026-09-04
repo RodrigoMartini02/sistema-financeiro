@@ -52,7 +52,7 @@ export function getEffectivePlanAccess(
   snapshot: PlanAccessSnapshot,
   now: Date = new Date(),
 ): EffectivePlanAccess {
-  if (snapshot.userType === 'master') {
+  if (snapshot.userType === 'admin') {
     return { status: PLAN_STATUS.active, trialDaysLeft: null };
   }
 
