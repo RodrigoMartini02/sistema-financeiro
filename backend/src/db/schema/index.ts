@@ -1,5 +1,6 @@
 export * from './users';
 export * from './accounts';
+export * from './accountMembers';
 export * from './categories';
 export * from './cards';
 export * from './incomes';

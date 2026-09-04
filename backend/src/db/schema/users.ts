@@ -16,7 +16,7 @@ export const users = pgTable(
     id: serial('id').primaryKey(),
     name: varchar('nome', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).notNull().unique(),
-    document: varchar('documento', { length: 20 }).notNull().unique(),
+    document: varchar('documento', { length: 20 }),
     password: varchar('senha', { length: 255 }).notNull(),
     type: varchar('tipo', { length: 20 })
       .default('gestor')

@@ -67,6 +67,7 @@ if (process.env.NODE_ENV !== 'production') {
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
 import accountRoutes from './routes/accounts';
+import accountMemberRoutes from './routes/accountMembers';
 import categoryRoutes from './routes/categories';
 import cardRoutes from './routes/cards';
 import incomeRoutes from './routes/incomes';
@@ -103,6 +104,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/usuarios', userRoutes);           // PT alias
 app.use('/api/contas', authenticate, requireActivePlan, accountRoutes);
+app.use('/api/account-members', authenticate, requireActivePlan, accountMemberRoutes);
 app.use('/api/categories', authenticate, requireActivePlan, categoryRoutes);
 app.use('/api/categorias', authenticate, requireActivePlan, categoryRoutes);     // PT alias
 app.use('/api/cards', authenticate, requireActivePlan, cardRoutes);
