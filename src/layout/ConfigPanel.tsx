@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Users, Activity, Crown, UsersRound,
+  Tag, UserCheck, Activity, Crown, UsersRound,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { fetchMe } from '../services/usuariosService';
@@ -14,7 +14,6 @@ import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { SociosTab } from '../screens/config/SociosTab';
-import { UsuariosTab } from '../screens/config/UsuariosTab';
 import { MembrosTab } from '../screens/config/MembrosTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
@@ -35,7 +34,6 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers },
   { id: 'representantes', label: 'Representantes', icon: UserCheck },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase },
-  { id: 'usuarios',       label: 'Usuários',       icon: Users },
   { id: 'membros',        label: 'Membros da família', icon: UsersRound },
   { id: 'acessos',        label: 'Acessos',        icon: Activity },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot },
@@ -82,7 +80,6 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
-    if (item.id === 'usuarios') return isAdmin;
     if (item.id === 'membros') return isGestor;
     if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
     return true;
@@ -132,7 +129,6 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {activeItem === 'servicos' && <ServicosTab />}
           {activeItem === 'representantes' && <RepresentantesTab />}
           {activeItem === 'socios' && <SociosTab />}
-          {activeItem === 'usuarios' && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
           {activeItem === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {activeItem === 'acessos' && canViewAnalytics && <AcessosTab />}
           {activeItem === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
