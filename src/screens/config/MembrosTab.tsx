@@ -1,14 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ShieldAlert, UserX } from 'lucide-react';
+import { Plus, Search, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
 import {
   fetchMembros, createMembro, deactivateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
+import {
+  fetchMemberPermissions, updateMemberPermissions, PERMISSION_LABELS,
+  type PermissionFlag, type MemberPermissionsData,
+} from '../../services/permissoesService';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ToggleRow } from '../../ui/form';
 import { useConfirm } from '../../context/ConfirmContext';
 
 function NovoMembroDialog({
@@ -86,6 +91,71 @@ function NovoMembroDialog({
   );
 }
 
+const PERMISSION_ORDER: PermissionFlag[] = [
+  'viewOthersEntries', 'editOthersEntries', 'deleteOthersEntries',
+  'viewAggregateSummary', 'manageCategories', 'manageCards', 'accessOtherMembersData',
+];
+
+function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: MembroListItem; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [error, setError] = useState('');
+
+  const permissionsQuery = useQuery({
+    queryKey: ['membro-permissoes', membro?.usuario_id],
+    queryFn: () => fetchMemberPermissions(membro!.usuario_id),
+    enabled: open && !!membro,
+  });
+
+  const toggleMut = useMutation({
+    mutationFn: ({ flag, value }: { flag: PermissionFlag; value: boolean }) =>
+      updateMemberPermissions(membro!.usuario_id, { [flag]: value }),
+    onSuccess: (data) => {
+      qc.setQueryData(['membro-permissoes', membro?.usuario_id], data);
+      setError('');
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
+
+  return (
+    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="lg">
+      <div style={{ padding: '0 26px 20px' }}>
+        <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
+          Por padrão, este membro só vê e gerencia os próprios lançamentos. Libere abaixo o que ele pode acessar da conta compartilhada.
+        </p>
+
+        {permissionsQuery.isLoading ? (
+          <p style={{ fontSize: 13, color: C.textFaint, textAlign: 'center', padding: '20px 0' }}>Carregando permissões...</p>
+        ) : permissions ? (
+          <div className="grid gap-2">
+            {PERMISSION_ORDER.map((flag) => (
+              <ToggleRow
+                key={flag}
+                label={PERMISSION_LABELS[flag].label}
+                description={PERMISSION_LABELS[flag].description}
+                checked={permissions[flag]}
+                disabled={toggleMut.isPending}
+                onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {error && (
+          <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            {error}
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="secondary" onClick={onClose}>Fechar</Button>
+      </div>
+    </Dialog>
+  );
+}
+
 function TransferirPendenciasDialog({
   open, membro, pendencias, outrosMembros, isSaving, error, onClose, onConfirm,
 }: {
@@ -152,6 +222,7 @@ export function MembrosTab() {
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
   const [mutError, setMutError] = useState('');
   const [pendingDialog, setPendingDialog] = useState<{ membro: MembroListItem; pendencias: PendingExpense[] } | null>(null);
+  const [permissoesMembro, setPermissoesMembro] = useState<MembroListItem | null>(null);
 
   const listQuery = useQuery({ queryKey: ['membros-list'], queryFn: fetchMembros });
   const list = (listQuery.data ?? []).filter((m) =>
@@ -241,14 +312,24 @@ export function MembrosTab() {
                 />
               </div>
               {m.membro_status === 'ativo' && (
-                <button
-                  type="button"
-                  onClick={() => handleDeactivate(m)}
-                  className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
-                  title="Desativar membro"
-                >
-                  <UserX size={13} /> Desativar
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPermissoesMembro(m)}
+                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
+                    title="Configurar permissões"
+                  >
+                    <ShieldCheck size={13} /> Permissões
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeactivate(m)}
+                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+                    title="Desativar membro"
+                  >
+                    <UserX size={13} /> Desativar
+                  </button>
+                </>
               )}
               {m.membro_status === 'inativo' && (
                 <span className="text-xs text-slate-400 pr-2">Inativo</span>
@@ -282,6 +363,14 @@ export function MembrosTab() {
           error={mutError}
           onClose={() => setPendingDialog(null)}
           onConfirm={handleConfirmTransfer}
+        />
+      )}
+
+      {permissoesMembro && (
+        <PermissoesDialog
+          open={!!permissoesMembro}
+          membro={permissoesMembro}
+          onClose={() => setPermissoesMembro(null)}
         />
       )}
     </div>

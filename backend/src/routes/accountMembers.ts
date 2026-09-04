@@ -3,9 +3,10 @@ import bcrypt from 'bcryptjs';
 import { and, eq, isNotNull, or } from 'drizzle-orm';
 import { body } from 'express-validator';
 import { db, pool } from '../db/client';
-import { users, accounts, accountMembers, categories, expenses } from '../db/schema';
+import { users, accounts, accountMembers, categories, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireGestor } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
+import { resolveMemberAccountId, type PermissionFlag } from '../middleware/permissions';
 
 const router = Router();
 
@@ -108,6 +109,10 @@ router.post(
           userId: member!.id,
           status: 'ativo',
         });
+
+        // Toda permissão nasce restritiva (false) — o gestor libera
+        // explicitamente pela tela de permissões (Fase 3).
+        await transaction.insert(memberPermissions).values({ userId: member!.id });
 
         // Membro herda cópia das categorias reais do gestor (não o conjunto
         // padrão genérico), incluindo customizações já feitas por ele —
@@ -316,13 +321,28 @@ router.put(
 
 // GET /api/account-members/summary — visão agregada da conta (soma de
 // despesas/receitas de todos os autores vinculados, gestor incluído).
-// Exclusivo do gestor nesta fase; membro ganha acesso apenas na Fase 3,
-// via sistema de permissões.
-router.get('/summary', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+// Gestor sempre acessa; membro só se tiver ver_visao_agregada liberado.
+router.get('/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { mes, ano } = req.query as Record<string, string | undefined>;
 
-    const accountId = await resolveGestorAccountId(req.user!.id);
+    const memberAccountId = await resolveMemberAccountId(req.user!.id);
+    const isMember = memberAccountId !== null;
+
+    if (isMember) {
+      const [permissions] = await db
+        .select({ viewAggregateSummary: memberPermissions.viewAggregateSummary })
+        .from(memberPermissions)
+        .where(eq(memberPermissions.userId, req.user!.id))
+        .limit(1);
+
+      if (!permissions?.viewAggregateSummary) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    }
+
+    const accountId = isMember ? memberAccountId : await resolveGestorAccountId(req.user!.id);
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
@@ -332,7 +352,12 @@ router.get('/summary', authenticate, requireGestor, async (req: Request, res: Re
       `SELECT usuario_id FROM conta_membros WHERE conta_id = $1 AND status = 'ativo'`,
       [accountId],
     );
-    const authorIds = [req.user!.id, ...memberRows.rows.map((r: { usuario_id: number }) => r.usuario_id)];
+    const accountOwner = await pool.query(`SELECT usuario_id FROM contas WHERE id = $1`, [accountId]);
+    const ownerId = (accountOwner.rows[0] as { usuario_id: number } | undefined)?.usuario_id;
+    const authorIds = [
+      ...(ownerId ? [ownerId] : []),
+      ...memberRows.rows.map((r: { usuario_id: number }) => r.usuario_id),
+    ];
 
     const periodFilter = mes !== undefined && ano !== undefined ? 'AND mes = $2 AND ano = $3' : '';
     const periodParams = mes !== undefined && ano !== undefined ? [parseInt(mes), parseInt(ano)] : [];
@@ -362,6 +387,104 @@ router.get('/summary', authenticate, requireGestor, async (req: Request, res: Re
   } catch (error) {
     console.error('Account summary error:', error);
     res.status(500).json({ success: false, message: 'Failed to load account summary' });
+  }
+});
+
+const PERMISSION_COLUMNS: { flag: PermissionFlag; column: keyof typeof memberPermissions.$inferSelect }[] = [
+  { flag: 'viewOthersEntries', column: 'viewOthersEntries' },
+  { flag: 'editOthersEntries', column: 'editOthersEntries' },
+  { flag: 'deleteOthersEntries', column: 'deleteOthersEntries' },
+  { flag: 'viewAggregateSummary', column: 'viewAggregateSummary' },
+  { flag: 'manageCategories', column: 'manageCategories' },
+  { flag: 'manageCards', column: 'manageCards' },
+  { flag: 'accessOtherMembersData', column: 'accessOtherMembersData' },
+];
+
+// GET /api/account-members/:id/permissions — permissões atuais de um membro
+// (visão do gestor). Gestão de permissões nunca é delegável a outro membro.
+router.get('/:id/permissions', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const memberUserId = parseInt(req.params['id']!);
+    const accountId = await resolveGestorAccountId(req.user!.id);
+    if (!accountId) {
+      res.status(404).json({ success: false, message: 'Account not found' });
+      return;
+    }
+
+    const [membership] = await db
+      .select({ id: accountMembers.id })
+      .from(accountMembers)
+      .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
+      .limit(1);
+
+    if (!membership) {
+      res.status(404).json({ success: false, message: 'Member not found in this account' });
+      return;
+    }
+
+    const [permissions] = await db.select().from(memberPermissions).where(eq(memberPermissions.userId, memberUserId)).limit(1);
+    if (!permissions) {
+      res.status(404).json({ success: false, message: 'Permissions not found for this member' });
+      return;
+    }
+
+    res.json({ success: true, data: permissions });
+  } catch (error) {
+    console.error('Get member permissions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get member permissions' });
+  }
+});
+
+// PUT /api/account-members/:id/permissions — gestor atualiza as permissões
+// de um membro específico. Nunca delegável a outro membro (só requireGestor).
+router.put('/:id/permissions', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const memberUserId = parseInt(req.params['id']!);
+    const accountId = await resolveGestorAccountId(req.user!.id);
+    if (!accountId) {
+      res.status(404).json({ success: false, message: 'Account not found' });
+      return;
+    }
+
+    const [membership] = await db
+      .select({ id: accountMembers.id })
+      .from(accountMembers)
+      .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
+      .limit(1);
+
+    if (!membership) {
+      res.status(404).json({ success: false, message: 'Member not found in this account' });
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const updateData: Partial<typeof memberPermissions.$inferInsert> = { updatedAt: new Date() };
+
+    for (const { flag, column } of PERMISSION_COLUMNS) {
+      if (flag in body) {
+        if (typeof body[flag] !== 'boolean') {
+          res.status(400).json({ success: false, message: `${flag} must be a boolean` });
+          return;
+        }
+        (updateData as Record<string, unknown>)[column] = body[flag];
+      }
+    }
+
+    const [updated] = await db
+      .update(memberPermissions)
+      .set(updateData)
+      .where(eq(memberPermissions.userId, memberUserId))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ success: false, message: 'Permissions not found for this member' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Permissions updated successfully', data: updated });
+  } catch (error) {
+    console.error('Update member permissions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update member permissions' });
   }
 });
 

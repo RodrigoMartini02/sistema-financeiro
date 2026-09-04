@@ -7,6 +7,7 @@ import { authenticate, requireAdmin } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { accountWhere } from '../utils/accountFilter';
+import { canActOnResource } from '../middleware/permissions';
 
 const router = Router();
 
@@ -416,7 +417,7 @@ router.get('/:id/categorias', authenticate, async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -442,7 +443,7 @@ router.put('/:id/categorias', authenticate, async (req: Request, res: Response):
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -474,7 +475,7 @@ router.get('/:id/cartoes', authenticate, async (req: Request, res: Response): Pr
       res.status(400).json({ success: false, message: 'User ID must be a valid number' });
       return;
     }
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Acesso negado' });
       return;
     }
@@ -666,7 +667,7 @@ router.delete('/:id', authenticate, requireAdmin, async (req: Request, res: Resp
 router.delete('/:id/clear-data', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = parseInt(req.params['id']!);
-    if (req.user!.id !== userId) {
+    if (!(await canActOnResource(req.user!.id, userId, 'accessOtherMembersData'))) {
       res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
