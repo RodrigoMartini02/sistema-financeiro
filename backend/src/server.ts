@@ -96,6 +96,7 @@ import aiIntegrationRoutes from './routes/ai-integrations';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
+import catalogoRoutes from './modules/catalogo/routes';
 import { authenticate, requireActivePlan } from './middleware/auth';
 
 app.use('/api/auth', authRoutes);
@@ -143,6 +144,7 @@ app.use('/api/assistente', authenticate, requireActivePlan, assistantRoutes);
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/futebol', futebolRoutes);
+app.use('/api/catalogo', catalogoRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires

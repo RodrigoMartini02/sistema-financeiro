@@ -41,4 +41,6 @@ export const queryKeys = {
   copilotConversations: ['copilot-conversations'] as const,
   aiIntegrations: ['ai-integrations'] as const,
   cardLimits: ['card-limits'] as const,
+  catalogoProdutos: ['catalogo-produtos'] as const,
+  catalogoConta: ['catalogo-conta'] as const,
 };

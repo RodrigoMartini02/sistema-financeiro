@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Users, Activity,
+  Tag, UserCheck, Users, Activity, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { fetchMe } from '../services/usuariosService';
@@ -16,11 +16,12 @@ import { SociosTab } from '../screens/config/SociosTab';
 import { UsuariosTab } from '../screens/config/UsuariosTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
+import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
   | 'seguranca' | 'contas'
   | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios'
-  | 'acessos' | 'integracoes-ia';
+  | 'acessos' | 'integracoes-ia' | 'catalogo';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
@@ -30,6 +31,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType }[] = [
   { id: 'categorias',     label: 'Categorias',     icon: Tag },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers },
+  { id: 'catalogo',       label: 'Catálogo de produtos', icon: ShoppingBag },
   { id: 'representantes', label: 'Representantes', icon: UserCheck },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase },
   { id: 'usuarios',       label: 'Usuários',       icon: Users },
@@ -116,6 +118,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {activeItem === 'categorias' && <CategoriasTab />}
           {activeItem === 'cartoes' && <CartaoTab />}
           {activeItem === 'servicos' && <ServicosTab />}
+          {activeItem === 'catalogo' && <CatalogoTab />}
           {activeItem === 'representantes' && <RepresentantesTab />}
           {activeItem === 'socios' && <SociosTab />}
           {activeItem === 'usuarios' && isAdminOrMaster && <UsuariosTab userTipo={meTipo ?? 'admin'} />}
