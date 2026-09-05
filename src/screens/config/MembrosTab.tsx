@@ -9,15 +9,15 @@ import {
   fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
   type PermissionFlag, type MemberPermissionsData,
 } from '../../services/permissoesService';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
-import { CFG, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
 import { ListToolbar } from '../../ui/ListToolbar';
 import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
+import { formatDocumentoAuto } from '../../utils/document';
 
 // Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
 // conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
@@ -34,54 +34,69 @@ function NovoMembroDialog({
   open: boolean; isSaving: boolean; error?: string; termo: Termo;
   onClose: () => void; onSave: (body: MembroCreateBody) => void;
 }) {
+  // Controlado para aplicar a máscara; o campo aceita CPF ou CNPJ.
+  const [documento, setDocumento] = useState('');
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const documento = (fd.get('documento') as string)?.trim();
+    const doc = documento.trim();
     onSave({
       nome:      fd.get('nome') as string,
       email:     fd.get('email') as string,
       senha:     fd.get('senha') as string,
-      ...(documento ? { documento } : {}),
+      ...(doc ? { documento: doc } : {}),
     });
   };
 
   return (
     <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
+        <div style={{ flex: 1, minHeight: 0, height: 190, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
               <input name="nome" placeholder={`Nome do ${termo.singular}`} autoFocus required style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>E-MAIL</span><span style={{ color: C.primary }}>*</span></label>
+            <div>
+              <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
               <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
             </div>
           </div>
 
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>DOCUMENTO (CPF/CNPJ)</span></label>
-              <input name="documento" placeholder="000.000.000-00 (opcional)" style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Opcional — deixe em branco se {termo.artigo} {termo.singular} não tiver CPF (ex.: menor de idade)</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>CPF / CNPJ</label>
+              <input
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(formatDocumentoAuto(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={18}
+                className={CFG_MONO_CLASS}
+                style={fieldInputStyle}
+              />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>SENHA</span><span style={{ color: C.primary }}>*</span></label>
+            <div>
+              <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
               <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Mínimo 6 caracteres</span>
             </div>
           </div>
 
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+            Documento é opcional — deixe em branco se {termo.artigo} {termo.singular} não tiver CPF (ex.: menor de idade). Senha com mínimo de 6 caracteres.
+          </p>
+
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
@@ -121,19 +136,21 @@ function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean;
   const visibleGroups = PERMISSION_GROUPS.filter((g) => g.id !== 'comercial' || contaTipo === 'empresa');
 
   return (
-    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="lg">
-      <div style={{ padding: '0 26px 20px' }}>
-        <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
+    // Sem rodapé: as permissões salvam a cada toggle, então não há ação de
+    // confirmar — fecha pelo X ou pelo overlay.
+    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="sm" scrollBody={false}>
+      <div style={{ flex: 1, minHeight: 0, maxHeight: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
           Por padrão, este membro não acessa nenhuma tela. Libere abaixo o que ele pode usar.
         </p>
 
         {permissionsQuery.isLoading ? (
-          <p style={{ fontSize: 13, color: C.textFaint, textAlign: 'center', padding: '20px 0' }}>Carregando permissões...</p>
+          <p style={{ padding: '20px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando permissões...</p>
         ) : permissions ? (
-          <div className="grid gap-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {visibleGroups.map((group) => (
-              <div key={group.id} className="grid gap-2">
-                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textFaint }}>
+              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <p style={{ margin: 0, fontSize: 9.5, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: CFG.faint }}>
                   {group.label} · {group.items.length} permiss{group.items.length !== 1 ? 'ões' : 'ão'}
                 </p>
                 {group.items.map(({ flag, label }) => (
@@ -151,14 +168,10 @@ function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean;
         ) : null}
 
         {error && (
-          <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+          <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
             {error}
           </div>
         )}
-      </div>
-
-      <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="secondary" onClick={onClose}>Fechar</Button>
       </div>
     </Dialog>
   );
@@ -178,26 +191,32 @@ function TransferirPendenciasDialog({
   };
 
   return (
-    <Dialog open={open} title={`Desativar "${membro?.nome}"`} onClose={onClose} size="lg" scrollBody={false}>
-      <div style={{ padding: '0 26px 20px' }}>
-        <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
+    <Dialog open={open} title={`Desativar "${membro?.nome}"`} onClose={onClose} size="sm" scrollBody={false}>
+      <div style={{ flex: 1, minHeight: 0, maxHeight: 320, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
           Este {termo.singular} tem {pendencias.length} lançamento(s) parcelado(s) ou recorrente(s) ainda em aberto.
           Escolha para quem essas pendências futuras devem ser transferidas antes de desativar.
         </p>
 
-        <div style={{ ...cardStyle, marginBottom: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-            {pendencias.map((p) => (
-              <div key={p.id} style={{ fontSize: 13, color: C.text, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{p.description}</span>
-                <span style={{ color: C.textFaint }}>{p.recurring ? 'Recorrente' : 'Parcelada'}</span>
-              </div>
-            ))}
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 140, overflowY: 'auto' }}>
+          {pendencias.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                minHeight: 34, padding: '0 12px', borderRadius: 12,
+                border: `1px solid ${CFG.border}`, background: CFG.surface,
+                fontSize: 12.5, fontWeight: 500, color: CFG.text,
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</span>
+              <span style={cfgBadgeStyle}>{p.recurring ? 'Recorrente' : 'Parcelada'}</span>
+            </div>
+          ))}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <label style={labelStyle}>TRANSFERIR PARA</label>
+        <div>
+          <label style={labelStyle}>Transferir para</label>
           <select value={destino} onChange={(e) => setDestino(e.target.value)} style={fieldInputStyle}>
             <option value="gestor">Eu (gestor da conta)</option>
             {outrosMembros.map((m) => (
@@ -207,13 +226,15 @@ function TransferirPendenciasDialog({
         </div>
 
         {error && (
-          <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+          <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
             {error}
           </div>
         )}
       </div>
 
-      <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+      {/* Aqui o "Cancelar" permanece: é uma confirmação destrutiva com escolha
+          de destino, não um formulário comum. */}
+      <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
         <button type="button" style={{ ...dangerButtonStyle, border: 'none', color: C.textMuted }} onClick={onClose}>
           Cancelar
         </button>

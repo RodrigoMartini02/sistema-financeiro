@@ -3,8 +3,11 @@ import { Plus } from 'lucide-react';
 import { CFG, cfgPrimaryButtonStyle } from './configTokens';
 
 interface ConfigTabHeaderProps {
-  /** Texto do contador à esquerda (ex.: "3 contas ativas"). */
-  countLabel: ReactNode;
+  /**
+   * Texto do contador à esquerda (ex.: "3 contas ativas"). Opcional — telas
+   * cujo filtro já exibe a contagem (ver ContasTab) omitem para não repetir.
+   */
+  countLabel?: ReactNode;
   /** Controles entre o contador e a ação (ex.: ToggleGroup de Ativas/Desativadas). */
   filters?: ReactNode;
   /** Rótulo do botão primário. Omitido, o botão não é renderizado. */
@@ -31,9 +34,11 @@ export function ConfigTabHeader({
 }: ConfigTabHeaderProps) {
   return (
     <div className="relative flex flex-wrap items-center gap-2.5">
-      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
-        {countLabel}
-      </p>
+      {countLabel && (
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
+          {countLabel}
+        </p>
+      )}
 
       {filters}
 

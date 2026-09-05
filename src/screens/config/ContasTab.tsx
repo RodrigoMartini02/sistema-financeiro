@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Briefcase, ChevronDown, ChevronUp, Tag, User, Pencil, X, AlertCircle } from 'lucide-react';
+import { Briefcase, ChevronDown, ChevronUp, Tag, User, Pencil, AlertCircle } from 'lucide-react';
 import { fetchContas, saveConta, deleteConta, updateFotoConta, reactivateConta } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Conta } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
-import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
+import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle } from '../../ui/configTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { ToggleGroup } from '../../ui/form';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -18,6 +18,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
+import { formatCPF, formatCNPJ, formatDocumento } from '../../utils/document';
 
 // Conta é considerada incompleta quando falta email, ou (se empresa) razão
 // social/enquadramento, ou (se pessoa física) telefone/data de nascimento.
@@ -133,11 +134,6 @@ const ENQUADRAMENTO_OPTIONS = [
   { value: 'SA',     label: 'SA',     description: 'Sociedade Anônima' },
 ];
 
-const TIPO_OPTIONS = [
-  { value: 'empresa', label: 'Empresa / CNPJ',  description: 'Pessoa jurídica com CNPJ' },
-  { value: 'pessoal', label: 'Pessoa Física',    description: 'Finanças pessoais' },
-];
-
 function CategoryPreview({ enquadramento }: { enquadramento: string }) {
   const [expanded, setExpanded] = useState(false);
   const cats = PREVIEW_CATEGORIAS[enquadramento];
@@ -204,6 +200,11 @@ function ContaDialog({
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(conta?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  // Documento é controlado para aplicar a máscara a cada tecla. O backend
+  // limpa a pontuação ao salvar (accounts.ts), então enviar formatado é seguro.
+  const [documento, setDocumento] = useState(() =>
+    formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'),
+  );
   const confirm = useConfirm();
 
   const isNew = !conta;
@@ -215,14 +216,22 @@ function ContaDialog({
   useEffect(() => {
     if (!open) return;
     setEnquadramento(conta?.enquadramento ?? '');
+    setDocumento(formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'));
   }, [open, conta]);
+
+  // Trocar PF↔PJ no cadastro novo reformata o que já foi digitado (CPF tem 11
+  // dígitos, CNPJ 14 — o excedente é descartado pelo próprio formatador).
+  const handleTipoChange = (novoTipo: 'pessoal' | 'empresa') => {
+    setTipo(novoTipo);
+    setDocumento((atual) => formatDocumento(atual, novoTipo));
+  };
 
   const handleDelete = async () => {
     if (!onDelete) return;
     const ok = await confirm({
-      title: 'Arquivar conta',
-      message: `Arquivar "${conta?.nome}"? Ela deixará de aparecer na lista de contas ativas.`,
-      confirmLabel: 'Arquivar',
+      title: 'Desativar conta',
+      message: `Desativar "${conta?.nome}"? Ela deixará de aparecer na lista de contas ativas.`,
+      confirmLabel: 'Desativar',
     });
     if (ok) onDelete();
   };
@@ -235,7 +244,7 @@ function ContaDialog({
     onSave({
       tipo,
       nome: tipo === 'empresa' ? (nomeFantasia || razaoSocial || 'Empresa') : (fd.get('nome') as string),
-      documento: fd.get('documento') as string || undefined,
+      documento: documento.trim() || undefined,
       razao_social: tipo === 'empresa' ? (razaoSocial || undefined) : undefined,
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
       atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
@@ -247,109 +256,104 @@ function ContaDialog({
   };
 
   return (
-    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="sm" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: PF e PJ têm campos diferentes (e a criação PJ ainda
+            mostra o preview de categorias), mas o modal não deve mudar de
+            tamanho ao alternar o tipo. */}
+        <div style={{ flex: 1, minHeight: 0, height: 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {onSaveFoto && (
-            <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <div style={{ display: 'flex', height: 56, width: 56, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '50%', background: C.primarySoft }}>
-                  {conta?.foto ? (
-                    <img src={conta.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <User size={24} color={C.primary} />
-                  )}
-                </div>
-                <button
-                  type="button"
+            <>
+              {/* O avatar é o controle de upload — sem botão separado. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setAvatarDialogOpen(true)}
-                  aria-label="Alterar foto da conta"
-                  style={{ position: 'absolute', bottom: -2, right: -2, display: 'flex', height: 22, width: 22, alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: '2px solid #fff', background: C.primary, color: '#fff', cursor: 'pointer' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
+                  }}
+                  aria-label="Enviar logo da conta"
+                  style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
                 >
-                  <Pencil size={10} />
-                </button>
+                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
+                    {conta?.foto
+                      ? <img src={conta.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+                      : <User size={22} />}
+                  </span>
+                  <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
+                    <Pencil size={10} />
+                  </span>
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Logo da conta</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>
+                    Toque no avatar para enviar · PNG ou SVG, até 1 MB
+                  </span>
+                </div>
               </div>
-              {conta?.foto && (
-                <button
-                  type="button"
-                  onClick={() => onSaveFoto(null)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, color: C.textMuted, background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  <X size={11} /> Remover foto
-                </button>
-              )}
               <AvatarUploadDialog
                 open={avatarDialogOpen}
                 onClose={() => setAvatarDialogOpen(false)}
                 onConfirm={(dataUrl) => { onSaveFoto(dataUrl); setAvatarDialogOpen(false); }}
                 isSaving={false}
               />
-            </div>
+              <div style={{ height: 1, background: '#eef2f6' }} />
+            </>
           )}
 
           {!conta && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}>TIPO DE CONTA</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {TIPO_OPTIONS.map((opt) => (
-                    <div
-                      key={opt.value}
-                      onClick={() => setTipo(opt.value as 'pessoal' | 'empresa')}
-                      style={{
-                        display: 'flex', flexDirection: 'column', gap: 3, cursor: 'pointer',
-                        borderRadius: 12, border: `1.5px solid ${tipo === opt.value ? C.primary : C.borderInput}`,
-                        background: tipo === opt.value ? C.primarySoft : '#fff', padding: '10px 14px', transition: 'all .13s ease',
-                      }}
-                    >
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: tipo === opt.value ? C.primaryDark : C.text }}>{opt.label}</span>
-                      <span style={{ fontSize: 12, color: tipo === opt.value ? C.primaryDark : C.textMuted }}>{opt.description}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div>
+              <label style={labelStyle}>Tipo de conta</label>
+              <ConfigSwitch
+                alwaysOn
+                checked={tipo === 'pessoal'}
+                onChange={(pf) => handleTipoChange(pf ? 'pessoal' : 'empresa')}
+                label={tipo === 'pessoal' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+              />
             </div>
           )}
 
           {tipo === 'empresa' && (
-            <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                  <label style={{ ...labelStyle, height: 'auto' }}>RAZÃO SOCIAL</label>
-                  <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={labelStyle}>Razão social</label>
                 <input name="razao_social" defaultValue={conta?.razao_social ?? ''} placeholder="Ex: Empresa ABC Ltda." style={fieldInputStyle} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}><span>NOME FANTASIA</span><span style={{ color: C.primary }}>*</span></label>
+              <div>
+                <label style={labelStyle}><span>Nome fantasia</span><span style={{ color: C.danger }}>*</span></label>
                 <input name="nome_fantasia" defaultValue={conta?.nome_fantasia ?? conta?.nome ?? ''} placeholder="Ex: ABC Stores" autoFocus required style={fieldInputStyle} />
               </div>
             </div>
           )}
 
           {tipo === 'pessoal' && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}><span>NOME DA CONTA</span><span style={{ color: C.primary }}>*</span></label>
-                <input name="nome" defaultValue={conta?.nome} placeholder="Ex: Pessoal" autoFocus required style={fieldInputStyle} />
-              </div>
+            <div>
+              <label style={labelStyle}><span>Nome da conta</span><span style={{ color: C.danger }}>*</span></label>
+              <input name="nome" defaultValue={conta?.nome} placeholder="Ex: Pessoal" autoFocus required style={fieldInputStyle} />
             </div>
           )}
 
           {tipo === 'empresa' && (
             <>
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}><span>CNPJ</span>{!conta && <span style={{ color: C.primary }}>*</span>}</label>
-                  <input name="documento" defaultValue={conta?.documento ?? ''} placeholder="00000000000000" maxLength={18} required={!conta} style={fieldInputStyle} />
-                  <span style={{ fontSize: 12, color: C.textFaint }}>14 dígitos sem pontuação</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, position: 'relative' }}>
+                <div>
+                  <label style={labelStyle}><span>CNPJ</span>{!conta && <span style={{ color: C.danger }}>*</span>}</label>
+                  <input
+                    name="documento"
+                    value={documento}
+                    onChange={(e) => setDocumento(formatCNPJ(e.target.value))}
+                    placeholder="00.000.000/0000-00"
+                    inputMode="numeric"
+                    maxLength={18}
+                    required={!conta}
+                    className={CFG_MONO_CLASS}
+                    style={fieldInputStyle}
+                  />
                 </div>
-              </div>
-
-              <div style={{ ...cardStyle, position: 'relative' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}>ENQUADRAMENTO</label>
+                <div>
+                  <label style={labelStyle}>Enquadramento</label>
                   <select
                     value={enquadramento}
                     onChange={(e) => setEnquadramento(e.target.value)}
@@ -362,9 +366,6 @@ function ContaDialog({
                       </option>
                     ))}
                   </select>
-                  <span style={{ fontSize: 12, color: C.textFaint }}>
-                    {isNew ? 'Cria categorias de despesas automaticamente (opcional)' : 'Tipo jurídico da empresa'}
-                  </span>
                 </div>
                 {isNew && enquadramentoGuide.isVisible && (
                   <FirstAccessGuideCard
@@ -379,65 +380,53 @@ function ContaDialog({
                 )}
               </div>
 
-              {isNew && enquadramento && (
-                <div style={{ margin: '0 26px 10px' }}>
-                  <CategoryPreview enquadramento={enquadramento} />
-                </div>
-              )}
+              {isNew && enquadramento && <CategoryPreview enquadramento={enquadramento} />}
             </>
           )}
 
           {tipo === 'pessoal' && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                  <label style={{ ...labelStyle, height: 'auto' }}>CPF</label>
-                  <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                </div>
-                <input name="documento" defaultValue={conta?.documento ?? ''} placeholder="000.000.000-00" maxLength={14} style={fieldInputStyle} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={labelStyle}>CPF</label>
+                <input
+                  name="documento"
+                  value={documento}
+                  onChange={(e) => setDocumento(formatCPF(e.target.value))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  maxLength={14}
+                  className={CFG_MONO_CLASS}
+                  style={fieldInputStyle}
+                />
               </div>
-            </div>
-          )}
-
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>TELEFONE</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-              </div>
-              <input name="telefone" defaultValue={conta?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>E-MAIL</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-              </div>
-              <input name="email" type="email" defaultValue={conta?.email ?? ''} placeholder="contato@email.com" style={fieldInputStyle} />
-            </div>
-          </div>
-
-          {tipo === 'pessoal' && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                  <label style={{ ...labelStyle, height: 'auto' }}>DATA DE NASCIMENTO</label>
-                  <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                </div>
+              <div>
+                <label style={labelStyle}>Data de nascimento</label>
                 <input name="data_nascimento" type="date" defaultValue={conta?.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
               </div>
             </div>
           )}
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Telefone</label>
+              <input name="telefone" defaultValue={conta?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>E-mail</label>
+              <input name="email" type="email" defaultValue={conta?.email ?? ''} placeholder="contato@email.com" style={fieldInputStyle} />
+            </div>
+          </div>
+
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
           {conta && !conta.eh_padrao && onDelete && (
-            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Arquivar</button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Desativar</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
@@ -503,15 +492,11 @@ export function ContasTab() {
   return (
     <div className="grid gap-2.5">
       <ConfigTabHeader
-        countLabel={`${listaExibida.length} conta(s) ${mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}`}
         filters={
-          <ToggleGroup
-            value={mostrarDesativados ? 'desativadas' : 'ativas'}
-            options={[
-              { value: 'ativas', label: 'Ativas' },
-              { value: 'desativadas', label: 'Desativadas' },
-            ]}
-            onChange={(v) => setMostrarDesativados(v === 'desativadas')}
+          <ConfigSwitch
+            checked={mostrarDesativados}
+            onChange={setMostrarDesativados}
+            label={`${listaExibida.length} conta${listaExibida.length === 1 ? '' : 's'} ${mostrarDesativados ? 'desativada' : 'ativa'}${listaExibida.length === 1 ? '' : 's'}`}
           />
         }
         actionLabel="Nova conta"
@@ -540,7 +525,7 @@ export function ContasTab() {
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
       )}
 
-      <div className="grid gap-1.5">
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {listaExibida.map((c, i) => (
           <ConfigListRow
             key={c.id}

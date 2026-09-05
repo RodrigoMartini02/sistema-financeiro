@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Layers, Plus } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import {
   fetchServicos, saveServico, deleteServico,
   type Servico,
 } from '../../services/servicosService';
 import { queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { CFG } from '../../ui/configTokens';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
+import { CFG, CFG_MONO_CLASS } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { formatCurrency } from '../finance/formatters';
@@ -35,9 +36,10 @@ function ServicoDialog({
   const handleDelete = async () => {
     if (!onDelete) return;
     const ok = await confirm({
-      title: 'Excluir serviço',
-      message: `Excluir "${servico?.nome}"? Esta ação não pode ser desfeita.`,
-      confirmLabel: 'Excluir',
+      title: 'Desativar serviço',
+      message: `Desativar "${servico?.nome}"? Ele deixará de aparecer na lista de serviços ativos.`,
+      confirmLabel: 'Desativar',
+      variant: 'danger',
     });
     if (ok) onDelete();
   };
@@ -53,11 +55,12 @@ function ServicoDialog({
 
   return (
     <Dialog open={open} title={servico ? 'Editar serviço' : 'Novo serviço'} onClose={onClose} scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME DO SERVIÇO</span><span style={{ color: C.primary }}>*</span></label>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
+        <div style={{ flex: 1, minHeight: 0, height: 120, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome do serviço</span><span style={{ color: C.danger }}>*</span></label>
               <input
                 name="nome"
                 defaultValue={servico?.nome}
@@ -67,10 +70,8 @@ function ServicoDialog({
                 style={fieldInputStyle}
               />
             </div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>VALOR MENSAL PADRÃO</label>
+            <div>
+              <label style={labelStyle}>Valor mensal</label>
               <input
                 name="valor_mensal_padrao"
                 type="number"
@@ -78,22 +79,23 @@ function ServicoDialog({
                 step="0.01"
                 defaultValue={servico?.valor_mensal_padrao ?? ''}
                 placeholder="0,00"
+                className={CFG_MONO_CLASS}
                 style={fieldInputStyle}
               />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Pode ser ajustado por contrato</span>
             </div>
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
+          {/* Ação destrutiva só na edição de registro existente. */}
           {servico && onDelete && (
-            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Excluir</button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Desativar</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
@@ -113,10 +115,12 @@ function ServicoDialog({
 export function ServicosTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Servico }>({ open: false });
+  const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('servicos:novo-v1');
 
+  // O backend devolve ativos e inativos por padrão; o filtro é aplicado aqui.
   const servicosQ = useQuery({ queryKey: queryKeys.servicos, queryFn: () => fetchServicos() });
-  const data = (servicosQ.data ?? []).filter((s) => s.ativo);
+  const data = (servicosQ.data ?? []).filter((s) => (mostrarDesativados ? !s.ativo : s.ativo));
 
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: { nome: string; valor_mensal_padrao: number }; id?: number }) =>
@@ -136,9 +140,15 @@ export function ServicosTab() {
   });
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2.5">
       <ConfigTabHeader
-        countLabel={`${data.length} serviço${data.length !== 1 ? 's' : ''} no catálogo`}
+        filters={
+          <ConfigSwitch
+            checked={mostrarDesativados}
+            onChange={setMostrarDesativados}
+            label={`${data.length} serviço${data.length === 1 ? '' : 's'} ${mostrarDesativados ? 'desativado' : 'ativo'}${data.length === 1 ? '' : 's'}`}
+          />
+        }
         actionLabel="Novo serviço"
         onAction={() => setDialog({ open: true })}
       >
@@ -164,7 +174,7 @@ export function ServicosTab() {
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
       )}
 
-      <div className="grid gap-1.5">
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {data.map((s, i) => (
           <ConfigListRow
             key={s.id}

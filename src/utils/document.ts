@@ -18,3 +18,12 @@ export function formatCPF(raw: string): string {
 export function formatDocumento(raw: string, tipo: 'pessoal' | 'empresa'): string {
   return tipo === 'empresa' ? formatCNPJ(raw) : formatCPF(raw);
 }
+
+/**
+ * Para campos que aceitam CPF ou CNPJ sem saber qual de antemão: até 11 dígitos
+ * formata como CPF, acima disso como CNPJ.
+ */
+export function formatDocumentoAuto(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length > 11 ? formatCNPJ(raw) : formatCPF(raw);
+}

@@ -9,22 +9,18 @@ interface DialogProps {
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  size?: 'md' | 'lg' | 'xl' | 'xxl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
   scrollBody?: boolean;
 }
 
+// Larguras da especificação: categoria 340 · conta 440 · cartão 600.
 const maxWSize: Record<NonNullable<DialogProps['size']>, string> = {
+  xs: 'max-w-[340px]',
+  sm: 'max-w-[440px]',
   md: 'max-w-lg',
   lg: 'max-w-[780px]',
   xl: 'max-w-[980px]',
   xxl: 'max-w-[1180px]',
-};
-
-const minHSize: Record<NonNullable<DialogProps['size']>, string> = {
-  md: '',
-  lg: '',
-  xl: '',
-  xxl: '',
 };
 
 export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
@@ -47,11 +43,13 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
       />
       <div
         className={[
-          'relative z-10 w-full flex flex-col max-h-[85vh]',
-          'rounded-[18px] bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38),0_0_0_1px_rgba(13,47,63,0.06)]',
+          'dialog-panel relative z-10 w-full flex flex-col max-h-[85vh]',
+          // overflow-hidden recorta o rodapé (que tem fundo próprio) nos cantos
+          // arredondados do painel.
+          'overflow-hidden rounded-[18px] bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38),0_0_0_1px_rgba(13,47,63,0.06)]',
           'dark:bg-slate-800 dark:shadow-[0_32px_80px_-24px_rgba(0,0,0,0.55),0_0_0_1px_rgba(255,255,255,0.06)]',
           '[--dialog-px:16px] sm:[--dialog-px:26px]',
-          maxWSize[size], minHSize[size],
+          maxWSize[size],
         ].join(' ')}
       >
         {/* Header */}
@@ -73,10 +71,13 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
         </div>
 
         {/* Body */}
-        <div className={[
-          'px-[var(--dialog-px)] pb-3.5 pt-3',
-          scrollBody ? 'scrollbar-thin overflow-y-auto' : 'flex flex-col flex-1 min-h-0 overflow-hidden',
-        ].join(' ')}>{children}</div>
+        {/* Com scrollBody=false o conteúdo controla o próprio layout (corpo
+            rolável + rodapé fixo), então o Dialog não impõe padding. */}
+        <div className={
+          scrollBody
+            ? 'scrollbar-thin overflow-y-auto px-[var(--dialog-px)] pb-3.5 pt-3'
+            : 'flex flex-col flex-1 min-h-0 overflow-hidden'
+        }>{children}</div>
       </div>
     </div>
   );

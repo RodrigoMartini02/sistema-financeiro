@@ -22,7 +22,7 @@ interface DrawerProps {
 }
 
 const widthBySize: Record<NonNullable<DrawerProps['size']>, string> = {
-  md: 'sm:w-[820px]',
+  md: 'sm:w-[1000px]',
   sm: 'sm:w-[620px]',
 };
 

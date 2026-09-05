@@ -180,7 +180,7 @@ export function ReservaDialog({
 
         {/* ── Aba: Configurações ── */}
         {tab === 'config' && (
-          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={configForm.handleSubmit(onSave)}>
+          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={configForm.handleSubmit(onSave)}>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
               <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 18, alignItems: 'start' }}>
@@ -312,7 +312,7 @@ export function ReservaDialog({
 
         {/* ── Aba: Movimentar (só ao editar) ── */}
         {tab === 'movimentar' && reserva && (
-          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={movForm.handleSubmit(handleMovimentar)}>
+          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={movForm.handleSubmit(handleMovimentar)}>
             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
 
               <div style={cardStyle}>

@@ -65,7 +65,7 @@ export const cfgRowStyle: CSSProperties = {
   gap: 10,
   width: '100%',
   minHeight: 40,
-  padding: '0 10px',
+  padding: '0 12px',
   borderRadius: 12,
   border: `1px solid ${CFG.border}`,
   background: CFG.surface,

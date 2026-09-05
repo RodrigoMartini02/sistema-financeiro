@@ -541,8 +541,17 @@
 }
 
 /* Números e identificadores em fonte monoespaçada dentro de Configurações */
-.config-scope .cfg-mono {
+.config-scope .cfg-mono,
+.cfg-mono {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Foco dos campos de formulário em modais (inline style não cobre :focus). */
+.dialog-panel input:focus,
+.dialog-panel select:focus,
+.dialog-panel textarea:focus {
+  border-color: #0891b2 !important;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.12);
 }
 
 .sidebar-config-scroll {

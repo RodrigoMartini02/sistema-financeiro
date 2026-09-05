@@ -35,7 +35,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = await pool.query(
       `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
               telefone, email, data_nascimento, foto, ativo, eh_padrao, data_criacao
-       FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY tipo, id`,
+       FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY data_criacao, id`,
       [req.user!.id],
     );
     res.json({ success: true, data: result.rows });
@@ -236,7 +236,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     }
 
     // A Conta Padrão (nascida no cadastro externo, vinculada à cobrança do
-    // plano em `usuarios`) nunca pode ser arquivada — ela funciona como
+    // plano em `usuarios`) nunca pode ser desativada — ela funciona como
     // fallback implícito para dados legados sem conta_id (ver
     // accountFilter.ts/ownerAndAccountWhere.ts) e é exigida por
     // resolveFinancialAccount quando nenhuma conta específica é selecionada.

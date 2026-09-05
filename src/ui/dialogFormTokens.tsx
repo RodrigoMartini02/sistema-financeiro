@@ -31,7 +31,7 @@ export const C = {
 
 export const labelStyle: CSSProperties = {
   fontSize: 11, fontWeight: 600, color: C.textMuted,
-  height: 14, display: 'flex', alignItems: 'center', gap: 4,
+  display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5,
 };
 
 export const fieldInputStyle: CSSProperties = {
@@ -87,7 +87,7 @@ export const dangerButtonStyle: CSSProperties = {
 export const dialogFooterStyle: CSSProperties = {
   flex: 'none', display: 'flex', alignItems: 'center', gap: 10,
   borderTop: '1px solid #eef3f6', background: '#fcfdfe',
-  padding: '10px var(--dialog-px) 12px',
+  padding: '12px var(--dialog-px)',
 };
 
 export const panelStyle: CSSProperties = {

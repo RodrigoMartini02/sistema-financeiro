@@ -63,7 +63,7 @@ export function ConfigListRow({
         <img
           src={foto}
           alt=""
-          style={{ flex: 'none', height: 26, width: 26, borderRadius: 10, objectFit: 'cover' }}
+          style={{ flex: 'none', height: 26, width: 26, borderRadius: '50%', objectFit: 'cover' }}
         />
       )}
 
@@ -84,7 +84,7 @@ export function ConfigListRow({
         </span>
       )}
 
-      <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: CFG.muted }} />
+      <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: '#94a3b8' }} />
     </button>
   );
 }

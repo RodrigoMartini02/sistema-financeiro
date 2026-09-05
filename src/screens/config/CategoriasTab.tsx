@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronDown, ChevronRight, Tag, FolderTree } from 'lucide-react';
+import { Plus, ChevronRight, Tag, FolderTree } from 'lucide-react';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle } from '../../ui/dialogFormTokens';
+import {
+  C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle,
+  dangerButtonStyle, dialogFooterStyle,
+} from '../../ui/dialogFormTokens';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgRowIndexStyle } from '../../ui/configTokens';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
 import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -16,10 +19,9 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
-const CAT_SCHEME = {
-  red: { accent: '#dc2626' },
-  brand: { accent: CFG.primary },
-};
+const ACCENT = '#dc2626'; // categorias representam despesas
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
 
 function CategoriaDialog({
   open, cat, initialParentId, isSaving, error, onClose, onSave, onToggle,
@@ -56,10 +58,7 @@ function CategoriaDialog({
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get('nome') ?? '').trim();
-
-    onSave(cat
-      ? { nome }
-      : { nome, parent_id: initialParentId ?? null });
+    onSave(cat ? { nome } : { nome, parent_id: initialParentId ?? null });
   };
 
   const title = cat
@@ -69,37 +68,36 @@ function CategoriaDialog({
       : 'Nova categoria';
 
   return (
-    <Dialog open={open} title={title} onClose={onClose} scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME DA CATEGORIA</span><span style={{ color: C.primary }}>*</span></label>
-              <input
-                key={`nome-${cat?.id ?? initialParentId ?? 'new'}-${open}`}
-                name="nome"
-                defaultValue={cat?.nome}
-                placeholder="Ex: Alimentação"
-                autoFocus
-                required
-                style={fieldInputStyle}
-              />
-            </div>
+    <Dialog open={open} title={title} onClose={onClose} size="xs" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}><span>Nome da categoria</span><span style={{ color: C.danger }}>*</span></label>
+            <input
+              key={`nome-${cat?.id ?? initialParentId ?? 'new'}-${open}`}
+              name="nome"
+              defaultValue={cat?.nome}
+              placeholder="Ex: Alimentação"
+              autoFocus
+              required
+              style={fieldInputStyle}
+            />
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
+          {/* Ação destrutiva só na edição de registro existente. */}
           {cat && onToggle && (
             <div className="relative">
-              <Button type="button" variant={cat.ativo ? 'danger' : 'ghost'} onClick={handleToggle}>
+              <button type="button" style={dangerButtonStyle} onClick={handleToggle}>
                 {cat.ativo ? 'Desativar' : 'Ativar'}
-              </Button>
+              </button>
               {cat.ativo && desativarGuide.isVisible && (
                 <FirstAccessGuideCard
                   floating
@@ -114,11 +112,7 @@ function CategoriaDialog({
             </div>
           )}
           <div style={{ marginLeft: 'auto' }}>
-            <button
-              type="submit"
-              disabled={isSaving}
-              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
-            >
+            <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
@@ -128,148 +122,145 @@ function CategoriaDialog({
   );
 }
 
+// ─── Linha ───────────────────────────────────────────────────────────────────
+
 function CategoriaRow({
-  cat, index, isChild, colorScheme = 'brand', onEdit, onCreateSubcategory, subcategoryGuide,
+  cat, index, parentIndex, expanded, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
 }: {
   cat: Categoria;
-  index: number;
-  isChild?: boolean;
-  colorScheme?: 'red' | 'brand';
+  /** Índice hierárquico já formatado: "01" na raiz, "1.1" na subcategoria. */
+  index: string;
+  parentIndex?: string;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
   onEdit: (cat: Categoria) => void;
   onCreateSubcategory?: (cat: Categoria) => void;
   subcategoryGuide?: { description: string; onDismiss: () => void };
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const isChild = parentIndex !== undefined;
   const hasSubs = (cat.subcategorias?.length ?? 0) > 0;
-  const s = CAT_SCHEME[colorScheme];
   const dataCriado = cat.data_criacao
     ? new Date(cat.data_criacao).toLocaleDateString('pt-BR')
     : null;
 
   return (
-    <>
+    <div className="relative" style={{ marginLeft: isChild ? 22 : 0 }}>
       <div
-        className="relative"
-        style={{ marginLeft: isChild ? 22 : 0, opacity: cat.ativo ? 1 : 0.5 }}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          minHeight: isChild ? 34 : 38, padding: '0 12px', borderRadius: 12,
+          border: `1px solid ${CFG.border}`,
+          background: isChild ? CFG.surfaceAlt : CFG.surface,
+          boxShadow: CFG.shadowRow,
+          transition: 'border-color .13s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = ACCENT; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = CFG.border; }}
       >
-        <div
+        <button
+          type="button"
+          onClick={() => onEdit(cat)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-            minHeight: isChild ? 34 : 38, padding: '0 10px', borderRadius: 12,
-            border: `1px solid ${CFG.border}`,
-            background: isChild ? CFG.surfaceAlt : CFG.surface,
-            boxShadow: CFG.shadowRow,
-            transition: 'border-color .13s ease, background .13s ease',
+            display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
+            border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = s.accent; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = CFG.border; }}
         >
-          <button
-            type="button"
-            onClick={() => onEdit(cat)}
+          <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>{index}</span>
+          <span
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
-              border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer',
+              minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: isChild ? 12.5 : 13, fontWeight: isChild ? 500 : 600,
+              color: isChild ? CFG.textSoft : CFG.text,
             }}
           >
-            <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span
-              style={{
-                minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: isChild ? 12.5 : 13, fontWeight: isChild ? 500 : 600,
-                color: isChild ? CFG.textSoft : CFG.text,
-                textDecoration: cat.ativo ? 'none' : 'line-through',
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.nome}</span>
-              {hasSubs && !isChild && (
-                <span style={cfgBadgeStyle}>{cat.subcategorias!.length} sub</span>
-              )}
-            </span>
-            <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
-              {dataCriado ?? '—'}
-            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.nome}</span>
+            {hasSubs && !isChild && (
+              <span style={cfgBadgeStyle}>{cat.subcategorias!.length} sub</span>
+            )}
+          </span>
+          <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+            {dataCriado ?? '—'}
+          </span>
+        </button>
+
+        {/* Só a raiz cria subcategoria; stopPropagation evita abrir o modal dela. */}
+        {!isChild && cat.ativo && onCreateSubcategory && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onCreateSubcategory(cat); }}
+            style={{
+              flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+              border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+              fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
+            }}
+          >
+            <Plus size={11} strokeWidth={2.8} />
+            <span className="hidden sm:inline">Subcategoria</span>
+            <span className="sm:hidden">Sub</span>
           </button>
+        )}
 
-          {!isChild && cat.ativo && onCreateSubcategory && (
-            <button
-              type="button"
-              onClick={() => onCreateSubcategory(cat)}
-              style={{
-                flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-                border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
-                fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
-              }}
-            >
-              <Plus size={11} strokeWidth={2.8} />
-              <span className="hidden sm:inline">Subcategoria</span>
-              <span className="sm:hidden">Sub</span>
-            </button>
-          )}
-
-          {hasSubs && !isChild ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((o) => !o)}
-              aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
-              style={{
-                flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
-                border: 'none', background: 'transparent', borderRadius: 8,
-                color: CFG.faint, cursor: 'pointer',
-              }}
-            >
-              {expanded ? <ChevronDown size={13} strokeWidth={2.2} /> : <ChevronRight size={13} strokeWidth={2.2} />}
-            </button>
-          ) : (
-            <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: CFG.muted }} />
-          )}
-        </div>
-
-        {subcategoryGuide && (
-          <FirstAccessGuideCard
-            floating
-            placement="top"
-            align="right"
-            className="w-[min(22rem,calc(100vw-2rem))]"
-            icon={FolderTree}
-            description={subcategoryGuide.description}
-            onDismiss={subcategoryGuide.onDismiss}
-          />
+        {hasSubs && !isChild ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
+            aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
+            style={{
+              flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
+              border: 'none', background: 'transparent', borderRadius: 8,
+              color: CFG.faint, cursor: 'pointer',
+            }}
+          >
+            <ChevronRight
+              size={13}
+              strokeWidth={2.2}
+              style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }}
+            />
+          </button>
+        ) : (
+          <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: '#94a3b8' }} />
         )}
       </div>
 
-      {!isChild && hasSubs && expanded && (
-        <div className="mt-1.5 grid gap-1.5">
-          {cat.subcategorias!.map((sub, subIdx) => (
-            <CategoriaRow
-              key={sub.id}
-              cat={sub}
-              index={subIdx}
-              isChild
-              colorScheme={colorScheme}
-              onEdit={onEdit}
-            />
-          ))}
-        </div>
+      {subcategoryGuide && (
+        <FirstAccessGuideCard
+          floating
+          placement="top"
+          align="right"
+          className="w-[min(22rem,calc(100vw-2rem))]"
+          icon={FolderTree}
+          description={subcategoryGuide.description}
+          onDismiss={subcategoryGuide.onDismiss}
+        />
       )}
-    </>
+    </div>
   );
 }
+
+// ─── Tela ────────────────────────────────────────────────────────────────────
 
 export function CategoriasTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Categoria; parentId?: number }>({ open: false });
+  const [mostrarDesativadas, setMostrarDesativadas] = useState(false);
+  const [collapsed, setCollapsed] = useState<number[]>([]);
+
   const guideNovaCategoria = useFirstAccessGuide('categorias:nova-v1');
   const guideSubcategoria = useFirstAccessGuide('categorias:sub-v1');
+
   const cats = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
   const allCats = cats.data ?? [];
-  const roots = allCats.filter((c) => !c.parent_id);
+
+  // O backend devolve ativas e inativas; o filtro é aplicado aqui. Uma raiz
+  // aparece se ela própria bate com o filtro, e suas subcategorias são
+  // filtradas pelo mesmo critério.
+  const visiveis = allCats.filter((c) => (mostrarDesativadas ? !c.ativo : c.ativo));
+  const roots = visiveis.filter((c) => !c.parent_id);
   const tree: Categoria[] = roots.map((root) => ({
     ...root,
-    subcategorias: allCats.filter((c) => c.parent_id === root.id),
+    subcategorias: visiveis.filter((c) => c.parent_id === root.id),
   }));
+  const totalSubs = tree.reduce((n, r) => n + (r.subcategorias?.length ?? 0), 0);
 
   const saveMut = useMutation({
     mutationFn: async ({ v, id }: { v: CategoriaFormValues; id?: number }) => saveCategoria(v, id),
@@ -281,22 +272,27 @@ export function CategoriasTab() {
 
   const toggleMut = useMutation({
     mutationFn: toggleCategoria,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.categorias }); setDialog({ open: false }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.categorias });
+      setDialog({ open: false });
+    },
   });
+
+  const toggleExpand = (id: number) =>
+    setCollapsed((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const estado = mostrarDesativadas ? 'desativada' : 'ativa';
+  const contagem = `${roots.length} categoria${roots.length === 1 ? '' : 's'} ${estado}${roots.length === 1 ? '' : 's'}`;
 
   return (
     <div className="grid gap-2.5">
       <ConfigTabHeader
-        countLabel={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
-              Despesas
-            </span>
-            <span style={{ fontWeight: 500, color: CFG.muted }}>
-              {roots.length} raiz{allCats.length > roots.length ? ` · ${allCats.length - roots.length} sub` : ''}
-            </span>
-          </span>
+        filters={
+          <ConfigSwitch
+            checked={mostrarDesativadas}
+            onChange={setMostrarDesativadas}
+            label={totalSubs > 0 ? `${contagem} · ${totalSubs} sub` : contagem}
+          />
         }
         actionLabel="Nova categoria"
         onAction={() => setDialog({ open: true })}
@@ -319,30 +315,41 @@ export function CategoriasTab() {
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
       )}
 
-      <div className="grid gap-1.5">
-        {tree.map((c, i) => (
-          <CategoriaRow
-            key={c.id}
-            cat={c}
-            index={i}
-            colorScheme="red"
-            onEdit={(item) => setDialog({ open: true, item })}
-            onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
-            subcategoryGuide={i === 0 && guideSubcategoria.isVisible
-              ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
-              : undefined}
-          />
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tree.map((root, i) => {
+          const rootIndex = String(i + 1).padStart(2, '0');
+          const expanded = !collapsed.includes(root.id);
+          return (
+            <div key={root.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <CategoriaRow
+                cat={root}
+                index={rootIndex}
+                expanded={expanded}
+                onToggleExpand={() => toggleExpand(root.id)}
+                onEdit={(item) => setDialog({ open: true, item })}
+                onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
+                subcategoryGuide={i === 0 && guideSubcategoria.isVisible
+                  ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
+                  : undefined}
+              />
+              {expanded && root.subcategorias?.map((sub, j) => (
+                <CategoriaRow
+                  key={sub.id}
+                  cat={sub}
+                  index={`${i + 1}.${j + 1}`}
+                  parentIndex={rootIndex}
+                  onEdit={(item) => setDialog({ open: true, item })}
+                />
+              ))}
+            </div>
+          );
+        })}
+
         {tree.length === 0 && !cats.isLoading && (
           <EmptyState
             icon={Tag}
-            title="Nenhuma categoria cadastrada"
-            description="Crie categorias para organizar despesas e relatórios."
-            action={
-              <Button size="sm" icon={<Plus size={14} />} onClick={() => setDialog({ open: true })}>
-                Criar categoria
-              </Button>
-            }
+            title={mostrarDesativadas ? 'Nenhuma categoria desativada' : 'Nenhuma categoria cadastrada'}
+            description={mostrarDesativadas ? undefined : 'Crie categorias para organizar despesas e relatórios.'}
           />
         )}
       </div>

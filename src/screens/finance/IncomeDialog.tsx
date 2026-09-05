@@ -68,7 +68,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
 
   const repsQ = useQuery({
     queryKey: queryKeys.representantes,
-    queryFn: fetchRepresentantes,
+    queryFn: () => fetchRepresentantes(),
     enabled: open && isEmpresa,
     staleTime: 60_000,
   });
