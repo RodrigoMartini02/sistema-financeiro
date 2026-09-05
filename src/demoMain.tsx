@@ -7,7 +7,6 @@ import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
 import { AppShell, type AppSection } from './layout/AppShell';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
-import { ReservasScreen } from './screens/reservas/ReservasScreen';
 import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/ExpenseDialog';
@@ -31,8 +30,7 @@ function DemoAppContent() {
   const renderContent = () => {
     switch (section) {
       case 'painel': return <FinanceDashboard />;
-      case 'movimentacoes': return <MovimentacoesScreen onManageReserves={() => setSection('reservas')} />;
-      case 'reservas': return <ReservasScreen />;
+      case 'movimentacoes': return <MovimentacoesScreen />;
       case 'relatorios': return <RelatoriosScreen />;
       default: return <FinanceDashboard />;
     }
