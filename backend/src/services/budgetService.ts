@@ -165,7 +165,7 @@ export async function getBudgetOverview(input: {
   const { userId, accountId, ...period } = input;
   const resolved = resolvePeriod(period);
   const account = await resolveFinancialAccount(userId, accountId);
-  const [categoryRows, expenseRows, incomeRows] = await Promise.all([
+  const [categoryRows, expenseRows, incomeRows, hierarchyRows] = await Promise.all([
     // Mesmo critério de conta usado em routes/categories.ts: categorias padrão
     // do tipo da conta ativa (tipo preenchido) ou exclusivas desta conta. Sem
     // isso o Planejamento listava categorias de todas as contas do usuário
@@ -191,6 +191,13 @@ export async function getBudgetOverview(input: {
       paid: expenses.paid,
     }).from(expenses).where(expenseAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
     db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
+    // Mapa pai/filho sobre TODAS as categorias do usuário, sem os filtros de
+    // conta e ativo aplicados acima: uma despesa lançada numa subcategoria que
+    // depois foi desativada continua no período e precisa somar no total do pai.
+    // Buscar o pai só entre as categorias exibidas faria esse valor sumir da
+    // conta sem aviso, e o total dos itens deixaria de bater com projectedTotal.
+    db.select({ id: categories.id, parentId: categories.parentId })
+      .from(categories).where(eq(categories.userId, userId)),
   ]);
 
   if (account.type === 'empresa') {
@@ -255,7 +262,7 @@ export async function getBudgetOverview(input: {
   // incluir o que foi lançado nas subcategorias. Sem isso uma meta em
   // "Alimentação" ignoraria as despesas de "Alimentação > Mercado" e apareceria
   // cumprida sem estar. Um único nível de aninhamento, como em CategoriasTab.
-  const parentOf = new Map(categoryRows.map((category) => [category.id, category.parentId]));
+  const parentOf = new Map(hierarchyRows.map((category) => [category.id, category.parentId]));
   const withSubcategories = (totals: Map<number, number>): Map<number, number> => {
     const rolled = new Map(totals);
     for (const [categoryId, amount] of totals) {
