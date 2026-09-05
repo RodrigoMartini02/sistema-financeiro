@@ -10,13 +10,11 @@ import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
 import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
-import { fetchReservas, movimentar } from '../../services/reservasService';
-import type { MovimentacaoFormValues } from '../../types/reservas';
 import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
 import { DespesasScreen, type FilteredSummary } from '../despesas/DespesasScreen';
 import { ReceitasScreen } from '../receitas/ReceitasScreen';
-import { ReserveMovementDialog } from '../reservas/ReserveMovementDialog';
+import { ReservasPanel } from '../reservas/ReservasPanel';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
@@ -151,7 +149,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     queryFn: () => fetchDashboardAnual(year),
     staleTime: 60_000,
   });
-  const reservas = useQuery({ queryKey: queryKeys.reservas, queryFn: fetchReservas });
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
   const mesStatusQuery = useQuery({
@@ -210,14 +207,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
     },
     onError: (error: Error) => setMesActionError(error.message),
   });
-  const moveReserveMut = useMutation({
-    mutationFn: ({ reserveId, values }: { reserveId: number; values: MovimentacaoFormValues }) => movimentar(reserveId, values),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.reservas });
-      setReserveDialogOpen(false);
-    },
-  });
-
   const dashboard = finance.dashboard.data;
   const annualMonth = annual.data?.[month];
   const receitasMes = annualMonth?.receitas ?? dashboard?.balance.receitas ?? 0;
@@ -398,18 +387,14 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
           )}
       </div>
 
-      <ReserveMovementDialog
+      <ReservasPanel
         open={reserveDialogOpen}
-        reservas={reservas.data ?? []}
         defaultDate={getDefaultMovementDate(month, year)}
-        isSaving={moveReserveMut.isPending}
-        error={moveReserveMut.error?.message}
         onClose={() => setReserveDialogOpen(false)}
-        onManageReserves={() => {
+        onGerenciar={() => {
           setReserveDialogOpen(false);
           onManageReserves();
         }}
-        onSubmit={(reserveId, values) => moveReserveMut.mutate({ reserveId, values })}
       />
     </>
   );

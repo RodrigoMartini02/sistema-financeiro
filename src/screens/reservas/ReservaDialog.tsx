@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { TrendingUp } from 'lucide-react';
 
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle } from '../../ui/dialogFormTokens';
-import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
+import {
+  C, labelStyle, fieldInputStyle, dialogFooterStyle,
+  saveButtonStyle, saveButtonDisabledStyle, MoneyField,
+} from '../../ui/dialogFormTokens';
+import type { Reserva, ReservaFormValues } from '../../types/reservas';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { getLocalTodayIso } from '../../utils/date';
-import { TrendingUp } from 'lucide-react';
+import { calcContribuicaoMensal } from '../../utils/reservaContribuicao';
 import { formatCurrency } from '../finance/formatters';
 
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
@@ -40,58 +43,28 @@ const configSchema = z.object({
   data_objetivo: z.string().optional(),
 });
 
-const movSchema = z.object({
-  tipo: z.enum(['deposito', 'retirada']),
-  valor: z.coerce.number().positive('Valor deve ser maior que zero'),
-  descricao: z.string().optional(),
-  data: z.string().min(10),
-});
-
-const TIPOS = [
-  { value: 'deposito', label: 'Depósito',  description: 'Adicionar dinheiro à reserva' },
-  { value: 'retirada', label: 'Retirada',  description: 'Sacar da reserva' },
-];
-
 interface Props {
   open: boolean;
   reserva?: Reserva;
   isSaving: boolean;
-  isMovimentando?: boolean;
   error?: string;
-  startTab?: 'config' | 'movimentar';
   onClose: () => void;
   onSave: (v: ReservaFormValues) => void;
-  onMovimentar: (v: MovimentacaoFormValues) => void;
 }
 
-function calcContribuicao(valorAtual: number, meta: number, prazo: string): number | null {
-  if (!meta || !prazo) return null;
-  const hoje = new Date();
-  const dataPrazo = new Date(prazo);
-  const meses =
-    (dataPrazo.getFullYear() - hoje.getFullYear()) * 12 +
-    (dataPrazo.getMonth() - hoje.getMonth());
-  if (meses <= 0) return null;
-  const restante = meta - valorAtual;
-  if (restante <= 0) return null;
-  return Math.ceil(restante / meses);
-}
-
-export function ReservaDialog({
-  open, reserva, isSaving, isMovimentando = false, error, startTab, onClose, onSave, onMovimentar,
-}: Props) {
-  const [tab, setTab] = useState<'config' | 'movimentar'>('config');
-  const tabsGuide = useFirstAccessGuide('reservas:aba-movimentar-v1', {
-    enabled: open && !!reserva,
-    layer: GUIDE_LAYER_MODAL,
-  });
+/**
+ * Cadastro da reserva: nome, ícone, cor e meta.
+ *
+ * Depositar e retirar ficam no ReservasPanel — este modal tinha uma aba
+ * "Movimentar" que era a terceira implementação do mesmo formulário.
+ */
+export function ReservaDialog({ open, reserva, isSaving, error, onClose, onSave }: Props) {
   const contribuicaoGuide = useFirstAccessGuide('reservas:contribuicao-sugerida-v1', {
-    enabled: open && tab === 'config',
+    enabled: open,
     layer: GUIDE_LAYER_MODAL,
   });
 
-  // --- Form: Configurações ---
-  const configForm = useForm<ReservaFormValues>({
+  const form = useForm<ReservaFormValues>({
     resolver: zodResolver(configSchema) as Resolver<ReservaFormValues>,
     defaultValues: {
       observacoes: '',
@@ -102,304 +75,133 @@ export function ReservaDialog({
     },
   });
 
-  const icone = configForm.watch('icone');
-  const cor = configForm.watch('cor');
-  const objetivoValor = configForm.watch('objetivo_valor');
-  const dataObjetivo = configForm.watch('data_objetivo');
+  const icone = form.watch('icone');
+  const cor = form.watch('cor');
+  const objetivoValor = form.watch('objetivo_valor');
+  const dataObjetivo = form.watch('data_objetivo');
 
   const contribuicao = objetivoValor && dataObjetivo
-    ? calcContribuicao(Number(reserva?.valor ?? 0), Number(objetivoValor), dataObjetivo)
+    ? calcContribuicaoMensal(Number(reserva?.valor ?? 0), Number(objetivoValor), dataObjetivo)
     : null;
 
-  // --- Form: Movimentar ---
-  const today = getLocalTodayIso();
-
-  const movForm = useForm<MovimentacaoFormValues>({
-    resolver: zodResolver(movSchema) as Resolver<MovimentacaoFormValues>,
-    defaultValues: { tipo: 'deposito', valor: 0, descricao: '', data: today },
-  });
-
-  const movTipo = movForm.watch('tipo');
-
-  // Sync ao abrir
   useEffect(() => {
     if (!open) return;
-    setTab(startTab ?? 'config');
-    configForm.reset({
+    form.reset({
       observacoes: reserva?.observacoes ?? '',
       icone: reserva?.icone ?? '💰',
       cor: reserva?.cor ?? '#6366f1',
       objetivo_valor: reserva?.objetivo_valor ?? undefined,
       data_objetivo: reserva?.data_objetivo?.slice(0, 10) ?? undefined,
     });
-    movForm.reset({ tipo: 'deposito', valor: 0, descricao: '', data: today });
-  }, [open, reserva, startTab]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleMovimentar = (values: MovimentacaoFormValues) => {
-    onMovimentar(values);
-    movForm.reset({ tipo: 'deposito', valor: 0, descricao: '', data: today });
-  };
+  }, [open, reserva]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Dialog open={open} title={reserva ? 'Editar reserva' : 'Nova reserva'} onClose={onClose} size="lg" scrollBody={false}>
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+    <Dialog open={open} title={reserva ? 'Editar reserva' : 'Nova reserva'} onClose={onClose} size="sm" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={form.handleSubmit(onSave)}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Seletor de abas — só aparece ao editar */}
-        {reserva && (
-          <div style={{ position: 'relative', margin: '0 26px 14px', flex: 'none' }}>
-            <div style={{ display: 'flex', gap: 4, borderRadius: 12, background: '#f2f5f7', padding: 4 }}>
-              {(['config', 'movimentar'] as const).map((t) => (
+          <div>
+            <label style={labelStyle}><span>Nome da reserva</span><span style={{ color: C.danger }}>*</span></label>
+            <input
+              {...form.register('observacoes')}
+              placeholder="Ex: Fundo de emergência"
+              autoFocus
+              style={fieldInputStyle}
+            />
+            {form.formState.errors.observacoes?.message && (
+              <span style={{ display: 'block', marginTop: 4, fontSize: 11.5, color: C.danger }}>
+                {form.formState.errors.observacoes.message}
+              </span>
+            )}
+          </div>
+
+          <div>
+            <label style={labelStyle}>Ícone</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {EMOJIS.map((emoji) => (
                 <button
-                  key={t}
+                  key={emoji}
                   type="button"
-                  onClick={() => setTab(t)}
+                  onClick={() => form.setValue('icone', emoji)}
                   style={{
-                    flex: 1, borderRadius: 9, padding: '7px 0', fontSize: 12.5, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all .13s ease',
-                    background: tab === t ? '#fff' : 'transparent',
-                    color: tab === t ? C.text : C.textMuted,
-                    boxShadow: tab === t ? '0 1px 4px -1px rgba(13,47,63,0.2)' : 'none',
+                    height: 28, width: 28, borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                    border: icone === emoji ? `2px solid ${C.primary}` : '1px solid #d8e0e8',
+                    background: icone === emoji ? C.primarySoft : '#fff',
                   }}
                 >
-                  {t === 'config' ? 'Configurações' : 'Movimentar'}
+                  {emoji}
                 </button>
               ))}
             </div>
-            {tabsGuide.isVisible && (
+          </div>
+
+          <div>
+            <label style={labelStyle}>Cor</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CORES.map((opcao) => (
+                <button
+                  key={opcao.value}
+                  type="button"
+                  onClick={() => form.setValue('cor', opcao.value)}
+                  title={opcao.label}
+                  style={{
+                    height: 22, width: 22, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    background: opcao.value,
+                    boxShadow: cor === opcao.value ? `0 0 0 2px #fff, 0 0 0 4px ${C.primary}` : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: '#eef2f6' }} />
+
+          <div style={{ position: 'relative' }}>
+            <label style={labelStyle}>Meta</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <Controller
+                control={form.control}
+                name="objetivo_valor"
+                render={({ field }) => <MoneyField value={field.value ?? undefined} onChange={field.onChange} />}
+              />
+              <input {...form.register('data_objetivo')} type="date" style={fieldInputStyle} />
+            </div>
+
+            {contribuicao !== null && (
+              <p style={{
+                margin: '8px 0 0', borderRadius: 10, border: `1px solid ${C.warnBorder}`,
+                background: C.warnBg, padding: '7px 9px', fontSize: 11.5, color: C.warn,
+              }}>
+                Guarde cerca de <strong>{formatCurrency(contribuicao)}/mês</strong> para atingir a meta no prazo.
+              </p>
+            )}
+
+            {contribuicaoGuide.isVisible && (
               <FirstAccessGuideCard
                 floating
                 placement="bottom"
                 className="w-[min(24rem,calc(100vw-2rem))]"
                 icon={TrendingUp}
-                description={firstAccessGuideMessages.reservasAbaMovimentar}
-                onDismiss={tabsGuide.dismiss}
-                onSilenceAll={tabsGuide.silenceAll}
+                description={firstAccessGuideMessages.reservasContribuicaoSugerida}
+                onDismiss={contribuicaoGuide.dismiss}
+                onSilenceAll={contribuicaoGuide.silenceAll}
               />
             )}
           </div>
-        )}
 
-        {/* ── Aba: Configurações ── */}
-        {tab === 'config' && (
-          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={configForm.handleSubmit(onSave)}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-
-              <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 18, alignItems: 'start' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}>ÍCONE</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                    {EMOJIS.map((e) => (
-                      <button
-                        key={e}
-                        type="button"
-                        onClick={() => configForm.setValue('icone', e)}
-                        style={{
-                          height: 34, width: 34, borderRadius: 9, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          border: icone === e ? `2px solid ${C.primary}` : '2px solid transparent',
-                          background: icone === e ? C.primarySoft : 'transparent', cursor: 'pointer', transition: 'all .13s ease',
-                        }}
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}><span>NOME DA RESERVA</span><span style={{ color: C.primary }}>*</span></label>
-                  <input
-                    {...configForm.register('observacoes')}
-                    placeholder="Ex: Fundo de emergência"
-                    autoFocus
-                    style={fieldInputStyle}
-                  />
-                  {configForm.formState.errors.observacoes?.message && (
-                    <span style={{ fontSize: 12, color: C.danger }}>{configForm.formState.errors.observacoes.message}</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label style={labelStyle}>COR</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {CORES.map((c) => (
-                      <button
-                        key={c.value}
-                        type="button"
-                        onClick={() => configForm.setValue('cor', c.value)}
-                        title={c.label}
-                        style={{
-                          height: 28, width: 28, borderRadius: '50%', border: cor === c.value ? `2px solid ${C.primary}` : '2px solid transparent',
-                          boxShadow: cor === c.value ? `0 0 0 2px #fff, 0 0 0 4px ${C.primary}` : 'none',
-                          background: c.value, cursor: 'pointer', transition: 'all .13s ease',
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, borderRadius: 12, border: `1px solid ${cor}40`, background: `${cor}10`, padding: '10px 14px' }}>
-                    <span style={{ fontSize: 20 }}>{icone}</span>
-                    <div style={{ height: 12, width: 12, borderRadius: '50%', flexShrink: 0, background: cor }} />
-                    <span style={{ fontSize: 14, fontWeight: 500, color: C.text }}>
-                      {configForm.watch('observacoes') || 'Prévia da reserva'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ ...cardStyle, position: 'relative' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label style={labelStyle}>META (OPCIONAL)</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <Controller
-                        control={configForm.control}
-                        name="objetivo_valor"
-                        render={({ field }) => <MoneyField value={field.value ?? undefined} onChange={field.onChange} />}
-                      />
-                      <span style={{ fontSize: 12, color: C.textFaint }}>Defina uma meta de economia</span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <input {...configForm.register('data_objetivo')} type="date" style={fieldInputStyle} />
-                      <span style={{ fontSize: 12, color: C.textFaint }}>Data para atingir a meta</span>
-                    </div>
-                  </div>
-
-                  {contribuicao !== null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1px solid ${C.warnBorder}`, background: C.warnBg, padding: '10px 14px', fontSize: 13, color: C.warn }}>
-                      <span>⏱</span>
-                      <span>
-                        Você precisa guardar cerca de{' '}
-                        <strong>
-                          {formatCurrency(contribuicao)}/mês
-                        </strong>{' '}
-                        para atingir a meta.
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {contribuicaoGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="bottom"
-                    className="w-[min(24rem,calc(100vw-2rem))]"
-                    icon={TrendingUp}
-                    description={firstAccessGuideMessages.reservasContribuicaoSugerida}
-                    onDismiss={contribuicaoGuide.dismiss}
-                    onSilenceAll={contribuicaoGuide.silenceAll}
-                  />
-                )}
-              </div>
-
-              {error && (
-                <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
-                  {error}
-                </div>
-              )}
+          {error && (
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
+              {error}
             </div>
+          )}
+        </div>
 
-            <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="submit"
-                disabled={isSaving}
-                style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
-              >
-                {isSaving ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ── Aba: Movimentar (só ao editar) ── */}
-        {tab === 'movimentar' && reserva && (
-          <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={movForm.handleSubmit(handleMovimentar)}>
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}>TIPO DE MOVIMENTAÇÃO</label>
-                  <Controller
-                    control={movForm.control}
-                    name="tipo"
-                    render={({ field }) => (
-                      <div style={{ display: 'grid', gap: 6 }}>
-                        {TIPOS.map((opt) => {
-                          const checked = field.value === opt.value;
-                          return (
-                            <div
-                              key={opt.value}
-                              onClick={() => field.onChange(opt.value)}
-                              style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer',
-                                borderRadius: 10, border: `1.5px solid ${checked ? C.primary : C.borderInput}`,
-                                background: checked ? C.primarySoft : '#fff', padding: '10px 12px', transition: 'all .13s ease',
-                              }}
-                            >
-                              <div>
-                                <p style={{ fontSize: 13.5, fontWeight: 600, color: checked ? C.primaryDark : C.text, margin: 0 }}>{opt.label}</p>
-                                <p style={{ fontSize: 12, color: checked ? C.primaryDark : C.textMuted, margin: 0 }}>{opt.description}</p>
-                              </div>
-                              <span style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${checked ? C.primary : C.chipOffBorder}`, background: checked ? C.primary : 'transparent', flexShrink: 0 }} />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div style={{ ...cardStyle, background: movTipo === 'deposito' ? '#f0fdf6' : '#fef3f2', borderColor: movTipo === 'deposito' ? '#bbf0cf' : C.dangerBorder }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    <label style={labelStyle}><span>VALOR (R$)</span><span style={{ color: C.primary }}>*</span></label>
-                    <Controller
-                      control={movForm.control}
-                      name="valor"
-                      render={({ field }) => <MoneyField value={field.value || undefined} onChange={field.onChange} autoFocus />}
-                    />
-                    {movForm.formState.errors.valor?.message && (
-                      <span style={{ fontSize: 12, color: C.danger }}>{movForm.formState.errors.valor.message}</span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    <label style={labelStyle}>DATA</label>
-                    <input {...movForm.register('data')} type="date" style={fieldInputStyle} />
-                  </div>
-                </div>
-              </div>
-
-              <div style={cardStyle}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                    <label style={{ ...labelStyle, height: 'auto' }}>DESCRIÇÃO</label>
-                    <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-                  </div>
-                  <input {...movForm.register('descricao')} placeholder="Ex: Aporte mensal" style={fieldInputStyle} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="submit"
-                disabled={isMovimentando}
-                style={{
-                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
-                  border: 'none', transition: 'all .15s ease', cursor: isMovimentando ? 'not-allowed' : 'pointer',
-                  ...(isMovimentando
-                    ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                    : movTipo === 'retirada'
-                      ? { background: C.danger, color: '#fff' }
-                      : { background: C.primary, color: '#fff' }),
-                }}
-              >
-                {isMovimentando ? 'Confirmando...' : movTipo === 'deposito' ? 'Depositar' : 'Retirar'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
+          <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </form>
     </Dialog>
   );
 }

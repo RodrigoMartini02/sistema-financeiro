@@ -1,165 +1,118 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PiggyBank, Plus, RefreshCw, TrendingUp, Trash2, Pencil } from 'lucide-react';
-import { fetchReservas, saveReserva, deleteReserva, movimentar } from '../../services/reservasService';
+import { fetchReservas, saveReserva, deleteReserva } from '../../services/reservasService';
 import { queryKeys } from '../../services/queryKeys';
-import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
+import type { Reserva, ReservaFormValues } from '../../types/reservas';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { EmptyState } from '../../ui/EmptyState';
+import { C } from '../../ui/dialogFormTokens';
 import { ReservaDialog } from './ReservaDialog';
+import { ReservasPanel } from './ReservasPanel';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+import { calcContribuicaoMensal } from '../../utils/reservaContribuicao';
+import { getLocalTodayIso } from '../../utils/date';
 import { formatCurrency } from '../finance/formatters';
 
-function calcContribuicao(valorAtual: number, meta: number, prazo: string): number | null {
-  const hoje = new Date();
-  const dataPrazo = new Date(prazo);
-  const meses =
-    (dataPrazo.getFullYear() - hoje.getFullYear()) * 12 +
-    (dataPrazo.getMonth() - hoje.getMonth());
-  if (meses <= 0) return null;
-  const restante = meta - valorAtual;
-  if (restante <= 0) return null;
-  return Math.ceil(restante / meses);
-}
+/** Linha compacta, no mesmo padrão das listas de Configurações. */
+function ReservaLinha({
+  reserva, index, onEdit, onDelete,
+}: {
+  reserva: Reserva;
+  index: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const cor = reserva.cor ?? '#6366f1';
+  const saldo = Number(reserva.valor);
+  const meta = Number(reserva.objetivo_valor ?? 0);
+  const temMeta = meta > 0;
+  const pct = temMeta ? Math.min(100, (saldo / meta) * 100) : 0;
+  const contribuicao = temMeta && reserva.data_objetivo
+    ? calcContribuicaoMensal(saldo, meta, reserva.data_objetivo)
+    : null;
 
-function ProgressBar({ valor, objetivo, color }: { valor: number; objetivo: number; color: string }) {
-  const pct = objetivo > 0 ? Math.min(100, (valor / objetivo) * 100) : 0;
   return (
-    <div className="mt-2">
-      <div className="flex justify-between text-xs text-slate-500 mb-1">
-        <span>{pct.toFixed(0)}% de {formatCurrency(objetivo)}</span>
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        minHeight: 44, padding: '8px 12px', borderRadius: 12,
+        border: '1px solid #e9eef3', background: '#fff',
+      }}
+    >
+      <span style={{ flex: 'none', width: 20, fontSize: 10.5, fontWeight: 500, color: '#57687c' }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+
+      <span
+        style={{
+          display: 'flex', flex: 'none', height: 30, width: 30, alignItems: 'center', justifyContent: 'center',
+          borderRadius: 9, background: `${cor}18`, fontSize: 15,
+        }}
+      >
+        {reserva.icone ?? '💰'}
+      </span>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {reserva.observacoes || 'Reserva sem nome'}
+        </p>
+        {temMeta && (
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ height: 3, flex: 1, maxWidth: 140, borderRadius: 999, background: '#f1f5f9' }}>
+              <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: cor }} />
+            </div>
+            <span style={{ fontSize: 10.5, fontWeight: 500, color: C.textMuted }}>
+              {pct.toFixed(0)}% de {formatCurrency(meta)}
+              {contribuicao !== null && ` · ${formatCurrency(contribuicao)}/mês`}
+            </span>
+          </div>
+        )}
       </div>
-      <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-700">
-        <div
-          className="h-1.5 rounded-full transition-all"
-          style={{ width: `${pct}%`, background: color }}
-        />
+
+      <span style={{ flex: 'none', fontSize: 14, fontWeight: 700, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+        {formatCurrency(saldo)}
+      </span>
+
+      <div style={{ display: 'flex', flex: 'none', gap: 2 }}>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Editar ${reserva.observacoes || 'reserva'}`}
+          title="Editar"
+          style={{
+            display: 'flex', height: 28, width: 28, alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, border: 'none', background: 'transparent', color: C.textMuted, cursor: 'pointer',
+          }}
+        >
+          <Pencil size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Excluir ${reserva.observacoes || 'reserva'}`}
+          title="Excluir"
+          style={{
+            display: 'flex', height: 28, width: 28, alignItems: 'center', justifyContent: 'center',
+            borderRadius: 8, border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer',
+          }}
+        >
+          <Trash2 size={13} />
+        </button>
       </div>
     </div>
   );
 }
 
-function ReservaCard({
-  r,
-  onEdit,
-  onMovimentar,
-  onDelete,
-  moveGuide,
-}: {
-  r: Reserva;
-  onEdit: () => void;
-  onMovimentar: () => void;
-  onDelete: () => void;
-  moveGuide?: { description: string; onDismiss: () => void };
-}) {
-  const cor = r.cor ?? '#6366f1';
-  const temMeta = !!r.objetivo_valor && Number(r.objetivo_valor) > 0;
-  const contribuicao =
-    temMeta && r.data_objetivo
-      ? calcContribuicao(Number(r.valor), Number(r.objetivo_valor), r.data_objetivo)
-      : null;
-
-  return (
-    <Card
-      className="flex flex-row items-center gap-6 border-l-4 p-5"
-      style={{ borderLeftColor: cor }}
-    >
-      {/* Zona esquerda */}
-      <div className="flex flex-[2] items-center gap-3 min-w-0">
-        <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: `${cor}18`, color: cor }}
-          aria-hidden="true"
-        >
-          <PiggyBank size={22} strokeWidth={2.1} />
-        </span>
-        <div className="min-w-0">
-          <p className="font-semibold text-slate-950 dark:text-white leading-snug truncate">
-            {r.observacoes || <span className="text-slate-400 italic text-sm">Sem nome</span>}
-          </p>
-          {r.data_objetivo && (
-            <p className="text-xs text-slate-400 mt-0.5">
-              Prazo: {new Date(r.data_objetivo).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-            </p>
-          )}
-          <span
-            className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold"
-            style={{ background: `${cor}20`, color: cor }}
-          >
-            {temMeta ? 'Meta' : 'Reserva'}
-          </span>
-        </div>
-      </div>
-
-      {/* Zona central */}
-      <div className="flex-[3] min-w-0">
-        <p className="text-2xl font-bold text-slate-950 dark:text-white">{formatCurrency(Number(r.valor))}</p>
-        {temMeta && r.objetivo_valor && (
-          <ProgressBar valor={Number(r.valor)} objetivo={Number(r.objetivo_valor)} color={cor} />
-        )}
-        {contribuicao !== null && (
-          <p className="mt-1 text-xs text-slate-500">
-            ~{formatCurrency(contribuicao)}/mês necessários
-          </p>
-        )}
-      </div>
-
-      {/* Zona direita */}
-      <div className="relative flex-none ml-auto flex items-center gap-2">
-        <div className="relative">
-          <Button
-            variant="secondary"
-            className="text-xs py-1.5"
-            icon={<TrendingUp size={14} />}
-            onClick={onMovimentar}
-          >
-            Movimentar
-          </Button>
-          {moveGuide && (
-            <FirstAccessGuideCard
-              floating
-              placement="top"
-              align="right"
-              className="w-[min(22rem,calc(100vw-2rem))]"
-              icon={TrendingUp}
-              description={moveGuide.description}
-              onDismiss={moveGuide.onDismiss}
-            />
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          className="px-2"
-          onClick={onEdit}
-          aria-label="Editar"
-        >
-          <Pencil size={15} />
-        </Button>
-        <Button
-          variant="ghost"
-          className="px-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
-          onClick={onDelete}
-          aria-label="Excluir"
-        >
-          <Trash2 size={15} />
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
 export function ReservasScreen() {
   const qc = useQueryClient();
-  const [dialog, setDialog] = useState<{
-    open: boolean;
-    item?: Reserva;
-    startTab?: 'config' | 'movimentar';
-  }>({ open: false });
+  const [dialog, setDialog] = useState<{ open: boolean; item?: Reserva }>({ open: false });
+  const [painelAberto, setPainelAberto] = useState(false);
   const guide = useFirstAccessGuide('reservas:novo-v1');
   const moveGuide = useFirstAccessGuide('reservas:movimentar-v1');
   const confirm = useConfirm();
@@ -179,19 +132,15 @@ export function ReservasScreen() {
   const handleDeleteReserva = async (id: number) => {
     const ok = await confirm({
       title: 'Excluir reserva',
-      message: 'Excluir esta reserva?',
+      message: 'Excluir esta reserva? O histórico de movimentações também é perdido.',
       confirmLabel: 'Excluir',
+      variant: 'danger',
     });
     if (ok) deleteMut.mutate(id);
   };
 
-  const movMut = useMutation({
-    mutationFn: ({ id, values }: { id: number; values: MovimentacaoFormValues }) => movimentar(id, values),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.reservas }); setDialog({ open: false }); },
-  });
-
   const data = reservas.data ?? [];
-  const totalReservado = data.reduce((s, r) => s + Number(r.valor), 0);
+  const totalReservado = data.reduce((soma, reserva) => soma + Number(reserva.valor), 0);
 
   return (
     <>
@@ -204,6 +153,11 @@ export function ReservasScreen() {
           <div className="relative flex flex-wrap gap-2">
             <Button variant="secondary" icon={<RefreshCw size={17} />} onClick={() => reservas.refetch()}>
               Atualizar
+            </Button>
+            {/* Depositar e retirar acontecem no painel, que também traz o
+                histórico — não há um segundo formulário para isso. */}
+            <Button variant="secondary" icon={<TrendingUp size={17} />} onClick={() => setPainelAberto(true)}>
+              Movimentar
             </Button>
             <Button icon={<Plus size={17} />} onClick={() => setDialog({ open: true })}>
               Nova reserva
@@ -220,6 +174,18 @@ export function ReservasScreen() {
                 onSilenceAll={guide.silenceAll}
               />
             )}
+            {moveGuide.isVisible && data.length > 0 && (
+              <FirstAccessGuideCard
+                floating
+                placement="top"
+                align="right"
+                className="w-[min(22rem,calc(100vw-2rem))]"
+                icon={TrendingUp}
+                description={firstAccessGuideMessages.reservasMovimentar}
+                onDismiss={moveGuide.dismiss}
+                onSilenceAll={moveGuide.silenceAll}
+              />
+            )}
           </div>
         </div>
 
@@ -227,7 +193,7 @@ export function ReservasScreen() {
           <p className="text-xs font-semibold uppercase text-slate-500">Total reservado</p>
           <p className="mt-1 text-3xl font-bold text-slate-950">{formatCurrency(totalReservado)}</p>
           <p className="mt-0.5 text-sm text-slate-500">
-            {data.length} reserva{data.length !== 1 ? 's' : ''}
+            {data.length} reserva{data.length !== 1 ? 's' : ''} · separado do saldo disponível
           </p>
         </Card>
 
@@ -236,29 +202,27 @@ export function ReservasScreen() {
         )}
 
         {reservas.isLoading ? (
-          <EmptyState title="Carregando reservas" description="Buscando suas reservas e metas." />
+          <p className="py-4 text-center text-sm text-slate-500">Carregando reservas...</p>
         ) : data.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white py-6 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <EmptyState
-                title="Nenhuma reserva cadastrada"
-                description="Crie uma reserva para acompanhar objetivos, emergências ou valores separados."
-              />
+          <EmptyState
+            icon={PiggyBank}
+            title="Nenhuma reserva cadastrada"
+            description="Crie uma reserva para acompanhar objetivos, emergências ou valores separados."
+            action={
               <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
                 Criar reserva
               </Button>
-            </div>
+            }
+          />
         ) : (
-          <div className="flex flex-col gap-3">
-            {data.map((r, i) => (
-              <ReservaCard
-                key={r.id}
-                r={r}
-                onEdit={() => setDialog({ open: true, item: r })}
-                onMovimentar={() => setDialog({ open: true, item: r, startTab: 'movimentar' })}
-                onDelete={() => handleDeleteReserva(r.id)}
-                moveGuide={i === 0 && moveGuide.isVisible
-                  ? { description: firstAccessGuideMessages.reservasMovimentar, onDismiss: moveGuide.dismiss }
-                  : undefined}
+          <div className="flex flex-col gap-1.5">
+            {data.map((reserva, index) => (
+              <ReservaLinha
+                key={reserva.id}
+                reserva={reserva}
+                index={index}
+                onEdit={() => setDialog({ open: true, item: reserva })}
+                onDelete={() => handleDeleteReserva(reserva.id)}
               />
             ))}
           </div>
@@ -269,12 +233,15 @@ export function ReservasScreen() {
         open={dialog.open}
         reserva={dialog.item}
         isSaving={saveMut.isPending}
-        isMovimentando={movMut.isPending}
         error={saveMut.error?.message}
-        startTab={dialog.startTab}
         onClose={() => setDialog({ open: false })}
         onSave={(values) => saveMut.mutate({ values, id: dialog.item?.id })}
-        onMovimentar={(values) => dialog.item && movMut.mutate({ id: dialog.item.id, values })}
+      />
+
+      <ReservasPanel
+        open={painelAberto}
+        defaultDate={getLocalTodayIso()}
+        onClose={() => setPainelAberto(false)}
       />
     </>
   );
