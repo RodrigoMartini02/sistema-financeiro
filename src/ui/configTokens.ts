@@ -125,6 +125,12 @@ export const cfgPrimaryButtonStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+/** Linha divisória entre blocos de um formulário ou de uma tela. */
+export const cfgDividerStyle: CSSProperties = {
+  height: 1,
+  background: CFG.borderSoft,
+};
+
 /** Botão quadrado de ação secundária, alinhado à altura do campo (32px). */
 export const cfgIconButtonStyle: CSSProperties = {
   display: 'flex',

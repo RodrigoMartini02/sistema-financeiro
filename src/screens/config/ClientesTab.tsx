@@ -8,7 +8,8 @@ import {
 import { queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
-import { EmptyState, ErrorState } from '../../ui/states';
+import { ErrorState } from '../../ui/states';
+import { EmptyState } from '../../ui/EmptyState';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle } from '../../ui/configTokens';
