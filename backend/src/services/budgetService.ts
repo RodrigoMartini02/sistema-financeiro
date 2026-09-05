@@ -166,6 +166,12 @@ export async function getBudgetOverview(input: {
   const resolved = resolvePeriod(period);
   const account = await resolveFinancialAccount(userId, accountId);
   const [categoryRows, expenseRows, incomeRows] = await Promise.all([
+    // Mesmo critério de conta usado em routes/categories.ts: categorias padrão
+    // do tipo da conta ativa (tipo preenchido) ou exclusivas desta conta. Sem
+    // isso o Planejamento listava categorias de todas as contas do usuário
+    // enquanto Configurações mostrava só as da conta ativa, e as duas telas
+    // divergiam.
+    //
     // `ativo` existe na tabela mas ainda não está declarado no schema Drizzle
     // (é lido por SQL bruto também em routes/categories.ts), daí o sql`` aqui.
     // COALESCE porque linhas antigas podem ter a coluna nula.
@@ -176,6 +182,7 @@ export async function getBudgetOverview(input: {
     }).from(categories).where(and(
       eq(categories.userId, userId),
       sql`COALESCE(categorias.ativo, true) = true`,
+      or(eq(categories.type, account.type), eq(categories.accountId, account.id))!,
     )),
     db.select({
       categoryId: expenses.categoryId,
