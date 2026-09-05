@@ -14,7 +14,7 @@ import { AccountMenu } from './AccountMenu';
 import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
-  | 'painel' | 'movimentacoes' | 'reservas'
+  | 'painel' | 'movimentacoes'
   | 'relatorios' | 'clientes';
 
 interface AppShellProps {

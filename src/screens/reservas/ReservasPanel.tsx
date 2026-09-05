@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, Check, PiggyBank, Plus } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Check, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
 
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, dialogFooterStyle,
   saveButtonStyle, saveButtonDisabledStyle, MoneyField,
 } from '../../ui/dialogFormTokens';
-import { fetchReservas, saveReserva, movimentar } from '../../services/reservasService';
+import { fetchReservas, saveReserva, deleteReserva, movimentar } from '../../services/reservasService';
 import { queryKeys } from '../../services/queryKeys';
+import { useConfirm } from '../../context/ConfirmContext';
 import { useMovimentacoesConsolidadas } from '../../hooks/useMovimentacoesConsolidadas';
 import { calcContribuicaoMensal } from '../../utils/reservaContribuicao';
 import { formatCurrency } from '../finance/formatters';
@@ -19,16 +20,13 @@ interface ReservasPanelProps {
   /** Data sugerida para a movimentação (mês/ano em que a tela está posicionada). */
   defaultDate: string;
   onClose: () => void;
-  /**
-   * Leva à tela de Reservas, onde dá para editar cor, ícone, meta e excluir.
-   * Omitido quando o painel já é aberto de dentro dessa tela.
-   */
-  onGerenciar?: () => void;
 }
 
 type MovimentoAberto = { reservaId: number; tipo: 'deposito' | 'retirada' } | null;
 
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
+
+const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
 
 function formatDataHora(iso: string): string {
   const data = new Date(iso);
@@ -107,8 +105,8 @@ function MovimentoInline({
           type="button"
           onClick={onCancel}
           style={{
-            height: 28, padding: '0 12px', borderRadius: 999, border: 'none',
-            background: 'transparent', color: C.textMuted, fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+            height: 30, padding: '0 12px', borderRadius: 999, border: 'none',
+            background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
           }}
         >
           Cancelar
@@ -118,8 +116,8 @@ function MovimentoInline({
           disabled={!podeConfirmar}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
-            height: 28, padding: '0 14px', borderRadius: 999, border: 'none',
-            fontSize: 11.5, fontWeight: 600, cursor: podeConfirmar ? 'pointer' : 'not-allowed',
+            height: 30, padding: '0 14px', borderRadius: 999, border: 'none',
+            fontSize: 12.5, fontWeight: 600, cursor: podeConfirmar ? 'pointer' : 'not-allowed',
             background: podeConfirmar ? (tipo === 'deposito' ? C.primary : C.danger) : '#e6edf1',
             color: podeConfirmar ? '#fff' : '#a3b6c0',
           }}
@@ -135,7 +133,8 @@ function MovimentoInline({
 // ─── Linha de uma reserva ─────────────────────────────────────────────────────
 
 function ReservaLinha({
-  reserva, movimentoAberto, isSaving, error, defaultDate, onAbrirMovimento, onFecharMovimento, onConfirmar,
+  reserva, movimentoAberto, isSaving, error, defaultDate,
+  onAbrirMovimento, onFecharMovimento, onConfirmar, onEditar, onExcluir,
 }: {
   reserva: Reserva;
   movimentoAberto: MovimentoAberto;
@@ -145,6 +144,8 @@ function ReservaLinha({
   onAbrirMovimento: (tipo: 'deposito' | 'retirada') => void;
   onFecharMovimento: () => void;
   onConfirmar: (valor: number, data: string, descricao?: string) => void;
+  onEditar: () => void;
+  onExcluir: () => void;
 }) {
   const cor = reserva.cor ?? '#6366f1';
   const saldo = Number(reserva.valor);
@@ -162,7 +163,7 @@ function ReservaLinha({
       <div
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          minHeight: 44, padding: '8px 12px', borderRadius: 12,
+          minHeight: 40, padding: '6px 12px', borderRadius: 12,
           border: '1px solid #e9eef3', background: '#fff',
         }}
       >
@@ -202,7 +203,7 @@ function ReservaLinha({
             onClick={() => onAbrirMovimento('deposito')}
             title="Adicionar valor"
             style={{
-              display: 'flex', height: 28, width: 28, alignItems: 'center', justifyContent: 'center',
+              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
               borderRadius: 8, border: '1px solid #d8e0e8', background: '#fff', color: '#067647', cursor: 'pointer',
             }}
           >
@@ -214,12 +215,36 @@ function ReservaLinha({
             title="Retirar valor"
             disabled={saldo <= 0}
             style={{
-              display: 'flex', height: 28, width: 28, alignItems: 'center', justifyContent: 'center',
+              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
               borderRadius: 8, border: '1px solid #d8e0e8', background: '#fff',
               color: saldo > 0 ? C.danger : '#c7d3db', cursor: saldo > 0 ? 'pointer' : 'not-allowed',
             }}
           >
             <ArrowUpFromLine size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onEditar}
+            title="Editar reserva"
+            aria-label={`Editar ${reserva.observacoes || 'reserva'}`}
+            style={{
+              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
+              borderRadius: 8, border: 'none', background: 'transparent', color: C.textMuted, cursor: 'pointer',
+            }}
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onExcluir}
+            title="Excluir reserva"
+            aria-label={`Excluir ${reserva.observacoes || 'reserva'}`}
+            style={{
+              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
+              borderRadius: 8, border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer',
+            }}
+          >
+            <Trash2 size={13} />
           </button>
         </div>
       </div>
@@ -241,12 +266,16 @@ function ReservaLinha({
 
 // ─── Painel ───────────────────────────────────────────────────────────────────
 
-export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: ReservasPanelProps) {
+export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps) {
   const qc = useQueryClient();
-  const [criando, setCriando] = useState(false);
-  const [novoNome, setNovoNome] = useState('');
-  const [novoIcone, setNovoIcone] = useState('💰');
-  const [novaMeta, setNovaMeta] = useState(0);
+  const confirm = useConfirm();
+  // null = fechado; { id: undefined } = criando; { id: n } = editando aquela reserva.
+  const [formAberto, setFormAberto] = useState<{ id?: number } | null>(null);
+  const [nome, setNome] = useState('');
+  const [icone, setIcone] = useState('💰');
+  const [cor, setCor] = useState(CORES[0]!);
+  const [meta, setMeta] = useState(0);
+  const [metaData, setMetaData] = useState('');
   const [movimentoAberto, setMovimentoAberto] = useState<MovimentoAberto>(null);
 
   const reservasQuery = useQuery({
@@ -261,14 +290,20 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
     open && reservas.length > 0,
   );
 
+  const fecharForm = () => {
+    setFormAberto(null);
+    setNome('');
+    setIcone('💰');
+    setCor(CORES[0]!);
+    setMeta(0);
+    setMetaData('');
+  };
+
   useEffect(() => {
     if (open) return;
-    setCriando(false);
-    setNovoNome('');
-    setNovoIcone('💰');
-    setNovaMeta(0);
+    fecharForm();
     setMovimentoAberto(null);
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidar = () => {
     void qc.invalidateQueries({ queryKey: queryKeys.reservas });
@@ -277,20 +312,59 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
     }
   };
 
-  const criarMut = useMutation({
-    mutationFn: () => saveReserva({
-      observacoes: novoNome.trim(),
-      icone: novoIcone,
-      objetivo_valor: novaMeta > 0 ? novaMeta : undefined,
-    }),
+  // Um formulário só para criar e editar: saveReserva já faz POST ou PUT
+  // conforme receber id.
+  const salvarMut = useMutation({
+    mutationFn: () => saveReserva(
+      {
+        observacoes: nome.trim(),
+        icone,
+        cor,
+        objetivo_valor: meta > 0 ? meta : undefined,
+        data_objetivo: metaData || undefined,
+      },
+      formAberto?.id,
+    ),
     onSuccess: () => {
       invalidar();
-      setCriando(false);
-      setNovoNome('');
-      setNovoIcone('💰');
-      setNovaMeta(0);
+      fecharForm();
     },
   });
+
+  const excluirMut = useMutation({
+    mutationFn: deleteReserva,
+    onSuccess: invalidar,
+  });
+
+  const abrirCriacao = () => {
+    salvarMut.reset();
+    setNome('');
+    setIcone('💰');
+    setCor(CORES[0]!);
+    setMeta(0);
+    setMetaData('');
+    setFormAberto({});
+  };
+
+  const abrirEdicao = (reserva: Reserva) => {
+    salvarMut.reset();
+    setNome(reserva.observacoes ?? '');
+    setIcone(reserva.icone ?? '💰');
+    setCor(reserva.cor ?? CORES[0]!);
+    setMeta(Number(reserva.objetivo_valor ?? 0));
+    setMetaData(reserva.data_objetivo?.slice(0, 10) ?? '');
+    setFormAberto({ id: reserva.id });
+  };
+
+  const handleExcluir = async (reserva: Reserva) => {
+    const ok = await confirm({
+      title: 'Excluir reserva',
+      message: `Excluir "${reserva.observacoes || 'reserva sem nome'}"? O histórico de movimentações dela também será perdido.`,
+      confirmLabel: 'Excluir',
+      variant: 'danger',
+    });
+    if (ok) excluirMut.mutate(reserva.id);
+  };
 
   const movimentarMut = useMutation({
     mutationFn: ({ id, tipo, valor, data, descricao }: {
@@ -331,7 +405,7 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
             <p style={{ margin: 0, padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: C.textMuted }}>
               Carregando reservas...
             </p>
-          ) : reservas.length === 0 && !criando ? (
+          ) : reservas.length === 0 && !formAberto ? (
             <div style={{ padding: '20px 0', textAlign: 'center' }}>
               <PiggyBank size={26} strokeWidth={1.5} style={{ color: '#c7d3db' }} />
               <p style={{ margin: '6px 0 0', fontSize: 12.5, fontWeight: 600, color: C.textSoft }}>Nenhuma reserva ainda</p>
@@ -356,23 +430,25 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
                   onFecharMovimento={() => setMovimentoAberto(null)}
                   onConfirmar={(valor, data, descricao) =>
                     movimentarMut.mutate({ id: reserva.id, tipo: movimentoAberto!.tipo, valor, data, descricao })}
+                  onEditar={() => abrirEdicao(reserva)}
+                  onExcluir={() => void handleExcluir(reserva)}
                 />
               ))}
             </div>
           )}
 
-          {/* Criar reserva */}
-          {criando ? (
+          {/* Criar ou editar reserva — o mesmo formulário nos dois casos */}
+          {formAberto ? (
             <form
-              onSubmit={(event) => { event.preventDefault(); if (novoNome.trim().length >= 2) criarMut.mutate(); }}
+              onSubmit={(event) => { event.preventDefault(); if (nome.trim().length >= 2) salvarMut.mutate(); }}
               style={{ display: 'flex', flexDirection: 'column', gap: 8, borderRadius: 10, border: `1px solid ${C.primary}`, background: C.primarySoft, padding: 10 }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 150px', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 140px 140px', gap: 8 }}>
                 <div>
                   <label style={labelStyle}><span>Nome da reserva</span><span style={{ color: C.danger }}>*</span></label>
                   <input
-                    value={novoNome}
-                    onChange={(event) => setNovoNome(event.target.value)}
+                    value={nome}
+                    onChange={(event) => setNome(event.target.value)}
                     placeholder="Ex: Fundo de emergência"
                     autoFocus
                     style={fieldInputStyle}
@@ -380,57 +456,81 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
                 </div>
                 <div>
                   <label style={labelStyle}>Meta</label>
-                  <MoneyField value={novaMeta || undefined} onChange={setNovaMeta} />
+                  <MoneyField value={meta || undefined} onChange={setMeta} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Prazo da meta</label>
+                  <input type="date" value={metaData} onChange={(event) => setMetaData(event.target.value)} style={fieldInputStyle} />
                 </div>
               </div>
 
-              <div>
-                <label style={labelStyle}>Ícone</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setNovoIcone(emoji)}
-                      style={{
-                        height: 28, width: 28, borderRadius: 8, fontSize: 14, cursor: 'pointer',
-                        border: novoIcone === emoji ? `2px solid ${C.primary}` : '1px solid #d8e0e8',
-                        background: '#fff',
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, alignItems: 'start' }}>
+                <div>
+                  <label style={labelStyle}>Ícone</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setIcone(emoji)}
+                        style={{
+                          height: 28, width: 28, borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                          border: icone === emoji ? `2px solid ${C.primary}` : '1px solid #d8e0e8',
+                          background: '#fff',
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Cor</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, maxWidth: 132 }}>
+                    {CORES.map((opcao) => (
+                      <button
+                        key={opcao}
+                        type="button"
+                        onClick={() => setCor(opcao)}
+                        aria-label={`Cor ${opcao}`}
+                        style={{
+                          height: 20, width: 20, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                          background: opcao,
+                          boxShadow: cor === opcao ? `0 0 0 2px #fff, 0 0 0 4px ${C.primary}` : 'none',
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {criarMut.error instanceof Error && (
-                <p style={{ margin: 0, fontSize: 11.5, color: C.danger }}>{criarMut.error.message}</p>
+              {salvarMut.error instanceof Error && (
+                <p style={{ margin: 0, fontSize: 11.5, color: C.danger }}>{salvarMut.error.message}</p>
               )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button
                   type="button"
-                  onClick={() => { setCriando(false); criarMut.reset(); }}
-                  style={{ height: 28, padding: '0 12px', borderRadius: 999, border: 'none', background: 'transparent', color: C.textMuted, fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+                  onClick={fecharForm}
+                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: 'none', background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={novoNome.trim().length < 2 || criarMut.isPending}
-                  style={novoNome.trim().length < 2 || criarMut.isPending
-                    ? { ...saveButtonDisabledStyle, height: 28, fontSize: 11.5 }
-                    : { ...saveButtonStyle, height: 28, fontSize: 11.5 }}
+                  disabled={nome.trim().length < 2 || salvarMut.isPending}
+                  style={nome.trim().length < 2 || salvarMut.isPending
+                    ? saveButtonDisabledStyle
+                    : saveButtonStyle}
                 >
-                  {criarMut.isPending ? 'Criando...' : 'Criar reserva'}
+                  {salvarMut.isPending ? 'Salvando...' : formAberto.id ? 'Salvar' : 'Criar reserva'}
                 </button>
               </div>
             </form>
           ) : (
             <button
               type="button"
-              onClick={() => setCriando(true)}
+              onClick={abrirCriacao}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                 height: 30, borderRadius: 999, border: '1px dashed #d8e0e8',
@@ -507,26 +607,14 @@ export function ReservasPanel({ open, defaultDate, onClose, onGerenciar }: Reser
           )}
         </div>
 
-        <div style={dialogFooterStyle}>
-          {/* Editar cor, ícone, meta e excluir seguem na tela de Reservas. */}
-          {onGerenciar && (
-            <button
-              type="button"
-              onClick={onGerenciar}
-              style={{ ...saveButtonStyle, background: 'transparent', color: C.primaryDark }}
-            >
-              Gerenciar reservas
-            </button>
-          )}
-          <div style={{ marginLeft: 'auto' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ ...saveButtonStyle, background: 'transparent', color: C.textMuted }}
-            >
-              Fechar
-            </button>
-          </div>
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ ...saveButtonStyle, background: 'transparent', color: C.textMuted }}
+          >
+            Fechar
+          </button>
         </div>
       </div>
     </Dialog>

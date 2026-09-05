@@ -55,10 +55,6 @@ function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: V
   );
 }
 
-interface MovimentacoesScreenProps {
-  onManageReserves: () => void;
-}
-
 interface MovementTableToggleProps {
   activeTab: MovementTab;
   onChange: (tab: MovementTab) => void;
@@ -121,7 +117,7 @@ function getDefaultMovementDate(month: number, year: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
 }
 
-export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenProps) {
+export function MovimentacoesScreen() {
   const { setQuickAction, setFillViewport } = useAppContext();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
@@ -391,10 +387,6 @@ export function MovimentacoesScreen({ onManageReserves }: MovimentacoesScreenPro
         open={reserveDialogOpen}
         defaultDate={getDefaultMovementDate(month, year)}
         onClose={() => setReserveDialogOpen(false)}
-        onGerenciar={() => {
-          setReserveDialogOpen(false);
-          onManageReserves();
-        }}
       />
     </>
   );

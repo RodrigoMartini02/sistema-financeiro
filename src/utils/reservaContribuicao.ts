@@ -1,7 +1,8 @@
 /**
  * Quanto ainda falta por mês para a reserva atingir a meta até o prazo.
  *
- * Estava duplicada com corpo idêntico em ReservasScreen e ReservaDialog.
+ * Estava duplicada com corpo idêntico na tela e no modal de reservas, antes
+ * de ambos serem consolidados no ReservasPanel.
  *
  * Devolve null quando não há o que sugerir: sem meta, sem prazo, prazo já
  * vencido (ou no mês corrente) ou meta já alcançada.
