@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { eq, and, asc, inArray } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
+import { requireScreenAccess } from '../../../middleware/permissions';
 import { catalogoProdutos, catalogoProdutoImagens } from '../db/schema';
 import { isValidProdutoValor, isValidProdutoImagemMimeType } from '../../../services/catalogo';
 
@@ -33,7 +34,7 @@ const upload = multer({
 const router = Router();
 
 // GET /api/catalogo/produtos
-router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const produtos = await db
       .select()
@@ -70,7 +71,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 });
 
 // POST /api/catalogo/produtos
-router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { nome, descricao, valor } = req.body as Record<string, unknown>;
 
@@ -103,7 +104,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 });
 
 // PUT /api/catalogo/produtos/:id
-router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const { nome, descricao, valor, ativo } = req.body as Record<string, unknown>;
 
@@ -143,7 +144,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 });
 
 // DELETE /api/catalogo/produtos/:id
-router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.delete('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const imagens = await db
       .select()
@@ -178,6 +179,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
 router.post(
   '/:id/imagens',
   authenticate,
+  requireScreenAccess('accessProductCatalog'),
   upload.single('imagem'),
   async (req: Request, res: Response): Promise<void> => {
     const file = req.file;
@@ -234,7 +236,7 @@ router.post(
 );
 
 // GET /api/catalogo/produtos/imagens/:nomeArquivo — stream file inline
-router.get('/imagens/:nomeArquivo', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const nomeArquivo = path.basename(req.params['nomeArquivo'] ?? '');
     const [imagem] = await db
@@ -274,7 +276,7 @@ router.get('/imagens/:nomeArquivo', authenticate, async (req: Request, res: Resp
 });
 
 // DELETE /api/catalogo/produtos/imagens/:imagemId
-router.delete('/imagens/:imagemId', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const [imagem] = await db
       .select()

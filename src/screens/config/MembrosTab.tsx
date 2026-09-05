@@ -6,7 +6,7 @@ import {
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
 import {
-  fetchMemberPermissions, updateMemberPermissions, PERMISSION_LABELS,
+  fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
   type PermissionFlag, type MemberPermissionsData,
 } from '../../services/permissoesService';
 import { Button } from '../../ui/button';
@@ -102,12 +102,7 @@ function NovoMembroDialog({
   );
 }
 
-const PERMISSION_ORDER: PermissionFlag[] = [
-  'viewOthersEntries', 'editOthersEntries', 'deleteOthersEntries',
-  'viewAggregateSummary', 'manageCategories', 'manageCards', 'accessOtherMembersData',
-];
-
-function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: MembroListItem; onClose: () => void }) {
+function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean; membro?: MembroListItem; contaTipo: 'pessoal' | 'empresa'; onClose: () => void }) {
   const qc = useQueryClient();
   const [error, setError] = useState('');
 
@@ -128,27 +123,34 @@ function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: M
   });
 
   const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
+  const visibleGroups = PERMISSION_GROUPS.filter((g) => g.id !== 'comercial' || contaTipo === 'empresa');
 
   return (
     <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="lg">
       <div style={{ padding: '0 26px 20px' }}>
         <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
-          Por padrão, este membro só vê e gerencia os próprios lançamentos. Libere abaixo o que ele pode acessar da conta compartilhada.
+          Por padrão, este membro não acessa nenhuma tela. Libere abaixo o que ele pode usar.
         </p>
 
         {permissionsQuery.isLoading ? (
           <p style={{ fontSize: 13, color: C.textFaint, textAlign: 'center', padding: '20px 0' }}>Carregando permissões...</p>
         ) : permissions ? (
-          <div className="grid gap-2">
-            {PERMISSION_ORDER.map((flag) => (
-              <ToggleRow
-                key={flag}
-                label={PERMISSION_LABELS[flag].label}
-                description={PERMISSION_LABELS[flag].description}
-                checked={permissions[flag]}
-                disabled={toggleMut.isPending}
-                onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
-              />
+          <div className="grid gap-4">
+            {visibleGroups.map((group) => (
+              <div key={group.id} className="grid gap-2">
+                <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textFaint }}>
+                  {group.label} · {group.items.length} permiss{group.items.length !== 1 ? 'ões' : 'ão'}
+                </p>
+                {group.items.map(({ flag, label }) => (
+                  <ToggleRow
+                    key={flag}
+                    label={label}
+                    checked={permissions[flag]}
+                    disabled={toggleMut.isPending}
+                    onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         ) : null}
@@ -375,6 +377,7 @@ export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 
         <PermissoesDialog
           open={!!permissoesMembro}
           membro={permissoesMembro}
+          contaTipo={contaTipo}
           onClose={() => setPermissoesMembro(null)}
         />
       )}

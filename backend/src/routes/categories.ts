@@ -4,14 +4,8 @@ import { db, pool } from '../db/client';
 import { categories } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ensureDefaultCategories } from '../services/defaultCategories';
-import { canActOnResource } from '../middleware/permissions';
 
 const router = Router();
-
-async function resolveCategoryOwnerId(categoryId: number): Promise<number | null> {
-  const [row] = await db.select({ userId: categories.userId }).from(categories).where(eq(categories.id, categoryId)).limit(1);
-  return row?.userId ?? null;
-}
 
 // Resolve o tipo de conta ('pessoal' | 'empresa') a partir do conta_id
 // recebido do client, validando que a conta pertence ao usuario autenticado.
@@ -216,14 +210,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const [existing] = await db.select({ id: categories.id, type: categories.type, accountId: categories.accountId, userId: categories.userId }).from(categories)
-      .where(eq(categories.id, categoryId)).limit(1);
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, existing.userId, 'manageCategories'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
 
@@ -232,11 +222,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const duplicateResult = existing.type
       ? await pool.query(
           `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND tipo = $4`,
-          [existing.userId, nome.trim(), categoryId, existing.type],
+          [req.user!.id, nome.trim(), categoryId, existing.type],
         )
       : await pool.query(
           `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND conta_id IS NOT DISTINCT FROM $4`,
-          [existing.userId, nome.trim(), categoryId, existing.accountId],
+          [req.user!.id, nome.trim(), categoryId, existing.accountId],
         );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A category with this name already exists' });
@@ -248,7 +238,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
        SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $4 AND usuario_id = $5
        RETURNING id, nome, cor, icone, parent_id, tipo, conta_id, data_criacao, data_atualizacao`,
-      [nome.trim(), cor ?? null, icone ?? null, categoryId, existing.userId],
+      [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Category updated', data: result.rows[0] });
@@ -267,22 +257,12 @@ router.patch('/:id/toggle-active', authenticate, async (req: Request, res: Respo
       return;
     }
 
-    const ownerId = await resolveCategoryOwnerId(categoryId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Category not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'manageCategories'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const result = await pool.query(
       `UPDATE categorias
        SET ativo = NOT COALESCE(ativo, true), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $1 AND usuario_id = $2
        RETURNING id, nome, COALESCE(ativo, true) AS active`,
-      [categoryId, ownerId],
+      [categoryId, req.user!.id],
     );
 
     if (result.rows.length === 0) {
@@ -305,20 +285,16 @@ router.put('/:id/favorite', authenticate, async (req: Request, res: Response): P
     const { forma_favorita, cartao_favorito_id } = req.body as Record<string, string | undefined>;
 
     const [existing] = await db.select({ id: categories.id, userId: categories.userId }).from(categories)
-      .where(eq(categories.id, categoryId)).limit(1);
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
       return;
     }
-    if (!(await canActOnResource(req.user!.id, existing.userId, 'manageCategories'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
 
     const [updated] = await db.update(categories)
       .set({ favoritePaymentMethod: forma_favorita ?? null, favoriteCardId: cartao_favorito_id ? parseInt(cartao_favorito_id) : null, updatedAt: new Date() })
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, existing.userId)))
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id)))
       .returning();
 
     res.json({ success: true, message: 'Favorite saved', data: updated });
@@ -338,14 +314,10 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     }
 
     const [existing] = await db.select({ id: categories.id, name: categories.name, userId: categories.userId }).from(categories)
-      .where(eq(categories.id, categoryId)).limit(1);
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, existing.userId, 'manageCategories'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
       return;
     }
 
@@ -357,7 +329,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
 
     const usageResult = await pool.query(
       'SELECT COUNT(*) AS total FROM despesas WHERE categoria_id = $1 AND usuario_id = $2',
-      [categoryId, existing.userId],
+      [categoryId, req.user!.id],
     );
     const totalUses = parseInt((usageResult.rows[0] as { total: string }).total);
     if (totalUses > 0) {
@@ -365,7 +337,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    await db.delete(categories).where(and(eq(categories.id, categoryId), eq(categories.userId, existing.userId)));
+    await db.delete(categories).where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id)));
     res.json({ success: true, message: `Category "${existing.name}" deleted` });
   } catch (error) {
     console.error('Delete category error:', error);

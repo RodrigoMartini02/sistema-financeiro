@@ -5,12 +5,6 @@ import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
-import { canActOnResource } from '../middleware/permissions';
-
-async function resolveExpenseOwnerId(expenseId: number): Promise<number | null> {
-  const result = await pool.query('SELECT usuario_id FROM despesas WHERE id = $1', [expenseId]);
-  return (result.rows[0] as { usuario_id: number } | undefined)?.usuario_id ?? null;
-}
 
 const router = Router();
 
@@ -425,16 +419,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   try {
     const expenseId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveExpenseOwnerId(expenseId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const {
       descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
       categoria_id, cartao_id, forma_pagamento, observacoes, pago,
@@ -496,7 +480,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         recorrente !== undefined ? recorrente : null,
         conta_id ? parseInt(String(conta_id)) : null,
         (numero_nf as string) || null, (data_emissao_nf as string) || null, (tipo_despesa as string) || null,
-        expenseId, ownerId,
+        expenseId, req.user!.id,
       ],
     );
 
@@ -517,19 +501,9 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
   try {
     const expenseId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveExpenseOwnerId(expenseId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const result = await pool.query(
       "UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING id",
-      [expenseId, ownerId],
+      [expenseId, req.user!.id],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Expense not found' });
@@ -548,25 +522,15 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     const expenseId = parseInt(req.params['id']!);
     const { delete_group } = req.query as { delete_group?: string };
 
-    const ownerId = await resolveExpenseOwnerId(expenseId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'deleteOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     if (delete_group === 'true') {
       await pool.query(
         `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2`,
-        [expenseId, ownerId],
+        [expenseId, req.user!.id],
       );
     } else {
       const result = await pool.query(
         'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-        [expenseId, ownerId],
+        [expenseId, req.user!.id],
       );
       if (result.rows.length === 0) {
         res.status(404).json({ success: false, message: 'Expense not found' });
@@ -587,21 +551,11 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
     const expenseId = parseInt(req.params['id']!);
     const { data_pagamento, valor_pago, settle_future } = req.body as Record<string, unknown>;
 
-    const ownerId = await resolveExpenseOwnerId(expenseId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
 
     const result = await pool.query(
       `UPDATE despesas SET pago = true, data_pagamento = $1, valor_pago = $2 WHERE id = $3 AND usuario_id = $4 RETURNING *`,
-      [paymentDate, valor_pago ?? null, expenseId, ownerId],
+      [paymentDate, valor_pago ?? null, expenseId, req.user!.id],
     );
 
     if (result.rows.length === 0) {
@@ -615,7 +569,7 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
       await pool.query(
         `UPDATE despesas SET pago = true, data_pagamento = $1, valor_pago = 0
          WHERE grupo_parcelamento_id = $2 AND parcela_atual > $3 AND usuario_id = $4`,
-        [paymentDate, expense['grupo_parcelamento_id'], expense['parcela_atual'], ownerId],
+        [paymentDate, expense['grupo_parcelamento_id'], expense['parcela_atual'], req.user!.id],
       );
     }
 
@@ -631,19 +585,9 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
   try {
     const expenseId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveExpenseOwnerId(expenseId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const existing = await pool.query(
       `SELECT data_vencimento, pago FROM despesas WHERE id = $1 AND usuario_id = $2`,
-      [expenseId, ownerId],
+      [expenseId, req.user!.id],
     );
 
     if (existing.rows.length === 0) {
@@ -675,7 +619,7 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
 
     const result = await pool.query(
       `UPDATE despesas SET data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 RETURNING *`,
-      [newDueDate, nextMonth - 1, nextYear, expenseId, ownerId],
+      [newDueDate, nextMonth - 1, nextYear, expenseId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Expense moved to next month', data: result.rows[0] });

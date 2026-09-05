@@ -99,28 +99,29 @@ import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
 import catalogoRoutes from './modules/catalogo/routes';
 import { authenticate, requireActivePlan } from './middleware/auth';
+import { requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/usuarios', userRoutes);           // PT alias
-app.use('/api/contas', authenticate, requireActivePlan, accountRoutes);
+app.use('/api/contas', authenticate, requireActivePlan, requireScreenAccess('accessAccounts'), accountRoutes);
 app.use('/api/account-members', authenticate, requireActivePlan, accountMemberRoutes);
-app.use('/api/categories', authenticate, requireActivePlan, categoryRoutes);
-app.use('/api/categorias', authenticate, requireActivePlan, categoryRoutes);     // PT alias
-app.use('/api/cards', authenticate, requireActivePlan, cardRoutes);
-app.use('/api/cartoes', authenticate, requireActivePlan, cardRoutes);            // PT alias
-app.use('/api/incomes', authenticate, requireActivePlan, incomeRoutes);
-app.use('/api/receitas', authenticate, requireActivePlan, incomeRoutes);         // PT alias
-app.use('/api/expenses', authenticate, requireActivePlan, expenseRoutes);
-app.use('/api/despesas', authenticate, requireActivePlan, expenseRoutes);        // PT alias
-app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);
-app.use('/api/relatorios', authenticate, requireActivePlan, reportRoutes);
+app.use('/api/categories', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), categoryRoutes);
+app.use('/api/categorias', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), categoryRoutes);     // PT alias
+app.use('/api/cards', authenticate, requireActivePlan, requireScreenAccess('accessCards'), cardRoutes);
+app.use('/api/cartoes', authenticate, requireActivePlan, requireScreenAccess('accessCards'), cardRoutes);            // PT alias
+app.use('/api/incomes', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);
+app.use('/api/receitas', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);         // PT alias
+app.use('/api/expenses', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);
+app.use('/api/despesas', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);        // PT alias
+app.use('/api/meses', authenticate, requireActivePlan, requireScreenAccess('accessMonthClosing'), monthRoutes);
+app.use('/api/relatorios', authenticate, requireActivePlan, requireScreenAccess('accessReports'), reportRoutes);
 app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
-app.use('/api/reserves', authenticate, requireActivePlan, reserveRoutes);
-app.use('/api/reservas', authenticate, requireActivePlan, reserveRoutes);        // PT alias
-app.use('/api/appointments', authenticate, requireActivePlan, appointmentRoutes);
-app.use('/api/compromissos', authenticate, requireActivePlan, appointmentRoutes); // PT alias
+app.use('/api/reserves', authenticate, requireActivePlan, requireScreenAccess('accessReserves'), reserveRoutes);
+app.use('/api/reservas', authenticate, requireActivePlan, requireScreenAccess('accessReserves'), reserveRoutes);        // PT alias
+app.use('/api/appointments', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes);
+app.use('/api/compromissos', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes); // PT alias
 app.use('/api/financial', financialRoutes);
 app.use('/api/financeiro', financialRoutes);    // PT alias
 app.use('/api/plans', planRoutes);
@@ -128,22 +129,22 @@ app.use('/api/planos', planRoutes);             // PT alias
 app.use('/api/paypal', paypalRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/avaliacoes', ratingRoutes);       // PT alias
-app.use('/api/representatives', authenticate, requireActivePlan, representativeRoutes);
-app.use('/api/representantes', authenticate, requireActivePlan, representativeRoutes); // PT alias
-app.use('/api/partners', authenticate, requireActivePlan, partnerRoutes);
-app.use('/api/socios', authenticate, requireActivePlan, partnerRoutes);          // PT alias
+app.use('/api/representatives', authenticate, requireActivePlan, requireScreenAccess('accessRepresentatives'), representativeRoutes);
+app.use('/api/representantes', authenticate, requireActivePlan, requireScreenAccess('accessRepresentatives'), representativeRoutes); // PT alias
+app.use('/api/partners', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);
+app.use('/api/socios', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);          // PT alias
 app.use('/api/income-types', authenticate, requireActivePlan, incomeTypeRoutes);
 app.use('/api/tipos-receita', authenticate, requireActivePlan, incomeTypeRoutes); // PT alias
-app.use('/api/clientes', authenticate, requireActivePlan, clientRoutes);
-app.use('/api/contratos', authenticate, requireActivePlan, contractRoutes);
-app.use('/api/servicos', authenticate, requireActivePlan, serviceRoutes);
-app.use('/api/contratos-servicos', authenticate, requireActivePlan, contractServiceRoutes);
-app.use('/api/contrato-anexos', authenticate, requireActivePlan, contractAttachmentRoutes);
+app.use('/api/clientes', authenticate, requireActivePlan, requireScreenAccess('accessClients'), clientRoutes);
+app.use('/api/contratos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractRoutes);
+app.use('/api/servicos', authenticate, requireActivePlan, requireScreenAccess('accessServices'), serviceRoutes);
+app.use('/api/contratos-servicos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractServiceRoutes);
+app.use('/api/contrato-anexos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
-app.use('/api/assistant', authenticate, requireActivePlan, assistantRoutes);
-app.use('/api/assistente', authenticate, requireActivePlan, assistantRoutes);
-app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
+app.use('/api/assistant', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
+app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
+app.use('/api/orcamento', authenticate, requireActivePlan, requireScreenAccess('accessBudget'), budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/futebol', futebolRoutes);
 app.use('/api/catalogo', catalogoRoutes);

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { MercadoPagoConfig, Preference, Payment, PreApproval } from 'mercadopago';
 import { pool } from '../db/client';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { requireScreenAccess } from '../middleware/permissions';
 import {
   activateRecurringPlanAfterApprovedPayment,
   expireRecurringPlanAfterSubscriptionStopped,
@@ -55,7 +56,7 @@ router.get('/config', authenticate, (_req: Request, res: Response): void => {
 });
 
 // POST /api/plans/subscribe — card/debit via MercadoPago Preference
-router.post('/subscribe', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/subscribe', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   const { tipo, forma_pagamento } = req.body as Record<string, unknown>;
 
   if (!['mensal', 'anual'].includes(String(tipo))) {
@@ -89,7 +90,7 @@ router.post('/subscribe', authenticate, async (req: Request, res: Response): Pro
 });
 
 // POST /api/plans/pix
-router.post('/pix', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/pix', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   const { tipo } = req.body as { tipo: unknown };
 
   if (!['mensal', 'anual'].includes(String(tipo))) {
@@ -130,7 +131,7 @@ router.post('/pix', authenticate, async (req: Request, res: Response): Promise<v
 });
 
 // POST /api/plans/pay-card — transparent checkout
-router.post('/pay-card', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/pay-card', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   const { tipo, card_token, installments, cpf } = req.body as Record<string, unknown>;
 
   if (!['mensal', 'anual'].includes(String(tipo))) {
@@ -181,7 +182,7 @@ router.post('/pay-card', authenticate, async (req: Request, res: Response): Prom
 });
 
 // POST /api/plans/subscribe-recurring
-router.post('/subscribe-recurring', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/subscribe-recurring', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   const { tipo, card_token } = req.body as Record<string, unknown>;
 
   if (!['mensal', 'anual'].includes(String(tipo))) {
@@ -241,7 +242,7 @@ router.post('/subscribe-recurring', authenticate, async (req: Request, res: Resp
 });
 
 // GET /api/plans/cancel/preview
-router.get('/cancel/preview', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.get('/cancel/preview', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
       'SELECT plano_tipo, plano_inicio, preapproval_id, payment_id_anual FROM usuarios WHERE id = $1',
@@ -277,7 +278,7 @@ router.get('/cancel/preview', authenticate, async (req: Request, res: Response):
 });
 
 // POST /api/plans/cancel
-router.post('/cancel', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/cancel', authenticate, requireScreenAccess('accessSubscription'), async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
       'SELECT plano_tipo, plano_inicio, preapproval_id, payment_id_anual FROM usuarios WHERE id = $1',

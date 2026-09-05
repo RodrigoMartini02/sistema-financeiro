@@ -5,7 +5,6 @@ import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
 import { getCardLimits } from '../services/cardLimitService';
-import { canActOnResource } from '../middleware/permissions';
 
 const router = Router();
 const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
@@ -178,20 +177,16 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const [existing] = await db.select({ id: cards.id, name: cards.name, userId: cards.userId }).from(cards)
-      .where(eq(cards.id, cardId)).limit(1);
+      .where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id))).limit(1);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Card not found' });
       return;
     }
-    if (!(await canActOnResource(req.user!.id, existing.userId, 'manageCards'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
 
     const duplicateResult = await pool.query(
       'SELECT id FROM cartoes WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3',
-      [existing.userId, String(nome).trim(), cardId],
+      [req.user!.id, String(nome).trim(), cardId],
     );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A card with this name already exists' });
@@ -204,7 +199,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
            ativo = $6, validade = $7, conta_id = $8, tipo = $9, data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $10 AND usuario_id = $11
        RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo, data_criacao, data_atualizacao`,
-      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, conta_id ? parseInt(String(conta_id)) : null, tipo ?? null, cardId, existing.userId],
+      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, conta_id ? parseInt(String(conta_id)) : null, tipo ?? null, cardId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Card updated', data: result.rows[0] });
@@ -224,20 +219,16 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     }
 
     const [existing] = await db.select({ id: cards.id, name: cards.name, userId: cards.userId }).from(cards)
-      .where(eq(cards.id, cardId)).limit(1);
+      .where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id))).limit(1);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Card not found' });
       return;
     }
-    if (!(await canActOnResource(req.user!.id, existing.userId, 'manageCards'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
 
     const usageResult = await pool.query(
       'SELECT COUNT(*) AS total FROM despesas WHERE cartao_id = $1 AND usuario_id = $2',
-      [cardId, existing.userId],
+      [cardId, req.user!.id],
     );
     const totalUses = parseInt((usageResult.rows[0] as { total: string }).total);
     if (totalUses > 0) {
@@ -245,7 +236,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    await db.delete(cards).where(and(eq(cards.id, cardId), eq(cards.userId, existing.userId)));
+    await db.delete(cards).where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id)));
     res.json({ success: true, message: `Card "${existing.name}" deleted` });
   } catch (error) {
     console.error('Delete card error:', error);

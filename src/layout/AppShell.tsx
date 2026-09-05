@@ -6,6 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { apiRequest, getActiveAccountId } from '../services/apiClient';
+import { fetchOwnPermissions } from '../services/permissoesService';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
@@ -167,6 +168,14 @@ export function AppShell({
 }: AppShellProps) {
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
+  const { data: ownPermissions } = useQuery({
+    queryKey: ['own-permissions'],
+    queryFn: fetchOwnPermissions,
+    enabled: !isDemoMode,
+    staleTime: 5 * 60_000,
+  });
+  const canViewNotifications = ownPermissions?.accessNotifications ?? true;
+  const canViewDashboard = ownPermissions?.accessDashboard ?? true;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
     const item = isDemoMode ? undefined : readConfigParam();
@@ -207,7 +216,9 @@ export function AppShell({
   const sectionLabel = currentNav?.label;
 
   const contaTipo = localStorage.getItem('contaAtivaTipo');
-  const navGroups = contaTipo === 'pessoal' ? NAV_GROUPS.filter((g) => g.label !== 'Consultoria') : NAV_GROUPS;
+  const navGroups = (contaTipo === 'pessoal' ? NAV_GROUPS.filter((g) => g.label !== 'Consultoria') : NAV_GROUPS)
+    .map((g) => ({ ...g, items: g.items.filter((item) => item.section !== 'painel' || canViewDashboard) }))
+    .filter((g) => g.items.length > 0);
 
   const sidebar = (
     <div className="flex h-full flex-col bg-[#0D2E3C]">
@@ -284,7 +295,7 @@ export function AppShell({
     <div className={isDemoMode
       ? 'relative h-screen overflow-hidden bg-slate-50 dark:bg-slate-900'
       : 'min-h-screen bg-slate-50 dark:bg-slate-900'}>
-      {!isDemoMode && notifOpen && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+      {!isDemoMode && notifOpen && canViewNotifications && <NotificationPanel onClose={() => setNotifOpen(false)} />}
       <aside className={['left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm', isDemoMode ? 'absolute inset-y-0' : 'fixed inset-y-0'].join(' ')}>
         {sidebar}
       </aside>
@@ -330,7 +341,7 @@ export function AppShell({
               {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
             </button>
 
-            {!isDemoMode && (
+            {!isDemoMode && canViewNotifications && (
               <div className="relative">
                 <button
                   onClick={() => setNotifOpen((o) => !o)}
