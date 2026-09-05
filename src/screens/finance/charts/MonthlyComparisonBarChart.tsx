@@ -1,8 +1,11 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ChartTooltip } from './ChartTooltip';
 
 interface MonthlyComparisonBarChartProps {
   data: Array<{ name: string; receitas: number; despesas: number }>;
 }
+
+const SERIES_LABELS = { receitas: 'Receitas', despesas: 'Despesas' };
 
 function fmtCompact(v: number) {
   return `R$ ${(v / 1000).toFixed(0)}k`;
@@ -27,6 +30,10 @@ export function MonthlyComparisonBarChart({ data }: MonthlyComparisonBarChartPro
               tickFormatter={fmtCompact}
               tick={{ fontSize: 10.5, fill: '#6c8593' }}
               width={50}
+            />
+            <Tooltip
+              cursor={{ fill: 'rgba(15, 43, 56, 0.04)' }}
+              content={<ChartTooltip labels={SERIES_LABELS} showPercentage />}
             />
             <Bar dataKey="receitas" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive={false} />
             <Bar dataKey="despesas" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive={false} />

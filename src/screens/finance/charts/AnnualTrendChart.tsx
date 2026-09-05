@@ -4,10 +4,21 @@ import {
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import { ChartTooltip } from './ChartTooltip';
+
+// saldoSolido e saldoPrevisto são a mesma grandeza partida em duas séries só
+// para desenhar o trecho tracejado; no tooltip as duas viram "Saldo".
+const SERIES_LABELS = {
+  receitas: 'Receitas',
+  despesas: 'Despesas',
+  saldoSolido: 'Saldo',
+  saldoPrevisto: 'Saldo previsto',
+};
 
 interface AnnualTrendChartProps {
   data: Array<{ name: string; receitas: number; despesas: number; saldo: number }>;
@@ -74,6 +85,12 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
               </linearGradient>
             </defs>
             <CartesianGrid stroke="#eef4f7" vertical={false} />
+            {/* No ponto de junção as duas séries de saldo carregam o mesmo
+                valor; "saldoPrevisto" é omitido para não repetir a linha. */}
+            <Tooltip
+              cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 3' }}
+              content={<ChartTooltip labels={SERIES_LABELS} omitDuplicateOf={['saldoSolido', 'saldoPrevisto']} />}
+            />
             {hasEmptyRange && (
               <ReferenceArea x1={emptyRangeStart} x2={emptyRangeEnd} fill="#f8fafb" ifOverflow="visible" />
             )}
@@ -146,7 +163,7 @@ export function AnnualTrendChart({ data, activeIndex }: AnnualTrendChartProps) {
                   <circle key={`dot-${index}`} cx={cx} cy={cy} r={isActive ? 5 : 4} fill={isActive ? '#6366f1' : '#fff'} stroke="#6366f1" strokeWidth={2.5} />
                 );
               }}
-              activeDot={false}
+              activeDot={{ r: 5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }}
               connectNulls
             />
             <Area

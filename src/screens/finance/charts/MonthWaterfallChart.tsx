@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, Cell, Customized, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Customized, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatCurrency } from '../formatters';
 
 export interface WaterfallStep {
@@ -117,6 +117,34 @@ export function MonthWaterfallChart({ steps }: MonthWaterfallChartProps) {
               tickFormatter={fmtCompact}
               tick={{ fontSize: 10.5, fill: '#6c8593' }}
               width={60}
+            />
+            {/* "base" é o empilhamento invisível que posiciona o degrau, não um
+                dado real — fica fora do tooltip. */}
+            <Tooltip
+              cursor={{ fill: 'rgba(15, 43, 56, 0.04)' }}
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const step = bars.find((b) => b.label === label);
+                if (!step) return null;
+                const cor = COLORS[step.kind];
+                const sinal = step.kind === 'decrease' ? '−' : step.kind === 'increase' ? '+' : '';
+                return (
+                  <div style={{ borderRadius: 10, border: '1px solid #e9eef3', background: '#fff', boxShadow: '0 8px 24px -8px rgba(15, 43, 56, 0.25)', padding: '7px 9px' }}>
+                    <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#0f2b38' }}>{step.label}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: cor }} />
+                      <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#0f2b38' }}>
+                        {sinal}{formatCurrency(Math.abs(step.value))}
+                      </span>
+                    </div>
+                    {(step.kind === 'increase' || step.kind === 'decrease') && (
+                      <p style={{ margin: '4px 0 0', fontSize: 10.5, color: '#7b93a1', fontVariantNumeric: 'tabular-nums' }}>
+                        Acumulado: {formatCurrency(step.before + step.value)}
+                      </p>
+                    )}
+                  </div>
+                );
+              }}
             />
             <Bar dataKey="base" stackId="waterfall" fill="transparent" isAnimationActive={false} />
             <Bar
