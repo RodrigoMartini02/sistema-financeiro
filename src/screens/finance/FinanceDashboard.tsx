@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
@@ -70,7 +70,6 @@ export function FinanceDashboard() {
 
   const overviewQ = useBudgetOverviewRange(query);
   const accountTypeLabel = overviewQ.data?.accountType === 'empresa' ? 'empresa' : 'pessoal';
-  const updatedAgo = useRelativeTime(panoramaQ.dataUpdatedAt);
 
   const receitas = data?.receitas ?? 0;
   const despesas = data?.despesas ?? 0;
@@ -79,6 +78,17 @@ export function FinanceDashboard() {
   const txComprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
   const pctGasto = receitas > 0 ? Math.min(100, (despesas / receitas) * 100) : 0;
   const hasNoEntries = !panoramaQ.isLoading && !!data && data.totalLancamentos === 0;
+
+  // Média por período da série, contando só os que tiveram movimento: incluir
+  // meses futuros vazios do filtro puxaria a média para baixo e diria pouco.
+  // Só faz sentido com mais de um período — com um só, a média é o próprio total.
+  const mediaMensal = (selecionar: (p: { receitas: number; despesas: number }) => number): number | null => {
+    const comMovimento = (data?.serie ?? []).filter((p) => selecionar(p) > 0);
+    if (comMovimento.length < 2) return null;
+    return comMovimento.reduce((soma, p) => soma + selecionar(p), 0) / comMovimento.length;
+  };
+  const mediaMensalReceitas = mediaMensal((p) => p.receitas);
+  const mediaMensalDespesas = mediaMensal((p) => p.despesas);
 
   // Annual chart data — usa a série já agregada (mês ou ano) devolvida pelo backend
   const chartData = useMemo(() => (data?.serie ?? []).map((p) => ({
@@ -156,22 +166,22 @@ export function FinanceDashboard() {
 
   return (
     <div className="grid gap-[18px]">
-      {/* Header */}
-      <div className="flex items-end gap-4">
-        <div className="flex flex-col gap-[3px]">
+      {/* Header: o filtro fica alinhado à direita, na mesma linha da descrição
+          do período e sem moldura própria — é o mesmo assunto, não um bloco à
+          parte. */}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          <p className="m-0 text-[13px] text-[#7b93a1] dark:text-slate-400">
-            {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
-            {data?.primeiraData && data?.ultimaData && (
-              <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
-            )}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+            <p className="m-0 text-[12px] text-[#7b93a1] dark:text-slate-400">
+              {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
+              {data?.primeiraData && data?.ultimaData && (
+                <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
+              )}
+            </p>
+            <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+          </div>
         </div>
-        <div className="flex-1" />
-        {updatedAgo && (
-          <span className="text-[11.5px] text-[#5f7885] dark:text-slate-500">Atualizado {updatedAgo}</span>
-        )}
-        <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
         {guide.isVisible && hasNoEntries && (
           <div className="relative">
             <FirstAccessGuideCard
@@ -210,19 +220,35 @@ export function FinanceDashboard() {
           </p>
         </Card>
 
+        {/* Os três cards do meio mostravam apenas rótulo e número. Ganham a
+            mesma leitura de apoio dos outros dois: o que o valor representa e,
+            quando faz sentido, sua relação com o período. */}
         <Card className="flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
           <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
+          <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+            Saldo acumulado antes do início do período.
+          </p>
         </Card>
 
         <Card className="flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Receitas</span>
-          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</p>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">{formatCurrency(receitas)}</p>
+          <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+            {mediaMensalReceitas !== null
+              ? <>Média de {formatCurrency(mediaMensalReceitas)} por mês.</>
+              : 'Tudo que entrou no período.'}
+          </p>
         </Card>
 
         <Card className="flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Despesas</span>
-          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</p>
+          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#b42318] dark:text-rose-300">{formatCurrency(despesas)}</p>
+          <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+            {mediaMensalDespesas !== null
+              ? <>Média de {formatCurrency(mediaMensalDespesas)} por mês.</>
+              : 'Tudo que saiu no período.'}
+          </p>
         </Card>
 
         <Card className="relative flex flex-col rounded-2xl p-5">
@@ -639,19 +665,4 @@ export function FinanceDashboard() {
       <MonthCategoriesOverview overview={overviewQ.data} periodLabel={periodoDescricao} />
     </div>
   );
-}
-
-function useRelativeTime(timestamp: number | undefined): string {
-  const [, forceTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, []);
-  if (!timestamp) return '';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 1) return 'agora mesmo';
-  if (minutes === 1) return 'há 1 min';
-  if (minutes < 60) return `há ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours === 1 ? 'há 1 hora' : `há ${hours} horas`;
 }
