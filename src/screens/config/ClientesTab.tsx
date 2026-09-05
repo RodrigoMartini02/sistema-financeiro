@@ -1,32 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Building2, Plus } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import {
   fetchClientes, saveCliente, deleteCliente,
   type Cliente,
 } from '../../services/clientesService';
 import { queryKeys } from '../../services/queryKeys';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { EmptyState, ErrorState } from '../../ui/states';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle } from '../../ui/configTokens';
+import { formatCNPJ } from '../../utils/document';
 import { ClienteDetail } from './ClienteDetail';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatCNPJ(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 14);
-  if (d.length <= 2) return d;
-  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
-  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
-  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
-  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
-}
 
 // ─── Cliente Dialog ───────────────────────────────────────────────────────────
 
@@ -67,52 +58,44 @@ function ClienteDialog({
 
   return (
     <Dialog open={open} title={cliente ? 'Editar cliente' : 'Novo cliente'} onClose={onClose} scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME</span><span style={{ color: C.primary }}>*</span></label>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
+        <div style={{ flex: 1, minHeight: 0, height: 120, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 170px', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
               <input name="nome" defaultValue={cliente?.nome} placeholder="Ex: Empresa Ltda" autoFocus required style={fieldInputStyle} />
             </div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>CNPJ</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-              </div>
+            <div>
+              <label style={labelStyle}>CNPJ</label>
               <input
                 value={cnpj}
                 onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
                 placeholder="00.000.000/0001-00"
                 inputMode="numeric"
+                maxLength={18}
+                className={CFG_MONO_CLASS}
                 style={fieldInputStyle}
               />
             </div>
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
           {cliente && onDelete && (
-            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Excluir</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -181,14 +164,12 @@ export function ClientesTab() {
 
   return (
     <>
-      <div className="grid gap-4">
-        <div className="relative flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            {clientes.length} cliente{clientes.length !== 1 ? 's' : ''} cadastrado{clientes.length !== 1 ? 's' : ''}
-          </p>
-          <Button icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-            Novo cliente
-          </Button>
+      <div className="grid gap-2.5">
+        <ConfigTabHeader
+          countLabel={`${clientes.length} cliente${clientes.length === 1 ? '' : 's'} cadastrado${clientes.length === 1 ? '' : 's'}`}
+          actionLabel="Novo cliente"
+          onAction={() => setDialog({ open: true })}
+        >
           {createGuide.isVisible && (
             <FirstAccessGuideCard
               icon={Building2}
@@ -201,25 +182,28 @@ export function ClientesTab() {
               onSilenceAll={createGuide.silenceAll}
             />
           )}
-        </div>
+        </ConfigTabHeader>
 
         {error && <ErrorState title="Erro ao carregar clientes" description={(error as Error).message} />}
 
         {isLoading ? (
-          <EmptyState title="Carregando" description="Buscando clientes..." />
+          <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
         ) : clientes.length === 0 ? (
           <EmptyState
             title="Nenhum cliente"
             description="Cadastre o primeiro cliente para começar a gerenciar contratos."
           />
         ) : (
-          <div className="grid gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {clientes.map((c, i) => (
               <ConfigListRow
                 key={c.id}
                 index={i}
                 nome={c.nome}
                 onClick={() => setSelectedCliente(c)}
+                badges={c.contratos_ativos
+                  ? <span style={cfgBadgeStyle}>{c.contratos_ativos} contrato{c.contratos_ativos === 1 ? '' : 's'}</span>
+                  : undefined}
               />
             ))}
           </div>

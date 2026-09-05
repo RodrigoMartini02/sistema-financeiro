@@ -4,6 +4,9 @@ import { AlertCircle, LogIn, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { fetchAnalyticsOverview } from '../../services/analyticsService';
 import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
+import { ToggleGroup } from '../../ui/form';
+import { InfoBanner } from '../../ui/InfoBanner';
+import { CFG } from '../../ui/configTokens';
 
 const PERIOD_OPTIONS = [
   { value: 7, label: '7 dias' },
@@ -55,52 +58,48 @@ export function AcessosTab() {
       value: summary?.logins_in_period,
       total: summary?.logins_total,
       icon: LogIn,
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+      iconBg: CFG.successBg,
+      iconFg: CFG.success,
     },
     {
       label: 'Contas criadas',
       value: summary?.accounts_in_period,
       total: summary?.total_accounts,
       icon: UserPlus,
-      color: 'text-blue-600 bg-blue-50 border-blue-100',
+      iconBg: CFG.primarySoft,
+      iconFg: CFG.primaryDark,
     },
     {
       label: 'Usuários ativos',
       value: summary?.active_accounts,
       total: summary?.total_accounts,
       icon: Users,
-      color: 'text-slate-600 bg-slate-50 border-slate-100',
+      iconBg: CFG.chipBg,
+      iconFg: CFG.chipText,
     },
   ];
 
   return (
-    <div className="grid gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="grid gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-slate-700">Resumo dos últimos {days} dias</p>
-          <p className="mt-1 text-xs text-slate-400">Logins e novas contas do sistema.</p>
+          <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: CFG.text }}>
+            Resumo dos últimos {days} dias
+          </p>
+          <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: CFG.muted }}>
+            Logins e novas contas do sistema
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
-            {PERIOD_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setDays(option.value)}
-                className={[
-                  'rounded-md px-3 py-1.5 text-xs font-semibold transition',
-                  days === option.value
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
-                ].join(' ')}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <ToggleGroup
+            value={String(days)}
+            options={PERIOD_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
+            onChange={(v) => setDays(Number(v))}
+          />
           <Button
             type="button"
             variant="secondary"
+            size="sm"
             icon={<RefreshCw size={14} className={overviewQuery.isFetching ? 'animate-spin' : ''} />}
             onClick={() => overviewQuery.refetch()}
           >
@@ -110,58 +109,105 @@ export function AcessosTab() {
       </div>
 
       {overview && !overview.eventsAvailable && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold">Estatísticas de acesso ainda não disponíveis</p>
-            <p className="mt-1 text-xs text-amber-700">As contas criadas já aparecem pela tabela de usuários.</p>
-          </div>
-        </div>
+        <InfoBanner variant="warn">
+          <AlertCircle size={13} style={{ flex: 'none' }} />
+          Estatísticas de login ainda não disponíveis — contas criadas já aparecem abaixo.
+        </InfoBanner>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-2.5 sm:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{card.label}</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{numberFormat(card.value)}</p>
-                  <p className="mt-1 text-xs text-slate-400">Total histórico: {numberFormat(card.total)}</p>
-                </div>
-                <div className={[card.color, 'flex h-10 w-10 items-center justify-center rounded-lg border'].join(' ')}>
-                  <Icon size={18} />
+            <div
+              key={card.label}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surface,
+                padding: '10px 12px',
+              }}
+            >
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{
+                  margin: 0, fontSize: 9.5, fontWeight: 700, lineHeight: 1,
+                  letterSpacing: '.08em', textTransform: 'uppercase', color: CFG.faint,
+                }}>
+                  {card.label}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
+                  <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1, color: CFG.text }}>
+                    {numberFormat(card.value)}
+                  </span>
+                  <span style={{ fontSize: 10.5, fontWeight: 500, lineHeight: 1, color: CFG.muted }}>
+                    de {numberFormat(card.total)} no total
+                  </span>
                 </div>
               </div>
+              <span style={{
+                flex: 'none', display: 'grid', placeItems: 'center', width: 28, height: 28,
+                borderRadius: '50%', background: card.iconBg, color: card.iconFg,
+              }}>
+                <Icon size={14} />
+              </span>
             </div>
           );
         })}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-bold text-slate-900">Últimas contas criadas</p>
-        <div className="mt-4 divide-y divide-slate-100">
-          {(overview?.recentAccounts ?? []).length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Nenhuma conta encontrada.</p>
-          ) : (
-            overview!.recentAccounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500">
-                  {account.nome.slice(0, 1).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-800">{account.nome}</p>
-                  <p className="truncate text-xs text-slate-400">{account.email}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold uppercase text-slate-500">{account.tipo}</p>
-                  <p className="text-xs text-slate-400">{dateFormat(account.data_cadastro)}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 2 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1, color: CFG.text }}>Últimas contas criadas</span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1, color: CFG.muted }}>
+          {(overview?.recentAccounts ?? []).length} registros
+        </span>
+      </div>
+
+      <div className="grid gap-1.5">
+        {(overview?.recentAccounts ?? []).length === 0 ? (
+          <p style={{ padding: '24px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+            Nenhuma conta encontrada.
+          </p>
+        ) : (
+          overview!.recentAccounts.map((account) => (
+            <div
+              key={account.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, minHeight: 38, padding: '0 12px',
+                borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surface,
+                boxShadow: CFG.shadowRow,
+              }}
+            >
+              <span style={{
+                flex: 'none', display: 'grid', placeItems: 'center', width: 24, height: 24,
+                borderRadius: '50%', background: CFG.chipBg,
+                fontSize: 10, fontWeight: 700, color: CFG.chipText,
+              }}>
+                {account.nome.slice(0, 1).toUpperCase()}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: CFG.text, whiteSpace: 'nowrap' }}>
+                  {account.nome}
+                </span>
+                <span style={{
+                  fontSize: 11.5, fontWeight: 500, color: CFG.muted,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {account.email}
+                </span>
+              </span>
+              <span style={{
+                flex: 'none', padding: '4px 7px', borderRadius: 999,
+                fontSize: 9.5, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase',
+                background: account.tipo === 'admin' ? CFG.primarySoft : CFG.chipBg,
+                color: account.tipo === 'admin' ? CFG.primaryDark : CFG.chipText,
+              }}>
+                {account.tipo}
+              </span>
+              <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+                {dateFormat(account.data_cadastro)}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

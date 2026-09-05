@@ -1,5 +1,5 @@
 import { Dialog } from './dialog';
-import { C } from './dialogFormTokens';
+import { C, saveButtonStyle } from './dialogFormTokens';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -42,11 +42,11 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={isLoading}
             style={{
-              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+              ...saveButtonStyle,
               cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1,
-              ...(variant === 'danger'
-                ? { background: C.danger, color: '#fff', boxShadow: '0 6px 16px -6px rgba(180,35,24,0.5)' }
-                : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+              // A confirmação destrutiva mantém preenchimento sólido: é a ação
+              // que o usuário precisa distinguir com clareza antes de confirmar.
+              ...(variant === 'danger' ? { background: C.danger } : null),
             }}
           >
             {isLoading ? 'Aguarde...' : confirmLabel}

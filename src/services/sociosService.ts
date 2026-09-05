@@ -19,8 +19,12 @@ function contaQuery() {
   return accountId ? `?conta_id=${accountId}` : '';
 }
 
-export async function fetchSocios(): Promise<Socio[]> {
-  const r = await apiRequest<{ success: boolean; data: Socio[] }>(`/socios${contaQuery()}`);
+export async function fetchSocios(incluirInativos = false): Promise<Socio[]> {
+  const base = contaQuery();
+  const q = incluirInativos
+    ? `${base}${base ? '&' : '?'}incluir_inativos=true`
+    : base;
+  const r = await apiRequest<{ success: boolean; data: Socio[] }>(`/socios${q}`);
   return Array.isArray(r) ? r : (r as any).data ?? [];
 }
 

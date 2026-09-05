@@ -36,6 +36,11 @@ export async function saveCartao(values: CartaoFormValues, id?: number): Promise
   });
 }
 
+/**
+ * Exclusão definitiva. A UI usa soft delete (`saveCartao` com `ativo: false`),
+ * que funciona mesmo com despesas vinculadas — este DELETE é recusado pelo
+ * backend nesse caso. Mantido porque a rota existe e cobre o descarte real.
+ */
 export async function deleteCartao(id: number): Promise<void> {
   return apiRequest<void>(`/cartoes/${id}`, { method: 'DELETE' });
 }

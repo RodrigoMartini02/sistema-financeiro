@@ -28,6 +28,14 @@ interface CardLimitRow {
 // cartao_id (a despesa tem sua própria forma_pagamento, independente do tipo
 // cadastrado do cartão) — por isso o filtro precisa considerar tanto o tipo
 // do cartão quanto a forma de pagamento da despesa.
+//
+// O JOIN filtra d.usuario_id explicitamente: cartao_id sozinho já restringe as
+// linhas, mas o filtro de usuário é a garantia de isolamento que o resto do
+// projeto aplica em toda query de despesas.
+//
+// status usa COALESCE porque a coluna só é preenchida ao cancelar uma despesa
+// (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
+// nunca canceladas podem ter status nulo e sumiriam de um `= 'ativa'` direto.
 export async function getCardLimits(userId: number, accountId: number | null): Promise<CardLimit[]> {
   const params: unknown[] = [userId];
   let accountClause = '';
@@ -45,8 +53,9 @@ export async function getCardLimits(userId: number, accountId: number | null): P
        ), 0) AS usado
      FROM cartoes c
      LEFT JOIN despesas d ON d.cartao_id = c.id
+       AND d.usuario_id = $1
        AND d.pago = false
-       AND d.status = 'ativa'
+       AND COALESCE(d.status, 'ativa') = 'ativa'
        AND (c.tipo = 'credito' OR d.forma_pagamento = 'credito')
      WHERE c.usuario_id = $1 AND c.ativo = true
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}

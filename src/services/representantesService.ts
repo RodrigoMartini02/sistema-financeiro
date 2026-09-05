@@ -31,8 +31,12 @@ function contaQuery() {
   return accountId ? `?conta_id=${accountId}` : '';
 }
 
-export async function fetchRepresentantes(): Promise<Representante[]> {
-  const r = await apiRequest<{ success: boolean; data: Representante[] }>(`/representantes${contaQuery()}`);
+export async function fetchRepresentantes(incluirInativos = false): Promise<Representante[]> {
+  const base = contaQuery();
+  const q = incluirInativos
+    ? `${base}${base ? '&' : '?'}incluir_inativos=true`
+    : base;
+  const r = await apiRequest<{ success: boolean; data: Representante[] }>(`/representantes${q}`);
   return Array.isArray(r) ? r : (r as any).data ?? [];
 }
 

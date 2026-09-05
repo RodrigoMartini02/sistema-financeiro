@@ -2,12 +2,13 @@ import { Router, Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
+import { requireScreenAccess } from '../../../middleware/permissions';
 import { catalogoContas } from '../db/schema';
 
 const router = Router();
 
 // GET /api/catalogo/conta — retorna (e cria se necessário) o identificador público da vitrine do usuário
-router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
     const [contaExistente] = await db
       .select()

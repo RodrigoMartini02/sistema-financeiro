@@ -159,7 +159,7 @@ export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false 
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full border-2 border-dashed border-slate-300 text-sm font-medium text-slate-400 transition hover:border-brand-400 hover:text-brand-500 dark:border-slate-600"
+            className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-full border-2 border-dashed border-[#d8e0e8] text-[12.5px] font-medium text-[#64748b] transition hover:border-brand-400 hover:text-brand-500 dark:border-slate-600"
           >
             Escolher imagem
           </button>
@@ -174,7 +174,7 @@ export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false 
               onPointerLeave={handlePointerUp}
             />
             <div className="flex w-full max-w-xs items-center gap-3">
-              <span className="text-xs text-slate-400">Zoom</span>
+              <span className="text-[11px] font-medium text-[#64748b]">Zoom</span>
               <input
                 type="range"
                 min="1"
@@ -188,7 +188,7 @@ export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false 
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-xs font-semibold text-brand-600 hover:underline"
+              className="text-[11.5px] font-semibold text-[#0e7490] hover:underline"
             >
               Trocar imagem
             </button>

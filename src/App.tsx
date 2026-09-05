@@ -17,6 +17,7 @@ import { ReservasScreen } from './screens/reservas/ReservasScreen';
 import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
 import { ClientesTab } from './screens/config/ClientesTab';
+import { CONFIG_SCOPE_CLASS } from './ui/configTokens';
 import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
@@ -165,7 +166,11 @@ function AppContent() {
       case 'movimentacoes': return <MovimentacoesScreen onManageReserves={() => handleNavigate('reservas')} />;
       case 'reservas':      return <ReservasScreen />;
       case 'relatorios':    return <RelatoriosScreen />;
-      case 'clientes':      return <ClientesTab />;
+      // ClientesTab também é usada dentro do ConfigPanel, que já aplica o
+      // escopo. Aqui ela é tela própria da sidebar, fora do drawer, então
+      // precisa declarar o escopo por conta própria — sem ele as variáveis
+      // --cfg-* não resolvem e os componentes de Configurações perdem cor.
+      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientesTab /></div>;
     }
   };
 

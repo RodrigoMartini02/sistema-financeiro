@@ -4,7 +4,7 @@ import { apiRequest } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import { Card } from '../../ui/card';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import {
   CheckCircle2, Crown, Loader2, Copy, Check, QrCode,
   CreditCard, ExternalLink, AlertTriangle, RefreshCw,
@@ -154,7 +154,7 @@ function PixPanel({ tipo, onSuccess }: { tipo: PlanTipo; onSuccess: () => void }
         <button
           type="button"
           onClick={() => pixMut.mutate()}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none', background: C.primary, color: '#fff', cursor: 'pointer' }}
         >
           <QrCode size={16} /> Gerar QR Code PIX
         </button>
@@ -196,7 +196,7 @@ function PixPanel({ tipo, onSuccess }: { tipo: PlanTipo; onSuccess: () => void }
       <button
         type="button"
         onClick={handleCopy}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
       >
         {copied ? <><Check size={15} /> Copiado!</> : <><Copy size={15} /> Copiar código</>}
       </button>
@@ -329,8 +329,8 @@ function CardPaymentForm({
         disabled={loading}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4,
-          padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
-          background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)',
+          padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none',
+          background: C.primary, color: '#fff',
           cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
         }}
       >
@@ -386,7 +386,7 @@ function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTipo; onError: (ms
         type="button"
         disabled={checkoutMut.isPending}
         onClick={() => checkoutMut.mutate()}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none', background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)', cursor: checkoutMut.isPending ? 'not-allowed' : 'pointer', opacity: checkoutMut.isPending ? 0.6 : 1 }}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none', background: C.primary, color: '#fff', cursor: checkoutMut.isPending ? 'not-allowed' : 'pointer', opacity: checkoutMut.isPending ? 0.6 : 1 }}
       >
         {checkoutMut.isPending
           ? <><Loader2 size={16} className="animate-spin" /> Gerando link...</>
@@ -574,7 +574,7 @@ function CancelarDialog({ onClose, onCanceled }: { onClose: () => void; onCancel
                 style={{
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                   padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
-                  background: C.danger, color: '#fff', boxShadow: '0 6px 16px -6px rgba(180,35,24,0.5)',
+                  background: C.danger, color: '#fff',
                   cursor: (!confirmado || cancelarMut.isPending) ? 'not-allowed' : 'pointer',
                   opacity: (!confirmado || cancelarMut.isPending) ? 0.4 : 1,
                 }}
@@ -620,7 +620,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
   const isAtual = (key: PlanKey) => planoCurrent === PLANO_DEF[key].tipo;
 
   return (
-    <div className={embedded ? 'grid gap-6' : 'mx-auto grid max-w-4xl gap-6'}>
+    <div className={embedded ? 'grid gap-2.5' : 'mx-auto grid max-w-4xl gap-6'}>
       <div className={embedded ? 'flex justify-end' : 'flex items-end justify-between'}>
         {!embedded && (
           <div>
@@ -638,22 +638,22 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
 
       {/* Status atual */}
       {s && (
-        <Card className="p-5">
-          <div className="flex items-center gap-4">
+        <Card className="p-3">
+          <div className="flex items-center gap-2.5">
             <div className={[
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
+              'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
               s.status === 'ativo' ? 'bg-amber-100' : s.status === 'trial' ? 'bg-blue-100' : 'bg-slate-100',
             ].join(' ')}>
-              <Crown size={20} className={
+              <Crown size={15} className={
                 s.status === 'ativo' ? 'text-amber-500' : s.status === 'trial' ? 'text-blue-500' : 'text-slate-400'
               } />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-slate-900">
+              <p className="text-[12.5px] font-semibold text-[#0f172a]">
                 {s.status === 'ativo'    ? `Plano ${s.plano_tipo === 'admin' ? 'Admin' : s.plano_tipo?.includes('premium') ? 'Premium' : 'Plus'} ativo` :
                  s.status === 'trial'   ? 'Período de teste gratuito' : 'Plano expirado'}
               </p>
-              <p className="text-sm text-slate-500">
+              <p className="mt-0.5 text-[11.5px] font-medium text-[#64748b]">
                 {s.status === 'trial' && s.dias_restantes_trial !== null && `${s.dias_restantes_trial} dia(s) restante(s) no trial`}
                 {s.status === 'ativo' && s.plano_expiracao && `Válido até ${new Date(s.plano_expiracao).toLocaleDateString('pt-BR')}`}
                 {s.status === 'ativo' && !s.plano_expiracao && 'Assinatura ativa (renovação automática)'}
@@ -661,7 +661,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
               </p>
             </div>
             <span className={[
-              'rounded-full px-3 py-1 text-xs font-bold',
+              'rounded-full px-2.5 py-1 text-[10.5px] font-semibold leading-none',
               s.status === 'ativo' ? 'bg-green-100 text-green-700' :
               s.status === 'trial' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700',
             ].join(' ')}>
@@ -676,25 +676,25 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
       )}
 
       {/* Plan cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={embedded ? 'grid gap-2.5 md:grid-cols-2' : 'grid gap-4 md:grid-cols-2'}>
         {(Object.entries(PLANO_DEF) as [PlanKey, typeof PLANO_DEF[PlanKey]][]).map(([key, def]) => {
           const atual = isAtual(key);
           return (
-            <Card key={key} className={['p-6 flex flex-col gap-4', def.destaque ? 'ring-2 ring-brand-600' : ''].join(' ')}>
+            <Card key={key} className={['p-3.5 flex flex-col gap-2.5', def.destaque ? 'ring-1 ring-brand-600' : ''].join(' ')}>
               {def.destaque && (
-                <span className="self-start rounded-full bg-brand-600 px-3 py-0.5 text-xs font-bold text-white">
+                <span className="self-start rounded-full bg-brand-600 px-2.5 py-1 text-[10px] font-semibold leading-none text-white">
                   Mais popular
                 </span>
               )}
               <div>
-                <p className="text-lg font-bold text-slate-950">{def.nome}</p>
-                <p className="mt-0.5 text-2xl font-bold text-brand-700">{def.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{def.periodo}</p>
+                <p className="text-[13px] font-semibold text-[#0f172a]">{def.nome}</p>
+                <p className="mt-1.5 text-[21px] font-bold leading-none text-brand-700">{def.label}</p>
+                <p className="mt-1 text-[11.5px] font-medium text-[#64748b]">{def.periodo}</p>
               </div>
-              <ul className="flex-1 space-y-2">
+              <ul className="flex-1 space-y-1.5">
                 {def.recursos.map((r) => (
-                  <li key={r} className="flex items-start gap-2 text-sm text-slate-700">
-                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-green-500" />
+                  <li key={r} className="flex items-start gap-1.5 text-[12px] font-medium text-[#334155]">
+                    <CheckCircle2 size={13} className="mt-px shrink-0 text-emerald-600" />
                     {r}
                   </li>
                 ))}
@@ -703,12 +703,12 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
                 type="button"
                 onClick={() => { if (!atual) openDialog(key); }}
                 className={[
-                  'mt-auto w-full rounded-xl py-2.5 text-sm font-semibold transition',
+                  'mt-auto h-8 w-full rounded-full text-[12.5px] font-semibold transition',
                   atual
                     ? 'cursor-default bg-slate-100 text-slate-400'
                     : def.destaque
                       ? 'bg-brand-600 text-white hover:bg-brand-700'
-                      : 'border border-slate-300 text-slate-700 hover:bg-slate-50',
+                      : 'border border-[#d8e0e8] text-[#0f172a] hover:bg-slate-50',
                 ].join(' ')}
               >
                 {atual ? 'Plano atual' : 'Assinar agora'}
@@ -720,15 +720,16 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
 
       {/* Cancelar assinatura */}
       {s?.status === 'ativo' && (
-        <div className="border-t border-slate-200 pt-4">
-          <div className="flex items-center justify-between">
+        <div className="border-t border-[#eef2f6] pt-2.5">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-700">Cancelar assinatura</p>
-              <p className="text-xs text-slate-400 mt-0.5">Seu acesso será encerrado imediatamente após o cancelamento.</p>
+              <p className="text-[12px] font-semibold text-[#0f172a]">Cancelar assinatura</p>
+              <p className="mt-0.5 text-[11.5px] font-medium text-[#64748b]">Seu acesso será encerrado imediatamente após o cancelamento.</p>
             </div>
             <button
+              type="button"
               onClick={() => setCancelDialog(true)}
-              className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition"
+              style={dangerButtonStyle}
             >
               Cancelar plano
             </button>

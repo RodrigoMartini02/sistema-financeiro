@@ -1,13 +1,13 @@
 import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
+// Mesma escala de `fieldInputStyle` (dialogFormTokens): 32px, raio 10, 13px.
 const inputBase = [
-  'h-10 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900',
-  'placeholder-slate-400 shadow-sm transition-all',
-  'focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400',
-  'hover:border-slate-300',
+  'h-8 w-full rounded-[10px] border border-[#d8e0e8] bg-white px-2.5 text-[13px] font-medium text-[#0f172a]',
+  'placeholder-[#9db0bb] transition-all',
+  'focus:outline-none focus:ring-[3px] focus:ring-[rgba(8,145,178,0.12)] focus:border-[#0891b2]',
   'dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500',
-  'dark:hover:border-slate-500 dark:focus:ring-brand-900/30 dark:focus:border-brand-400',
+  'dark:focus:border-brand-400',
 ].join(' ');
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
@@ -39,12 +39,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
       ref={ref}
       rows={3}
       className={[
-        'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900',
-        'placeholder-slate-400 shadow-sm transition-all resize-none',
-        'focus:outline-none focus:ring-4 focus:ring-brand-100 focus:border-brand-400',
-        'hover:border-slate-300',
+        'w-full rounded-[10px] border border-[#d8e0e8] bg-white px-2.5 py-2 text-[13px] font-medium text-[#0f172a]',
+        'placeholder-[#9db0bb] transition-all resize-none',
+        'focus:outline-none focus:ring-[3px] focus:ring-[rgba(8,145,178,0.12)] focus:border-[#0891b2]',
         'dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500',
-        'dark:hover:border-slate-500',
         className,
       ].join(' ')}
       {...props}
@@ -57,13 +55,13 @@ interface FieldProps { label: string; error?: string; hint?: string; required?: 
 
 export function Field({ label, error, hint, required, children }: FieldProps) {
   return (
-    <div className="grid gap-2">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-site-textMuted">
-        {label}{required && <span className="ml-0.5 text-red-400">*</span>}
+    <div className="grid gap-[5px]">
+      <label className="text-[11px] font-semibold text-[#64748b] dark:text-slate-400">
+        {label}{required && <span className="ml-0.5 text-[#dc2626]">*</span>}
       </label>
       {children}
-      {hint && !error && <p className="text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
-      {error && <p className="text-xs font-medium text-red-500">{error}</p>}
+      {hint && !error && <p className="text-[11px] text-[#64748b] dark:text-slate-500">{hint}</p>}
+      {error && <p className="text-[11px] font-medium text-[#dc2626]">{error}</p>}
     </div>
   );
 }
@@ -138,21 +136,21 @@ export function ToggleRow({ label, description, checked, disabled = false, onCha
       aria-checked={checked}
       disabled={disabled}
       onClick={onChange}
-      className="flex min-h-[52px] w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700/60"
+      className="flex min-h-[38px] w-full items-center justify-between gap-4 rounded-xl border border-[#e9eef3] bg-white px-3 py-2 text-left transition-colors hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700/60"
     >
       <span>
-        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-200">{label}</span>
+        <span className="block text-[12.5px] font-semibold text-[#0f172a] dark:text-slate-200">{label}</span>
         {description && (
-          <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+          <span className="mt-0.5 block text-[11px] font-medium text-[#64748b] dark:text-slate-400">{description}</span>
         )}
       </span>
       <span className={[
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200',
-        checked ? 'bg-slate-900 dark:bg-brand-500' : 'bg-slate-200 dark:bg-slate-600',
+        'relative inline-flex h-[17px] w-[30px] shrink-0 items-center rounded-full transition-colors duration-200',
+        checked ? 'bg-[#0891b2]' : 'bg-[#cbd5e1] dark:bg-slate-600',
       ].join(' ')}>
         <span className={[
-          'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200',
-          checked ? 'translate-x-6' : 'translate-x-1',
+          'inline-block h-[13px] w-[13px] transform rounded-full bg-white shadow-sm transition-transform duration-200',
+          checked ? 'translate-x-[15px]' : 'translate-x-[2px]',
         ].join(' ')} />
       </span>
     </button>
@@ -169,7 +167,8 @@ interface ToggleGroupProps {
 }
 export function ToggleGroup({ value, options, onChange, className = '' }: ToggleGroupProps) {
   return (
-    <div className={['flex flex-wrap gap-2', className].join(' ')}>
+    // Trilha única com as opções dentro, conforme a especificação (seção 4).
+    <div className={['inline-flex gap-[3px] rounded-full bg-[#f1f5f9] p-[3px] dark:bg-slate-700', className].join(' ')}>
       {options.map((opt) => {
         const active = value === opt.value;
         return (
@@ -178,10 +177,10 @@ export function ToggleGroup({ value, options, onChange, className = '' }: Toggle
             type="button"
             onClick={() => onChange(opt.value)}
             className={[
-              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border px-4 h-10 text-xs font-semibold transition-all',
+              'inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border-0 px-[11px] h-[26px] text-[11.5px] font-semibold leading-none transition-all whitespace-nowrap',
               active
-                ? 'border-brand-700 bg-brand-600 text-white shadow-sm'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 shadow-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-600',
+                ? 'bg-[#0891b2] text-white'
+                : 'bg-transparent text-[#475569] hover:text-[#0f172a] dark:text-slate-300',
             ].join(' ')}
           >
             {opt.icon}

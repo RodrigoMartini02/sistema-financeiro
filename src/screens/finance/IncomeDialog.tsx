@@ -9,7 +9,7 @@ import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/Attach
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, smallInputStyle,
-  cardStyle, panelStyle, chipStyle, MoneyField,
+  panelStyle, chipStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle
 } from '../../ui/dialogFormTokens';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
@@ -68,7 +68,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
 
   const repsQ = useQuery({
     queryKey: queryKeys.representantes,
-    queryFn: fetchRepresentantes,
+    queryFn: () => fetchRepresentantes(),
     enabled: open && isEmpresa,
     staleTime: 60_000,
   });
@@ -331,18 +331,19 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   return (
     <Dialog open={open} title={income ? 'Editar receita' : 'Nova receita'} description="Registre uma entrada financeira" onClose={onClose} size="lg" scrollBody={false}>
       <form
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
         onSubmit={submitForm}
         onKeyDown={handleKeyDown}
       >
-        {/* Corpo rolável */}
-        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Corpo rolável. Blocos separados por linha de 1px, não por cards com
+            borda: dentro de um modal, card sobre card cria moldura dupla. */}
+        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* ── Descrição + Anexos ─────────────────────────────────── */}
-          <div style={cardStyle}>
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
+          <div>
+            <div style={{ minWidth: 0, position: 'relative' }}>
               <label style={labelStyle}>
-                <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
+                <span>Descrição</span><span style={{ color: C.danger }}>*</span>
               </label>
               <input
                 {...form.register('descricao', { onChange: () => setAcHidden(false) })}
@@ -423,12 +424,14 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
             </div>
           </div>
 
+          <div style={{ height: 1, background: '#eef2f6' }} />
+
           {/* ── Valor + Data + Cliente ─────────────────────────────── */}
-          <div style={cardStyle}>
+          <div>
             <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1fr_168px]" style={{ columnGap: 18 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 <label style={labelStyle}>
-                  <span>VALOR</span><span style={{ color: C.primary }}>*</span>
+                  <span>Valor</span><span style={{ color: C.danger }}>*</span>
                 </label>
                 <Controller
                   control={form.control}
@@ -442,9 +445,9 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   <div style={{ fontSize: 12, color: '#b42318' }}>{form.formState.errors.valor.message}</div>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 <label style={labelStyle}>
-                  <span>DATA</span><span style={{ color: C.primary }}>*</span>
+                  <span>Data</span><span style={{ color: C.danger }}>*</span>
                 </label>
                 <input
                   {...form.register('data')}
@@ -458,8 +461,8 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
               </div>
             </div>
 
-            <div style={{ marginTop: 2, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
-              <label style={labelStyle}>CLIENTE / FONTE</label>
+            <div style={{ marginTop: 2, position: 'relative' }}>
+              <label style={labelStyle}>Cliente / fonte</label>
               <input
                 {...form.register('cliente', { onChange: () => setClienteTocado(true) })}
                 list="clientes-datalist"
@@ -520,12 +523,11 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
 
           {/* ── Tipo de receita (conta PJ apenas) ────────────────── */}
           {isEmpresa && (tiposReceita.length > 0 || showTipoForm !== null) && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                  <label style={{ ...labelStyle, height: 'auto' }}>TIPO DE RECEITA</label>
-                  <span style={{ fontSize: 11, color: '#a8bac4' }}>opcional</span>
-                </div>
+            <>
+            <div style={{ height: 1, background: '#eef2f6' }} />
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <label style={labelStyle}>Tipo de receita</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {tiposReceita.map((t) => (
                     <div
@@ -580,13 +582,16 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* ── Representante (conta PJ apenas) ──────────────────── */}
           {isEmpresa && representantes.length > 0 && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>REPRESENTANTE</label>
+            <>
+            <div style={{ height: 1, background: '#eef2f6' }} />
+            <div>
+              <div style={{ position: 'relative' }}>
+                <label style={labelStyle}>Representante</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   <div
                     onClick={() => { form.setValue('representanteId', null); setRepresentanteTocado(true); }}
@@ -641,11 +646,14 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* ── Horas a faturar (nova receita only) ───────────────── */}
           {isNew && contratosAtivos.length > 0 && (
-            <div style={cardStyle}>
+            <>
+            <div style={{ height: 1, background: '#eef2f6' }} />
+            <div>
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -671,8 +679,8 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 )}
                 {horasFaturar && (
                   <div style={panelStyle}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      <label style={labelStyle}>CONTRATO</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      <label style={labelStyle}>Contrato</label>
                       <select
                         value={contratoId ?? ''}
                         onChange={(e) => { setContratoId(e.target.value ? Number(e.target.value) : null); setTipoHora(null); setQuantidadeHoras(''); }}
@@ -704,8 +712,8 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
 
                         {tipoHora && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                              <label style={labelStyle}>QUANTIDADE DE HORAS</label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                              <label style={labelStyle}>Quantidade de horas</label>
                               <input
                                 type="number"
                                 min="0.5"
@@ -739,11 +747,14 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* ── Replicar até (nova receita only) ──────────────────── */}
           {isNew && (
-            <div style={{ ...cardStyle, marginBottom: 14 }}>
+            <>
+            <div style={{ height: 1, background: '#eef2f6' }} />
+            <div>
               <div style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -770,7 +781,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 {replicar && (
                   <div style={panelStyle}>
                     <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-3">
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1, minWidth: 140 }}>
+                      <div style={{ flex: 1, minWidth: 140 }}>
                         <label style={labelStyle}>MÊS</label>
                         <select
                           value={replicarMes}
@@ -782,7 +793,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                           ))}
                         </select>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, width: 100 }}>
+                      <div style={{ width: 100 }}>
                         <label style={labelStyle}>ANO</label>
                         <select
                           value={replicarAno}
@@ -799,17 +810,18 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                 )}
               </div>
             </div>
+            </>
           )}
 
           {error && (
-            <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 10, border: '1px solid #fbd5d1', background: '#fef3f2', padding: '10px 14px', fontSize: 13, color: '#b42318' }}>
+            <div style={{ borderRadius: 10, border: '1px solid #fbd5d1', background: '#fef3f2', padding: '8px 10px', fontSize: 11.5, color: '#b42318' }}>
               {error}
             </div>
           )}
         </div>
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {duplicataInfo && (
             <div style={{ fontSize: '12.5px', color: '#a3728a' }}>
               Você já lançou "{duplicataInfo.income.descricao}" nos últimos 7 dias — é outra receita?
@@ -820,14 +832,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
             <button
               type="submit"
               disabled={isSaving || !clienteValido}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
-                cursor: isSaving || !clienteValido ? 'not-allowed' : 'pointer',
-                ...(!isSaving && clienteValido
-                  ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
-                  : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
-              }}
+              style={(!isSaving && clienteValido) ? saveButtonStyle : saveButtonDisabledStyle}
             >
               {isSaving ? 'Salvando...' : income ? 'Salvar alterações' : 'Registrar receita'}
             </button>

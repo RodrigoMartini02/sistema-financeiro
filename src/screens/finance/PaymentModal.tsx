@@ -103,8 +103,8 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
             type="button"
             onClick={handleConfirm}
             style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-              border: 'none', cursor: 'pointer', background: C.success, color: '#fff', boxShadow: '0 6px 16px -6px rgba(6,118,71,0.6)',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
+              border: 'none', cursor: 'pointer', background: C.success, color: '#fff',
             }}
           >
             <CircleCheck size={16} />

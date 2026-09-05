@@ -101,20 +101,20 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
         type="button"
         onClick={() => (open ? closeMenu() : openMenu())}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-          width: '100%', boxSizing: 'border-box', height: 54, padding: '0 14px',
-          borderRadius: 12, border: `1.5px solid ${open ? C.primary : C.border}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          width: '100%', boxSizing: 'border-box', height: 32, padding: '0 9px',
+          borderRadius: 10, border: `1px solid ${open ? C.primary : sharedC.borderInput}`,
           background: '#fff', cursor: 'pointer', transition: 'border-color .13s ease',
         }}
       >
         {selected ? (
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.primaryDark, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 7, padding: '3px 9px' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: C.primaryDark, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
             {selected.nome}
           </span>
         ) : (
-          <span style={{ fontSize: '13.5px', color: C.placeholder }}>Selecionar categoria</span>
+          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar categoria</span>
         )}
-        <ChevronDown size={14} style={{ flexShrink: 0, color: '#8ba3b0' }} />
+        <ChevronDown size={13} style={{ flexShrink: 0, color: '#8ba3b0' }} />
       </button>
 
       {open && rect && (

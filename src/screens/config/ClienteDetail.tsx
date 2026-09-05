@@ -16,13 +16,15 @@ import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import {
-  C, labelStyle, fieldInputStyle, cardStyle,
+  C, labelStyle, fieldInputStyle,
+  dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle,
   valuesTableCardStyle, valuesTableHeaderStyle, valuesTableColLabelStyle,
   valuesRowStyle, valuesRowLastStyle, valuesRowTitleStyle, valuesRowSubtitleStyle,
   valuesInlineFieldStyle, valuesInlineInputStyle, valuesComputedStyle,
   valuesRemoveButtonStyle, valuesAddRowButtonStyle,
   chipGroupLabelStyle,
 } from '../../ui/dialogFormTokens';
+import { CFG } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -148,19 +150,19 @@ function ContratoForm({
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 130px) minmax(0, 2fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Número</label>
-          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
+          <input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="001/2025" style={fieldInputStyle} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Descrição</label>
-          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={{ ...fieldInputStyle, height: 40, fontSize: 14 }} />
+          <input value={form.descricao} onChange={(e) => set('descricao', e.target.value)} placeholder="Mensalidade de suporte técnico" style={fieldInputStyle} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Vencimento <span style={{ color: C.danger }}>*</span></label>
-          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
+          <input type="date" value={form.vencimento} onChange={(e) => set('vencimento', e.target.value)} required style={fieldInputStyle} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={labelStyle}>Início fatur.</label>
-          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
+          <input type="date" value={form.data_inicio_faturamento} onChange={(e) => set('data_inicio_faturamento', e.target.value)} style={fieldInputStyle} />
         </div>
       </div>
 
@@ -172,7 +174,7 @@ function ContratoForm({
             <select
               value={['IGPM', 'IPCA'].includes(form.ajuste) ? form.ajuste : 'NADA CONSTA'}
               onChange={(e) => set('ajuste', e.target.value)}
-              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
+              style={fieldInputStyle}
             >
               <option value="NADA CONSTA">Nada consta</option>
               <option value="IGPM">IGPM</option>
@@ -196,7 +198,7 @@ function ContratoForm({
             <select
               value={form.representante_id}
               onChange={(e) => set('representante_id', e.target.value)}
-              style={{ ...fieldInputStyle, height: 40, fontSize: 14 }}
+              style={fieldInputStyle}
             >
               <option value="">Nenhum</option>
               {representantes.map((r) => (
@@ -1098,7 +1100,7 @@ function ContratoDetailPane({
               <button
                 type="button"
                 onClick={onEncerrar}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 14px', borderRadius: 11, border: 'none', background: 'transparent', color: C.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                style={{ ...dangerButtonStyle, display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <AlertTriangle size={13} /> Encerrar
               </button>
@@ -1119,7 +1121,7 @@ function ContratoDetailPane({
             <button
               type="button"
               onClick={onRegistrarAditivo}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, height: 40, padding: '0 16px', borderRadius: 11, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 14px', borderRadius: 999, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.text, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
             >
               <RefreshCw size={13} /> Registrar aditivo
             </button>
@@ -1188,53 +1190,50 @@ function AditivoModal({
 
   return (
     <Dialog open={open} title="Registrar aditivo" onClose={onClose} scrollBody={false}>
-      <form id="aditivo-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <p style={{ margin: '0 26px 14px', fontSize: 12.5, color: C.textMuted }}>
+      <form id="aditivo-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
+        <div style={{ flex: 1, minHeight: 0, height: 220, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
             Encerra o contrato atual e cria um novo, copiando valores, horas e serviços vinculados.
           </p>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+            <div>
               <label style={labelStyle}>Novo número</label>
-              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={{ ...fieldInputStyle, height: 40, fontSize: 14, fontWeight: 600 }} />
+              <input value={form.novo_numero} onChange={(e) => set('novo_numero', e.target.value)} placeholder="002/2026" style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={labelStyle}>Novo vencimento <span style={{ color: C.danger }}>*</span></label>
-              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
+            <div>
+              <label style={labelStyle}><span>Novo vencimento</span><span style={{ color: C.danger }}>*</span></label>
+              <input type="date" value={form.novo_vencimento} onChange={(e) => set('novo_vencimento', e.target.value)} required style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div>
               <label style={labelStyle}>Novo início fatur.</label>
-              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={{ ...fieldInputStyle, height: 40, fontSize: 13 }} />
+              <input type="date" value={form.nova_data_inicio_faturamento} onChange={(e) => set('nova_data_inicio_faturamento', e.target.value)} style={fieldInputStyle} />
             </div>
           </div>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={labelStyle}>Observações</label>
-              <textarea
-                value={form.observacoes}
-                onChange={(e) => set('observacoes', e.target.value)}
-                rows={3}
-                style={{ ...fieldInputStyle, height: 'auto', minHeight: 86, padding: '10px 12px', fontSize: 13.5, fontWeight: 400, lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
-              />
-            </div>
+          <div>
+            <label style={labelStyle}>Observações</label>
+            <textarea
+              value={form.observacoes}
+              onChange={(e) => set('observacoes', e.target.value)}
+              rows={3}
+              style={{ ...fieldInputStyle, height: 'auto', minHeight: 68, padding: '8px 9px', lineHeight: 1.5, resize: 'vertical', fontFamily: 'inherit' }}
+            />
           </div>
         </div>
-        <div style={{ flex: 'none', borderTop: `1px solid ${C.border}`, background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
+          {/* "Cancelar" permanece: o aditivo encerra o contrato atual, então é
+              uma confirmação com consequência, não um formulário comum. */}
           <button
             type="button"
             onClick={onClose}
-            style={{ height: 40, padding: '0 16px', borderRadius: 11, fontSize: 13, fontWeight: 600, border: `1.5px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText, cursor: 'pointer' }}
+            style={{ ...dangerButtonStyle, border: 'none', color: CFG.muted }}
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            style={{
-              height: 40, padding: '0 20px', borderRadius: 11, fontSize: 13, fontWeight: 700, border: 'none',
-              background: C.primary, color: '#fff', boxShadow: '0 2px 10px -2px rgba(8,145,178,0.55)',
-              cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.6 : 1,
-            }}
+            style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
           >
             {isSaving ? 'Registrando...' : 'Registrar aditivo'}
           </button>
@@ -1265,7 +1264,7 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
 
   const representantesQ = useQuery({
     queryKey: queryKeys.representantes,
-    queryFn: fetchRepresentantes,
+    queryFn: () => fetchRepresentantes(),
   });
 
   const contratos = contratosQ.data ?? [];

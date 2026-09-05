@@ -3,6 +3,8 @@ export type BudgetTargetMode = 'amount' | 'income_percent';
 export interface BudgetOverviewItem {
   categoryId: number;
   categoryName: string;
+  /** null nas categorias raiz; id do pai nas subcategorias. */
+  parentId: number | null;
   mode: BudgetTargetMode | null;
   targetValue: number | null;
   targetAmount: number | null;

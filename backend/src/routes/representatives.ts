@@ -8,13 +8,16 @@ const router = Router();
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conta_id } = req.query as Record<string, string | undefined>;
+    const incluirInativos = req.query['incluir_inativos'] === 'true';
 
     const result = await pool.query(
+      // O `c.ativo` do JOIN filtra comissões, não representantes — só o
+      // `r.ativo` do WHERE responde ao parâmetro.
       `SELECT r.*,
          COALESCE(json_agg(c ORDER BY c.tipo_receita) FILTER (WHERE c.id IS NOT NULL), '[]') AS comissoes
        FROM representantes r
        LEFT JOIN comissoes c ON c.representante_id = r.id AND c.ativo = true
-       WHERE r.usuario_id = $1 AND r.ativo = true
+       WHERE r.usuario_id = $1 ${incluirInativos ? '' : 'AND r.ativo = true'}
          AND ($2::int IS NULL OR r.conta_id = $2)
        GROUP BY r.id
        ORDER BY r.nome ASC`,

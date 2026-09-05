@@ -76,43 +76,39 @@ export function DashboardPeriodFilter({ value, onChange, primeiraData: _primeira
     });
   };
 
-  const inputCls = `w-[104px] rounded-lg border px-2 py-1.5 text-[12.5px] focus:outline-none dark:bg-slate-800 dark:text-slate-200 ${
-    de && !deParsed ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
-  }`;
-  const inputCls2 = `w-[104px] rounded-lg border px-2 py-1.5 text-[12.5px] focus:outline-none dark:bg-slate-800 dark:text-slate-200 ${
-    ate && !ateParsed ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
-  }`;
+  // Sem moldura própria: o filtro fica na linha da descrição do período, na
+  // mesma escala do texto ao lado. Só o campo em erro ganha borda visível.
+  const inputCls = (temErro: boolean) =>
+    `w-[82px] rounded border-b bg-transparent px-1 py-0.5 text-[12px] tabular-nums text-[#0f2b38] focus:border-[#0891b2] focus:outline-none dark:text-slate-200 ${
+      temErro ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
+    }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#dcebf1] bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
-      <Calendar size={14} className="shrink-0 text-[#0891b2]" />
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-medium text-[#7b93a1]">De</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="dd/mm/aaaa"
-          value={de}
-          onChange={(e) => setDe(maskDate(e.target.value))}
-          className={inputCls}
-        />
-      </div>
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-medium text-[#7b93a1]">Até</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          placeholder="dd/mm/aaaa"
-          value={ate}
-          onChange={(e) => setAte(maskDate(e.target.value))}
-          className={inputCls2}
-        />
-      </div>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Calendar size={12} className="shrink-0 text-[#a8bac4]" />
+      <span className="text-[12px] text-[#7b93a1]">De</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder="dd/mm/aaaa"
+        value={de}
+        onChange={(e) => setDe(maskDate(e.target.value))}
+        className={inputCls(Boolean(de) && !deParsed)}
+      />
+      <span className="text-[12px] text-[#7b93a1]">até</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder="dd/mm/aaaa"
+        value={ate}
+        onChange={(e) => setAte(maskDate(e.target.value))}
+        className={inputCls(Boolean(ate) && !ateParsed)}
+      />
       <button
         type="button"
         onClick={apply}
         disabled={invalido}
-        className="rounded-lg bg-[#0891b2] px-3 py-1.5 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold text-[#0891b2] transition hover:bg-[#e0f2f7] disabled:cursor-not-allowed disabled:text-[#a8bac4] disabled:hover:bg-transparent"
       >
         Aplicar
       </button>

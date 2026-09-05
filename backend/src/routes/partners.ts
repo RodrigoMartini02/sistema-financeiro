@@ -8,10 +8,11 @@ const router = Router();
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { conta_id } = req.query as Record<string, string | undefined>;
+    const incluirInativos = req.query['incluir_inativos'] === 'true';
 
     const result = await pool.query(
       `SELECT * FROM socios
-       WHERE usuario_id = $1 AND ativo = true
+       WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'}
          AND ($2::int IS NULL OR conta_id = $2)
        ORDER BY nome ASC`,
       [req.user!.id, conta_id ? parseInt(conta_id) : null],

@@ -45,6 +45,8 @@ export interface CartaoFormValues {
   numero_cartao?: string;
   validade?: string;
   tipo?: CartaoTipo;
+  /** Soft delete: o PUT aceita este campo (backend/src/routes/cards.ts). */
+  ativo?: boolean;
 }
 
 export type Enquadramento = 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA';

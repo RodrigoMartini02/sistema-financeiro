@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, CreditCard, Calendar, DollarSign } from 'lucide-react';
-import { fetchCartoes, saveCartao, deleteCartao } from '../../services/configService';
+import { Plus, CreditCard, Calendar, DollarSign } from 'lucide-react';
+import { fetchCartoes, saveCartao } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import {
+  C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle,
+  dangerButtonStyle, dialogFooterStyle,
+} from '../../ui/dialogFormTokens';
+import { CFG, CFG_MONO_CLASS } from '../../ui/configTokens';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
+import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -30,38 +36,141 @@ const COR_OPCOES = [
   { value: '#b45309', label: 'Dourado' },
 ];
 
+const TIPO_LABEL: Record<string, string> = {
+  credito: 'CRÉDITO',
+  debito: 'DÉBITO',
+  ambos: 'AMBOS',
+};
+
 function formatValidade(raw: string): string {
   const d = raw.replace(/\D/g, '').slice(0, 4);
   if (d.length <= 2) return d;
   return `${d.slice(0, 2)}/${d.slice(2)}`;
 }
 
+function formatLimite(limite?: number | string | null): string {
+  if (limite === null || limite === undefined || limite === '') return '—';
+  const n = Number(limite);
+  if (!Number.isFinite(n)) return '—';
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// ─── Cartão visual ───────────────────────────────────────────────────────────
+
+/** Usado na grade e como pré-visualização ao vivo no formulário. */
+function CartaoPreview({
+  nome, ultimos4, limite, vencimento, tipo, cor,
+}: {
+  nome: string;
+  ultimos4?: string | null;
+  limite?: number | string | null;
+  vencimento?: number | string | null;
+  tipo?: string | null;
+  cor: string;
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative', aspectRatio: '1.58', borderRadius: 14, padding: 13,
+        boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', overflow: 'hidden',
+        background: cor, boxShadow: '0 6px 18px -6px rgba(2,20,28,.4)',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: '-40%', right: '-20%', width: 150, height: 150,
+        borderRadius: '50%', background: 'rgba(255,255,255,.07)',
+      }} />
+
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{
+          width: 26, height: 19, borderRadius: 5, background: 'rgba(255,255,255,.32)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ width: 14, height: 9, borderRadius: 2, border: '1px solid rgba(255,255,255,.6)' }} />
+        </div>
+        {tipo && (
+          <span style={{
+            fontSize: 8.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.1em', color: '#fff',
+            background: 'rgba(255,255,255,.22)', padding: '4px 6px', borderRadius: 999,
+          }}>
+            {TIPO_LABEL[tipo] ?? tipo.toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <span className={CFG_MONO_CLASS} style={{ fontSize: 12.5, fontWeight: 500, letterSpacing: '.08em', color: '#fff' }}>
+          •••• {ultimos4 || '0000'}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{
+            fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: '#fff',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {nome || 'Nome do cartão'}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)', whiteSpace: 'nowrap' }}>
+            Venc. {vencimento || '—'}
+          </span>
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
+          Limite {formatLimite(limite)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
+
 function CartaoDialog({
-  open, cartao, isSaving, error, onClose, onSave,
+  open, cartao, isSaving, error, onClose, onSave, onToggleAtivo,
 }: {
   open: boolean; cartao?: Cartao; isSaving: boolean; error?: string;
-  onClose: () => void; onSave: (v: CartaoFormValues) => void;
+  onClose: () => void;
+  onSave: (v: CartaoFormValues) => void;
+  onToggleAtivo?: () => void;
 }) {
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
   const [tipo, setTipo] = useState<CartaoTipo | undefined>(cartao?.tipo ?? undefined);
   const [validade, setValidade] = useState(cartao?.validade ?? '');
+  const [nome, setNome] = useState(cartao?.nome ?? '');
+  const [ultimos4, setUltimos4] = useState(cartao?.numero_cartao ?? '');
+  const [limite, setLimite] = useState(cartao?.limite != null ? String(cartao.limite) : '');
+  const [vencimento, setVencimento] = useState(cartao?.dia_vencimento != null ? String(cartao.dia_vencimento) : '');
+
+  const confirm = useConfirm();
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const validadeGuide = useFirstAccessGuide('cartoes:validade-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
 
   const validadeIncompleta = validade.length > 0 && validade.length < 5;
 
+  const handleToggleAtivo = async () => {
+    if (!onToggleAtivo || !cartao) return;
+    const ok = await confirm({
+      title: cartao.ativo ? 'Desativar cartão' : 'Ativar cartão',
+      message: cartao.ativo
+        ? `Desativar "${cartao.nome}"? Ele deixará de aparecer nas opções ao lançar despesas. As despesas já lançadas continuam vinculadas.`
+        : `Ativar "${cartao.nome}" novamente?`,
+      confirmLabel: cartao.ativo ? 'Desativar' : 'Ativar',
+      variant: cartao.ativo ? 'danger' : 'default',
+    });
+    if (ok) onToggleAtivo();
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (validadeIncompleta) return;
     const fd = new FormData(e.currentTarget);
     onSave({
-      nome: fd.get('nome') as string,
-      limite: fd.get('limite') ? Number(fd.get('limite')) : undefined,
+      nome,
+      limite: limite ? Number(limite) : undefined,
       dia_fechamento: fd.get('dia_fechamento') ? Number(fd.get('dia_fechamento')) : undefined,
-      dia_vencimento: fd.get('dia_vencimento') ? Number(fd.get('dia_vencimento')) : undefined,
+      dia_vencimento: vencimento ? Number(vencimento) : undefined,
       cor,
-      numero_cartao: fd.get('numero_cartao') as string || undefined,
+      numero_cartao: ultimos4 || undefined,
       validade: validade || undefined,
       tipo,
     });
@@ -69,183 +178,225 @@ function CartaoDialog({
 
   return (
     <Dialog open={open} title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
+        <div style={{ flex: 1, minHeight: 0, height: 306, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 214px', gap: 16, alignItems: 'start' }}>
 
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 140px', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME DO CARTÃO</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="nome" defaultValue={cartao?.nome} placeholder="Ex: Nubank" autoFocus required style={fieldInputStyle} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>ÚLTIMOS 4 DÍGITOS</label>
-              <input name="numero_cartao" maxLength={4} defaultValue={cartao?.numero_cartao ?? ''} placeholder="0000" style={fieldInputStyle} />
-            </div>
-          </div>
-
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, position: 'relative' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>LIMITE (R$)</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px', gap: 10 }}>
+              <div>
+                <label style={labelStyle}><span>Nome do cartão</span><span style={{ color: C.danger }}>*</span></label>
+                <input
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Ex: Nubank"
+                  autoFocus
+                  required
+                  style={fieldInputStyle}
+                />
               </div>
-              <input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" style={fieldInputStyle} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>VALIDADE</label>
-                <span style={{ fontSize: 11, color: validadeIncompleta ? C.danger : C.placeholder }}>
-                  {validadeIncompleta ? 'formato incompleto' : 'MM/AA'}
-                </span>
-              </div>
-              <input
-                value={validade}
-                onChange={(e) => setValidade(formatValidade(e.target.value))}
-                maxLength={5}
-                placeholder="12/28"
-                inputMode="numeric"
-                style={{ ...fieldInputStyle, border: validadeIncompleta ? `1.5px solid ${C.danger}` : fieldInputStyle.border }}
-              />
-            </div>
-            {limiteGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="w-[min(22rem,calc(100vw-2rem))]"
-                icon={DollarSign}
-                description={firstAccessGuideMessages.cartoesLimite}
-                onDismiss={limiteGuide.dismiss}
-                onSilenceAll={limiteGuide.silenceAll}
-              />
-            )}
-            {validadeGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                align="right"
-                className="w-[min(22rem,calc(100vw-2rem))]"
-                icon={Calendar}
-                description={firstAccessGuideMessages.cartoesValidade}
-                onDismiss={validadeGuide.dismiss}
-                onSilenceAll={validadeGuide.silenceAll}
-              />
-            )}
-          </div>
-
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18, position: 'relative' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>DIA DE FECHAMENTO</label>
-              <input name="dia_fechamento" type="number" min="1" max="31" defaultValue={cartao?.dia_fechamento ?? ''} placeholder="Ex: 25" style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Dia do mês</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>DIA DE VENCIMENTO</label>
-              <input name="dia_vencimento" type="number" min="1" max="31" defaultValue={cartao?.dia_vencimento ?? ''} placeholder="Ex: 5" style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Dia do mês</span>
-            </div>
-            {fechamentoGuide.isVisible && (
-              <FirstAccessGuideCard
-                floating
-                placement="bottom"
-                className="w-[min(24rem,calc(100vw-2rem))]"
-                icon={Calendar}
-                description={firstAccessGuideMessages.cartoesFechamentoVencimento}
-                onDismiss={fechamentoGuide.dismiss}
-                onSilenceAll={fechamentoGuide.silenceAll}
-              />
-            )}
-          </div>
-
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}>TIPO</label>
-              <span style={{ fontSize: 12, color: C.textFaint }}>Define quais despesas podem usar este cartão</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {TIPO_OPCOES.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setTipo(opt.value)}
-                    style={{
-                      flex: 1, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: 600,
-                      cursor: 'pointer', transition: 'all .13s ease',
-                      border: tipo === opt.value ? `1.5px solid ${C.primary}` : '1.5px solid #e6edf1',
-                      background: tipo === opt.value ? 'rgba(8,145,178,0.08)' : '#fff',
-                      color: tipo === opt.value ? C.primary : C.textMuted,
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              <div>
+                <label style={labelStyle}>Últimos 4</label>
+                <input
+                  value={ultimos4}
+                  onChange={(e) => setUltimos4(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="0000"
+                  inputMode="numeric"
+                  maxLength={4}
+                  className={CFG_MONO_CLASS}
+                  style={fieldInputStyle}
+                />
               </div>
             </div>
-          </div>
 
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <label style={labelStyle}>COR DO CARTÃO</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px', gap: 10, position: 'relative' }}>
+              <div>
+                <label style={labelStyle}><span>Limite (R$)</span><span style={{ color: C.danger }}>*</span></label>
+                <input
+                  value={limite}
+                  onChange={(e) => setLimite(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  required
+                  className={CFG_MONO_CLASS}
+                  style={fieldInputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Validade</label>
+                <input
+                  value={validade}
+                  onChange={(e) => setValidade(formatValidade(e.target.value))}
+                  maxLength={5}
+                  placeholder="12/28"
+                  inputMode="numeric"
+                  className={CFG_MONO_CLASS}
+                  style={{ ...fieldInputStyle, borderColor: validadeIncompleta ? C.danger : undefined }}
+                />
+              </div>
+              {limiteGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="w-[min(22rem,calc(100vw-2rem))]"
+                  icon={DollarSign}
+                  description={firstAccessGuideMessages.cartoesLimite}
+                  onDismiss={limiteGuide.dismiss}
+                  onSilenceAll={limiteGuide.silenceAll}
+                />
+              )}
+              {validadeGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  align="right"
+                  className="w-[min(22rem,calc(100vw-2rem))]"
+                  icon={Calendar}
+                  description={firstAccessGuideMessages.cartoesValidade}
+                  onDismiss={validadeGuide.dismiss}
+                  onSilenceAll={validadeGuide.silenceAll}
+                />
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, position: 'relative' }}>
+              <div>
+                <label style={labelStyle}>Fechamento</label>
+                <input
+                  name="dia_fechamento"
+                  type="number"
+                  min="1"
+                  max="31"
+                  defaultValue={cartao?.dia_fechamento ?? ''}
+                  placeholder="25"
+                  className={CFG_MONO_CLASS}
+                  style={fieldInputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Vencimento</label>
+                <input
+                  value={vencimento}
+                  onChange={(e) => setVencimento(e.target.value)}
+                  type="number"
+                  min="1"
+                  max="31"
+                  placeholder="5"
+                  className={CFG_MONO_CLASS}
+                  style={fieldInputStyle}
+                />
+              </div>
+              {fechamentoGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Calendar}
+                  description={firstAccessGuideMessages.cartoesFechamentoVencimento}
+                  onDismiss={fechamentoGuide.dismiss}
+                  onSilenceAll={fechamentoGuide.silenceAll}
+                />
+              )}
+            </div>
+
+            <div>
+              <label style={labelStyle}>Tipo</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 3, borderRadius: 999, background: CFG.chipBg }}>
+                {TIPO_OPCOES.map((opt) => {
+                  const active = tipo === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setTipo(opt.value)}
+                      style={{
+                        height: 26, border: 'none', borderRadius: 999,
+                        background: active ? '#fff' : 'transparent',
+                        color: active ? CFG.text : CFG.chipText,
+                        fontSize: 11.5, fontWeight: 600, lineHeight: 1, cursor: 'pointer',
+                        boxShadow: active ? '0 1px 2px rgba(15,23,42,.1)' : 'none',
+                        transition: 'background .13s ease, color .13s ease',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Cor do cartão</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                 {COR_OPCOES.map((c) => (
                   <button
                     key={c.value}
                     type="button"
                     onClick={() => setCor(c.value)}
                     title={c.label}
+                    aria-label={c.label}
                     style={{
-                      height: 32, width: 32, borderRadius: 9, border: cor === c.value ? `2px solid ${C.primary}` : '2px solid transparent',
-                      boxShadow: cor === c.value ? `0 0 0 2px #fff, 0 0 0 4px ${C.primary}` : 'none',
-                      background: c.value, cursor: 'pointer', transition: 'all .13s ease',
+                      width: 24, height: 24, borderRadius: '50%', border: 'none', padding: 0,
+                      background: c.value, cursor: 'pointer',
+                      boxShadow: cor === c.value
+                        ? `0 0 0 2px #fff, 0 0 0 4px ${CFG.primary}`
+                        : '0 0 0 1px #e2e8f0',
+                      transition: 'box-shadow .13s ease',
                     }}
                   />
                 ))}
               </div>
-
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 14, padding: 16, marginTop: 4 }}
-              >
-                <div style={{ background: `linear-gradient(135deg, ${cor}, ${cor}cc)`, borderRadius: 14, padding: 16, width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <CreditCard size={24} color="rgba(255,255,255,0.8)" />
-                  <div>
-                    <p style={{ fontWeight: 700, color: '#fff', fontSize: 14, margin: 0 }}>Nome do cartão</p>
-                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: 'monospace', margin: 0 }}>•••• •••• •••• 0000</p>
-                  </div>
-                </div>
-              </div>
             </div>
+
+            {error && (
+              <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
+                {error}
+              </div>
+            )}
           </div>
 
-          {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
-              {error}
-            </div>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <CartaoPreview
+              nome={nome}
+              ultimos4={ultimos4}
+              limite={limite}
+              vencimento={vencimento}
+              tipo={tipo}
+              cor={cor}
+            />
+            <span style={{ fontSize: 10.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted, textAlign: 'center' }}>
+              Pré-visualização
+            </span>
+          </div>
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            type="submit"
-            disabled={isSaving}
-            style={{
-              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-              border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-              ...(isSaving
-                ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-            }}
-          >
-            {isSaving ? 'Salvando...' : 'Salvar'}
-          </button>
+        <div style={dialogFooterStyle}>
+          {/* Ação destrutiva só na edição de registro existente. */}
+          {cartao && onToggleAtivo && (
+            <button type="button" style={dangerButtonStyle} onClick={handleToggleAtivo}>
+              {cartao.ativo ? 'Desativar' : 'Ativar'}
+            </button>
+          )}
+          <div style={{ marginLeft: 'auto' }}>
+            <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
         </div>
       </form>
     </Dialog>
   );
 }
 
+// ─── Tela ────────────────────────────────────────────────────────────────────
+
 export function CartaoTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Cartao }>({ open: false });
+  const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('cartoes:novo-v1');
-  const confirm = useConfirm();
 
   const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
 
@@ -254,29 +405,43 @@ export function CartaoTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.cartoes }); setDialog({ open: false }); },
   });
 
-  const deleteMut = useMutation({
-    mutationFn: deleteCartao,
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.cartoes }),
+  // Soft delete: o PUT exige nome e limite, então reenviamos os dados atuais
+  // junto com o novo estado de `ativo`. Diferente do DELETE, funciona mesmo
+  // com despesas vinculadas — elas preservam o histórico.
+  const toggleAtivoMut = useMutation({
+    mutationFn: (c: Cartao) => saveCartao({
+      nome: c.nome,
+      limite: c.limite ?? undefined,
+      dia_fechamento: c.dia_fechamento ?? undefined,
+      dia_vencimento: c.dia_vencimento ?? undefined,
+      cor: c.cor ?? undefined,
+      numero_cartao: c.numero_cartao ?? undefined,
+      validade: c.validade ?? undefined,
+      tipo: c.tipo ?? undefined,
+      ativo: !c.ativo,
+    }, c.id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.cartoes }); setDialog({ open: false }); },
   });
 
-  const handleDeleteCartao = async (cartao: Cartao) => {
-    const ok = await confirm({
-      title: 'Excluir cartão',
-      message: `Excluir cartão "${cartao.nome}"?`,
-      confirmLabel: 'Excluir',
-    });
-    if (ok) deleteMut.mutate(cartao.id);
-  };
+  const todos = cartoes.data ?? [];
+  const data = todos.filter((c) => (mostrarDesativados ? !c.ativo : c.ativo));
 
-  const data = cartoes.data ?? [];
+  const estado = mostrarDesativados ? 'desativado' : 'ativo';
+  const contagem = `${data.length} cartã${data.length === 1 ? 'o' : 'es'} ${estado}${data.length === 1 ? '' : 's'}`;
 
   return (
-    <div className="grid gap-4">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} cartão/cartões cadastrado(s)</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
-          Novo cartão
-        </Button>
+    <div className="grid gap-2.5">
+      <ConfigTabHeader
+        filters={
+          <ConfigSwitch
+            checked={mostrarDesativados}
+            onChange={setMostrarDesativados}
+            label={contagem}
+          />
+        }
+        actionLabel="Novo cartão"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={CreditCard}
@@ -289,85 +454,80 @@ export function CartaoTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
-      {cartoes.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
-
-      {data.length === 0 && !cartoes.isLoading && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-10 text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <CreditCard size={36} strokeWidth={1.5} />
-          <div className="text-center">
-            <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum cartão cadastrado</p>
-            <p className="mt-1 text-xs text-slate-400">Cadastre um cartão para acompanhar limite e vencimento.</p>
-          </div>
-        </div>
+      {cartoes.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
-        {data.map((c) => {
-          const cor = c.cor ?? '#1e293b';
-          return (
-            <div
-              key={c.id}
-              className="relative overflow-hidden rounded-2xl p-5 shadow-md"
-              style={{ background: `linear-gradient(135deg, ${cor} 0%, ${cor}cc 100%)` }}
-            >
-              <div className="flex items-start justify-between mb-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                  <CreditCard size={20} className="text-white" />
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white hover:bg-white/25 transition"
-                    onClick={() => setDialog({ open: true, item: c })}
-                    title="Editar"
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white hover:bg-red-400/40 transition"
-                    onClick={() => handleDeleteCartao(c)}
-                    title="Excluir"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(214px, 1fr))', gap: 12 }}>
+        {data.map((c) => (
+          <div
+            key={c.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setDialog({ open: true, item: c })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setDialog({ open: true, item: c });
+              }
+            }}
+            title={`Editar ${c.nome}`}
+            style={{ cursor: 'pointer', transition: 'transform .13s ease' }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+          >
+            <CartaoPreview
+              nome={c.nome}
+              ultimos4={c.numero_cartao}
+              limite={c.limite}
+              vencimento={c.dia_vencimento}
+              tipo={c.tipo}
+              cor={c.cor ?? '#1e293b'}
+            />
+          </div>
+        ))}
 
-              <p className="font-mono text-sm tracking-widest text-white/60 mb-1">
-                •••• •••• •••• {c.numero_cartao ?? '????'}
-              </p>
-              <div className="mb-4 flex items-center gap-2">
-                <p className="text-base font-bold text-white">{c.nome}</p>
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/80">
-                  {c.tipo === 'credito' ? 'Crédito' : c.tipo === 'debito' ? 'Débito' : c.tipo === 'ambos' ? 'Ambos' : 'Tipo não definido'}
-                </span>
-              </div>
-
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Limite</p>
-                  <p className="text-sm font-bold text-white">
-                    {c.limite ? `R$ ${Number(c.limite).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Vencimento</p>
-                  <p className="text-sm font-bold text-white">
-                    {c.dia_vencimento ? `Dia ${c.dia_vencimento}` : '—'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {/* O tile tracejado é o convite à ação; só aparece na lista de ativos. */}
+        {!mostrarDesativados && (
+          <button
+            type="button"
+            onClick={() => setDialog({ open: true })}
+            style={{
+              aspectRatio: '1.58', borderRadius: 14, display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+              border: `1.5px dashed ${CFG.borderInput}`, background: 'transparent', color: CFG.faint,
+              transition: 'border-color .13s ease, color .13s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = CFG.primary;
+              e.currentTarget.style.color = CFG.primaryDark;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = CFG.borderInput;
+              e.currentTarget.style.color = CFG.faint;
+            }}
+          >
+            <Plus size={18} strokeWidth={2} />
+            <span style={{ fontSize: 11.5, fontWeight: 600 }}>Adicionar cartão</span>
+          </button>
+        )}
       </div>
 
+      {mostrarDesativados && data.length === 0 && !cartoes.isLoading && (
+        <EmptyState icon={CreditCard} title="Nenhum cartão desativado" />
+      )}
+
       <CartaoDialog
-        open={dialog.open} cartao={dialog.item}
-        isSaving={saveMut.isPending} error={saveMut.error?.message}
+        key={dialog.item ? String(dialog.item.id) : 'new'}
+        open={dialog.open}
+        cartao={dialog.item}
+        isSaving={saveMut.isPending || toggleAtivoMut.isPending}
+        error={saveMut.error?.message}
         onClose={() => setDialog({ open: false })}
         onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
+        onToggleAtivo={dialog.item ? () => toggleAtivoMut.mutate(dialog.item as Cartao) : undefined}
       />
     </div>
   );

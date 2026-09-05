@@ -1,15 +1,12 @@
+import { Request, Response, NextFunction } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accountMembers, accounts, memberPermissions } from '../db/schema';
+import { accountMembers, memberPermissions } from '../db/schema';
 
-export type PermissionFlag =
-  | 'viewOthersEntries'
-  | 'editOthersEntries'
-  | 'deleteOthersEntries'
-  | 'viewAggregateSummary'
-  | 'manageCategories'
-  | 'manageCards'
-  | 'accessOtherMembersData';
+// Cada flag = acesso completo (ver/criar/editar/excluir) a UMA tela. Não há
+// separação de leitura/escrita, nem acesso a lançamentos de outros membros —
+// o membro só mexe nos próprios dados, mesmo com a tela liberada.
+export type PermissionFlag = keyof Omit<typeof memberPermissions.$inferSelect, 'id' | 'userId' | 'updatedAt'>;
 
 // Resolve o conta_id ao qual `userId` está vinculado como membro ativo, ou
 // null se ele não for membro de nenhuma conta (ex.: é o próprio gestor).
@@ -22,72 +19,43 @@ export async function resolveMemberAccountId(userId: number): Promise<number | n
   return membership?.accountId ?? null;
 }
 
-// Resolve a Conta Padrão de um usuário quando ele é o dono/gestor (não
-// membro de ninguém) — mesma noção usada em accountMembers.ts.
-async function resolveOwnedAccountId(userId: number): Promise<number | null> {
-  const [account] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.userId, userId), eq(accounts.isDefault, true)))
-    .limit(1);
-  return account?.id ?? null;
-}
+// Verifica se `userId` pode acessar a tela correspondente a `flag`: gestor
+// (não é membro de ninguém) sempre passa, sem depender de flag nenhuma;
+// membro só passa se o gestor tiver liberado essa flag especificamente.
+export async function hasScreenAccess(userId: number, flag: PermissionFlag): Promise<boolean> {
+  const memberAccountId = await resolveMemberAccountId(userId);
 
-// Confirma que `viewerUserId` e `targetUserId` pertencem à MESMA conta
-// (via conta_membros, ou o viewer sendo o gestor dono dela) — pré-condição
-// obrigatória antes de qualquer checagem de permissão: uma permissão nunca
-// autoriza acesso a dados fora da conta vinculada.
-async function sameAccount(viewerUserId: number, targetUserId: number): Promise<boolean> {
-  if (viewerUserId === targetUserId) return true;
-
-  const viewerMembershipAccountId = await resolveMemberAccountId(viewerUserId);
-  const targetAccountId = (await resolveMemberAccountId(targetUserId)) ?? (await resolveOwnedAccountId(targetUserId));
-
-  if (targetAccountId === null) return false;
-
-  if (viewerMembershipAccountId !== null) {
-    return viewerMembershipAccountId === targetAccountId;
-  }
-
-  // Viewer não é membro de ninguém: só pode ser considerado "na mesma
-  // conta" do target se for o gestor dono dela.
-  const viewerOwnedAccountId = await resolveOwnedAccountId(viewerUserId);
-  return viewerOwnedAccountId !== null && viewerOwnedAccountId === targetAccountId;
-}
-
-// Resolve o(s) usuario_id que `requesterId` pode editar/excluir um recurso
-// pertencente a `resourceOwnerId`: sempre o próprio dono; adicionalmente
-// terceiros da mesma conta se `flag` (editOthersEntries/deleteOthersEntries)
-// estiver liberado. Usado nos pontos de UPDATE/DELETE de despesas/receitas
-// que hoje filtram só por "id = X AND usuario_id = requesterId" — aqui a
-// query passa a checar contra o dono real do recurso, não mais assumir que
-// dono == requester.
-export async function canActOnResource(requesterId: number, resourceOwnerId: number, flag: PermissionFlag): Promise<boolean> {
-  if (requesterId === resourceOwnerId) return true;
-  return hasPermission(requesterId, resourceOwnerId, flag);
-}
-
-// Verifica se `viewerUserId` tem a flag de permissão `flag` liberada pelo
-// gestor E que `targetUserId` pertence à mesma conta vinculada — as duas
-// condições são obrigatórias, nunca uma sozinha (ver plano Fase 3).
-// O gestor (dono da conta do target) sempre passa, sem depender de flags.
-export async function hasPermission(viewerUserId: number, targetUserId: number, flag: PermissionFlag): Promise<boolean> {
-  if (viewerUserId === targetUserId) return true;
-
-  const inSameAccount = await sameAccount(viewerUserId, targetUserId);
-  if (!inSameAccount) return false;
-
-  const viewerMembershipAccountId = await resolveMemberAccountId(viewerUserId);
-
-  // Viewer não é membro (é o gestor dono da conta): acesso total, sem
-  // depender de flags — permissões desta fase regulam apenas membros.
-  if (viewerMembershipAccountId === null) return true;
+  // Não é membro (é gestor ou usuário independente): acesso total.
+  if (memberAccountId === null) return true;
 
   const [permissions] = await db
     .select()
     .from(memberPermissions)
-    .where(eq(memberPermissions.userId, viewerUserId))
+    .where(eq(memberPermissions.userId, userId))
     .limit(1);
 
   return !!permissions?.[flag];
+}
+
+// Middleware Express: bloqueia a rota inteira com 403 se `req.user` (membro)
+// não tiver a tela liberada. Gestor/admin nunca são bloqueados aqui.
+export function requireScreenAccess(flag: PermissionFlag) {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+      return;
+    }
+
+    try {
+      const allowed = await hasScreenAccess(req.user.id, flag);
+      if (!allowed) {
+        res.status(403).json({ success: false, message: 'Access denied. This screen is not enabled for your account.' });
+        return;
+      }
+      next();
+    } catch (error) {
+      console.error('Screen access check failed:', (error as Error).message);
+      res.status(500).json({ success: false, message: 'Failed to verify screen access.' });
+    }
+  };
 }

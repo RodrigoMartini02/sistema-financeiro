@@ -40,9 +40,11 @@ export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = 
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-bold uppercase tracking-[0.09em] text-[#6c8593]">{centerLabel}</span>
-          <span className="text-[15px] font-bold text-[#0f2b38]">{centerValue}</span>
+        {/* O texto vive no furo do donut (raio interno de 46px, ~92px de
+            diâmetro), então precisa caber nessa largura sem encostar no anel. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-[1px] px-1">
+          <span className="text-[8.5px] font-bold uppercase tracking-[0.08em] text-[#8ba3b0]">{centerLabel}</span>
+          <span className="max-w-full truncate text-[12px] font-bold tabular-nums text-[#0f2b38]">{centerValue}</span>
         </div>
       </div>
       <ul className="min-w-0 flex-1 space-y-2.5 text-xs">

@@ -1,20 +1,23 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ChevronLeft, ChevronRight, ShieldAlert, UserCheck, UserX } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, ShieldAlert, UserCheck, UserX } from 'lucide-react';
 import {
   fetchUsuarios, createUsuario, updateUsuarioStatus, deleteUsuario,
   type UsuarioListItem, type UsuarioCreateBody,
 } from '../../services/usuariosService';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ToggleGroup } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { ListToolbar } from '../../ui/ListToolbar';
+import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { formatDocumentoAuto } from '../../utils/document';
 
 const TIPO_ACESSO_OPTIONS = [
   { value: 'padrao', label: 'Padrão', description: 'Acesso básico ao sistema' },
@@ -32,6 +35,8 @@ function UsuarioDialog({
   onToggleStatus?: (status: string) => void;
 }) {
   const [tipoAcesso, setTipoAcesso] = useState(usuario?.tipo ?? 'padrao');
+  // Controlado para aplicar a máscara; o campo aceita CPF ou CNPJ.
+  const [documento, setDocumento] = useState(() => formatDocumentoAuto(usuario?.documento ?? ''));
   const confirm = useConfirm();
   const desativarGuide = useFirstAccessGuide('usuarios:desativar-excluir-v1', {
     enabled: open && !!usuario && !!onToggleStatus,
@@ -54,7 +59,7 @@ function UsuarioDialog({
     onSave({
       nome:      fd.get('nome') as string,
       email:     fd.get('email') as string,
-      documento: fd.get('documento') as string,
+      documento,
       senha:     fd.get('senha') as string,
       tipo:      isAdmin ? tipoAcesso : 'padrao',
       status:    'ativo',
@@ -65,69 +70,93 @@ function UsuarioDialog({
 
   return (
     <Dialog open={open} title={usuario ? 'Editar usuário' : 'Novo usuário'} onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o campo Senha só existe na criação, mas o modal não
+            deve mudar de tamanho entre criar e editar. */}
+        <div style={{ flex: 1, minHeight: 0, height: 232, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
               <input name="nome" defaultValue={usuario?.nome} placeholder="Nome do usuário" autoFocus required style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>E-MAIL</span><span style={{ color: C.primary }}>*</span></label>
+            <div>
+              <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
               <input name="email" type="email" defaultValue={usuario?.email} placeholder="usuario@email.com" required style={fieldInputStyle} />
             </div>
           </div>
 
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>DOCUMENTO (CPF/CNPJ)</span>{!usuario && <span style={{ color: C.primary }}>*</span>}</label>
-              <input name="documento" defaultValue={usuario?.documento} placeholder="000.000.000-00" required={!usuario} style={fieldInputStyle} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>CPF / CNPJ</span>{!usuario && <span style={{ color: C.danger }}>*</span>}</label>
+              <input
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(formatDocumentoAuto(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={18}
+                required={!usuario}
+                className={CFG_MONO_CLASS}
+                style={fieldInputStyle}
+              />
             </div>
             {!usuario && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}><span>SENHA</span><span style={{ color: C.primary }}>*</span></label>
+              <div>
+                <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
                 <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
-                <span style={{ fontSize: 12, color: C.textFaint }}>Mínimo 6 caracteres</span>
               </div>
             )}
           </div>
 
           {isAdmin && (
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={labelStyle}>PERMISSÃO DE ACESSO</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {TIPO_ACESSO_OPTIONS.map((opt) => (
-                    <div key={opt.value} onClick={() => setTipoAcesso(opt.value)} title={opt.description} style={chipStyle(tipoAcesso === opt.value)}>
+            <div>
+              <label style={labelStyle}>Permissão de acesso</label>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${TIPO_ACESSO_OPTIONS.length}, 1fr)`, gap: 3, padding: 3, borderRadius: 999, background: CFG.chipBg }}>
+                {TIPO_ACESSO_OPTIONS.map((opt) => {
+                  const active = tipoAcesso === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setTipoAcesso(opt.value)}
+                      title={opt.description}
+                      style={{
+                        height: 26, border: 'none', borderRadius: 999,
+                        background: active ? CFG.primary : 'transparent',
+                        color: active ? '#fff' : CFG.chipText,
+                        fontSize: 11.5, fontWeight: 600, lineHeight: 1, cursor: 'pointer',
+                        transition: 'background .13s ease, color .13s ease',
+                      }}
+                    >
                       {opt.label}
-                    </div>
-                  ))}
-                </div>
-                <span style={{ fontSize: 12, color: C.textFaint }}>
-                  {TIPO_ACESSO_OPTIONS.find((o) => o.value === tipoAcesso)?.description}
-                </span>
+                    </button>
+                  );
+                })}
               </div>
+              <p style={{ margin: '5px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+                {TIPO_ACESSO_OPTIONS.find((o) => o.value === tipoAcesso)?.description}
+              </p>
             </div>
           )}
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
           {usuario && (
             <div className="relative flex items-center gap-2">
               {onToggleStatus && (
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
+                  style={dangerButtonStyle}
                   onClick={() => onToggleStatus(isAtivo ? 'inativo' : 'ativo')}
                 >
-                  {isAtivo ? <><UserX size={14} /> Desativar</> : <><UserCheck size={14} /> Ativar</>}
-                </Button>
+                  {isAtivo ? <><UserX size={12} /> Desativar</> : <><UserCheck size={12} /> Ativar</>}
+                </button>
               )}
               {desativarGuide.isVisible && (
                 <FirstAccessGuideCard
@@ -141,7 +170,7 @@ function UsuarioDialog({
                 />
               )}
               {isAdmin && onDelete && (
-                <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+                <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Excluir</button>
               )}
             </div>
           )}
@@ -149,13 +178,7 @@ function UsuarioDialog({
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -209,72 +232,67 @@ export function UsuariosTab({ userTipo }: Props) {
     onSuccess: () => { invalidate(); setDialog({ open: false }); },
   });
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    setPage(1);
-  };
-
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-3">
       {/* Toolbar */}
-      <div className="relative flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={handleSearch}
-            placeholder="Buscar por nome, email ou documento..."
-            className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-          {filterGuide.isVisible && (
-            <FirstAccessGuideCard
-              icon={Search}
-              description={firstAccessGuideMessages.usuariosFiltros}
-              floating
-              placement="bottom"
-              className="w-[min(24rem,calc(100vw-2rem))]"
-              onDismiss={filterGuide.dismiss}
-              onSilenceAll={filterGuide.silenceAll}
-            />
+      <div className="relative flex flex-col gap-2">
+        <ListToolbar
+          search={{ value: search, onChange: (v) => { setSearch(v); setPage(1); }, placeholder: 'Buscar por nome, email ou documento...' }}
+          action={isAdmin && (
+            <button
+              type="button"
+              style={cfgPrimaryButtonStyle}
+              onClick={() => { setMutError(''); setDialog({ open: true }); }}
+            >
+              <Plus size={12} strokeWidth={2.6} />
+              Novo usuário
+            </button>
           )}
-        </div>
-        <ToggleGroup
-          value={tipo}
-          options={[
-            { value: 'todos', label: 'Todos' },
-            { value: 'padrao', label: 'Padrão' },
-            { value: 'gestor', label: 'Gestor' },
-            ...(isAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
-          ]}
-          onChange={(v) => { setTipo(v); setPage(1); }}
         />
-        <ToggleGroup
-          value={status}
-          options={[
-            { value: 'todos',    label: 'Todos' },
-            { value: 'ativo',    label: 'Ativo' },
-            { value: 'inativo',  label: 'Inativo' },
-            { value: 'bloqueado', label: 'Bloqueado' },
-          ]}
-          onChange={(v) => { setStatus(v); setPage(1); }}
-        />
-        {isAdmin && (
-          <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
-            Novo usuário
-          </Button>
+        {filterGuide.isVisible && (
+          <FirstAccessGuideCard
+            icon={ShieldAlert}
+            description={firstAccessGuideMessages.usuariosFiltros}
+            floating
+            placement="bottom"
+            className="w-[min(24rem,calc(100vw-2rem))]"
+            onDismiss={filterGuide.dismiss}
+            onSilenceAll={filterGuide.silenceAll}
+          />
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            value={tipo}
+            options={[
+              { value: 'todos', label: 'Todos' },
+              { value: 'padrao', label: 'Padrão' },
+              { value: 'gestor', label: 'Gestor' },
+              ...(isAdmin ? [{ value: 'admin', label: 'Admin' }] : []),
+            ]}
+            onChange={(v) => { setTipo(v); setPage(1); }}
+          />
+          <ToggleGroup
+            value={status}
+            options={[
+              { value: 'todos',    label: 'Todos' },
+              { value: 'ativo',    label: 'Ativo' },
+              { value: 'inativo',  label: 'Inativo' },
+              { value: 'bloqueado', label: 'Bloqueado' },
+            ]}
+            onChange={(v) => { setStatus(v); setPage(1); }}
+          />
+        </div>
       </div>
 
       {/* List */}
       {listQuery.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Carregando usuários...</p>
+        <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+          Carregando usuários...
+        </p>
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-slate-400">
-          <ShieldAlert size={32} strokeWidth={1.5} />
-          <p className="text-sm">Nenhum usuário encontrado</p>
-        </div>
+        <EmptyState icon={ShieldAlert} title="Nenhum usuário encontrado" />
       ) : (
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {list.map((u, i) => (
             <ConfigListRow
               key={u.id}
@@ -291,23 +309,36 @@ export function UsuariosTab({ userTipo }: Props) {
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
         <div className="flex items-center justify-between px-1 py-1">
-          <span className="text-xs text-slate-500">
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
             {pagination.total} usuário{pagination.total !== 1 ? 's' : ''} · página {pagination.page} de {pagination.pages}
           </span>
           <div className="flex gap-1">
             <button
+              type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30 transition"
+              aria-label="Página anterior"
+              style={{
+                display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8,
+                border: 'none', background: 'transparent', color: CFG.muted,
+                cursor: page <= 1 ? 'not-allowed' : 'pointer', opacity: page <= 1 ? 0.3 : 1,
+              }}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
             <button
+              type="button"
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30 transition"
+              aria-label="Próxima página"
+              style={{
+                display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8,
+                border: 'none', background: 'transparent', color: CFG.muted,
+                cursor: page >= pagination.pages ? 'not-allowed' : 'pointer',
+                opacity: page >= pagination.pages ? 0.3 : 1,
+              }}
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         </div>

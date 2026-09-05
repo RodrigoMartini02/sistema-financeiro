@@ -1,19 +1,28 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, AlertCircle } from 'lucide-react';
 import {
   fetchSocios, saveSocio, deleteSocio,
   type Socio, type SocioFormValues,
 } from '../../services/sociosService';
 import { queryKeys } from '../../services/queryKeys';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import {
+  C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle,
+  dangerButtonStyle, dialogFooterStyle,
+} from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle } from '../../ui/configTokens';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
 
 function SocioDialog({
   open, socio, isSaving, error, onClose, onSave, onDelete,
@@ -27,9 +36,10 @@ function SocioDialog({
   const handleDelete = async () => {
     if (!onDelete) return;
     const ok = await confirm({
-      title: 'Excluir sócio',
-      message: `Excluir "${socio?.nome}"? Esta ação não pode ser desfeita.`,
-      confirmLabel: 'Excluir',
+      title: 'Desativar sócio',
+      message: `Desativar "${socio?.nome}"? Ele deixará de aparecer na lista de sócios ativos.`,
+      confirmLabel: 'Desativar',
+      variant: 'danger',
     });
     if (ok) onDelete();
   };
@@ -37,23 +47,24 @@ function SocioDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const pct = parseFloat(fd.get('percentual') as string);
-    onSave({ nome: fd.get('nome') as string, percentual: pct });
+    onSave({
+      nome: fd.get('nome') as string,
+      percentual: parseFloat(fd.get('percentual') as string),
+    });
   };
 
   return (
-    <Dialog open={open} title={socio ? 'Editar sócio' : 'Novo sócio'} onClose={onClose} scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME DO SÓCIO</span><span style={{ color: C.primary }}>*</span></label>
+    <Dialog open={open} title={socio ? 'Editar sócio' : 'Novo sócio'} onClose={onClose} size="sm" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
+        <div style={{ flex: 1, minHeight: 0, height: 120, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome do sócio</span><span style={{ color: C.danger }}>*</span></label>
               <input name="nome" defaultValue={socio?.nome} placeholder="Ex: Maria Souza" autoFocus required style={fieldInputStyle} />
             </div>
-          </div>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>PARTICIPAÇÃO (%)</span><span style={{ color: C.primary }}>*</span></label>
+            <div>
+              <label style={labelStyle}><span>Participação</span><span style={{ color: C.danger }}>*</span></label>
               <input
                 name="percentual"
                 type="number"
@@ -61,37 +72,28 @@ function SocioDialog({
                 max="100"
                 step="0.01"
                 defaultValue={socio?.percentual ?? ''}
-                placeholder="Ex: 50"
+                placeholder="50"
                 required
+                className={CFG_MONO_CLASS}
                 style={fieldInputStyle}
               />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Entre 0,01 e 100</span>
             </div>
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
+          {/* Ação destrutiva só na edição de registro existente. */}
           {socio && onDelete && (
-            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Desativar</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
-            <button
-              type="submit"
-              disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
-            >
+            <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
@@ -101,15 +103,25 @@ function SocioDialog({
   );
 }
 
+// ─── Tela ────────────────────────────────────────────────────────────────────
+
 export function SociosTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Socio }>({ open: false });
+  const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('socios:novo-v1');
 
-  const socios = useQuery({ queryKey: queryKeys.socios, queryFn: fetchSocios });
-  const data = socios.data ?? [];
+  const socios = useQuery({
+    queryKey: [...queryKeys.socios, mostrarDesativados],
+    queryFn: () => fetchSocios(mostrarDesativados),
+  });
 
-  const totalPct = data.reduce((s, sc) => s + Number(sc.percentual), 0);
+  const todos = socios.data ?? [];
+  const data = todos.filter((s) => (mostrarDesativados ? !s.ativo : s.ativo));
+
+  // A soma de 100% considera apenas os sócios ativos — os desativados não
+  // participam da divisão do negócio.
+  const totalPct = todos.filter((s) => s.ativo).reduce((sum, s) => sum + Number(s.percentual), 0);
 
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: SocioFormValues; id?: number }) => saveSocio(v, id),
@@ -121,13 +133,22 @@ export function SociosTab() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.socios }); setDialog({ open: false }); },
   });
 
+  const estado = mostrarDesativados ? 'desativado' : 'ativo';
+  const contagem = `${data.length} sócio${data.length === 1 ? '' : 's'} ${estado}${data.length === 1 ? '' : 's'}`;
+
   return (
-    <div className="grid gap-4">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} sócio{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
-          Novo sócio
-        </Button>
+    <div className="grid gap-2.5">
+      <ConfigTabHeader
+        filters={
+          <ConfigSwitch
+            checked={mostrarDesativados}
+            onChange={setMostrarDesativados}
+            label={contagem}
+          />
+        }
+        actionLabel="Novo sócio"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Plus}
@@ -140,32 +161,40 @@ export function SociosTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
-      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Sócios representam participações no negócio. O total de participações deve somar 100%.
-        {totalPct > 0 && (
-          <span className={['ml-2 font-bold', totalPct > 100 ? 'text-red-700' : totalPct === 100 ? 'text-green-700' : 'text-amber-700'].join(' ')}>
-            Total atual: {totalPct.toFixed(2)}%
-          </span>
-        )}
-      </div>
+      <InfoBanner variant="warn">
+        <AlertCircle size={13} style={{ flex: 'none' }} />
+        <span>
+          O total de participações dos sócios ativos deve somar 100%.
+          {totalPct > 0 && (
+            <span style={{
+              marginLeft: 5, fontWeight: 700,
+              color: totalPct > 100 ? '#b91c1c' : totalPct === 100 ? CFG.success : 'inherit',
+            }}>
+              Total atual: {totalPct.toFixed(2)}%
+            </span>
+          )}
+        </span>
+      </InfoBanner>
 
-      {socios.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {socios.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {data.map((s, i) => (
           <ConfigListRow
             key={s.id}
             index={i}
             nome={s.nome}
             dataCriacao={s.data_criacao}
-            dataAtualizacao={s.data_atualizacao}
             onClick={() => setDialog({ open: true, item: s })}
+            badges={<span style={cfgBadgeStyle}>{Number(s.percentual).toFixed(2)}%</span>}
           />
         ))}
         {data.length === 0 && !socios.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">Nenhum sócio cadastrado</p>
+          <EmptyState title={mostrarDesativados ? 'Nenhum sócio desativado' : 'Nenhum sócio cadastrado'} />
         )}
       </div>
 

@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { CFG, CFG_MONO_CLASS, cfgRowStyle, cfgRowIndexStyle } from './configTokens';
 
 type ColorScheme = 'brand' | 'red' | 'green';
 
@@ -9,6 +11,8 @@ interface ConfigListRowProps {
   dataAtualizacao?: string;
   colorScheme?: ColorScheme;
   foto?: string | null;
+  /** Conteúdo opcional entre a data e o chevron (badges de status, ações). */
+  badges?: ReactNode;
   onClick: () => void;
 }
 
@@ -21,60 +25,66 @@ function fmtDate(iso?: string): string | null {
   }
 }
 
-const SCHEME = {
-  brand: {
-    border: 'hover:border-brand-300',
-    badge: 'group-hover:bg-brand-50 group-hover:text-brand-600',
-    chevron: 'group-hover:text-brand-400',
-  },
-  red: {
-    border: 'hover:border-red-300',
-    badge: 'group-hover:bg-red-50 group-hover:text-red-600',
-    chevron: 'group-hover:text-red-400',
-  },
-  green: {
-    border: 'hover:border-green-300',
-    badge: 'group-hover:bg-green-50 group-hover:text-green-600',
-    chevron: 'group-hover:text-green-400',
-  },
+// Cor de realce no hover. A linha em si é neutra; o esquema só tinge a borda
+// e o índice, mantendo a distinção que as telas já faziam (contas = brand,
+// categorias = red).
+const SCHEME: Record<ColorScheme, string> = {
+  brand: CFG.primary,
+  red: '#dc2626',
+  green: '#059669',
 };
 
-export function ConfigListRow({ index, nome, dataCriacao, dataAtualizacao, colorScheme = 'brand', foto, onClick }: ConfigListRowProps) {
+export function ConfigListRow({
+  index, nome, dataCriacao, dataAtualizacao, colorScheme = 'brand', foto, badges, onClick,
+}: ConfigListRowProps) {
   const criado = fmtDate(dataCriacao);
   const atualizado = fmtDate(dataAtualizacao);
-  const s = SCHEME[colorScheme];
+  const accent = SCHEME[colorScheme];
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`group flex w-full items-center gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md ${s.border}`}
+      style={cfgRowStyle}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = accent;
+        e.currentTarget.style.background = CFG.surfaceSunken;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = CFG.border;
+        e.currentTarget.style.background = CFG.surface;
+      }}
     >
-      {foto ? (
-        <img src={foto} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-      ) : (
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
-          {String(index + 1).padStart(2, '0')}
+      <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+
+      {foto && (
+        <img
+          src={foto}
+          alt=""
+          style={{ flex: 'none', height: 26, width: 26, borderRadius: '50%', objectFit: 'cover' }}
+        />
+      )}
+
+      <span
+        style={{
+          flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: CFG.text,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+      >
+        {nome}
+      </span>
+
+      {badges}
+
+      {(criado || atualizado) && (
+        <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+          {criado ?? atualizado}
         </span>
       )}
 
-      <div className="min-w-0 flex-1">
-        <div className="lg:hidden">
-          <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-          {(criado || atualizado) && (
-            <p className="mt-0.5 text-xs text-slate-400">
-              {[criado && `Criado ${criado}`, atualizado && `Atualizado ${atualizado}`].filter(Boolean).join(' · ')}
-            </p>
-          )}
-        </div>
-        <div className="hidden lg:grid lg:grid-cols-[2fr_1fr_1fr] lg:items-center lg:gap-6">
-          <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-          <p className="text-xs text-slate-400">{criado ?? '—'}</p>
-          <p className="text-xs text-slate-400">{atualizado ?? '—'}</p>
-        </div>
-      </div>
-
-      <ChevronRight size={15} className={`shrink-0 text-slate-300 transition group-hover:translate-x-0.5 ${s.chevron}`} />
+      <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: '#94a3b8' }} />
     </button>
   );
 }

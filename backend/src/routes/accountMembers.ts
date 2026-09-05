@@ -321,7 +321,8 @@ router.put(
 
 // GET /api/account-members/summary — visão agregada da conta (soma de
 // despesas/receitas de todos os autores vinculados, gestor incluído).
-// Gestor sempre acessa; membro só se tiver ver_visao_agregada liberado.
+// Gestor sempre acessa; membro só se tiver acesso_relatorios liberado (a
+// visão agregada por autor é um tipo de relatório/consolidação da conta).
 router.get('/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { mes, ano } = req.query as Record<string, string | undefined>;
@@ -331,12 +332,12 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
 
     if (isMember) {
       const [permissions] = await db
-        .select({ viewAggregateSummary: memberPermissions.viewAggregateSummary })
+        .select({ accessReports: memberPermissions.accessReports })
         .from(memberPermissions)
         .where(eq(memberPermissions.userId, req.user!.id))
         .limit(1);
 
-      if (!permissions?.viewAggregateSummary) {
+      if (!permissions?.accessReports) {
         res.status(403).json({ success: false, message: 'Access denied' });
         return;
       }
@@ -390,15 +391,39 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
   }
 });
 
-const PERMISSION_COLUMNS: { flag: PermissionFlag; column: keyof typeof memberPermissions.$inferSelect }[] = [
-  { flag: 'viewOthersEntries', column: 'viewOthersEntries' },
-  { flag: 'editOthersEntries', column: 'editOthersEntries' },
-  { flag: 'deleteOthersEntries', column: 'deleteOthersEntries' },
-  { flag: 'viewAggregateSummary', column: 'viewAggregateSummary' },
-  { flag: 'manageCategories', column: 'manageCategories' },
-  { flag: 'manageCards', column: 'manageCards' },
-  { flag: 'accessOtherMembersData', column: 'accessOtherMembersData' },
+const PERMISSION_FLAGS: PermissionFlag[] = [
+  'accessExpenses', 'accessIncomes', 'accessMonthClosing', 'accessReserves', 'accessBudget', 'accessCalendar',
+  'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
+  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners', 'accessMembers', 'accessSubscription',
+  'accessClients', 'accessContracts', 'accessProductCatalog',
 ];
+
+// GET /api/account-members/me/permissions — o próprio usuário logado consulta
+// suas permissões (usado pelo frontend para decidir o que exibir na UI).
+// Gestor/admin sempre recebe tudo liberado, sem depender de linha na tabela.
+router.get('/me/permissions', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const memberAccountId = await resolveMemberAccountId(req.user!.id);
+
+    if (memberAccountId === null) {
+      const allTrue = Object.fromEntries(PERMISSION_FLAGS.map((flag) => [flag, true]));
+      res.json({ success: true, data: allTrue });
+      return;
+    }
+
+    const [permissions] = await db.select().from(memberPermissions).where(eq(memberPermissions.userId, req.user!.id)).limit(1);
+    if (!permissions) {
+      const allFalse = Object.fromEntries(PERMISSION_FLAGS.map((flag) => [flag, false]));
+      res.json({ success: true, data: allFalse });
+      return;
+    }
+
+    res.json({ success: true, data: permissions });
+  } catch (error) {
+    console.error('Get own permissions error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get permissions' });
+  }
+});
 
 // GET /api/account-members/:id/permissions — permissões atuais de um membro
 // (visão do gestor). Gestão de permissões nunca é delegável a outro membro.
@@ -460,13 +485,13 @@ router.put('/:id/permissions', authenticate, requireGestor, async (req: Request,
     const body = req.body as Record<string, unknown>;
     const updateData: Partial<typeof memberPermissions.$inferInsert> = { updatedAt: new Date() };
 
-    for (const { flag, column } of PERMISSION_COLUMNS) {
+    for (const flag of PERMISSION_FLAGS) {
       if (flag in body) {
         if (typeof body[flag] !== 'boolean') {
           res.status(400).json({ success: false, message: `${flag} must be a boolean` });
           return;
         }
-        (updateData as Record<string, unknown>)[column] = body[flag];
+        (updateData as Record<string, unknown>)[flag] = body[flag];
       }
     }
 

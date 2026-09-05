@@ -7,10 +7,14 @@ import {
 } from '../../services/representantesService';
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
 import { queryKeys } from '../../services/queryKeys';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { ConfigSwitch } from '../../ui/ConfigSwitch';
+import { CFG, cfgBadgeStyle, cfgIconButtonStyle } from '../../ui/configTokens';
+import { EmptyState } from '../../ui/EmptyState';
+import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -55,39 +59,36 @@ function ComissaoRow({
 
   if (creating) {
     return (
-      <div style={{ borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 10, display: 'grid', gap: 8 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.primaryDark, margin: 0 }}>Criar tipo de receita</p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            ref={inputRef}
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleCreate(); }
-              if (e.key === 'Escape') cancelCreate();
-            }}
-            placeholder="Ex: Mensalidade, Consultoria..."
-            style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.primary}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-          />
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={saving || !newName.trim()}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, background: C.primary, padding: '0 12px', fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', opacity: saving || !newName.trim() ? 0.5 : 1 }}
-          >
-            <Check size={13} />
-            {saving ? 'Salvando...' : 'Criar'}
-          </button>
-          <button
-            type="button"
-            onClick={cancelCreate}
-            style={{ borderRadius: 8, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px', fontSize: 13, color: C.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Cancelar
-          </button>
-        </div>
-        <p style={{ fontSize: 12, color: C.primaryDark, margin: 0 }}>O tipo será salvo e selecionado automaticamente nesta linha.</p>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+          ref={inputRef}
+          autoFocus
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); handleCreate(); }
+            if (e.key === 'Escape') cancelCreate();
+          }}
+          placeholder="Nome do tipo de receita"
+          style={{ ...fieldInputStyle, flex: 1, borderColor: C.primary }}
+        />
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={saving || !newName.trim()}
+          style={{ ...cfgIconButtonStyle, borderColor: C.primary, background: C.primary, color: '#fff', opacity: saving || !newName.trim() ? 0.5 : 1 }}
+          title="Criar tipo"
+        >
+          <Check size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={cancelCreate}
+          style={cfgIconButtonStyle}
+          title="Cancelar"
+        >
+          <X size={13} />
+        </button>
       </div>
     );
   }
@@ -95,12 +96,12 @@ function ComissaoRow({
   const tipoAtual = comissao.tipo ?? 'mensal';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ display: 'flex', flex: 1, gap: 6 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
         <select
           value={comissao.tipo_receita}
           onChange={(e) => onChange({ ...comissao, tipo_receita: e.target.value })}
-          style={{ ...fieldInputStyle, height: 42, fontSize: 14, flex: 1 }}
+          style={{ ...fieldInputStyle, flex: 1 }}
         >
           {tiposReceita.length === 0 && (
             <option value={comissao.tipo_receita}>{comissao.tipo_receita || '—'}</option>
@@ -111,19 +112,30 @@ function ComissaoRow({
           type="button"
           onClick={() => setCreating(true)}
           title="Criar novo tipo de receita"
-          style={{ display: 'flex', height: 42, width: 42, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, color: C.textMuted, background: 'transparent', cursor: 'pointer' }}
+          style={cfgIconButtonStyle}
         >
-          <Plus size={14} />
+          <Plus size={13} />
         </button>
       </div>
+
+      {/* Frequência: segmented control, mesma escala dos demais campos. */}
       <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <div onClick={() => onChange({ ...comissao, tipo: 'mensal' })} style={chipStyle(tipoAtual === 'mensal', { h: 42, r: 10, size: 12.5 })}>
-            Mensal
-          </div>
-          <div onClick={() => onChange({ ...comissao, tipo: 'unica' })} style={chipStyle(tipoAtual === 'unica', { h: 42, r: 10, size: 12.5 })}>
-            Única
-          </div>
+        <div style={{ display: 'flex', gap: 3, height: 32, padding: 3, borderRadius: 999, background: CFG.chipBg }}>
+          {([['mensal', 'Mensal'], ['unica', 'Única']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange({ ...comissao, tipo: id })}
+              style={{
+                display: 'flex', alignItems: 'center', padding: '0 12px', borderRadius: 999,
+                border: 'none', fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+                background: tipoAtual === id ? CFG.primary : 'transparent',
+                color: tipoAtual === id ? '#fff' : CFG.muted,
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         {tipoGuide && (
           <FirstAccessGuideCard
@@ -136,7 +148,8 @@ function ComissaoRow({
           />
         )}
       </div>
-      <div style={{ position: 'relative', width: 110 }}>
+
+      <div style={{ position: 'relative' }}>
         <input
           type="number"
           min="0.01"
@@ -144,17 +157,19 @@ function ComissaoRow({
           step="0.01"
           value={comissao.percentual}
           onChange={(e) => onChange({ ...comissao, percentual: parseFloat(e.target.value) || 0 })}
-          style={{ ...fieldInputStyle, height: 42, fontSize: 14, paddingRight: 26 }}
+          style={{ ...fieldInputStyle, paddingRight: 24 }}
           placeholder="0,00"
         />
-        <Percent size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.placeholder }} />
+        <Percent size={11} style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: C.placeholder }} />
       </div>
+
       <button
         type="button"
         onClick={onRemove}
-        style={{ display: 'flex', height: 36, width: 36, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        title="Remover comissão"
+        style={{ ...cfgIconButtonStyle, border: 'none', color: C.placeholder }}
       >
-        <X size={14} />
+        <X size={13} />
       </button>
     </div>
   );
@@ -195,9 +210,10 @@ function RepresentanteDialog({
   const handleDelete = async () => {
     if (!onDelete) return;
     const ok = await confirm({
-      title: 'Excluir representante',
-      message: `Excluir "${rep?.nome}"? Esta ação não pode ser desfeita.`,
-      confirmLabel: 'Excluir',
+      title: 'Desativar representante',
+      message: `Desativar "${rep?.nome}"? Ele deixará de aparecer na lista de representantes ativos.`,
+      confirmLabel: 'Desativar',
+      variant: 'danger',
     });
     if (ok) onDelete();
   };
@@ -224,71 +240,65 @@ function RepresentanteDialog({
 
   return (
     <Dialog open={open} title={rep ? 'Editar representante' : 'Novo representante'} onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="nome" defaultValue={rep?.nome} placeholder="Ex: João Silva" autoFocus required style={fieldInputStyle} />
-            </div>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* A lista de comissões é dinâmica, então aqui a altura é limitada por
+            maxHeight com scroll — não fixa como nos demais modais. */}
+        <div style={{ flex: 1, minHeight: 0, maxHeight: 340, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
+            <input name="nome" defaultValue={rep?.nome} placeholder="Ex: João Silva" autoFocus required style={fieldInputStyle} />
           </div>
 
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>E-MAIL</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>E-mail</label>
               <input name="email" type="email" defaultValue={rep?.email ?? ''} placeholder="joao@email.com" style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>TELEFONE</label>
-                <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
-              </div>
+            <div>
+              <label style={labelStyle}>Telefone</label>
               <input name="telefone" defaultValue={rep?.telefone ?? ''} placeholder="(11) 99999-9999" style={fieldInputStyle} />
             </div>
           </div>
 
-          <div style={{ ...cardStyle, position: 'relative' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <label style={labelStyle}>COMISSÕES POR TIPO DE RECEITA</label>
+          <div style={{ height: 1, background: '#eef2f6' }} />
 
-              {tiposReceita.length === 0 && (
-                <p style={{ borderRadius: 8, border: `1px solid ${C.warnBorder}`, background: C.warnBg, padding: '8px 12px', fontSize: 12.5, color: C.warn, margin: 0 }}>
-                  Nenhum tipo de receita cadastrado. Use o botão <strong>+</strong> ao lado do seletor para criar um.
-                </p>
-              )}
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={labelStyle}>Comissões por tipo de receita</label>
 
-              <div style={{ display: 'grid', gap: 8 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 36px', gap: 8, padding: '0 2px' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Tipo de receita</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Frequência</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Percentual</span>
-                  <span />
-                </div>
-                {comissoes.map((c, i) => (
-                  <ComissaoRow
-                    key={i}
-                    comissao={c}
-                    tiposReceita={tiposReceita}
-                    onChange={(updated) => updateComissao(i, updated)}
-                    onRemove={() => removeComissao(i)}
-                    onCreateType={handleCreateType}
-                    tipoGuide={i === 0 && tipoComissaoGuide.isVisible
-                      ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
-                      : undefined}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={addComissao}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, padding: '10px 12px', fontSize: 13, color: C.textMuted, background: 'transparent', cursor: 'pointer' }}
-                >
-                  <Plus size={14} />
-                  Adicionar comissão
-                </button>
+            {tiposReceita.length === 0 && (
+              <p style={{ borderRadius: 10, border: `1px solid ${CFG.warnBorder}`, background: CFG.warnBg, padding: '7px 9px', fontSize: 11.5, color: CFG.warnText, margin: 0 }}>
+                Nenhum tipo de receita cadastrado. Use o botão <strong>+</strong> ao lado do seletor para criar um.
+              </p>
+            )}
+
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, padding: '0 2px' }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Tipo de receita</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Frequência</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Percentual</span>
+                <span />
               </div>
+              {comissoes.map((c, i) => (
+                <ComissaoRow
+                  key={i}
+                  comissao={c}
+                  tiposReceita={tiposReceita}
+                  onChange={(updated) => updateComissao(i, updated)}
+                  onRemove={() => removeComissao(i)}
+                  onCreateType={handleCreateType}
+                  tipoGuide={i === 0 && tipoComissaoGuide.isVisible
+                    ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
+                    : undefined}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={addComissao}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, height: 30, borderRadius: 999, border: `1px dashed ${CFG.borderInput}`, fontSize: 11.5, fontWeight: 600, color: CFG.muted, background: 'transparent', cursor: 'pointer' }}
+              >
+                <Plus size={12} strokeWidth={2.6} />
+                Adicionar comissão
+              </button>
             </div>
             {comissoesGuide.isVisible && (
               <FirstAccessGuideCard
@@ -304,27 +314,22 @@ function RepresentanteDialog({
           </div>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
+          {/* Ação destrutiva só na edição de registro existente. */}
           {rep && onDelete && (
-            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Desativar</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -338,11 +343,16 @@ function RepresentanteDialog({
 export function RepresentantesTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Representante }>({ open: false });
+  const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('representantes:novo-v1');
 
-  const reps = useQuery({ queryKey: queryKeys.representantes, queryFn: fetchRepresentantes });
+  const reps = useQuery({
+    queryKey: [...queryKeys.representantes, mostrarDesativados],
+    queryFn: () => fetchRepresentantes(mostrarDesativados),
+  });
   const incomeTypesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes });
-  const data = reps.data ?? [];
+  const todos = reps.data ?? [];
+  const data = todos.filter((r) => (mostrarDesativados ? !r.ativo : r.ativo));
   const tiposReceita = (incomeTypesQ.data ?? []).filter((t) => t.ativo).map((t) => t.nome);
 
   const saveMut = useMutation({
@@ -356,12 +366,18 @@ export function RepresentantesTab() {
   });
 
   return (
-    <div className="grid gap-4">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} representante{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
-          Novo representante
-        </Button>
+    <div className="grid gap-2.5">
+      <ConfigTabHeader
+        filters={
+          <ConfigSwitch
+            checked={mostrarDesativados}
+            onChange={setMostrarDesativados}
+            label={`${data.length} representante${data.length === 1 ? '' : 's'} ${mostrarDesativados ? 'desativado' : 'ativo'}${data.length === 1 ? '' : 's'}`}
+          />
+        }
+        actionLabel="Novo representante"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Plus}
@@ -374,27 +390,31 @@ export function RepresentantesTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <InfoBanner>
         Representantes recebem comissão automática calculada sobre receitas por tipo. Configure os percentuais por categoria.
-      </div>
+      </InfoBanner>
 
-      {reps.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {reps.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {data.map((r, i) => (
           <ConfigListRow
             key={r.id}
             index={i}
             nome={r.nome}
             dataCriacao={r.data_criacao}
-            dataAtualizacao={r.data_atualizacao}
             onClick={() => setDialog({ open: true, item: r })}
+            badges={r.comissoes?.length
+              ? <span style={cfgBadgeStyle}>{r.comissoes.length} comissã{r.comissoes.length === 1 ? 'o' : 'es'}</span>
+              : undefined}
           />
         ))}
         {data.length === 0 && !reps.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">Nenhum representante cadastrado</p>
+          <EmptyState title={mostrarDesativados ? 'Nenhum representante desativado' : 'Nenhum representante cadastrado'} />
         )}
       </div>
 

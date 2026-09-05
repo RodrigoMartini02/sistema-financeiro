@@ -1,86 +1,107 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
+import { Plus, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
 import {
   fetchMembros, createMembro, deactivateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
 import {
-  fetchMemberPermissions, updateMemberPermissions, PERMISSION_LABELS,
+  fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
   type PermissionFlag, type MemberPermissionsData,
 } from '../../services/permissoesService';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
+import { ListToolbar } from '../../ui/ListToolbar';
+import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
+import { formatDocumentoAuto } from '../../utils/document';
+
+// Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
+// conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
+// "colaborador" (da equipe).
+interface Termo { singular: string; artigo: string; }
+const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
+  pessoal: { singular: 'membro', artigo: 'o' },
+  empresa: { singular: 'colaborador', artigo: 'o' },
+};
 
 function NovoMembroDialog({
-  open, isSaving, error, onClose, onSave,
+  open, isSaving, error, termo, onClose, onSave,
 }: {
-  open: boolean; isSaving: boolean; error?: string;
+  open: boolean; isSaving: boolean; error?: string; termo: Termo;
   onClose: () => void; onSave: (body: MembroCreateBody) => void;
 }) {
+  // Controlado para aplicar a máscara; o campo aceita CPF ou CNPJ.
+  const [documento, setDocumento] = useState('');
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const documento = (fd.get('documento') as string)?.trim();
+    const doc = documento.trim();
     onSave({
       nome:      fd.get('nome') as string,
       email:     fd.get('email') as string,
       senha:     fd.get('senha') as string,
-      ...(documento ? { documento } : {}),
+      ...(doc ? { documento: doc } : {}),
     });
   };
 
   return (
-    <Dialog open={open} title="Novo membro" onClose={onClose} size="lg" scrollBody={false}>
-      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 -26px' }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>NOME COMPLETO</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="nome" placeholder="Nome do membro" autoFocus required style={fieldInputStyle} />
+    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="lg" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
+        <div style={{ flex: 1, minHeight: 0, height: 190, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
+              <input name="nome" placeholder={`Nome do ${termo.singular}`} autoFocus required style={fieldInputStyle} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>E-MAIL</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="email" type="email" placeholder="membro@email.com" required style={fieldInputStyle} />
+            <div>
+              <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
+              <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
             </div>
           </div>
 
-          <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 18 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>DOCUMENTO (CPF/CNPJ)</span></label>
-              <input name="documento" placeholder="000.000.000-00 (opcional)" style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Opcional — deixe em branco se o membro não tiver CPF (ex.: menor de idade)</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>CPF / CNPJ</label>
+              <input
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(formatDocumentoAuto(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={18}
+                className={CFG_MONO_CLASS}
+                style={fieldInputStyle}
+              />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={labelStyle}><span>SENHA</span><span style={{ color: C.primary }}>*</span></label>
+            <div>
+              <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
               <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
-              <span style={{ fontSize: 12, color: C.textFaint }}>Mínimo 6 caracteres</span>
             </div>
           </div>
+
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+            Documento é opcional — deixe em branco se {termo.artigo} {termo.singular} não tiver CPF (ex.: menor de idade). Senha com mínimo de 6 caracteres.
+          </p>
 
           {error && (
-            <div style={{ margin: '0 26px 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={dialogFooterStyle}>
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -91,12 +112,7 @@ function NovoMembroDialog({
   );
 }
 
-const PERMISSION_ORDER: PermissionFlag[] = [
-  'viewOthersEntries', 'editOthersEntries', 'deleteOthersEntries',
-  'viewAggregateSummary', 'manageCategories', 'manageCards', 'accessOtherMembersData',
-];
-
-function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: MembroListItem; onClose: () => void }) {
+function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean; membro?: MembroListItem; contaTipo: 'pessoal' | 'empresa'; onClose: () => void }) {
   const qc = useQueryClient();
   const [error, setError] = useState('');
 
@@ -117,50 +133,55 @@ function PermissoesDialog({ open, membro, onClose }: { open: boolean; membro?: M
   });
 
   const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
+  const visibleGroups = PERMISSION_GROUPS.filter((g) => g.id !== 'comercial' || contaTipo === 'empresa');
 
   return (
-    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="lg">
-      <div style={{ padding: '0 26px 20px' }}>
-        <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
-          Por padrão, este membro só vê e gerencia os próprios lançamentos. Libere abaixo o que ele pode acessar da conta compartilhada.
+    // Sem rodapé: as permissões salvam a cada toggle, então não há ação de
+    // confirmar — fecha pelo X ou pelo overlay.
+    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="sm" scrollBody={false}>
+      <div style={{ flex: 1, minHeight: 0, maxHeight: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
+          Por padrão, este membro não acessa nenhuma tela. Libere abaixo o que ele pode usar.
         </p>
 
         {permissionsQuery.isLoading ? (
-          <p style={{ fontSize: 13, color: C.textFaint, textAlign: 'center', padding: '20px 0' }}>Carregando permissões...</p>
+          <p style={{ padding: '20px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando permissões...</p>
         ) : permissions ? (
-          <div className="grid gap-2">
-            {PERMISSION_ORDER.map((flag) => (
-              <ToggleRow
-                key={flag}
-                label={PERMISSION_LABELS[flag].label}
-                description={PERMISSION_LABELS[flag].description}
-                checked={permissions[flag]}
-                disabled={toggleMut.isPending}
-                onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {visibleGroups.map((group) => (
+              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <p style={{ margin: 0, fontSize: 9.5, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: CFG.faint }}>
+                  {group.label} · {group.items.length} permiss{group.items.length !== 1 ? 'ões' : 'ão'}
+                </p>
+                {group.items.map(({ flag, label }) => (
+                  <ToggleRow
+                    key={flag}
+                    label={label}
+                    checked={permissions[flag]}
+                    disabled={toggleMut.isPending}
+                    onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         ) : null}
 
         {error && (
-          <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+          <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
             {error}
           </div>
         )}
-      </div>
-
-      <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-        <Button variant="secondary" onClick={onClose}>Fechar</Button>
       </div>
     </Dialog>
   );
 }
 
 function TransferirPendenciasDialog({
-  open, membro, pendencias, outrosMembros, isSaving, error, onClose, onConfirm,
+  open, membro, pendencias, outrosMembros, isSaving, error, termo, onClose, onConfirm,
 }: {
   open: boolean; membro?: MembroListItem; pendencias: PendingExpense[]; outrosMembros: MembroListItem[];
-  isSaving: boolean; error?: string;
+  isSaving: boolean; error?: string; termo: Termo;
   onClose: () => void; onConfirm: (transferirParaUsuarioId: number) => void;
 }) {
   const [destino, setDestino] = useState<string>('gestor');
@@ -170,26 +191,32 @@ function TransferirPendenciasDialog({
   };
 
   return (
-    <Dialog open={open} title={`Desativar "${membro?.nome}"`} onClose={onClose} size="lg" scrollBody={false}>
-      <div style={{ padding: '0 26px 20px' }}>
-        <p style={{ fontSize: 13, color: C.textFaint, marginBottom: 14 }}>
-          Este membro tem {pendencias.length} lançamento(s) parcelado(s) ou recorrente(s) ainda em aberto.
+    <Dialog open={open} title={`Desativar "${membro?.nome}"`} onClose={onClose} size="sm" scrollBody={false}>
+      <div style={{ flex: 1, minHeight: 0, maxHeight: 320, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
+          Este {termo.singular} tem {pendencias.length} lançamento(s) parcelado(s) ou recorrente(s) ainda em aberto.
           Escolha para quem essas pendências futuras devem ser transferidas antes de desativar.
         </p>
 
-        <div style={{ ...cardStyle, marginBottom: 14 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-            {pendencias.map((p) => (
-              <div key={p.id} style={{ fontSize: 13, color: C.text, display: 'flex', justifyContent: 'space-between' }}>
-                <span>{p.description}</span>
-                <span style={{ color: C.textFaint }}>{p.recurring ? 'Recorrente' : 'Parcelada'}</span>
-              </div>
-            ))}
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 140, overflowY: 'auto' }}>
+          {pendencias.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                minHeight: 34, padding: '0 12px', borderRadius: 12,
+                border: `1px solid ${CFG.border}`, background: CFG.surface,
+                fontSize: 12.5, fontWeight: 500, color: CFG.text,
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</span>
+              <span style={cfgBadgeStyle}>{p.recurring ? 'Recorrente' : 'Parcelada'}</span>
+            </div>
+          ))}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <label style={labelStyle}>TRANSFERIR PARA</label>
+        <div>
+          <label style={labelStyle}>Transferir para</label>
           <select value={destino} onChange={(e) => setDestino(e.target.value)} style={fieldInputStyle}>
             <option value="gestor">Eu (gestor da conta)</option>
             {outrosMembros.map((m) => (
@@ -199,23 +226,40 @@ function TransferirPendenciasDialog({
         </div>
 
         {error && (
-          <div style={{ marginTop: 14, borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+          <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
             {error}
           </div>
         )}
       </div>
 
-      <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" disabled={isSaving} onClick={handleConfirm}>
+      {/* Aqui o "Cancelar" permanece: é uma confirmação destrutiva com escolha
+          de destino, não um formulário comum. */}
+      <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
+        <button type="button" style={{ ...dangerButtonStyle, border: 'none', color: C.textMuted }} onClick={onClose}>
+          Cancelar
+        </button>
+        {/* Confirmação destrutiva mantém preenchimento sólido: precisa se
+            distinguir com clareza antes de o usuário confirmar. */}
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={handleConfirm}
+          style={{
+            ...saveButtonStyle,
+            background: C.danger,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.5 : 1,
+          }}
+        >
           {isSaving ? 'Desativando...' : 'Confirmar e desativar'}
-        </Button>
+        </button>
       </div>
     </Dialog>
   );
 }
 
-export function MembrosTab() {
+export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 'empresa' }) {
+  const termo = TERMOS[contaTipo];
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [search, setSearch] = useState('');
@@ -246,7 +290,7 @@ export function MembrosTab() {
 
   const handleDeactivate = async (membro: MembroListItem) => {
     const ok = await confirm({
-      title: 'Desativar membro',
+      title: `Desativar ${termo.singular}`,
       message: `Desativar "${membro.nome}"? O login dele será bloqueado e os dados ficam ocultos, mas preservados.`,
       confirmLabel: 'Desativar',
     });
@@ -276,65 +320,83 @@ export function MembrosTab() {
     : [];
 
   return (
-    <div className="grid gap-5">
-      <div className="relative flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou email..."
-            className="w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
-        </div>
-        <Button icon={<Plus size={16} />} onClick={() => { setMutError(''); setNovoDialogOpen(true); }}>
-          Novo membro
-        </Button>
-      </div>
+    <div className="grid gap-3">
+      <ListToolbar
+        search={{ value: search, onChange: setSearch, placeholder: 'Buscar por nome ou email...' }}
+        action={
+          <button
+            type="button"
+            style={cfgPrimaryButtonStyle}
+            onClick={() => { setMutError(''); setNovoDialogOpen(true); }}
+          >
+            <Plus size={12} strokeWidth={2.6} />
+            Novo {termo.singular}
+          </button>
+        }
+      />
 
       {listQuery.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Carregando membros...</p>
+        <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+          Carregando {termo.singular}s...
+        </p>
       ) : list.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-slate-400">
-          <ShieldAlert size={32} strokeWidth={1.5} />
-          <p className="text-sm">Nenhum membro vinculado ainda</p>
-        </div>
+        <EmptyState icon={ShieldAlert} title={`Nenhum ${termo.singular} vinculado ainda`} />
       ) : (
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {list.map((m, i) => (
-            <div key={m.membro_id} className="flex items-center gap-2">
-              <div className="flex-1">
-                <ConfigListRow
-                  index={i}
-                  nome={m.nome}
-                  dataCriacao={m.vinculado_em}
-                  onClick={() => {}}
-                />
-              </div>
-              {m.membro_status === 'ativo' && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setPermissoesMembro(m)}
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
-                    title="Configurar permissões"
-                  >
-                    <ShieldCheck size={13} /> Permissões
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeactivate(m)}
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
-                    title="Desativar membro"
-                  >
-                    <UserX size={13} /> Desativar
-                  </button>
-                </>
-              )}
-              {m.membro_status === 'inativo' && (
-                <span className="text-xs text-slate-400 pr-2">Inativo</span>
-              )}
-            </div>
+            <ConfigListRow
+              key={m.membro_id}
+              index={i}
+              nome={m.nome}
+              dataCriacao={m.vinculado_em}
+              onClick={() => {}}
+              badges={
+                m.membro_status === 'ativo' ? (
+                  <>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setPermissoesMembro(m); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPermissoesMembro(m);
+                        }
+                      }}
+                      title="Configurar permissões"
+                      style={{
+                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11.5, fontWeight: 600, color: CFG.chipText, cursor: 'pointer',
+                      }}
+                    >
+                      <ShieldCheck size={12} /> Permissões
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); handleDeactivate(m); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeactivate(m);
+                        }
+                      }}
+                      title={`Desativar ${termo.singular}`}
+                      style={{
+                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11.5, fontWeight: 600, color: CFG.danger, cursor: 'pointer',
+                      }}
+                    >
+                      <UserX size={12} /> Desativar
+                    </span>
+                  </>
+                ) : (
+                  <span style={cfgBadgeStyle}>Inativo</span>
+                )
+              }
+            />
           ))}
         </div>
       )}
@@ -349,6 +411,7 @@ export function MembrosTab() {
         open={novoDialogOpen}
         isSaving={createMut.isPending}
         error={mutError}
+        termo={termo}
         onClose={() => setNovoDialogOpen(false)}
         onSave={(body) => createMut.mutate(body)}
       />
@@ -361,6 +424,7 @@ export function MembrosTab() {
           outrosMembros={outrosMembros}
           isSaving={deactivateMut.isPending}
           error={mutError}
+          termo={termo}
           onClose={() => setPendingDialog(null)}
           onConfirm={handleConfirmTransfer}
         />
@@ -370,6 +434,7 @@ export function MembrosTab() {
         <PermissoesDialog
           open={!!permissoesMembro}
           membro={permissoesMembro}
+          contaTipo={contaTipo}
           onClose={() => setPermissoesMembro(null)}
         />
       )}

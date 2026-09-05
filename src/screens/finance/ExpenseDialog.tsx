@@ -10,7 +10,7 @@ import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, smallInputStyle, numericInputStyle,
-  cardStyle, panelStyle, chipStyle, MoneyField, MoneyFieldSmall,
+  panelStyle, chipStyle, MoneyField, MoneyFieldSmall,
 } from '../../ui/dialogFormTokens';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDate';
@@ -349,7 +349,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     ? `todo mês na fatura ${selectedCard?.nome ?? 'do cartão'}, até cancelar`
     : diaRecorrencia ? `todo dia ${diaRecorrencia}, até cancelar` : 'informe o dia';
 
-  const valorLabel = repeticao === 'parcelas' ? 'VALOR DA PARCELA' : repeticao === 'mensal' ? 'VALOR MENSAL' : 'VALOR DA COMPRA';
+  const valorLabel = repeticao === 'parcelas' ? 'Valor da parcela' : repeticao === 'mensal' ? 'Valor mensal' : 'Valor da compra';
 
   const toFormValues = (data: FormData, anexosArr: Attachment[] = []): ExpenseFormValues => ({
     descricao:       data.descricao,
@@ -476,22 +476,24 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   return (
     <Dialog open={open} title={expense ? 'Editar despesa' : 'Nova despesa'} description="Registre uma saída financeira" onClose={onClose} size="xl" scrollBody={false}>
       <form
-        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}
+        style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
         onSubmit={submitForm}
         onKeyDown={handleKeyDown}
       >
         {/* Corpo rolável */}
-        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Blocos separados por linha de 1px, não por cards com borda: dentro de
+            um modal, card sobre card cria moldura dupla. */}
+        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* ── Bloco 1: O QUÊ (descrição + categoria) ─────────────────── */}
           <div
-            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
-            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+            style={{ columnGap: 12, alignItems: 'start' }}
           >
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>
-                  <span>DESCRIÇÃO</span><span style={{ color: C.primary }}>*</span>
+            <div style={{ minWidth: 0, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <label style={labelStyle}>
+                  <span>Descrição</span><span style={{ color: C.danger }}>*</span>
                 </label>
               </div>
               <input
@@ -572,11 +574,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               </div>
             </div>
 
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>CATEGORIA</label>
-                <span style={{ fontSize: 11, color: '#a8bac4' }}>opcional</span>
-              </div>
+            <div style={{ minWidth: 0 }}>
+              <label style={labelStyle}>Categoria</label>
               <Controller
                 control={form.control}
                 name="categoria_id"
@@ -623,13 +622,15 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           </div>
 
+          <div style={{ height: 1, background: '#eef2f6' }} />
+
           {/* ── Bloco 2: COMO (forma de pagamento → cartão → isso se repete) ── */}
           <div
-            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-3.5"
-            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-3"
+            style={{ columnGap: 12, alignItems: 'start' }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={labelStyle}>FORMA DE PAGAMENTO</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div style={labelStyle}>Forma de pagamento</div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {paymentOptions.map((opt) => (
                   <div key={opt.value} onClick={() => handlePaymentSelect(opt.value)} style={chipStyle(formaPagamento === opt.value)}>
@@ -642,8 +643,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               {(isCredito || isDebito) && (
                 <div style={panelStyle}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <span style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
-                      {isCredito ? 'CARTÃO · CONSOME LIMITE' : 'CARTÃO · DESCONTA SALDO'}
+                    <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textSoft, textTransform: 'uppercase' }}>
+                      {isCredito ? 'Cartão · consome limite' : 'Cartão · desconta saldo'}
                     </span>
                     {selectedCard && (
                       <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
@@ -676,8 +677,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, position: 'relative' }}>
-              <div style={labelStyle}>ISSO SE REPETE?</div>
+            <div style={{ position: 'relative' }}>
+              <div style={labelStyle}>Isso se repete?</div>
               <div className="grid grid-cols-3 gap-2">
                 {([
                   ['nao', 'Não repete'],
@@ -724,15 +725,17 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           </div>
 
+          <div style={{ height: 1, background: '#eef2f6' }} />
+
           {/* ── Bloco 3: QUANTO (valor da compra + checkbox pago / valor pago) ── */}
           <div
-            className="grid grid-cols-1 gap-y-3.5 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
-            style={{ ...cardStyle, columnGap: 18, alignItems: 'start' }}
+            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+            style={{ columnGap: 12, alignItems: 'start' }}
           >
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>
-                  <span>{valorInputMode === 'avista' ? 'PREÇO À VISTA' : valorLabel}</span><span style={{ color: C.primary }}>*</span>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <label style={labelStyle}>
+                  <span>{valorInputMode === 'avista' ? 'Preço à vista' : valorLabel}</span><span style={{ color: C.danger }}>*</span>
                 </label>
                 {repeticao === 'parcelas' && (
                   <button
@@ -800,8 +803,8 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
 
             {!isCredito && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={{ ...labelStyle, height: 'auto' }}>VALOR PAGO</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                <label style={labelStyle}>Valor pago</label>
                 <div className="w-full max-w-[260px]">
                   <Controller
                     control={form.control}
@@ -832,10 +835,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             )}
           </div>
 
+          <div style={{ height: 1, background: '#eef2f6' }} />
+
           {/* ── Bloco 4: QUANDO (data, vencimento, status) ── */}
-          <div style={{ ...cardStyle, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              <label style={{ ...labelStyle, color: C.primaryDark }}>DATA DA COMPRA</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <label style={labelStyle}>Data da compra</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <input
                   {...form.register('dataCompra')}
@@ -874,15 +879,15 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2"
                 style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}
               >
-                <div className="sm:col-span-2" style={{ fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textSoft, textTransform: 'uppercase' }}>
+                <div className="sm:col-span-2" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textSoft, textTransform: 'uppercase' }}>
                   Nota Fiscal
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}>NÚMERO DA NF</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <label style={labelStyle}>Número da NF</label>
                   <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                  <label style={labelStyle}>DATA DE EMISSÃO</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <label style={labelStyle}>Data de emissão</label>
                   <input {...form.register('data_emissao_nf')} type="date" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
                 </div>
               </div>
@@ -896,14 +901,14 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
           </div>
 
           {error && (
-            <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
             </div>
           )}
         </div>
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {hasBatch && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.07em', color: C.textSoft }}>
@@ -940,7 +945,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 onClick={handleAddToBatch}
                 disabled={!podeSalvar}
                 style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
                   whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
                   cursor: podeSalvar ? 'pointer' : 'not-allowed',
                   ...(podeSalvar
@@ -954,11 +959,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 type="submit"
                 disabled={!canSubmit || isSaving || isSavingAll}
                 style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
                   whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
                   cursor: canSubmit && !isSaving && !isSavingAll ? 'pointer' : 'not-allowed',
                   ...(canSubmit
-                    ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
+                    ? { background: C.primary, color: '#fff' }
                     : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
                 }}
               >

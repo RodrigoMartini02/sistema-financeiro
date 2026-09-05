@@ -6,14 +6,8 @@ import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { createCommissionExpense } from '../services/commissionService';
-import { canActOnResource } from '../middleware/permissions';
 
 const router = Router();
-
-async function resolveIncomeOwnerId(incomeId: number): Promise<number | null> {
-  const result = await pool.query('SELECT usuario_id FROM receitas WHERE id = $1', [incomeId]);
-  return (result.rows[0] as { usuario_id: number } | undefined)?.usuario_id ?? null;
-}
 
 function buildWhereClause(
   userId: number,
@@ -181,16 +175,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   try {
     const incomeId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveIncomeOwnerId(incomeId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id } =
       req.body as Record<string, unknown>;
 
@@ -218,7 +202,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         tipo_receita ?? null,
         representante_id ? parseInt(String(representante_id)) : null,
         incomeId,
-        ownerId,
+        req.user!.id,
         mes,
         ano,
       ],
@@ -242,16 +226,6 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
     const incomeId = parseInt(req.params['id']!);
     const { data_recebimento, valor_recebido } = req.body as Record<string, unknown>;
 
-    const ownerId = await resolveIncomeOwnerId(incomeId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Predicted income not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const result = await pool.query(
       `UPDATE receitas
        SET status = 'ativa',
@@ -263,7 +237,7 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
         data_recebimento ?? null,
         valor_recebido ? parseFloat(String(valor_recebido)) : null,
         incomeId,
-        ownerId,
+        req.user!.id,
       ],
     );
 
@@ -284,19 +258,9 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
   try {
     const incomeId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveIncomeOwnerId(incomeId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'editOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const receitaResult = await pool.query(
       'SELECT representante_id, mes, ano FROM receitas WHERE id = $1 AND usuario_id = $2',
-      [incomeId, ownerId],
+      [incomeId, req.user!.id],
     );
 
     if (receitaResult.rows.length === 0) {
@@ -308,7 +272,7 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
 
     await pool.query(
       "UPDATE receitas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2",
-      [incomeId, ownerId],
+      [incomeId, req.user!.id],
     );
 
     if (receita.representante_id) {
@@ -316,7 +280,7 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
         `UPDATE despesas SET status = 'cancelada'
          WHERE usuario_id = $1 AND mes = $2 AND ano = $3
            AND descricao LIKE 'Comissão - %' AND status = 'ativa'`,
-        [ownerId, receita.mes, receita.ano],
+        [req.user!.id, receita.mes, receita.ano],
       );
     }
 
@@ -332,19 +296,9 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
   try {
     const incomeId = parseInt(req.params['id']!);
 
-    const ownerId = await resolveIncomeOwnerId(incomeId);
-    if (ownerId === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
-    }
-    if (!(await canActOnResource(req.user!.id, ownerId, 'deleteOthersEntries'))) {
-      res.status(403).json({ success: false, message: 'Access denied' });
-      return;
-    }
-
     const result = await pool.query(
       'DELETE FROM receitas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [incomeId, ownerId],
+      [incomeId, req.user!.id],
     );
 
     if (result.rows.length === 0) {
