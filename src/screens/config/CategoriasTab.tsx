@@ -7,9 +7,8 @@ import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
-import {
-  CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgPrimaryButtonStyle, cfgRowIndexStyle,
-} from '../../ui/configTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgRowIndexStyle } from '../../ui/configTokens';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -293,35 +292,34 @@ export function CategoriasTab() {
 
   return (
     <div className="grid gap-2.5">
-      <div className="flex items-center gap-2.5">
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: '#b91c1c' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
-          Despesas
-        </span>
-        <span style={{ fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
-          {roots.length} raiz{allCats.length > roots.length ? ` · ${allCats.length - roots.length} sub` : ''}
-        </span>
-        <div style={{ flex: 1 }} />
-        <div className="relative">
-          <button type="button" style={cfgPrimaryButtonStyle} onClick={() => setDialog({ open: true })}>
-            <Plus size={12} strokeWidth={2.6} />
-            Nova categoria
-          </button>
-
-          {guideNovaCategoria.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="top"
-              align="right"
-              className="w-[min(25rem,calc(100vw-2rem))]"
-              icon={Tag}
-              description={firstAccessGuideMessages.categoriasNova}
-              onDismiss={guideNovaCategoria.dismiss}
-              onSilenceAll={guideNovaCategoria.silenceAll}
-            />
-          )}
-        </div>
-      </div>
+      <ConfigTabHeader
+        countLabel={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
+              Despesas
+            </span>
+            <span style={{ fontWeight: 500, color: CFG.muted }}>
+              {roots.length} raiz{allCats.length > roots.length ? ` · ${allCats.length - roots.length} sub` : ''}
+            </span>
+          </span>
+        }
+        actionLabel="Nova categoria"
+        onAction={() => setDialog({ open: true })}
+      >
+        {guideNovaCategoria.isVisible && (
+          <FirstAccessGuideCard
+            floating
+            placement="top"
+            align="right"
+            className="w-[min(25rem,calc(100vw-2rem))]"
+            icon={Tag}
+            description={firstAccessGuideMessages.categoriasNova}
+            onDismiss={guideNovaCategoria.dismiss}
+            onSilenceAll={guideNovaCategoria.silenceAll}
+          />
+        )}
+      </ConfigTabHeader>
 
       {cats.isLoading && (
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>

@@ -7,8 +7,9 @@ import type { Conta } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
-import { CFG, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ToggleGroup } from '../../ui/form';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
@@ -500,27 +501,21 @@ export function ContasTab() {
 
   return (
     <div className="grid gap-2.5">
-      <div className="relative flex flex-wrap items-center gap-2.5">
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
-          {listaExibida.length} conta(s) {mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}
-        </p>
-        <ToggleGroup
-          value={mostrarDesativados ? 'desativadas' : 'ativas'}
-          options={[
-            { value: 'ativas', label: 'Ativas' },
-            { value: 'desativadas', label: 'Desativadas' },
-          ]}
-          onChange={(v) => setMostrarDesativados(v === 'desativadas')}
-        />
-        <div style={{ flex: 1 }} />
-        <button
-          type="button"
-          style={cfgPrimaryButtonStyle}
-          onClick={() => { setMutError(''); setDialog({ open: true }); }}
-        >
-          <Plus size={12} strokeWidth={2.6} />
-          Nova conta
-        </button>
+      <ConfigTabHeader
+        countLabel={`${listaExibida.length} conta(s) ${mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}`}
+        filters={
+          <ToggleGroup
+            value={mostrarDesativados ? 'desativadas' : 'ativas'}
+            options={[
+              { value: 'ativas', label: 'Ativas' },
+              { value: 'desativadas', label: 'Desativadas' },
+            ]}
+            onChange={(v) => setMostrarDesativados(v === 'desativadas')}
+          />
+        }
+        actionLabel="Nova conta"
+        onAction={() => { setMutError(''); setDialog({ open: true }); }}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Briefcase}
@@ -533,7 +528,7 @@ export function ContasTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
       <InfoBanner variant="warn">
         <AlertCircle size={13} style={{ flex: 'none' }} />

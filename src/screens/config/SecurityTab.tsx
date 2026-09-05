@@ -114,7 +114,10 @@ export function SecurityTab() {
         </Field>
         {strength && (
           <div className="-mt-3 flex items-center gap-2">
-            <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+            <div
+              className="h-1 flex-1 overflow-hidden rounded-full"
+              style={{ background: CFG.chipBg }}
+            >
               <div
                 className="h-full rounded-full transition-all"
                 style={{ width: `${strength.percent}%`, background: strength.color }}
@@ -136,7 +139,10 @@ export function SecurityTab() {
         </Field>
 
         {formError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <div style={{
+            borderRadius: 10, border: `1px solid ${CFG.dangerBorder}`, background: CFG.dangerBg,
+            padding: '7px 9px', fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.danger,
+          }}>
             {formError}
           </div>
         )}

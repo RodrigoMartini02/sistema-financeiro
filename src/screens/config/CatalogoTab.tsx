@@ -10,6 +10,10 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { CFG } from '../../ui/configTokens';
+import { InfoBanner } from '../../ui/InfoBanner';
+import { EmptyState } from '../../ui/EmptyState';
 import { formatCurrency } from '../finance/formatters';
 import { useConfirm } from '../../context/ConfirmContext';
 import { ProdutoImagensManager } from '../../components/ProdutoImagensManager';
@@ -155,31 +159,32 @@ export function CatalogoTab() {
   const vitrineUrl = contaQ.data ? `${window.location.origin}/catalogo/${contaQ.data.id}` : null;
 
   return (
-    <div className="grid gap-4">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          {data.length} produto{data.length !== 1 ? 's' : ''} no catálogo
-        </p>
-        <Button icon={<Plus size={16} />} onClick={() => setDialog({ open: true })}>
-          Novo produto
-        </Button>
-      </div>
+    <div className="grid gap-2.5">
+      <ConfigTabHeader
+        countLabel={`${data.length} produto${data.length !== 1 ? 's' : ''} no catálogo`}
+        actionLabel="Novo produto"
+        onAction={() => setDialog({ open: true })}
+      />
 
-      <div className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
-        Apenas produtos ativos aparecem na vitrine pública.
-        {vitrineUrl && (
-          <>
-            {' '}Link da sua vitrine:{' '}
-            <a href={vitrineUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
-              {vitrineUrl}
-            </a>
-          </>
-        )}
-      </div>
+      <InfoBanner>
+        <span>
+          Apenas produtos ativos aparecem na vitrine pública.
+          {vitrineUrl && (
+            <>
+              {' '}Link da sua vitrine:{' '}
+              <a href={vitrineUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600, textDecoration: 'underline', color: 'inherit' }}>
+                {vitrineUrl}
+              </a>
+            </>
+          )}
+        </span>
+      </InfoBanner>
 
-      {produtosQ.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {produtosQ.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {data.map((p, i) => (
           <ConfigListRow
             key={p.id}
@@ -190,9 +195,10 @@ export function CatalogoTab() {
           />
         ))}
         {data.length === 0 && !produtosQ.isLoading && (
-          <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-400">
-            Nenhum produto cadastrado. Crie produtos para exibir na sua vitrine pública.
-          </p>
+          <EmptyState
+            title="Nenhum produto cadastrado"
+            description="Crie produtos para exibir na sua vitrine pública."
+          />
         )}
       </div>
 

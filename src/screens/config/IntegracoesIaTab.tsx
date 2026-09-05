@@ -5,6 +5,7 @@ import type { AiIntegrationSetting, AiProviderName } from '../../types/aiIntegra
 import { AI_PROVIDER_LABELS, fetchAiIntegrationSettings, saveAiIntegration, testAiIntegration } from '../../services/aiIntegrationsService';
 import { queryKeys } from '../../services/queryKeys';
 import { InfoBanner } from '../../ui/InfoBanner';
+import { CFG, cfgInputStyle, cfgLabelStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 
 const PROVIDERS: Array<{ provider: AiProviderName; defaultModel: string }> = [
   { provider: 'openai', defaultModel: 'gpt-5-mini' },
@@ -76,63 +77,132 @@ export function IntegracoesIaTab() {
     testMutation.mutate({ provider, model: form.model, token: form.token || undefined });
   };
 
-  if (settingsQuery.isLoading) return <p className="py-8 text-sm text-slate-500">Carregando integrações...</p>;
-  if (settingsQuery.error) return <p className="py-8 text-sm text-red-600">Não foi possível carregar as integrações de IA.</p>;
+  if (settingsQuery.isLoading) {
+    return (
+      <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+        Carregando integrações...
+      </p>
+    );
+  }
+  if (settingsQuery.error) {
+    return (
+      <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.danger }}>
+        Não foi possível carregar as integrações de IA.
+      </p>
+    );
+  }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2.5">
       <InfoBanner>
         O copiloto funciona com respostas locais enquanto nenhuma IA estiver ativa. Ao ativar um provedor, somente uma integração fica ativa por vez e a chave permanece cifrada no servidor.
       </InfoBanner>
       {feedback && (
         <InfoBanner variant="success">
-          <span className="flex items-center gap-2"><CheckCircle2 size={17} /> {feedback}</span>
+          <CheckCircle2 size={13} style={{ flex: 'none' }} /> {feedback}
         </InfoBanner>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          <CircleAlert size={17} /> {error}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          borderRadius: 10, border: `1px solid ${CFG.dangerBorder}`, background: CFG.dangerBg,
+          padding: '7px 9px', fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.danger,
+        }}>
+          <CircleAlert size={13} style={{ flex: 'none' }} /> {error}
         </div>
       )}
 
-      <div className="grid gap-3">
+      <div className="grid gap-2.5">
         {PROVIDERS.map(({ provider, defaultModel }) => {
           const setting = settingsQuery.data?.find((item) => item.provider === provider);
           const form = forms[provider] ?? formFromSetting(setting, defaultModel);
           const isWorking = saveMutation.isPending || testMutation.isPending;
           return (
-            <section key={provider} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <section
+              key={provider}
+              style={{
+                borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surface,
+                padding: 14,
+              }}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{AI_PROVIDER_LABELS[provider]}</h3>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{setting?.hasToken ? 'Chave configurada no servidor.' : 'Nenhuma chave configurada.'}</p>
+                  <h3 style={{ margin: 0, fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: CFG.text }}>
+                    {AI_PROVIDER_LABELS[provider]}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: CFG.muted }}>
+                    {setting?.hasToken ? 'Chave configurada no servidor.' : 'Nenhuma chave configurada.'}
+                  </p>
                 </div>
-                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  <input type="checkbox" checked={form.enabled} onChange={(event) => updateForm(provider, { enabled: event.target.checked })} className="h-4 w-4 accent-brand-600" />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
+                  <input
+                    type="checkbox"
+                    checked={form.enabled}
+                    onChange={(event) => updateForm(provider, { enabled: event.target.checked })}
+                    style={{ width: 15, height: 15, accentColor: CFG.primary }}
+                  />
                   Ativar este provedor
                 </label>
               </div>
 
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <label className="grid gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  Modelo
-                  <input value={form.model} onChange={(event) => updateForm(provider, { model: event.target.value })} placeholder={defaultModel} className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+              <div className="mt-3 grid gap-2.5 md:grid-cols-2">
+                <label style={{ display: 'grid', gap: 5 }}>
+                  <span style={cfgLabelStyle}>Modelo</span>
+                  <input
+                    value={form.model}
+                    onChange={(event) => updateForm(provider, { model: event.target.value })}
+                    placeholder={defaultModel}
+                    style={cfgInputStyle}
+                  />
                 </label>
-                <label className="grid gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  Chave de API
-                  <span className="relative">
-                    <KeyRound size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="password" value={form.token} onChange={(event) => updateForm(provider, { token: event.target.value })} placeholder={setting?.hasToken ? 'Manter chave atual' : 'Cole a chave de API'} autoComplete="new-password" className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-normal text-slate-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white" />
+                <label style={{ display: 'grid', gap: 5 }}>
+                  <span style={cfgLabelStyle}>Chave de API</span>
+                  <span style={{ position: 'relative' }}>
+                    <KeyRound
+                      size={14}
+                      style={{
+                        position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                        pointerEvents: 'none', color: CFG.muted,
+                      }}
+                    />
+                    <input
+                      type="password"
+                      value={form.token}
+                      onChange={(event) => updateForm(provider, { token: event.target.value })}
+                      placeholder={setting?.hasToken ? 'Manter chave atual' : 'Cole a chave de API'}
+                      autoComplete="new-password"
+                      style={{ ...cfgInputStyle, paddingLeft: 30 }}
+                    />
                   </span>
                 </label>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={() => test(provider)} disabled={isWorking || (!form.token && !setting?.hasToken)} className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">
-                  {testMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Play size={16} />} Testar
+                <button
+                  type="button"
+                  onClick={() => test(provider)}
+                  disabled={isWorking || (!form.token && !setting?.hasToken)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, height: 30, padding: '0 13px',
+                    borderRadius: 999, border: `1px solid ${CFG.borderInput}`, background: CFG.surface,
+                    fontSize: 12.5, fontWeight: 600, color: CFG.textSoft,
+                    cursor: isWorking || (!form.token && !setting?.hasToken) ? 'not-allowed' : 'pointer',
+                    opacity: isWorking || (!form.token && !setting?.hasToken) ? 0.5 : 1,
+                  }}
+                >
+                  {testMutation.isPending ? <LoaderCircle size={13} className="animate-spin" /> : <Play size={13} />} Testar
                 </button>
-                <button type="button" onClick={() => save(provider)} disabled={isWorking || (!form.token && !setting?.hasToken)} className="flex h-9 items-center gap-2 rounded-xl bg-brand-600 px-3.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50">
-                  {saveMutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />} Salvar
+                <button
+                  type="button"
+                  onClick={() => save(provider)}
+                  disabled={isWorking || (!form.token && !setting?.hasToken)}
+                  style={{
+                    ...cfgPrimaryButtonStyle,
+                    cursor: isWorking || (!form.token && !setting?.hasToken) ? 'not-allowed' : 'pointer',
+                    opacity: isWorking || (!form.token && !setting?.hasToken) ? 0.5 : 1,
+                  }}
+                >
+                  {saveMutation.isPending ? <LoaderCircle size={13} className="animate-spin" /> : <Save size={13} />} Salvar
                 </button>
               </div>
             </section>

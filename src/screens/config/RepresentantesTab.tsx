@@ -11,6 +11,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { CFG } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -359,11 +361,11 @@ export function RepresentantesTab() {
 
   return (
     <div className="grid gap-3">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} representante{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-          Novo representante
-        </Button>
+      <ConfigTabHeader
+        countLabel={`${data.length} representante${data.length !== 1 ? 's' : ''} cadastrado${data.length !== 1 ? 's' : ''}`}
+        actionLabel="Novo representante"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Plus}
@@ -376,15 +378,17 @@ export function RepresentantesTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
       <InfoBanner>
         Representantes recebem comissão automática calculada sobre receitas por tipo. Configure os percentuais por categoria.
       </InfoBanner>
 
-      {reps.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {reps.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {data.map((r, i) => (
           <ConfigListRow
             key={r.id}

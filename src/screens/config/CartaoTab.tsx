@@ -6,7 +6,8 @@ import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
-import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { CFG, CFG_MONO_CLASS } from '../../ui/configTokens';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -398,15 +399,11 @@ export function CartaoTab() {
 
   return (
     <div className="grid gap-2.5">
-      <div className="relative flex items-center gap-2.5">
-        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
-          {data.length} cartão/cartões cadastrado(s)
-        </p>
-        <div style={{ flex: 1 }} />
-        <button type="button" style={cfgPrimaryButtonStyle} onClick={() => setDialog({ open: true })}>
-          <Plus size={12} strokeWidth={2.6} />
-          Novo cartão
-        </button>
+      <ConfigTabHeader
+        countLabel={`${data.length} cartão/cartões cadastrado(s)`}
+        actionLabel="Novo cartão"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={CreditCard}
@@ -419,7 +416,7 @@ export function CartaoTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
       {cartoes.isLoading && (
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>

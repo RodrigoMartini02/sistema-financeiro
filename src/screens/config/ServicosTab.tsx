@@ -10,6 +10,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { CFG } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { formatCurrency } from '../finance/formatters';
@@ -142,13 +144,11 @@ export function ServicosTab() {
 
   return (
     <div className="grid gap-3">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          {data.length} serviço{data.length !== 1 ? 's' : ''} no catálogo
-        </p>
-        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-          Novo serviço
-        </Button>
+      <ConfigTabHeader
+        countLabel={`${data.length} serviço${data.length !== 1 ? 's' : ''} no catálogo`}
+        actionLabel="Novo serviço"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Layers}
@@ -161,15 +161,17 @@ export function ServicosTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
       <InfoBanner>
         Serviços do catálogo são reutilizáveis entre contratos. O valor padrão pode ser ajustado por contrato.
       </InfoBanner>
 
-      {servicosQ.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {servicosQ.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {data.map((s, i) => (
           <ConfigListRow
             key={s.id}

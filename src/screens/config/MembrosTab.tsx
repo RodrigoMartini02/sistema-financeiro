@@ -13,6 +13,7 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { CFG, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
 import { ListToolbar } from '../../ui/ListToolbar';
 import { EmptyState } from '../../ui/EmptyState';
@@ -294,52 +295,79 @@ export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 
       <ListToolbar
         search={{ value: search, onChange: setSearch, placeholder: 'Buscar por nome ou email...' }}
         action={
-          <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setNovoDialogOpen(true); }}>
+          <button
+            type="button"
+            style={cfgPrimaryButtonStyle}
+            onClick={() => { setMutError(''); setNovoDialogOpen(true); }}
+          >
+            <Plus size={12} strokeWidth={2.6} />
             Novo {termo.singular}
-          </Button>
+          </button>
         }
       />
 
       {listQuery.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Carregando {termo.singular}s...</p>
+        <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+          Carregando {termo.singular}s...
+        </p>
       ) : list.length === 0 ? (
         <EmptyState icon={ShieldAlert} title={`Nenhum ${termo.singular} vinculado ainda`} />
       ) : (
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {list.map((m, i) => (
-            <div key={m.membro_id} className="flex items-center gap-2">
-              <div className="flex-1">
-                <ConfigListRow
-                  index={i}
-                  nome={m.nome}
-                  dataCriacao={m.vinculado_em}
-                  onClick={() => {}}
-                />
-              </div>
-              {m.membro_status === 'ativo' && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setPermissoesMembro(m)}
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
-                    title="Configurar permissões"
-                  >
-                    <ShieldCheck size={13} /> Permissões
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeactivate(m)}
-                    className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition"
-                    title={`Desativar ${termo.singular}`}
-                  >
-                    <UserX size={13} /> Desativar
-                  </button>
-                </>
-              )}
-              {m.membro_status === 'inativo' && (
-                <span className="text-xs text-slate-400 pr-2">Inativo</span>
-              )}
-            </div>
+            <ConfigListRow
+              key={m.membro_id}
+              index={i}
+              nome={m.nome}
+              dataCriacao={m.vinculado_em}
+              onClick={() => {}}
+              badges={
+                m.membro_status === 'ativo' ? (
+                  <>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); setPermissoesMembro(m); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setPermissoesMembro(m);
+                        }
+                      }}
+                      title="Configurar permissões"
+                      style={{
+                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11.5, fontWeight: 600, color: CFG.chipText, cursor: 'pointer',
+                      }}
+                    >
+                      <ShieldCheck size={12} /> Permissões
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); handleDeactivate(m); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeactivate(m);
+                        }
+                      }}
+                      title={`Desativar ${termo.singular}`}
+                      style={{
+                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11.5, fontWeight: 600, color: CFG.danger, cursor: 'pointer',
+                      }}
+                    >
+                      <UserX size={12} /> Desativar
+                    </span>
+                  </>
+                ) : (
+                  <span style={cfgBadgeStyle}>Inativo</span>
+                )
+              }
+            />
           ))}
         </div>
       )}

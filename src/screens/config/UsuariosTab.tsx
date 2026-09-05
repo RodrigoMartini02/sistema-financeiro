@@ -10,6 +10,7 @@ import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
 import { ToggleGroup } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { CFG, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ListToolbar } from '../../ui/ListToolbar';
 import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -218,9 +219,14 @@ export function UsuariosTab({ userTipo }: Props) {
         <ListToolbar
           search={{ value: search, onChange: (v) => { setSearch(v); setPage(1); }, placeholder: 'Buscar por nome, email ou documento...' }}
           action={isAdmin && (
-            <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
+            <button
+              type="button"
+              style={cfgPrimaryButtonStyle}
+              onClick={() => { setMutError(''); setDialog({ open: true }); }}
+            >
+              <Plus size={12} strokeWidth={2.6} />
               Novo usuário
-            </Button>
+            </button>
           )}
         />
         {filterGuide.isVisible && (
@@ -260,11 +266,13 @@ export function UsuariosTab({ userTipo }: Props) {
 
       {/* List */}
       {listQuery.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Carregando usuários...</p>
+        <p style={{ padding: '32px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+          Carregando usuários...
+        </p>
       ) : list.length === 0 ? (
         <EmptyState icon={ShieldAlert} title="Nenhum usuário encontrado" />
       ) : (
-        <div className="grid gap-2">
+        <div className="grid gap-1.5">
           {list.map((u, i) => (
             <ConfigListRow
               key={u.id}
@@ -281,23 +289,36 @@ export function UsuariosTab({ userTipo }: Props) {
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
         <div className="flex items-center justify-between px-1 py-1">
-          <span className="text-xs text-slate-500">
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
             {pagination.total} usuário{pagination.total !== 1 ? 's' : ''} · página {pagination.page} de {pagination.pages}
           </span>
           <div className="flex gap-1">
             <button
+              type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30 transition"
+              aria-label="Página anterior"
+              style={{
+                display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8,
+                border: 'none', background: 'transparent', color: CFG.muted,
+                cursor: page <= 1 ? 'not-allowed' : 'pointer', opacity: page <= 1 ? 0.3 : 1,
+              }}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
             <button
+              type="button"
               disabled={page >= pagination.pages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 disabled:opacity-30 transition"
+              aria-label="Próxima página"
+              style={{
+                display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 8,
+                border: 'none', background: 'transparent', color: CFG.muted,
+                cursor: page >= pagination.pages ? 'not-allowed' : 'pointer',
+                opacity: page >= pagination.pages ? 0.3 : 1,
+              }}
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         </div>

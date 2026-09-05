@@ -10,6 +10,8 @@ import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
+import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
+import { CFG } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -125,11 +127,11 @@ export function SociosTab() {
 
   return (
     <div className="grid gap-3">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} sócio{data.length !== 1 ? 's' : ''} cadastrado{data.length !== 1 ? 's' : ''}</p>
-        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
-          Novo sócio
-        </Button>
+      <ConfigTabHeader
+        countLabel={`${data.length} sócio${data.length !== 1 ? 's' : ''} cadastrado${data.length !== 1 ? 's' : ''}`}
+        actionLabel="Novo sócio"
+        onAction={() => setDialog({ open: true })}
+      >
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Plus}
@@ -142,20 +144,25 @@ export function SociosTab() {
             onSilenceAll={createGuide.silenceAll}
           />
         )}
-      </div>
+      </ConfigTabHeader>
 
       <InfoBanner variant="warn">
         Sócios representam participações no negócio. O total de participações deve somar 100%.
         {totalPct > 0 && (
-          <span className={['ml-2 font-bold', totalPct > 100 ? 'text-red-700' : totalPct === 100 ? 'text-green-700' : 'text-amber-700'].join(' ')}>
+          <span style={{
+            marginLeft: 6, fontWeight: 700,
+            color: totalPct > 100 ? '#b91c1c' : totalPct === 100 ? CFG.success : CFG.warnText,
+          }}>
             Total atual: {totalPct.toFixed(2)}%
           </span>
         )}
       </InfoBanner>
 
-      {socios.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {socios.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {data.map((s, i) => (
           <ConfigListRow
             key={s.id}
