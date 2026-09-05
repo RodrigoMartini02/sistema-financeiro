@@ -53,7 +53,6 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
           '[--dialog-px:16px] sm:[--dialog-px:26px]',
           maxWSize[size], minHSize[size],
         ].join(' ')}
-        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
       >
         {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-6 px-[var(--dialog-px)] pb-[18px] pt-[22px]">
@@ -66,9 +65,10 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
           <button
             type="button"
             onClick={onClose}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#e3ecf1] bg-transparent text-[#7b93a1] transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+            aria-label="Fechar"
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-0 bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600 dark:hover:text-slate-100"
           >
-            <X size={13} />
+            <X size={12} strokeWidth={2.4} />
           </button>
         </div>
 

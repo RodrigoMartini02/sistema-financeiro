@@ -620,7 +620,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
   const isAtual = (key: PlanKey) => planoCurrent === PLANO_DEF[key].tipo;
 
   return (
-    <div className={embedded ? 'grid gap-6' : 'mx-auto grid max-w-4xl gap-6'}>
+    <div className={embedded ? 'grid gap-2.5' : 'mx-auto grid max-w-4xl gap-6'}>
       <div className={embedded ? 'flex justify-end' : 'flex items-end justify-between'}>
         {!embedded && (
           <div>
@@ -676,7 +676,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
       )}
 
       {/* Plan cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={embedded ? 'grid gap-2.5 md:grid-cols-2' : 'grid gap-4 md:grid-cols-2'}>
         {(Object.entries(PLANO_DEF) as [PlanKey, typeof PLANO_DEF[PlanKey]][]).map(([key, def]) => {
           const atual = isAtual(key);
           return (

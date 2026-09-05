@@ -7,6 +7,7 @@ import type { Conta } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { CFG, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ToggleGroup } from '../../ui/form';
 import { EmptyState } from '../../ui/EmptyState';
@@ -498,24 +499,28 @@ export function ContasTab() {
   };
 
   return (
-    <div className="grid gap-3">
-      <div className="relative flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-slate-500">
-            {listaExibida.length} conta(s) {mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}
-          </p>
-          <ToggleGroup
-            value={mostrarDesativados ? 'desativadas' : 'ativas'}
-            options={[
-              { value: 'ativas', label: 'Ativas' },
-              { value: 'desativadas', label: 'Desativadas' },
-            ]}
-            onChange={(v) => setMostrarDesativados(v === 'desativadas')}
-          />
-        </div>
-        <Button size="sm" icon={<Plus size={15} />} onClick={() => { setMutError(''); setDialog({ open: true }); }}>
+    <div className="grid gap-2.5">
+      <div className="relative flex flex-wrap items-center gap-2.5">
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
+          {listaExibida.length} conta(s) {mostrarDesativados ? 'desativada(s)' : 'ativa(s)'}
+        </p>
+        <ToggleGroup
+          value={mostrarDesativados ? 'desativadas' : 'ativas'}
+          options={[
+            { value: 'ativas', label: 'Ativas' },
+            { value: 'desativadas', label: 'Desativadas' },
+          ]}
+          onChange={(v) => setMostrarDesativados(v === 'desativadas')}
+        />
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          style={cfgPrimaryButtonStyle}
+          onClick={() => { setMutError(''); setDialog({ open: true }); }}
+        >
+          <Plus size={12} strokeWidth={2.6} />
           Nova conta
-        </Button>
+        </button>
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Briefcase}
@@ -531,41 +536,58 @@ export function ContasTab() {
       </div>
 
       <InfoBanner variant="warn">
-        As contas separam os dados financeiros. Cada empresa ou conta pessoal tem suas próprias receitas, despesas e reservas.
+        <AlertCircle size={13} style={{ flex: 'none' }} />
+        Cada conta separa receitas, despesas e reservas de uma empresa ou pessoa.
       </InfoBanner>
 
-      {contasQuery.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {contasQuery.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {listaExibida.map((c, i) => (
-          <div key={c.id} className="relative">
-            <ConfigListRow
-              index={i}
-              nome={c.nome}
-              dataCriacao={c.data_criacao}
-              foto={c.foto}
-              onClick={() => { setMutError(''); setDialog({ open: true, item: c }); }}
-            />
-            <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
-              {c.eh_padrao && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Conta Padrão</span>
-              )}
-              {isContaIncompleta(c) && (
-                <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                  <AlertCircle size={12} /> Conta incompleta
-                </span>
-              )}
-              {!c.ativo && (
-                <button
-                  type="button"
-                  className="pointer-events-auto rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100"
-                  onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(c.id); }}
-                >
-                  Reativar
-                </button>
-              )}
-            </div>
-          </div>
+          <ConfigListRow
+            key={c.id}
+            index={i}
+            nome={c.nome}
+            dataCriacao={c.data_criacao}
+            foto={c.foto}
+            onClick={() => { setMutError(''); setDialog({ open: true, item: c }); }}
+            badges={
+              <>
+                {c.eh_padrao && <span style={cfgBadgeStyle}>Padrão</span>}
+                {isContaIncompleta(c) && (
+                  <span style={{
+                    flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11, fontWeight: 600, color: CFG.warnText,
+                  }}>
+                    <AlertCircle size={11} /> Incompleta
+                  </span>
+                )}
+                {!c.ativo && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    style={{
+                      flex: 'none', borderRadius: 999, padding: '3px 8px', fontSize: 11, fontWeight: 600,
+                      border: `1px solid ${CFG.successBg}`, background: CFG.successBg, color: CFG.success,
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => { e.stopPropagation(); reactivateMut.mutate(c.id); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        reactivateMut.mutate(c.id);
+                      }
+                    }}
+                  >
+                    Reativar
+                  </span>
+                )}
+              </>
+            }
+          />
         ))}
         {listaExibida.length === 0 && !contasQuery.isLoading && (
           <EmptyState title={mostrarDesativados ? 'Nenhuma conta desativada' : 'Nenhuma conta encontrada'} />

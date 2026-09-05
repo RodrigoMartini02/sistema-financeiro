@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Pencil, CreditCard, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Trash2, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import { fetchCartoes, saveCartao, deleteCartao } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
-import { EmptyState } from '../../ui/EmptyState';
+import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
@@ -37,6 +36,89 @@ function formatValidade(raw: string): string {
   return `${d.slice(0, 2)}/${d.slice(2)}`;
 }
 
+function formatLimite(limite?: number | string | null): string {
+  if (limite === null || limite === undefined || limite === '') return '—';
+  const n = Number(limite);
+  if (!Number.isFinite(n)) return '—';
+  return `R$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const TIPO_LABEL: Record<string, string> = {
+  credito: 'CRÉDITO',
+  debito: 'DÉBITO',
+  ambos: 'AMBOS',
+};
+
+/**
+ * Cartão visual — usado tanto na listagem quanto como pré-visualização ao
+ * vivo dentro do formulário. Renderiza só dados que já existem no tipo
+ * `Cartao`; nenhum campo novo é exigido do backend.
+ */
+function CartaoPreview({
+  nome, ultimos4, limite, vencimento, tipo, cor,
+}: {
+  nome: string;
+  ultimos4?: string | null;
+  limite?: number | string | null;
+  vencimento?: number | string | null;
+  tipo?: string | null;
+  cor: string;
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative', aspectRatio: '1.58', borderRadius: 14, padding: 13,
+        boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', overflow: 'hidden',
+        background: cor,
+        boxShadow: '0 6px 18px -6px rgba(2,20,28,.4)',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: '-40%', right: '-20%', width: 150, height: 150,
+        borderRadius: '50%', background: 'rgba(255,255,255,.07)',
+      }} />
+
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div style={{
+          width: 26, height: 19, borderRadius: 5, background: 'rgba(255,255,255,.32)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ width: 14, height: 9, borderRadius: 2, border: '1px solid rgba(255,255,255,.6)' }} />
+        </div>
+        {tipo && (
+          <span style={{
+            fontSize: 8.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.1em', color: '#fff',
+            background: 'rgba(255,255,255,.22)', padding: '4px 6px', borderRadius: 999,
+          }}>
+            {TIPO_LABEL[tipo] ?? tipo.toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <span className={CFG_MONO_CLASS} style={{ fontSize: 12.5, fontWeight: 500, letterSpacing: '.08em', color: '#fff' }}>
+          •••• {ultimos4 || '0000'}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{
+            fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: '#fff',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {nome || 'Nome do cartão'}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)', whiteSpace: 'nowrap' }}>
+            Venc. {vencimento || '—'}
+          </span>
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
+          Limite {formatLimite(limite)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function CartaoDialog({
   open, cartao, isSaving, error, onClose, onSave,
 }: {
@@ -46,6 +128,14 @@ function CartaoDialog({
   const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
   const [tipo, setTipo] = useState<CartaoTipo | undefined>(cartao?.tipo ?? undefined);
   const [validade, setValidade] = useState(cartao?.validade ?? '');
+  // Espelho dos campos que aparecem na pré-visualização. O form continua
+  // sendo lido via FormData no submit; estes estados servem só ao preview.
+  const [previewNome, setPreviewNome] = useState(cartao?.nome ?? '');
+  const [previewUltimos4, setPreviewUltimos4] = useState(cartao?.numero_cartao ?? '');
+  const [previewLimite, setPreviewLimite] = useState<string>(cartao?.limite != null ? String(cartao.limite) : '');
+  const [previewVencimento, setPreviewVencimento] = useState<string>(
+    cartao?.dia_vencimento != null ? String(cartao.dia_vencimento) : '',
+  );
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const validadeGuide = useFirstAccessGuide('cartoes:validade-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
@@ -76,11 +166,26 @@ function CartaoDialog({
           <div style={{ ...cardStyle, display: 'grid', gridTemplateColumns: '1fr 140px', columnGap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}><span>NOME DO CARTÃO</span><span style={{ color: C.primary }}>*</span></label>
-              <input name="nome" defaultValue={cartao?.nome} placeholder="Ex: Nubank" autoFocus required style={fieldInputStyle} />
+              <input
+                name="nome"
+                defaultValue={cartao?.nome}
+                onChange={(e) => setPreviewNome(e.target.value)}
+                placeholder="Ex: Nubank"
+                autoFocus
+                required
+                style={fieldInputStyle}
+              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>ÚLTIMOS 4 DÍGITOS</label>
-              <input name="numero_cartao" maxLength={4} defaultValue={cartao?.numero_cartao ?? ''} placeholder="0000" style={fieldInputStyle} />
+              <input
+                name="numero_cartao"
+                maxLength={4}
+                defaultValue={cartao?.numero_cartao ?? ''}
+                onChange={(e) => setPreviewUltimos4(e.target.value)}
+                placeholder="0000"
+                style={fieldInputStyle}
+              />
             </div>
           </div>
 
@@ -90,7 +195,16 @@ function CartaoDialog({
                 <label style={{ ...labelStyle, height: 'auto' }}>LIMITE (R$)</label>
                 <span style={{ fontSize: 11, color: C.placeholder }}>opcional</span>
               </div>
-              <input name="limite" type="number" step="0.01" min="0" defaultValue={cartao?.limite ?? ''} placeholder="0,00" style={fieldInputStyle} />
+              <input
+                name="limite"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={cartao?.limite ?? ''}
+                onChange={(e) => setPreviewLimite(e.target.value)}
+                placeholder="0,00"
+                style={fieldInputStyle}
+              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, height: 15 }}>
@@ -141,7 +255,16 @@ function CartaoDialog({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DIA DE VENCIMENTO</label>
-              <input name="dia_vencimento" type="number" min="1" max="31" defaultValue={cartao?.dia_vencimento ?? ''} placeholder="Ex: 5" style={fieldInputStyle} />
+              <input
+                name="dia_vencimento"
+                type="number"
+                min="1"
+                max="31"
+                defaultValue={cartao?.dia_vencimento ?? ''}
+                onChange={(e) => setPreviewVencimento(e.target.value)}
+                placeholder="Ex: 5"
+                style={fieldInputStyle}
+              />
               <span style={{ fontSize: 12, color: C.textFaint }}>Dia do mês</span>
             </div>
             {fechamentoGuide.isVisible && (
@@ -201,16 +324,18 @@ function CartaoDialog({
                 ))}
               </div>
 
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 14, padding: 16, marginTop: 4 }}
-              >
-                <div style={{ background: `linear-gradient(135deg, ${cor}, ${cor}cc)`, borderRadius: 14, padding: 16, width: '100%', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <CreditCard size={24} color="rgba(255,255,255,0.8)" />
-                  <div>
-                    <p style={{ fontWeight: 700, color: '#fff', fontSize: 14, margin: 0 }}>Nome do cartão</p>
-                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontFamily: 'monospace', margin: 0 }}>•••• •••• •••• 0000</p>
-                  </div>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, maxWidth: 214 }}>
+                <CartaoPreview
+                  nome={previewNome}
+                  ultimos4={previewUltimos4}
+                  limite={previewLimite}
+                  vencimento={previewVencimento}
+                  tipo={tipo}
+                  cor={cor}
+                />
+                <span style={{ fontSize: 10.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted, textAlign: 'center' }}>
+                  Pré-visualização
+                </span>
               </div>
             </div>
           </div>
@@ -272,12 +397,16 @@ export function CartaoTab() {
   const data = cartoes.data ?? [];
 
   return (
-    <div className="grid gap-3">
-      <div className="relative flex items-center justify-between">
-        <p className="text-sm text-slate-500">{data.length} cartão/cartões cadastrado(s)</p>
-        <Button size="sm" icon={<Plus size={15} />} onClick={() => setDialog({ open: true })}>
+    <div className="grid gap-2.5">
+      <div className="relative flex items-center gap-2.5">
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: CFG.textSoft }}>
+          {data.length} cartão/cartões cadastrado(s)
+        </p>
+        <div style={{ flex: 1 }} />
+        <button type="button" style={cfgPrimaryButtonStyle} onClick={() => setDialog({ open: true })}>
+          <Plus size={12} strokeWidth={2.6} />
           Novo cartão
-        </Button>
+        </button>
         {createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={CreditCard}
@@ -292,62 +421,81 @@ export function CartaoTab() {
         )}
       </div>
 
-      {cartoes.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
-
-      {data.length === 0 && !cartoes.isLoading && (
-        <EmptyState
-          icon={CreditCard}
-          title="Nenhum cartão cadastrado"
-          description="Cadastre um cartão para acompanhar limite e vencimento."
-        />
+      {cartoes.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
       )}
 
-      <div className="grid gap-2">
-        {data.map((c) => {
-          const cor = c.cor ?? '#1e293b';
-          return (
+      {/* Sem EmptyState dedicado: o card tracejado "Adicionar cartão" abaixo já
+          é o convite à ação quando a lista está vazia. */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+          gap: 12,
+        }}
+      >
+        {data.map((c) => (
+          <div key={c.id} style={{ position: 'relative' }} className="group">
             <div
-              key={c.id}
-              className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white py-3 pl-3 pr-4 shadow-sm transition hover:shadow-md"
-              style={{ borderLeft: `3px solid ${cor}` }}
+              role="button"
+              tabIndex={0}
+              onClick={() => setDialog({ open: true, item: c })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setDialog({ open: true, item: c });
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+              title={`Editar ${c.nome}`}
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `${cor}1a`, color: cor }}>
-                <CreditCard size={16} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold text-slate-900">{c.nome}</p>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                    {c.tipo === 'credito' ? 'Crédito' : c.tipo === 'debito' ? 'Débito' : c.tipo === 'ambos' ? 'Ambos' : 'Sem tipo'}
-                  </span>
-                </div>
-                <p className="mt-0.5 truncate font-mono text-xs text-slate-400">
-                  •••• {c.numero_cartao ?? '????'}
-                  {c.limite ? ` · Limite R$ ${Number(c.limite).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
-                  {c.dia_vencimento ? ` · Venc. dia ${c.dia_vencimento}` : ''}
-                </p>
-              </div>
-
-              <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">
-                <button
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-                  onClick={() => setDialog({ open: true, item: c })}
-                  title="Editar"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
-                  onClick={() => handleDeleteCartao(c)}
-                  title="Excluir"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
+              <CartaoPreview
+                nome={c.nome}
+                ultimos4={c.numero_cartao}
+                limite={c.limite}
+                vencimento={c.dia_vencimento}
+                tipo={c.tipo}
+                cor={c.cor ?? '#1e293b'}
+              />
             </div>
-          );
-        })}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleDeleteCartao(c); }}
+              title="Excluir"
+              aria-label={`Excluir ${c.nome}`}
+              className="opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+              style={{
+                position: 'absolute', top: 8, right: 8, display: 'grid', placeItems: 'center',
+                width: 24, height: 24, borderRadius: 999, border: 'none',
+                background: 'rgba(255,255,255,.22)', color: '#fff', cursor: 'pointer',
+              }}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setDialog({ open: true })}
+          style={{
+            aspectRatio: '1.58', borderRadius: 14, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
+            border: `1.5px dashed ${CFG.borderInput}`, background: 'transparent', color: CFG.faint,
+            transition: 'border-color .13s ease, color .13s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = CFG.primary;
+            e.currentTarget.style.color = CFG.primaryDark;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = CFG.borderInput;
+            e.currentTarget.style.color = CFG.faint;
+          }}
+        >
+          <Plus size={18} strokeWidth={2} />
+          <span style={{ fontSize: 11.5, fontWeight: 600 }}>Adicionar cartão</span>
+        </button>
       </div>
 
       <CartaoDialog

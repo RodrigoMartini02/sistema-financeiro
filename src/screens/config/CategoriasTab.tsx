@@ -7,6 +7,9 @@ import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import {
+  CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgPrimaryButtonStyle, cfgRowIndexStyle,
+} from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -15,16 +18,8 @@ import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 
 const CAT_SCHEME = {
-  red: {
-    cardHover: 'hover:border-red-300',
-    badge: 'group-hover:bg-red-50 group-hover:text-red-600',
-    chevron: 'group-hover:text-red-400',
-  },
-  brand: {
-    cardHover: 'hover:border-brand-300',
-    badge: 'group-hover:bg-brand-50 group-hover:text-brand-600',
-    chevron: 'group-hover:text-brand-400',
-  },
+  red: { accent: '#dc2626' },
+  brand: { accent: CFG.primary },
 };
 
 function CategoriaDialog({
@@ -158,48 +153,64 @@ function CategoriaRow({
     ? new Date(cat.data_criacao).toLocaleDateString('pt-BR')
     : null;
 
-  const nome = (
-    <span className={!cat.ativo ? 'text-slate-400 line-through' : undefined}>
-      {cat.nome}
-      {hasSubs && !isChild && (
-        <span className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal text-slate-500">
-          {cat.subcategorias!.length} sub
-        </span>
-      )}
-    </span>
-  );
-
   return (
     <>
-      <div className={['relative', isChild ? 'ml-6' : '', !cat.ativo ? 'opacity-50' : ''].join(' ')}>
-        <div className={`group flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:shadow-md ${isChild ? 'px-4 py-2' : 'px-5 py-4'} ${s.cardHover}`}>
+      <div
+        className="relative"
+        style={{ marginLeft: isChild ? 22 : 0, opacity: cat.ativo ? 1 : 0.5 }}
+      >
+        <div
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            minHeight: isChild ? 34 : 38, padding: '0 10px', borderRadius: 12,
+            border: `1px solid ${CFG.border}`,
+            background: isChild ? CFG.surfaceAlt : CFG.surface,
+            boxShadow: CFG.shadowRow,
+            transition: 'border-color .13s ease, background .13s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = s.accent; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = CFG.border; }}
+        >
           <button
             type="button"
             onClick={() => onEdit(cat)}
-            className="flex min-w-0 flex-1 items-center gap-4 text-left"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
+              border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer',
+            }}
           >
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-sm font-semibold text-slate-500 transition ${s.badge}`}>
+            <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>
               {String(index + 1).padStart(2, '0')}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="lg:hidden">
-                <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-                {dataCriado && <p className="mt-0.5 text-xs text-slate-400">Criado {dataCriado}</p>}
-              </div>
-              <div className="hidden lg:grid lg:grid-cols-[2fr_1fr] lg:items-center lg:gap-6">
-                <p className="truncate text-sm font-semibold text-slate-900">{nome}</p>
-                <p className="text-xs text-slate-400">{dataCriado ?? '-'}</p>
-              </div>
-            </div>
+            <span
+              style={{
+                minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: isChild ? 12.5 : 13, fontWeight: isChild ? 500 : 600,
+                color: isChild ? CFG.textSoft : CFG.text,
+                textDecoration: cat.ativo ? 'none' : 'line-through',
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.nome}</span>
+              {hasSubs && !isChild && (
+                <span style={cfgBadgeStyle}>{cat.subcategorias!.length} sub</span>
+              )}
+            </span>
+            <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+              {dataCriado ?? '—'}
+            </span>
           </button>
 
           {!isChild && cat.ativo && onCreateSubcategory && (
             <button
               type="button"
               onClick={() => onCreateSubcategory(cat)}
-              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-100 px-2.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+              style={{
+                flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+                fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
+              }}
             >
-              <Plus size={12} />
+              <Plus size={11} strokeWidth={2.8} />
               <span className="hidden sm:inline">Subcategoria</span>
               <span className="sm:hidden">Sub</span>
             </button>
@@ -209,12 +220,17 @@ function CategoriaRow({
             <button
               type="button"
               onClick={() => setExpanded((o) => !o)}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
+              style={{
+                flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
+                border: 'none', background: 'transparent', borderRadius: 8,
+                color: CFG.faint, cursor: 'pointer',
+              }}
             >
-              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              {expanded ? <ChevronDown size={13} strokeWidth={2.2} /> : <ChevronRight size={13} strokeWidth={2.2} />}
             </button>
           ) : (
-            <ChevronRight size={15} className={`shrink-0 text-slate-300 transition group-hover:translate-x-0.5 ${s.chevron}`} />
+            <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: CFG.muted }} />
           )}
         </div>
 
@@ -232,7 +248,7 @@ function CategoriaRow({
       </div>
 
       {!isChild && hasSubs && expanded && (
-        <div className="mt-1 grid gap-2">
+        <div className="mt-1.5 grid gap-1.5">
           {cat.subcategorias!.map((sub, subIdx) => (
             <CategoriaRow
               key={sub.id}
@@ -276,19 +292,21 @@ export function CategoriasTab() {
   });
 
   return (
-    <div className="grid gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-          <h3 className="text-sm font-semibold text-red-700">Despesas</h3>
-          <span className="text-xs text-slate-400">
-            {roots.length} raiz{allCats.length > roots.length ? ` - ${allCats.length - roots.length} sub` : ''}
-          </span>
-        </div>
+    <div className="grid gap-2.5">
+      <div className="flex items-center gap-2.5">
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: '#b91c1c' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#dc2626' }} />
+          Despesas
+        </span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+          {roots.length} raiz{allCats.length > roots.length ? ` · ${allCats.length - roots.length} sub` : ''}
+        </span>
+        <div style={{ flex: 1 }} />
         <div className="relative">
-          <Button size="sm" variant="danger" icon={<Plus size={14} />} onClick={() => setDialog({ open: true })}>
+          <button type="button" style={cfgPrimaryButtonStyle} onClick={() => setDialog({ open: true })}>
+            <Plus size={12} strokeWidth={2.6} />
             Nova categoria
-          </Button>
+          </button>
 
           {guideNovaCategoria.isVisible && (
             <FirstAccessGuideCard
@@ -305,9 +323,11 @@ export function CategoriasTab() {
         </div>
       </div>
 
-      {cats.isLoading && <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>}
+      {cats.isLoading && (
+        <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
+      )}
 
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         {tree.map((c, i) => (
           <CategoriaRow
             key={c.id}

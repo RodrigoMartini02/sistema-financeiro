@@ -7,15 +7,36 @@ interface InfoBannerProps {
   children: ReactNode;
 }
 
-const VARIANT_STYLES: Record<InfoBannerVariant, string> = {
-  info: 'border-brand-100 bg-brand-50 text-brand-800',
-  warn: 'border-amber-100 bg-amber-50 text-amber-800',
-  success: 'border-emerald-100 bg-emerald-50 text-emerald-800',
+// Os fallbacks das custom properties mantêm o visual atual fora de
+// `.config-scope` (onde as variáveis --cfg-* não existem).
+const VARIANT_STYLES: Record<InfoBannerVariant, { bg: string; border: string; text: string }> = {
+  info: {
+    bg: 'var(--cfg-primary-soft, #ecfeff)',
+    border: 'var(--cfg-primary-soft, #cffafe)',
+    text: 'var(--cfg-primary-dark, #0e7490)',
+  },
+  warn: {
+    bg: 'var(--cfg-warn-bg, #fffbeb)',
+    border: 'var(--cfg-warn-border, #fde68a)',
+    text: 'var(--cfg-warn-text, #92400e)',
+  },
+  success: {
+    bg: 'var(--cfg-success-bg, #ecfdf5)',
+    border: 'var(--cfg-success-bg, #a7f3d0)',
+    text: 'var(--cfg-success, #047857)',
+  },
 };
 
 export function InfoBanner({ variant = 'info', children }: InfoBannerProps) {
+  const s = VARIANT_STYLES[variant];
   return (
-    <div className={['rounded-xl border px-4 py-2.5 text-sm', VARIANT_STYLES[variant]].join(' ')}>
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: 7,
+        borderRadius: 10, border: `1px solid ${s.border}`, background: s.bg,
+        padding: '7px 9px', fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: s.text,
+      }}
+    >
       {children}
     </div>
   );

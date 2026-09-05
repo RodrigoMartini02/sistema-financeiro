@@ -4,6 +4,7 @@ import { KeyRound, Save, CheckCircle2 } from 'lucide-react';
 import { fetchMe, updateMe } from '../../services/usuariosService';
 import { Button } from '../../ui/button';
 import { Field, Input } from '../../ui/form';
+import { CFG } from '../../ui/configTokens';
 
 type PasswordStrength = { label: string; color: string; percent: number } | null;
 
@@ -66,15 +67,29 @@ export function SecurityTab() {
   };
 
   return (
-    <div className="grid gap-6">
-      <form onSubmit={handleSubmit} className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-900/40">
-            <KeyRound size={18} className="text-brand-600 dark:text-brand-300" />
-          </div>
+    <div className="grid gap-2.5">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-4"
+        style={{
+          borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surface,
+          padding: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            flex: 'none', display: 'grid', placeItems: 'center', width: 30, height: 30,
+            borderRadius: '50%', background: CFG.primarySoft, color: CFG.primaryDark,
+          }}>
+            <KeyRound size={15} />
+          </span>
           <div>
-            <p className="text-sm font-bold text-slate-900 dark:text-white">Alterar senha</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Você continuará conectado neste dispositivo</p>
+            <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: CFG.text }}>
+              Alterar senha
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: CFG.muted }}>
+              Você continuará conectado neste dispositivo
+            </p>
           </div>
         </div>
 
