@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDownToLine, ArrowUpFromLine, Check, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
 
@@ -27,6 +27,19 @@ type MovimentoAberto = { reservaId: number; tipo: 'deposito' | 'retirada' } | nu
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
+
+// Equivalentes locais de cfgIconButtonStyle e do botão de cancelar: os tokens
+// cfg* resolvem via var(--cfg-*), que só existe dentro do .config-scope — e
+// este painel vive em Movimentações, fora dele.
+const iconButtonBase: CSSProperties = {
+  display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
+  borderRadius: 8,
+};
+
+const cancelButtonStyle: CSSProperties = {
+  height: 30, padding: '0 12px', borderRadius: 999, border: 'none',
+  background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+};
 
 function formatDataHora(iso: string): string {
   const data = new Date(iso);
@@ -104,10 +117,7 @@ function MovimentoInline({
         <button
           type="button"
           onClick={onCancel}
-          style={{
-            height: 30, padding: '0 12px', borderRadius: 999, border: 'none',
-            background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
-          }}
+          style={cancelButtonStyle}
         >
           Cancelar
         </button>
@@ -202,10 +212,7 @@ function ReservaLinha({
             type="button"
             onClick={() => onAbrirMovimento('deposito')}
             title="Adicionar valor"
-            style={{
-              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8, border: '1px solid #d8e0e8', background: '#fff', color: '#067647', cursor: 'pointer',
-            }}
+            style={{ ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff', color: '#067647', cursor: 'pointer' }}
           >
             <ArrowDownToLine size={13} />
           </button>
@@ -215,8 +222,7 @@ function ReservaLinha({
             title="Retirar valor"
             disabled={saldo <= 0}
             style={{
-              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8, border: '1px solid #d8e0e8', background: '#fff',
+              ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff',
               color: saldo > 0 ? C.danger : '#c7d3db', cursor: saldo > 0 ? 'pointer' : 'not-allowed',
             }}
           >
@@ -227,10 +233,7 @@ function ReservaLinha({
             onClick={onEditar}
             title="Editar reserva"
             aria-label={`Editar ${reserva.observacoes || 'reserva'}`}
-            style={{
-              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8, border: 'none', background: 'transparent', color: C.textMuted, cursor: 'pointer',
-            }}
+            style={{ ...iconButtonBase, border: 'none', background: 'transparent', color: C.textMuted, cursor: 'pointer' }}
           >
             <Pencil size={13} />
           </button>
@@ -239,10 +242,7 @@ function ReservaLinha({
             onClick={onExcluir}
             title="Excluir reserva"
             aria-label={`Excluir ${reserva.observacoes || 'reserva'}`}
-            style={{
-              display: 'flex', height: 32, width: 32, alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8, border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer',
-            }}
+            style={{ ...iconButtonBase, border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer' }}
           >
             <Trash2 size={13} />
           </button>
@@ -512,7 +512,7 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
                 <button
                   type="button"
                   onClick={fecharForm}
-                  style={{ height: 30, padding: '0 12px', borderRadius: 999, border: 'none', background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+                  style={cancelButtonStyle}
                 >
                   Cancelar
                 </button>
