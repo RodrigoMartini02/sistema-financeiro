@@ -11,6 +11,8 @@ export interface FinancialAccount {
 export interface BudgetOverviewItem {
   categoryId: number;
   categoryName: string;
+  /** null nas categorias raiz; id do pai nas subcategorias. */
+  parentId: number | null;
   mode: 'amount' | 'income_percent' | null;
   targetValue: number | null;
   targetAmount: number | null;
@@ -164,7 +166,17 @@ export async function getBudgetOverview(input: {
   const resolved = resolvePeriod(period);
   const account = await resolveFinancialAccount(userId, accountId);
   const [categoryRows, expenseRows, incomeRows] = await Promise.all([
-    db.select({ id: categories.id, name: categories.name }).from(categories).where(eq(categories.userId, userId)),
+    // `ativo` existe na tabela mas ainda não está declarado no schema Drizzle
+    // (é lido por SQL bruto também em routes/categories.ts), daí o sql`` aqui.
+    // COALESCE porque linhas antigas podem ter a coluna nula.
+    db.select({
+      id: categories.id,
+      name: categories.name,
+      parentId: categories.parentId,
+    }).from(categories).where(and(
+      eq(categories.userId, userId),
+      sql`COALESCE(categorias.ativo, true) = true`,
+    )),
     db.select({
       categoryId: expenses.categoryId,
       amount: expenses.finalAmount,
@@ -232,6 +244,25 @@ export async function getBudgetOverview(input: {
     historicByCategory.set(row.categoryId, (historicByCategory.get(row.categoryId) ?? 0) + asNumber(row.amount ?? row.originalAmount));
   }
 
+  // Rollup: a meta é cadastrada na categoria raiz, então o total dela precisa
+  // incluir o que foi lançado nas subcategorias. Sem isso uma meta em
+  // "Alimentação" ignoraria as despesas de "Alimentação > Mercado" e apareceria
+  // cumprida sem estar. Um único nível de aninhamento, como em CategoriasTab.
+  const parentOf = new Map(categoryRows.map((category) => [category.id, category.parentId]));
+  const withSubcategories = (totals: Map<number, number>): Map<number, number> => {
+    const rolled = new Map(totals);
+    for (const [categoryId, amount] of totals) {
+      const parentId = parentOf.get(categoryId);
+      if (parentId == null) continue;
+      rolled.set(parentId, (rolled.get(parentId) ?? 0) + amount);
+    }
+    return rolled;
+  };
+
+  const projectedWithSubs = withSubcategories(projectedByCategory);
+  const paidWithSubs = withSubcategories(paidByCategory);
+  const historicWithSubs = withSubcategories(historicByCategory);
+
   const targetsByCategory = new Map(targetRows.map((row) => [row.categoryId, row]));
   const items = categoryRows.map((category): BudgetOverviewItem => {
     const target = targetsByCategory.get(category.id);
@@ -241,8 +272,8 @@ export async function getBudgetOverview(input: {
         ? (incomeTotal * targetValue!) / 100
         : targetValue! * mesesNoIntervalo
       : null;
-    const projectedAmount = projectedByCategory.get(category.id) ?? 0;
-    const paidAmount = paidByCategory.get(category.id) ?? 0;
+    const projectedAmount = projectedWithSubs.get(category.id) ?? 0;
+    const paidAmount = paidWithSubs.get(category.id) ?? 0;
     const ratio = targetAmount && targetAmount > 0 ? projectedAmount / targetAmount : null;
     const status: BudgetOverviewItem['status'] = ratio === null
       ? 'without_target'
@@ -252,6 +283,7 @@ export async function getBudgetOverview(input: {
     return {
       categoryId: category.id,
       categoryName: category.name,
+      parentId: category.parentId ?? null,
       mode: target?.mode ?? null,
       targetValue,
       targetAmount,
@@ -259,7 +291,7 @@ export async function getBudgetOverview(input: {
       projectedAmount,
       incomePercentage: incomeTotal > 0 ? (projectedAmount / incomeTotal) * 100 : null,
       status,
-      suggestedAmount: historicByCategory.has(category.id) ? (historicByCategory.get(category.id)! / 3) : null,
+      suggestedAmount: historicWithSubs.has(category.id) ? (historicWithSubs.get(category.id)! / 3) : null,
     };
   }).sort((left, right) => right.projectedAmount - left.projectedAmount || left.categoryName.localeCompare(right.categoryName));
 
@@ -295,9 +327,14 @@ export async function saveBudgetTarget(input: {
     throw new BudgetInputError('O valor da meta está fora do limite permitido.');
   }
 
-  const [category] = await db.select({ id: categories.id }).from(categories)
+  const [category] = await db.select({ id: categories.id, parentId: categories.parentId }).from(categories)
     .where(and(eq(categories.id, categoryId), eq(categories.userId, input.userId))).limit(1);
   if (!category) throw new BudgetInputError('Categoria não encontrada.');
+  // A meta fica na raiz porque o total dela já soma as subcategorias (ver rollup
+  // em getBudgetOverview); metas nos dois níveis se sobreporiam.
+  if (category.parentId !== null) {
+    throw new BudgetInputError('A meta deve ser definida na categoria principal, que já considera os gastos das subcategorias.');
+  }
 
   const [existing] = await db.select({ id: budgetTargets.id }).from(budgetTargets)
     .where(and(eq(budgetTargets.userId, input.userId), eq(budgetTargets.accountId, account.id), eq(budgetTargets.categoryId, categoryId))).limit(1);

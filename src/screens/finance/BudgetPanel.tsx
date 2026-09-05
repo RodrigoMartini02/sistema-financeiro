@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Check, Pencil, Plus, Target, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Pencil, Plus, Target, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BudgetOverviewItem, BudgetTargetMode } from '../../types/budget';
 import { deleteBudgetTarget, fetchBudgetOverview, saveBudgetTarget } from '../../services/budgetService';
 import { queryKeys } from '../../services/queryKeys';
 import { Card } from '../../ui/card';
+import { Dialog } from '../../ui/dialog';
+import {
+  C, labelStyle, fieldInputStyle, dialogFooterStyle,
+  saveButtonStyle, saveButtonDisabledStyle,
+} from '../../ui/dialogFormTokens';
+import {
+  CFG, CFG_MONO_CLASS, CONFIG_SCOPE_CLASS, cfgBadgeStyle, cfgRowIndexStyle,
+} from '../../ui/configTokens';
 import { budgetPercentage, formatCurrency } from './formatters';
 
 interface BudgetPanelProps {
@@ -13,17 +21,245 @@ interface BudgetPanelProps {
   toolbarStart?: ReactNode;
 }
 
+/** Raiz com suas subcategorias já agrupadas, no mesmo formato de CategoriasTab. */
+interface BudgetTreeNode {
+  root: BudgetOverviewItem;
+  children: BudgetOverviewItem[];
+}
+
 function statusLabel(item: BudgetOverviewItem): string {
   if (!item.targetAmount) return 'Sem meta';
   return `${budgetPercentage(item).toFixed(0)}% da meta`;
 }
 
-function statusClass(item: BudgetOverviewItem): string {
-  if (item.status === 'over') return 'bg-red-50 text-red-700 dark:bg-red-950/45 dark:text-red-300';
-  if (item.status === 'attention') return 'bg-amber-50 text-amber-700 dark:bg-amber-950/45 dark:text-amber-300';
-  if (item.status === 'healthy') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-300';
-  return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+function statusBadgeStyle(item: BudgetOverviewItem) {
+  const palette = item.status === 'over'
+    ? { background: CFG.dangerBg, color: CFG.danger }
+    : item.status === 'attention'
+      ? { background: CFG.warnBg, color: CFG.warnText }
+      : item.status === 'healthy'
+        ? { background: CFG.successBg, color: CFG.success }
+        : { background: CFG.chipBg, color: CFG.chipText };
+  return { ...cfgBadgeStyle, ...palette };
 }
+
+// ─── Linha da listagem ────────────────────────────────────────────────────────
+
+function BudgetRow({
+  item, index, isChild, expanded, onToggleExpand, subCount, onEditTarget, onRemoveTarget, isRemoving,
+}: {
+  item: BudgetOverviewItem;
+  /** Índice hierárquico já formatado: "01" na raiz, "1.1" na subcategoria. */
+  index: string;
+  isChild: boolean;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
+  subCount: number;
+  /** Só a raiz recebe meta — o total dela já soma as subcategorias. */
+  onEditTarget?: () => void;
+  onRemoveTarget?: () => void;
+  isRemoving: boolean;
+}) {
+  const hasSubs = subCount > 0;
+
+  return (
+    <div style={{ marginLeft: isChild ? 22 : 0 }}>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+          minHeight: isChild ? 34 : 38, padding: '0 12px', borderRadius: 12,
+          border: `1px solid ${CFG.border}`,
+          background: isChild ? CFG.surfaceAlt : CFG.surface,
+          boxShadow: CFG.shadowRow,
+          transition: 'border-color .13s ease',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = CFG.primary; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = CFG.border; }}
+      >
+        <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>{index}</span>
+
+        <span
+          style={{
+            minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: isChild ? 12.5 : 13, fontWeight: isChild ? 500 : 600,
+            color: isChild ? CFG.textSoft : CFG.text,
+          }}
+        >
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.categoryName}
+          </span>
+          {hasSubs && <span style={cfgBadgeStyle}>{subCount} sub</span>}
+        </span>
+
+        <span
+          className={CFG_MONO_CLASS}
+          style={{ flex: 'none', fontSize: 11.5, fontWeight: 600, color: CFG.textSoft }}
+        >
+          {formatCurrency(item.projectedAmount)}
+        </span>
+
+        {item.targetAmount ? (
+          <span style={statusBadgeStyle(item)}>
+            {formatCurrency(item.targetAmount)} · {statusLabel(item)}
+          </span>
+        ) : !isChild ? (
+          <span style={{ flex: 'none', fontSize: 11, fontWeight: 500, color: CFG.faint }}>Sem meta</span>
+        ) : null}
+
+        {onEditTarget && (
+          <button
+            type="button"
+            onClick={onEditTarget}
+            aria-label={`${item.mode ? 'Editar' : 'Definir'} meta para ${item.categoryName}`}
+            title={item.mode ? 'Editar meta' : 'Definir meta'}
+            style={{
+              flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+              border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+              fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
+            }}
+          >
+            {item.mode ? <Pencil size={11} strokeWidth={2.6} /> : <Plus size={11} strokeWidth={2.8} />}
+            <span className="hidden sm:inline">{item.mode ? 'Editar' : 'Meta'}</span>
+          </button>
+        )}
+
+        {onRemoveTarget && item.mode && (
+          <button
+            type="button"
+            onClick={onRemoveTarget}
+            disabled={isRemoving}
+            aria-label={`Remover meta de ${item.categoryName}`}
+            title="Remover meta"
+            style={{
+              flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
+              border: 'none', background: 'transparent', padding: 0,
+              color: CFG.faint, cursor: isRemoving ? 'not-allowed' : 'pointer',
+              opacity: isRemoving ? 0.5 : 1,
+            }}
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
+
+        {hasSubs ? (
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
+            style={{
+              flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
+              border: 'none', background: 'transparent', borderRadius: 8,
+              color: CFG.faint, cursor: 'pointer',
+            }}
+          >
+            <ChevronRight
+              size={13}
+              strokeWidth={2.2}
+              style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }}
+            />
+          </button>
+        ) : (
+          <span style={{ flex: 'none', width: 16 }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal de meta ────────────────────────────────────────────────────────────
+
+function MetaDialog({
+  item, isSaving, error, onClose, onSave,
+}: {
+  item: BudgetOverviewItem;
+  isSaving: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSave: (mode: BudgetTargetMode, targetValue: number) => void;
+}) {
+  const [mode, setMode] = useState<BudgetTargetMode>(item.mode ?? 'amount');
+  const [targetValue, setTargetValue] = useState(
+    item.targetValue?.toString() ?? item.suggestedAmount?.toFixed(2) ?? '',
+  );
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const parsed = Number(targetValue.replace(',', '.'));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setLocalError('Informe uma meta maior que zero.');
+      return;
+    }
+    setLocalError(null);
+    onSave(mode, parsed);
+  };
+
+  const mensagem = localError ?? error;
+
+  return (
+    <Dialog open title={`Meta: ${item.categoryName}`} onClose={onClose} size="sm" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={submit}>
+        {/* Altura fixa: o modal não muda de tamanho entre os dois modos. */}
+        <div style={{ flex: 1, minHeight: 0, height: 148, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Tipo de meta</label>
+              <select
+                value={mode}
+                onChange={(event) => setMode(event.target.value as BudgetTargetMode)}
+                style={fieldInputStyle}
+              >
+                <option value="amount">Valor mensal (R$)</option>
+                <option value="income_percent">Percentual da receita</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>
+                <span>{mode === 'income_percent' ? 'Percentual' : 'Valor'}</span>
+                <span style={{ color: C.danger }}>*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                max={mode === 'income_percent' ? 100 : undefined}
+                step="0.01"
+                value={targetValue}
+                onChange={(event) => setTargetValue(event.target.value)}
+                placeholder={mode === 'income_percent' ? '15' : '800,00'}
+                autoFocus
+                style={fieldInputStyle}
+              />
+            </div>
+          </div>
+
+          {item.suggestedAmount !== null && !item.mode && (
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+              Média dos três meses anteriores: {formatCurrency(item.suggestedAmount)}.
+            </p>
+          )}
+
+          <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
+            A meta considera também os gastos das subcategorias desta categoria.
+          </p>
+
+          {mensagem && (
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
+              {mensagem}
+            </div>
+          )}
+        </div>
+
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
+          <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+// ─── Painel ───────────────────────────────────────────────────────────────────
 
 export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   const queryClient = useQueryClient();
@@ -34,8 +270,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   });
   const overview = overviewQuery.data;
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
-  const [mode, setMode] = useState<BudgetTargetMode>('amount');
-  const [targetValue, setTargetValue] = useState('');
+  const [collapsed, setCollapsed] = useState<number[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   const selectedItem = useMemo(
@@ -44,10 +279,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   );
 
   useEffect(() => {
-    if (!selectedItem) return;
-    setMode(selectedItem.mode ?? 'amount');
-    setTargetValue(selectedItem.targetValue?.toString() ?? selectedItem.suggestedAmount?.toFixed(2) ?? '');
-    setFormError(null);
+    if (selectedItem) setFormError(null);
   }, [selectedItem]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKeys.budgetOverview(month, year) });
@@ -56,7 +288,6 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
     onSuccess: async () => {
       await invalidate();
       setEditingCategoryId(null);
-      setTargetValue('');
     },
     onError: (error) => setFormError(error instanceof Error ? error.message : 'Não foi possível salvar a meta.'),
   });
@@ -64,6 +295,17 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
     mutationFn: deleteBudgetTarget,
     onSuccess: invalidate,
   });
+
+  // Um único nível de aninhamento, como em CategoriasTab. A ordenação por valor
+  // projetado vem do backend e é preservada dentro de cada nível.
+  const tree = useMemo<BudgetTreeNode[]>(() => {
+    if (!overview) return [];
+    const roots = overview.items.filter((item) => item.parentId === null);
+    return roots.map((root) => ({
+      root,
+      children: overview.items.filter((item) => item.parentId === root.categoryId),
+    }));
+  }, [overview]);
 
   if (overviewQuery.isLoading) {
     return (
@@ -97,202 +339,102 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   }
 
   const alertItems = overview.items.filter((item) => item.status === 'attention' || item.status === 'over');
-
-  const submitTarget = () => {
-    if (!selectedItem) return;
-    const parsedValue = Number(targetValue.replace(',', '.'));
-    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
-      setFormError('Informe uma meta maior que zero.');
-      return;
-    }
-    setFormError(null);
-    saveMutation.mutate({ categoryId: selectedItem.categoryId, mode, targetValue: parsedValue });
-  };
+  const toggleExpand = (id: number) =>
+    setCollapsed((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const totalSubs = tree.reduce((n, node) => n + node.children.length, 0);
 
   return (
+    // Os componentes usam as variáveis --cfg-*, que só existem dentro deste
+    // escopo; sem ele as cores não resolvem fora do drawer de Configurações.
     <Card className="p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          {toolbarStart && <div className="mb-3">{toolbarStart}</div>}
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">Planejamento de orçamento</h3>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Defina metas pessoais por categoria e acompanhe o lançado e projetado no período.
-          </p>
-        </div>
-        <div className="text-right text-xs text-slate-500 dark:text-slate-400">
-          <p>Receitas: <strong className="text-slate-700 dark:text-slate-200">{formatCurrency(overview.incomeTotal)}</strong></p>
-          <p className="mt-1">Despesas previstas: <strong className="text-slate-700 dark:text-slate-200">{formatCurrency(overview.projectedTotal)}</strong></p>
-        </div>
-      </div>
-
-      {alertItems.length > 0 && (
-        <div className="mt-4 grid gap-2">
-          {alertItems.map((item) => (
-            <div key={item.categoryId} className={[
-              'flex items-center gap-2 border px-3 py-2 text-xs',
-              item.status === 'over'
-                ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200'
-                : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
-            ].join(' ')}>
-              <AlertTriangle size={15} className="shrink-0" />
-              <span><strong>{item.categoryName}</strong> está em {statusLabel(item)}.</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {editingCategoryId !== null && (
-        <div className="mt-4 border border-cyan-200 bg-cyan-50/50 p-3 dark:border-cyan-900 dark:bg-cyan-950/20">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Meta: {selectedItem?.categoryName}</p>
-            <button
-              type="button"
-              onClick={() => setEditingCategoryId(null)}
-              className="flex h-8 w-8 items-center justify-center text-slate-500 hover:bg-white hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label="Cancelar edição da meta"
-              title="Cancelar"
-            >
-              <X size={16} />
-            </button>
+      <div className={CONFIG_SCOPE_CLASS}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            {toolbarStart && <div className="mb-3">{toolbarStart}</div>}
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: CFG.text }}>Planejamento de orçamento</h3>
+            <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+              {tree.length} categoria{tree.length === 1 ? '' : 's'}
+              {totalSubs > 0 ? ` · ${totalSubs} sub` : ''}
+            </p>
           </div>
-          {selectedItem?.suggestedAmount && !selectedItem.mode && (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Sugestão pela média dos três meses anteriores: {formatCurrency(selectedItem.suggestedAmount)}.
+          <div style={{ textAlign: 'right', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
+            <p style={{ margin: 0 }}>
+              Receitas: <strong style={{ color: CFG.textSoft }}>{formatCurrency(overview.incomeTotal)}</strong>
+            </p>
+            <p style={{ margin: '4px 0 0' }}>
+              Despesas previstas: <strong style={{ color: CFG.textSoft }}>{formatCurrency(overview.projectedTotal)}</strong>
+            </p>
+          </div>
+        </div>
+
+        {alertItems.length > 0 && (
+          <div className="mt-4" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {alertItems.map((item) => (
+              <div
+                key={item.categoryId}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, padding: '7px 10px',
+                  fontSize: 11.5, fontWeight: 500,
+                  border: `1px solid ${item.status === 'over' ? CFG.dangerBorder : CFG.warnBorder}`,
+                  background: item.status === 'over' ? CFG.dangerBg : CFG.warnBg,
+                  color: item.status === 'over' ? CFG.danger : CFG.warnText,
+                }}
+              >
+                <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                <span><strong>{item.categoryName}</strong> está em {statusLabel(item)}.</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {tree.map((node, i) => {
+            const rootIndex = String(i + 1).padStart(2, '0');
+            const expanded = !collapsed.includes(node.root.categoryId);
+            return (
+              <div key={node.root.categoryId} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <BudgetRow
+                  item={node.root}
+                  index={rootIndex}
+                  isChild={false}
+                  expanded={expanded}
+                  onToggleExpand={() => toggleExpand(node.root.categoryId)}
+                  subCount={node.children.length}
+                  onEditTarget={() => setEditingCategoryId(node.root.categoryId)}
+                  onRemoveTarget={() => removeMutation.mutate(node.root.categoryId)}
+                  isRemoving={removeMutation.isPending}
+                />
+                {expanded && node.children.map((child, j) => (
+                  <BudgetRow
+                    key={child.categoryId}
+                    item={child}
+                    index={`${i + 1}.${j + 1}`}
+                    isChild
+                    subCount={0}
+                    isRemoving={false}
+                  />
+                ))}
+              </div>
+            );
+          })}
+
+          {tree.length === 0 && (
+            <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>
+              Nenhuma categoria cadastrada para planejar.
             </p>
           )}
-          <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as BudgetTargetMode)}
-              className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            >
-              <option value="amount">Valor mensal (R$)</option>
-              <option value="income_percent">Percentual da receita</option>
-            </select>
-            <input
-              type="number"
-              min="0"
-              max={mode === 'income_percent' ? 100 : undefined}
-              step="0.01"
-              value={targetValue}
-              onChange={(event) => setTargetValue(event.target.value)}
-              placeholder={mode === 'income_percent' ? 'Ex.: 15' : 'Ex.: 800,00'}
-              className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#0C9EAF] dark:border-slate-700 dark:bg-slate-950 dark:text-white"
-            />
-            <button
-              type="button"
-              onClick={submitTarget}
-              disabled={saveMutation.isPending}
-              className="flex h-10 items-center justify-center gap-2 bg-[#0C9EAF] px-4 text-sm font-semibold text-white transition hover:bg-[#087B89] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Check size={16} /> {saveMutation.isPending ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-          {formError && <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-300">{formError}</p>}
         </div>
-      )}
 
-      <div className="mt-4 grid gap-3 md:hidden">
-        {overview.items.map((item) => (
-          <div key={item.categoryId} className="border border-slate-200 p-3 dark:border-slate-700">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-100">{item.categoryName}</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Projetado: {formatCurrency(item.projectedAmount)}</p>
-              </div>
-              <div className="inline-flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingCategoryId(item.categoryId)}
-                  className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:bg-slate-100 hover:text-[#087B89] dark:text-slate-400 dark:hover:bg-slate-800"
-                  aria-label={`${item.mode ? 'Editar' : 'Definir'} meta para ${item.categoryName}`}
-                  title={item.mode ? 'Editar meta' : 'Definir meta'}
-                >
-                  {item.mode ? <Pencil size={15} /> : <Plus size={16} />}
-                </button>
-                {item.mode && (
-                  <button
-                    type="button"
-                    onClick={() => removeMutation.mutate(item.categoryId)}
-                    disabled={removeMutation.isPending}
-                    className="flex h-8 w-8 items-center justify-center text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                    aria-label={`Remover meta de ${item.categoryName}`}
-                    title="Remover meta"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              {item.targetAmount ? (
-                <span className={['inline-flex px-2 py-1 font-semibold', statusClass(item)].join(' ')}>
-                  Meta: {formatCurrency(item.targetAmount)} · {statusLabel(item)}
-                </span>
-              ) : <span className="text-slate-400">Sem meta definida</span>}
-              <span className="text-slate-500 dark:text-slate-400">
-                {item.incomePercentage === null ? 'Sem receitas no período' : `${item.incomePercentage.toFixed(1)}% da receita`}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 hidden overflow-x-auto md:block">
-        <table className="min-w-[650px] w-full text-left text-xs">
-          <thead className="border-y border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            <tr>
-              <th className="py-2 pr-3 font-semibold">Categoria</th>
-              <th className="py-2 pr-3 font-semibold">Projetado</th>
-              <th className="py-2 pr-3 font-semibold">Meta</th>
-              <th className="py-2 pr-3 font-semibold">Receita</th>
-              <th className="py-2 text-right font-semibold">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {overview.items.map((item) => (
-              <tr key={item.categoryId}>
-                <td className="py-3 pr-3 font-semibold text-slate-800 dark:text-slate-100">{item.categoryName}</td>
-                <td className="py-3 pr-3 text-slate-700 dark:text-slate-200">{formatCurrency(item.projectedAmount)}</td>
-                <td className="py-3 pr-3">
-                  {item.targetAmount ? (
-                    <span className={['inline-flex px-2 py-1 font-semibold', statusClass(item)].join(' ')}>
-                      {formatCurrency(item.targetAmount)} · {statusLabel(item)}
-                    </span>
-                  ) : <span className="text-slate-400">Sem meta</span>}
-                </td>
-                <td className="py-3 pr-3 text-slate-600 dark:text-slate-300">
-                  {item.incomePercentage === null ? 'Sem receitas' : `${item.incomePercentage.toFixed(1)}%`}
-                </td>
-                <td className="py-3 text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setEditingCategoryId(item.categoryId)}
-                      className="flex h-8 w-8 items-center justify-center text-slate-500 transition hover:bg-slate-100 hover:text-[#087B89] dark:text-slate-400 dark:hover:bg-slate-800"
-                      aria-label={`${item.mode ? 'Editar' : 'Definir'} meta para ${item.categoryName}`}
-                      title={item.mode ? 'Editar meta' : 'Definir meta'}
-                    >
-                      {item.mode ? <Pencil size={15} /> : <Plus size={16} />}
-                    </button>
-                    {item.mode && (
-                      <button
-                        type="button"
-                        onClick={() => removeMutation.mutate(item.categoryId)}
-                        disabled={removeMutation.isPending}
-                        className="flex h-8 w-8 items-center justify-center text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                        aria-label={`Remover meta de ${item.categoryName}`}
-                        title="Remover meta"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {selectedItem && (
+          <MetaDialog
+            item={selectedItem}
+            isSaving={saveMutation.isPending}
+            error={formError}
+            onClose={() => setEditingCategoryId(null)}
+            onSave={(mode, targetValue) =>
+              saveMutation.mutate({ categoryId: selectedItem.categoryId, mode, targetValue })}
+          />
+        )}
       </div>
     </Card>
   );
