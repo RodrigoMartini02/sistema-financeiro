@@ -30,32 +30,64 @@ export const C = {
 };
 
 export const labelStyle: CSSProperties = {
-  fontSize: '10.5px', fontWeight: 700, letterSpacing: '0.09em', color: C.textFaint,
-  textTransform: 'uppercase', height: 15, display: 'flex', alignItems: 'center', gap: 4,
+  fontSize: 11, fontWeight: 600, color: C.textMuted,
+  height: 14, display: 'flex', alignItems: 'center', gap: 4,
 };
 
 export const fieldInputStyle: CSSProperties = {
-  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 40, borderRadius: 10,
-  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
-  fontSize: 14, fontWeight: 500, color: C.text, outline: 'none',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 32, borderRadius: 10,
+  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px',
+  fontSize: 13, fontWeight: 500, color: C.text, outline: 'none',
 };
 
 export const smallInputStyle: CSSProperties = {
-  width: 168, height: 40, boxSizing: 'border-box', borderRadius: 10,
-  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
-  fontSize: 14, color: C.text, outline: 'none',
+  width: 168, height: 32, boxSizing: 'border-box', borderRadius: 10,
+  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px',
+  fontSize: 13, color: C.text, outline: 'none',
 };
 
 export const numericInputStyle: CSSProperties = {
-  width: 76, height: 40, boxSizing: 'border-box', borderRadius: 10,
-  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px',
-  fontSize: 14, fontWeight: 700, color: C.text, textAlign: 'center',
+  width: 72, height: 32, boxSizing: 'border-box', borderRadius: 10,
+  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px',
+  fontSize: 13, fontWeight: 600, color: C.text, textAlign: 'center',
   fontVariantNumeric: 'tabular-nums', outline: 'none',
 };
 
 export const cardStyle: CSSProperties = {
-  margin: '0 var(--dialog-px) 10px', padding: '13px 14px 14px', borderRadius: 14,
-  border: `1px solid ${C.border}`, background: C.cardBg,
+  margin: '0 var(--dialog-px) 8px', padding: '11px 12px 12px', borderRadius: 12,
+  border: `1px solid ${C.border}`, background: '#fff',
+};
+
+/**
+ * Botão primário do rodapé dos modais (pill).
+ * Antes este bloco era repetido inline em 23 pontos do app.
+ */
+export const saveButtonStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 30, padding: '0 16px', border: 'none', borderRadius: 999,
+  background: C.primary, color: '#fff', fontSize: 12.5, fontWeight: 600, lineHeight: 1,
+  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .13s ease',
+};
+
+export const saveButtonDisabledStyle: CSSProperties = {
+  ...saveButtonStyle,
+  background: '#e6edf1', color: '#a3b6c0', cursor: 'not-allowed',
+};
+
+/** Ação destrutiva do rodapé (outline, não vermelho sólido). */
+export const dangerButtonStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 30, padding: '0 14px', borderRadius: 999,
+  border: `1px solid ${C.dangerBorder}`, background: '#fff',
+  color: C.danger, fontSize: 12.5, fontWeight: 600, lineHeight: 1,
+  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .13s ease',
+};
+
+/** Rodapé padrão dos modais. */
+export const dialogFooterStyle: CSSProperties = {
+  flex: 'none', display: 'flex', alignItems: 'center', gap: 10,
+  borderTop: '1px solid #eef3f6', background: '#fcfdfe',
+  padding: '10px var(--dialog-px) 12px',
 };
 
 export const panelStyle: CSSProperties = {
@@ -67,12 +99,11 @@ export function chipStyle(active: boolean, opts?: { h?: number; r?: number; size
   const o = opts ?? {};
   return {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer',
-    height: o.h ?? 42, padding: '0 10px', borderRadius: o.r ?? 10, fontSize: o.size ?? 13,
+    height: o.h ?? 32, padding: '0 10px', borderRadius: o.r ?? 10, fontSize: o.size ?? 12.5,
     fontWeight: active ? 600 : 500, whiteSpace: 'nowrap',
-    border: `1.5px solid ${active ? C.primary : C.chipOffBorder}`,
+    border: `1px solid ${active ? C.primary : C.chipOffBorder}`,
     background: active ? C.primary : '#fff',
     color: active ? '#fff' : C.chipOffText,
-    boxShadow: active ? '0 2px 8px -2px rgba(8,145,178,0.5)' : 'none',
     transition: 'all .13s ease',
   };
 }
@@ -86,11 +117,13 @@ export function digitsOnly(value: string): number {
   return digits ? parseInt(digits, 10) : 0;
 }
 
+// O campo de valor é o dado principal dos modais de lançamento, então continua
+// maior que os demais (44 vs 32) mesmo na escala compacta.
 export function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
   const cents = value ? Math.round(value * 100) : 0;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 54, borderRadius: 12, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 14px' }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: C.textFaint }}>R$</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, borderRadius: 11, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 12px' }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -100,7 +133,7 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
         placeholder="0,00"
         style={{
           flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
-          fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
+          fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
           fontVariantNumeric: 'tabular-nums', outline: 'none',
         }}
       />
@@ -112,11 +145,11 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
   const cents = value ? Math.round(value * 100) : 0;
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, height: 54, borderRadius: 12,
-      border: `1.5px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 14px',
+      display: 'flex', alignItems: 'center', gap: 8, height: 44, borderRadius: 11,
+      border: `1px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 12px',
       opacity: disabled ? 0.6 : 1,
     }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: C.textFaint }}>R$</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -127,7 +160,7 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
         placeholder="0,00"
         style={{
           flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
-          fontSize: 26, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
+          fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
           fontVariantNumeric: 'tabular-nums', outline: 'none',
           cursor: disabled ? 'not-allowed' : 'text',
         }}
@@ -167,8 +200,8 @@ export const valuesRowTitleStyle: CSSProperties = { fontSize: 13, fontWeight: 60
 export const valuesRowSubtitleStyle: CSSProperties = { fontSize: 10.5, color: C.placeholder };
 
 export const valuesInlineFieldStyle: CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 6, height: 38, borderRadius: 9,
-  border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 11px',
+  display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 9,
+  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px',
 };
 
 export const valuesInlineInputStyle: CSSProperties = {

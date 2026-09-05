@@ -11,7 +11,7 @@ import {
 } from '../../services/permissoesService';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { CFG, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
@@ -86,13 +86,7 @@ function NovoMembroDialog({
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
@@ -220,10 +214,24 @@ function TransferirPendenciasDialog({
       </div>
 
       <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" disabled={isSaving} onClick={handleConfirm}>
+        <button type="button" style={{ ...dangerButtonStyle, border: 'none', color: C.textMuted }} onClick={onClose}>
+          Cancelar
+        </button>
+        {/* Confirmação destrutiva mantém preenchimento sólido: precisa se
+            distinguir com clareza antes de o usuário confirmar. */}
+        <button
+          type="button"
+          disabled={isSaving}
+          onClick={handleConfirm}
+          style={{
+            ...saveButtonStyle,
+            background: C.danger,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.5 : 1,
+          }}
+        >
           {isSaving ? 'Desativando...' : 'Confirmar e desativar'}
-        </Button>
+        </button>
       </div>
     </Dialog>
   );

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle } from '../../ui/dialogFormTokens';
 import type { Reserva, ReservaFormValues, MovimentacaoFormValues } from '../../types/reservas';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -302,13 +302,7 @@ export function ReservaDialog({
               <button
                 type="submit"
                 disabled={isSaving}
-                style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                  border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                  ...(isSaving
-                    ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                    : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-                }}
+                style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
               >
                 {isSaving ? 'Salvando...' : 'Salvar'}
               </button>
@@ -391,13 +385,13 @@ export function ReservaDialog({
                 type="submit"
                 disabled={isMovimentando}
                 style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
                   border: 'none', transition: 'all .15s ease', cursor: isMovimentando ? 'not-allowed' : 'pointer',
                   ...(isMovimentando
                     ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
                     : movTipo === 'retirada'
-                      ? { background: C.danger, color: '#fff', boxShadow: '0 6px 16px -6px rgba(180,35,24,0.5)' }
-                      : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
+                      ? { background: C.danger, color: '#fff' }
+                      : { background: C.primary, color: '#fff' }),
                 }}
               >
                 {isMovimentando ? 'Confirmando...' : movTipo === 'deposito' ? 'Depositar' : 'Retirar'}

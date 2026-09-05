@@ -9,7 +9,7 @@ import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/Attach
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, smallInputStyle,
-  cardStyle, panelStyle, chipStyle, MoneyField,
+  cardStyle, panelStyle, chipStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle
 } from '../../ui/dialogFormTokens';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
@@ -820,14 +820,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
             <button
               type="submit"
               disabled={isSaving || !clienteValido}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
-                cursor: isSaving || !clienteValido ? 'not-allowed' : 'pointer',
-                ...(!isSaving && clienteValido
-                  ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
-                  : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
-              }}
+              style={(!isSaving && clienteValido) ? saveButtonStyle : saveButtonDisabledStyle}
             >
               {isSaving ? 'Salvando...' : income ? 'Salvar alterações' : 'Registrar receita'}
             </button>

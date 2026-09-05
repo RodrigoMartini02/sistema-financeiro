@@ -4,9 +4,8 @@ import { Plus, Briefcase, ChevronDown, ChevronUp, Tag, User, Pencil, X, AlertCir
 import { fetchContas, saveConta, deleteConta, updateFotoConta, reactivateConta } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import type { Conta } from '../../types/config';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
@@ -148,23 +147,27 @@ function CategoryPreview({ enquadramento }: { enquadramento: string }) {
   const shown = expanded ? cats : cats.slice(0, 4);
 
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-semibold text-emerald-800">
+    <div style={{
+      borderRadius: 10, border: `1px solid ${C.successBorder}`, background: C.successBg,
+      padding: '9px 11px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.success }}>
           {cats.length} categorias serão criadas automaticamente
         </p>
-        <span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+        <span style={{
+          flex: 'none', borderRadius: 999, padding: '3px 6px',
+          fontSize: 10, fontWeight: 700, background: '#fff', color: C.success,
+        }}>
           {totalSubs} subcategorias
         </span>
       </div>
-      <div className="mt-2.5 grid grid-cols-2 gap-1">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, marginTop: 8 }}>
         {shown.map((c) => (
-          <div key={c.nome} className="flex items-center gap-1.5 text-xs text-emerald-700">
-            <Tag size={10} className="shrink-0 text-emerald-500" />
-            <span className="truncate">{c.nome}</span>
-            {c.total > 0 && (
-              <span className="text-emerald-400">({c.total})</span>
-            )}
+          <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.success }}>
+            <Tag size={9} style={{ flex: 'none', opacity: 0.7 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome}</span>
+            {c.total > 0 && <span style={{ opacity: 0.6 }}>({c.total})</span>}
           </div>
         ))}
       </div>
@@ -172,9 +175,13 @@ function CategoryPreview({ enquadramento }: { enquadramento: string }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-2 flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-800"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4, marginTop: 7,
+            border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+            fontSize: 11, fontWeight: 600, color: C.success,
+          }}
         >
-          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {expanded ? 'Mostrar menos' : `Ver mais ${cats.length - 4} categorias`}
         </button>
       )}
@@ -430,19 +437,13 @@ function ContaDialog({
 
         <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           {conta && !conta.eh_padrao && onDelete && (
-            <Button type="button" variant="danger" onClick={handleDelete}>Arquivar</Button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Arquivar</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>

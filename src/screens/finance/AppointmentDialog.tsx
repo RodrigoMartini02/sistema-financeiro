@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Appointment, AppointmentFormValues } from '../../types/appointments';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle
+} from '../../ui/dialogFormTokens';
 import { getLocalTodayIso } from '../../utils/date';
 
 const schema = z.object({
@@ -135,14 +136,7 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
           <button
             type="submit"
             disabled={isSaving}
-            style={{
-              padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-              whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              ...(!isSaving
-                ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
-                : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
-            }}
+            style={(!isSaving) ? saveButtonStyle : saveButtonDisabledStyle}
           >
             {isSaving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Criar compromisso'}
           </button>

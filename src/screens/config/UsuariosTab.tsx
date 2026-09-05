@@ -7,7 +7,7 @@ import {
 } from '../../services/usuariosService';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ToggleGroup } from '../../ui/form';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { CFG, cfgPrimaryButtonStyle } from '../../ui/configTokens';
@@ -144,7 +144,7 @@ function UsuarioDialog({
                 />
               )}
               {isAdmin && onDelete && (
-                <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+                <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Excluir</button>
               )}
             </div>
           )}
@@ -152,13 +152,7 @@ function UsuarioDialog({
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>

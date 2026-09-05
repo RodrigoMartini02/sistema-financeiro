@@ -55,11 +55,11 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
         ].join(' ')}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-start justify-between gap-6 px-[var(--dialog-px)] pb-[18px] pt-[22px]">
-          <div className="flex flex-col gap-[3px]">
-            <p className="text-[19px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">{title}</p>
+        <div className="flex shrink-0 items-start justify-between gap-6 border-b border-[#eef2f6] px-[var(--dialog-px)] pb-[11px] pt-[12px] dark:border-slate-700">
+          <div className="flex flex-col gap-[2px]">
+            <p className="text-[13.5px] font-bold tracking-[-0.01em] text-[#0f172a] dark:text-white">{title}</p>
             {description && (
-              <p className="text-[13px] text-[#6c8593] dark:text-slate-400">{description}</p>
+              <p className="text-[11.5px] font-medium text-[#64748b] dark:text-slate-400">{description}</p>
             )}
           </div>
           <button
@@ -74,7 +74,7 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
 
         {/* Body */}
         <div className={[
-          'px-[var(--dialog-px)] pb-5',
+          'px-[var(--dialog-px)] pb-3.5 pt-3',
           scrollBody ? 'scrollbar-thin overflow-y-auto' : 'flex flex-col flex-1 min-h-0 overflow-hidden',
         ].join(' ')}>{children}</div>
       </div>

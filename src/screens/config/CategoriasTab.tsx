@@ -6,7 +6,7 @@ import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle } from '../../ui/dialogFormTokens';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgRowIndexStyle } from '../../ui/configTokens';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { EmptyState } from '../../ui/EmptyState';
@@ -117,13 +117,7 @@ function CategoriaDialog({
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>

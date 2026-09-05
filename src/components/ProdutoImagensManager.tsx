@@ -25,7 +25,7 @@ function ImagemThumb({ imagem, onRemove }: { imagem: ProdutoImagem; onRemove: ()
   }, [imagem.nomeArquivo]);
 
   return (
-    <div className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+    <div className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-[10px] border border-[#e9eef3] bg-[#f8fafc]">
       {src && <img src={src} alt="" className="h-full w-full object-cover" />}
       <button
         type="button"
@@ -104,7 +104,7 @@ export function ProdutoImagensManager({ produtoId, imagens, onChange }: ProdutoI
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="flex h-24 w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-brand-400 hover:text-brand-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-[#d8e0e8] text-[#64748b] transition hover:border-[#0891b2] hover:text-[#0e7490] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Plus size={18} />
           <span className="text-[11px] font-medium">{isUploading ? 'Enviando...' : 'Adicionar'}</span>
@@ -112,7 +112,7 @@ export function ProdutoImagensManager({ produtoId, imagens, onChange }: ProdutoI
       </div>
       {error && <p className="text-xs font-medium text-red-500">{error}</p>}
       {imagens.length === 0 && !error && (
-        <p className="text-xs text-slate-400">A primeira imagem enviada é usada como capa na vitrine.</p>
+        <p className="text-[11px] font-medium text-[#64748b]">A primeira imagem enviada é usada como capa na vitrine.</p>
       )}
     </div>
   );

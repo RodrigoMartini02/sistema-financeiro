@@ -6,9 +6,8 @@ import {
   type Socio, type SocioFormValues,
 } from '../../services/sociosService';
 import { queryKeys } from '../../services/queryKeys';
-import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { CFG } from '../../ui/configTokens';
@@ -82,19 +81,13 @@ function SocioDialog({
 
         <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px 26px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           {socio && onDelete && (
-            <Button type="button" variant="danger" onClick={handleDelete}>Excluir</Button>
+            <button type="button" style={dangerButtonStyle} onClick={handleDelete}>Excluir</button>
           )}
           <div style={{ marginLeft: 'auto' }}>
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
-                border: 'none', transition: 'all .15s ease', cursor: isSaving ? 'not-allowed' : 'pointer',
-                ...(isSaving
-                  ? { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }
-                  : { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }),
-              }}
+              style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}
             >
               {isSaving ? 'Salvando...' : 'Salvar'}
             </button>

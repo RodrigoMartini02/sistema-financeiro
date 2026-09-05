@@ -940,7 +940,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 onClick={handleAddToBatch}
                 disabled={!podeSalvar}
                 style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
                   whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
                   cursor: podeSalvar ? 'pointer' : 'not-allowed',
                   ...(podeSalvar
@@ -954,11 +954,11 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 type="submit"
                 disabled={!canSubmit || isSaving || isSavingAll}
                 style={{
-                  padding: '12px 22px', borderRadius: 11, fontSize: 14, fontWeight: 700,
+                  padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
                   whiteSpace: 'nowrap', border: 'none', transition: 'all .15s ease',
                   cursor: canSubmit && !isSaving && !isSavingAll ? 'pointer' : 'not-allowed',
                   ...(canSubmit
-                    ? { background: C.primary, color: '#fff', boxShadow: '0 6px 16px -6px rgba(8,145,178,0.75)' }
+                    ? { background: C.primary, color: '#fff' }
                     : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
                 }}
               >
