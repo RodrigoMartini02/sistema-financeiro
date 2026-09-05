@@ -125,6 +125,21 @@ export const cfgPrimaryButtonStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+/** Botão quadrado de ação secundária, alinhado à altura do campo (32px). */
+export const cfgIconButtonStyle: CSSProperties = {
+  display: 'flex',
+  flexShrink: 0,
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 32,
+  width: 32,
+  borderRadius: 10,
+  border: `1px solid ${CFG.borderInput}`,
+  background: 'transparent',
+  color: CFG.muted,
+  cursor: 'pointer',
+};
+
 /** Rótulo de campo de formulário. */
 export const cfgLabelStyle: CSSProperties = {
   display: 'flex',

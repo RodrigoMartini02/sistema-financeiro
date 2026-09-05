@@ -8,11 +8,11 @@ import {
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
 import { queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, chipStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
+import { CFG, cfgBadgeStyle, cfgIconButtonStyle } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -59,39 +59,36 @@ function ComissaoRow({
 
   if (creating) {
     return (
-      <div style={{ borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 10, display: 'grid', gap: 8 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.primaryDark, margin: 0 }}>Criar tipo de receita</p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            ref={inputRef}
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleCreate(); }
-              if (e.key === 'Escape') cancelCreate();
-            }}
-            placeholder="Ex: Mensalidade, Consultoria..."
-            style={{ flex: 1, height: 36, borderRadius: 8, border: `1.5px solid ${C.primary}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-          />
-          <button
-            type="button"
-            onClick={handleCreate}
-            disabled={saving || !newName.trim()}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, background: C.primary, padding: '0 12px', fontSize: 13, fontWeight: 600, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', opacity: saving || !newName.trim() ? 0.5 : 1 }}
-          >
-            <Check size={13} />
-            {saving ? 'Salvando...' : 'Criar'}
-          </button>
-          <button
-            type="button"
-            onClick={cancelCreate}
-            style={{ borderRadius: 8, border: `1.5px solid ${C.borderInput}`, background: '#fff', padding: '0 12px', fontSize: 13, color: C.textMuted, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Cancelar
-          </button>
-        </div>
-        <p style={{ fontSize: 12, color: C.primaryDark, margin: 0 }}>O tipo será salvo e selecionado automaticamente nesta linha.</p>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+          ref={inputRef}
+          autoFocus
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); handleCreate(); }
+            if (e.key === 'Escape') cancelCreate();
+          }}
+          placeholder="Nome do tipo de receita"
+          style={{ ...fieldInputStyle, flex: 1, borderColor: C.primary }}
+        />
+        <button
+          type="button"
+          onClick={handleCreate}
+          disabled={saving || !newName.trim()}
+          style={{ ...cfgIconButtonStyle, borderColor: C.primary, background: C.primary, color: '#fff', opacity: saving || !newName.trim() ? 0.5 : 1 }}
+          title="Criar tipo"
+        >
+          <Check size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={cancelCreate}
+          style={cfgIconButtonStyle}
+          title="Cancelar"
+        >
+          <X size={13} />
+        </button>
       </div>
     );
   }
@@ -99,12 +96,12 @@ function ComissaoRow({
   const tipoAtual = comissao.tipo ?? 'mensal';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ display: 'flex', flex: 1, gap: 6 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
         <select
           value={comissao.tipo_receita}
           onChange={(e) => onChange({ ...comissao, tipo_receita: e.target.value })}
-          style={{ ...fieldInputStyle, height: 42, fontSize: 14, flex: 1 }}
+          style={{ ...fieldInputStyle, flex: 1 }}
         >
           {tiposReceita.length === 0 && (
             <option value={comissao.tipo_receita}>{comissao.tipo_receita || '—'}</option>
@@ -115,19 +112,30 @@ function ComissaoRow({
           type="button"
           onClick={() => setCreating(true)}
           title="Criar novo tipo de receita"
-          style={{ display: 'flex', height: 42, width: 42, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: `1.5px dashed ${C.chipOffBorder}`, color: C.textMuted, background: 'transparent', cursor: 'pointer' }}
+          style={cfgIconButtonStyle}
         >
-          <Plus size={14} />
+          <Plus size={13} />
         </button>
       </div>
+
+      {/* Frequência: segmented control, mesma escala dos demais campos. */}
       <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <div onClick={() => onChange({ ...comissao, tipo: 'mensal' })} style={chipStyle(tipoAtual === 'mensal', { h: 42, r: 10, size: 12.5 })}>
-            Mensal
-          </div>
-          <div onClick={() => onChange({ ...comissao, tipo: 'unica' })} style={chipStyle(tipoAtual === 'unica', { h: 42, r: 10, size: 12.5 })}>
-            Única
-          </div>
+        <div style={{ display: 'flex', gap: 3, height: 32, padding: 3, borderRadius: 999, background: CFG.chipBg }}>
+          {([['mensal', 'Mensal'], ['unica', 'Única']] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange({ ...comissao, tipo: id })}
+              style={{
+                display: 'flex', alignItems: 'center', padding: '0 12px', borderRadius: 999,
+                border: 'none', fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+                background: tipoAtual === id ? CFG.primary : 'transparent',
+                color: tipoAtual === id ? '#fff' : CFG.muted,
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         {tipoGuide && (
           <FirstAccessGuideCard
@@ -140,7 +148,8 @@ function ComissaoRow({
           />
         )}
       </div>
-      <div style={{ position: 'relative', width: 110 }}>
+
+      <div style={{ position: 'relative' }}>
         <input
           type="number"
           min="0.01"
@@ -148,17 +157,19 @@ function ComissaoRow({
           step="0.01"
           value={comissao.percentual}
           onChange={(e) => onChange({ ...comissao, percentual: parseFloat(e.target.value) || 0 })}
-          style={{ ...fieldInputStyle, height: 42, fontSize: 14, paddingRight: 26 }}
+          style={{ ...fieldInputStyle, paddingRight: 24 }}
           placeholder="0,00"
         />
-        <Percent size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.placeholder }} />
+        <Percent size={11} style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', color: C.placeholder }} />
       </div>
+
       <button
         type="button"
         onClick={onRemove}
-        style={{ display: 'flex', height: 36, width: 36, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        title="Remover comissão"
+        style={{ ...cfgIconButtonStyle, border: 'none', color: C.placeholder }}
       >
-        <X size={14} />
+        <X size={13} />
       </button>
     </div>
   );
@@ -261,7 +272,7 @@ function RepresentanteDialog({
             )}
 
             <div style={{ display: 'grid', gap: 8 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 36px', gap: 8, padding: '0 2px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, padding: '0 2px' }}>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Tipo de receita</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Frequência</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Percentual</span>
