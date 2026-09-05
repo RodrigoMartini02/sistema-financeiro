@@ -117,13 +117,20 @@ export function digitsOnly(value: string): number {
   return digits ? parseInt(digits, 10) : 0;
 }
 
-// O campo de valor é o dado principal dos modais de lançamento, então continua
-// maior que os demais (44 vs 32) mesmo na escala compacta.
+// Moldura na mesma altura dos demais campos (32px), para não desalinhar a linha.
+// A hierarquia do valor — que é o dado principal do lançamento — vem da fonte
+// maior que a dos outros campos (15 vs 13), não de uma altura diferente.
+const moneyInputStyle: CSSProperties = {
+  flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
+  fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: '-0.01em',
+  fontVariantNumeric: 'tabular-nums', outline: 'none',
+};
+
 export function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
   const cents = value ? Math.round(value * 100) : 0;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, borderRadius: 11, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 12px' }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px' }}>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -131,11 +138,7 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
         value={cents > 0 ? formatCents(cents) : ''}
         onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
         placeholder="0,00"
-        style={{
-          flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
-          fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
-          fontVariantNumeric: 'tabular-nums', outline: 'none',
-        }}
+        style={moneyInputStyle}
       />
     </div>
   );
@@ -145,11 +148,11 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
   const cents = value ? Math.round(value * 100) : 0;
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, height: 44, borderRadius: 11,
-      border: `1px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 12px',
+      display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10,
+      border: `1px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 9px',
       opacity: disabled ? 0.6 : 1,
     }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: C.textFaint }}>R$</span>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
         inputMode="numeric"
@@ -158,12 +161,7 @@ export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { valu
         value={cents > 0 ? formatCents(cents) : ''}
         onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
         placeholder="0,00"
-        style={{
-          flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
-          fontSize: 20, fontWeight: 700, color: C.text, letterSpacing: '-0.02em',
-          fontVariantNumeric: 'tabular-nums', outline: 'none',
-          cursor: disabled ? 'not-allowed' : 'text',
-        }}
+        style={{ ...moneyInputStyle, cursor: disabled ? 'not-allowed' : 'text' }}
       />
     </div>
   );
