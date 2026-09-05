@@ -25,7 +25,7 @@ import {
   chipGroupLabelStyle,
 } from '../../ui/dialogFormTokens';
 import { CFG } from '../../ui/configTokens';
-import { EmptyState } from '../../ui/states';
+import { EmptyState } from '../../ui/EmptyState';
 import { formatCurrency } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';

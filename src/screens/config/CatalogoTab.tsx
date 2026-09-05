@@ -11,7 +11,7 @@ import { C, labelStyle, fieldInputStyle, dialogFooterStyle, MoneyField, saveButt
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
+import { CFG, cfgBadgeStyle, cfgDividerStyle } from '../../ui/configTokens';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { EmptyState } from '../../ui/EmptyState';
 import { formatCurrency } from '../finance/formatters';
@@ -91,7 +91,7 @@ function ProdutoDialog({
             />
           </div>
 
-          <div style={{ height: 1, background: '#eef2f6' }} />
+          <div style={cfgDividerStyle} />
 
           <div>
             <label style={labelStyle}>Imagens</label>

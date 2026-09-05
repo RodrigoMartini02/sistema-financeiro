@@ -1,4 +1,4 @@
-import { AlertCircle, Inbox, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface StateProps { title: string; description?: string; }
 
@@ -22,12 +22,5 @@ export function ErrorState({ title, description }: StateProps) {
   );
 }
 
-export function EmptyState({ title, description }: StateProps) {
-  return (
-    <div className="flex flex-col items-center gap-2 py-10 text-center text-slate-400">
-      <Inbox size={32} />
-      <p className="text-sm font-semibold text-slate-600">{title}</p>
-      {description && <p className="text-xs">{description}</p>}
-    </div>
-  );
-}
+// EmptyState vive em ui/EmptyState.tsx — havia duas implementacoes com o mesmo
+// nome, e o mesmo vazio renderizava diferente conforme a tela.

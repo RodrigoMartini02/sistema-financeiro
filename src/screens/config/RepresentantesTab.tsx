@@ -12,7 +12,7 @@ import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyl
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { CFG, cfgBadgeStyle, cfgIconButtonStyle } from '../../ui/configTokens';
+import { CFG, cfgBadgeStyle, cfgDividerStyle, cfgIconButtonStyle } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -260,7 +260,7 @@ function RepresentanteDialog({
             </div>
           </div>
 
-          <div style={{ height: 1, background: '#eef2f6' }} />
+          <div style={cfgDividerStyle} />
 
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={labelStyle}>Comissões por tipo de receita</label>

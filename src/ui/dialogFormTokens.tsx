@@ -228,4 +228,3 @@ export const chipGroupLabelStyle: CSSProperties = {
   fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.textFaint,
 };
 
-export const chipRowStyle: CSSProperties = { display: 'flex', gap: 6, flexWrap: 'wrap' };

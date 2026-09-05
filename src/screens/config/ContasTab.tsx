@@ -6,7 +6,7 @@ import { queryKeys } from '../../services/queryKeys';
 import type { Conta } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
-import { CFG, CFG_MONO_CLASS, cfgBadgeStyle } from '../../ui/configTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle } from '../../ui/configTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
@@ -299,7 +299,7 @@ function ContaDialog({
                 onConfirm={(dataUrl) => { onSaveFoto(dataUrl); setAvatarDialogOpen(false); }}
                 isSaving={false}
               />
-              <div style={{ height: 1, background: '#eef2f6' }} />
+              <div style={cfgDividerStyle} />
             </>
           )}
 
