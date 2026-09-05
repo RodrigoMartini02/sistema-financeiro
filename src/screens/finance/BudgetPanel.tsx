@@ -300,7 +300,13 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   // projetado vem do backend e é preservada dentro de cada nível.
   const tree = useMemo<BudgetTreeNode[]>(() => {
     if (!overview) return [];
-    const roots = overview.items.filter((item) => item.parentId === null);
+    const visibleIds = new Set(overview.items.map((item) => item.categoryId));
+    // Uma subcategoria ativa cujo pai foi desativado não tem onde ser
+    // pendurada; sem este tratamento ela sumiria da tela, embora suas despesas
+    // continuem somando no total do período.
+    const roots = overview.items.filter(
+      (item) => item.parentId === null || !visibleIds.has(item.parentId),
+    );
     return roots.map((root) => ({
       root,
       children: overview.items.filter((item) => item.parentId === root.categoryId),
@@ -400,8 +406,15 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
                   expanded={expanded}
                   onToggleExpand={() => toggleExpand(node.root.categoryId)}
                   subCount={node.children.length}
-                  onEditTarget={() => setEditingCategoryId(node.root.categoryId)}
-                  onRemoveTarget={() => removeMutation.mutate(node.root.categoryId)}
+                  // Órfã (pai desativado) aparece como raiz para não sumir da
+                  // tela, mas segue sendo subcategoria para o backend, que só
+                  // aceita meta na raiz — então não oferece a ação.
+                  onEditTarget={node.root.parentId === null
+                    ? () => setEditingCategoryId(node.root.categoryId)
+                    : undefined}
+                  onRemoveTarget={node.root.parentId === null
+                    ? () => removeMutation.mutate(node.root.categoryId)
+                    : undefined}
                   isRemoving={removeMutation.isPending}
                 />
                 {expanded && node.children.map((child, j) => (

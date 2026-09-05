@@ -89,6 +89,9 @@ export function FinanceDashboard() {
   };
   const mediaMensalReceitas = mediaMensal((p) => p.receitas);
   const mediaMensalDespesas = mediaMensal((p) => p.despesas);
+  // Acima de 24 meses o backend agrega a série por ano, então a média é por ano
+  // — mesmo tratamento que os textos do gráfico anual já fazem.
+  const unidadeDaMedia = data?.granularidade === 'ano' ? 'ano' : 'mês';
 
   // Annual chart data — usa a série já agregada (mês ou ano) devolvida pelo backend
   const chartData = useMemo(() => (data?.serie ?? []).map((p) => ({
@@ -236,7 +239,7 @@ export function FinanceDashboard() {
           <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">{formatCurrency(receitas)}</p>
           <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
             {mediaMensalReceitas !== null
-              ? <>Média de {formatCurrency(mediaMensalReceitas)} por mês.</>
+              ? <>Média de {formatCurrency(mediaMensalReceitas)} por {unidadeDaMedia}.</>
               : 'Tudo que entrou no período.'}
           </p>
         </Card>
@@ -246,7 +249,7 @@ export function FinanceDashboard() {
           <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#b42318] dark:text-rose-300">{formatCurrency(despesas)}</p>
           <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
             {mediaMensalDespesas !== null
-              ? <>Média de {formatCurrency(mediaMensalDespesas)} por mês.</>
+              ? <>Média de {formatCurrency(mediaMensalDespesas)} por {unidadeDaMedia}.</>
               : 'Tudo que saiu no período.'}
           </p>
         </Card>
