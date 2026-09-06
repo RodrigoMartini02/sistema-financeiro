@@ -10,3 +10,7 @@ dist/
 nul
 tmpclaude-*
 *.tmp
+
+# Backups de dados gerados durante manutencao no banco.
+# Contem lancamentos financeiros e dados pessoais reais — nunca versionar.
+.plans/*.json

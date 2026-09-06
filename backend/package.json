@@ -6,8 +6,8 @@
   "main": "src/server.ts",
   "scripts": {
     "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts",
-    "dev:local": "set DOTENV_CONFIG_PATH=../../.env&& tsx watch src/server.ts",
+    "dev": "set DOTENV_CONFIG_PATH=../../.env.dev&& tsx watch src/server.ts",
+    "dev:prod-db": "tsx watch src/server.ts",
     "build": "tsc --noEmit",
     "test": "tsx --test src/services/*.test.ts"
   },
