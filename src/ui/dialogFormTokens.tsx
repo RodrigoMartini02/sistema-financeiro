@@ -129,7 +129,7 @@ const moneyInputStyle: CSSProperties = {
 export function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
   const cents = value ? Math.round(value * 100) : 0;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px' }}>
+    <div className="money-field" style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px', transition: 'border-color .13s ease, box-shadow .13s ease' }}>
       <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
         type="text"
@@ -147,10 +147,10 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
 export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean; disabled?: boolean }) {
   const cents = value ? Math.round(value * 100) : 0;
   return (
-    <div style={{
+    <div className="money-field" style={{
       display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10,
       border: `1px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 9px',
-      opacity: disabled ? 0.6 : 1,
+      opacity: disabled ? 0.6 : 1, transition: 'border-color .13s ease, box-shadow .13s ease',
     }}>
       <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
       <input
