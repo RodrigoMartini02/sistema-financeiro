@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, ArrowUpFromLine, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
 
 import { Dialog } from '../../ui/dialog';
 import {
@@ -50,6 +50,25 @@ const cancelButtonStyle: CSSProperties = {
   height: 30, padding: '0 12px', borderRadius: 999, border: 'none',
   background: 'transparent', color: C.textMuted, fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
 };
+
+/**
+ * O backend responde em inglês; aqui vira texto que o usuário entende, com a
+ * saída quando existe uma (reabrir o mês). Mensagem desconhecida passa direto,
+ * em vez de virar um genérico que esconde a causa.
+ */
+function traduzirErro(mensagem: string): string {
+  if (mensagem.includes('closed month')) {
+    return 'Este mês está fechado. Reabra o mês em Movimentações para registrar a movimentação.';
+  }
+  const disponivel = /Available: R\$ ([\d.]+)/.exec(mensagem)?.[1];
+  if (mensagem.includes('Insufficient reserve balance')) {
+    return `Esta reserva tem apenas ${formatCurrency(Number(disponivel ?? 0))} disponível.`;
+  }
+  if (mensagem.includes('Insufficient balance')) {
+    return `Saldo disponível insuficiente: ${formatCurrency(Number(disponivel ?? 0))}.`;
+  }
+  return mensagem;
+}
 
 function formatDataHora(iso: string): string {
   const data = new Date(iso);
@@ -143,8 +162,9 @@ function ReservaLinha({
             title="Adicionar o valor digitado"
             aria-label={`Adicionar valor em ${reserva.observacoes || 'reserva'}`}
             style={{
-              ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff',
-              color: podeDepositar ? '#067647' : '#c7d3db',
+              ...iconButtonBase, border: 'none',
+              background: podeDepositar ? C.success : '#eef2f6',
+              color: podeDepositar ? '#fff' : '#c7d3db',
               cursor: podeDepositar ? 'pointer' : 'not-allowed',
             }}
           >
@@ -157,8 +177,9 @@ function ReservaLinha({
             title={valor > saldo ? `Esta reserva tem ${formatCurrency(saldo)}` : 'Retirar o valor digitado'}
             aria-label={`Retirar valor de ${reserva.observacoes || 'reserva'}`}
             style={{
-              ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff',
-              color: podeRetirar ? C.danger : '#c7d3db',
+              ...iconButtonBase, border: 'none',
+              background: podeRetirar ? C.danger : '#eef2f6',
+              color: podeRetirar ? '#fff' : '#c7d3db',
               cursor: podeRetirar ? 'pointer' : 'not-allowed',
             }}
           >
@@ -195,6 +216,8 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   const confirm = useConfirm();
   // null = fechado; { id: undefined } = criando; { id: n } = editando aquela reserva.
   const [formAberto, setFormAberto] = useState<{ id?: number } | null>(null);
+  // Erro de movimentar ou excluir. Sem isso a acao falhava em silencio.
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [icone, setIcone] = useState('💰');
   const [cor, setCor] = useState(CORES[0]!);
@@ -225,6 +248,7 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   useEffect(() => {
     if (open) return;
     fecharForm();
+    setErroAcao(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidar = () => {
@@ -255,7 +279,9 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
 
   const excluirMut = useMutation({
     mutationFn: deleteReserva,
+    onMutate: () => setErroAcao(null),
     onSuccess: invalidar,
+    onError: (erro) => setErroAcao(traduzirErro(erro instanceof Error ? erro.message : String(erro))),
   });
 
   const abrirCriacao = () => {
@@ -292,7 +318,12 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
     mutationFn: ({ id, tipo, valor, data }: {
       id: number; tipo: 'deposito' | 'retirada'; valor: number; data: string;
     }) => movimentar(id, { tipo, valor, data }),
-    onSuccess: invalidar,
+    onMutate: () => setErroAcao(null),
+    onSuccess: () => {
+      setErroAcao(null);
+      invalidar();
+    },
+    onError: (erro) => setErroAcao(traduzirErro(erro instanceof Error ? erro.message : String(erro))),
   });
 
   const totalReservado = reservas.reduce((soma, reserva) => soma + Number(reserva.valor), 0);
@@ -318,6 +349,21 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
               {reservas.length} reserva{reservas.length === 1 ? '' : 's'} · separado do saldo disponível
             </p>
           </div>
+
+          {erroAcao && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 7,
+                borderRadius: 10, border: `1px solid ${C.dangerBorder}`,
+                background: C.dangerBg, padding: '8px 10px',
+                fontSize: 11.5, fontWeight: 500, color: C.danger,
+              }}
+            >
+              <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{erroAcao}</span>
+            </div>
+          )}
 
           <div style={{ height: 1, background: '#eef2f6' }} />
 
