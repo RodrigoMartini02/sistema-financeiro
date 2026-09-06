@@ -29,8 +29,18 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
         // Uniao: categorias PADRAO do tipo da conta ativa (globais, tipo
         // preenchido) OU categorias CUSTOM exclusivas deste conta_id
         // especifico (conta_id preenchido).
+        //
+        // O terceiro caso resgata categorias ORFAS — tipo e conta_id nulos,
+        // criadas antes deste modelo existir. Sem ele elas nao satisfazem
+        // nenhuma das duas condicoes acima e somem da lista, embora sigam no
+        // banco e ainda referenciadas por lancamentos antigos. Despesas e
+        // receitas ja tratam seus orfaos assim (ver utils/accountFilter.ts):
+        // registro sem conta pertence a conta pessoal do dono.
         params.push(accountType, parseInt(conta_id));
-        whereClause += ` AND (c.tipo = $${params.length - 1} OR c.conta_id = $${params.length})`;
+        const orfaClause = accountType === 'pessoal'
+          ? ' OR (c.tipo IS NULL AND c.conta_id IS NULL)'
+          : '';
+        whereClause += ` AND (c.tipo = $${params.length - 1} OR c.conta_id = $${params.length}${orfaClause})`;
       }
     }
 
