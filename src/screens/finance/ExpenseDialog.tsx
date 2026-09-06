@@ -75,6 +75,9 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
   const [batch, setBatch] = useState<ExpenseFormValues[]>([]);
   const [loteExpandido, setLoteExpandido] = useState(false);
+  // Indice do item do lote aberto no formulario. Enquanto aberto, o item sai
+  // do batch e ocupa o form — por isso nao pode ser salvo em duplicidade.
+  const [itemAberto, setItemAberto] = useState<number | null>(null);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -259,6 +262,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     if (!open) {
       setBatch([]);
       setLoteExpandido(false);
+      setItemAberto(null);
       setAnexos([]);
       setShowCatForm(null);
       setCategoriaSugestao(null);
@@ -421,6 +425,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       await onSave(items);
       setBatch([]);
       setLoteExpandido(false);
+      setItemAberto(null);
       setAnexos([]);
       setDuplicataInfo(null);
       setSavedMessage(items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada');
@@ -431,10 +436,76 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     }
   };
 
-  // Nada no lote foi salvo ainda: a gravacao so acontece no submit. Por isso
-  // os itens continuam editaveis na propria linha, sem voltar ao formulario.
-  const editarNoLote = (indice: number, campo: 'descricao' | 'valor_original', valor: string | number) => {
-    setBatch((prev) => prev.map((item, i) => (i === indice ? { ...item, [campo]: valor } : item)));
+  // Carrega um item do lote no formulário. Inverso de toFormValues: o batch
+  // guarda ExpenseFormValues, o form trabalha com FormData.
+  const carregarNoForm = (item: ExpenseFormValues) => {
+    setAnexos(item.anexos ?? []);
+    setMethodTouched(true); // não sobrescrever a forma de pagamento já escolhida
+    setValorInputMode('parcela');
+    setNfAberta(!!item.numero_nf || !!item.data_emissao_nf);
+    form.reset({
+      descricao:       item.descricao,
+      valor_original:  item.valor_original,
+      valor_pago:      item.valor_pago ?? undefined,
+      precoAVista:     undefined,
+      dataCompra:      item.dataCompra,
+      dataVencimentoManual: item.dataVencimento,
+      categoria_id:    item.categoria_id,
+      cartao_id:       item.cartao_id,
+      formaPagamento:  item.formaPagamento,
+      pago:            item.pago,
+      repeticao:       item.parcelado ? 'parcelas' : item.recorrente ? 'mensal' : 'nao',
+      totalParcelas:   item.total_parcelas ?? 2,
+      parcelasJaPagas: item.parcelasJaPagas ?? 0,
+      diaRecorrencia:  todayNumericDay(),
+      numero_nf:       item.numero_nf ?? undefined,
+      data_emissao_nf: item.data_emissao_nf ?? undefined,
+    });
+  };
+
+  /**
+   * Abre um item do lote no formulário. O item sai do batch enquanto está
+   * aberto — assim ele nunca é salvo em duplicidade, porque o submit envia
+   * [...batch, despesa do formulário].
+   *
+   * O que estiver em preenchimento vai para o lote antes, se for válido.
+   * Incompleto não passa na validação e não teria como virar item de lote.
+   */
+  const abrirItemDoLote = (indice: number) => {
+    const data = form.getValues();
+    const emPreenchimento = data.descricao.trim() && data.valor_original
+      ? toFormValues(data, anexos)
+      : null;
+
+    setBatch((prev) => {
+      const alvo = prev[indice];
+      if (!alvo) return prev;
+      const restante = prev.filter((_, i) => i !== indice);
+      const novo = emPreenchimento ? [...restante, emPreenchimento] : restante;
+      // O índice de retorno considera a lista já sem o item aberto.
+      setItemAberto(Math.min(indice, novo.length));
+      carregarNoForm(alvo);
+      return novo;
+    });
+  };
+
+  /** Devolve o item aberto ao lote, na posição de onde saiu. */
+  const fecharItemDoLote = () => {
+    const data = form.getValues();
+    const indice = itemAberto;
+    if (indice === null) return;
+    // Sem descrição ou valor não há item válido para devolver — mas o dado
+    // original já saiu do batch, então descartar apagaria a despesa. O
+    // fechamento fica bloqueado até o campo obrigatório voltar.
+    if (!data.descricao.trim() || !data.valor_original) {
+      form.trigger(['descricao', 'valor_original']);
+      return;
+    }
+    const atualizado = toFormValues(data, anexos);
+    setBatch((prev) => [...prev.slice(0, indice), atualizado, ...prev.slice(indice)]);
+    setItemAberto(null);
+    setAnexos([]);
+    resetForm(data);
   };
 
   const handleAddToBatch = () => {
@@ -513,6 +584,9 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     }
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
+      // Com um item do lote aberto, adicionar criaria uma copia: o original
+      // esta fora do batch enquanto ocupa o formulario.
+      if (itemAberto !== null) { fecharItemDoLote(); return; }
       handleAddToBatch();
     }
   };
@@ -927,12 +1001,21 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
           </div>
 
           {/* ── Faixa de resumo: status, vencimento e total num lugar só ──
-              Antes esses três dados apareciam espalhados em blocos diferentes. */}
+              Antes esses três dados apareciam espalhados em blocos diferentes.
+              Descreve a despesa em preenchimento, nao o lote — por isso o
+              rótulo e a ocultacao quando o formulario esta vazio: com lote e
+              form vazio a faixa aparecia pela metade, sem o total. */}
+          {podeSalvar && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
             background: C.panelBg, border: `1px solid ${C.panelBorder}`, borderRadius: 12, padding: '9px 12px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+              {hasBatch && (
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textFaint, textTransform: 'uppercase' }}>
+                  Esta despesa
+                </span>
+              )}
               <span style={{
                 fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                 color: statusDerivado.color, background: statusDerivado.bg, border: `1px solid ${statusDerivado.border}`,
@@ -947,6 +1030,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               </span>
             )}
           </div>
+          )}
 
           {/* Nota fiscal recolhida: só conta empresa, e só quando pedida. */}
           {isEmpresa && (
@@ -995,21 +1079,23 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 {loteVisivel.map(({ item, indice }) => (
                   <div
                     key={indice}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Editar ${item.descricao || 'despesa'} do lote`}
+                    onClick={() => abrirItemDoLote(indice)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirItemDoLote(indice); }
+                    }}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
+                      display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
                       borderRadius: 10, border: `1px solid ${C.border}`, background: '#fff', padding: '7px 9px',
+                      transition: 'border-color .13s ease',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <input
-                        value={item.descricao}
-                        onChange={(e) => editarNoLote(indice, 'descricao', e.target.value)}
-                        aria-label={`Descrição da despesa ${indice + 1} do lote`}
-                        style={{
-                          width: '100%', minWidth: 0, border: 'none', background: 'transparent', padding: 0,
-                          fontSize: 13, fontWeight: 600, color: C.text, outline: 'none',
-                        }}
-                      />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.descricao || 'Sem descrição'}
+                      </span>
                       <span style={{ fontSize: 11, color: C.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {[cats.find((c) => c.id === item.categoria_id)?.nome, item.formaPagamento]
                           .filter(Boolean)
@@ -1017,16 +1103,17 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                       </span>
                     </div>
 
-                    <div style={{ flex: 'none', width: 116 }}>
-                      <MoneyFieldSmall
-                        value={item.valor_original || undefined}
-                        onChange={(v) => editarNoLote(indice, 'valor_original', v)}
-                      />
-                    </div>
+                    <span style={{ flex: 'none', fontSize: 13, fontWeight: 600, color: C.text, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(item.valor_original ?? 0)}
+                    </span>
+
+                    <span style={{ flex: 'none', fontSize: 11, fontWeight: 600, color: C.primaryDark }}>
+                      editar
+                    </span>
 
                     <button
                       type="button"
-                      onClick={() => setBatch((prev) => prev.filter((_, j) => j !== indice))}
+                      onClick={(e) => { e.stopPropagation(); setBatch((prev) => prev.filter((_, j) => j !== indice)); }}
                       title="Remover do lote"
                       aria-label={`Remover ${item.descricao || 'despesa'} do lote`}
                       style={{
@@ -1077,7 +1164,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 type="button"
-                onClick={handleAddToBatch}
+                onClick={itemAberto !== null ? fecharItemDoLote : handleAddToBatch}
                 disabled={!podeSalvar}
                 style={{
                   padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
@@ -1088,7 +1175,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                     : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
                 }}
               >
-                + Adicionar ao lote
+                {itemAberto !== null ? 'Concluir edição' : '+ Adicionar ao lote'}
               </button>
               <button
                 type="submit"
@@ -1107,7 +1194,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   : isEditing
                     ? 'Salvar alterações'
                     : hasBatch
-                      ? `Salvar ${batch.length + (podeSalvar ? 1 : 0)} despesas`
+                      ? (() => {
+                          // Conta o lote mais a despesa em preenchimento, se
+                          // valida. Antes o plural era fixo e mostrava
+                          // "Salvar 1 despesas".
+                          const n = batch.length + (podeSalvar ? 1 : 0);
+                          return `Salvar ${n} despesa${n !== 1 ? 's' : ''}`;
+                        })()
                       : 'Registrar despesa'}
               </button>
             </div>
