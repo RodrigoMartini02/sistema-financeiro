@@ -256,7 +256,7 @@ function ContaDialog({
   };
 
   return (
-    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="sm" scrollBody={false}>
+    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: PF e PJ têm campos diferentes (e a criação PJ ainda
             mostra o preview de categorias), mas o modal não deve mudar de
