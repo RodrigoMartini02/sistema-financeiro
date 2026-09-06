@@ -50,7 +50,7 @@ function NovoMembroDialog({
   };
 
   return (
-    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="lg" scrollBody={false}>
+    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
         <div style={{ flex: 1, minHeight: 0, height: 190, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -138,7 +138,7 @@ function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean;
   return (
     // Sem rodapé: as permissões salvam a cada toggle, então não há ação de
     // confirmar — fecha pelo X ou pelo overlay.
-    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="sm" scrollBody={false}>
+    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="md" scrollBody={false}>
       <div style={{ flex: 1, minHeight: 0, maxHeight: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
           Por padrão, este membro não acessa nenhuma tela. Libere abaixo o que ele pode usar.
