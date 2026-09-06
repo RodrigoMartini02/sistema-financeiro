@@ -217,8 +217,16 @@ router.get('/categories', authenticate, async (req: Request, res: Response): Pro
       if (accountResult.rows.length > 0) {
         // Uniao: categorias PADRAO do tipo da conta ativa OU categorias
         // CUSTOM exclusivas deste conta_id especifico.
-        params.push((accountResult.rows[0] as { tipo: string }).tipo, parseInt(conta_id));
-        whereClause += ` AND (tipo = $${params.length - 1} OR conta_id = $${params.length})`;
+        //
+        // O terceiro caso resgata categorias ORFAS (tipo e conta_id nulos,
+        // anteriores a este modelo). Mesmo criterio de GET /categorias — os
+        // dois filtros precisam concordar.
+        const accountType = (accountResult.rows[0] as { tipo: string }).tipo;
+        params.push(accountType, parseInt(conta_id));
+        const orfaClause = accountType === 'pessoal'
+          ? ' OR (tipo IS NULL AND conta_id IS NULL)'
+          : '';
+        whereClause += ` AND (tipo = $${params.length - 1} OR conta_id = $${params.length}${orfaClause})`;
       }
     }
 
