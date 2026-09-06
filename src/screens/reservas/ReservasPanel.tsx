@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowDownToLine, ArrowUpFromLine, Check, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Pencil, PiggyBank, Plus, Trash2 } from 'lucide-react';
 
 import { Dialog } from '../../ui/dialog';
 import {
-  C, labelStyle, fieldInputStyle, dialogFooterStyle,
+  C, labelStyle, fieldInputStyle,
   saveButtonStyle, saveButtonDisabledStyle, MoneyField,
 } from '../../ui/dialogFormTokens';
 import { fetchReservas, saveReserva, deleteReserva, movimentar } from '../../services/reservasService';
@@ -22,9 +22,19 @@ interface ReservasPanelProps {
   onClose: () => void;
 }
 
-type MovimentoAberto = { reservaId: number; tipo: 'deposito' | 'retirada' } | null;
-
 const EMOJIS = ['💰', '🏠', '🚗', '✈️', '📚', '🛡️', '🎓', '💊', '🎮', '💻', '💶', '🐾'];
+
+const EMOJI_PADRAO = '💰';
+
+/**
+ * Protege contra ícone corrompido vindo do banco (mojibake de UTF-8 lido como
+ * Latin-1, que aparece como "ō¥°"). Emoji de verdade cai em Symbol/Other na
+ * tabela Unicode; qualquer outra coisa vira o padrão.
+ */
+function emojiSeguro(valor: string | null | undefined): string {
+  if (!valor) return EMOJI_PADRAO;
+  return /\p{Extended_Pictographic}/u.test(valor) ? valor : EMOJI_PADRAO;
+}
 
 const CORES = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
 
@@ -50,113 +60,21 @@ function formatDataHora(iso: string): string {
   return hora === '00:00' ? dia : `${dia} · ${hora}`;
 }
 
-// ─── Formulário de movimentação, inline na linha da reserva ───────────────────
-
-function MovimentoInline({
-  reserva, tipo, isSaving, error, defaultDate, onCancel, onConfirm,
-}: {
-  reserva: Reserva;
-  tipo: 'deposito' | 'retirada';
-  isSaving: boolean;
-  error?: string;
-  defaultDate: string;
-  onCancel: () => void;
-  onConfirm: (valor: number, data: string, descricao?: string) => void;
-}) {
-  const [valor, setValor] = useState(0);
-  const [data, setData] = useState(defaultDate);
-  const [descricao, setDescricao] = useState('');
-
-  const saldo = Number(reserva.valor);
-  const excedeSaldo = tipo === 'retirada' && valor > saldo;
-  const podeConfirmar = valor > 0 && !!data && !excedeSaldo && !isSaving;
-
-  const submit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!podeConfirmar) return;
-    onConfirm(valor, data, descricao.trim() || undefined);
-  };
-
-  return (
-    <form
-      onSubmit={submit}
-      style={{
-        display: 'flex', flexDirection: 'column', gap: 8,
-        borderRadius: 10, padding: 10,
-        border: `1px solid ${tipo === 'deposito' ? '#bbf0cf' : C.dangerBorder}`,
-        background: tipo === 'deposito' ? '#f0fdf6' : '#fef3f2',
-      }}
-    >
-      <div style={{ display: 'grid', gridTemplateColumns: '150px 130px minmax(0,1fr)', gap: 8 }}>
-        <div>
-          <label style={labelStyle}>{tipo === 'deposito' ? 'Adicionar' : 'Retirar'}</label>
-          <MoneyField value={valor || undefined} onChange={setValor} autoFocus />
-        </div>
-        <div>
-          <label style={labelStyle}>Data</label>
-          <input type="date" value={data} onChange={(e) => setData(e.target.value)} style={fieldInputStyle} />
-        </div>
-        <div>
-          <label style={labelStyle}>Descrição</label>
-          <input
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder="Ex: Aporte mensal"
-            style={fieldInputStyle}
-          />
-        </div>
-      </div>
-
-      {(excedeSaldo || error) && (
-        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, color: C.danger }}>
-          {excedeSaldo ? `Esta reserva tem ${formatCurrency(saldo)} disponível.` : error}
-        </p>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-        <button
-          type="button"
-          onClick={onCancel}
-          style={cancelButtonStyle}
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={!podeConfirmar}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            height: 30, padding: '0 14px', borderRadius: 999, border: 'none',
-            fontSize: 12.5, fontWeight: 600, cursor: podeConfirmar ? 'pointer' : 'not-allowed',
-            background: podeConfirmar ? (tipo === 'deposito' ? C.primary : C.danger) : '#e6edf1',
-            color: podeConfirmar ? '#fff' : '#a3b6c0',
-          }}
-        >
-          <Check size={12} strokeWidth={2.6} />
-          {isSaving ? 'Confirmando...' : tipo === 'deposito' ? 'Adicionar' : 'Retirar'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
 // ─── Linha de uma reserva ─────────────────────────────────────────────────────
 
 function ReservaLinha({
-  reserva, movimentoAberto, isSaving, error, defaultDate,
-  onAbrirMovimento, onFecharMovimento, onConfirmar, onEditar, onExcluir,
+  reserva, isSaving, onMovimentar, onEditar, onExcluir,
 }: {
   reserva: Reserva;
-  movimentoAberto: MovimentoAberto;
   isSaving: boolean;
-  error?: string;
-  defaultDate: string;
-  onAbrirMovimento: (tipo: 'deposito' | 'retirada') => void;
-  onFecharMovimento: () => void;
-  onConfirmar: (valor: number, data: string, descricao?: string) => void;
+  onMovimentar: (tipo: 'deposito' | 'retirada', valor: number) => void;
   onEditar: () => void;
   onExcluir: () => void;
 }) {
+  // O valor a movimentar vive na própria linha: digita e clica na seta. Antes
+  // isso abria um formulário com valor, data e descrição.
+  const [valor, setValor] = useState(0);
+
   const cor = reserva.cor ?? '#6366f1';
   const saldo = Number(reserva.valor);
   const meta = Number(reserva.objetivo_valor ?? 0);
@@ -166,7 +84,13 @@ function ReservaLinha({
     ? calcContribuicaoMensal(saldo, meta, reserva.data_objetivo)
     : null;
 
-  const aberto = movimentoAberto?.reservaId === reserva.id;
+  const podeDepositar = valor > 0 && !isSaving;
+  const podeRetirar = valor > 0 && valor <= saldo && !isSaving;
+
+  const aplicar = (tipo: 'deposito' | 'retirada') => {
+    onMovimentar(tipo, valor);
+    setValor(0);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -183,7 +107,7 @@ function ReservaLinha({
             borderRadius: 9, background: `${cor}18`, fontSize: 15,
           }}
         >
-          {reserva.icone ?? '💰'}
+          {emojiSeguro(reserva.icone)}
         </span>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -207,23 +131,35 @@ function ReservaLinha({
           {formatCurrency(saldo)}
         </span>
 
+        <div style={{ flex: 'none', width: 110 }}>
+          <MoneyField value={valor || undefined} onChange={setValor} />
+        </div>
+
         <div style={{ display: 'flex', flex: 'none', gap: 4 }}>
           <button
             type="button"
-            onClick={() => onAbrirMovimento('deposito')}
-            title="Adicionar valor"
-            style={{ ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff', color: '#067647', cursor: 'pointer' }}
+            onClick={() => aplicar('deposito')}
+            disabled={!podeDepositar}
+            title="Adicionar o valor digitado"
+            aria-label={`Adicionar valor em ${reserva.observacoes || 'reserva'}`}
+            style={{
+              ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff',
+              color: podeDepositar ? '#067647' : '#c7d3db',
+              cursor: podeDepositar ? 'pointer' : 'not-allowed',
+            }}
           >
             <ArrowDownToLine size={13} />
           </button>
           <button
             type="button"
-            onClick={() => onAbrirMovimento('retirada')}
-            title="Retirar valor"
-            disabled={saldo <= 0}
+            onClick={() => aplicar('retirada')}
+            disabled={!podeRetirar}
+            title={valor > saldo ? `Esta reserva tem ${formatCurrency(saldo)}` : 'Retirar o valor digitado'}
+            aria-label={`Retirar valor de ${reserva.observacoes || 'reserva'}`}
             style={{
               ...iconButtonBase, border: '1px solid #d8e0e8', background: '#fff',
-              color: saldo > 0 ? C.danger : '#c7d3db', cursor: saldo > 0 ? 'pointer' : 'not-allowed',
+              color: podeRetirar ? C.danger : '#c7d3db',
+              cursor: podeRetirar ? 'pointer' : 'not-allowed',
             }}
           >
             <ArrowUpFromLine size={13} />
@@ -248,18 +184,6 @@ function ReservaLinha({
           </button>
         </div>
       </div>
-
-      {aberto && (
-        <MovimentoInline
-          reserva={reserva}
-          tipo={movimentoAberto.tipo}
-          isSaving={isSaving}
-          error={error}
-          defaultDate={defaultDate}
-          onCancel={onFecharMovimento}
-          onConfirm={onConfirmar}
-        />
-      )}
     </div>
   );
 }
@@ -276,7 +200,6 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   const [cor, setCor] = useState(CORES[0]!);
   const [meta, setMeta] = useState(0);
   const [metaData, setMetaData] = useState('');
-  const [movimentoAberto, setMovimentoAberto] = useState<MovimentoAberto>(null);
 
   const reservasQuery = useQuery({
     queryKey: queryKeys.reservas,
@@ -302,7 +225,6 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   useEffect(() => {
     if (open) return;
     fecharForm();
-    setMovimentoAberto(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidar = () => {
@@ -367,13 +289,10 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   };
 
   const movimentarMut = useMutation({
-    mutationFn: ({ id, tipo, valor, data, descricao }: {
-      id: number; tipo: 'deposito' | 'retirada'; valor: number; data: string; descricao?: string;
-    }) => movimentar(id, { tipo, valor, data, descricao }),
-    onSuccess: () => {
-      invalidar();
-      setMovimentoAberto(null);
-    },
+    mutationFn: ({ id, tipo, valor, data }: {
+      id: number; tipo: 'deposito' | 'retirada'; valor: number; data: string;
+    }) => movimentar(id, { tipo, valor, data }),
+    onSuccess: invalidar,
   });
 
   const totalReservado = reservas.reduce((soma, reserva) => soma + Number(reserva.valor), 0);
@@ -381,7 +300,9 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
   return (
     <Dialog open={open} title="Reservas" onClose={onClose} size="lg" scrollBody={false}>
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* O corpo não rola: total, lista e criação ficam sempre visíveis. Só o
+            histórico, que cresce sem limite, tem scroll próprio. */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Total reservado — o valor que está separado do saldo da conta. */}
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
@@ -419,17 +340,9 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
                 <ReservaLinha
                   key={reserva.id}
                   reserva={reserva}
-                  movimentoAberto={movimentoAberto}
                   isSaving={movimentarMut.isPending}
-                  error={movimentarMut.error instanceof Error ? movimentarMut.error.message : undefined}
-                  defaultDate={defaultDate}
-                  onAbrirMovimento={(tipo) => {
-                    movimentarMut.reset();
-                    setMovimentoAberto({ reservaId: reserva.id, tipo });
-                  }}
-                  onFecharMovimento={() => setMovimentoAberto(null)}
-                  onConfirmar={(valor, data, descricao) =>
-                    movimentarMut.mutate({ id: reserva.id, tipo: movimentoAberto!.tipo, valor, data, descricao })}
+                  onMovimentar={(tipo, valor) =>
+                    movimentarMut.mutate({ id: reserva.id, tipo, valor, data: defaultDate })}
                   onEditar={() => abrirEdicao(reserva)}
                   onExcluir={() => void handleExcluir(reserva)}
                 />
@@ -546,8 +459,8 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
           {reservas.length > 0 && (
             <>
               <div style={{ height: 1, background: '#eef2f6' }} />
-              <div>
-                <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textMuted }}>
+              <div style={{ flex: 1, minHeight: 90, display: 'flex', flexDirection: 'column' }}>
+                <p style={{ margin: '0 0 8px', flex: 'none', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textMuted }}>
                   Histórico de movimentações
                 </p>
 
@@ -558,7 +471,7 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
                     Nenhuma movimentação registrada ainda.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                     {movimentacoes.map((movimentacao) => {
                       const entrada = movimentacao.tipo === 'entrada';
                       return (
@@ -607,15 +520,6 @@ export function ReservasPanel({ open, defaultDate, onClose }: ReservasPanelProps
           )}
         </div>
 
-        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ ...saveButtonStyle, background: 'transparent', color: C.textMuted }}
-          >
-            Fechar
-          </button>
-        </div>
       </div>
     </Dialog>
   );

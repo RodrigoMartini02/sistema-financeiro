@@ -199,10 +199,10 @@ router.post(
         return;
       }
 
-      if (await isMonthClosed(req.user!.id, month, year)) {
-        res.status(400).json({ success: false, message: 'Cannot create reserves in a closed month' });
-        return;
-      }
+      // Criar uma reserva não movimenta dinheiro: mes/ano aqui são só data de
+      // cadastro. Bloquear por mês fechado impedia criar qualquer reserva
+      // enquanto o mês corrente estivesse fechado. O bloqueio continua valendo
+      // em /move, onde há de fato entrada ou saída no mês.
 
       if (reserveType !== 'objetivo') {
         const balanceCheck = await checkAvailableBalance(req.user!.id, month, year, amount);

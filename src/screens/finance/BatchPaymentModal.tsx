@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck, AlertCircle } from 'lucide-react';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { pagarDespesa } from '../../services/financeService';
 import type { Expense } from '../../types/finance';
 import { formatCurrency } from './formatters';
@@ -175,15 +175,8 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
           )}
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1 }}
-          >
-            Cancelar
-          </button>
+        {/* Sem "Cancelar": o X do cabeçalho já fecha o modal. */}
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
           <button
             type="button"
             onClick={handleConfirm}
