@@ -39,10 +39,16 @@ interface CardLimitRow {
 export async function getCardLimits(userId: number, accountId: number | null): Promise<CardLimit[]> {
   const params: unknown[] = [userId];
   let accountClause = '';
+  let expenseAccountClause = '';
   if (accountId) {
     params.push(accountId);
     accountClause = ` AND (c.conta_id = $${params.length} OR (c.conta_id IS NULL AND EXISTS (
       SELECT 1 FROM contas pf WHERE pf.id = $${params.length} AND pf.tipo = 'pessoal' AND pf.usuario_id = c.usuario_id
+    )))`;
+    // O cartao ja era filtrado por conta, mas a despesa nao: lancamento de
+    // outra conta somava no limite. Mesmo criterio de utils/accountFilter.ts.
+    expenseAccountClause = ` AND (d.conta_id = $${params.length} OR (d.conta_id IS NULL AND EXISTS (
+      SELECT 1 FROM contas pd WHERE pd.id = $${params.length} AND pd.tipo = 'pessoal' AND pd.usuario_id = d.usuario_id
     )))`;
   }
 
@@ -56,7 +62,11 @@ export async function getCardLimits(userId: number, accountId: number | null): P
        AND d.usuario_id = $1
        AND d.pago = false
        AND COALESCE(d.status, 'ativa') = 'ativa'
-       AND (c.tipo = 'credito' OR d.forma_pagamento = 'credito')
+       -- Cartao sem tipo definido conta como credito, mesmo criterio do WHERE
+       -- abaixo. Antes a soma exigia forma_pagamento = 'credito' na despesa, e
+       -- lancamentos antigos sem esse campo ficavam de fora: o cartao aparecia
+       -- na lista mas o valor usado nao subia.
+       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos') OR d.forma_pagamento = 'credito')${expenseAccountClause}
      WHERE c.usuario_id = $1 AND c.ativo = true
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}
      GROUP BY c.id, c.nome, c.limite
