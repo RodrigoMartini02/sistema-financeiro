@@ -405,7 +405,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
                     <td colSpan={5} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      {(() => { const n = items.filter(i => i.status === 'ativa').length; return `Total (${n} lançamento${n !== 1 ? 's' : ''})`; })()}
+                      Total
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-green-700 text-sm whitespace-nowrap">
                       {formatCurrency(items.filter(i => i.status !== 'cancelada').reduce((s, i) => s + i.valor, 0))}

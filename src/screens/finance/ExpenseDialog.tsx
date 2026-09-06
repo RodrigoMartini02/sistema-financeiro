@@ -25,6 +25,10 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 
+// Quantas despesas do lote aparecem sem expandir. As demais ficam atras do
+// link, para a lista nao empurrar o formulario para fora da vista.
+const LOTE_VISIVEL_PADRAO = 2;
+
 const schema = z.object({
   descricao:       z.string().min(1, 'Informe a descrição'),
   valor_original:  z.coerce.number().min(0.01, 'Informe o valor'),
@@ -70,6 +74,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const [anexos, setAnexos] = useState<Attachment[]>([]);
 
   const [batch, setBatch] = useState<ExpenseFormValues[]>([]);
+  const [loteExpandido, setLoteExpandido] = useState(false);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -253,6 +258,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   useEffect(() => {
     if (!open) {
       setBatch([]);
+      setLoteExpandido(false);
       setAnexos([]);
       setShowCatForm(null);
       setCategoriaSugestao(null);
@@ -414,6 +420,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       const items = [...batch, toFormValues(data, anexos)];
       await onSave(items);
       setBatch([]);
+      setLoteExpandido(false);
       setAnexos([]);
       setDuplicataInfo(null);
       setSavedMessage(items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada');
@@ -422,6 +429,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     } finally {
       setIsSavingAll(false);
     }
+  };
+
+  // Nada no lote foi salvo ainda: a gravacao so acontece no submit. Por isso
+  // os itens continuam editaveis na propria linha, sem voltar ao formulario.
+  const editarNoLote = (indice: number, campo: 'descricao' | 'valor_original', valor: string | number) => {
+    setBatch((prev) => prev.map((item, i) => (i === indice ? { ...item, [campo]: valor } : item)));
   };
 
   const handleAddToBatch = () => {
@@ -459,6 +472,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const submitForm = form.handleSubmit((data) => doSave(data));
 
   const hasBatch = batch.length > 0;
+  // As mais recentes primeiro: sao as que o usuario acabou de lancar e onde um
+  // erro de digitacao apareceria. O indice original vai junto para editar e
+  // remover pela posicao real no lote.
+  const loteVisivel = batch
+    .map((item, indice) => ({ item, indice }))
+    .reverse()
+    .slice(0, loteExpandido ? batch.length : LOTE_VISIVEL_PADRAO);
   const batchTotal = batch.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
   const podeSalvar = !!descricaoWatch?.trim() && !!valorOriginalWatch;
   const canSubmit = podeSalvar || hasBatch;
@@ -956,6 +976,82 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             </div>
           )}
 
+          {/* ── Lote: lista editável ─────────────────────────────────────
+              Nada aqui foi salvo — a gravação só acontece no submit. Por isso
+              descrição e valor são editáveis na própria linha. Antes eram chips
+              no rodapé, onde não dava para corrigir nada. */}
+          {hasBatch && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textSoft, textTransform: 'uppercase' }}>
+                  No lote · {batch.length} despesa{batch.length !== 1 ? 's' : ''}
+                </span>
+                <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(batchTotal)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {loteVisivel.map(({ item, indice }) => (
+                  <div
+                    key={indice}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      borderRadius: 10, border: `1px solid ${C.border}`, background: '#fff', padding: '7px 9px',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <input
+                        value={item.descricao}
+                        onChange={(e) => editarNoLote(indice, 'descricao', e.target.value)}
+                        aria-label={`Descrição da despesa ${indice + 1} do lote`}
+                        style={{
+                          width: '100%', minWidth: 0, border: 'none', background: 'transparent', padding: 0,
+                          fontSize: 13, fontWeight: 600, color: C.text, outline: 'none',
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: C.textFaint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {[cats.find((c) => c.id === item.categoria_id)?.nome, item.formaPagamento]
+                          .filter(Boolean)
+                          .join(' · ') || 'sem categoria'}
+                      </span>
+                    </div>
+
+                    <div style={{ flex: 'none', width: 116 }}>
+                      <MoneyFieldSmall
+                        value={item.valor_original || undefined}
+                        onChange={(v) => editarNoLote(indice, 'valor_original', v)}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setBatch((prev) => prev.filter((_, j) => j !== indice))}
+                      title="Remover do lote"
+                      aria-label={`Remover ${item.descricao || 'despesa'} do lote`}
+                      style={{
+                        display: 'flex', flex: 'none', height: 28, width: 28, alignItems: 'center', justifyContent: 'center',
+                        borderRadius: 8, border: 'none', background: 'transparent', color: C.placeholder, cursor: 'pointer',
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {batch.length > LOTE_VISIVEL_PADRAO && (
+                <button
+                  type="button"
+                  onClick={() => setLoteExpandido((v) => !v)}
+                  style={{ alignSelf: 'flex-start', fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                >
+                  {loteExpandido ? 'ver menos' : `ver todas as ${batch.length}`}
+                </button>
+              )}
+            </div>
+          )}
+
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
@@ -965,23 +1061,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
         {/* ── Rodapé fixo ──────────────────────────────────────────── */}
         <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {hasBatch && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.07em', color: C.textSoft }}>
-                NO LOTE · {batch.length} · {formatCurrency(batchTotal)}
-              </span>
-              {batch.map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${C.borderInput}`, borderRadius: 8, padding: '5px 8px 5px 10px', fontSize: '12.5px', color: '#33566a' }}>
-                  <span style={{ fontWeight: 600 }}>{item.descricao}</span>
-                  <span style={{ color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(item.valor_original ?? 0)}</span>
-                  <span onClick={() => setBatch((prev) => prev.filter((_, j) => j !== i))} style={{ color: C.placeholder, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}>
-                    ×
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
           {duplicataInfo && (
             <div style={{ fontSize: '12.5px', color: '#a3728a' }}>
               Você já lançou isso em {formatBr(duplicataInfo.expense.dataVencimento)} — é outra?
