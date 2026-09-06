@@ -342,9 +342,26 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
           {/* ── Descrição + Anexos ─────────────────────────────────── */}
           <div>
             <div style={{ minWidth: 0, position: 'relative' }}>
-              <label style={labelStyle}>
-                <span>Descrição</span><span style={{ color: C.danger }}>*</span>
-              </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <label style={labelStyle}>
+                  <span>Descrição</span><span style={{ color: C.danger }}>*</span>
+                </label>
+                {/* Anexar é ação do campo Descrição, então vive no rótulo dele. */}
+                <button
+                  type="button"
+                  onClick={() => attachmentRef.current?.openPicker()}
+                  title="Anexar arquivo"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5,
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    color: anexos.length > 0 ? C.primary : C.textMuted,
+                    background: 'transparent', border: 'none', padding: 0,
+                  }}
+                >
+                  <Paperclip size={12} />
+                  Anexar
+                </button>
+              </div>
               <input
                 {...form.register('descricao', { onChange: () => setAcHidden(false) })}
                 placeholder="Ex: Salário mensal"
@@ -382,45 +399,24 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   </div>
                 </>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 20 }}>
+              {tipoSugestao && !tipoReceitaWatch && (
                 <button
                   type="button"
-                  onClick={() => attachmentRef.current?.openPicker()}
-                  title="Anexar arquivo"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', fontWeight: 600,
-                    color: anexos.length > 0 ? C.primary : C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0,
-                  }}
+                  onClick={() => { form.setValue('tipoReceita', tipoSugestao.nome); setTipoSugestao(null); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                 >
-                  <Paperclip size={13} />
-                  <span>Anexar arquivo{anexos.length > 0 ? ` (${anexos.length})` : ''}</span>
+                  <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
+                    {tipoSugestao.nome}
+                  </span>
+                  <span style={{ color: C.textMuted }}>sugerido · Tab aceita</span>
                 </button>
-                {anexos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAnexos([])}
-                    title="Remover anexos"
-                    style={{ display: 'flex', alignItems: 'center', color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-                {tipoSugestao && !tipoReceitaWatch && (
-                  <button
-                    type="button"
-                    onClick={() => { form.setValue('tipoReceita', tipoSugestao.nome); setTipoSugestao(null); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  >
-                    <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
-                      {tipoSugestao.nome}
-                    </span>
-                    <span style={{ color: C.textMuted }}>sugerido · Tab aceita</span>
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'none' }}>
-                <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
-              </div>
+              )}
+            </div>
+
+            {/* Anexos ocupam a largura toda. O componente monta sempre — o ref
+                é o que abre o seletor de arquivos. */}
+            <div style={{ marginTop: 10 }}>
+              <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
             </div>
           </div>
 

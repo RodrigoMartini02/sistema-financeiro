@@ -495,6 +495,21 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                 <label style={labelStyle}>
                   <span>Descrição</span><span style={{ color: C.danger }}>*</span>
                 </label>
+                {/* Anexar é ação do campo Descrição, então vive no rótulo dele. */}
+                <button
+                  type="button"
+                  onClick={() => attachmentRef.current?.openPicker()}
+                  title="Anexar comprovante"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5,
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    color: anexos.length > 0 ? C.primary : C.textMuted,
+                    background: 'transparent', border: 'none', padding: 0,
+                  }}
+                >
+                  <Paperclip size={12} />
+                  Anexar
+                </button>
               </div>
               <input
                 {...form.register('descricao', { onChange: () => setAcHidden(false) })}
@@ -533,45 +548,18 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   </div>
                 </>
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 20 }}>
+              {categoriaSugestao && !categoriaId && (
                 <button
                   type="button"
-                  onClick={() => attachmentRef.current?.openPicker()}
-                  title="Anexar comprovante"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 5, fontSize: '12.5px', fontWeight: 600,
-                    color: anexos.length > 0 ? C.primary : C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0,
-                  }}
+                  onClick={() => { form.setValue('categoria_id', categoriaSugestao.id as any); setCategoriaSugestao(null); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                 >
-                  <Paperclip size={13} />
-                  <span>Anexar comprovante{anexos.length > 0 ? ` (${anexos.length})` : ''}</span>
+                  <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
+                    {categoriaSugestao.nome}
+                  </span>
+                  <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
                 </button>
-                {anexos.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAnexos([])}
-                    title="Remover anexos"
-                    style={{ display: 'flex', alignItems: 'center', color: C.placeholder, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-                {categoriaSugestao && !categoriaId && (
-                  <button
-                    type="button"
-                    onClick={() => { form.setValue('categoria_id', categoriaSugestao.id as any); setCategoriaSugestao(null); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  >
-                    <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
-                      {categoriaSugestao.nome}
-                    </span>
-                    <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'none' }}>
-                <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
-              </div>
+              )}
             </div>
 
             <div style={{ minWidth: 0 }}>
@@ -621,6 +609,10 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               )}
             </div>
           </div>
+
+          {/* Anexos ocupam a largura toda: na coluna da descrição caberiam
+              poucos chips. O componente monta sempre — o ref abre o seletor. */}
+          <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
 
           <div style={{ height: 1, background: '#eef2f6' }} />
 
