@@ -6,7 +6,7 @@ import {
 } from '../../services/authService';
 import { consumeAuthOrigin } from '../../services/session';
 import { Button } from '../../ui/button';
-import { Field, Input } from '../../ui/form';
+import { Field, Input, PasswordInput } from '../../ui/form';
 import { TermosModal } from './TermosModal';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
@@ -216,7 +216,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
               <Input name="documento" autoComplete="username" required />
             </Field>
             <Field label="Senha">
-              <Input name="senha" type="password" autoComplete="current-password" required />
+              <PasswordInput name="senha" autoComplete="current-password" required />
             </Field>
             <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
               {loading ? 'Entrando...' : 'Entrar'}
@@ -254,7 +254,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
               </Field>
             )}
             <Field label="Email"><Input name="email" type="email" required /></Field>
-            <Field label="Senha"><Input name="senha" type="password" required /></Field>
+            <Field label="Senha"><PasswordInput name="senha" required /></Field>
 
             <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-[rgba(14,196,216,0.15)] dark:bg-[rgba(14,196,216,0.04)]">
               <input
@@ -328,10 +328,10 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         <form className="mt-4 grid gap-3" onSubmit={handleReset}>
           <p className="text-sm text-slate-500 dark:text-site-textSub">Escolha uma nova senha com pelo menos 8 caracteres.</p>
           <Field label="Nova senha">
-            <Input name="nova_senha" type="password" required minLength={8} placeholder="••••••••" />
+            <PasswordInput name="nova_senha" required minLength={8} placeholder="••••••••" />
           </Field>
           <Field label="Confirmar senha">
-            <Input name="confirma_senha" type="password" required minLength={8} placeholder="••••••••" />
+            <PasswordInput name="confirma_senha" required minLength={8} placeholder="••••••••" />
           </Field>
           <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
             {loading ? 'Salvando...' : 'Redefinir senha'}

@@ -1,5 +1,5 @@
-import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { forwardRef, useState, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
+import { ChevronDown, Check, Eye, EyeOff } from 'lucide-react';
 
 // Mesma escala de `fieldInputStyle` (dialogFormTokens): 32px, raio 10, 13px.
 const inputBase = [
@@ -16,6 +16,40 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   )
 );
 Input.displayName = 'Input';
+
+/**
+ * Campo de senha com botão de revelar. Componente próprio em vez de uma flag
+ * no Input: o olhinho só faz sentido em senha, e pôr a lógica no Input
+ * genérico obrigaria todo campo de texto a carregar estado que não usa.
+ */
+export const PasswordInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  ({ className = '', ...props }, ref) => {
+    const [visivel, setVisivel] = useState(false);
+    return (
+      <div className="relative">
+        <input
+          ref={ref}
+          type={visivel ? 'text' : 'password'}
+          className={[inputBase, 'pr-9', className].join(' ')}
+          {...props}
+        />
+        <button
+          type="button"
+          onClick={() => setVisivel((v) => !v)}
+          // Fora da ordem de tabulacao: o Tab vai do campo direto para o botao
+          // de enviar, sem parar num controle que so ajuda quem usa o mouse.
+          tabIndex={-1}
+          aria-label={visivel ? 'Ocultar senha' : 'Mostrar senha'}
+          title={visivel ? 'Ocultar senha' : 'Mostrar senha'}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
+        >
+          {visivel ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+    );
+  }
+);
+PasswordInput.displayName = 'PasswordInput';
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className = '', children, ...props }, ref) => (
