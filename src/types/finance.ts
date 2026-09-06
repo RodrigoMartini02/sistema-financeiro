@@ -66,6 +66,8 @@ export interface Expense {
   cartaoNome?: string | null;
   dataVencimento: string;
   dataCompra?: string | null;
+  /** Quando o lancamento foi cadastrado. Ordena a tabela: mais recente no topo. */
+  dataCriacao?: string | null;
   dataPagamento?: string | null;
   mes: number;
   ano: number;

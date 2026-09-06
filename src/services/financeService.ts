@@ -24,6 +24,7 @@ interface RawExpense {
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
   valor_original?: string | null; valor_final?: string | null; valor?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null; tipo_despesa?: string | null;
+  data_criacao?: string | null;
   anexos?: Attachment[] | null;
 }
 
@@ -75,6 +76,7 @@ function expenseFromApi(r: RawExpense): Expense {
     cartaoId: r.cartao_id ?? null,
     cartaoNome: r.cartao_nome ?? null,
     dataVencimento: r.data_vencimento, dataCompra: r.data_compra,
+    dataCriacao: r.data_criacao ?? null,
     dataPagamento: r.data_pagamento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada') ?? 'ativa',
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,

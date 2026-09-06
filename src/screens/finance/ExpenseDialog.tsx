@@ -10,7 +10,7 @@ import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
 import { Dialog } from '../../ui/dialog';
 import {
   C, labelStyle, fieldInputStyle, numericInputStyle,
-  panelStyle, chipStyle, MoneyField, MoneyFieldSmall,
+  chipStyle, MoneyField, MoneyFieldSmall,
 } from '../../ui/dialogFormTokens';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
 import { calcularVencimentoFatura, proximoDiaDoMes } from '../../utils/cardDueDate';
@@ -238,9 +238,9 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   ];
 
   const repeticaoOptions = [
-    { value: 'nao',      titulo: 'Não repete', ajuda: 'Uma única cobrança' },
-    { value: 'parcelas', titulo: 'Parcelado',  ajuda: 'Número fixo de parcelas' },
-    { value: 'mensal',   titulo: 'Recorrente', ajuda: 'Todo mês, até cancelar' },
+    { value: 'nao',      titulo: 'Não repete' },
+    { value: 'parcelas', titulo: 'Parcelado' },
+    { value: 'mensal',   titulo: 'Recorrente' },
   ] as const;
 
   const handlePaymentSelect = (v: string) => {
@@ -592,7 +592,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   };
 
   return (
-    <Dialog open={open} title={expense ? 'Editar despesa' : 'Nova despesa'} description="Registre uma saída financeira" onClose={onClose} size="xl" scrollBody={false}>
+    <Dialog open={open} title={expense ? 'Editar despesa' : 'Nova despesa'} description="Registre uma saída financeira" onClose={onClose} size="xl" scrollBody={false} fixedHeight>
       <form
         style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
         onSubmit={submitForm}
@@ -750,47 +750,41 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                   </div>
                 ))}
               </div>
-
-              {(isCredito || isDebito) && (
-                <div style={panelStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textSoft, textTransform: 'uppercase' }}>
-                      {isCredito ? 'Cartão · consome limite' : 'Cartão · desconta saldo'}
-                    </span>
-                    {selectedCard && (
-                      <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
-                        {activeCards.length <= 1 ? `${selectedCard.nome} · ` : ''}
-                        {isCredito
-                          ? `limite disponível ${formatCurrency(
-                              cardLimits.data?.find((c) => c.id === selectedCard.id)?.disponivel ?? selectedCard.limite ?? 0,
-                            )}`
-                          : 'conta corrente'}
-                      </span>
-                    )}
-                  </div>
-                  {activeCards.length > 1 && (
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {activeCards.map((c) => (
-                        <div
-                          key={c.id}
-                          onClick={() => { form.setValue('cartao_id', c.id as any); setMethodTouched(true); }}
-                          style={chipStyle(c.id === (cartaoId ?? selectedCard?.id), { h: 36, r: 9, size: 12.5 })}
-                        >
-                          {c.nome}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {activeCards.length === 0 && (
-                    <span style={{ fontSize: '12.5px', color: C.textMuted }}>Nenhum cartão cadastrado</span>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* Coluna vazia: o tipo de cobrança fica na direita da linha
-                seguinte, alinhado com valores e datas. */}
-            <div />
+            {/* Cartão ocupa a coluna da direita, que antes ficava vazia. Antes
+                era um painel com moldura, rótulo em caixa alta e chips de 36px
+                logo abaixo da forma de pagamento — fora da escala de 32px dos
+                demais campos. */}
+            {(isCredito || isDebito) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
+                <div style={{ ...labelStyle, justifyContent: 'space-between' }}>
+                  <span>Cartão</span>
+                  {selectedCard && isCredito && (
+                    <span style={{ fontWeight: 500, color: C.textFaint, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatCurrency(
+                        cardLimits.data?.find((c) => c.id === selectedCard.id)?.disponivel ?? selectedCard.limite ?? 0,
+                      )} disponível
+                    </span>
+                  )}
+                </div>
+                {activeCards.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {activeCards.map((c) => (
+                      <div
+                        key={c.id}
+                        onClick={() => { form.setValue('cartao_id', c.id as any); setMethodTouched(true); }}
+                        style={chipStyle(c.id === (cartaoId ?? selectedCard?.id))}
+                      >
+                        {c.nome}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '12.5px', color: C.textMuted }}>Nenhum cartão cadastrado</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div style={{ height: 1, background: '#eef2f6' }} />
@@ -932,7 +926,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
             <div style={{ position: 'relative', minWidth: 0, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
               <div style={labelStyle}>Tipo de cobrança</div>
               <div role="radiogroup" aria-label="Tipo de cobrança" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {repeticaoOptions.map(({ value, titulo, ajuda }) => {
+                {repeticaoOptions.map(({ value, titulo }) => {
                   const ativo = repeticao === value;
                   return (
                     <div
@@ -961,7 +955,6 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                       }} />
                       <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>{titulo}</span>
-                        <span style={{ fontSize: 11.5, fontWeight: 400, color: ativo ? C.primaryDark : C.textFaint }}>{ajuda}</span>
 
                         {/* Os campos vivem dentro da opção escolhida: antes ficavam
                             num painel solto, desconectado da escolha. */}

@@ -359,10 +359,7 @@ export function MovimentacoesScreen() {
             conforme a quantidade. */}
         {!isCalendario && (cardLimits.data?.length ?? 0) > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-slate-300 dark:text-slate-600">
-              Limite de crédito
-            </span>
-            <div className="mt-1.5 grid gap-x-6 gap-y-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+            <div className="grid gap-x-6 gap-y-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
               {cardLimits.data!.map((card) => (
                 <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} />
               ))}

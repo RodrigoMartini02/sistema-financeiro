@@ -29,7 +29,7 @@ import { DeleteInstallmentDialog } from './DeleteInstallmentDialog';
 
 type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
-type Ordenar = 'vencimento_asc' | 'vencimento_desc' | 'valor_asc' | 'valor_desc' | 'descricao';
+type Ordenar = 'cadastro_desc' | 'vencimento_asc' | 'vencimento_desc' | 'valor_asc' | 'valor_desc' | 'descricao';
 
 const FORMA_LABELS: Record<string, string> = {
   dinheiro: 'Dinheiro', pix: 'PIX',
@@ -203,7 +203,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const [filtroFormaPag, setFiltroFormaPag] = useState('');
   const [filtroCartao, setFiltroCartao] = useState('');
   const [filtroDataPag, setFiltroDataPag] = useState<FiltroDataPag>('qualquer');
-  const [ordenar, setOrdenar] = useState<Ordenar>('vencimento_asc');
+  const [ordenar, setOrdenar] = useState<Ordenar>('cadastro_desc');
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
 
@@ -299,6 +299,13 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     })
     .sort((a, b) => {
       switch (ordenar) {
+        // Padrao: o que acabou de ser cadastrado aparece primeiro. Despesas
+        // antigas podem nao ter data_criacao — nesse caso o id, que e serial,
+        // preserva a ordem de insercao.
+        case 'cadastro_desc':
+          return a.dataCriacao && b.dataCriacao
+            ? b.dataCriacao.localeCompare(a.dataCriacao)
+            : b.id - a.id;
         case 'vencimento_desc': return b.dataVencimento.localeCompare(a.dataVencimento);
         case 'valor_asc': return a.valorFinal - b.valorFinal;
         case 'valor_desc': return b.valorFinal - a.valorFinal;
@@ -471,6 +478,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                 value={ordenar}
                 onChange={(v) => setOrdenar(v as Ordenar)}
                 options={[
+                  { value: 'cadastro_desc', label: 'Mais recentes' },
                   { value: 'vencimento_asc', label: 'Vencimento ↑' },
                   { value: 'vencimento_desc', label: 'Vencimento ↓' },
                   { value: 'valor_asc', label: 'Valor ↑' },
