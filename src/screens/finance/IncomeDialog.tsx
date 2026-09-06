@@ -342,33 +342,34 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
           {/* ── Descrição + Anexos ─────────────────────────────────── */}
           <div>
             <div style={{ minWidth: 0, position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <label style={labelStyle}>
-                  <span>Descrição</span><span style={{ color: C.danger }}>*</span>
-                </label>
-                {/* Anexar é ação do campo Descrição, então vive no rótulo dele. */}
+              <label style={labelStyle}>
+                <span>Descrição</span><span style={{ color: C.danger }}>*</span>
+              </label>
+              {/* Anexar fica ao lado do campo, na mesma altura dele. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+                  placeholder="Ex: Salário mensal"
+                  autoFocus
+                  autoComplete="off"
+                  style={fieldInputStyle}
+                />
                 <button
                   type="button"
                   onClick={() => attachmentRef.current?.openPicker()}
                   title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5,
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    display: 'flex', flex: 'none', height: 32, width: 32,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 10, border: `1px solid ${C.borderInput}`,
+                    background: '#fff', cursor: 'pointer',
                     color: anexos.length > 0 ? C.primary : C.textMuted,
-                    background: 'transparent', border: 'none', padding: 0,
                   }}
                 >
-                  <Paperclip size={12} />
-                  Anexar
+                  <Paperclip size={14} />
                 </button>
               </div>
-              <input
-                {...form.register('descricao', { onChange: () => setAcHidden(false) })}
-                placeholder="Ex: Salário mensal"
-                autoFocus
-                autoComplete="off"
-                style={fieldInputStyle}
-              />
               {acOpen && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
