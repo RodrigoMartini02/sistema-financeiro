@@ -207,20 +207,30 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
 
           {/* Formulário de entrada: sempre no topo, sempre vazio depois de
               adicionar ao lote. O wrapper delimita a região para o atalho
-              Shift+Enter saber que a tecla veio daqui. */}
-          <div ref={topoRef}>
-          <ExpenseForm
-            ref={formTopoRef}
-            expense={expense}
-            presetDate={presetDate}
-            isEmpresa={isEmpresa}
-            isEditing={isEditing}
-            open={open}
-            scrollContainerRef={bodyRef}
-            autoFocus
-            guideEnabled
-            onResumoChange={setResumoTopo}
-          />
+              Shift+Enter saber que a tecla veio daqui.
+
+              Fundo azulado com borda propria: e o campo de entrada, o lugar
+              que sempre espera preenchimento. As despesas ja adicionadas ficam
+              num cinza mais claro, entao o destaque aqui e maior que o delas. */}
+          <div
+            ref={topoRef}
+            style={{
+              background: C.panelBg, border: `1px solid ${C.panelBorder}`,
+              borderRadius: 12, padding: 12,
+            }}
+          >
+            <ExpenseForm
+              ref={formTopoRef}
+              expense={expense}
+              presetDate={presetDate}
+              isEmpresa={isEmpresa}
+              isEditing={isEditing}
+              open={open}
+              scrollContainerRef={bodyRef}
+              autoFocus
+              guideEnabled
+              onResumoChange={setResumoTopo}
+            />
           </div>
 
           {/* Despesas já adicionadas, na ordem de inclusão, cada uma como
@@ -240,7 +250,11 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
               {batch.map((item, indice) => (
                 <div
                   key={item.id}
-                  style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, display: 'flex', flexDirection: 'column' }}
+                  style={{
+                    background: C.cardBg, border: `1px solid ${C.border}`,
+                    borderRadius: 12, padding: 12,
+                    display: 'flex', flexDirection: 'column',
+                  }}
                 >
                   <ExpenseForm
                     ref={registrarFormLote(item.id)}
