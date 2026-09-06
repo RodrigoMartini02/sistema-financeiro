@@ -9,7 +9,7 @@ import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/Attach
 import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
 import { Dialog } from '../../ui/dialog';
 import {
-  C, labelStyle, fieldInputStyle, smallInputStyle, numericInputStyle,
+  C, labelStyle, fieldInputStyle, numericInputStyle,
   panelStyle, chipStyle, MoneyField, MoneyFieldSmall,
 } from '../../ui/dialogFormTokens';
 import { getRecentCategoryIds, suggestCategoryForDescription } from '../../utils/categorySuggestions';
@@ -76,7 +76,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const [showCatForm, setShowCatForm] = useState<string | null>(null);
   const [categoriaSugestao, setCategoriaSugestao] = useState<{ id: number; nome: string } | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<DuplicataInfo | null>(null);
-  const [vencimentoManualAberto, setVencimentoManualAberto] = useState(false);
+  const [nfAberta, setNfAberta] = useState(false);
   const [valorInputMode, setValorInputMode] = useState<'parcela' | 'avista'>('parcela');
   const [methodTouched, setMethodTouched] = useState(false);
 
@@ -229,6 +229,12 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     { value: 'credito',  label: 'Crédito',  icon: <CreditCard size={13} /> },
   ];
 
+  const repeticaoOptions = [
+    { value: 'nao',      titulo: 'Não repete', ajuda: 'Uma única cobrança' },
+    { value: 'parcelas', titulo: 'Parcelado',  ajuda: 'Número fixo de parcelas' },
+    { value: 'mensal',   titulo: 'Recorrente', ajuda: 'Todo mês, até cancelar' },
+  ] as const;
+
   const handlePaymentSelect = (v: string) => {
     form.setValue('formaPagamento', v);
     setMethodTouched(true);
@@ -251,7 +257,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       setShowCatForm(null);
       setCategoriaSugestao(null);
       setDuplicataInfo(null);
-      setVencimentoManualAberto(false);
+      setNfAberta(false);
       setValorInputMode('parcela');
       setMethodTouched(false);
       setSavedMessage('');
@@ -287,10 +293,13 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
     if ((parcelasJaPagas ?? 0) > max) form.setValue('parcelasJaPagas', max);
   }, [totalParcelas]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Vencimento e status derivados (bloco QUANDO) ───────────────────────
+  // ── Vencimento e status derivados ─────────────────────────────────
   const vencimentoDerivado = useMemo(() => {
-    if (vencimentoManualAberto && dataVencimentoManual) {
-      return { data: dataVencimentoManual, texto: `Vence ${formatBr(dataVencimentoManual)} · data manual` };
+    // Campo livre: quando preenchido, manda. Vazio cai no cálculo abaixo, em
+    // vez de gravar vazio — data_vencimento é obrigatória no backend e é ela
+    // que agenda as parcelas mês a mês.
+    if (dataVencimentoManual) {
+      return { data: dataVencimentoManual, texto: `Vence ${formatBr(dataVencimentoManual)} · data informada` };
     }
     if (isCredito && selectedCard) {
       const { dataVencimento } = calcularVencimentoFatura(selectedCard, dataCompra || todayIso());
@@ -312,7 +321,7 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
       return { data: primeiraOcorrencia, texto: `Primeira vence ${formatBr(primeiraOcorrencia)}` };
     }
     return { data: base, texto: `Primeira vence ${formatBr(base)}` };
-  }, [vencimentoManualAberto, dataVencimentoManual, isCredito, selectedCard, dataCompra, repeticao, diaRecorrencia]);
+  }, [dataVencimentoManual, isCredito, selectedCard, dataCompra, repeticao, diaRecorrencia]);
 
   const statusDerivado = useMemo(() => {
     if (isCredito) return { label: 'Entra na fatura', color: C.primaryDark, bg: C.primarySoft, border: C.primarySoftBorder };
@@ -348,6 +357,21 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
   const mensalTexto = isCredito
     ? `todo mês na fatura ${selectedCard?.nome ?? 'do cartão'}, até cancelar`
     : diaRecorrencia ? `todo dia ${diaRecorrencia}, até cancelar` : 'informe o dia';
+
+  // Total da faixa de resumo: consolida num texto só o que antes aparecia
+  // espalhado ao lado do valor, na data e no rodapé do bloco de repetição.
+  const resumoTotal = useMemo(() => {
+    if (repeticao === 'parcelas' && totalParceladoDerivado > 0) {
+      const partes = [`${totalParcelas}x de ${formatCurrency(valorDigitado)}`, `total ${formatCurrency(totalParceladoDerivado)}`];
+      if ((parcelasJaPagas ?? 0) > 0) partes.push(`${parcelasJaPagas} paga${(parcelasJaPagas ?? 0) > 1 ? 's' : ''}`);
+      if (proximaParcelaVence) partes.push(`próxima vence ${proximaParcelaVence}`);
+      return partes.join(' · ');
+    }
+    if (repeticao === 'mensal') {
+      return valorDigitado > 0 ? `${formatCurrency(valorDigitado)} · ${mensalTexto}` : mensalTexto;
+    }
+    return valorDigitado > 0 ? `total ${formatCurrency(valorDigitado)}` : '';
+  }, [repeticao, totalParceladoDerivado, totalParcelas, valorDigitado, parcelasJaPagas, proximaParcelaVence, mensalTexto]);
 
   const valorLabel = repeticao === 'parcelas' ? 'Valor da parcela' : repeticao === 'mensal' ? 'Valor mensal' : 'Valor da compra';
 
@@ -617,9 +641,9 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
 
           <div style={{ height: 1, background: '#eef2f6' }} />
 
-          {/* ── Bloco 2: COMO (forma de pagamento → cartão → isso se repete) ── */}
+          {/* ── Linha 2: COMO (forma de pagamento → cartão) ─────────────── */}
           <div
-            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-3"
+            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr]"
             style={{ columnGap: 12, alignItems: 'start' }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -670,82 +694,45 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
               )}
             </div>
 
-            <div style={{ position: 'relative' }}>
-              <div style={labelStyle}>Isso se repete?</div>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  ['nao', 'Não repete'],
-                  ['parcelas', 'Parcelas'],
-                  ['mensal', 'Recorrente'],
-                ] as const).map(([value, label]) => (
-                  <div key={value} onClick={() => form.setValue('repeticao', value)} style={chipStyle(repeticao === value)}>
-                    {label}
-                  </div>
-                ))}
-              </div>
-              {repetitionGuide.isVisible && (
-                <FirstAccessGuideCard
-                  floating
-                  placement="bottom"
-                  className="w-[min(24rem,calc(100vw-2rem))]"
-                  icon={Repeat2}
-                  description={firstAccessGuideMessages.despesasTogglesTipo}
-                  onDismiss={repetitionGuide.dismiss}
-                  onSilenceAll={repetitionGuide.silenceAll}
-                />
-              )}
-
-              {repeticao === 'parcelas' && (
-                <div style={panelStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <input {...form.register('totalParcelas')} type="text" inputMode="numeric" placeholder="2" style={numericInputStyle} />
-                    <span style={{ fontSize: 13, color: C.textSoft }}>parcelas</span>
-                    <input {...form.register('parcelasJaPagas')} type="text" inputMode="numeric" placeholder="0" style={numericInputStyle} />
-                    <span style={{ fontSize: 13, color: C.textSoft }}>já pagas</span>
-                  </div>
-                </div>
-              )}
-
-              {repeticao === 'mensal' && !isCredito && (
-                <div style={panelStyle}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <span style={{ fontSize: 13, color: C.textSoft }}>Todo dia</span>
-                    <input {...form.register('diaRecorrencia')} type="text" inputMode="numeric" placeholder="5" style={numericInputStyle} />
-                    <span style={{ fontSize: 13, color: C.textSoft }}>de cada mês</span>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Coluna vazia: o tipo de cobrança fica na direita da linha
+                seguinte, alinhado com valores e datas. */}
+            <div />
           </div>
 
           <div style={{ height: 1, background: '#eef2f6' }} />
 
-          {/* ── Bloco 3: QUANTO (valor da compra + checkbox pago / valor pago) ── */}
+          {/* ── Linha 3: valores e datas à esquerda, tipo de cobrança à direita ── */}
           <div
-            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+            className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr]"
             style={{ columnGap: 12, alignItems: 'start' }}
           >
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <label style={labelStyle}>
-                  <span>{valorInputMode === 'avista' ? 'Preço à vista' : valorLabel}</span><span style={{ color: C.danger }}>*</span>
-                </label>
-                {repeticao === 'parcelas' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = valorInputMode === 'avista' ? 'parcela' : 'avista';
-                      setValorInputMode(next);
-                      if (next === 'parcela') form.setValue('precoAVista', undefined);
-                    }}
-                    style={{ fontSize: '11.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                  >
-                    {valorInputMode === 'avista' ? 'informar valor da parcela' : 'sei o preço à vista'}
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <div className="w-full max-w-[260px]">
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* Grade 2x2: valores em cima, datas embaixo. Antes o valor pago
+                  ficava na outra coluna e a data num bloco separado abaixo. */}
+              <div
+                className="grid grid-cols-1 gap-x-2.5 gap-y-2 sm:grid-cols-2"
+                style={{ alignItems: 'start' }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <label style={labelStyle}>
+                      <span>{valorInputMode === 'avista' ? 'Preço à vista' : valorLabel}</span><span style={{ color: C.danger }}>*</span>
+                    </label>
+                    {repeticao === 'parcelas' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = valorInputMode === 'avista' ? 'parcela' : 'avista';
+                          setValorInputMode(next);
+                          if (next === 'parcela') form.setValue('precoAVista', undefined);
+                        }}
+                        style={{ fontSize: '11.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0, whiteSpace: 'nowrap' }}
+                      >
+                        {valorInputMode === 'avista' ? 'valor da parcela' : 'sei o preço à vista'}
+                      </button>
+                    )}
+                  </div>
                   {valorInputMode === 'avista' ? (
                     <Controller
                       control={form.control}
@@ -759,139 +746,215 @@ export function ExpenseDialog({ open, month, year, expense, isSaving, error, pre
                       render={({ field }) => <MoneyField value={field.value || undefined} onChange={field.onChange} />}
                     />
                   )}
+                  {form.formState.errors.valor_original?.message && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
+                  )}
                 </div>
-                {repeticao === 'parcelas' && totalParceladoDerivado > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 600, color: C.textSoft, fontVariantNumeric: 'tabular-nums' }}>
-                    {valorInputMode === 'avista'
-                      ? `${totalParcelas}x de ${formatCurrency(valorDigitado)}`
-                      : `total ${formatCurrency(totalParceladoDerivado)}`}
-                    {(parcelasJaPagas ?? 0) > 0 ? ` · ${parcelasJaPagas} paga${(parcelasJaPagas ?? 0) > 1 ? 's' : ''}` : ''}
-                    {proximaParcelaVence ? ` · próxima vence ${proximaParcelaVence}` : ''}
-                  </span>
-                )}
-                {jurosEmbutido && jurosEmbutido.diferenca > 0 && (
-                  <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.warn, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
-                    + {formatCurrency(jurosEmbutido.diferenca)} de juros embutido ({jurosEmbutido.percentual.toFixed(1)}%)
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
-                {valorInputMode === 'avista'
-                  ? `Dividido em ${totalParcelas}x — este é o valor salvo por parcela`
-                  : ultimoValorPago ? `Última vez você pagou ${formatCurrency(ultimoValorPago)}` : ''}
-              </div>
-              {form.formState.errors.valor_original?.message && (
-                <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.valor_original.message}</div>
-              )}
-              {!isCredito && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12.5px', fontWeight: 500, color: C.textMuted, cursor: 'pointer', marginTop: 4 }}>
-                  <input
-                    type="checkbox"
-                    {...form.register('pago')}
-                    style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
-                  />
-                  Assinale se a despesa já foi paga
-                </label>
-              )}
-            </div>
 
-            {!isCredito && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                <label style={labelStyle}>Valor pago</label>
-                <div className="w-full max-w-[260px]">
-                  <Controller
-                    control={form.control}
-                    name="valor_pago"
-                    render={({ field }) => (
-                      <MoneyFieldSmall value={field.value} onChange={field.onChange} disabled={!pagoWatch} />
-                    )}
-                  />
-                </div>
-                <div style={{ fontSize: 12, color: C.textFaint, minHeight: 18 }}>
-                  Preencha apenas se o valor pago for diferente do valor da compra
-                </div>
-                {pagoWatch && (jurosCalculado > 0 || descontoCalculado > 0) && (
-                  <div style={{ minHeight: 18 }}>
-                    {jurosCalculado > 0 && (
-                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                        + {formatCurrency(jurosCalculado)} de multa e juros
-                      </span>
-                    )}
-                    {descontoCalculado > 0 && (
-                      <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
-                        − {formatCurrency(descontoCalculado)} de desconto
-                      </span>
-                    )}
+                {!isCredito && (
+                  <div style={{ minWidth: 0 }}>
+                    <label style={labelStyle}>Valor pago</label>
+                    <Controller
+                      control={form.control}
+                      name="valor_pago"
+                      render={({ field }) => (
+                        <MoneyFieldSmall value={field.value} onChange={field.onChange} disabled={!pagoWatch} />
+                      )}
+                    />
                   </div>
                 )}
-              </div>
-            )}
-          </div>
 
-          <div style={{ height: 1, background: '#eef2f6' }} />
+                <div style={{ minWidth: 0 }}>
+                  <label style={labelStyle}>Data da compra</label>
+                  <input
+                    {...form.register('dataCompra')}
+                    type="date"
+                    readOnly={!isEditing && !!presetDate}
+                    style={{
+                      ...fieldInputStyle,
+                      fontVariantNumeric: 'tabular-nums',
+                      ...(!isEditing && presetDate ? { background: C.panelBg, cursor: 'not-allowed' } : {}),
+                    }}
+                  />
+                </div>
 
-          {/* ── Bloco 4: QUANDO (data, vencimento, status) ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              <label style={labelStyle}>Data da compra</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <input
-                  {...form.register('dataCompra')}
-                  type="date"
-                  readOnly={!isEditing && !!presetDate}
-                  style={{ ...smallInputStyle, ...(!isEditing && presetDate ? { background: C.panelBg, cursor: 'not-allowed' } : {}) }}
-                />
-                {vencimentoManualAberto && (
-                  <input {...form.register('dataVencimentoManual')} type="date" style={{ ...smallInputStyle, width: 140, border: `1.5px solid ${C.primary}` }} />
-                )}
-                {isCredito && (
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
-                    color: statusDerivado.color, background: statusDerivado.bg, border: `1px solid ${statusDerivado.border}`,
-                  }}>
-                    {statusDerivado.label}
-                  </span>
+                <div style={{ minWidth: 0 }}>
+                  <label style={labelStyle}>Data do pagamento</label>
+                  <input
+                    {...form.register('dataVencimentoManual')}
+                    type="date"
+                    style={{ ...fieldInputStyle, fontVariantNumeric: 'tabular-nums' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: -4 }}>
+                <span style={{ fontSize: 12, lineHeight: 1.45, color: C.textFaint }}>
+                  {isCredito
+                    ? 'A data do pagamento vem da fatura do cartão — altere só se combinou outra.'
+                    : 'Deixe a data do pagamento em branco para o sistema calcular.'}
+                </span>
+                {!isCredito && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12.5px', fontWeight: 500, color: C.textMuted, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      {...form.register('pago')}
+                      style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+                    />
+                    Assinale se a despesa já foi paga
+                  </label>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, minHeight: 20 }}>
-                {!vencimentoManualAberto && (
-                  <span style={{ fontSize: '12.5px', color: C.textSoft }}>{vencimentoDerivado.texto}</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setVencimentoManualAberto((v) => !v)}
-                  style={{ fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none' }}
-                >
-                  {vencimentoManualAberto ? 'usar automática' : 'data de pagamento diferente'}
-                </button>
-              </div>
+
+              {/* Sinalizações de valor: juros embutido, multa e desconto. */}
+              {((jurosEmbutido && jurosEmbutido.diferenca > 0) || (pagoWatch && (jurosCalculado > 0 || descontoCalculado > 0))) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {jurosEmbutido && jurosEmbutido.diferenca > 0 && (
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.warn, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
+                      + {formatCurrency(jurosEmbutido.diferenca)} de juros embutido ({jurosEmbutido.percentual.toFixed(1)}%)
+                    </span>
+                  )}
+                  {pagoWatch && jurosCalculado > 0 && (
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.danger, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+                      + {formatCurrency(jurosCalculado)} de multa e juros
+                    </span>
+                  )}
+                  {pagoWatch && descontoCalculado > 0 && (
+                    <span style={{ fontSize: '12.5px', fontWeight: 600, padding: '3px 9px', borderRadius: 7, fontVariantNumeric: 'tabular-nums', color: C.success, background: C.successBg, border: `1px solid ${C.successBorder}` }}>
+                      − {formatCurrency(descontoCalculado)} de desconto
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {ultimoValorPago != null && valorInputMode !== 'avista' && (
+                <div style={{ fontSize: 12, color: C.textFaint, marginTop: -6 }}>
+                  Última vez você pagou {formatCurrency(ultimoValorPago)}
+                </div>
+              )}
             </div>
 
-            {isEmpresa && (
-              <div
-                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-                style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, marginTop: 4 }}
-              >
-                <div className="sm:col-span-2" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: C.textSoft, textTransform: 'uppercase' }}>
-                  Nota Fiscal
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={labelStyle}>Número da NF</label>
-                  <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  <label style={labelStyle}>Data de emissão</label>
-                  <input {...form.register('data_emissao_nf')} type="date" style={{ ...smallInputStyle, width: '100%', maxWidth: 168 }} />
-                </div>
-              </div>
-            )}
+            {/* ── Tipo de cobrança: opções empilhadas, campos aninhados ──── */}
+            <div style={{ position: 'relative', minWidth: 0, background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
+              <div style={labelStyle}>Tipo de cobrança</div>
+              <div role="radiogroup" aria-label="Tipo de cobrança" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {repeticaoOptions.map(({ value, titulo, ajuda }) => {
+                  const ativo = repeticao === value;
+                  return (
+                    <div
+                      key={value}
+                      role="radio"
+                      aria-checked={ativo}
+                      tabIndex={0}
+                      onClick={() => form.setValue('repeticao', value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); form.setValue('repeticao', value); }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
+                        padding: '9px 11px', borderRadius: 11,
+                        border: `1px solid ${ativo ? C.primary : C.chipOffBorder}`,
+                        background: ativo ? C.primarySoft : '#fff',
+                        color: ativo ? C.primaryDark : C.chipOffText,
+                        transition: 'all .13s ease',
+                      }}
+                    >
+                      <span style={{
+                        flex: 'none', width: 15, height: 15, borderRadius: 999, marginTop: 2,
+                        border: `1.5px solid ${ativo ? C.primary : '#cddbe3'}`,
+                        background: ativo ? C.primary : '#fff',
+                        boxShadow: ativo ? 'inset 0 0 0 3px #fff' : 'none',
+                      }} />
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{titulo}</span>
+                        <span style={{ fontSize: 11.5, fontWeight: 400, color: ativo ? C.primaryDark : C.textFaint }}>{ajuda}</span>
 
-            {repeticao === 'mensal' && (
-              <div style={{ fontSize: '12.5px', color: C.textSoft }}>
-                Recorrência: {mensalTexto}
+                        {/* Os campos vivem dentro da opção escolhida: antes ficavam
+                            num painel solto, desconectado da escolha. */}
+                        {ativo && value === 'parcelas' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                            <input {...form.register('totalParcelas')} type="text" inputMode="numeric" placeholder="2" onClick={(e) => e.stopPropagation()} style={numericInputStyle} />
+                            <span style={{ fontSize: 13, color: C.textSoft }}>parcelas</span>
+                            <input {...form.register('parcelasJaPagas')} type="text" inputMode="numeric" placeholder="0" onClick={(e) => e.stopPropagation()} style={numericInputStyle} />
+                            <span style={{ fontSize: 13, color: C.textSoft }}>já pagas</span>
+                          </div>
+                        )}
+
+                        {ativo && value === 'mensal' && !isCredito && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                            <span style={{ fontSize: 13, color: C.textSoft }}>Todo dia</span>
+                            <input {...form.register('diaRecorrencia')} type="text" inputMode="numeric" placeholder="5" onClick={(e) => e.stopPropagation()} style={numericInputStyle} />
+                            <span style={{ fontSize: 13, color: C.textSoft }}>de cada mês</span>
+                          </div>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+              {repetitionGuide.isVisible && (
+                <FirstAccessGuideCard
+                  floating
+                  placement="bottom"
+                  className="w-[min(24rem,calc(100vw-2rem))]"
+                  icon={Repeat2}
+                  description={firstAccessGuideMessages.despesasTogglesTipo}
+                  onDismiss={repetitionGuide.dismiss}
+                  onSilenceAll={repetitionGuide.silenceAll}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* ── Faixa de resumo: status, vencimento e total num lugar só ──
+              Antes esses três dados apareciam espalhados em blocos diferentes. */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+            background: C.panelBg, border: `1px solid ${C.panelBorder}`, borderRadius: 12, padding: '9px 12px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                color: statusDerivado.color, background: statusDerivado.bg, border: `1px solid ${statusDerivado.border}`,
+              }}>
+                {statusDerivado.label}
+              </span>
+              <span style={{ fontSize: '12.5px', color: C.textSoft }}>{vencimentoDerivado.texto}</span>
+            </div>
+            {resumoTotal && (
+              <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#33566a', fontVariantNumeric: 'tabular-nums' }}>
+                {resumoTotal}
+              </span>
             )}
           </div>
+
+          {/* Nota fiscal recolhida: só conta empresa, e só quando pedida. */}
+          {isEmpresa && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setNfAberta((v) => !v)}
+                  style={{ fontSize: '12.5px', fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                >
+                  {nfAberta ? 'ocultar nota fiscal' : 'informar nota fiscal'}
+                </button>
+                {!nfAberta && <span style={{ fontSize: 12, color: C.textFaint }}>opcional · conta empresa</span>}
+              </div>
+              {nfAberta && (
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" style={{ maxWidth: 380 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <label style={labelStyle}>Número da NF</label>
+                    <input {...form.register('numero_nf')} placeholder="Ex: 000123456" style={fieldInputStyle} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <label style={labelStyle}>Data de emissão</label>
+                    <input {...form.register('data_emissao_nf')} type="date" style={{ ...fieldInputStyle, fontVariantNumeric: 'tabular-nums' }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
