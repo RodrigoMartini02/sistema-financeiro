@@ -130,34 +130,36 @@ function AttachmentSection({ value, onChange, readonly = false, hideTrigger = fa
         </>
       )}
 
+      {/* Chips lado a lado, com quebra de linha: cada anexo é removível por si.
+          Antes era uma linha por arquivo, empilhada verticalmente. */}
       {value.length > 0 && (
-        <div className="grid gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {value.map((a) => (
             <div
               key={a.id}
-              className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              title={`${a.nome} · ${fmtSize(a.tamanho)}`}
+              className="flex max-w-[220px] items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 py-1 pl-2 pr-1"
             >
               {fileIcon(a.tipo)}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-slate-700">{a.nome}</p>
-                <p className="text-[10px] text-slate-400">{fmtSize(a.tamanho)}</p>
-              </div>
+              <span className="truncate text-[11.5px] font-medium text-slate-700">{a.nome}</span>
+              <span className="shrink-0 text-[10px] text-slate-400">{fmtSize(a.tamanho)}</span>
               <button
                 type="button"
                 onClick={() => download(a)}
-                title="Baixar"
-                className="shrink-0 rounded p-1 text-slate-400 hover:bg-brand-50 hover:text-brand-600 transition"
+                title={`Baixar ${a.nome}`}
+                className="shrink-0 rounded p-0.5 text-slate-400 transition hover:bg-brand-50 hover:text-brand-600"
               >
-                <Download size={13} />
+                <Download size={12} />
               </button>
               {!readonly && (
                 <button
                   type="button"
                   onClick={() => remove(a.id)}
-                  title="Remover"
-                  className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition"
+                  title={`Remover ${a.nome}`}
+                  aria-label={`Remover ${a.nome}`}
+                  className="shrink-0 rounded p-0.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
                 >
-                  <X size={13} />
+                  <X size={12} />
                 </button>
               )}
             </div>

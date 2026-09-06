@@ -20,7 +20,7 @@ import {
   dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle,
   valuesTableCardStyle, valuesTableHeaderStyle, valuesTableColLabelStyle,
   valuesRowStyle, valuesRowLastStyle, valuesRowTitleStyle, valuesRowSubtitleStyle,
-  valuesInlineFieldStyle, valuesInlineInputStyle, valuesComputedStyle,
+  valuesInlineFieldStyle, valuesInlineInputStyle, valuesComputedStyle, MoneyInlineField,
   valuesRemoveButtonStyle, valuesAddRowButtonStyle,
   chipGroupLabelStyle,
 } from '../../ui/dialogFormTokens';
@@ -780,14 +780,7 @@ function ContratoDetailPane({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 12.5, color: C.placeholder }}>Mês</div>
                 <div style={{ display: 'flex', alignItems: 'center', height: 38, fontSize: 13.5, fontWeight: 600, color: C.text }}>12</div>
-                <div style={valuesInlineFieldStyle}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
-                  {isEditing ? (
-                    <input type="number" min="0" step="0.01" value={valMensal} onChange={(e) => setValMensal(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                  ) : (
-                    <span style={valuesInlineInputStyle}>{vMensalNum > 0 ? valMensal : '—'}</span>
-                  )}
-                </div>
+                <MoneyInlineField editValue={valMensal} displayValue={vMensalNum > 0 ? valMensal : ''} editing={isEditing} onChange={setValMensal} />
                 <span style={valuesComputedStyle}>{formatCurrency(vMensalNum * 12)}</span>
                 {isEditing ? (
                   <button type="button" onClick={() => removerLinha('mensalidade')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
@@ -821,14 +814,7 @@ function ContratoDetailPane({
                     <span style={valuesInlineInputStyle}>{implParc || '1'}</span>
                   )}
                 </div>
-                <div style={valuesInlineFieldStyle}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
-                  {isEditing ? (
-                    <input type="number" min="0" step="0.01" value={implValorParcela} onChange={(e) => setImplValorParcela(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                  ) : (
-                    <span style={valuesInlineInputStyle}>{implValorParcelaNum > 0 ? implValorParcela : '—'}</span>
-                  )}
-                </div>
+                <MoneyInlineField editValue={implValorParcela} displayValue={implValorParcelaNum > 0 ? implValorParcela : ''} editing={isEditing} onChange={setImplValorParcela} />
                 <span style={valuesComputedStyle}>{formatCurrency(implTotalNum)}</span>
                 {isEditing ? (
                   <button type="button" onClick={() => removerLinha('implantacao')} style={valuesRemoveButtonStyle} title="Remover linha">×</button>
@@ -862,14 +848,7 @@ function ContratoDetailPane({
                     <span style={valuesInlineInputStyle}>{hpIni || '0'}</span>
                   )}
                 </div>
-                <div style={valuesInlineFieldStyle}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
-                  {isEditing ? (
-                    <input type="number" min="0" step="0.01" value={hpValor} onChange={(e) => setHpValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                  ) : (
-                    <span style={valuesInlineInputStyle}>{hpValorNum > 0 ? hpValor : '—'}</span>
-                  )}
-                </div>
+                <MoneyInlineField editValue={hpValor} displayValue={hpValorNum > 0 ? hpValor : ''} editing={isEditing} onChange={setHpValor} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
                   <span style={valuesComputedStyle}>{formatCurrency(hpIniNum * hpValorNum)}</span>
                   <span style={{ fontSize: 10, color: C.placeholder }}>
@@ -897,14 +876,7 @@ function ContratoDetailPane({
                     <span style={valuesInlineInputStyle}>{hrIni || '0'}</span>
                   )}
                 </div>
-                <div style={valuesInlineFieldStyle}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: C.placeholder }}>R$</span>
-                  {isEditing ? (
-                    <input type="number" min="0" step="0.01" value={hrValor} onChange={(e) => setHrValor(e.target.value)} placeholder="0,00" style={valuesInlineInputStyle} />
-                  ) : (
-                    <span style={valuesInlineInputStyle}>{hrValorNum > 0 ? hrValor : '—'}</span>
-                  )}
-                </div>
+                <MoneyInlineField editValue={hrValor} displayValue={hrValorNum > 0 ? hrValor : ''} editing={isEditing} onChange={setHrValor} />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
                   <span style={valuesComputedStyle}>{formatCurrency(hrIniNum * hrValorNum)}</span>
                   <span style={{ fontSize: 10, color: C.placeholder }}>

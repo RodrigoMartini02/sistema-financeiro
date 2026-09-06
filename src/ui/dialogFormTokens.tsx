@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type ChangeEvent, type CSSProperties } from 'react';
 
 // ── Paleta e tokens visuais aprovados (origem: ExpenseDialog/IncomeDialog) ──
 export const C = {
@@ -108,35 +108,93 @@ export function chipStyle(active: boolean, opts?: { h?: number; r?: number; size
   };
 }
 
-export function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-export function digitsOnly(value: string): number {
-  const digits = value.replace(/\D/g, '');
-  return digits ? parseInt(digits, 10) : 0;
-}
-
 // Moldura na mesma altura dos demais campos (32px), para não desalinhar a linha.
 // A hierarquia do valor — que é o dado principal do lançamento — vem da fonte
 // maior que a dos outros campos (15 vs 13), não de uma altura diferente.
+// "R$" é um prefixo textual absoluto dentro do próprio input (sem container
+// extra), para não duplicar a borda do campo.
 const moneyInputStyle: CSSProperties = {
-  flex: 1, width: '100%', minWidth: 0, border: 'none', background: 'transparent',
+  width: '100%', minWidth: 0, boxSizing: 'border-box', height: 32, borderRadius: 10,
+  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px 0 28px',
   fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: '-0.01em',
   fontVariantNumeric: 'tabular-nums', outline: 'none',
 };
 
+const moneyPrefixStyle: CSSProperties = {
+  position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)',
+  fontSize: 11.5, fontWeight: 600, color: C.textFaint, pointerEvents: 'none',
+};
+
+/**
+ * Formata para exibição: 1234.5 → "1.234,50". Usado ao sair do campo e para
+ * mostrar um valor que veio de fora (edição de um lançamento salvo).
+ */
+export function formatMoney(value: number): string {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Lê o que o usuário digitou. Aceita vírgula ou ponto como separador decimal e
+ * ignora o separador de milhar, para que texto colado de outro lugar também
+ * funcione. Retorna null quando não há número — o campo vazio precisa continuar
+ * vazio em vez de virar zero.
+ */
+export function parseMoney(texto: string): number | null {
+  const limpo = texto.replace(/[^\d.,]/g, '');
+  if (!limpo) return null;
+  // O último separador é o decimal; os anteriores são de milhar.
+  const ultimoSep = Math.max(limpo.lastIndexOf(','), limpo.lastIndexOf('.'));
+  const inteiros = (ultimoSep >= 0 ? limpo.slice(0, ultimoSep) : limpo).replace(/[.,]/g, '');
+  const decimais = ultimoSep >= 0 ? limpo.slice(ultimoSep + 1).replace(/[.,]/g, '') : '';
+  const numero = Number(`${inteiros || '0'}.${decimais.slice(0, 2) || '0'}`);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+/**
+ * Campo de valor com digitação natural: "21" é vinte e um, não vinte e um
+ * centavos. Antes cada dígito era tratado como centavo e empurrava o número da
+ * direita para a esquerda, o que obrigava a digitar "2100" para obter 21,00.
+ *
+ * O texto digitado vive em estado próprio e só é reformatado ao sair do campo.
+ * Reformatar a cada tecla jogava o cursor para o fim e impedia corrigir um
+ * dígito no meio do número.
+ */
+function useMoneyInput(value: number | undefined, onChange: (v: number) => void) {
+  const [texto, setTexto] = useState<string | null>(null);
+  const emEdicao = texto !== null;
+
+  // Enquanto o usuário digita, o que ele escreveu manda. Fora disso, mostra o
+  // valor vindo de fora — inclusive quando outro campo o altera.
+  const exibido = emEdicao ? texto : value != null && value > 0 ? formatMoney(value) : '';
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const bruto = e.target.value;
+    setTexto(bruto);
+    const numero = parseMoney(bruto);
+    onChange(numero ?? 0);
+  };
+
+  const handleBlur = () => {
+    const numero = parseMoney(texto ?? '');
+    setTexto(null); // volta a espelhar o valor, já formatado
+    if (numero != null) onChange(numero);
+  };
+
+  return { exibido, handleChange, handleBlur };
+}
+
 export function MoneyField({ value, onChange, autoFocus }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean }) {
-  const cents = value ? Math.round(value * 100) : 0;
+  const { exibido, handleChange, handleBlur } = useMoneyInput(value, onChange);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px' }}>
-      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
+    <div style={{ position: 'relative' }}>
+      <span style={moneyPrefixStyle}>R$</span>
       <input
         type="text"
-        inputMode="numeric"
+        inputMode="decimal"
         autoFocus={autoFocus}
-        value={cents > 0 ? formatCents(cents) : ''}
-        onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
+        value={exibido}
+        onChange={handleChange}
+        onBlur={handleBlur}
         placeholder="0,00"
         style={moneyInputStyle}
       />
@@ -145,23 +203,20 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
 }
 
 export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean; disabled?: boolean }) {
-  const cents = value ? Math.round(value * 100) : 0;
+  const { exibido, handleChange, handleBlur } = useMoneyInput(value, onChange);
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 6, height: 32, borderRadius: 10,
-      border: `1px solid ${C.borderInput}`, background: disabled ? C.panelBg : '#fff', padding: '0 9px',
-      opacity: disabled ? 0.6 : 1,
-    }}>
-      <span style={{ fontSize: 11.5, fontWeight: 600, color: C.textFaint }}>R$</span>
+    <div style={{ position: 'relative' }}>
+      <span style={moneyPrefixStyle}>R$</span>
       <input
         type="text"
-        inputMode="numeric"
+        inputMode="decimal"
         autoFocus={autoFocus}
         disabled={disabled}
-        value={cents > 0 ? formatCents(cents) : ''}
-        onChange={(e) => onChange(digitsOnly(e.target.value) / 100)}
+        value={exibido}
+        onChange={handleChange}
+        onBlur={handleBlur}
         placeholder="0,00"
-        style={{ ...moneyInputStyle, cursor: disabled ? 'not-allowed' : 'text' }}
+        style={{ ...moneyInputStyle, background: disabled ? C.panelBg : '#fff', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
       />
     </div>
   );
@@ -206,6 +261,33 @@ export const valuesInlineInputStyle: CSSProperties = {
   flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 13.5, fontWeight: 600,
   color: C.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums', outline: 'none', padding: 0,
 };
+
+// "R$" como prefixo textual absoluto dentro do próprio input, sem container
+// extra — usado nas linhas de valor da tabela (Mensalidade/Implantação/Horas).
+const valuesInlineMoneyInputStyle: CSSProperties = {
+  ...valuesInlineFieldStyle, width: '100%', boxSizing: 'border-box', padding: '0 9px 0 26px',
+  fontSize: 13.5, fontWeight: 600, color: C.text, textAlign: 'right', fontVariantNumeric: 'tabular-nums', outline: 'none',
+};
+
+const valuesInlineMoneyPrefixStyle: CSSProperties = {
+  position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)',
+  fontSize: 11, fontWeight: 700, color: C.placeholder, pointerEvents: 'none',
+};
+
+export function MoneyInlineField({ editValue, displayValue, editing, onChange, placeholder = '0,00' }: {
+  editValue: string; displayValue: string; editing: boolean; onChange?: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <div style={{ position: 'relative' }}>
+      <span style={valuesInlineMoneyPrefixStyle}>R$</span>
+      {editing ? (
+        <input type="number" min="0" step="0.01" value={editValue} onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder} style={valuesInlineMoneyInputStyle} />
+      ) : (
+        <span style={{ ...valuesInlineMoneyInputStyle, display: 'block', border: 'none', background: 'transparent' }}>{displayValue || '—'}</span>
+      )}
+    </div>
+  );
+}
 
 export const valuesComputedStyle: CSSProperties = {
   fontSize: 13.5, fontWeight: 700, color: C.textSoft, textAlign: 'right', fontVariantNumeric: 'tabular-nums',

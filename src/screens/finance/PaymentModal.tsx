@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, MoneyField } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, cardStyle, dialogFooterStyle, MoneyField } from '../../ui/dialogFormTokens';
 import type { Expense } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
 import { formatCurrency } from './formatters';
@@ -91,14 +91,8 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
           </div>
         </div>
 
-        <div style={{ flex: 'none', borderTop: '1px solid #eef3f6', background: '#fafcfd', padding: '14px var(--dialog-px) 16px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
-          >
-            Cancelar
-          </button>
+        {/* Sem "Cancelar": o X do cabeçalho já fecha o modal. */}
+        <div style={{ ...dialogFooterStyle, justifyContent: 'flex-end' }}>
           <button
             type="button"
             onClick={handleConfirm}
