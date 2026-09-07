@@ -134,10 +134,16 @@ export function MovimentacoesScreen() {
   const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
   const reservaGuide = useFirstAccessGuide('reservas:movimentar-v1', { enabled: isLista });
 
+  // Altura total tambem na lista de despesas: cabecalho, filtros e cards de
+  // resumo ficam fixos e so o corpo da tabela rola. Receitas e Planejamento
+  // ficam de fora — nao foram readequadas para rolar por dentro e, sem isso,
+  // travar a altura cortaria conteudo em vez de organizar.
+  const preencherViewport = isCalendario || (isLista && activeTab === 'despesas');
+
   useEffect(() => {
-    setFillViewport(isCalendario);
+    setFillViewport(preencherViewport);
     return () => setFillViewport(false);
-  }, [isCalendario, setFillViewport]);
+  }, [preencherViewport, setFillViewport]);
   const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
   const annual = useQuery({
@@ -221,7 +227,7 @@ export function MovimentacoesScreen() {
 
   return (
     <>
-      <div className={isCalendario ? 'flex h-full flex-col gap-3' : 'grid gap-5'}>
+      <div className={preencherViewport ? 'flex h-full min-h-0 flex-col gap-3' : 'grid gap-5'}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
@@ -326,7 +332,7 @@ export function MovimentacoesScreen() {
         )}
 
         {!isCalendario && (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid shrink-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MovementMetricCard
               label="Saldo atual"
               value={formatCurrency(saldoAtual)}
@@ -358,8 +364,8 @@ export function MovimentacoesScreen() {
             da largura. Agora a faixa inteira é dos cartões, que se redistribuem
             conforme a quantidade. */}
         {!isCalendario && (cardLimits.data?.length ?? 0) > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-            <div className="grid gap-x-6 gap-y-2.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+          <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
+            <div className="grid gap-x-5 gap-y-1.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
               {cardLimits.data!.map((card) => (
                 <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} />
               ))}
@@ -371,7 +377,11 @@ export function MovimentacoesScreen() {
           ? (activeTab === 'receitas'
               ? <ReceitasScreen month={month} year={year} toolbarStart={movementTabs} />
               : activeTab === 'despesas'
-                ? <DespesasScreen month={month} year={year} toolbarStart={movementTabs} onFilteredSummaryChange={setDespesasSummary} />
+                // Despesas e a unica que ocupa a altura restante: a tabela rola
+                // por dentro. As demais seguem com a pagina rolavel.
+                ? <div className="flex min-h-0 flex-1 flex-col">
+                    <DespesasScreen month={month} year={year} toolbarStart={movementTabs} onFilteredSummaryChange={setDespesasSummary} />
+                  </div>
                 : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
           : (
             <div className="min-h-0 flex-1">

@@ -63,6 +63,7 @@ export interface Expense {
   valorOriginal?: number | null; // preço base acordado
   valorPago?: number | null;    // valor efetivamente pago (pode diferir do valorFinal por acréscimo/desconto)
   categoria: string;
+  categoriaPai?: string | null; // nome da categoria-pai, quando a categoria é subcategoria
   formaPagamento: string;
   cartaoId?: number | null;
   cartaoNome?: string | null;

@@ -88,7 +88,7 @@ async function createFutureInstallments(
     const installmentIsPaid = i <= installmentsAlreadyPaid;
     params.push(
       userId,
-      `${baseExpense['descricao']} (${i}/${totalInstallments})`,
+      baseExpense['descricao'],
       nextDue,
       baseExpense['data_compra'],
       nextMonth,
@@ -123,10 +123,13 @@ async function createFutureInstallments(
     );
   }
 
+  // A descricao NAO recebe sufixo "(1/N)": a informacao de parcela ja vive em
+  // parcela_atual/numero_parcelas, e a tabela a exibe na coluna Tipo. Gravar o
+  // sufixo duplicava o dado no proprio texto e sujava busca, relatorio e export.
   const firstInstallmentPaid = installmentsAlreadyPaid >= 1;
   await pool.query(
-    `UPDATE despesas SET grupo_parcelamento_id = $1, descricao = $2, parcela_atual = 1, pago = $3 WHERE id = $4`,
-    [baseExpense['id'], `${baseExpense['descricao']} (1/${totalInstallments})`, firstInstallmentPaid, baseExpense['id']],
+    `UPDATE despesas SET grupo_parcelamento_id = $1, parcela_atual = 1, pago = $2 WHERE id = $3`,
+    [baseExpense['id'], firstInstallmentPaid, baseExpense['id']],
   );
 }
 
@@ -206,10 +209,12 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis);
 
     const result = await pool.query(
-      `SELECT d.*, c.nome AS categoria_nome, ct.nome AS cartao_nome, ct.tipo AS cartao_tipo,
+      `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
+              ct.nome AS cartao_nome, ct.tipo AS cartao_tipo,
               u.nome AS autor_nome
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
+       LEFT JOIN categorias p ON c.parent_id = p.id
        LEFT JOIN cartoes ct ON d.cartao_id = ct.id
        LEFT JOIN usuarios u ON u.id = d.usuario_id
        ${where}
