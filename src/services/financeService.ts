@@ -13,6 +13,7 @@ interface RawIncome {
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
   anexos?: Attachment[] | null;
+  autor_nome?: string | null;
 }
 
 interface RawExpense {
@@ -25,6 +26,7 @@ interface RawExpense {
   valor_original?: string | null; valor_final?: string | null; valor?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null; tipo_despesa?: string | null;
   data_criacao?: string | null;
+  autor_nome?: string | null;
   anexos?: Attachment[] | null;
 }
 
@@ -54,6 +56,7 @@ function incomeFromApi(r: RawIncome): Income {
     observacoes: r.observacoes, cliente: r.cliente, tipoReceita: r.tipo_receita,
     representanteId: r.representante_id ?? null,
     representanteNome: r.representante_nome ?? null,
+    autorNome: r.autor_nome ?? null,
     valorComissao: r.valor_comissao != null ? asNumber(r.valor_comissao) : null,
     anexos: Array.isArray(r.anexos) ? r.anexos : null,
   };
@@ -77,6 +80,7 @@ function expenseFromApi(r: RawExpense): Expense {
     cartaoNome: r.cartao_nome ?? null,
     dataVencimento: r.data_vencimento, dataCompra: r.data_compra,
     dataCriacao: r.data_criacao ?? null,
+    autorNome: r.autor_nome ?? null,
     dataPagamento: r.data_pagamento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada') ?? 'ativa',
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,

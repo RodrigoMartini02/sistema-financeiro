@@ -51,6 +51,11 @@ export const memberPermissions = pgTable('membro_permissoes', {
   accessContracts: boolean('acesso_contratos').notNull().default(false),
   accessProductCatalog: boolean('acesso_catalogo_produtos').notNull().default(false),
 
+  // Carteira compartilhada (somente conta pessoal). Sem estas, o membro ve e
+  // altera apenas o que ele proprio lancou — o comportamento historico.
+  accessFamilyEntries: boolean('acesso_lancamentos_familia').notNull().default(false),
+  editFamilyEntries: boolean('editar_lancamentos_familia').notNull().default(false),
+
   updatedAt: timestamp('data_atualizacao').defaultNow(),
 });
 

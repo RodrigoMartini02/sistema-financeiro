@@ -22,6 +22,8 @@ export interface MonthBalance {
 export interface Income {
   id: number;
   descricao: string;
+  /** Quem cadastrou. Preenchido quando a conta tem mais de uma pessoa lancando. */
+  autorNome?: string | null;
   valor: number;
   data: string;
   mes: number;
@@ -68,6 +70,8 @@ export interface Expense {
   dataCompra?: string | null;
   /** Quando o lancamento foi cadastrado. Ordena a tabela: mais recente no topo. */
   dataCriacao?: string | null;
+  /** Quem cadastrou. Preenchido quando a conta tem mais de uma pessoa lancando. */
+  autorNome?: string | null;
   dataPagamento?: string | null;
   mes: number;
   ano: number;

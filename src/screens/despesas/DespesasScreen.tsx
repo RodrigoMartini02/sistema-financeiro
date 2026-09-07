@@ -200,6 +200,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroAutor, setFiltroAutor] = useState('');
   const [filtroFormaPag, setFiltroFormaPag] = useState('');
   const [filtroCartao, setFiltroCartao] = useState('');
   const [filtroDataPag, setFiltroDataPag] = useState<FiltroDataPag>('qualquer');
@@ -277,6 +278,11 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   };
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
+  // Autores distintos entre os lancamentos do periodo. A coluna "Quem lancou"
+  // so aparece quando ha mais de um: numa conta usada por uma pessoa so, ela
+  // repetiria o mesmo nome em toda linha.
+  const autores = [...new Set(allItems.map((i) => i.autorNome).filter(Boolean) as string[])].sort();
+  const mostrarAutor = autores.length > 1;
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
   const cartoesUsados = [...new Map(
     allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
@@ -290,6 +296,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     .filter((i) => {
       if (filtroStatus !== 'todos' && getStatus(i) !== filtroStatus) return false;
       if (filtroCategoria && i.categoria !== filtroCategoria) return false;
+      if (filtroAutor && i.autorNome !== filtroAutor) return false;
       if (filtroFormaPag && i.formaPagamento !== filtroFormaPag) return false;
       if (filtroCartao && String(i.cartaoId ?? '') !== filtroCartao) return false;
       if (filtroDataPag === 'hoje' && i.dataPagamento !== hoje) return false;
@@ -315,7 +322,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     });
 
   const hasFilter2 =
-    filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroCartao !== '' || filtroDataPag !== 'qualquer';
+    filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroCartao !== '' || filtroDataPag !== 'qualquer' || filtroAutor !== '';
 
   useEffect(() => {
     onFilteredSummaryChange?.({
@@ -486,6 +493,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   { value: 'descricao', label: 'A–Z' },
                 ]}
               />
+              {mostrarAutor && (
+                <FilterChip
+                  value={filtroAutor}
+                  onChange={setFiltroAutor}
+                  options={[
+                    { value: '', label: 'Todos os membros' },
+                    ...autores.map((a) => ({ value: a, label: a })),
+                  ]}
+                />
+              )}
               {hasFilter2 && (
                 <button
                   type="button"
@@ -495,6 +512,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     setFiltroFormaPag('');
                     setFiltroCartao('');
                     setFiltroDataPag('qualquer');
+                    setFiltroAutor('');
                   }}
                   className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100 transition dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
                 >
@@ -597,6 +615,9 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Vencimento</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Data compra</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Categoria</th>
+                    {mostrarAutor && (
+                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Quem lançou</th>
+                    )}
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Pagamento</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Status</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
@@ -665,6 +686,14 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                           {item.categoria}
                         </span>
                       </td>
+
+                      {/* Quem lancou: so aparece quando ha mais de uma pessoa
+                          lancando na conta. */}
+                      {mostrarAutor && (
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                          {item.autorNome ?? '—'}
+                        </td>
+                      )}
 
                       {/* Pagamento */}
                       <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">

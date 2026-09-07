@@ -12,14 +12,30 @@ export async function buildOwnerAndAccountWhere(
   ano: string | undefined,
   contaId: string | undefined,
   tableAlias: string,
+  /**
+   * Usuarios cujos lancamentos o solicitante pode ver. Passado apenas por
+   * despesas e receitas, onde existe a carteira compartilhada da familia.
+   *
+   * Parametro explicito de proposito: outras seis rotas usam este utilitario
+   * (cartoes, contratos, clientes, compromissos, meses, relatorios) e devem
+   * continuar restritas ao dono. Mudar o comportamento padrao ampliaria a
+   * visibilidade delas sem intencao.
+   */
+  visibleUserIds?: number[],
 ): Promise<{ where: string; params: unknown[] }> {
   const params: unknown[] = [];
   let p = 0;
 
   const targetUserId = queryUserId && userType === 'admin' ? parseInt(queryUserId) : userId;
   p++;
-  let where = `WHERE ${tableAlias}.usuario_id = $${p}`;
-  params.push(targetUserId);
+  let where: string;
+  if (visibleUserIds && visibleUserIds.length > 1) {
+    where = `WHERE ${tableAlias}.usuario_id = ANY($${p})`;
+    params.push(visibleUserIds);
+  } else {
+    where = `WHERE ${tableAlias}.usuario_id = $${p}`;
+    params.push(targetUserId);
+  }
 
   if (mes !== undefined && ano !== undefined) {
     where += ` AND ${tableAlias}.mes = $${p + 1} AND ${tableAlias}.ano = $${p + 2}`;

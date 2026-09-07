@@ -54,8 +54,13 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
   });
 
   const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
-  // O grupo comercial trata de clientes e contratos: não existe em conta pessoal.
-  const visibleGroups = PERMISSION_GROUPS.filter((g) => g.id !== 'comercial' || contaTipo === 'empresa');
+  // Comercial trata de clientes e contratos: só em conta empresa. Carteira da
+  // família é o inverso — membros familiares só existem em conta pessoal.
+  const visibleGroups = PERMISSION_GROUPS.filter((g) => {
+    if (g.id === 'comercial') return contaTipo === 'empresa';
+    if (g.id === 'familia') return contaTipo === 'pessoal';
+    return true;
+  });
 
   if (membrosQuery.isLoading) {
     return <p style={{ padding: 20, fontSize: 12.5, color: CFG.muted }}>Carregando membros...</p>;

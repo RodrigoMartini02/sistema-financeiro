@@ -4,7 +4,8 @@ export type PermissionFlag =
   | 'accessExpenses' | 'accessIncomes' | 'accessMonthClosing' | 'accessReserves' | 'accessBudget' | 'accessCalendar'
   | 'accessDashboard' | 'accessReports' | 'accessNotifications' | 'accessAssistant'
   | 'accessAccounts' | 'accessCategories' | 'accessCards' | 'accessServices' | 'accessRepresentatives' | 'accessPartners' | 'accessMembers' | 'accessSubscription'
-  | 'accessClients' | 'accessContracts' | 'accessProductCatalog';
+  | 'accessClients' | 'accessContracts' | 'accessProductCatalog'
+  | 'accessFamilyEntries' | 'editFamilyEntries';
 
 export type MemberPermissionsData = Record<PermissionFlag, boolean> & {
   id?: number;
@@ -53,6 +54,14 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { flag: 'accessPartners', label: 'Sócios' },
       { flag: 'accessMembers', label: 'Membros/Colaboradores' },
       { flag: 'accessSubscription', label: 'Assinatura/Planos' },
+    ],
+  },
+  {
+    id: 'familia',
+    label: 'Carteira da família',
+    items: [
+      { flag: 'accessFamilyEntries', label: 'Ver lançamentos dos outros membros' },
+      { flag: 'editFamilyEntries', label: 'Editar e excluir lançamentos dos outros' },
     ],
   },
   {
