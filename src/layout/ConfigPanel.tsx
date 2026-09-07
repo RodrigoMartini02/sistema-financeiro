@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Activity, Crown, UsersRound,
+  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
@@ -16,12 +16,13 @@ import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { SociosTab } from '../screens/config/SociosTab';
 import { MembrosTab } from '../screens/config/MembrosTab';
+import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 
 export type ConfigItemId =
   | 'seguranca' | 'contas' | 'assinatura'
-  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'membros'
+  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'membros' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
@@ -41,6 +42,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase,  group: 'Pessoas' },
   { id: 'membros',        label: 'Membros da família', icon: UsersRound, group: 'Pessoas' },
+  { id: 'permissoes',     label: 'Permissões',         icon: ShieldCheck, group: 'Pessoas' },
   { id: 'acessos',        label: 'Acessos',        icon: Activity,   group: 'Pessoas' },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot,     group: 'Avançado' },
 ];
@@ -88,7 +90,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
-    if (item.id === 'membros') return isGestor;
+    if (item.id === 'membros' || item.id === 'permissoes') return isGestor;
     // PJ-only: catalogo alimenta contratos e faturamento; representantes e
     // socios nao existem em conta pessoal.
     if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos') {
@@ -170,6 +172,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'representantes' && <RepresentantesTab />}
           {current.id === 'socios' && <SociosTab />}
           {current.id === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
+          {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
           {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
         </div>

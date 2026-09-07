@@ -1,19 +1,14 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ShieldAlert, UserX, ShieldCheck } from 'lucide-react';
+import { Plus, ShieldAlert, UserX } from 'lucide-react';
 import {
   fetchMembros, createMembro, deactivateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
-import {
-  fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
-  type PermissionFlag, type MemberPermissionsData,
-} from '../../services/permissoesService';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
-import { ToggleRow } from '../../ui/form';
 import { ListToolbar } from '../../ui/ListToolbar';
 import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -112,71 +107,6 @@ function NovoMembroDialog({
   );
 }
 
-function PermissoesDialog({ open, membro, contaTipo, onClose }: { open: boolean; membro?: MembroListItem; contaTipo: 'pessoal' | 'empresa'; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [error, setError] = useState('');
-
-  const permissionsQuery = useQuery({
-    queryKey: ['membro-permissoes', membro?.usuario_id],
-    queryFn: () => fetchMemberPermissions(membro!.usuario_id),
-    enabled: open && !!membro,
-  });
-
-  const toggleMut = useMutation({
-    mutationFn: ({ flag, value }: { flag: PermissionFlag; value: boolean }) =>
-      updateMemberPermissions(membro!.usuario_id, { [flag]: value }),
-    onSuccess: (data) => {
-      qc.setQueryData(['membro-permissoes', membro?.usuario_id], data);
-      setError('');
-    },
-    onError: (e: Error) => setError(e.message),
-  });
-
-  const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
-  const visibleGroups = PERMISSION_GROUPS.filter((g) => g.id !== 'comercial' || contaTipo === 'empresa');
-
-  return (
-    // Sem rodapé: as permissões salvam a cada toggle, então não há ação de
-    // confirmar — fecha pelo X ou pelo overlay.
-    <Dialog open={open} title={`Permissões de "${membro?.nome}"`} onClose={onClose} size="md" scrollBody={false}>
-      <div style={{ flex: 1, minHeight: 0, maxHeight: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
-          Por padrão, este membro não acessa nenhuma tela. Libere abaixo o que ele pode usar.
-        </p>
-
-        {permissionsQuery.isLoading ? (
-          <p style={{ padding: '20px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando permissões...</p>
-        ) : permissions ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {visibleGroups.map((group) => (
-              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <p style={{ margin: 0, fontSize: 9.5, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: CFG.faint }}>
-                  {group.label} · {group.items.length} permiss{group.items.length !== 1 ? 'ões' : 'ão'}
-                </p>
-                {group.items.map(({ flag, label }) => (
-                  <ToggleRow
-                    key={flag}
-                    label={label}
-                    checked={permissions[flag]}
-                    disabled={toggleMut.isPending}
-                    onChange={() => toggleMut.mutate({ flag, value: !permissions[flag] })}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {error && (
-          <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
-            {error}
-          </div>
-        )}
-      </div>
-    </Dialog>
-  );
-}
-
 function TransferirPendenciasDialog({
   open, membro, pendencias, outrosMembros, isSaving, error, termo, onClose, onConfirm,
 }: {
@@ -266,7 +196,6 @@ export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
   const [mutError, setMutError] = useState('');
   const [pendingDialog, setPendingDialog] = useState<{ membro: MembroListItem; pendencias: PendingExpense[] } | null>(null);
-  const [permissoesMembro, setPermissoesMembro] = useState<MembroListItem | null>(null);
 
   const listQuery = useQuery({ queryKey: ['membros-list'], queryFn: fetchMembros });
   const list = (listQuery.data ?? []).filter((m) =>
@@ -356,25 +285,6 @@ export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={(e) => { e.stopPropagation(); setPermissoesMembro(m); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setPermissoesMembro(m);
-                        }
-                      }}
-                      title="Configurar permissões"
-                      style={{
-                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-                        fontSize: 11.5, fontWeight: 600, color: CFG.chipText, cursor: 'pointer',
-                      }}
-                    >
-                      <ShieldCheck size={12} /> Permissões
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); handleDeactivate(m); }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -430,14 +340,6 @@ export function MembrosTab({ contaTipo = 'pessoal' }: { contaTipo?: 'pessoal' | 
         />
       )}
 
-      {permissoesMembro && (
-        <PermissoesDialog
-          open={!!permissoesMembro}
-          membro={permissoesMembro}
-          contaTipo={contaTipo}
-          onClose={() => setPermissoesMembro(null)}
-        />
-      )}
     </div>
   );
 }
