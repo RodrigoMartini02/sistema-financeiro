@@ -356,7 +356,7 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
 
     const [expensesResult, incomesResult] = await Promise.all([
       pool.query(
-        `SELECT usuario_id, COALESCE(SUM(COALESCE(valor_final, valor_original)), 0) AS total
+        `SELECT usuario_id, COALESCE(SUM(COALESCE(valor_final, valor_original, valor)), 0) AS total
          FROM despesas WHERE usuario_id = ANY($1) ${periodFilter}
          GROUP BY usuario_id`,
         [authorIds, ...periodParams],
