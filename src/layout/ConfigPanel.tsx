@@ -89,7 +89,11 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
     if (item.id === 'membros') return isGestor;
-    if (item.id === 'representantes' || item.id === 'socios') return contaTipo !== 'pessoal';
+    // PJ-only: catalogo alimenta contratos e faturamento; representantes e
+    // socios nao existem em conta pessoal.
+    if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos') {
+      return contaTipo !== 'pessoal';
+    }
     return true;
   }).map((item) => {
     // Mesma tela/dado por trás (conta_membros) — só o rótulo muda conforme
@@ -153,17 +157,21 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
         </nav>
 
         <div className="scrollbar-thin min-w-0 flex-1 overflow-y-auto">
-          {activeItem === 'seguranca' && <SecurityTab />}
-          {activeItem === 'contas' && <ContasTab />}
-          {activeItem === 'assinatura' && <PlanosScreen embedded />}
-          {activeItem === 'categorias' && <CategoriasTab />}
-          {activeItem === 'cartoes' && <CartaoTab />}
-          {activeItem === 'servicos' && <ServicosTab />}
-          {activeItem === 'representantes' && <RepresentantesTab />}
-          {activeItem === 'socios' && <SociosTab />}
-          {activeItem === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
-          {activeItem === 'acessos' && canViewAnalytics && <AcessosTab />}
-          {activeItem === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
+          {/* current.id, nao activeItem: current cai no primeiro item visivel
+              quando o ativo deixa de existir para a conta. Sem isso, trocar de
+              conta empresa para pessoal com o catalogo aberto continuaria
+              renderizando uma tela que o menu ja escondeu. */}
+          {current.id === 'seguranca' && <SecurityTab />}
+          {current.id === 'contas' && <ContasTab />}
+          {current.id === 'assinatura' && <PlanosScreen embedded />}
+          {current.id === 'categorias' && <CategoriasTab />}
+          {current.id === 'cartoes' && <CartaoTab />}
+          {current.id === 'servicos' && <ServicosTab />}
+          {current.id === 'representantes' && <RepresentantesTab />}
+          {current.id === 'socios' && <SociosTab />}
+          {current.id === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
+          {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
+          {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
         </div>
       </div>
     </Drawer>
