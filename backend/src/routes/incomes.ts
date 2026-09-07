@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
+import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 import { createCommissionExpense } from '../services/commissionService';
 
 const router = Router();
@@ -16,20 +17,25 @@ function buildWhereClause(
   mes: string | undefined,
   ano: string | undefined,
   accountId: string | undefined,
+  visibleUserIds?: number[],
 ): Promise<{ where: string; params: unknown[] }> {
-  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, 'r');
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, 'r', visibleUserIds);
 }
 
 // GET /api/incomes
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id);
+    // Mesma regra das despesas: em conta pessoal, com permissao, o solicitante
+    // ve os lancamentos dos demais membros.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, visiveis);
 
     const result = await pool.query(
-      `SELECT r.*, rep.nome AS representante_nome
+      `SELECT r.*, rep.nome AS representante_nome, u.nome AS autor_nome
        FROM receitas r
        LEFT JOIN representantes rep ON rep.id = r.representante_id
+       LEFT JOIN usuarios u ON u.id = r.usuario_id
        ${where} ORDER BY r.data_recebimento DESC`,
       params,
     );
@@ -174,6 +180,11 @@ router.post(
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incomeId = parseInt(req.params['id']!);
+    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
+    if (donoWrite === null) {
+      res.status(404).json({ success: false, message: 'Income not found' });
+      return;
+    }
 
     const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id } =
       req.body as Record<string, unknown>;
@@ -202,7 +213,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         tipo_receita ?? null,
         representante_id ? parseInt(String(representante_id)) : null,
         incomeId,
-        req.user!.id,
+        donoWrite,
         mes,
         ano,
       ],
@@ -224,6 +235,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 router.put('/:id/receber', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incomeId = parseInt(req.params['id']!);
+    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
+    if (donoWrite === null) {
+      res.status(404).json({ success: false, message: 'Income not found' });
+      return;
+    }
     const { data_recebimento, valor_recebido } = req.body as Record<string, unknown>;
 
     const result = await pool.query(
@@ -237,7 +253,7 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
         data_recebimento ?? null,
         valor_recebido ? parseFloat(String(valor_recebido)) : null,
         incomeId,
-        req.user!.id,
+        donoWrite,
       ],
     );
 
@@ -257,10 +273,15 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
 router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incomeId = parseInt(req.params['id']!);
+    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
+    if (donoWrite === null) {
+      res.status(404).json({ success: false, message: 'Income not found' });
+      return;
+    }
 
     const receitaResult = await pool.query(
       'SELECT representante_id, mes, ano FROM receitas WHERE id = $1 AND usuario_id = $2',
-      [incomeId, req.user!.id],
+      [incomeId, donoWrite],
     );
 
     if (receitaResult.rows.length === 0) {
@@ -272,7 +293,7 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
 
     await pool.query(
       "UPDATE receitas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2",
-      [incomeId, req.user!.id],
+      [incomeId, donoWrite],
     );
 
     if (receita.representante_id) {
@@ -295,10 +316,15 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const incomeId = parseInt(req.params['id']!);
+    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
+    if (donoWrite === null) {
+      res.status(404).json({ success: false, message: 'Income not found' });
+      return;
+    }
 
     const result = await pool.query(
       'DELETE FROM receitas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [incomeId, req.user!.id],
+      [incomeId, donoWrite],
     );
 
     if (result.rows.length === 0) {

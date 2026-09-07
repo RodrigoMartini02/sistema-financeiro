@@ -90,20 +90,15 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
-    if (item.id === 'membros' || item.id === 'permissoes') return isGestor;
+    // Membros da familia e as permissoes deles so existem em conta pessoal:
+    // em conta empresa cada colaborador segue isolado.
+    if (item.id === 'membros' || item.id === 'permissoes') return isGestor && contaTipo === 'pessoal';
     // PJ-only: catalogo alimenta contratos e faturamento; representantes e
     // socios nao existem em conta pessoal.
     if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos') {
       return contaTipo !== 'pessoal';
     }
     return true;
-  }).map((item) => {
-    // Mesma tela/dado por trás (conta_membros) — só o rótulo muda conforme
-    // o tipo da conta ativa: PF fala em "família", PJ em "colaboradores".
-    if (item.id === 'membros' && contaTipo === 'empresa') {
-      return { ...item, label: 'Colaboradores' };
-    }
-    return item;
   });
 
   const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;

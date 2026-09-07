@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
+import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -16,8 +17,9 @@ function buildWhereClause(
   ano: string | undefined,
   accountId: string | undefined,
   tableAlias: string = 'd',
+  visibleUserIds?: number[],
 ): Promise<{ where: string; params: unknown[] }> {
-  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias);
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds);
 }
 
 async function validateCardId(cardId: unknown, userId: number): Promise<number | null> {
@@ -185,13 +187,19 @@ async function createRecurringOccurrences(
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id);
+    // Carteira compartilhada: em conta pessoal o solicitante pode enxergar os
+    // lancamentos dos demais membros, se tiver a permissao. Fora disso a lista
+    // volta so com ele mesmo, e o filtro fica identico ao de antes.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis);
 
     const result = await pool.query(
-      `SELECT d.*, c.nome AS categoria_nome, ct.nome AS cartao_nome, ct.tipo AS cartao_tipo
+      `SELECT d.*, c.nome AS categoria_nome, ct.nome AS cartao_nome, ct.tipo AS cartao_tipo,
+              u.nome AS autor_nome
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
        LEFT JOIN cartoes ct ON d.cartao_id = ct.id
+       LEFT JOIN usuarios u ON u.id = d.usuario_id
        ${where}
        ORDER BY d.data_vencimento ASC`,
       params,
@@ -427,6 +435,15 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   try {
     const expenseId = parseInt(req.params['id']!);
 
+    // Carteira compartilhada: alterar lancamento de outro membro exige a
+    // permissao correspondente. Sem ela, o dono resolvido volta null e a
+    // resposta e a mesma de registro inexistente — nao revela que existe.
+    const donoUpdate = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
+    if (donoUpdate === null) {
+      res.status(404).json({ success: false, message: 'Expense not found' });
+      return;
+    }
+
     const {
       descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
       categoria_id, cartao_id, forma_pagamento, observacoes, pago,
@@ -488,7 +505,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         recorrente !== undefined ? recorrente : null,
         conta_id ? parseInt(String(conta_id)) : null,
         (numero_nf as string) || null, (data_emissao_nf as string) || null, (tipo_despesa as string) || null,
-        expenseId, req.user!.id,
+        expenseId, donoUpdate,
       ],
     );
 
@@ -509,9 +526,15 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
   try {
     const expenseId = parseInt(req.params['id']!);
 
+    const donoCancel = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
+    if (donoCancel === null) {
+      res.status(404).json({ success: false, message: 'Expense not found' });
+      return;
+    }
+
     const result = await pool.query(
       "UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING id",
-      [expenseId, req.user!.id],
+      [expenseId, donoCancel],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Expense not found' });
@@ -530,15 +553,21 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     const expenseId = parseInt(req.params['id']!);
     const { delete_group } = req.query as { delete_group?: string };
 
+    const donoDelete = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
+    if (donoDelete === null) {
+      res.status(404).json({ success: false, message: 'Expense not found' });
+      return;
+    }
+
     if (delete_group === 'true') {
       await pool.query(
         `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2`,
-        [expenseId, req.user!.id],
+        [expenseId, donoDelete],
       );
     } else {
       const result = await pool.query(
         'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-        [expenseId, req.user!.id],
+        [expenseId, donoDelete],
       );
       if (result.rows.length === 0) {
         res.status(404).json({ success: false, message: 'Expense not found' });

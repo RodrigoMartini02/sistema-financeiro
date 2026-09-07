@@ -56,6 +56,10 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   const confirm = useConfirm();
   const finance = useFinanceDashboard(month, year);
   const allItems = finance.dashboard.data?.incomes ?? [];
+  // Mesma regra das despesas: a coluna de autoria so aparece quando ha mais de
+  // uma pessoa lancando na conta.
+  const autores = [...new Set(allItems.map((i) => i.autorNome).filter(Boolean) as string[])].sort();
+  const mostrarAutor = autores.length > 1;
   const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
 
   const cancelarReceita = useMutation({
@@ -287,6 +291,9 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
+                    {mostrarAutor && (
+                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Quem lançou</th>
+                    )}
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center">Anexos</th>
@@ -339,6 +346,11 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                       <td className="px-4 py-3">
                         {tipoBadge(item.tipoReceita) ?? <span className="text-slate-300 text-xs">—</span>}
                       </td>
+                      {mostrarAutor && (
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                          {item.autorNome ?? '—'}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         {item.valorComissao && item.valorComissao > 0
                           ? <span className="font-semibold text-amber-600">{formatCurrency(item.valorComissao)}</span>
@@ -404,7 +416,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
-                    <td colSpan={5} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    <td colSpan={mostrarAutor ? 6 : 5} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
                       Total
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-green-700 text-sm whitespace-nowrap">

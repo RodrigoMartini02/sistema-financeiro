@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { and, eq, isNotNull, or } from 'drizzle-orm';
 import { body } from 'express-validator';
 import { db, pool } from '../db/client';
-import { users, accounts, accountMembers, categories, expenses, memberPermissions } from '../db/schema';
+import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireGestor } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, type PermissionFlag } from '../middleware/permissions';
@@ -12,13 +12,20 @@ const router = Router();
 
 // Resolve a Conta Padrão do gestor autenticado (mesma noção usada em todo o
 // backend: a conta com eh_padrao=true é a que nasceu no cadastro externo).
+/**
+ * Conta onde os membros da familia vivem. Exige conta padrao do tipo pessoal:
+ * membro familiar nao existe em conta empresa, onde cada colaborador segue
+ * isolado. Antes o tipo nao era verificado, e um gestor com conta padrao PJ
+ * acabava vinculando membros la.
+ */
 async function resolveGestorAccountId(gestorId: number): Promise<number | null> {
   const [account] = await db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, type: accounts.type })
     .from(accounts)
     .where(and(eq(accounts.userId, gestorId), eq(accounts.isDefault, true)))
     .limit(1);
-  return account?.id ?? null;
+  if (!account || account.type !== 'pessoal') return null;
+  return account.id;
 }
 
 // GET /api/account-members — lista os membros vinculados à conta do gestor autenticado
@@ -114,26 +121,10 @@ router.post(
         // explicitamente pela tela de permissões (Fase 3).
         await transaction.insert(memberPermissions).values({ userId: member!.id });
 
-        // Membro herda cópia das categorias reais do gestor (não o conjunto
-        // padrão genérico), incluindo customizações já feitas por ele —
-        // categorias são usuario_id-scoped, então sem isso o membro não teria
-        // nenhuma categoria para escolher ao lançar uma despesa/receita.
-        const gestorCategories = await transaction
-          .select({ type: categories.type, accountId: categories.accountId, name: categories.name, color: categories.color, icon: categories.icon, parentId: categories.parentId })
-          .from(categories)
-          .where(eq(categories.userId, req.user!.id));
-
-        for (const category of gestorCategories) {
-          await transaction.insert(categories).values({
-            userId: member!.id,
-            type: category.type,
-            accountId: category.accountId,
-            name: category.name,
-            color: category.color,
-            icon: category.icon,
-            parentId: category.parentId,
-          });
-        }
+        // Categorias sao da conta, nao do usuario: o membro usa as mesmas do
+        // gestor. Antes o sistema copiava cada uma para o novo usuario, o que
+        // com a carteira compartilhada geraria duas categorias de mesmo nome
+        // no mesmo relatorio.
 
         return member;
       });
