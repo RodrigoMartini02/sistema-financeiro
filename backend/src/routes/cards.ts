@@ -4,6 +4,7 @@ import { db, pool } from '../db/client';
 import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
+import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { getCardLimits } from '../services/cardLimitService';
 
 const router = Router();
@@ -16,8 +17,20 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'admin' ? parseInt(usuario_id) : req.user!.id;
 
-    let whereClause = 'WHERE c.usuario_id = $1';
-    const params: unknown[] = [targetUserId];
+    // Com a permissao de cartoes da familia, o membro enxerga tambem os
+    // cartoes dos demais — para poder registrar um gasto feito no cartao de
+    // outra pessoa. O cartao continua sendo do dono; isto so amplia a leitura.
+    const donosVisiveis = await resolveVisibleCardOwnerIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+
+    let whereClause: string;
+    const params: unknown[] = [];
+    if (donosVisiveis.length > 1) {
+      params.push(donosVisiveis);
+      whereClause = 'WHERE c.usuario_id = ANY($1)';
+    } else {
+      params.push(targetUserId);
+      whereClause = 'WHERE c.usuario_id = $1';
+    }
 
     const accountClause = accountWhere(conta_id ? parseInt(conta_id) : null, 2, 'c');
     whereClause += accountClause.clause;

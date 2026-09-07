@@ -1,4 +1,5 @@
 import { pool } from '../db/client';
+import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 
 export interface CardLimit {
   id: number;
@@ -37,7 +38,12 @@ interface CardLimitRow {
 // (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
 // nunca canceladas podem ter status nulo e sumiriam de um `= 'ativa'` direto.
 export async function getCardLimits(userId: number, accountId: number | null): Promise<CardLimit[]> {
-  const params: unknown[] = [userId];
+  // Com a permissao de cartoes da familia, o card mostra tambem os cartoes dos
+  // outros membros. O mesmo conjunto vale para o cartao (quem e o dono) e para
+  // a despesa (quem lancou): ampliar so o cartao mostraria o cartao do outro
+  // com limite zerado, porque as despesas dele nao entrariam na soma.
+  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId);
+  const params: unknown[] = [donosVisiveis];
   let accountClause = '';
   let expenseAccountClause = '';
   if (accountId) {
@@ -59,7 +65,7 @@ export async function getCardLimits(userId: number, accountId: number | null): P
        ), 0) AS usado
      FROM cartoes c
      LEFT JOIN despesas d ON d.cartao_id = c.id
-       AND d.usuario_id = $1
+       AND d.usuario_id = ANY($1)
        AND d.pago = false
        AND COALESCE(d.status, 'ativa') = 'ativa'
        -- Cartao sem tipo definido conta como credito, mesmo criterio do WHERE
@@ -67,7 +73,7 @@ export async function getCardLimits(userId: number, accountId: number | null): P
        -- lancamentos antigos sem esse campo ficavam de fora: o cartao aparecia
        -- na lista mas o valor usado nao subia.
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos') OR d.forma_pagamento = 'credito')${expenseAccountClause}
-     WHERE c.usuario_id = $1 AND c.ativo = true
+     WHERE c.usuario_id = ANY($1) AND c.ativo = true
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}
      GROUP BY c.id, c.nome, c.limite
      ORDER BY c.id ASC`,

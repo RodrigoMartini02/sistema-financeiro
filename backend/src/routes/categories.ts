@@ -4,13 +4,22 @@ import { db, pool } from '../db/client';
 import { categories } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { resolveVisibleUserIds } from '../utils/familyVisibility';
 
 const router = Router();
 
 // Resolve o tipo de conta ('pessoal' | 'empresa') a partir do conta_id
 // recebido do client, validando que a conta pertence ao usuario autenticado.
-async function resolveAccountType(contaId: string, userId: number): Promise<string | null> {
-  const result = await pool.query('SELECT tipo FROM contas WHERE id = $1 AND usuario_id = $2', [parseInt(contaId), userId]);
+/**
+ * Tipo da conta, confirmando que ela pertence a alguem que o solicitante pode
+ * representar. Aceita lista porque numa carteira compartilhada a conta e do
+ * gestor, e o membro precisa poder resolve-la sem ser o dono.
+ */
+async function resolveAccountType(contaId: string, userIds: number[]): Promise<string | null> {
+  const result = await pool.query(
+    'SELECT tipo FROM contas WHERE id = $1 AND usuario_id = ANY($2)',
+    [parseInt(contaId), userIds],
+  );
   return result.rows.length > 0 ? (result.rows[0] as { tipo: string }).tipo : null;
 }
 
@@ -20,11 +29,25 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'admin' ? parseInt(usuario_id) : req.user!.id;
 
-    let whereClause = 'WHERE c.usuario_id = $1';
-    const params: unknown[] = [targetUserId];
+    // Carteira compartilhada: em conta pessoal as categorias sao da conta, nao
+    // de cada pessoa. O membro nao recebe mais copias das categorias do gestor
+    // (ver 0031), entao sem isto ele nao teria categoria nenhuma ao lancar.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+
+    let whereClause: string;
+    const params: unknown[] = [];
+    if (visiveis.length > 1) {
+      params.push(visiveis);
+      whereClause = 'WHERE c.usuario_id = ANY($1)';
+    } else {
+      params.push(targetUserId);
+      whereClause = 'WHERE c.usuario_id = $1';
+    }
 
     if (conta_id) {
-      const accountType = await resolveAccountType(conta_id, targetUserId);
+      // O dono da conta valida por si; o membro valida pelo dono, senao
+      // resolveAccountType nao acha a conta e o filtro de tipo nem se aplica.
+      const accountType = await resolveAccountType(conta_id, visiveis.length > 1 ? visiveis : [targetUserId]);
       if (accountType) {
         // Uniao: categorias PADRAO do tipo da conta ativa (globais, tipo
         // preenchido) OU categorias CUSTOM exclusivas deste conta_id
@@ -157,7 +180,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     // mesmo tipo. Categorias PADRAO so sao gravadas por ensureDefaultCategories.
     let accountId: number | null = null;
     if (conta_id) {
-      const accountType = await resolveAccountType(conta_id, req.user!.id);
+      const accountType = await resolveAccountType(conta_id, [req.user!.id]);
       if (!accountType) {
         res.status(400).json({ success: false, message: 'Account not found' });
         return;
