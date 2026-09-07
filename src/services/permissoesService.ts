@@ -5,7 +5,7 @@ export type PermissionFlag =
   | 'accessDashboard' | 'accessReports' | 'accessNotifications' | 'accessAssistant'
   | 'accessAccounts' | 'accessCategories' | 'accessCards' | 'accessServices' | 'accessRepresentatives' | 'accessPartners' | 'accessMembers' | 'accessSubscription'
   | 'accessClients' | 'accessContracts' | 'accessProductCatalog'
-  | 'accessFamilyEntries' | 'editFamilyEntries';
+  | 'accessFamilyEntries' | 'editFamilyEntries' | 'accessFamilyCards';
 
 export type MemberPermissionsData = Record<PermissionFlag, boolean> & {
   id?: number;
@@ -62,6 +62,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { flag: 'accessFamilyEntries', label: 'Ver lançamentos dos outros membros' },
       { flag: 'editFamilyEntries', label: 'Editar e excluir lançamentos dos outros' },
+      { flag: 'accessFamilyCards', label: 'Ver e usar os cartões dos outros' },
     ],
   },
   {

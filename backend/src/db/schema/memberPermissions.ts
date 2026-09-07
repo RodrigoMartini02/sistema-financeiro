@@ -55,6 +55,9 @@ export const memberPermissions = pgTable('membro_permissoes', {
   // altera apenas o que ele proprio lancou — o comportamento historico.
   accessFamilyEntries: boolean('acesso_lancamentos_familia').notNull().default(false),
   editFamilyEntries: boolean('editar_lancamentos_familia').notNull().default(false),
+  // Ver e usar o cartao de outro membro ao lancar. Separada das flags acima:
+  // cartao e pessoal por natureza, entao compartilha-lo e escolha explicita.
+  accessFamilyCards: boolean('acesso_cartoes_familia').notNull().default(false),
 
   updatedAt: timestamp('data_atualizacao').defaultNow(),
 });

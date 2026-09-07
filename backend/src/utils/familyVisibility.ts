@@ -14,9 +14,21 @@ import { pool } from '../db/client';
  * nenhum caminho de erro ela volta vazia ou aberta, para que uma falha aqui
  * restrinja o acesso em vez de ampliá-lo.
  */
-export async function resolveVisibleUserIds(
+/**
+ * Colunas de `membro_permissoes` que ampliam a visibilidade dentro da conta.
+ * Tipadas para que o nome nunca chegue como texto livre ate a query.
+ */
+export type FamilyScope = 'acesso_lancamentos_familia' | 'acesso_cartoes_familia';
+
+/**
+ * Base compartilhada: valida conta, vinculo e permissao, e devolve os usuarios
+ * visiveis. Recebe qual permissao consultar em vez de existir uma copia por
+ * recurso — duplicar isso seria duplicar codigo de seguranca.
+ */
+async function resolveByScope(
   requesterId: number,
   accountId: number | null,
+  scope: FamilyScope,
 ): Promise<number[]> {
   const sozinho = [requesterId];
   if (!accountId) return sozinho;
@@ -44,12 +56,12 @@ export async function resolveVisibleUserIds(
   // O dono da conta sempre enxerga a carteira inteira; o membro depende da
   // permissão que o gestor liberou.
   if (requesterId !== dono) {
+    // O nome da coluna vem do tipo FamilyScope, nunca de entrada do usuario.
     const perm = await pool.query(
-      `SELECT acesso_lancamentos_familia FROM membro_permissoes WHERE usuario_id = $1`,
+      `SELECT ${scope} AS liberado FROM membro_permissoes WHERE usuario_id = $1`,
       [requesterId],
     );
-    const liberado = (perm.rows[0] as { acesso_lancamentos_familia: boolean } | undefined)
-      ?.acesso_lancamentos_familia;
+    const liberado = (perm.rows[0] as { liberado: boolean } | undefined)?.liberado;
     if (!liberado) return sozinho;
   }
 
@@ -60,6 +72,21 @@ export async function resolveVisibleUserIds(
   const ids = new Set<number>([dono, requesterId]);
   for (const m of membros.rows as { usuario_id: number }[]) ids.add(m.usuario_id);
   return [...ids];
+}
+
+/** Usuarios cujos LANCAMENTOS o solicitante pode ver. */
+export function resolveVisibleUserIds(requesterId: number, accountId: number | null): Promise<number[]> {
+  return resolveByScope(requesterId, accountId, 'acesso_lancamentos_familia');
+}
+
+/**
+ * Usuarios cujos CARTOES o solicitante pode ver e usar ao lancar.
+ *
+ * Permissao separada da de lancamentos: cartao e pessoal por natureza, e ver o
+ * cartao de outro membro nao decorre de ver os lancamentos dele.
+ */
+export function resolveVisibleCardOwnerIds(requesterId: number, accountId: number | null): Promise<number[]> {
+  return resolveByScope(requesterId, accountId, 'acesso_cartoes_familia');
 }
 
 /**

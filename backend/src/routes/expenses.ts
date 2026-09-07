@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
-import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
+import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -22,9 +22,21 @@ function buildWhereClause(
   return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds);
 }
 
-async function validateCardId(cardId: unknown, userId: number): Promise<number | null> {
+/**
+ * Aceita o cartao apenas se ele pertencer ao solicitante ou a alguem cujos
+ * cartoes ele pode usar na carteira compartilhada.
+ *
+ * Esta e a defesa na escrita: o frontend exibir um cartao nao pode ser
+ * suficiente para lanca-lo. Sem conta_id, o conjunto volta com o proprio
+ * usuario e o comportamento e identico ao anterior.
+ */
+async function validateCardId(cardId: unknown, userId: number, accountId: number | null): Promise<number | null> {
   if (!cardId) return null;
-  const result = await pool.query('SELECT id FROM cartoes WHERE id = $1 AND usuario_id = $2', [cardId, userId]);
+  const donosPermitidos = await resolveVisibleCardOwnerIds(userId, accountId);
+  const result = await pool.query(
+    'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = ANY($2)',
+    [cardId, donosPermitidos],
+  );
   return result.rows.length > 0 ? Number(cardId) : null;
 }
 
@@ -357,7 +369,7 @@ router.post(
 
       const totalInstallments = total_parcelas ?? null;
       const currentInstallment = parcela_atual ?? (parcelado ? 1 : null);
-      const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
+      const cardIdFinal = await validateCardId(cartao_id, req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
       const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
       if (cardCompatibilityError) {
         res.status(400).json({ success: false, message: cardCompatibilityError });
@@ -452,7 +464,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       numero_nf, data_emissao_nf, tipo_despesa,
     } = req.body as Record<string, unknown>;
 
-    const cardIdFinal = await validateCardId(cartao_id, req.user!.id);
+    const cardIdFinal = await validateCardId(cartao_id, req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
     const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
     if (cardCompatibilityError) {
       res.status(400).json({ success: false, message: cardCompatibilityError });
