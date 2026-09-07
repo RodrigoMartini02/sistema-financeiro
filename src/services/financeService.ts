@@ -18,7 +18,7 @@ interface RawIncome {
 
 interface RawExpense {
   id: number; descricao: string;
-  categoria_nome?: string | null; forma_pagamento?: string | null;
+  categoria_nome?: string | null; categoria_pai_nome?: string | null; forma_pagamento?: string | null;
   categoria_id?: number | null; cartao_id?: number | null; cartao_nome?: string | null;
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
@@ -75,6 +75,7 @@ function expenseFromApi(r: RawExpense): Expense {
     valorFinal,
     valorFinalTotal: rawFinalDb > 0 ? rawFinalDb : undefined,
     categoria: r.categoria_nome ?? 'Sem categoria',
+    categoriaPai: r.categoria_pai_nome ?? null,
     formaPagamento: r.forma_pagamento ?? 'dinheiro',
     cartaoId: r.cartao_id ?? null,
     cartaoNome: r.cartao_nome ?? null,

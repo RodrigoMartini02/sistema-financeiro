@@ -2,7 +2,10 @@ import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil, Trash2 } from 'lucide-
 import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
-import { getFormaLabel, StatusBadge, TipoBadge } from './DespesasScreen';
+import {
+  diferencaValor, formatDiferenca, getFormaLabel, getStatusColor,
+  StatusBadge, TipoBadge, valorExibido,
+} from './DespesasScreen';
 
 interface ExpenseCardProps {
   item: Expense;
@@ -69,17 +72,16 @@ export function ExpenseCard({
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
           <span>{formatDate(item.dataVencimento)}</span>
           <span>·</span>
-          <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+          {/* Categoria em texto com hierarquia, sem chip — mesmo criterio da
+              tabela: a cor da categoria nao e configuravel em nenhuma tela. */}
+          <span className="truncate">
+            {item.categoriaPai && <span className="text-[11px] text-slate-400 dark:text-slate-500">{item.categoriaPai} › </span>}
             {item.categoria}
           </span>
           <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          {isCancelada ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">Cancelada</span>
-          ) : (
-            <StatusBadge item={item} />
-          )}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <StatusBadge item={item} />
           <TipoBadge item={item} />
           {isEmpresa && item.numeroNf && (
             <span className="text-[11px] text-slate-400">NF {item.numeroNf}</span>
@@ -88,9 +90,9 @@ export function ExpenseCard({
             <button
               onClick={onOpenAttachments}
               title={`${anexosCount} anexo(s)`}
-              className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-500 hover:bg-[#0EC4D8]/10 hover:text-[#0EC4D8] transition"
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0EC4D8] transition"
             >
-              <Paperclip size={10} />
+              <Paperclip size={11} />
               {anexosCount}
             </button>
           )}
@@ -98,25 +100,16 @@ export function ExpenseCard({
       </div>
 
       <div className="flex shrink-0 items-start gap-1">
+        {/* Um valor so, na cor do estado — mesmo criterio da tabela. O "inicial"
+            aparecia mesmo quando igual ao final, repetindo o numero. */}
         <div className="flex flex-col items-end">
-          {item.valorOriginal != null && (
-            <p className="text-[10px] text-slate-400 font-normal whitespace-nowrap">
-              {`inicial ${formatCurrency(item.valorOriginal)}`}
+          <span className={['whitespace-nowrap text-sm font-semibold', getStatusColor(item)].join(' ')}>
+            {formatCurrency(valorExibido(item))}
+          </span>
+          {diferencaValor(item) !== null && (
+            <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
+              {formatDiferenca(diferencaValor(item)!)}
             </p>
-          )}
-          {item.pago && item.valorPago != null && item.valorPago !== item.valorFinal ? (
-            <span className="whitespace-nowrap text-sm">
-              <span className="text-slate-400 line-through mr-1 text-xs font-normal">
-                {formatCurrency(item.valorFinal)}
-              </span>
-              <span className="font-bold text-slate-700 dark:text-slate-200">
-                {formatCurrency(item.valorPago)}
-              </span>
-            </span>
-          ) : (
-            <span className={['whitespace-nowrap text-sm font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
-              {formatCurrency(item.valorFinal)}
-            </span>
           )}
         </div>
         <KebabMenu actions={actions} />

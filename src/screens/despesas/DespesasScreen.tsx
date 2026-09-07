@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
   Paperclip, Plus, Ban,
-  CircleCheck, Clock, ArrowRight, X, ChevronDown, CheckSquare, Pencil, Trash2,
+  CircleCheck, ArrowRight, X, ChevronDown, CheckSquare, Pencil, Trash2,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -46,46 +46,82 @@ export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   return item.dataVencimento < getLocalTodayIso() ? 'atrasada' : 'em_dia';
 }
 
+// Cor por estado, compartilhada entre Status e Valor: o valor herda a cor do
+// estado em vez de repetir a informacao com um codigo proprio.
+const STATUS_TEXT_COLOR: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
+  pago: 'text-green-600 dark:text-green-400',
+  atrasada: 'text-red-600 dark:text-red-400',
+  em_dia: 'text-amber-600 dark:text-amber-400',
+  // Cancelada e encerramento, nao pendencia: cinza para nao competir com
+  // "atrasada", que e a unica que pede acao.
+  cancelada: 'text-slate-400 dark:text-slate-500',
+};
+
+const STATUS_LABEL: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada',
+};
+
+export function getFirstName(nome?: string | null): string {
+  const first = (nome ?? '').trim().split(/\s+/)[0];
+  return first || '—';
+}
+
+// O valor que a linha representa: o que saiu, quando pago; o previsto, quando
+// nao. Em parcelada e o valor da parcela, nao o total da compra.
+export function valorExibido(item: Expense): number {
+  return item.pago && item.valorPago != null ? item.valorPago : item.valorFinal;
+}
+
+// Diferenca entre o previsto e o pago — juros ou desconto. Só existe quando a
+// despesa foi paga por um valor diferente do previsto; nos demais casos nao ha
+// nada a comunicar e a linha secundaria nao aparece.
+export function diferencaValor(item: Expense): number | null {
+  if (!item.pago || item.valorPago == null) return null;
+  const diff = item.valorPago - item.valorFinal;
+  return diff === 0 ? null : diff;
+}
+
+export function formatDiferenca(diff: number): string {
+  return `${diff > 0 ? '+' : '−'} ${formatCurrency(Math.abs(diff))}`;
+}
+
+// Estilo unico de informacao secundaria em toda a tabela. Antes havia tres
+// variacoes (tamanho herdado, 11px cinza e 10px verde) para o mesmo papel.
+const SECONDARY_CLASS = 'text-[11px] text-slate-400 dark:text-slate-500';
+const TH_CLASS = 'px-2 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center';
+const TD_CLASS = 'px-2 py-1.5 text-center';
+
+export function getStatusKey(item: Expense): 'pago' | 'atrasada' | 'em_dia' | 'cancelada' {
+  return item.status === 'cancelada' ? 'cancelada' : getStatus(item);
+}
+
+export function getStatusColor(item: Expense): string {
+  return STATUS_TEXT_COLOR[getStatusKey(item)];
+}
+
+// Texto colorido em vez de capsula com icone: a cor ja comunica o estado, e o
+// mesmo relogio aparecia em "atrasada" e "em dia" sem diferenciar nada.
 export function StatusBadge({ item }: { item: Expense }) {
-  const s = getStatus(item);
-  if (s === 'pago') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700 dark:bg-green-900/40 dark:text-green-400">
-        <CircleCheck size={11} /> Pago
-      </span>
-    );
-  }
-  if (s === 'atrasada') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-400">
-        <Clock size={11} /> Atrasada
-      </span>
-    );
-  }
+  const key = getStatusKey(item);
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-      <Clock size={11} /> Em dia
+    <span className={['text-xs font-semibold', STATUS_TEXT_COLOR[key]].join(' ')}>
+      {STATUS_LABEL[key]}
     </span>
   );
 }
 
+// Os tres tipos sao mutuamente exclusivos, mas `parcelado` e `recorrente` sao
+// colunas independentes no banco e ha registros antigos com ambos true. A
+// prioridade e explicita: parcelada vence, porque o contador de parcelas prova
+// que a despesa tem fim.
 export function TipoBadge({ item }: { item: Expense }) {
-  const hasBadge = item.parcela || item.recorrente;
-  if (!hasBadge) return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {item.parcela && (
-        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
-          {item.parcela}
-        </span>
-      )}
-      {item.recorrente && (
-        <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-bold text-purple-600 dark:bg-purple-900/40 dark:text-purple-400">
-          Recorrente
-        </span>
-      )}
-    </div>
-  );
+  if (item.parcela) {
+    return <span className="text-xs text-blue-600 dark:text-blue-400">{item.parcela}</span>;
+  }
+  if (item.recorrente) {
+    return <span className="text-xs text-purple-600 dark:text-purple-400">Recorrente</span>;
+  }
+  return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
 }
 
 interface FilterOption { value: string; label: string }
@@ -375,15 +411,19 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   return (
     <>
-      <div className="grid gap-4">
+      {/* min-h-0 em toda a cadeia: a altura vem do <main> em modo fillViewport,
+          e cada nivel precisa poder encolher para o scroll acontecer dentro da
+          tabela, e nao na pagina. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {finance.dashboard.error && (
           <ErrorState title="Erro ao carregar despesas" description={finance.dashboard.error.message} />
         )}
 
         {/* Table card */}
-        <Card allowOverflow>
-          {/* Toolbar: filtros */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
+        <Card allowOverflow className="flex min-h-0 flex-1 flex-col">
+          {/* Toolbar: filtros — shrink-0 para nao ser comprimida pelo corpo
+              rolavel que divide a altura com ela. */}
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-3">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {toolbarStart}
               <div className="relative shrink-0">
@@ -539,7 +579,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
               </div>
             )
           ) : (
-            <div className="relative">
+            <div className="relative flex min-h-0 flex-1 flex-col">
               {loteGuide.isVisible && selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0 && (
                 <FirstAccessGuideCard
                   floating
@@ -581,26 +621,37 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                 ))}
               </div>
 
-              {/* Table — desktop only */}
-              <div className="hidden overflow-x-auto md:block">
+              {/* Table — desktop only. min-h-0 e obrigatorio: sem ele o filho
+                  de um flex nao encolhe abaixo do conteudo e o overflow-y
+                  nunca chega a rolar. */}
+              <div className="hidden min-h-0 flex-1 overflow-auto md:block">
               <table className="w-full text-sm table-fixed">
+                {/* Larguras redistribuidas pelo conteudo real: descricao tem no
+                    maximo poucas palavras e antes reservava 180px; datas e
+                    valores cabem em menos. A largura vive so aqui — a celula
+                    nao repete max-w, que antes disputava com este valor. */}
                 <colgroup>
-                  <col style={{ width: '40px' }} />
-                  <col style={{ width: '180px' }} />
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: '110px' }} />
-                  <col style={{ width: '100px' }} />
-                  <col style={{ width: '120px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '110px' }} />
-                  {isEmpresa && <col style={{ width: '70px' }} />}
-                  <col style={{ width: '70px' }} />
-                  <col style={{ width: '110px' }} />
+                  <col style={{ width: '34px' }} />{/* seleção */}
+                  <col style={{ width: '150px' }} />{/* descrição */}
+                  <col style={{ width: '72px' }} />{/* tipo */}
+                  <col style={{ width: '86px' }} />{/* vencimento */}
+                  <col style={{ width: '86px' }} />{/* data compra */}
+                  <col style={{ width: '116px' }} />{/* categoria */}
+                  {mostrarAutor && <col style={{ width: '80px' }} />}
+                  <col style={{ width: '104px' }} />{/* pagamento */}
+                  <col style={{ width: '86px' }} />{/* data pagamento */}
+                  <col style={{ width: '74px' }} />{/* status */}
+                  <col style={{ width: '104px' }} />{/* valor */}
+                  {isEmpresa && <col style={{ width: '64px' }} />}
+                  <col style={{ width: '58px' }} />{/* anexos */}
+                  <col style={{ width: '104px' }} />{/* ações */}
                 </colgroup>
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-left">
-                    <th className="px-3 py-2.5 text-center">
+                {/* sticky: o corpo rola dentro do container e o cabecalho
+                    permanece. Precisa de fundo opaco para as linhas nao
+                    aparecerem por tras ao passar. */}
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center">
+                    <th className="px-2 py-2 text-center">
                       <input
                         type="checkbox"
                         checked={allSelected}
@@ -610,20 +661,22 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                         className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                       />
                     </th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Vencimento</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Data compra</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Categoria</th>
-                    {mostrarAutor && (
-                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Quem lançou</th>
-                    )}
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Pagamento</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Status</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
-                    {isEmpresa && <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">NF</th>}
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center">Anexos</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Ações</th>
+                    <th className={TH_CLASS}>Descrição</th>
+                    <th className={TH_CLASS}>Tipo</th>
+                    <th className={TH_CLASS}>Vencimento</th>
+                    <th className={TH_CLASS}>Data compra</th>
+                    <th className={TH_CLASS}>Categoria</th>
+                    {mostrarAutor && <th className={TH_CLASS}>Quem lançou</th>}
+                    <th className={TH_CLASS}>Pagamento</th>
+                    {/* Data de pagamento ganhou coluna propria: ja existia filtro
+                        por ela, mas o dado vivia como texto secundario dentro de
+                        Vencimento, sem ser ordenavel nem legivel. */}
+                    <th className={TH_CLASS}>Data pagamento</th>
+                    <th className={TH_CLASS}>Status</th>
+                    <th className={TH_CLASS}>Valor</th>
+                    {isEmpresa && <th className={TH_CLASS}>NF</th>}
+                    <th className={TH_CLASS}>Anexos</th>
+                    <th className={TH_CLASS}>Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -638,7 +691,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                       ].join(' ')}
                     >
                       {/* Checkbox */}
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-2 py-1.5 text-center">
                         {!item.pago && (
                           <input
                             type="checkbox"
@@ -650,107 +703,99 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                         )}
                       </td>
 
-                      {/* Descrição */}
-                      <td className="px-4 py-3 max-w-[200px]">
-                        <p className={['font-semibold truncate', item.pago ? 'text-slate-400' : 'text-slate-900 dark:text-white'].join(' ')}>
+                      {/* Descrição — peso normal: o negrito competia com o valor
+                          sem que a descricao fosse mais importante que ele. */}
+                      <td className={TD_CLASS}>
+                        <p className={['truncate', item.pago ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'].join(' ')}>
                           {item.descricao}
                         </p>
                         {item.observacoes && (
-                          <p className="text-[11px] text-slate-400 truncate">{item.observacoes}</p>
+                          <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>
                         )}
                       </td>
 
                       {/* Tipo */}
-                      <td className="px-4 py-3">
+                      <td className={TD_CLASS}>
                         <TipoBadge item={item} />
                       </td>
 
-                      {/* Vencimento */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="text-xs text-slate-600 dark:text-slate-300">{formatDate(item.dataVencimento)}</span>
-                        {item.dataPagamento && item.pago && (
-                          <p className="text-[10px] text-green-600 dark:text-green-400">
-                            pago em {formatDate(item.dataPagamento)}
-                          </p>
-                        )}
+                      {/* Vencimento — so a data; o "pago em" virou coluna. */}
+                      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
+                        {formatDate(item.dataVencimento)}
                       </td>
 
                       {/* Data compra */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
                         {item.dataCompra ? formatDate(item.dataCompra) : <span className="text-slate-300 dark:text-slate-600">—</span>}
                       </td>
 
-                      {/* Categoria */}
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                          {item.categoria}
-                        </span>
+                      {/* Categoria — texto com hierarquia em vez de chip. A cor da
+                          categoria nao e usada porque nenhuma tela permite
+                          escolhe-la: todas nascem no mesmo azul padrao. */}
+                      <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
+                        {item.categoriaPai && (
+                          <span className={SECONDARY_CLASS}>{item.categoriaPai} › </span>
+                        )}
+                        <span className="truncate">{item.categoria}</span>
                       </td>
 
                       {/* Quem lancou: so aparece quando ha mais de uma pessoa
-                          lancando na conta. */}
+                          lancando na conta. Primeiro nome basta para distinguir. */}
                       {mostrarAutor && (
-                        <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
-                          {item.autorNome ?? '—'}
+                        <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+                          {getFirstName(item.autorNome)}
                         </td>
                       )}
 
                       {/* Pagamento */}
-                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                      <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
                         {getFormaLabel(item.formaPagamento)}
                         {item.cartaoNome && (
-                          <span className="text-slate-400"> · {item.cartaoNome}</span>
+                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>
                         )}
+                      </td>
+
+                      {/* Data pagamento */}
+                      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+                        {item.dataPagamento && item.pago
+                          ? formatDate(item.dataPagamento)
+                          : <span className="text-slate-300 dark:text-slate-600">—</span>}
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {item.status === 'cancelada' ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-600">
-                            Cancelada
-                          </span>
-                        ) : (
-                          <StatusBadge item={item} />
-                        )}
+                      <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
+                        <StatusBadge item={item} />
                       </td>
 
-                      {/* Valor */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <p className="text-[10px] text-slate-400 font-normal">
-                          {item.valorOriginal != null ? `inicial ${formatCurrency(item.valorOriginal)}` : ''}
-                        </p>
-                        {item.pago && item.valorPago != null && item.valorPago !== item.valorFinal ? (
-                          <>
-                            <span className="text-slate-400 line-through mr-1.5 text-xs font-normal">
-                              {formatCurrency(item.valorFinal)}
-                            </span>
-                            <span className="font-bold text-slate-700 dark:text-slate-200">
-                              {formatCurrency(item.valorPago)}
-                            </span>
-                          </>
-                        ) : (
-                          <span className={['font-bold', item.pago ? 'text-slate-400 line-through' : 'text-red-700 dark:text-red-400'].join(' ')}>
-                            {formatCurrency(item.valorFinal)}
-                          </span>
+                      {/* Valor — um valor so, na cor do estado. O "inicial" antes
+                          aparecia mesmo igual ao final, repetindo o mesmo numero;
+                          agora so a diferenca real (juros/desconto) e mostrada. */}
+                      <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
+                        <span className={['font-semibold', getStatusColor(item)].join(' ')}>
+                          {formatCurrency(valorExibido(item))}
+                        </span>
+                        {diferencaValor(item) !== null && (
+                          <p className={SECONDARY_CLASS}>{formatDiferenca(diferencaValor(item)!)}</p>
                         )}
                       </td>
 
                       {/* NF (empresa only) */}
                       {isEmpresa && (
-                        <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        <td className={[TD_CLASS, 'text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap'].join(' ')}>
                           {item.numeroNf ?? <span className="text-slate-300 dark:text-slate-600">—</span>}
                         </td>
                       )}
 
-                      {/* Anexos */}
-                      <td className="px-4 py-3 text-center">
+                      {/* Anexos — clipe sem capsula. O icone fica porque e ele que
+                          identifica o anexo; um numero solto nao comunicaria. */}
+                      <td className={TD_CLASS}>
                         {(item.anexos?.length ?? 0) > 0 ? (
                           <button
                             onClick={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
                             title={`${item.anexos!.length} anexo(s)`}
-                            className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-500 hover:bg-[#0EC4D8]/10 hover:text-[#0EC4D8] transition"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0EC4D8] transition"
                           >
-                            <Paperclip size={10} />
+                            <Paperclip size={11} />
                             {item.anexos!.length}
                           </button>
                         ) : (
@@ -759,8 +804,8 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                       </td>
 
                       {/* Ações */}
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
+                      <td className={TD_CLASS}>
+                        <div className="flex justify-center gap-0.5">
                           <ActionBtn
                             onClick={() => setDialog({ open: true, item })}
                             title="Editar"
