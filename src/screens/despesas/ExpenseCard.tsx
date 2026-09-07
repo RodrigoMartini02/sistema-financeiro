@@ -103,7 +103,7 @@ export function ExpenseCard({
         {/* Um valor so, na cor do estado — mesmo criterio da tabela. O "inicial"
             aparecia mesmo quando igual ao final, repetindo o numero. */}
         <div className="flex flex-col items-end">
-          <span className={['whitespace-nowrap text-sm font-semibold', getStatusColor(item)].join(' ')}>
+          <span className={['whitespace-nowrap text-sm', getStatusColor(item)].join(' ')}>
             {formatCurrency(valorExibido(item))}
           </span>
           {diferencaValor(item) !== null && (

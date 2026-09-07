@@ -51,7 +51,9 @@ export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
 const STATUS_TEXT_COLOR: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
   pago: 'text-green-600 dark:text-green-400',
   atrasada: 'text-red-600 dark:text-red-400',
-  em_dia: 'text-amber-600 dark:text-amber-400',
+  // Sem cor propria: "em dia" e o estado neutro, o unico que nao pede nada do
+  // usuario. Cor so onde ha algo a comunicar — pago encerra, atrasada cobra.
+  em_dia: 'text-slate-600 dark:text-slate-300',
   // Cancelada e encerramento, nao pendencia: cinza para nao competir com
   // "atrasada", que e a unica que pede acao.
   cancelada: 'text-slate-400 dark:text-slate-500',
@@ -104,7 +106,7 @@ export function getStatusColor(item: Expense): string {
 export function StatusBadge({ item }: { item: Expense }) {
   const key = getStatusKey(item);
   return (
-    <span className={['text-xs font-semibold', STATUS_TEXT_COLOR[key]].join(' ')}>
+    <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')}>
       {STATUS_LABEL[key]}
     </span>
   );
@@ -115,11 +117,14 @@ export function StatusBadge({ item }: { item: Expense }) {
 // prioridade e explicita: parcelada vence, porque o contador de parcelas prova
 // que a despesa tem fim.
 export function TipoBadge({ item }: { item: Expense }) {
+  // Sem cor propria: diferente do Status, onde a cor carrega significado
+  // (vermelho pede acao, verde encerra), aqui azul e roxo eram so decoracao.
+  // Mesmo tom das demais colunas de dado.
   if (item.parcela) {
-    return <span className="text-xs text-blue-600 dark:text-blue-400">{item.parcela}</span>;
+    return <span className="text-xs text-slate-600 dark:text-slate-300">{item.parcela}</span>;
   }
   if (item.recorrente) {
-    return <span className="text-xs text-purple-600 dark:text-purple-400">Recorrente</span>;
+    return <span className="text-xs text-slate-600 dark:text-slate-300">Recorrente</span>;
   }
   return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
 }
@@ -706,7 +711,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                       {/* Descrição — peso normal: o negrito competia com o valor
                           sem que a descricao fosse mais importante que ele. */}
                       <td className={TD_CLASS}>
-                        <p className={['truncate', item.pago ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'].join(' ')}>
+                        <p className={['truncate text-xs', item.pago ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'].join(' ')}>
                           {item.descricao}
                         </p>
                         {item.observacoes && (
@@ -771,7 +776,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                           aparecia mesmo igual ao final, repetindo o mesmo numero;
                           agora so a diferenca real (juros/desconto) e mostrada. */}
                       <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
-                        <span className={['font-semibold', getStatusColor(item)].join(' ')}>
+                        <span className={['text-xs', getStatusColor(item)].join(' ')}>
                           {formatCurrency(valorExibido(item))}
                         </span>
                         {diferencaValor(item) !== null && (
