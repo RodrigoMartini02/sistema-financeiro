@@ -28,8 +28,13 @@ export const queryKeys = {
   contratosAtivos: ['contratos-ativos'] as const,
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
-  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
-    ['dashboard-panorama', deMes, deAno, ateMes, ateAno] as const,
+  // O membro faz parte da chave: sem isso o React Query serviria os numeros do
+  // escopo anterior ao trocar de membro no seletor.
+  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, membroId?: number | null) =>
+    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroId ?? null] as const,
+  accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
+    ['account-summary', deMes, deAno, ateMes, ateAno] as const,
+  membros: () => ['membros'] as const,
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,

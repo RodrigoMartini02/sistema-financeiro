@@ -17,6 +17,8 @@ import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
 import { MonthlyComparisonBarChart } from './charts/MonthlyComparisonBarChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
+import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
+import { buildMemberColors, memberColor, firstName } from './memberColors';
 
 const CORES = ['#0891b2', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
 
@@ -38,13 +40,34 @@ export function FinanceDashboard() {
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
-  const query = periodToQuery(period);
+  // null = familia inteira. Um id = so aquele membro. O estado nao persiste
+  // entre sessoes: o painel sempre abre na visao da familia, que e a completa.
+  const [membroId, setMembroId] = useState<number | null>(null);
+
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(),
+    queryFn: fetchMembros,
+    staleTime: 5 * 60_000,
+  });
+  // Sem membros vinculados nao ha o que separar: o painel se comporta como antes.
+  const temMembros = (membrosQ.data?.length ?? 0) > 0;
+
+  const query = { ...periodToQuery(period), membroId };
   const panoramaQ = useQuery({
-    queryKey: queryKeys.dashboardPanorama(query.deMes, query.deAno, query.ateMes, query.ateAno),
+    queryKey: queryKeys.dashboardPanorama(query.deMes, query.deAno, query.ateMes, query.ateAno, membroId),
     queryFn: () => fetchDashboardPanorama(query),
     staleTime: 30_000,
   });
   const data = panoramaQ.data;
+
+  const summaryQ = useQuery({
+    queryKey: queryKeys.accountSummary(query.deMes, query.deAno, query.ateMes, query.ateAno),
+    queryFn: () => fetchAccountSummary({
+      deMes: query.deMes, deAno: query.deAno, ateMes: query.ateMes, ateAno: query.ateAno,
+    }),
+    enabled: temMembros,
+    staleTime: 30_000,
+  });
 
   // Alguns cards (contratos, parcelas futuras, metas por categoria) são estruturalmente
   // mensais — só fazem sentido quando o filtro do painel colapsa em um único mês (De = Até).
@@ -145,6 +168,66 @@ export function FinanceDashboard() {
     .sort((a, b) => b.value - a.value)
     .map((d, i) => ({ ...d, color: CORES[i % CORES.length] })), [data]);
 
+  // Dados por membro. A cor sai do usuario_id, nao da posicao na lista: assim a
+  // mesma pessoa mantem a cor nos donuts e nas barras de categoria.
+  const summary = summaryQ.data;
+  const memberColors = useMemo(() => buildMemberColors(summary?.membros ?? []), [summary]);
+  const memberNames = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const m of summary?.membros ?? []) map.set(m.usuario_id, firstName(m.nome));
+    return map;
+  }, [summary]);
+
+  const porMembro = useMemo(() => {
+    if (!summary) return [];
+    const despesaPor = new Map(summary.despesas_por_autor.map((d) => [d.usuario_id, Number(d.total)]));
+    const receitaPor = new Map(summary.receitas_por_autor.map((r) => [r.usuario_id, Number(r.total)]));
+    return summary.membros.map((m) => {
+      const despesa = despesaPor.get(m.usuario_id) ?? 0;
+      const receita = receitaPor.get(m.usuario_id) ?? 0;
+      return {
+        usuarioId: m.usuario_id,
+        nome: firstName(m.nome),
+        receita,
+        despesa,
+        saldo: receita - despesa,
+        color: memberColor(memberColors, m.usuario_id),
+      };
+    });
+  }, [summary, memberColors]);
+
+  // Membro sem movimento no periodo sai do donut: uma fatia de zero nao desenha
+  // nada e ainda ocuparia uma linha na legenda.
+  const receitaMembroData = useMemo(
+    () => porMembro.filter((m) => m.receita > 0).map((m) => ({ name: m.nome, value: m.receita, color: m.color })),
+    [porMembro],
+  );
+  const despesaMembroData = useMemo(
+    () => porMembro.filter((m) => m.despesa > 0).map((m) => ({ name: m.nome, value: m.despesa, color: m.color })),
+    [porMembro],
+  );
+
+  // Divisao por membro dentro de cada categoria, para as barras. So no modo
+  // familia: filtrado num membro, tudo ali ja e dele.
+  const categoriaPorMembro = useMemo(() => {
+    if (!summary || membroId !== null) return undefined;
+    const porCategoria = new Map<string, { usuarioId: number; valor: number; nome: string; color: string }[]>();
+    for (const linha of summary.despesas_por_autor_categoria) {
+      const valor = Number(linha.total);
+      if (valor <= 0) continue;
+      const lista = porCategoria.get(linha.categoria_nome) ?? [];
+      lista.push({
+        usuarioId: linha.usuario_id,
+        valor,
+        nome: memberNames.get(linha.usuario_id) ?? '—',
+        color: memberColor(memberColors, linha.usuario_id),
+      });
+      porCategoria.set(linha.categoria_nome, lista);
+    }
+    for (const lista of porCategoria.values()) lista.sort((a, b) => b.valor - a.valor);
+    return porCategoria;
+  }, [summary, membroId, memberColors, memberNames]);
+
   const healthBase = Math.max(receitas, despesas, 1);
   const detalhe = data?.despesasDetalhe;
 
@@ -182,7 +265,31 @@ export function FinanceDashboard() {
                 <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
               )}
             </p>
-            <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+            <div className="flex flex-wrap items-center gap-2">
+              {/* So aparece quando ha membros: numa conta de uma pessoa nao ha
+                  escopo a alternar. */}
+              {temMembros && (
+                <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+                  {[{ id: null, label: 'Família' }, ...porMembro.map((m) => ({ id: m.usuarioId, label: m.nome }))].map((opt) => (
+                    <button
+                      key={opt.id ?? 'familia'}
+                      type="button"
+                      onClick={() => setMembroId(opt.id)}
+                      aria-pressed={membroId === opt.id}
+                      className={[
+                        'rounded-full px-3 py-1 text-[11.5px] font-semibold transition',
+                        membroId === opt.id
+                          ? 'bg-[#0891b2] text-white'
+                          : 'text-[#5f7885] hover:bg-[#f5f9fb] dark:text-slate-300 dark:hover:bg-slate-700',
+                      ].join(' ')}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+            </div>
           </div>
         </div>
         {guide.isVisible && hasNoEntries && (
@@ -352,6 +459,78 @@ export function FinanceDashboard() {
       )}
 
       {/* Análise do período */}
+      {/* Bloco por membro: o comparativo fica visível nos dois modos, porque é
+          ele que dá referência ao número individual. Os donuts são de
+          composição — filtrado num membro, não há o que compor. */}
+      {temMembros && porMembro.length > 0 && (
+        <div>
+          <div className="mb-[11px] flex items-center gap-3">
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Por membro da família</span>
+            <div className="h-px flex-1 bg-[#e6eef3] dark:bg-slate-700" />
+          </div>
+          <div className={membroId === null ? 'grid gap-3.5 xl:grid-cols-3' : 'grid gap-3.5'}>
+            <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
+              <div className="flex items-baseline gap-2.5">
+                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Comparativo</h3>
+                <div className="flex-1" />
+                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">entrada e saída de cada um</span>
+              </div>
+              <div className="mt-3.5 grid">
+                {porMembro.map((m) => (
+                  <div key={m.usuarioId} className="flex items-center gap-3 border-t border-[#eef4f7] py-2.5 first:border-t-0 dark:border-slate-700">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: m.color }} />
+                    <span className="w-20 shrink-0 truncate text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">{m.nome}</span>
+                    <div className="flex-1" />
+                    <span className="w-24 shrink-0 text-right text-[11.5px] tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(m.receita)}</span>
+                    <span className="w-24 shrink-0 text-right text-[11.5px] tabular-nums text-rose-600 dark:text-rose-400">{formatCurrency(m.despesa)}</span>
+                    <span className={['w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums', m.saldo >= 0 ? 'text-[#0f2b38] dark:text-white' : 'text-rose-600 dark:text-rose-400'].join(' ')}>
+                      {formatCurrency(m.saldo)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3.5 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                Receita, despesa e saldo de cada membro no período.
+              </p>
+            </Card>
+
+            {membroId === null && (
+              <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
+                <div className="flex items-baseline gap-2.5">
+                  <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Receitas por membro</h3>
+                  <div className="flex-1" />
+                  <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">quem trouxe</span>
+                </div>
+                {receitaMembroData.length === 0 ? (
+                  <p className="flex-1 py-8 text-center text-sm text-slate-400">Sem receitas no período</p>
+                ) : (
+                  <div className="mt-3 flex flex-1 flex-col items-center gap-3.5">
+                    <DonutChart data={receitaMembroData} centerLabel="FAMÍLIA" centerValue={formatCurrency(receitas)} />
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {membroId === null && (
+              <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
+                <div className="flex items-baseline gap-2.5">
+                  <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Despesas por membro</h3>
+                  <div className="flex-1" />
+                  <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">quem gastou</span>
+                </div>
+                {despesaMembroData.length === 0 ? (
+                  <p className="flex-1 py-8 text-center text-sm text-slate-400">Sem despesas no período</p>
+                ) : (
+                  <div className="mt-3 flex flex-1 flex-col items-center gap-3.5">
+                    <DonutChart data={despesaMembroData} centerLabel="FAMÍLIA" centerValue={formatCurrency(despesas)} />
+                  </div>
+                )}
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+
       <div>
         <div className="mb-[11px] flex items-center gap-3">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Análise do período</span>
@@ -648,7 +827,11 @@ export function FinanceDashboard() {
         )}
       </Card>
 
-      <MonthCategoriesOverview overview={overviewQ.data} periodLabel={periodoDescricao} />
+      <MonthCategoriesOverview
+        overview={overviewQ.data}
+        periodLabel={periodoDescricao}
+        segmentosPorCategoria={categoriaPorMembro}
+      />
     </div>
   );
 }

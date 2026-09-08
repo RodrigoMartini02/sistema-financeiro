@@ -316,7 +316,7 @@ router.put(
 // visão agregada por autor é um tipo de relatório/consolidação da conta).
 router.get('/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano } = req.query as Record<string, string | undefined>;
+    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano } = req.query as Record<string, string | undefined>;
 
     const memberAccountId = await resolveMemberAccountId(req.user!.id);
     const isMember = memberAccountId !== null;
@@ -351,21 +351,58 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
       ...memberRows.rows.map((r: { usuario_id: number }) => r.usuario_id),
     ];
 
-    const periodFilter = mes !== undefined && ano !== undefined ? 'AND mes = $2 AND ano = $3' : '';
-    const periodParams = mes !== undefined && ano !== undefined ? [parseInt(mes), parseInt(ano)] : [];
+    // O painel filtra por INTERVALO (de/ate), nao por mes unico. Os parametros
+    // mes/ano continuam aceitos para nao quebrar quem ja chamava assim.
+    const deChave = de_ano !== undefined ? parseInt(de_ano) * 12 + (de_mes !== undefined ? parseInt(de_mes) : 0) : null;
+    const ateChave = ate_ano !== undefined ? parseInt(ate_ano) * 12 + (ate_mes !== undefined ? parseInt(ate_mes) : 11) : null;
+    const mesUnico = mes !== undefined && ano !== undefined
+      ? parseInt(ano) * 12 + parseInt(mes)
+      : null;
 
-    const [expensesResult, incomesResult] = await Promise.all([
+    const de = mesUnico ?? deChave;
+    const ate = mesUnico ?? ateChave;
+
+    const periodFilter = `(ano * 12 + mes) BETWEEN COALESCE($2::int, -2147483648) AND COALESCE($3::int, 2147483647)`;
+
+    // A soma tambem passa a respeitar a conta: antes filtrava so por autor, e
+    // um lancamento do mesmo usuario em outra conta entrava no total.
+    const contaFiltro = `($4::int IS NULL OR conta_id = $4 OR (conta_id IS NULL AND EXISTS (
+      SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $5
+    )))`;
+    const ownerForFallback = ownerId ?? req.user!.id;
+    const baseParams = [authorIds, de, ate, accountId, ownerForFallback];
+
+    const [expensesResult, incomesResult, categoryResult, namesResult] = await Promise.all([
       pool.query(
         `SELECT usuario_id, COALESCE(SUM(valor_original), 0) AS total
-         FROM despesas WHERE usuario_id = ANY($1) ${periodFilter}
+         FROM despesas WHERE usuario_id = ANY($1) AND ${periodFilter} AND ${contaFiltro}
          GROUP BY usuario_id`,
-        [authorIds, ...periodParams],
+        baseParams,
       ),
       pool.query(
         `SELECT usuario_id, COALESCE(SUM(valor), 0) AS total
-         FROM receitas WHERE usuario_id = ANY($1) ${periodFilter}
+         FROM receitas WHERE usuario_id = ANY($1) AND ${periodFilter} AND ${contaFiltro}
          GROUP BY usuario_id`,
-        [authorIds, ...periodParams],
+        baseParams,
+      ),
+      // Despesa por membro E categoria: alimenta as barras divididas.
+      pool.query(
+        `SELECT d.usuario_id, d.categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria_nome,
+                COALESCE(SUM(d.valor_original), 0) AS total
+         FROM despesas d
+         LEFT JOIN categorias c ON c.id = d.categoria_id
+         WHERE d.usuario_id = ANY($1)
+           AND (d.ano * 12 + d.mes) BETWEEN COALESCE($2::int, -2147483648) AND COALESCE($3::int, 2147483647)
+           AND ($4::int IS NULL OR d.conta_id = $4 OR (d.conta_id IS NULL AND EXISTS (
+             SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $5
+           )))
+         GROUP BY d.usuario_id, d.categoria_id, c.nome`,
+        baseParams,
+      ),
+      // Os graficos rotulam por nome; o id sozinho nao serve para o usuario.
+      pool.query(
+        `SELECT id AS usuario_id, nome FROM usuarios WHERE id = ANY($1)`,
+        [authorIds],
       ),
     ]);
 
@@ -374,6 +411,8 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
       data: {
         despesas_por_autor: expensesResult.rows,
         receitas_por_autor: incomesResult.rows,
+        despesas_por_autor_categoria: categoryResult.rows,
+        membros: namesResult.rows,
       },
     });
   } catch (error) {

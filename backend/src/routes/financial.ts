@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate, requireActivePlan } from '../middleware/auth';
+import { resolveDashboardScope } from '../utils/dashboardScope';
 
 const router = Router();
 
@@ -147,7 +148,7 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
 // Todos os parâmetros de período são opcionais — ausência de todos = todo o histórico do usuário.
 router.get('/panorama', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { de_mes, de_ano, ate_mes, ate_ano, conta_id } = req.query as Record<string, string | undefined>;
+    const { de_mes, de_ano, ate_mes, ate_ano, conta_id, membro_id } = req.query as Record<string, string | undefined>;
 
     const deMes = de_mes !== undefined ? parseInt(de_mes) : null;
     const deAno = de_ano !== undefined ? parseInt(de_ano) : null;
@@ -178,6 +179,23 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     const userId = req.user!.id;
     const accountId = conta_id ? parseInt(conta_id) : null;
 
+    // Escopo do painel: a familia inteira, ou um membro especifico. O membro
+    // pedido vem do cliente e so passa se a carteira permitir enxerga-lo.
+    const membroId = membro_id !== undefined ? parseInt(membro_id) : null;
+    if (membroId !== null && Number.isNaN(membroId)) {
+      res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+      return;
+    }
+    const escopo = await resolveDashboardScope(userId, accountId, membroId);
+    if (escopo === null) {
+      res.status(400).json({ success: false, message: 'Membro não disponível' });
+      return;
+    }
+
+    // $1 passou a ser uma LISTA de usuarios (= ANY). O $2 continua sendo um id
+    // unico: ele so aparece dentro do contaFiltro, para resgatar registros com
+    // conta_id nulo, que pertencem a conta pessoal do dono. Nesse resgate o
+    // dono da conta e sempre quem esta olhando, nao o autor do lancamento.
     const contaFiltro = `($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
       SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
     )))`;
@@ -185,7 +203,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     // Intervalo comparado como (ano * 12 + mes), cobrindo o mês inteiro em cada extremo.
     const periodoFiltro = `(ano * 12 + mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)`;
 
-    const params = [userId, userId, accountId, deChave, ateChave];
+    const params = [escopo, userId, accountId, deChave, ateChave];
 
     const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult] = await Promise.all([
       pool.query(
@@ -199,11 +217,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         FROM (
           SELECT valor, data_recebimento AS data, 'receita' AS origem
           FROM receitas
-          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+          WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           UNION ALL
           SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, data_vencimento AS data, 'despesa' AS origem
           FROM despesas
-          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+          WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
         ) t`,
         params,
       ),
@@ -211,7 +229,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         `SELECT COALESCE(c.nome, 'Sem categoria') AS categoria, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
          FROM despesas d
          LEFT JOIN categorias c ON d.categoria_id = c.id
-         WHERE d.usuario_id = $1 AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
+         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
            AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
            )))
@@ -222,7 +240,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       pool.query(
         `SELECT COALESCE(forma_pagamento, 'dinheiro') AS forma_pagamento, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END)::float AS total
          FROM despesas
-         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
          GROUP BY forma_pagamento
          ORDER BY total DESC`,
         params,
@@ -230,7 +248,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       pool.query(
         `SELECT CASE WHEN contrato_id IS NOT NULL THEN 'contrato' ELSE 'avulsa' END AS origem, SUM(valor)::float AS total
          FROM receitas
-         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
          GROUP BY (contrato_id IS NOT NULL)`,
         params,
       ),
@@ -245,32 +263,32 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         : pool.query(
             `SELECT COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE -valor END), 0)::float AS saldo_anterior,
               NOT EXISTS (
-                SELECT 1 FROM receitas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                SELECT 1 FROM receitas WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
                   AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
                   )))
                 UNION ALL
-                SELECT 1 FROM despesas WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+                SELECT 1 FROM despesas WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
                   AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
                   )))
               ) AS eh_inicio_historico
              FROM (
                SELECT valor, 'receita' AS origem
                FROM receitas
-               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+               WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
                  )))
                UNION ALL
                SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
                FROM despesas
-               WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
+               WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
                  )))
              ) t`,
-            [userId, deChave, accountId],
+            [escopo, deChave, accountId, userId],
           ),
       pool.query(
         `SELECT
@@ -281,7 +299,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE 0 END), 0)::float AS pagas,
           COALESCE(SUM(CASE WHEN NOT pago THEN valor_original ELSE 0 END), 0)::float AS pendentes
         FROM despesas
-        WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
+        WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
         params,
       ),
     ]);
@@ -313,11 +331,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           FROM (
             SELECT ano, mes, valor, 'receita' AS origem
             FROM receitas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
             SELECT ano, mes, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
             FROM despesas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
           GROUP BY ano, mes
           ORDER BY ano, mes`,
@@ -331,11 +349,11 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           FROM (
             SELECT ano, valor, 'receita' AS origem
             FROM receitas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
             SELECT ano, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
             FROM despesas
-            WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
+            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
           GROUP BY ano
           ORDER BY ano`,

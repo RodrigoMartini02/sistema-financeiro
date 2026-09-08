@@ -119,6 +119,8 @@ export interface DashboardPanoramaFiltro {
   deAno?: number;
   ateMes?: number;
   ateAno?: number;
+  /** Sem valor = painel da família inteira. Com valor = apenas aquele membro. */
+  membroId?: number | null;
 }
 
 export interface DashboardPanoramaSeriePonto {
