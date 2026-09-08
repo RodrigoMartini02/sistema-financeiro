@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
 
@@ -38,6 +39,11 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const pct = parseFloat(String(percentual));
     if (isNaN(pct) || pct <= 0 || pct > 100) {
       res.status(400).json({ success: false, message: 'Percentage must be between 0.01 and 100' });
+      return;
+    }
+
+    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
 

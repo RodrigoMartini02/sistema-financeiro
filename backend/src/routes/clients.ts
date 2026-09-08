@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { accountWhere as accountWhereBase } from '../utils/accountFilter';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
 
@@ -62,6 +63,11 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       return;
     }
 
+    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
+
     // Gera código sequencial automaticamente
     const nextCodeResult = await pool.query(
       `SELECT COALESCE(MAX(codigo::int), 0) + 1 AS proximo
@@ -89,6 +95,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     if (!nome || String(nome).trim() === '') {
       res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+      return;
+    }
+
+    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
 
