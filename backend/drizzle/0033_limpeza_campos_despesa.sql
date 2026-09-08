@@ -20,17 +20,30 @@
 --                          escolher. O painel exibia um rotulo que nao
 --                          distinguia nada
 --
--- PRE-REQUISITO OBRIGATORIO: `valor_original` precisa estar preenchida em todas
--- as linhas antes deste DROP. Registros antigos nasceram so com `valor`, e sem o
--- UPDATE previo o dado se perde aqui. Rodar antes:
+-- ESTADO EM 07/09/2026
 --
---   UPDATE despesas SET valor_original = valor WHERE valor_original IS NULL;
---
--- E fazer backup das colunas antes de remover:
+-- Os dois primeiros passos JA FORAM APLICADOS em producao e no banco local:
 --
 --   CREATE TABLE backup_colunas_despesas_20260907 AS
 --     SELECT id, valor, valor_final, valor_total_com_juros, numero, tipo_despesa
 --       FROM despesas;
+--
+--   UPDATE despesas SET valor_original = valor WHERE valor_original IS NULL;
+--
+-- Com isso o codigo novo ja funciona: ele so precisa de `valor_original`, que
+-- agora esta preenchida em todas as linhas. As colunas abaixo ficaram orfas —
+-- nenhum codigo as le, e elas nao atrapalham em nada alem de ocupar espaco.
+--
+-- O DROP foi ADIADO de proposito. Ele e irreversivel, e adia-lo nao custa nada:
+-- o ganho de remover e organizacional, nao funcional. Rodar quando houver
+-- confianca de que nada quebrou.
+--
+-- O banco LOCAL ja teve o DROP aplicado (31 -> 26 colunas). Producao ainda
+-- tem as 31 colunas, com as 5 orfas.
+--
+-- PRE-REQUISITO, caso o backup ou o UPDATE nao tenham rodado no ambiente alvo:
+-- ambos sao obrigatorios ANTES do DROP. Registros antigos nasceram so com
+-- `valor`, e sem o UPDATE previo esses valores se perdem aqui.
 --
 -- Do not execute automatically. Confirm the target database before applying.
 
