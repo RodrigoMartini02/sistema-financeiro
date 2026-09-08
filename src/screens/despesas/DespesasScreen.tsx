@@ -195,10 +195,12 @@ function FilterChip({
 }
 
 function ActionBtn({
-  onClick, disabled, title, colorClass, children,
+  onClick, disabled = false, title, colorClass, children,
 }: {
   onClick: () => void;
-  disabled: boolean;
+  // Opcional: acoes como Editar e Excluir nunca sao bloqueadas, e exigir a prop
+  // obrigava a passar `disabled={false}` sem ganho nenhum.
+  disabled?: boolean;
   title: string;
   colorClass: string;
   children: ReactNode;
