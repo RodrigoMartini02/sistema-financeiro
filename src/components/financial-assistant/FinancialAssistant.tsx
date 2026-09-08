@@ -558,7 +558,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         await saveExpense(month, year, {
           descricao: draft.description.trim(),
           valor_original: draft.amount,
-          valor_final: draft.amount,
           dataVencimento: date,
           dataCompra: draft.date ?? date,
           categoria_id: suggestedCategory?.id,

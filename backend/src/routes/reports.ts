@@ -21,7 +21,7 @@ interface DespesaRow {
   forma_pagamento: string | null;
   data_vencimento: string;
   data_compra: string | null;
-  valor_final: string | null;
+  valor_original: string | null;
   pago: boolean | null;
   recorrente: boolean | null;
   parcela_atual: number | null;
@@ -69,7 +69,7 @@ async function fetchDespesas(
 
   const result = await pool.query<DespesaRow>(
     `SELECT d.descricao, c.nome AS categoria_nome, d.forma_pagamento,
-            d.data_vencimento, d.data_compra, d.valor_final, d.pago,
+            d.data_vencimento, d.data_compra, d.valor_original, d.pago,
             d.recorrente, d.parcela_atual, d.numero_parcelas
      FROM despesas d
      LEFT JOIN categorias c ON d.categoria_id = c.id
@@ -143,7 +143,7 @@ router.get(
         formaPagamento: d.forma_pagamento,
         dataVencimento: d.data_vencimento,
         dataCompra: d.data_compra,
-        valorFinal: d.valor_final ? parseFloat(d.valor_final) : null,
+        valorFinal: d.valor_original ? parseFloat(d.valor_original) : null,
         pago: d.pago === true,
         recorrente: d.recorrente === true,
         parcelaAtual: d.parcela_atual,

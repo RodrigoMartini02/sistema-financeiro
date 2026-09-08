@@ -186,7 +186,7 @@ export async function getBudgetOverview(input: {
     )),
     db.select({
       categoryId: expenses.categoryId,
-      amount: expenses.finalAmount,
+      amount: expenses.originalAmount,
       originalAmount: expenses.originalAmount,
       paid: expenses.paid,
     }).from(expenses).where(expenseAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
@@ -220,7 +220,7 @@ export async function getBudgetOverview(input: {
     }).from(budgetTargets).where(and(eq(budgetTargets.userId, userId), eq(budgetTargets.accountId, account.id))),
     db.select({
       categoryId: expenses.categoryId,
-      amount: expenses.finalAmount,
+      amount: expenses.originalAmount,
       originalAmount: expenses.originalAmount,
       month: expenses.month,
       year: expenses.year,

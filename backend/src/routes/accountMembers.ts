@@ -169,7 +169,7 @@ router.get('/:id/pending', authenticate, requireGestor, async (req: Request, res
         description: expenses.description,
         installmentGroupId: expenses.installmentGroupId,
         recurring: expenses.recurring,
-        finalAmount: expenses.finalAmount,
+        finalAmount: expenses.originalAmount,
         dueDate: expenses.dueDate,
       })
       .from(expenses)
@@ -223,7 +223,7 @@ router.put(
           description: expenses.description,
           installmentGroupId: expenses.installmentGroupId,
           recurring: expenses.recurring,
-          finalAmount: expenses.finalAmount,
+          finalAmount: expenses.originalAmount,
           dueDate: expenses.dueDate,
         })
         .from(expenses)
@@ -356,7 +356,7 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
 
     const [expensesResult, incomesResult] = await Promise.all([
       pool.query(
-        `SELECT usuario_id, COALESCE(SUM(COALESCE(valor_final, valor_original, valor)), 0) AS total
+        `SELECT usuario_id, COALESCE(SUM(valor_original), 0) AS total
          FROM despesas WHERE usuario_id = ANY($1) ${periodFilter}
          GROUP BY usuario_id`,
         [authorIds, ...periodParams],

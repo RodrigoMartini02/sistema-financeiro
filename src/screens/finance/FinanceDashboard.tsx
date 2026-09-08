@@ -436,23 +436,6 @@ export function FinanceDashboard() {
                   <div className="flex-1" />
                   <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#c7d2fe]" />Variáveis <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.variaveis)}</b></span>
                 </div>
-                <div className="mt-auto flex flex-wrap gap-[7px] pt-4">
-                  {detalhe.opex > 0 && (
-                    <span className="rounded-full border border-[#b9e6ef] bg-[#e6f7fa] px-[11px] py-[5px] text-[11.5px] font-bold text-[#0e7490]">
-                      OPEX <span className="tabular-nums">{formatCurrency(detalhe.opex)}</span>
-                    </span>
-                  )}
-                  {detalhe.capex > 0 && (
-                    <span className="rounded-full border border-[#e6eef3] bg-[#f7fafb] px-[11px] py-[5px] text-[11.5px] font-semibold text-[#6c8593]">
-                      CAPEX {formatCurrency(detalhe.capex)}
-                    </span>
-                  )}
-                  {(despesas - detalhe.opex - detalhe.capex) > 0 && (
-                    <span className="rounded-full border border-[#e6eef3] bg-[#f7fafb] px-[11px] py-[5px] text-[11.5px] font-semibold text-[#6c8593]">
-                      Sem class. {formatCurrency(despesas - detalhe.opex - detalhe.capex)}
-                    </span>
-                  )}
-                </div>
               </div>
             )}
           </Card>

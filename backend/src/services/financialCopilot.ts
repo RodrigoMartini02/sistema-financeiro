@@ -173,12 +173,12 @@ async function storeMessage(input: {
 
 async function buildSummaryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
-    db.select({ amount: expenses.finalAmount, originalAmount: expenses.originalAmount }).from(expenses)
+    db.select({ amount: expenses.originalAmount }).from(expenses)
       .where(accountExpenseCondition(userId, account, month, year)),
     db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year)),
   ]);
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
-  const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0);
+  const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount), 0);
   return {
     type: 'summary',
     title: 'Resumo do período',
@@ -193,14 +193,13 @@ async function buildSummaryCard(userId: number, account: FinancialAccount, month
 async function buildCategoryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const rows = await db.select({
     categoryName: categories.name,
-    amount: expenses.finalAmount,
-    originalAmount: expenses.originalAmount,
+    amount: expenses.originalAmount,
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
     .where(accountExpenseCondition(userId, account, month, year));
   const totals = new Map<string, number>();
   for (const row of rows) {
     const name = row.categoryName ?? 'Sem categoria';
-    totals.set(name, (totals.get(name) ?? 0) + asNumber(row.amount ?? row.originalAmount));
+    totals.set(name, (totals.get(name) ?? 0) + asNumber(row.amount));
   }
   return {
     type: 'categories',
@@ -218,14 +217,14 @@ async function buildTransactionsCard(input: {
   searchTerm: string | null;
 }): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
-    db.select({ description: expenses.description, amount: expenses.finalAmount, originalAmount: expenses.originalAmount, date: expenses.dueDate })
+    db.select({ description: expenses.description, amount: expenses.originalAmount, date: expenses.dueDate })
       .from(expenses).where(accountExpenseCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
     db.select({ description: incomes.description, amount: incomes.amount, date: incomes.receiptDate })
       .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(incomes.receiptDate)).limit(30),
   ]);
   const normalizedSearch = input.searchTerm ? normalizeText(input.searchTerm) : '';
   const records = [
-    ...expenseRows.map((row) => ({ label: row.description, value: -asNumber(row.amount ?? row.originalAmount), date: row.date })),
+    ...expenseRows.map((row) => ({ label: row.description, value: -asNumber(row.amount), date: row.date })),
     ...incomeRows.map((row) => ({ label: row.description, value: asNumber(row.amount), date: row.date })),
   ].filter((record) => !normalizedSearch || normalizeText(record.label).includes(normalizedSearch))
     .sort((left, right) => String(right.date).localeCompare(String(left.date)))
@@ -243,7 +242,7 @@ async function buildTransactionsCard(input: {
 }
 
 async function buildUpcomingCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
-  const rows = await db.select({ description: expenses.description, amount: expenses.finalAmount, originalAmount: expenses.originalAmount, dueDate: expenses.dueDate, paid: expenses.paid })
+  const rows = await db.select({ description: expenses.description, amount: expenses.originalAmount, dueDate: expenses.dueDate, paid: expenses.paid })
     .from(expenses).where(accountExpenseCondition(userId, account, month, year)).orderBy(asc(expenses.dueDate));
   const today = getTodayIsoInTimezone();
   const upcoming = rows.filter((row) => !row.paid && String(row.dueDate) >= today).slice(0, 8);
@@ -252,7 +251,7 @@ async function buildUpcomingCard(userId: number, account: FinancialAccount, mont
     title: 'Próximos vencimentos',
     items: upcoming.map((row) => ({
       label: row.description,
-      value: asNumber(row.amount ?? row.originalAmount),
+      value: asNumber(row.amount),
       detail: String(row.dueDate),
       tone: 'warning',
     })),

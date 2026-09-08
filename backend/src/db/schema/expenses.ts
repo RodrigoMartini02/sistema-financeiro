@@ -41,12 +41,10 @@ export const expenses = pgTable(
     paid: boolean('pago').default(false),
     amountPaid: decimal('valor_pago', { precision: 10, scale: 2 }),
     originalAmount: decimal('valor_original', { precision: 10, scale: 2 }),
-    finalAmount: decimal('valor_final', { precision: 10, scale: 2 }),
     recurring: boolean('recorrente').default(false),
     attachments: jsonb('anexos'),
     numeroNf: varchar('numero_nf', { length: 50 }),
     dataEmissaoNf: date('data_emissao_nf'),
-    tipoDespesa: varchar('tipo_despesa', { length: 10 }).default('opex'),
     createdAt: timestamp('data_criacao').defaultNow(),
   },
   (table) => ({

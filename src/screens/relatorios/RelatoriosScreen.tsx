@@ -14,7 +14,7 @@ import { ReportCard } from './ReportCard';
 // ── types ──────────────────────────────────────────────────────────────────────
 
 interface RawDespesa {
-  id: number; descricao: string; valor_final: string | number;
+  id: number; descricao: string; valor_original: string | number;
   categoria_nome?: string | null; forma_pagamento?: string | null;
   data_vencimento: string; data_pagamento?: string | null;
   mes: number; ano: number; pago?: boolean;
@@ -258,7 +258,7 @@ export function RelatoriosScreen() {
 
   const despesas = despQuery.data ?? [];
   const receitas = useMemo(() => (recQuery.data ?? []).filter((r) => (r.status ?? 'ativa') === 'ativa'), [recQuery.data]);
-  const totalDesp = sumBy(despesas, (d) => Number(d.valor_final));
+  const totalDesp = sumBy(despesas, (d) => Number(d.valor_original));
   const totalRec  = sumBy(receitas, (r) => Number(r.valor));
 
   const formasDisponiveis = useMemo(() => Array.from(new Set(despesas.map((d) => d.forma_pagamento ?? 'dinheiro'))).sort(), [despesas]);
@@ -275,7 +275,7 @@ export function RelatoriosScreen() {
         if (statusFiltro === 'pendente' && d.pago) return false;
         return true;
       })
-      .map((d) => ({ id: d.id, tipo: 'despesa' as const, descricao: d.descricao, valor: Number(d.valor_final), data: d.data_vencimento, categoria: d.categoria_nome ?? 'Sem categoria', forma: d.forma_pagamento ?? 'dinheiro', pago: d.pago }));
+      .map((d) => ({ id: d.id, tipo: 'despesa' as const, descricao: d.descricao, valor: Number(d.valor_original), data: d.data_vencimento, categoria: d.categoria_nome ?? 'Sem categoria', forma: d.forma_pagamento ?? 'dinheiro', pago: d.pago }));
 
     const recRows: Row[] = (tipoFiltro !== 'despesas' ? receitas : [])
       .map((r) => ({ id: r.id, tipo: 'receita' as const, descricao: r.descricao, valor: Number(r.valor), data: r.data_recebimento, categoria: r.tipo_receita ?? 'Outros', forma: 'receita', pago: true }));

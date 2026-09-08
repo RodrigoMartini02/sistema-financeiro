@@ -23,8 +23,8 @@ interface RawExpense {
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
-  valor_original?: string | null; valor_final?: string | null; valor?: string | null; valor_pago?: string | null;
-  numero_nf?: string | null; data_emissao_nf?: string | null; tipo_despesa?: string | null;
+  valor_original?: string | null; valor_pago?: string | null;
+  numero_nf?: string | null; data_emissao_nf?: string | null;
   data_criacao?: string | null;
   autor_nome?: string | null;
   anexos?: Attachment[] | null;
@@ -66,14 +66,14 @@ function expenseFromApi(r: RawExpense): Expense {
   const parcela = r.parcelado && r.parcela_atual && r.numero_parcelas
     ? `${r.parcela_atual}/${r.numero_parcelas}` : null;
 
-  // rawFinalDb é o valor_final bruto do banco — sempre o valor daquela parcela/período.
-  const rawFinalDb = asNumber(r.valor_final ?? r.valor_original ?? r.valor);
-  const valorFinal = rawFinalDb;
+  // O valor da linha é sempre o da parcela/período — em parcelada, cada linha
+  // já nasce com o valor dividido.
+  const valorFinal = asNumber(r.valor_original);
 
   return {
     id: r.id, descricao: r.descricao,
     valorFinal,
-    valorFinalTotal: rawFinalDb > 0 ? rawFinalDb : undefined,
+    valorFinalTotal: valorFinal > 0 ? valorFinal : undefined,
     categoria: r.categoria_nome ?? 'Sem categoria',
     categoriaPai: r.categoria_pai_nome ?? null,
     formaPagamento: r.forma_pagamento ?? 'dinheiro',
@@ -90,7 +90,6 @@ function expenseFromApi(r: RawExpense): Expense {
     valorPago: r.valor_pago != null ? asNumber(r.valor_pago) : null,
     numeroNf: r.numero_nf ?? null,
     dataEmissaoNf: r.data_emissao_nf ?? null,
-    tipoDespesa: (r.tipo_despesa as 'opex' | 'capex' | null) ?? null,
     anexos: Array.isArray(r.anexos) ? r.anexos : null,
   };
 }
@@ -162,19 +161,16 @@ export async function deleteIncome(id: number) {
 export async function saveExpense(month: number, year: number, values: ExpenseFormValues, id?: number) {
   const accountId = getActiveAccountId();
   const valorOriginal = values.valor_original ?? 0;
-  const valorFinal = values.valor_final ?? valorOriginal;
   const body: Record<string, unknown> = {
     descricao: values.descricao,
     valor_original: valorOriginal,
-    valor_final: valorFinal,
     data_vencimento: values.dataVencimento, data_compra: values.dataCompra || null,
     data_pagamento: values.pago ? values.dataVencimento : null,
     mes: month, ano: year, forma_pagamento: values.formaPagamento,
     observacoes: values.observacoes || null, pago: values.pago,
     numero_nf: values.numero_nf ?? null,
     data_emissao_nf: values.data_emissao_nf ?? null,
-    tipo_despesa: values.tipo_despesa ?? null,
-    valor_pago: values.pago ? (values.valor_pago ?? valorFinal) : null,
+    valor_pago: values.pago ? (values.valor_pago ?? valorOriginal) : null,
     recorrente: values.recorrente ?? false,
     parcelado: values.parcelado ?? false,
     total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
@@ -309,7 +305,7 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     serie: Array<{ ano: string | number; mes: string | number | null; receitas: string | number; despesas: string | number }>;
     despesasDetalhe: {
       juros: string | number; descontos: string | number; fixas: string | number; variaveis: string | number;
-      opex: string | number; capex: string | number; pagas: string | number; pendentes: string | number;
+      pagas: string | number; pendentes: string | number;
     };
   }>(`/financial/panorama${suffix}`);
 
@@ -336,8 +332,6 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       descontos: asNumber(raw.despesasDetalhe.descontos),
       fixas: asNumber(raw.despesasDetalhe.fixas),
       variaveis: asNumber(raw.despesasDetalhe.variaveis),
-      opex: asNumber(raw.despesasDetalhe.opex),
-      capex: asNumber(raw.despesasDetalhe.capex),
       pagas: asNumber(raw.despesasDetalhe.pagas),
       pendentes: asNumber(raw.despesasDetalhe.pendentes),
     },

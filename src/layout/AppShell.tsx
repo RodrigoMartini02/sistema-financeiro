@@ -67,14 +67,14 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
       const accountId = getActiveAccountId();
       if (accountId) params.set('conta_id', String(accountId));
       return apiRequest<Array<{
-        id: number; descricao: string; valor_final: number;
+        id: number; descricao: string; valor_original: number;
         categoria_nome?: string; forma_pagamento?: string;
       }>>('/despesas?' + params);
     },
     staleTime: 60_000,
   });
 
-  const total = data.reduce((s, d) => s + Number(d.valor_final), 0);
+  const total = data.reduce((s, d) => s + Number(d.valor_original), 0);
   const recentes = data.slice(0, 12);
 
   return (
@@ -132,7 +132,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{d.descricao}</p>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {d.categoria_nome ?? 'Sem categoria'} {'\u00b7'} R$ {Number(d.valor_final).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {d.categoria_nome ?? 'Sem categoria'} {'\u00b7'} R$ {Number(d.valor_original).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>

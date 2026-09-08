@@ -106,7 +106,7 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
         GROUP BY mes
       ) r ON r.mes = gs.mes
       LEFT JOIN (
-        SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) AS total
+        SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) AS total
         FROM despesas
         WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
           AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
@@ -201,14 +201,14 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           FROM receitas
           WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           UNION ALL
-          SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END AS valor, data_vencimento AS data, 'despesa' AS origem
+          SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, data_vencimento AS data, 'despesa' AS origem
           FROM despesas
           WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
         ) t`,
         params,
       ),
       pool.query(
-        `SELECT COALESCE(c.nome, 'Sem categoria') AS categoria, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_final, d.valor_original, d.valor) ELSE COALESCE(d.valor_final, d.valor_original, d.valor) END)::float AS total
+        `SELECT COALESCE(c.nome, 'Sem categoria') AS categoria, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
          FROM despesas d
          LEFT JOIN categorias c ON d.categoria_id = c.id
          WHERE d.usuario_id = $1 AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
@@ -220,7 +220,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         params,
       ),
       pool.query(
-        `SELECT COALESCE(forma_pagamento, 'dinheiro') AS forma_pagamento, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END)::float AS total
+        `SELECT COALESCE(forma_pagamento, 'dinheiro') AS forma_pagamento, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END)::float AS total
          FROM despesas
          WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
          GROUP BY forma_pagamento
@@ -263,7 +263,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
                  )))
                UNION ALL
-               SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END AS valor, 'despesa' AS origem
+               SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
                FROM despesas
                WHERE usuario_id = $1 AND status = 'ativa' AND (ano * 12 + mes) < $2::int
                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
@@ -274,14 +274,12 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           ),
       pool.query(
         `SELECT
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END - valor_original) > 0 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END - valor_original) ELSE 0 END), 0)::float AS juros,
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END - valor_original) ELSE 0 END), 0)::float AS descontos,
-          COALESCE(SUM(CASE WHEN recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) ELSE 0 END), 0)::float AS fixas,
-          COALESCE(SUM(CASE WHEN NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) ELSE 0 END), 0)::float AS variaveis,
-          COALESCE(SUM(CASE WHEN tipo_despesa = 'opex' THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) ELSE 0 END), 0)::float AS opex,
-          COALESCE(SUM(CASE WHEN tipo_despesa = 'capex' THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END) ELSE 0 END), 0)::float AS capex,
-          COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE 0 END), 0)::float AS pagas,
-          COALESCE(SUM(CASE WHEN NOT pago THEN COALESCE(valor_final, valor_original, valor) ELSE 0 END), 0)::float AS pendentes
+          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) > 0 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS juros,
+          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS descontos,
+          COALESCE(SUM(CASE WHEN recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS fixas,
+          COALESCE(SUM(CASE WHEN NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS variaveis,
+          COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE 0 END), 0)::float AS pagas,
+          COALESCE(SUM(CASE WHEN NOT pago THEN valor_original ELSE 0 END), 0)::float AS pendentes
         FROM despesas
         WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
         params,
@@ -317,7 +315,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
             FROM receitas
             WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
-            SELECT ano, mes, CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END AS valor, 'despesa' AS origem
+            SELECT ano, mes, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
             FROM despesas
             WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
@@ -335,7 +333,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
             FROM receitas
             WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
             UNION ALL
-            SELECT ano, CASE WHEN pago THEN COALESCE(valor_pago, valor_final, valor_original, valor) ELSE COALESCE(valor_final, valor_original, valor) END AS valor, 'despesa' AS origem
+            SELECT ano, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
             FROM despesas
             WHERE usuario_id = $1 AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
           ) t
@@ -350,7 +348,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     };
     const despesasDetalhe = despesasDetalheResult.rows[0] as {
       juros: number; descontos: number; fixas: number; variaveis: number;
-      opex: number; capex: number; pagas: number; pendentes: number;
+      pagas: number; pendentes: number;
     };
 
     // Aplica o aporte inicial da conta (saldo de abertura) uma única vez, quando o
