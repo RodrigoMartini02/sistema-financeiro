@@ -6,6 +6,7 @@ import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
 
@@ -368,9 +369,15 @@ router.post(
         numero_nf, data_emissao_nf,
       } = req.body as Record<string, unknown>;
 
+      const contaIdFinal = conta_id ? parseInt(String(conta_id)) : null;
+      if (!(await canWriteToAccount(contaIdFinal, req.user!.id))) {
+        res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+        return;
+      }
+
       const totalInstallments = total_parcelas ?? null;
       const currentInstallment = parcela_atual ?? (parcelado ? 1 : null);
-      const cardIdFinal = await validateCardId(cartao_id, req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
+      const cardIdFinal = await validateCardId(cartao_id, req.user!.id, contaIdFinal);
       const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
       if (cardCompatibilityError) {
         res.status(400).json({ success: false, message: cardCompatibilityError });
@@ -460,7 +467,13 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       numero_nf, data_emissao_nf,
     } = req.body as Record<string, unknown>;
 
-    const cardIdFinal = await validateCardId(cartao_id, req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
+    const contaIdFinal = conta_id ? parseInt(String(conta_id)) : null;
+    if (!(await canWriteToAccount(contaIdFinal, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
+
+    const cardIdFinal = await validateCardId(cartao_id, req.user!.id, contaIdFinal);
     const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
     if (cardCompatibilityError) {
       res.status(400).json({ success: false, message: cardCompatibilityError });
