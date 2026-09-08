@@ -6,6 +6,7 @@ import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { createCommissionExpense } from '../services/commissionService';
 
 const router = Router();
@@ -91,6 +92,11 @@ router.post(
         cliente, tipo_receita, representante_id, valor_comissao,
         contrato_id, tipo_hora, quantidade_horas,
       } = req.body as Record<string, unknown>;
+
+      if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+        res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+        return;
+      }
 
       // Mês/ano da receita sempre derivados da data de recebimento, nunca do
       // mês que o client tinha aberto na tela no momento do cadastro.
@@ -188,6 +194,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id } =
       req.body as Record<string, unknown>;
+
+    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
 
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 

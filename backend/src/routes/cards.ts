@@ -5,6 +5,7 @@ import { cards } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { getCardLimits } from '../services/cardLimitService';
 
 const router = Router();
@@ -121,6 +122,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     }
 
     const accountId = conta_id ? parseInt(String(conta_id)) : null;
+    if (!(await canWriteToAccount(accountId, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
 
     const countResult = await pool.query(
       'SELECT COUNT(*) AS total FROM cartoes WHERE usuario_id = $1 AND conta_id IS NOT DISTINCT FROM $2',
@@ -186,6 +191,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
     if (tipo && !TIPOS_VALIDOS.includes(String(tipo))) {
       res.status(400).json({ success: false, message: 'Tipo must be one of: credito, debito, ambos' });
+      return;
+    }
+    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
 
