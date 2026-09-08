@@ -19,7 +19,6 @@ export interface ExpenseSuggestions {
 
 interface RawMatch {
   descricao: string;
-  valor_final?: string | number | null;
   valor_original?: string | number | null;
   categoria_id?: number | null;
   forma_pagamento?: string | null;
@@ -50,7 +49,7 @@ export async function fetchExpenseSuggestions(descricao: string, categoriaId?: n
   return {
     matches: raw.matches.map((match) => ({
       descricao: match.descricao,
-      valorFinal: asNumber(match.valor_final ?? match.valor_original),
+      valorFinal: asNumber(match.valor_original),
       categoriaId: match.categoria_id ?? null,
       formaPagamento: match.forma_pagamento ?? 'dinheiro',
     })),

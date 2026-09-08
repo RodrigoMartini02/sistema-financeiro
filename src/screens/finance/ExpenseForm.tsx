@@ -474,7 +474,6 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
     parcelasJaPagas: repeticao === 'parcelas' ? data.parcelasJaPagas : undefined,
     numero_nf:       isEmpresa ? (data.numero_nf ?? undefined) : undefined,
     data_emissao_nf: isEmpresa ? (data.data_emissao_nf ?? undefined) : undefined,
-    tipo_despesa:    'opex',
     anexos:          anexosArr,
   });
 

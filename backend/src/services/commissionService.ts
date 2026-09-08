@@ -41,16 +41,14 @@ export async function createCommissionExpense({
   }
   const categoriaId = (catResult.rows[0] as { id: number }).id;
 
-  const numResult = await client.query(
-    'SELECT COALESCE(MAX(numero), 0) + 1 AS proximo FROM despesas WHERE usuario_id = $1',
-    [userId],
-  );
-  const proximoNumero = (numResult.rows[0] as { proximo: number }).proximo;
-
+  // A coluna `numero` guardava um contador sequencial por usuario, calculado
+  // com MAX(numero)+1. O valor era gravado e nunca lido de volta: nenhum SELECT,
+  // API ou tela o expunha. O `id` da propria tabela ja cumpre o papel de
+  // identificador unico, entao a coluna saiu junto com este calculo.
   await client.query(
-    `INSERT INTO despesas (usuario_id, descricao, valor_original, valor_final,
-      data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, conta_id, numero)
-     VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8, $9)`,
+    `INSERT INTO despesas (usuario_id, descricao, valor_original,
+      data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, conta_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8)`,
     [
       userId,
       `Comissão - ${repNome}`,
@@ -60,7 +58,6 @@ export async function createCommissionExpense({
       ano,
       categoriaId,
       contaId,
-      proximoNumero,
     ],
   );
 }

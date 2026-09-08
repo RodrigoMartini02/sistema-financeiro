@@ -58,10 +58,10 @@ export interface IncomeFormValues {
 export interface Expense {
   id: number;
   descricao: string;
-  valorFinal: number;           // valor efetivo por exibição (por parcela para parcelado)
-  valorFinalTotal?: number;     // valor_final bruto do banco (total para primeira parcela — usado no edit)
-  valorOriginal?: number | null; // preço base acordado
-  valorPago?: number | null;    // valor efetivamente pago (pode diferir do valorFinal por acréscimo/desconto)
+  valorFinal: number;           // valor da linha (por parcela, quando parcelado)
+  valorFinalTotal?: number;     // mesmo valor, usado na comparação ao editar
+  valorOriginal?: number | null; // valor da compra, como veio do banco
+  valorPago?: number | null;    // valor efetivamente pago (pode diferir por juros/desconto)
   categoria: string;
   categoriaPai?: string | null; // nome da categoria-pai, quando a categoria é subcategoria
   formaPagamento: string;
@@ -84,14 +84,12 @@ export interface Expense {
   observacoes?: string | null;
   numeroNf?: string | null;
   dataEmissaoNf?: string | null;
-  tipoDespesa?: 'opex' | 'capex' | null;
   anexos?: Attachment[] | null;
 }
 
 export interface ExpenseFormValues {
   descricao: string;
   valor_original?: number;      // preço base (obrigatório na prática)
-  valor_final?: number;         // valor final com juros ou desconto (opcional)
   valor_pago?: number;          // valor efetivamente pago, quando divergir do valor da compra
   dataVencimento: string;
   dataCompra?: string;
@@ -106,7 +104,6 @@ export interface ExpenseFormValues {
   recorrenciaMensal?: boolean;  // gera lote fixo de ocorrências futuras (dia livre ou fatura do cartão)
   numero_nf?: string;
   data_emissao_nf?: string;
-  tipo_despesa?: 'opex' | 'capex';
   observacoes?: string;
   anexos?: Attachment[];
 }
@@ -136,8 +133,6 @@ export interface DashboardPanoramaDespesasDetalhe {
   descontos: number;
   fixas: number;
   variaveis: number;
-  opex: number;
-  capex: number;
   pagas: number;
   pendentes: number;
 }

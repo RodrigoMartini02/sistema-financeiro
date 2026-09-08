@@ -34,11 +34,9 @@ interface CardLimitRow {
 // linhas, mas o filtro de usuário é a garantia de isolamento que o resto do
 // projeto aplica em toda query de despesas.
 //
-// A soma cai para `valor` no fim do COALESCE: as tres colunas guardam o mesmo
-// numero (o valor daquela parcela/periodo), mas so `valor` esteve sempre
-// preenchida. Registros anteriores a julho/2026 nasceram sem valor_final — e
-// sem esse ultimo termo somavam zero, deixando o cartao com limite congelado
-// mesmo com parcelas em aberto.
+// A soma usa valor_original, a unica coluna de valor da despesa: valor_final e
+// valor eram copias dela e foram removidas. Em parcelada cada linha ja guarda o
+// valor da parcela, entao a soma nao precisa dividir nada.
 //
 // status usa COALESCE porque a coluna só é preenchida ao cancelar uma despesa
 // (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
@@ -67,7 +65,7 @@ export async function getCardLimits(userId: number, accountId: number | null): P
   const result = await pool.query<CardLimitRow>(
     `SELECT c.id, c.nome, c.limite,
        COALESCE(SUM(
-         CASE WHEN d.id IS NOT NULL THEN COALESCE(d.valor_final, d.valor_original, d.valor) ELSE 0 END
+         CASE WHEN d.id IS NOT NULL THEN d.valor_original ELSE 0 END
        ), 0) AS usado
      FROM cartoes c
      LEFT JOIN despesas d ON d.cartao_id = c.id

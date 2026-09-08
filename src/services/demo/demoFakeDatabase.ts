@@ -39,10 +39,8 @@ export interface RawExpenseDemo {
   parcela_atual: number | null;
   observacoes: string | null;
   valor_original: number | null;
-  valor_final: number;
   numero_nf: string | null;
   data_emissao_nf: string | null;
-  tipo_despesa: string | null;
   anexos: null;
 }
 
@@ -134,8 +132,8 @@ function createSeed() {
       forma_pagamento: 'pix', cartao_id: null, data_vencimento: todayIso(-2), data_compra: null,
       data_pagamento: todayIso(-2), mes, ano, status: 'ativa', pago: true, parcelado: false,
       recorrente: false, numero_parcelas: null, parcela_atual: null, observacoes: null,
-      valor_original: 1200, valor_final: 1200, numero_nf: null, data_emissao_nf: null,
-      tipo_despesa: null, anexos: null,
+      valor_original: 1200, numero_nf: null, data_emissao_nf: null,
+      anexos: null,
     },
   ];
 

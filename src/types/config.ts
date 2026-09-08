@@ -9,7 +9,6 @@ export interface Categoria {
   parent_id?: number | null;
   tipo?: 'pessoal' | 'empresa' | null;
   conta_id?: number | null;
-  tipo_despesa?: 'opex' | 'capex' | null;
   ativo: boolean;
   data_criacao: string;
   subcategorias?: Categoria[];

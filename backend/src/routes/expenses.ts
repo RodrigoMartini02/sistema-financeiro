@@ -82,9 +82,9 @@ async function createFutureInstallments(
     baseDate.setMonth(baseDate.getMonth() + (i - 1));
     const nextDue = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
 
-    const placeholders = Array.from({ length: 20 }, () => `$${idx++}`).join(', ');
+    const placeholders = Array.from({ length: 18 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
-    const valorParcela = parseFloat(String(baseExpense['valor_final'] ?? baseExpense['valor_original'] ?? 0));
+    const valorParcela = parseFloat(String(baseExpense['valor_original'] ?? 0));
     const installmentIsPaid = i <= installmentsAlreadyPaid;
     params.push(
       userId,
@@ -105,8 +105,6 @@ async function createFutureInstallments(
       baseExpense['recorrente'] ?? false,
       baseExpense['conta_id'] ?? null,
       valorParcela,
-      valorParcela,
-      valorParcela,
     );
   }
 
@@ -117,7 +115,7 @@ async function createFutureInstallments(
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         parcelado, numero_parcelas, parcela_atual, observacoes, pago,
         grupo_parcelamento_id, recorrente, conta_id,
-        valor_original, valor_final, valor
+        valor_original
       ) VALUES ${values.join(', ')}`,
       params,
     );
@@ -156,7 +154,7 @@ async function createRecurringOccurrences(
     baseDate.setMonth(baseDate.getMonth() + (i - 1));
     const nextDue = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(baseDate.getDate()).padStart(2, '0')}`;
 
-    const placeholders = Array.from({ length: 17 }, () => `$${idx++}`).join(', ');
+    const placeholders = Array.from({ length: 15 }, () => `$${idx++}`).join(', ');
     values.push(`(${placeholders})`);
     params.push(
       userId,
@@ -174,8 +172,6 @@ async function createRecurringOccurrences(
       true,
       baseExpense['conta_id'] ?? null,
       baseExpense['valor_original'],
-      baseExpense['valor_final'],
-      baseExpense['valor_final'],
     );
   }
 
@@ -186,7 +182,7 @@ async function createRecurringOccurrences(
         mes, ano, categoria_id, cartao_id, forma_pagamento,
         observacoes, pago,
         grupo_parcelamento_id, recorrente, conta_id,
-        valor_original, valor_final, valor
+        valor_original
       ) VALUES ${values.join(', ')}`,
       params,
     );
@@ -276,7 +272,7 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
 
     const matches = normalizedDescricao
       ? await pool.query(
-          `SELECT descricao, valor_final, valor_original, categoria_id, forma_pagamento,
+          `SELECT descricao, valor_original, categoria_id, forma_pagamento,
                   COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
                   data_vencimento
            FROM despesas
@@ -365,11 +361,11 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
-        descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
+        descricao, valor_original, data_vencimento, data_compra, data_pagamento,
         categoria_id, cartao_id, forma_pagamento,
         parcelado, total_parcelas, parcela_atual, parcelas_ja_pagas, observacoes, pago,
         valor_pago, anexos, recorrente, recorrencia_mensal, conta_id,
-        numero_nf, data_emissao_nf, tipo_despesa,
+        numero_nf, data_emissao_nf,
       } = req.body as Record<string, unknown>;
 
       const totalInstallments = total_parcelas ?? null;
@@ -385,9 +381,7 @@ router.post(
       const parsedCategoryId = categoria_id ? parseInt(String(categoria_id), 10) : NaN;
       const categoryFinal = Number.isFinite(parsedCategoryId) ? parsedCategoryId : null;
 
-      const valorFinalCalculado = valor_final
-        ? parseFloat(String(valor_final))
-        : parseFloat(String(valor_original));
+      const valorCompra = parseFloat(String(valor_original));
 
       // Mês/ano do lançamento sempre derivados da data de vencimento, nunca do
       // mês que o client tinha aberto na tela no momento do cadastro.
@@ -400,7 +394,7 @@ router.post(
       const pagoFinal = Boolean(pago) || isRetroativaEPagavelNaHora;
       const dataPagamentoFinal = pagoFinal ? (dataReferencia) : null;
       const valorPagoFinal = pagoFinal
-        ? (valor_pago ? parseFloat(String(valor_pago)) : valorFinalCalculado)
+        ? (valor_pago ? parseFloat(String(valor_pago)) : valorCompra)
         : null;
 
       const result = await pool.query(
@@ -408,9 +402,9 @@ router.post(
           usuario_id, descricao, data_vencimento, data_compra, data_pagamento,
           mes, ano, categoria_id, cartao_id, forma_pagamento,
           parcelado, numero_parcelas, parcela_atual, observacoes, pago,
-          valor_original, valor_final, valor, valor_pago, anexos, recorrente, conta_id,
-          numero_nf, data_emissao_nf, tipo_despesa
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+          valor_original, valor_pago, anexos, recorrente, conta_id,
+          numero_nf, data_emissao_nf
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
         RETURNING *`,
         [
           req.user!.id, descricao, data_vencimento,
@@ -418,14 +412,11 @@ router.post(
           categoryFinal, cardIdFinal, forma_pagamento ?? 'dinheiro',
           parcelado ?? false, totalInstallments, currentInstallment,
           observacoes ?? null, pagoFinal,
-          valor_original ? parseFloat(String(valor_original)) : null,
-          valorFinalCalculado,
-          valorFinalCalculado,
+          valorCompra,
           valorPagoFinal,
           attachmentsJson, recorrente ?? false,
           conta_id ? parseInt(String(conta_id)) : null,
           (numero_nf as string) || null, (data_emissao_nf as string) || null,
-          (tipo_despesa as string) || null,
         ],
       );
 
@@ -462,11 +453,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const {
-      descricao, valor_original, valor_final, data_vencimento, data_compra, data_pagamento,
+      descricao, valor_original, data_vencimento, data_compra, data_pagamento,
       categoria_id, cartao_id, forma_pagamento, observacoes, pago,
       total_parcelas, parcela_atual, valor_pago,
       anexos, parcelado, recorrente, conta_id,
-      numero_nf, data_emissao_nf, tipo_despesa,
+      numero_nf, data_emissao_nf,
     } = req.body as Record<string, unknown>;
 
     const cardIdFinal = await validateCardId(cartao_id, req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
@@ -477,9 +468,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
     const attachmentsJson = Array.isArray(anexos) && anexos.length > 0 ? JSON.stringify(anexos) : null;
 
-    const valorFinalCalculado = valor_final
-      ? parseFloat(String(valor_final))
-      : (valor_original ? parseFloat(String(valor_original)) : null);
+    const valorCompra = valor_original ? parseFloat(String(valor_original)) : null;
 
     // Mesma regra da criação: mês/ano seguem a data de vencimento, e uma data
     // já vencida (fora do crédito) mantém/assume status pago automaticamente.
@@ -489,7 +478,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const pagoFinal = Boolean(pago) || isRetroativaEPagavelNaHora;
     const dataPagamentoFinal = pagoFinal ? dataReferencia : null;
     const valorPagoFinal = pagoFinal
-      ? (valor_pago ? parseFloat(String(valor_pago)) : valorFinalCalculado)
+      ? (valor_pago ? parseFloat(String(valor_pago)) : valorCompra)
       : null;
 
     const result = await pool.query(
@@ -498,22 +487,21 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
            data_pagamento = $4, categoria_id = $5, cartao_id = $6,
            forma_pagamento = $7, observacoes = $8, pago = $9,
            numero_parcelas = $10, parcela_atual = $11,
-           valor_original = $12, valor_final = $13, valor_pago = $14,
-           anexos = $15,
-           mes = $16, ano = $17,
-           parcelado = COALESCE($18, parcelado),
-           recorrente = COALESCE($19, recorrente),
-           conta_id = COALESCE($20, conta_id),
-           numero_nf = $21, data_emissao_nf = $22, tipo_despesa = $23
-       WHERE id = $24 AND usuario_id = $25
+           valor_original = $12, valor_pago = $13,
+           anexos = $14,
+           mes = $15, ano = $16,
+           parcelado = COALESCE($17, parcelado),
+           recorrente = COALESCE($18, recorrente),
+           conta_id = COALESCE($19, conta_id),
+           numero_nf = $20, data_emissao_nf = $21
+       WHERE id = $22 AND usuario_id = $23
        RETURNING *`,
       [
         descricao, data_vencimento, (data_compra as string) || null,
         dataPagamentoFinal, categoria_id ?? null, cardIdFinal, forma_pagamento,
         observacoes ?? null, pagoFinal,
         total_parcelas ?? null, parcela_atual ?? null,
-        valor_original ? parseFloat(String(valor_original)) : null,
-        valorFinalCalculado,
+        valorCompra,
         valorPagoFinal,
         attachmentsJson,
         mes,
@@ -521,7 +509,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         parcelado !== undefined ? parcelado : null,
         recorrente !== undefined ? recorrente : null,
         conta_id ? parseInt(String(conta_id)) : null,
-        (numero_nf as string) || null, (data_emissao_nf as string) || null, (tipo_despesa as string) || null,
+        (numero_nf as string) || null, (data_emissao_nf as string) || null,
         expenseId, donoUpdate,
       ],
     );
@@ -603,7 +591,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
 router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const expenseId = parseInt(req.params['id']!);
-    const { data_pagamento, valor_pago, settle_future } = req.body as Record<string, unknown>;
+    const { data_pagamento, valor_pago } = req.body as Record<string, unknown>;
 
     const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
 
@@ -618,14 +606,6 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
     }
 
     const expense = result.rows[0] as Record<string, unknown>;
-
-    if (settle_future && expense['grupo_parcelamento_id']) {
-      await pool.query(
-        `UPDATE despesas SET pago = true, data_pagamento = $1, valor_pago = 0
-         WHERE grupo_parcelamento_id = $2 AND parcela_atual > $3 AND usuario_id = $4`,
-        [paymentDate, expense['grupo_parcelamento_id'], expense['parcela_atual'], req.user!.id],
-      );
-    }
 
     res.json({ success: true, message: 'Payment processed', data: expense });
   } catch (error) {
@@ -708,8 +688,8 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
       `SELECT mes, ano,
         SUM(
           CASE WHEN parcela_atual = 1 AND numero_parcelas > 1
-               THEN COALESCE(valor_final, valor_original, valor)::float / NULLIF(numero_parcelas, 0)
-               ELSE COALESCE(valor_final, valor_original, valor)::float
+               THEN valor_original::float / NULLIF(numero_parcelas, 0)
+               ELSE valor_original::float
           END
         ) AS total
        FROM despesas

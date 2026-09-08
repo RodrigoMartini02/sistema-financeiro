@@ -86,7 +86,7 @@ export function resolveFakeApiRequest(
     const body = parseBody<Record<string, unknown>>(init);
     const { mes, ano } = currentMonthYear();
     const categoria = db.categorias.find((c) => c.id === Number(body.categoria_id));
-    const valorFinal = Number(body.valor_final ?? body.valor_original ?? 0);
+    const valorFinal = Number(body.valor_original ?? 0);
     const novaDespesa = {
       id: generateId(),
       descricao: String(body.descricao ?? ''),
@@ -107,10 +107,8 @@ export function resolveFakeApiRequest(
       parcela_atual: body.parcelado ? 1 : null,
       observacoes: (body.observacoes as string | null) ?? null,
       valor_original: Number(body.valor_original ?? valorFinal),
-      valor_final: valorFinal,
       numero_nf: null,
       data_emissao_nf: null,
-      tipo_despesa: (body.tipo_despesa as string | null) ?? null,
       anexos: null,
     };
     db.despesas = [novaDespesa, ...db.despesas];
@@ -137,7 +135,7 @@ export function resolveFakeApiRequest(
   // Saldo do mês — calculado a partir do estado fake
   if (matchEndpoint(endpoint, /^\/meses\/\d+\/\d+\/saldo$/)) {
     const totalReceitas = db.receitas.reduce((sum, item) => sum + item.valor, 0);
-    const totalDespesas = db.despesas.reduce((sum, item) => sum + item.valor_final, 0);
+    const totalDespesas = db.despesas.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
     return {
       saldo_anterior: 0,
       receitas: totalReceitas,
@@ -279,7 +277,7 @@ export function resolveFakeApiRequest(
       const receitasMes = db.receitas.filter((item) => new Date(item.data_recebimento).getMonth() === mes);
       const despesasMes = db.despesas.filter((item) => new Date(item.data_vencimento).getMonth() === mes);
       const totalReceitas = receitasMes.reduce((sum, item) => sum + item.valor, 0);
-      const totalDespesas = despesasMes.reduce((sum, item) => sum + item.valor_final, 0);
+      const totalDespesas = despesasMes.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
       return {
         mes,
         receitas: totalReceitas,
