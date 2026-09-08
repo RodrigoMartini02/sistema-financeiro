@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
+import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
 
@@ -130,6 +131,10 @@ router.post('/:ano/:mes/fechar', authenticate, async (req: Request, res: Respons
     const month = parseInt(req.params['mes']!);
     const { saldo_final, conta_id } = req.body as Record<string, unknown>;
     const accountId = conta_id ? parseInt(String(conta_id)) : null;
+    if (!(await canWriteToAccount(accountId, req.user!.id))) {
+      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
     const parsedFinalBalance = parseFloat(String(saldo_final ?? ''));
     const finalBalance = Number.isFinite(parsedFinalBalance)
       ? parsedFinalBalance
