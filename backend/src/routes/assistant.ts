@@ -121,6 +121,7 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
       conversationId: asOptionalPositiveInteger(body['conversa_id']),
       intentHint: asIntentHint(body['intent_hint']),
       slotState: parseSlotSessionState(body['slot_state']),
+      voiceMode: body['modo_voz'] === true,
     });
     res.json({ success: true, data: result });
   } catch (error) {

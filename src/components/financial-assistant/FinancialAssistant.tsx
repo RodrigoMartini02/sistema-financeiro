@@ -28,6 +28,7 @@ import { AssistantHeaderMenu } from './AssistantHeaderMenu';
 import {
   fontSizeToScale, readStoredFontSize, storeFontSize, type AssistantFontSize,
 } from './fontSize';
+import { useSpeech } from './useSpeech';
 
 type ChatRole = 'assistant' | 'user';
 
@@ -286,6 +287,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [isListening, setIsListening] = useState(false);
   const [intentHint, setIntentHint] = useState<FinancialCopilotIntentHint | null>(null);
   const [slotState, setSlotState] = useState<FinancialCopilotSlotState | null>(null);
+  // Marca que a proxima mensagem nasceu do microfone: so ai a resposta e falada.
+  const [voiceMode, setVoiceMode] = useState(false);
+  const speech = useSpeech();
+  // Reconhecimento nao e padrao: sem suporte, o microfone nem aparece.
+  const [recognitionSupported] = useState(() => getSpeechRecognitionConstructor() !== null);
   const [lastVoiceTranscript, setLastVoiceTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -400,6 +406,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     const message = (overrideMessage ?? composer).trim();
     if ((!message && attachments.length === 0) || isPreparing) return;
 
+    // A pergunta veio do microfone? So essa resposta e falada; consumido aqui,
+    // o modo volta a falso para a proxima mensagem digitada.
+    const askedByVoice = voiceMode;
+    setVoiceMode(false);
+    speech.stop();
+
     const messageAttachments = attachments;
     const displayedMessage = message || 'Analise os arquivos enviados.';
     setError(null);
@@ -430,6 +442,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         conversationId,
         intentHint,
         slotState,
+        voiceMode: askedByVoice,
       });
       setConversationId(result.conversationId);
       setIntentHint(null);
@@ -446,6 +459,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         cards: result.cards,
         quickReplies: result.quickReplies,
       }]);
+      // A resposta escrita ja esta na tela: a fala e um extra que pode faltar
+      // (cota estourada, navegador sem sintese) sem prejudicar o uso.
+      if (askedByVoice && result.spokenReply) speech.speak(result.spokenReply);
       await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível analisar esta informação.');
@@ -535,6 +551,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       if (!transcript) return;
       setComposer((current) => [current, transcript].filter(Boolean).join(current ? ' ' : ''));
       setLastVoiceTranscript(transcript);
+      setVoiceMode(true);
     };
     recognition.onerror = (event) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -1075,6 +1092,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
             <footer className="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
               {error && <p className="mb-2 text-xs font-medium text-red-600 dark:text-red-300">{error}</p>}
+              {speech.speaking && (
+                <button
+                  type="button"
+                  onClick={speech.stop}
+                  className="mb-2 flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200"
+                >
+                  <Square size={12} fill="currentColor" /> Parar de falar
+                </button>
+              )}
               {lastVoiceTranscript && (
                 <p className="mb-2 flex items-start gap-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                   <Mic size={13} className="mt-0.5 shrink-0 text-[#0891b2]" />
@@ -1136,18 +1162,20 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     placeholder={composerPlaceholder}
                     className="max-h-40 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-[15.5px] leading-snug text-slate-900 outline-none transition placeholder:text-slate-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:text-white"
                   />
-                  <button
-                    type="button"
-                    onClick={toggleVoiceInput}
-                    className={[
-                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition',
-                      isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-200 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
-                    ].join(' ')}
-                    aria-label={isListening ? 'Parar gravação de voz' : 'Falar em vez de escrever'}
-                    title={isListening ? 'Parar voz' : 'Falar em vez de escrever'}
-                  >
-                    {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}
-                  </button>
+                  {recognitionSupported && (
+                    <button
+                      type="button"
+                      onClick={toggleVoiceInput}
+                      className={[
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition',
+                        isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-200 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
+                      ].join(' ')}
+                      aria-label={isListening ? 'Parar gravação de voz' : 'Falar em vez de escrever'}
+                      title={isListening ? 'Parar voz' : 'Falar em vez de escrever'}
+                    >
+                      {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}
+                    </button>
+                  )}
                 </div>
                 <button
                   type="button"

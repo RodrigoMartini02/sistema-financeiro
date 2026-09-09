@@ -139,6 +139,28 @@ export async function assertAiUsageWithinLimits(userId: number): Promise<void> {
   }
 }
 
+function startOfMonth(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+/**
+ * Cota mensal de respostas faladas. Estourada, a resposta continua chegando
+ * escrita — quem chama trata o erro deixando so a fala de fora.
+ */
+export async function assertVoiceUsageWithinLimits(userId: number): Promise<void> {
+  const since = startOfMonth();
+  const monthlyLimit = positiveLimit(process.env['AI_VOICE_MONTHLY_LIMIT'], 100);
+  const [usage] = await db.select({ total: count() }).from(aiUsageEvents).where(and(
+    eq(aiUsageEvents.userId, userId),
+    gte(aiUsageEvents.createdAt, since),
+    ne(aiUsageEvents.provider, 'deterministic'),
+  ));
+  if ((usage?.total ?? 0) >= monthlyLimit) {
+    throw new AiUsageLimitError('O limite mensal de respostas por voz foi atingido.');
+  }
+}
+
 export async function recordAiUsage(input: {
   userId: number;
   accountId: number;

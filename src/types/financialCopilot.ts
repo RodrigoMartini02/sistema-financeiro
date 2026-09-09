@@ -34,6 +34,8 @@ export interface FinancialCopilotResponse {
   missingFields: Array<'description' | 'amount'>;
   quickReplies?: FinancialCopilotQuickReply[];
   slotState?: FinancialCopilotSlotState | null;
+  /** Texto preparado para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
+  spokenReply?: string;
 }
 
 export interface FinancialCopilotRequest {
@@ -45,6 +47,7 @@ export interface FinancialCopilotRequest {
   conversationId?: number | null;
   intentHint?: FinancialCopilotIntentHint | null;
   slotState?: FinancialCopilotSlotState | null;
+  voiceMode?: boolean;
 }
 
 export interface FinancialCopilotConversation {

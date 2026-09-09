@@ -11,6 +11,7 @@ import {
 } from './assistantSlotFilling';
 import { applySlotAnswer, seedDraftFromMessage } from './assistantSlotParser';
 import { inferKind } from './financialAssistant';
+import { advanceSlotSession } from './assistantSlotSession';
 
 const catalog: SlotCatalog = {
   categories: [
@@ -152,11 +153,14 @@ test('trocar o tipo de cobranca descarta parcelas e dia da recorrencia', () => {
   assert.equal(result.draft.paidInstallments, null);
 });
 
-test('categoria inexistente nao vira palpite', () => {
+test('categoria inexistente nao vira palpite: sobe como pedido de criacao', () => {
   const draft = expenseDraft({ description: 'mercado' });
   const result = applySlotAnswer(draft, 'category', 'categoria que nao existe', catalog);
-  assert.equal(result.understood, false);
+  // Nao cai em "Outros" nem na categoria mais parecida: o rascunho segue vazio
+  // e o nome pedido volta para o fluxo oferecer a criacao.
   assert.equal(result.draft.category, null);
+  assert.equal(result.confirmed, null);
+  assert.equal(result.categoryToCreate, 'categoria que nao existe');
 });
 
 test('resposta nao compreendida mantem o rascunho intacto', () => {
@@ -303,4 +307,46 @@ test('a origem da receita vira descricao', () => {
   for (const [frase, esperado] of casos) {
     assert.equal(seedDraftFromMessage('income', frase, catalog).description, esperado, frase);
   }
+});
+
+test('categoria inexistente vira oferta de criacao, sem gravar nada', async () => {
+  const state = {
+    draft: expenseDraft({ description: 'academia' }),
+    pendingSlot: 'category' as const,
+    skipped: [],
+    confirmed: ['description' as const],
+  };
+  const step = await advanceSlotSession({
+    state,
+    message: 'saude e bem estar',
+    catalog,
+    userId: 1,
+    account: { id: 1, type: 'pessoal', name: 'Pessoal' },
+  });
+
+  assert.equal(step.state.pendingCategory, 'saude e bem estar');
+  assert.equal(step.state.draft.category, null, 'nada e gravado no rascunho antes do sim');
+  assert.ok(step.question?.question.includes('Quer criar?'), step.question?.question);
+  assert.deepEqual(step.question?.options.map((option) => option.label), ['Criar', 'Escolher outra']);
+});
+
+test('recusar a criacao volta a perguntar a categoria', async () => {
+  const state = {
+    draft: expenseDraft({ description: 'academia' }),
+    pendingSlot: 'category' as const,
+    skipped: [],
+    confirmed: ['description' as const],
+    pendingCategory: 'saude e bem estar',
+  };
+  const step = await advanceSlotSession({
+    state,
+    message: 'nao',
+    catalog,
+    userId: 1,
+    account: { id: 1, type: 'pessoal', name: 'Pessoal' },
+  });
+
+  assert.equal(step.state.pendingCategory, null);
+  assert.equal(step.state.draft.category, null);
+  assert.equal(step.question?.slot, 'category');
 });

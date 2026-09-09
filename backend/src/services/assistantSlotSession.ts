@@ -26,6 +26,8 @@ export interface SlotSessionState {
   pendingSlot: SlotId | null;
   skipped: SlotId[];
   confirmed: SlotId[];
+  /** Categoria que o usuario pediu e ainda nao existe; aguarda o "sim" dele. */
+  pendingCategory?: string | null;
 }
 
 export interface SlotSessionStep {
@@ -84,6 +86,7 @@ export function parseSlotSessionState(value: unknown): SlotSessionState | null {
     pendingSlot: isSlotId(pendingSlot) ? pendingSlot : null,
     skipped,
     confirmed,
+    pendingCategory: asText(record['pendingCategory'], 120),
   };
 }
 
@@ -161,6 +164,27 @@ async function suggestCategory(description: string, userId: number, catalog: Slo
 }
 
 /**
+ * Cria a categoria que o usuario pediu e confirmou. Unica escrita deste fluxo,
+ * e so acontece depois do "sim" — nunca por iniciativa do modelo.
+ */
+async function createCategory(
+  userId: number,
+  account: FinancialAccount,
+  name: string,
+): Promise<string | null> {
+  try {
+    const [created] = await db.insert(categories).values({
+      userId,
+      accountId: account.id,
+      name: name.slice(0, 255),
+    }).returning({ name: categories.name });
+    return created?.name ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Descarta referencias que nao existem na conta ativa. Um estado reenviado pelo
  * client poderia apontar para cartao ou categoria de outra conta; aqui esses
  * campos voltam a ficar vazios e o fluxo simplesmente pergunta de novo.
@@ -211,6 +235,52 @@ function buildConfirmationQuestion(draft: SlotDraft, catalog: SlotCatalog, slot:
 }
 
 /**
+ * Resposta a oferta de criar categoria. Só o "sim" grava; qualquer outra coisa
+ * devolve a pergunta de categoria, sem criar nada.
+ */
+async function resolvePendingCategory(input: {
+  state: SlotSessionState;
+  catalog: SlotCatalog;
+  message: string;
+  userId: number;
+  account: FinancialAccount;
+}): Promise<SlotSessionStep> {
+  const answer = input.message.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const accepted = ['sim', 's', 'criar', 'pode', 'ok', 'isso', 'confirmo'].includes(answer);
+  const pending = input.state.pendingCategory!;
+
+  if (!accepted) {
+    // Recusado: volta a perguntar a categoria, agora sem palpite nenhum.
+    const cleared: SlotSessionState = {
+      ...input.state,
+      pendingCategory: null,
+      draft: { ...input.state.draft, category: null },
+    };
+    return buildStep(cleared, input.catalog);
+  }
+
+  const created = await createCategory(input.userId, input.account, pending);
+  if (!created) {
+    const cleared: SlotSessionState = { ...input.state, pendingCategory: null };
+    return buildStep(cleared, input.catalog, true);
+  }
+
+  // A categoria nova ja vale para este lancamento e para as proximas perguntas.
+  const catalog: SlotCatalog = {
+    ...input.catalog,
+    categories: [...input.catalog.categories, { id: -1, name: created }],
+  };
+  const next: SlotSessionState = {
+    ...input.state,
+    pendingCategory: null,
+    pendingSlot: null,
+    draft: { ...input.state.draft, category: created },
+    confirmed: [...input.state.confirmed, 'category'],
+  };
+  return buildStep(next, catalog);
+}
+
+/**
  * Primeira mensagem do lancamento: extrai da frase tudo o que der, sugere a
  * categoria pelo historico e devolve a primeira pergunta que sobrou.
  */
@@ -238,17 +308,46 @@ export async function advanceSlotSession(input: {
   message: string;
   catalog: SlotCatalog;
   userId: number;
+  account: FinancialAccount;
 }): Promise<SlotSessionStep> {
   const { catalog } = input;
   // O estado pode ter voltado pelo request: cartao e categoria so valem se
   // pertencerem mesmo a conta ativa, nunca pelo que o client afirmou.
   const state = withCatalogScopedReferences(input.state, catalog);
 
+  // Ha uma criacao de categoria aguardando o "sim": essa resposta e sobre ela.
+  if (state.pendingCategory) {
+    return resolvePendingCategory({
+      state,
+      catalog,
+      message: input.message,
+      userId: input.userId,
+      account: input.account,
+    });
+  }
+
   if (!state.pendingSlot) {
     return buildStep(state, catalog);
   }
 
   const result = applySlotAnswer(state.draft, state.pendingSlot, input.message, catalog);
+
+  // Categoria pedida que nao existe: o fluxo oferece cria-la, sem gravar nada
+  // ainda e sem chutar a mais proxima.
+  if (result.categoryToCreate) {
+    return {
+      state: { ...state, pendingCategory: result.categoryToCreate, pendingSlot: 'category' },
+      question: {
+        slot: 'category',
+        question: `Não encontrei a categoria "${result.categoryToCreate}". Quer criar?`,
+        options: [{ label: 'Criar', value: 'sim' }, { label: 'Escolher outra', value: 'nao' }],
+        isConfirmation: true,
+        skippable: false,
+      },
+      complete: false,
+      misunderstood: false,
+    };
+  }
 
   if (!result.understood) {
     // Repete a mesma pergunta em vez de adivinhar — a spec e explicita: nunca
@@ -261,6 +360,7 @@ export async function advanceSlotSession(input: {
     pendingSlot: null,
     skipped: result.skipped ? [...state.skipped, result.skipped] : state.skipped,
     confirmed: result.confirmed ? [...state.confirmed, result.confirmed] : state.confirmed,
+    pendingCategory: null,
   };
 
   // Corrigir um campo tambem retira sua confirmacao: ele volta a ser perguntado.

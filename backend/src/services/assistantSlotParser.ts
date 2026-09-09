@@ -28,6 +28,8 @@ export interface SlotParseResult {
   /** Slot confirmado com "sim", para nao voltar a ser perguntado. */
   confirmed: SlotId | null;
   understood: boolean;
+  /** Nome pedido que nao existe no catalogo; o fluxo oferece cria-lo. */
+  categoryToCreate?: string;
 }
 
 function normalize(value: string): string {
@@ -213,8 +215,23 @@ export function applySlotAnswer(
         return { draft: { ...draft, category: null }, reask: slot, skipped: null, confirmed: null, understood: true };
       }
       const category = matchCategory(text, catalog);
-      if (!category) return unchanged;
-      return { draft: { ...draft, category }, reask: null, skipped: null, confirmed: 'category', understood: true };
+      if (category) {
+        return { draft: { ...draft, category }, reask: null, skipped: null, confirmed: 'category', understood: true };
+      }
+      // Nome que nao existe no catalogo: em vez de chutar a mais proxima ou
+      // jogar em "Outros", guarda o pedido e deixa o fluxo oferecer a criacao.
+      const candidate = raw.trim().slice(0, 120);
+      if (candidate.length >= 2) {
+        return {
+          draft,
+          reask: null,
+          skipped: null,
+          confirmed: null,
+          understood: true,
+          categoryToCreate: candidate,
+        };
+      }
+      return unchanged;
     }
 
     case 'paymentMethod': {
