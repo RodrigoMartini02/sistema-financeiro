@@ -18,9 +18,7 @@ import { MonthlyComparisonBarChart } from './charts/MonthlyComparisonBarChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
-import { buildMemberColors, memberColor, firstName } from './memberColors';
-
-const CORES = ['#0891b2', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6'];
+import { buildMemberColors, memberColor, firstName, PALETA } from './memberColors';
 
 const now = new Date();
 const THIS_YEAR = now.getFullYear();
@@ -99,6 +97,13 @@ export function FinanceDashboard() {
   const saldoAnterior = data?.saldoAnterior ?? 0;
   const saldoFinal = data?.saldoFinal ?? 0;
   const txComprometimento = receitas > 0 ? (despesas / receitas) * 100 : 0;
+  // Mesmas faixas desenhadas na barra abaixo do numero: verde ate 70%, ambar ate
+  // 100%, vermelho acima — onde a renda ja nao cobre as despesas.
+  const comprometimentoTone = txComprometimento > 100
+    ? 'text-[#b42318] dark:text-rose-300'
+    : txComprometimento > 70
+      ? 'text-[#b54708] dark:text-amber-300'
+      : 'text-[#067647] dark:text-emerald-300';
   const pctGasto = receitas > 0 ? Math.min(100, (despesas / receitas) * 100) : 0;
   const hasNoEntries = !panoramaQ.isLoading && !!data && data.totalLancamentos === 0;
 
@@ -143,12 +148,6 @@ export function FinanceDashboard() {
     };
   }, [data]);
 
-  // Category chart
-  const catData = useMemo(() => (data?.porCategoria ?? [])
-    .map((c) => ({ name: c.categoria, value: c.total }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8), [data]);
-
   // Receitas by origin (contratos vs avulsas)
   const origemData = useMemo(() => {
     const map: Record<string, number> = { Contratos: 0, Avulsas: 0 };
@@ -166,7 +165,7 @@ export function FinanceDashboard() {
   const formaData = useMemo(() => (data?.porFormaPagamento ?? [])
     .map((f) => ({ name: f.forma_pagamento, value: f.total }))
     .sort((a, b) => b.value - a.value)
-    .map((d, i) => ({ ...d, color: CORES[i % CORES.length] })), [data]);
+    .map((d, i) => ({ ...d, color: PALETA[i % PALETA.length] })), [data]);
 
   // Dados por membro. A cor sai do usuario_id, nao da posicao na lista: assim a
   // mesma pessoa mantem a cor nos donuts e nas barras de categoria.
@@ -232,21 +231,24 @@ export function FinanceDashboard() {
   const detalhe = data?.despesasDetalhe;
 
   // Cascata do período: saldo anterior ao período -> receitas -> maiores despesas por categoria -> saldo final
+  // A cascata sai da lista completa de categorias, nao do top 8 do donut: escalar
+  // as oito maiores para fechar com o total fazia cada barra exibir um valor que
+  // nao era o gasto real daquela categoria.
   const waterfallSteps = useMemo(() => {
-    const catTotal = catData.reduce((s, c) => s + c.value, 0);
-    const scale = catTotal > 0 ? despesas / catTotal : 0;
-    const scaledCatData = catData.map((c) => ({ name: c.name, value: c.value * scale }));
-    const topCategorias = scaledCatData.slice(0, 5);
-    const outrasCategorias = scaledCatData.slice(5).reduce((s, c) => s + c.value, 0);
-    const steps = [
+    const todas = [...(data?.porCategoria ?? [])]
+      .map((c) => ({ name: c.categoria, value: c.total }))
+      .sort((a, b) => b.value - a.value);
+    const topCategorias = todas.slice(0, 5);
+    const restantes = todas.slice(5);
+    const outrasCategorias = restantes.reduce((s, c) => s + c.value, 0);
+    return [
       { label: 'Saldo anterior', value: saldoAnterior, kind: 'start' as const },
       { label: 'Receitas', value: receitas, kind: 'increase' as const },
       ...topCategorias.map((c) => ({ label: c.name, value: -c.value, kind: 'decrease' as const })),
-      ...(outrasCategorias > 0 ? [{ label: `Outras ${catData.length - 5}`, value: -outrasCategorias, kind: 'decrease' as const }] : []),
+      ...(outrasCategorias > 0 ? [{ label: `Outras ${restantes.length}`, value: -outrasCategorias, kind: 'decrease' as const }] : []),
       { label: 'Saldo final', value: saldoFinal, kind: 'end' as const },
     ];
-    return steps;
-  }, [saldoAnterior, receitas, catData, despesas, saldoFinal]);
+  }, [saldoAnterior, receitas, data, saldoFinal]);
 
   const periodoDescricao = describePeriod(period);
 
@@ -320,9 +322,10 @@ export function FinanceDashboard() {
         <Card className="flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo do período</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">R$</span>
+            {/* O sinal faz parte do dado: um deficit escrito sem o menos vira
+                superavit para quem le rapido, e a cor sozinha nao carrega isso. */}
             <span className={`text-[32px] font-bold leading-none tracking-[-0.035em] tabular-nums ${saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
-              {Math.abs(saldoFinal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {formatCurrency(saldoFinal)}
             </span>
           </div>
           <p className="mt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
@@ -363,7 +366,7 @@ export function FinanceDashboard() {
 
         <Card className="relative flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Comprometimento</span>
-          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#067647] dark:text-emerald-300">
+          <p className={`mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums ${comprometimentoTone}`}>
             {receitas > 0 ? `${txComprometimento.toFixed(0)}%` : '—'}
           </p>
           <div className="relative mt-3 flex h-1.5 gap-0.5">
@@ -395,7 +398,9 @@ export function FinanceDashboard() {
             <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
             <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
           </div>
-          <div className="mt-[7px] h-2 rounded bg-[#10b981]" />
+          <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
+            <div className="h-2 rounded bg-[#10b981]" style={{ width: `${Math.min(100, (receitas / healthBase) * 100)}%` }} />
+          </div>
         </div>
         <div className="flex-1">
           <div className="flex items-baseline gap-2 text-xs">

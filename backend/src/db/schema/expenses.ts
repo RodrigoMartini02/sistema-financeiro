@@ -42,6 +42,9 @@ export const expenses = pgTable(
     amountPaid: decimal('valor_pago', { precision: 10, scale: 2 }),
     originalAmount: decimal('valor_original', { precision: 10, scale: 2 }),
     recurring: boolean('recorrente').default(false),
+    // 'ativa' | 'cancelada'. Toda leitura financeira filtra por ela: sem o
+    // filtro, lancamento cancelado volta a somar nos totais.
+    status: varchar('status', { length: 20 }).notNull().default('ativa'),
     attachments: jsonb('anexos'),
     numeroNf: varchar('numero_nf', { length: 50 }),
     dataEmissaoNf: date('data_emissao_nf'),

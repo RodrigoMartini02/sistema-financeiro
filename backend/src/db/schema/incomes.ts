@@ -28,6 +28,11 @@ export const incomes = pgTable(
     month: integer('mes').notNull(),
     year: integer('ano').notNull(),
     notes: text('observacoes'),
+    // 'prevista' | 'faturada' | 'ativa' | 'cancelada'. 'ativa' significa
+    // RECEBIDA — e o unico status que entra nos totais do painel.
+    status: varchar('status', { length: 20 }).notNull().default('ativa'),
+    contractId: integer('contrato_id'),
+    commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
     client: varchar('cliente', { length: 100 }),
     incomeType: varchar('tipo_receita', { length: 30 }),
     representativeId: integer('representante_id'),

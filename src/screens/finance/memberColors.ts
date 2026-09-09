@@ -9,7 +9,7 @@
  * A paleta e a mesma ja usada nos outros graficos do painel, para o bloco por
  * membro nao destoar do resto da tela.
  */
-const PALETA = [
+export const PALETA = [
   '#0891b2', '#10b981', '#f59e0b', '#6366f1', '#8b5cf6',
   '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6',
 ];
