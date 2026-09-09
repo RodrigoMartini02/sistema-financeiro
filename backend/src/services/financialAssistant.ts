@@ -52,6 +52,15 @@ export interface FinancialAssistantDraft {
   paymentMethod: PaymentMethod;
   paid: boolean;
   confidence: 'low' | 'medium' | 'high';
+  // Campos do modal de despesa preenchidos pelo fluxo guiado. Opcionais porque
+  // a leitura de anexos (OCR/Pix) continua produzindo rascunhos sem eles.
+  cardId?: number | null;
+  billingType?: 'nao' | 'parcelas' | 'mensal' | null;
+  installments?: number | null;
+  paidInstallments?: number | null;
+  amountPaid?: number | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
 }
 
 export interface FinancialAssistantResult {
@@ -234,7 +243,7 @@ function extractSpokenAmount(text: string): number | null {
   return bestAmount;
 }
 
-function extractAmountFromText(text: string): number | null {
+export function extractAmountFromText(text: string): number | null {
   const standaloneAmount = text.trim().match(new RegExp(`^(${NUMERIC_AMOUNT_TOKEN})$`));
   if (standaloneAmount?.[1]) return parseBrazilianAmount(standaloneAmount[1]);
 
@@ -314,7 +323,7 @@ function parseDateToken(token: string): string | null {
   return null;
 }
 
-function extractDateFromText(text: string): string | null {
+export function extractDateFromText(text: string): string | null {
   const token = text.match(/\b(?:hoje|amanh[aã]|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/i);
   if (token?.[0]) return parseDateToken(token[0]);
 
@@ -322,10 +331,10 @@ function extractDateFromText(text: string): string | null {
   return dayOnly?.[0] ? parseDateToken(dayOnly[0]) : null;
 }
 
-function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
+export function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
   const lower = text.toLowerCase();
   if (/\b(receita|nova receita)\b/.test(lower)) return 'income';
-  if (/\b(recebi|recebimento|entrada|sal[aá]rio|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
+  if (/\b(recebi|recebimento|entrada|sal[aá]rio|vendi|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
     return 'income';
   }
   if (/\b(gastei|comprei|compras|passei)\b/.test(lower)) return 'expense';
@@ -356,7 +365,7 @@ function inferPaid(text: string, kind: DraftKind, financial?: FinancialInfo | nu
   return context?.paid ?? false;
 }
 
-function extractDescription(text: string): string | null {
+export function extractDescription(text: string): string | null {
   if (/^\s*(?:(?:vence|vencimento)(?:\s+no)?\s+dia|dia)\s+\d{1,2}\s*$/i.test(text)) return null;
 
   const trailingAmount = extractTrailingNumericAmount(text);

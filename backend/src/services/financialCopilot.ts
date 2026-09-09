@@ -4,14 +4,28 @@ import { categories, copilotConversations, copilotMessages, expenses, incomes } 
 import { getTodayIsoInTimezone } from '../utils/date';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
 import { inferDeterministicCopilotIntent, type CopilotIntentHint } from './copilotIntent';
-import { AiUsageLimitError, assertAiUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
+import { AiUsageLimitError, assertAiUsageWithinLimits, assertVoiceUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
 import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
   createFinancialAssistantDraft,
+  inferKind,
   type AssistantAttachmentInput,
   type AssistantDraftContext,
   type FinancialAssistantDraft,
 } from './financialAssistant';
+import {
+  advanceSlotSession,
+  finalizeSlotDraft,
+  loadSlotCatalog,
+  parseSlotSessionState,
+  startSlotSession,
+  type SlotSessionState,
+  type SlotSessionStep,
+} from './assistantSlotSession';
+import type { SlotDraft } from './assistantSlotFilling';
+import { buildQuerySystemPrompt, runAssistantQuery } from './assistantToolRunner';
+import type { ToolMessage } from './aiToolCalling';
+import { toSpeakableText } from './assistantVoice';
 
 export type CopilotCardType = 'summary' | 'categories' | 'transactions' | 'upcoming' | 'budget';
 
@@ -28,13 +42,24 @@ export interface CopilotCard {
   items: CopilotCardItem[];
 }
 
+export interface CopilotQuickReply {
+  label: string;
+  value: string;
+}
+
 export interface FinancialCopilotResponse {
   conversationId: number | null;
-  mode: 'answer' | 'draft' | 'help';
+  mode: 'answer' | 'draft' | 'help' | 'slot';
   reply: string;
   cards: CopilotCard[];
   draft: FinancialAssistantDraft | null;
   missingFields: Array<'description' | 'amount'>;
+  /** Botoes da pergunta em aberto; vazio quando a resposta e livre. */
+  quickReplies?: CopilotQuickReply[];
+  /** Estado do preenchimento guiado, devolvido para o client reenviar. */
+  slotState?: SlotSessionState | null;
+  /** Resposta pronta para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
+  spokenReply?: string;
 }
 
 export class FinancialCopilotInputError extends Error {}
@@ -306,6 +331,158 @@ export async function deleteCopilotConversation(input: { userId: number; account
   ));
 }
 
+/**
+ * Converte o rascunho do fluxo guiado para o formato que o card de revisao e o
+ * salvamento ja usam. `confidence` fica alta porque cada campo aqui foi dito ou
+ * confirmado pelo usuario, nao inferido de um documento.
+ */
+function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraft {
+  return {
+    kind: slotDraft.kind,
+    description: slotDraft.description,
+    amount: slotDraft.amount,
+    date: slotDraft.date,
+    dueDate: slotDraft.dueDate,
+    category: slotDraft.category,
+    paymentMethod: slotDraft.paymentMethod ?? 'dinheiro',
+    paid: slotDraft.paid ?? false,
+    confidence: 'high',
+    cardId: slotDraft.cardId,
+    billingType: slotDraft.billingType,
+    installments: slotDraft.installments,
+    paidInstallments: slotDraft.paidInstallments,
+    amountPaid: slotDraft.amountPaid,
+    invoiceNumber: slotDraft.invoiceNumber,
+    invoiceDate: slotDraft.invoiceDate,
+  };
+}
+
+/**
+ * Recupera o estado do preenchimento guiado. A ultima mensagem do assistente
+ * que carregava um slot pendente e a fonte; sem a tabela de mensagens, o client
+ * reenvia o estado no proprio request.
+ */
+function resolveSlotState(history: StoredMessage[], fromRequest: SlotSessionState | null): SlotSessionState | null {
+  if (fromRequest) return fromRequest;
+
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const message = history[index];
+    if (message?.role !== 'assistant') continue;
+    const payload = message.payload as Record<string, unknown> | null;
+    if (!payload || payload['mode'] !== 'slot') continue;
+    return parseSlotSessionState(payload['slotState']);
+  }
+
+  return null;
+}
+
+const MISUNDERSTOOD_PREFIX = 'Não peguei essa parte, me ajuda?';
+
+/** Historico da conversa no formato neutro que os adaptadores de tool traduzem. */
+function toToolHistory(history: StoredMessage[]): ToolMessage[] {
+  return history.slice(-8).map((message): ToolMessage => (
+    message.role === 'user'
+      ? { role: 'user', content: message.content }
+      : { role: 'assistant', text: message.content, toolCalls: [] }
+  ));
+}
+
+/**
+ * Versao falada da resposta. Estourada a cota, devolve `undefined`: a resposta
+ * escrita continua chegando, o que nunca deixa o assistente inutil.
+ */
+async function buildSpokenReply(userId: number, reply: string): Promise<string | undefined> {
+  try {
+    await assertVoiceUsageWithinLimits(userId);
+    return toSpeakableText(reply, getTodayIsoInTimezone());
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Conduz o lancamento por perguntas, uma de cada vez, ate o rascunho fechar.
+ * Nenhuma escrita financeira acontece aqui: o fim do fluxo e o card de revisao.
+ */
+async function runSlotFlow(input: {
+  userId: number;
+  account: FinancialAccount;
+  conversationId: number | null;
+  message: string;
+  history: StoredMessage[];
+  intentHint: AssistantIntentHint | null;
+  slotState: SlotSessionState | null;
+  voiceMode: boolean;
+}): Promise<FinancialCopilotResponse> {
+  const catalog = await loadSlotCatalog(input.userId, input.account);
+  const existingState = resolveSlotState(input.history, input.slotState);
+
+  let step: SlotSessionStep;
+  if (existingState) {
+    step = await advanceSlotSession({
+      state: existingState,
+      message: input.message,
+      catalog,
+      userId: input.userId,
+      account: input.account,
+    });
+  } else {
+    // O botao do menu e uma escolha explicita e vence o palpite. Sem ele, a
+    // frase decide: "recebi 1200 do freela" e receita, nao despesa.
+    const kind = input.intentHint === 'register_income'
+      ? 'income'
+      : input.intentHint === 'register_expense'
+        ? 'expense'
+        : inferKind(input.message);
+    step = await startSlotSession({ kind, message: input.message, catalog, userId: input.userId });
+  }
+
+  if (step.question) {
+    const reply = step.misunderstood
+      ? `${MISUNDERSTOOD_PREFIX} ${step.question.question}`
+      : step.question.question;
+    const response: FinancialCopilotResponse = {
+      conversationId: input.conversationId,
+      mode: 'slot',
+      reply,
+      cards: [],
+      draft: null,
+      missingFields: [],
+      quickReplies: step.question.skippable
+        ? [...step.question.options, { label: 'Pular', value: 'pular' }]
+        : step.question.options,
+      slotState: step.state,
+      spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, reply) : undefined,
+    };
+    await storeMessage({
+      conversationId: input.conversationId,
+      role: 'assistant',
+      content: response.reply,
+      payload: { mode: response.mode, slotState: step.state },
+    });
+    return response;
+  }
+
+  const draft = slotDraftToAssistantDraft(finalizeSlotDraft(step.state));
+  const response: FinancialCopilotResponse = {
+    conversationId: input.conversationId,
+    mode: 'draft',
+    reply: 'Confira os dados antes de confirmar.',
+    cards: [],
+    draft,
+    missingFields: [],
+    slotState: null,
+    spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, 'Confira os dados antes de confirmar.') : undefined,
+  };
+  await storeMessage({
+    conversationId: input.conversationId,
+    role: 'assistant',
+    content: response.reply,
+    payload: { mode: response.mode, draft },
+  });
+  return response;
+}
+
 export async function runFinancialCopilot(input: {
   userId: number;
   accountId: number | null;
@@ -316,6 +493,8 @@ export async function runFinancialCopilot(input: {
   context?: AssistantDraftContext;
   conversationId: number | null;
   intentHint: AssistantIntentHint | null;
+  slotState?: SlotSessionState | null;
+  voiceMode?: boolean;
 }): Promise<FinancialCopilotResponse> {
   validateInput(input);
   const account = await resolveFinancialAccount(input.userId, input.accountId);
@@ -340,47 +519,106 @@ export async function runFinancialCopilot(input: {
   let usageStatus: 'success' | 'limited' = 'success';
   let searchTerm: string | null = null;
 
+  // A contabilizacao de uso nao pode derrubar a resposta ja pronta quando a
+  // tabela de eventos ainda nao existe no ambiente.
+  const recordUsageQuietly = async (): Promise<void> => {
+    try {
+      await recordAiUsage({
+        userId: input.userId,
+        accountId: account.id,
+        provider: providerName,
+        model: providerModel,
+        inputTokens,
+        outputTokens,
+        status: usageStatus,
+      });
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+    }
+  };
+
   if (intent !== 'register') {
+    // Consulta por ferramentas: o modelo escolhe qual chamar e com que filtros,
+    // o backend executa. Falhou — sem provider, sem cota, modelo sem suporte a
+    // tool use — cai no caminho deterministico logo abaixo.
     try {
       const provider = await getActiveAiProvider();
       if (provider) {
         await assertAiUsageWithinLimits(input.userId);
-        const context = history.map((message) => `${message.role === 'user' ? 'Usuario' : 'Assistente'}: ${message.content}`).join('\n');
-        const decision = await classifyCopilotMessage(provider, `${context}\nUsuario: ${input.message}`.slice(-10_000));
-        intent = decision.intent;
-        searchTerm = decision.searchTerm;
         providerName = provider.provider;
         providerModel = provider.model;
-        inputTokens = decision.inputTokens;
-        outputTokens = decision.outputTokens;
+
+        const catalog = await loadSlotCatalog(input.userId, account);
+        const result = await runAssistantQuery({
+          config: provider,
+          scope: { userId: input.userId, account },
+          system: buildQuerySystemPrompt({ catalog, voiceMode: input.voiceMode ?? false }),
+          history: toToolHistory(history),
+          message: input.message,
+        });
+        inputTokens = result.inputTokens;
+        outputTokens = result.outputTokens;
+
+        const response: FinancialCopilotResponse = {
+          conversationId,
+          mode: 'answer',
+          reply: result.reply,
+          cards: [],
+          draft: null,
+          missingFields: [],
+          spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, result.reply) : undefined,
+        };
+        await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode } });
+        await recordUsageQuietly();
+        return response;
       }
     } catch (error) {
       providerName = 'deterministic';
       if (error instanceof AiUsageLimitError) usageStatus = 'limited';
     }
+
+    // Sem provider utilizavel, o classificador deterministico ainda responde as
+    // consultas basicas por cards.
+    intent = inferDeterministicCopilotIntent(input.message, input.attachments.length, {
+      intentHint: input.intentHint,
+      hasPendingDraft: hasPendingDraft(draftContext),
+    });
   }
 
   if (intent === 'register') {
-    const draftResult = await createFinancialAssistantDraft({
-      message: input.message,
-      attachments: input.attachments,
-      context: draftContext,
-      userId: input.userId,
-    });
-    const response: FinancialCopilotResponse = {
-      conversationId,
-      mode: 'draft',
-      reply: draftResult.reply,
-      cards: [],
-      draft: draftResult.draft,
-      missingFields: draftResult.missingFields,
-    };
-    await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode, draft: response.draft } });
-    try {
-      await recordAiUsage({ userId: input.userId, accountId: account.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
-    } catch (error) {
-      if (!isMissingTableError(error)) throw error;
+    // Anexos trazem dados que a conversa nao tem como perguntar (OCR, Pix); o
+    // fluxo guiado nao substitui essa leitura.
+    if (input.attachments.length > 0) {
+      const draftResult = await createFinancialAssistantDraft({
+        message: input.message,
+        attachments: input.attachments,
+        context: draftContext,
+        userId: input.userId,
+      });
+      const response: FinancialCopilotResponse = {
+        conversationId,
+        mode: 'draft',
+        reply: draftResult.reply,
+        cards: [],
+        draft: draftResult.draft,
+        missingFields: draftResult.missingFields,
+      };
+      await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode, draft: response.draft } });
+      await recordUsageQuietly();
+      return response;
     }
+
+    const response = await runSlotFlow({
+      userId: input.userId,
+      account,
+      conversationId,
+      message: input.message,
+      history,
+      intentHint: input.intentHint,
+      slotState: input.slotState ?? null,
+      voiceMode: input.voiceMode ?? false,
+    });
+    await recordUsageQuietly();
     return response;
   }
 
@@ -401,6 +639,11 @@ export async function runFinancialCopilot(input: {
       draft: null,
       missingFields: [],
     };
+  // Perguntado por voz, o caminho deterministico tambem fala: cair no fallback
+  // nao pode deixar o usuario sem resposta audivel.
+  if (input.voiceMode) {
+    response.spokenReply = await buildSpokenReply(input.userId, response.reply);
+  }
   await storeMessage({ conversationId, role: 'assistant', content: response.reply, payload: { mode: response.mode, cards: response.cards } });
   try {
     await recordAiUsage({ userId: input.userId, accountId: account.id, provider: providerName, model: providerModel, inputTokens, outputTokens, status: usageStatus });
