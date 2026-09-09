@@ -95,27 +95,19 @@ function buildInitialMessage(): ChatMessage {
 
 const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   label: string;
-  description: string;
-  placeholder: string;
   /** Fala do assistente logo apos a escolha, para a conversa nao ficar muda. */
   opening: string;
 }> = {
   register_expense: {
     label: 'Lançar despesa',
-    description: 'Conte o que comprou e quanto pagou.',
-    placeholder: 'Ex.: Comprei no mercado e paguei R$ 100 no Pix.',
     opening: 'Beleza! Me conta o que você gastou.',
   },
   register_income: {
     label: 'Lançar receita',
-    description: 'Conte o que recebeu e de onde veio.',
-    placeholder: 'Ex.: Recebi R$ 3.000 de salário hoje.',
     opening: 'Boa! Me conta o que você recebeu.',
   },
   ask: {
     label: 'Consultar',
-    description: 'Pergunte sobre seu período financeiro.',
-    placeholder: 'Ex.: Quanto gastei este mês?',
     opening: 'Pode perguntar. O que você quer saber?',
   },
 };
@@ -344,8 +336,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     dashboardQuery.data?.expenses ?? [],
   );
   const messageGroups = groupMessagesByDay(messages);
-  const activeIntent = intentHint ? INTENT_DETAILS[intentHint] : null;
-  const composerPlaceholder = activeIntent?.placeholder ?? 'Escreva sua mensagem…';
+
 
   useEffect(() => {
     if (open) {
@@ -1176,7 +1167,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         void handleSend();
                       }
                     }}
-                    placeholder={composerPlaceholder}
+                    placeholder="Escreva sua mensagem…"
                     className="max-h-40 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-[15.5px] leading-snug text-slate-900 outline-none transition placeholder:text-slate-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:text-white"
                   />
                   {recognitionSupported && (
