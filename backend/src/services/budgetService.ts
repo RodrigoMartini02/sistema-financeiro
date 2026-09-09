@@ -1,6 +1,7 @@
-import { and, eq, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
+import { resolveVisibleUserIds } from '../utils/familyVisibility';
 
 export interface FinancialAccount {
   id: number;
@@ -123,9 +124,12 @@ export async function resolveFinancialAccount(userId: number, requestedAccountId
 // deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de
 // COALESCE($n, ±infinito) usada em /financial/panorama, aqui expressa via sql template
 // porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
-function expenseAccountCondition(userId: number, account: FinancialAccount, deChave: number | null, ateChave: number | null) {
+function expenseAccountCondition(userIds: number[], account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
-    eq(expenses.userId, userId),
+    inArray(expenses.userId, userIds),
+    // Lancamento cancelado nao entra no teto: o total precisa bater com o que a
+    // tela de despesas mostra.
+    eq(expenses.status, 'ativa'),
     sql`(${expenses.year} * 12 + ${expenses.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
   ];
   if (account.type === 'pessoal') {
@@ -136,9 +140,10 @@ function expenseAccountCondition(userId: number, account: FinancialAccount, deCh
   return and(...conditions);
 }
 
-function incomeAccountCondition(userId: number, account: FinancialAccount, deChave: number | null, ateChave: number | null) {
+function incomeAccountCondition(userIds: number[], account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
-    eq(incomes.userId, userId),
+    inArray(incomes.userId, userIds),
+    eq(incomes.status, 'ativa'),
     sql`(${incomes.year} * 12 + ${incomes.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
   ];
   if (account.type === 'pessoal') {
@@ -165,6 +170,11 @@ export async function getBudgetOverview(input: {
   const { userId, accountId, ...period } = input;
   const resolved = resolvePeriod(period);
   const account = await resolveFinancialAccount(userId, accountId);
+  // O teto de gasto e da carteira, nao de quem esta olhando: com membros
+  // vinculados, o painel soma a familia inteira nas barras por categoria, e a
+  // coluna precisa somar o mesmo conjunto. Sem membros, devolve so o proprio
+  // usuario e o comportamento fica identico ao de antes.
+  const scopeIds = await resolveVisibleUserIds(userId, accountId);
   const [categoryRows, expenseRows, incomeRows, hierarchyRows] = await Promise.all([
     // Mesmo critério de conta usado em routes/categories.ts: categorias padrão
     // do tipo da conta ativa (tipo preenchido) ou exclusivas desta conta. Sem
@@ -189,8 +199,8 @@ export async function getBudgetOverview(input: {
       amount: expenses.originalAmount,
       originalAmount: expenses.originalAmount,
       paid: expenses.paid,
-    }).from(expenses).where(expenseAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(userId, account, resolved.deChave, resolved.ateChave)),
+    }).from(expenses).where(expenseAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
     // Mapa pai/filho sobre TODAS as categorias do usuário, sem os filtros de
     // conta e ativo aplicados acima: uma despesa lançada numa subcategoria que
     // depois foi desativada continua no período e precisa somar no total do pai.
@@ -224,7 +234,7 @@ export async function getBudgetOverview(input: {
       originalAmount: expenses.originalAmount,
       month: expenses.month,
       year: expenses.year,
-    }).from(expenses).where(expenseAccountCondition(userId, account, null, null)),
+    }).from(expenses).where(expenseAccountCondition(scopeIds, account, null, null)),
   ]);
 
   // Número de meses do período consultado — usado para escalar a meta mensal cadastrada
