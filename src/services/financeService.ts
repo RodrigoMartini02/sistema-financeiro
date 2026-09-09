@@ -291,6 +291,8 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
   if (filtro.deAno !== undefined) q.set('de_ano', String(filtro.deAno));
   if (filtro.ateMes !== undefined) q.set('ate_mes', String(filtro.ateMes));
   if (filtro.ateAno !== undefined) q.set('ate_ano', String(filtro.ateAno));
+  // Ausente = painel da familia inteira. Presente = so aquele membro.
+  if (filtro.membroId != null) q.set('membro_id', String(filtro.membroId));
   appendProfile(q);
   const suffix = q.toString() ? `?${q}` : '';
   const raw = await apiRequest<{

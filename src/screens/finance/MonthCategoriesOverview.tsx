@@ -3,9 +3,26 @@ import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
 import { Card } from '../../ui/card';
 import { budgetPercentage, formatCurrency } from './formatters';
 
+export interface CategoriaSegmento {
+  usuarioId: number;
+  valor: number;
+  nome: string;
+  color: string;
+}
+
 interface MonthCategoriesOverviewProps {
   overview: BudgetOverview | undefined;
   periodLabel: string;
+  /**
+   * Divisao da categoria por membro. Presente apenas no modo familia — filtrado
+   * num membro, tudo na barra ja e dele e a divisao nao diria nada.
+   *
+   * Quando presente, a meta some: ela e individual (orcamento_metas por
+   * usuario_id), e somar metas de varias pessoas nao produz um numero com
+   * significado. Isso tambem libera a cor da barra, que passa a identificar o
+   * membro em vez do status da meta.
+   */
+  segmentosPorCategoria?: Map<string, CategoriaSegmento[]> | undefined;
 }
 
 function statusColor(item: BudgetOverviewItem): string {
@@ -19,8 +36,10 @@ function statusLabel(item: BudgetOverviewItem): string {
   return `${budgetPercentage(item).toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
 }
 
-export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategoriesOverviewProps) {
+export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCategoria }: MonthCategoriesOverviewProps) {
   if (!overview) return null;
+
+  const porMembro = segmentosPorCategoria !== undefined;
 
   const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
   if (items.length === 0) return null;
@@ -42,17 +61,17 @@ export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategori
           <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu no período e como isso se compara ao limite que você definiu.</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          {acimaCount > 0 && (
+          {!porMembro && acimaCount > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fbd5d1] bg-[#fef3f2] px-2.5 py-1 text-[11.5px] font-bold text-[#b42318] dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
               <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />{acimaCount} acima do limite
             </span>
           )}
-          {noLimiteCount > 0 && (
+          {!porMembro && noLimiteCount > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f0e0b0] bg-[#fdf6e3] px-2.5 py-1 text-[11.5px] font-bold text-[#8a6d1f] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
               <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />{noLimiteCount} no limite
             </span>
           )}
-          {semMetaCount > 0 && (
+          {!porMembro && semMetaCount > 0 && (
             <span className="inline-flex items-center rounded-full border border-[#dcebf1] bg-[#f2f9fb] px-2.5 py-1 text-[11.5px] font-bold text-[#5f7885] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               {semMetaCount} sem meta
             </span>
@@ -63,9 +82,24 @@ export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategori
       <div className="px-5 py-5">
         <div className="mb-3 flex items-center justify-between text-[11px] text-[#5f7885] dark:text-slate-400">
           <span>{formatCurrency(total)} em {items.length} categorias</span>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#0891b2]" />gasto no período</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-3.5 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" />seu limite</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {porMembro ? (
+              // A legenda passa a ser das pessoas: e a cor delas que preenche a
+              // barra agora. Sai da primeira categoria, que tem todos os membros
+              // com movimento no periodo.
+              [...new Map(
+                [...segmentosPorCategoria!.values()].flat().map((seg) => [seg.usuarioId, seg]),
+              ).values()].map((seg) => (
+                <span key={seg.usuarioId} className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-4 rounded-sm" style={{ background: seg.color }} />{seg.nome}
+                </span>
+              ))
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#0891b2]" />gasto no período</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-3.5 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" />seu limite</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -77,22 +111,45 @@ export function MonthCategoriesOverview({ overview, periodLabel }: MonthCategori
               <div key={item.categoryId} className="flex items-center gap-3.5 border-t border-[#eef4f7] py-[11px] first:border-t-0 dark:border-slate-700">
                 <span className="w-28 shrink-0 truncate text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100" title={item.categoryName}>{item.categoryName}</span>
                 <div className="relative h-6 flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800">
-                  <div className="h-6 rounded-md" style={{ width: `${barWidth}%`, background: statusColor(item) }} />
-                  {targetPosition !== null && (
+                  {porMembro ? (
+                    // Segmentos lado a lado dentro da largura total da barra:
+                    // cada um e a fatia de um membro naquela categoria.
+                    <div className="flex h-6 overflow-hidden rounded-md" style={{ width: `${barWidth}%` }}>
+                      {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => (
+                        <div
+                          key={seg.usuarioId}
+                          style={{
+                            width: `${(seg.valor / item.projectedAmount) * 100}%`,
+                            background: seg.color,
+                          }}
+                          title={`${seg.nome}: ${formatCurrency(seg.valor)}`}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-6 rounded-md" style={{ width: `${barWidth}%`, background: statusColor(item) }} />
+                  )}
+                  {!porMembro && targetPosition !== null && (
                     <span className="absolute -inset-y-1 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" style={{ left: `${targetPosition}%` }} />
                   )}
                 </div>
                 <span className="w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(item.projectedAmount)}</span>
-                <span className={`w-[152px] shrink-0 text-right text-[11.5px] font-bold tabular-nums ${item.status === 'over' ? 'text-[#b42318] dark:text-rose-300' : item.status === 'attention' ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#7b93a1] dark:text-slate-400'}`}>
-                  {statusLabel(item)}
-                </span>
+                {porMembro ? (
+                  <span className="w-[152px] shrink-0 truncate text-right text-[11.5px] text-[#7b93a1] dark:text-slate-400">
+                    {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => seg.nome).join(' · ')}
+                  </span>
+                ) : (
+                  <span className={`w-[152px] shrink-0 text-right text-[11.5px] font-bold tabular-nums ${item.status === 'over' ? 'text-[#b42318] dark:text-rose-300' : item.status === 'attention' ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#7b93a1] dark:text-slate-400'}`}>
+                    {statusLabel(item)}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
 
         <p className="mt-3.5 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
-          Ordenadas por valor gasto. Os limites são definidos em Configurações › Metas.
+          {porMembro ? 'Ordenadas por valor gasto, divididas por membro. As metas são individuais — filtre por membro para vê-las.' : 'Ordenadas por valor gasto. Os limites são definidos em Configurações › Metas.'}
         </p>
       </div>
     </Card>
