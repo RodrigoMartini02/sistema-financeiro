@@ -14,6 +14,17 @@ export interface FinancialAssistantDraft {
   paymentMethod: 'pix' | 'dinheiro' | 'debito' | 'credito' | 'boleto';
   paid: boolean;
   confidence: 'low' | 'medium' | 'high';
+  // Campos do modal de despesa preenchidos pelo fluxo guiado. Opcionais porque
+  // a leitura de anexos (OCR/Pix) continua produzindo rascunhos sem eles.
+  cardId?: number | null;
+  billingType?: 'nao' | 'parcelas' | 'mensal' | null;
+  installments?: number | null;
+  paidInstallments?: number | null;
+  recurrenceDay?: number | null;
+  cashPrice?: number | null;
+  amountPaid?: number | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
 }
 
 export interface FinancialAssistantResponse {

@@ -6,7 +6,12 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Attachment, Expense, Income } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
-import type { FinancialCopilotCard, FinancialCopilotIntentHint } from '../../types/financialCopilot';
+import type {
+  FinancialCopilotCard,
+  FinancialCopilotIntentHint,
+  FinancialCopilotQuickReply,
+  FinancialCopilotSlotState,
+} from '../../types/financialCopilot';
 import {
   deleteFinancialCopilotConversation,
   fetchFinancialCopilotConversation,
@@ -14,7 +19,7 @@ import {
   sendFinancialCopilotMessage,
 } from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
-import { fetchCategorias } from '../../services/configService';
+import { fetchCartoes, fetchCategorias } from '../../services/configService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { Card } from '../../ui/card';
@@ -39,6 +44,8 @@ interface ChatMessage {
   attachments?: ChatAttachmentSummary[];
   cards?: FinancialCopilotCard[];
   showWelcomeActions?: boolean;
+  /** Botoes da pergunta em aberto; some assim que ela e respondida. */
+  quickReplies?: FinancialCopilotQuickReply[];
 }
 interface SpeechRecognitionResultLike {
   transcript: string;
@@ -278,6 +285,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [isSaving, setIsSaving] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [intentHint, setIntentHint] = useState<FinancialCopilotIntentHint | null>(null);
+  const [slotState, setSlotState] = useState<FinancialCopilotSlotState | null>(null);
   const [lastVoiceTranscript, setLastVoiceTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -297,12 +305,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     enabled: open,
     staleTime: 30_000,
   });
+  const cardsQuery = useQuery({
+    queryKey: queryKeys.cartoes,
+    queryFn: fetchCartoes,
+    enabled: open,
+    staleTime: 60_000,
+  });
   const conversationsQuery = useQuery({
     queryKey: queryKeys.copilotConversations,
     queryFn: fetchFinancialCopilotConversations,
     staleTime: 30_000,
   });
   const categories = (categoriesQuery.data ?? []).filter((category) => category.ativo);
+  // Mesma regra do modal: um cartao so-credito nao aparece numa compra no debito.
+  const cardsForDraft = (cardsQuery.data ?? []).filter((card) => (
+    card.ativo && (!card.tipo || card.tipo === 'ambos' || card.tipo === draft?.paymentMethod)
+  ));
   const duplicateWarning = findDuplicate(
     draft,
     dashboardQuery.data?.incomes ?? [],
@@ -378,15 +396,17 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     }
   };
 
-  const handleSend = async () => {
-    const message = composer.trim();
+  const handleSend = async (overrideMessage?: string) => {
+    const message = (overrideMessage ?? composer).trim();
     if ((!message && attachments.length === 0) || isPreparing) return;
 
     const messageAttachments = attachments;
     const displayedMessage = message || 'Analise os arquivos enviados.';
     setError(null);
     setMessages((current) => [
-      ...current,
+      // Respondida a pergunta, os botoes saem de cena: deixa-los ativos
+      // convidaria a responder duas vezes o mesmo campo.
+      ...current.map((item) => item.quickReplies ? { ...item, quickReplies: undefined } : item),
       {
         id: newMessageId(),
         role: 'user',
@@ -409,9 +429,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         context: draft ?? undefined,
         conversationId,
         intentHint,
+        slotState,
       });
       setConversationId(result.conversationId);
       setIntentHint(null);
+      setSlotState(result.mode === 'slot' ? result.slotState ?? null : null);
       if (result.mode === 'draft' && result.draft) {
         setDraft(result.draft);
         setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
@@ -422,6 +444,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         content: result.reply,
         createdAt: new Date().toISOString(),
         cards: result.cards,
+        quickReplies: result.quickReplies,
       }]);
       await queryClient.invalidateQueries({ queryKey: queryKeys.copilotConversations });
     } catch (requestError) {
@@ -439,6 +462,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setComposer('');
     setAttachments([]);
     setIntentHint(null);
+    setSlotState(null);
     setLastVoiceTranscript(null);
     setHistoryOpen(false);
     setHasRestoredLatest(true);
@@ -460,6 +484,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setDraft(null);
       setDraftAttachments([]);
       setIntentHint(null);
+      setSlotState(null);
       setLastVoiceTranscript(null);
       setHistoryOpen(false);
       setHasRestoredLatest(true);
@@ -555,26 +580,43 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         const suggestedCategory = draft.category
           ? categories.find((category) => normalizeComparable(category.nome) === normalizeComparable(draft.category!))
           : undefined;
+        const parcelado = draft.billingType === 'parcelas';
+        const recorrente = draft.billingType === 'mensal';
         await saveExpense(month, year, {
           descricao: draft.description.trim(),
           valor_original: draft.amount,
           dataVencimento: date,
           dataCompra: draft.date ?? date,
           categoria_id: suggestedCategory?.id,
+          cartao_id: draft.cardId ?? undefined,
           formaPagamento: draft.paymentMethod,
           pago: draft.paid,
+          valor_pago: draft.paid ? (draft.amountPaid ?? draft.amount) : undefined,
+          parcelado,
+          total_parcelas: parcelado ? (draft.installments ?? undefined) : undefined,
+          parcelasJaPagas: parcelado ? (draft.paidInstallments ?? 0) : undefined,
+          recorrente,
+          recorrenciaMensal: recorrente,
+          numero_nf: draft.invoiceNumber ?? undefined,
+          data_emissao_nf: draft.invoiceDate ?? undefined,
           anexos: draftAttachments,
         });
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      // Fechado o lancamento, a conversa volta ao inicio: o menu de acoes
+      // reaparece para quem lanca varias despesas seguidas.
       setMessages((current) => [...current, {
         id: newMessageId(),
         role: 'assistant',
-        content: 'Lançamento salvo. Mantive os anexos junto com ele.',
+        content: draft.kind === 'income'
+          ? 'Receita lançada com sucesso! Se quiser conferir, dá uma olhada na tela de lançamentos. Quer registrar outra?'
+          : 'Prontinho, despesa lançada! Se quiser conferir, é só abrir a tela de lançamentos. Quer registrar outra?',
         createdAt: new Date().toISOString(),
+        showWelcomeActions: true,
       }]);
       setDraft(null);
       setDraftAttachments([]);
+      setSlotState(null);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o lançamento.');
     } finally {
@@ -716,9 +758,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       <p>{message.content}</p>
                       {message.showWelcomeActions && (
                         <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                            Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas finanças, faça uma pergunta.
-                          </p>
+                          {message.id === 'welcome' && (
+                            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                              Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas finanças, faça uma pergunta.
+                            </p>
+                          )}
                           <div className="mt-3 grid gap-2">
                             <button
                               type="button"
@@ -769,6 +813,21 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         </div>
                       ))}
                       {message.cards?.map((card, index) => <CopilotCardView key={`${card.type}-${index}`} card={card} />)}
+                      {message.quickReplies && message.quickReplies.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {message.quickReplies.map((quickReply) => (
+                            <button
+                              key={`${quickReply.value}-${quickReply.label}`}
+                              type="button"
+                              onClick={() => void handleSend(quickReply.value)}
+                              disabled={isPreparing}
+                              className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                            >
+                              {quickReply.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                     ))}
@@ -886,6 +945,72 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>
                           </label>
+                          {cardsForDraft.length > 0 && (
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cartão</span>
+                              <span className="relative flex-1">
+                                <select
+                                  value={draft.cardId ?? ''}
+                                  onChange={(event) => updateDraft({ cardId: event.target.value ? Number(event.target.value) : null })}
+                                  className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                >
+                                  <option value="">Sem cartão</option>
+                                  {cardsForDraft.map((card) => <option key={card.id} value={card.id}>{card.nome}</option>)}
+                                </select>
+                                <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                              </span>
+                            </label>
+                          )}
+
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                            <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cobrança</span>
+                            <span className="relative flex-1">
+                              <select
+                                value={draft.billingType ?? 'nao'}
+                                onChange={(event) => {
+                                  const billingType = event.target.value as NonNullable<FinancialAssistantDraft['billingType']>;
+                                  updateDraft({
+                                    billingType,
+                                    installments: billingType === 'parcelas' ? draft.installments : null,
+                                    paidInstallments: billingType === 'parcelas' ? draft.paidInstallments : null,
+                                    recurrenceDay: billingType === 'mensal' ? draft.recurrenceDay : null,
+                                  });
+                                }}
+                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                              >
+                                <option value="nao">Não repete</option>
+                                <option value="parcelas">Parcelado</option>
+                                <option value="mensal">Recorrente</option>
+                              </select>
+                              <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                            </span>
+                          </label>
+
+                          {draft.billingType === 'parcelas' && (
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Parcelas</span>
+                              <span className="flex flex-1 items-center gap-2">
+                                <input
+                                  type="number"
+                                  min="2"
+                                  max="360"
+                                  value={draft.installments ?? ''}
+                                  onChange={(event) => updateDraft({ installments: event.target.value ? Number(event.target.value) : null })}
+                                  className="h-8 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                />
+                                <span className="text-xs text-slate-500 dark:text-slate-400">vezes ·</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={draft.paidInstallments ?? ''}
+                                  onChange={(event) => updateDraft({ paidInstallments: event.target.value ? Number(event.target.value) : null })}
+                                  className="h-8 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                />
+                                <span className="text-xs text-slate-500 dark:text-slate-400">já pagas</span>
+                              </span>
+                            </label>
+                          )}
+
                           <label className="flex items-center gap-3 py-3.5">
                             <input
                               type="checkbox"
@@ -895,6 +1020,21 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             />
                             <span className="text-sm font-semibold text-slate-900 dark:text-white">Esta despesa já foi paga</span>
                           </label>
+
+                          {draft.paid && (
+                            <label className="flex items-center gap-3 border-t border-slate-100 py-3.5 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor pago</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={draft.amountPaid ?? ''}
+                                onChange={(event) => updateDraft({ amountPaid: event.target.value ? Number(event.target.value) : null })}
+                                placeholder={draft.amount ? String(draft.amount) : ''}
+                                className="h-8 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
+                              />
+                            </label>
+                          )}
                         </>
                       )}
                     </div>

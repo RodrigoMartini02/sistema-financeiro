@@ -17,13 +17,23 @@ export interface FinancialCopilotCard {
   items: FinancialCopilotCardItem[];
 }
 
+export interface FinancialCopilotQuickReply {
+  label: string;
+  value: string;
+}
+
+/** Estado opaco do preenchimento guiado: o client apenas devolve o que recebeu. */
+export type FinancialCopilotSlotState = Record<string, unknown>;
+
 export interface FinancialCopilotResponse {
   conversationId: number | null;
-  mode: 'answer' | 'draft' | 'help';
+  mode: 'answer' | 'draft' | 'help' | 'slot';
   reply: string;
   cards: FinancialCopilotCard[];
   draft: FinancialAssistantDraft | null;
   missingFields: Array<'description' | 'amount'>;
+  quickReplies?: FinancialCopilotQuickReply[];
+  slotState?: FinancialCopilotSlotState | null;
 }
 
 export interface FinancialCopilotRequest {
@@ -34,6 +44,7 @@ export interface FinancialCopilotRequest {
   context?: Partial<FinancialAssistantDraft>;
   conversationId?: number | null;
   intentHint?: FinancialCopilotIntentHint | null;
+  slotState?: FinancialCopilotSlotState | null;
 }
 
 export interface FinancialCopilotConversation {
@@ -50,6 +61,7 @@ export interface FinancialCopilotStoredMessage {
     mode?: FinancialCopilotResponse['mode'];
     cards?: FinancialCopilotCard[];
     draft?: FinancialAssistantDraft;
+    slotState?: FinancialCopilotSlotState;
   } | null;
   createdAt: string;
 }
