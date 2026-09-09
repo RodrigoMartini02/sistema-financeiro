@@ -97,28 +97,33 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   label: string;
   description: string;
   placeholder: string;
+  /** Fala do assistente logo apos a escolha, para a conversa nao ficar muda. */
+  opening: string;
 }> = {
   register_expense: {
     label: 'Lançar despesa',
     description: 'Conte o que comprou e quanto pagou.',
     placeholder: 'Ex.: Comprei no mercado e paguei R$ 100 no Pix.',
+    opening: 'Beleza! Me conta o que você gastou.',
   },
   register_income: {
     label: 'Lançar receita',
     description: 'Conte o que recebeu e de onde veio.',
     placeholder: 'Ex.: Recebi R$ 3.000 de salário hoje.',
+    opening: 'Boa! Me conta o que você recebeu.',
   },
   ask: {
     label: 'Consultar',
     description: 'Pergunte sobre seu período financeiro.',
     placeholder: 'Ex.: Quanto gastei este mês?',
+    opening: 'Pode perguntar. O que você quer saber?',
   },
 };
 
 const WELCOME_ACTIONS: Array<{ intent: FinancialCopilotIntentHint; icon: ReactNode }> = [
-  { intent: 'register_expense', icon: <Plus size={13} /> },
-  { intent: 'register_income', icon: <Plus size={13} /> },
-  { intent: 'ask', icon: <MessageCircleMore size={13} /> },
+  { intent: 'register_expense', icon: <Plus size={15} /> },
+  { intent: 'register_income', icon: <Plus size={15} /> },
+  { intent: 'ask', icon: <MessageCircleMore size={15} /> },
 ];
 
 function formatDraftAmount(value: number | null): string {
@@ -369,12 +374,26 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setIntentHint(nextIntent);
     setLastVoiceTranscript(null);
     setError(null);
-    setMessages((current) => [...current, {
-      id: newMessageId(),
-      role: 'user',
-      content: INTENT_DETAILS[nextIntent].label,
-      createdAt: new Date().toISOString(),
-    }]);
+    const createdAt = new Date().toISOString();
+    setMessages((current) => [
+      // Escolhida a acao, os chips saem de cena: manter os tres ativos
+      // convidaria a trocar de intencao no meio do lancamento.
+      ...current.map((item) => item.showWelcomeActions ? { ...item, showWelcomeActions: false } : item),
+      {
+        id: newMessageId(),
+        role: 'user',
+        content: INTENT_DETAILS[nextIntent].label,
+        createdAt,
+      },
+      // A resposta e local: o backend recusa mensagem vazia, e uma ida ao
+      // servidor so para devolver texto fixo deixaria o chat mudo no caminho.
+      {
+        id: newMessageId(),
+        role: 'assistant',
+        content: INTENT_DETAILS[nextIntent].opening,
+        createdAt,
+      },
+    ]);
     window.setTimeout(() => composerRef.current?.focus(), 0);
   };
 
@@ -785,20 +804,20 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               de lancar algo ja sabe como a conversa funciona. */}
                           {message.id === 'welcome' && (
                             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                              Me conte o que você gastou ou recebeu, ou faça uma pergunta sobre suas finanças.
+                              Selecione uma das opções abaixo.
                             </p>
                           )}
                           {/* Mesmos chips das respostas rapidas do resto da conversa.
                               Continuam existindo porque definem o intentHint, que tira
                               a ambiguidade de tipo: "recebi 200 do aluguel" sozinho nao
                               diz se e receita ou despesa. */}
-                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          <div className="mt-2.5 flex flex-col gap-1.5">
                             {WELCOME_ACTIONS.map(({ intent, icon }) => (
                               <button
                                 key={intent}
                                 type="button"
                                 onClick={() => selectIntent(intent)}
-                                className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                                className="flex w-full items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2.5 text-left text-sm font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
                               >
                                 {icon}
                                 {INTENT_DETAILS[intent].label}
