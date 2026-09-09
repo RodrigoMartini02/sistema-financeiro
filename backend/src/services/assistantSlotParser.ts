@@ -366,6 +366,17 @@ function cleanDescription(candidate: string | null): string | null {
 }
 
 /**
+ * Origem da receita — o "de onde veio" da frase. `extractDescription` nao cobre
+ * "recebi 1200 do freela": com o valor no meio, ela devolve nada ou so a data.
+ */
+function extractIncomeSource(text: string): string | null {
+  const match = text.match(
+    /\b(?:recebi|recebimento|ganhei|vendi|caiu|entrou|depositaram|deposito)\b[^]*?\b(?:de|do|da|dos|das|por)\s+([a-zà-ÿ0-9][a-zà-ÿ0-9&.' -]{1,80}?)(?=\s+(?:hoje|ontem|amanha|amanhã|via|no|na|em|por|com)\b|[,.;]|$)/i,
+  );
+  return match?.[1]?.trim() ?? null;
+}
+
+/**
  * Primeira leitura da frase livre, antes de qualquer pergunta. Preenche tudo o
  * que der para extrair — o que sobrar vazio e que vira pergunta.
  */
@@ -387,7 +398,9 @@ export function seedDraftFromMessage(
   // "mercado do mes, 200 no debito, hoje": o formato com virgula que a spec
   // sugere nos casos ambiguos ja separa a descricao do resto.
   const beforeComma = raw.includes(',') ? raw.slice(0, raw.indexOf(',')).trim() : null;
-  draft.description = cleanDescription(beforeComma) ?? cleanDescription(extractDescription(raw));
+  draft.description = cleanDescription(beforeComma)
+    ?? (kind === 'income' ? cleanDescription(extractIncomeSource(raw)) : null)
+    ?? cleanDescription(extractDescription(raw));
 
   if (kind === 'income') return draft;
 

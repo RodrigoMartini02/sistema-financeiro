@@ -10,6 +10,7 @@ import {
   type SlotDraft,
 } from './assistantSlotFilling';
 import { applySlotAnswer, seedDraftFromMessage } from './assistantSlotParser';
+import { inferKind } from './financialAssistant';
 
 const catalog: SlotCatalog = {
   categories: [
@@ -265,4 +266,41 @@ test('numero solto nao vira valor sem verbo de gasto nem forma de pagamento', ()
 test('responde o valor por extenso quando a pergunta e o valor', () => {
   const draft = expenseDraft({ description: 'internet' });
   assert.equal(applySlotAnswer(draft, 'amount', 'quatrocentos', catalog).draft.amount, 400);
+});
+
+test('a frase decide o tipo quando o usuario nao clicou no menu', () => {
+  const receitas = [
+    'recebi mil e duzentos do freela ontem',
+    'salario caiu hoje 5000',
+    'ganhei 300 de bonus',
+    'vendi um movel por 800',
+  ];
+  for (const frase of receitas) assert.equal(inferKind(frase), 'income', frase);
+
+  const despesas = [
+    'paguei quatrocentos de internet no credito',
+    'gastei cinquenta reais no mercado hoje',
+    'mercado do mes, 200 no pix, hoje',
+  ];
+  for (const frase of despesas) assert.equal(inferKind(frase), 'expense', frase);
+});
+
+test('receita digitada livremente nao pergunta forma de pagamento', () => {
+  const draft = seedDraftFromMessage(inferKind('recebi 1200 do freela'), 'recebi 1200 do freela', catalog);
+  assert.equal(draft.kind, 'income');
+  assert.equal(draft.amount, 1200);
+  assert.equal(draft.description, 'freela');
+  // Confirmada a descricao, uma receita completa vai direto para o card.
+  assert.equal(nextSlotQuestion(draft, catalog), null);
+});
+
+test('a origem da receita vira descricao', () => {
+  const casos: Array<[string, string]> = [
+    ['recebi 1200 do freela', 'freela'],
+    ['recebi mil e duzentos do freela ontem', 'freela'],
+    ['ganhei 300 de bonus', 'bonus'],
+  ];
+  for (const [frase, esperado] of casos) {
+    assert.equal(seedDraftFromMessage('income', frase, catalog).description, esperado, frase);
+  }
 });

@@ -8,6 +8,7 @@ import { AiUsageLimitError, assertAiUsageWithinLimits, getActiveAiProvider, reco
 import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
   createFinancialAssistantDraft,
+  inferKind,
   type AssistantAttachmentInput,
   type AssistantDraftContext,
   type FinancialAssistantDraft,
@@ -399,7 +400,13 @@ async function runSlotFlow(input: {
       userId: input.userId,
     });
   } else {
-    const kind = input.intentHint === 'register_income' ? 'income' : 'expense';
+    // O botao do menu e uma escolha explicita e vence o palpite. Sem ele, a
+    // frase decide: "recebi 1200 do freela" e receita, nao despesa.
+    const kind = input.intentHint === 'register_income'
+      ? 'income'
+      : input.intentHint === 'register_expense'
+        ? 'expense'
+        : inferKind(input.message);
     step = await startSlotSession({ kind, message: input.message, catalog, userId: input.userId });
   }
 

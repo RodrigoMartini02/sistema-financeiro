@@ -333,10 +333,10 @@ export function extractDateFromText(text: string): string | null {
   return dayOnly?.[0] ? parseDateToken(dayOnly[0]) : null;
 }
 
-function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
+export function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
   const lower = text.toLowerCase();
   if (/\b(receita|nova receita)\b/.test(lower)) return 'income';
-  if (/\b(recebi|recebimento|entrada|sal[aá]rio|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
+  if (/\b(recebi|recebimento|entrada|sal[aá]rio|vendi|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
     return 'income';
   }
   if (/\b(gastei|comprei|compras|passei)\b/.test(lower)) return 'expense';
