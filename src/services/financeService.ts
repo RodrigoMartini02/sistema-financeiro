@@ -303,11 +303,16 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     porCategoria: Array<{ categoria: string; total: string | number }>;
     porFormaPagamento: Array<{ forma_pagamento: string; total: string | number }>;
     porOrigem: Array<{ origem: 'contrato' | 'avulsa'; total: string | number }>;
+    porCartao: Array<{ cartao: string; total: string | number }>;
+    emAberto: {
+      vencido_total: string | number; vencido_quantidade: string | number;
+      a_vencer_total: string | number; a_vencer_quantidade: string | number;
+    };
     granularidade: 'mes' | 'ano';
     serie: Array<{ ano: string | number; mes: string | number | null; receitas: string | number; despesas: string | number }>;
     despesasDetalhe: {
       juros: string | number; descontos: string | number; fixas: string | number; variaveis: string | number;
-      pagas: string | number; pendentes: string | number;
+      parceladas: string | number; pagas: string | number; pendentes: string | number;
     };
   }>(`/financial/panorama${suffix}`);
 
@@ -322,6 +327,13 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     porCategoria: raw.porCategoria.map((c) => ({ categoria: c.categoria, total: asNumber(c.total) })),
     porFormaPagamento: raw.porFormaPagamento.map((f) => ({ forma_pagamento: f.forma_pagamento, total: asNumber(f.total) })),
     porOrigem: raw.porOrigem.map((o) => ({ origem: o.origem, total: asNumber(o.total) })),
+    porCartao: (raw.porCartao ?? []).map((c) => ({ cartao: c.cartao, total: asNumber(c.total) })),
+    emAberto: {
+      vencidoTotal: asNumber(raw.emAberto?.vencido_total),
+      vencidoQuantidade: asNumber(raw.emAberto?.vencido_quantidade),
+      aVencerTotal: asNumber(raw.emAberto?.a_vencer_total),
+      aVencerQuantidade: asNumber(raw.emAberto?.a_vencer_quantidade),
+    },
     granularidade: raw.granularidade,
     serie: raw.serie.map((s) => ({
       ano: Number(s.ano),
@@ -334,6 +346,7 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       descontos: asNumber(raw.despesasDetalhe.descontos),
       fixas: asNumber(raw.despesasDetalhe.fixas),
       variaveis: asNumber(raw.despesasDetalhe.variaveis),
+      parceladas: asNumber(raw.despesasDetalhe.parceladas),
       pagas: asNumber(raw.despesasDetalhe.pagas),
       pendentes: asNumber(raw.despesasDetalhe.pendentes),
     },
