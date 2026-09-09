@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
   Mic, Plus, Send, Square, Trash2, X,
@@ -87,7 +87,7 @@ function buildInitialMessage(): ChatMessage {
   return {
     id: 'welcome',
     role: 'assistant',
-    content: 'Olá! Como posso ajudar com suas finanças hoje?',
+    content: 'Olá! O que vamos fazer hoje?',
     createdAt: new Date().toISOString(),
     showWelcomeActions: true,
   };
@@ -99,21 +99,27 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   placeholder: string;
 }> = {
   register_expense: {
-    label: 'Registrar despesa',
+    label: 'Lançar despesa',
     description: 'Conte o que comprou e quanto pagou.',
     placeholder: 'Ex.: Comprei no mercado e paguei R$ 100 no Pix.',
   },
   register_income: {
-    label: 'Registrar receita',
+    label: 'Lançar receita',
     description: 'Conte o que recebeu e de onde veio.',
     placeholder: 'Ex.: Recebi R$ 3.000 de salário hoje.',
   },
   ask: {
-    label: 'Fazer uma pergunta',
+    label: 'Consultar',
     description: 'Pergunte sobre seu período financeiro.',
     placeholder: 'Ex.: Quanto gastei este mês?',
   },
 };
+
+const WELCOME_ACTIONS: Array<{ intent: FinancialCopilotIntentHint; icon: ReactNode }> = [
+  { intent: 'register_expense', icon: <Plus size={13} /> },
+  { intent: 'register_income', icon: <Plus size={13} /> },
+  { intent: 'ask', icon: <MessageCircleMore size={13} /> },
+];
 
 function formatDraftAmount(value: number | null): string {
   if (!value) return 'Valor não informado';
@@ -626,8 +632,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         id: newMessageId(),
         role: 'assistant',
         content: draft.kind === 'income'
-          ? 'Receita lançada com sucesso! Se quiser conferir, dá uma olhada na tela de lançamentos. Quer registrar outra?'
-          : 'Prontinho, despesa lançada! Se quiser conferir, é só abrir a tela de lançamentos. Quer registrar outra?',
+          ? 'Prontinho, receita lançada! Quer registrar outra?'
+          : 'Prontinho, despesa lançada! Quer registrar outra?',
         createdAt: new Date().toISOString(),
         showWelcomeActions: true,
       }]);
@@ -774,37 +780,30 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     ].join(' ')}>
                       <p>{message.content}</p>
                       {message.showWelcomeActions && (
-                        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <div className="mt-2.5">
+                          {/* A linha de apoio so aparece na abertura: quem acabou
+                              de lancar algo ja sabe como a conversa funciona. */}
                           {message.id === 'welcome' && (
                             <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                              Para registrar uma nova despesa, conte o que comprou e quanto pagou. Para consultar suas finanças, faça uma pergunta.
+                              Me conte o que você gastou ou recebeu, ou faça uma pergunta sobre suas finanças.
                             </p>
                           )}
-                          <div className="mt-3 grid gap-2">
-                            <button
-                              type="button"
-                              onClick={() => selectIntent('register_expense')}
-                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
-                            >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300"><Plus size={15} /></span>
-                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Registrar despesa</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Conte o que comprou e quanto pagou.</span></span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => selectIntent('register_income')}
-                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
-                            >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><Plus size={15} /></span>
-                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Registrar receita</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Conte o que recebeu e de onde veio.</span></span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => selectIntent('ask')}
-                              className="flex items-center gap-2 border border-slate-200 px-2.5 py-2 text-left transition hover:border-cyan-300 hover:bg-cyan-50 dark:border-slate-700 dark:hover:border-cyan-800 dark:hover:bg-cyan-950/30"
-                            >
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-cyan-50 text-[#0e7490] dark:bg-cyan-950/40 dark:text-cyan-300"><MessageCircleMore size={15} /></span>
-                              <span className="min-w-0"><span className="block text-xs font-semibold text-slate-800 dark:text-slate-100">Fazer uma pergunta</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">Pergunte sobre seu período financeiro.</span></span>
-                            </button>
+                          {/* Mesmos chips das respostas rapidas do resto da conversa.
+                              Continuam existindo porque definem o intentHint, que tira
+                              a ambiguidade de tipo: "recebi 200 do aluguel" sozinho nao
+                              diz se e receita ou despesa. */}
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {WELCOME_ACTIONS.map(({ intent, icon }) => (
+                              <button
+                                key={intent}
+                                type="button"
+                                onClick={() => selectIntent(intent)}
+                                className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                              >
+                                {icon}
+                                {INTENT_DETAILS[intent].label}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       )}
