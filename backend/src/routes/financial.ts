@@ -144,7 +144,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
 
     const params = [escopo, userId, accountId, deChave, ateChave];
 
-    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult] = await Promise.all([
+    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, cartaoResult, emAbertoResult] = await Promise.all([
       pool.query(
         `SELECT
           COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
@@ -235,11 +235,42 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
           COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS descontos,
           COALESCE(SUM(CASE WHEN recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS fixas,
           COALESCE(SUM(CASE WHEN NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS variaveis,
+          -- Parcela contratada e compromisso, nao gasto flexivel: sai de dentro
+          -- de "variaveis" para a tela poder mostrar o que de fato da para cortar.
+          COALESCE(SUM(CASE WHEN parcelado AND NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS parceladas,
           COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE 0 END), 0)::float AS pagas,
           COALESCE(SUM(CASE WHEN NOT pago THEN valor_original ELSE 0 END), 0)::float AS pendentes
         FROM despesas
         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
         params,
+      ),
+      // Gasto por cartao. O join com cartoes so alcanca cartao do proprio
+      // escopo, porque a despesa ja esta filtrada por usuario e conta.
+      pool.query(
+        `SELECT c.nome AS cartao, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
+         FROM despesas d
+         JOIN cartoes c ON c.id = d.cartao_id
+         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa'
+           AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
+           AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
+             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+           )))
+         GROUP BY c.nome
+         ORDER BY total DESC`,
+        params,
+      ),
+      // Vencidas e a vencer sao ABSOLUTAS: nao passam pelo filtro de periodo.
+      // Uma conta vencida em agosto continua vencida quando se olha dezembro —
+      // filtra-la por periodo a esconderia de quem mais precisa ve-la.
+      pool.query(
+        `SELECT
+          COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE THEN valor_original ELSE 0 END), 0)::float AS vencido_total,
+          COUNT(*) FILTER (WHERE data_vencimento < CURRENT_DATE)::int AS vencido_quantidade,
+          COALESCE(SUM(CASE WHEN data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 THEN valor_original ELSE 0 END), 0)::float AS a_vencer_total,
+          COUNT(*) FILTER (WHERE data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + 30)::int AS a_vencer_quantidade
+         FROM despesas
+         WHERE usuario_id = ANY($1) AND status = 'ativa' AND pago = false AND ${contaFiltro}`,
+        [escopo, userId, accountId],
       ),
     ]);
 
@@ -305,7 +336,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     };
     const despesasDetalhe = despesasDetalheResult.rows[0] as {
       juros: number; descontos: number; fixas: number; variaveis: number;
-      pagas: number; pendentes: number;
+      parceladas: number; pagas: number; pendentes: number;
     };
 
     // Aplica o aporte inicial da conta (saldo de abertura) uma única vez, quando o
@@ -329,6 +360,8 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         porCategoria: categoriaResult.rows,
         porFormaPagamento: formaResult.rows,
         porOrigem: origemResult.rows,
+        porCartao: cartaoResult.rows,
+        emAberto: emAbertoResult.rows[0],
         granularidade,
         serie: serieResult.rows,
         despesasDetalhe,

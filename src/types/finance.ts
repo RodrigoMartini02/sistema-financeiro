@@ -135,8 +135,18 @@ export interface DashboardPanoramaDespesasDetalhe {
   descontos: number;
   fixas: number;
   variaveis: number;
+  /** Subconjunto de `variaveis`: parcela contratada e compromisso, nao gasto livre. */
+  parceladas: number;
   pagas: number;
   pendentes: number;
+}
+
+/** Vencidas e a vencer sao absolutas — nao passam pelo filtro de periodo. */
+export interface DashboardPanoramaEmAberto {
+  vencidoTotal: number;
+  vencidoQuantidade: number;
+  aVencerTotal: number;
+  aVencerQuantidade: number;
 }
 
 export interface DashboardPanoramaData {
@@ -150,6 +160,8 @@ export interface DashboardPanoramaData {
   porCategoria: { categoria: string; total: number }[];
   porFormaPagamento: { forma_pagamento: string; total: number }[];
   porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
+  porCartao: { cartao: string; total: number }[];
+  emAberto: DashboardPanoramaEmAberto;
   granularidade: 'mes' | 'ano';
   serie: DashboardPanoramaSeriePonto[];
   despesasDetalhe: DashboardPanoramaDespesasDetalhe;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
@@ -14,7 +14,6 @@ import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
-import { MonthlyComparisonBarChart } from './charts/MonthlyComparisonBarChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
@@ -67,27 +66,26 @@ export function FinanceDashboard() {
     staleTime: 30_000,
   });
 
-  // Alguns cards (contratos, parcelas futuras, metas por categoria) são estruturalmente
-  // mensais — só fazem sentido quando o filtro do painel colapsa em um único mês (De = Até).
-  const singleMonth = period.mes === period.ateMes && period.ano === period.ateAno
-    ? { mes: period.mes, ano: period.ano }
-    : null;
+  // Contratos e parcelas futuras sao consultas de um mes de referencia. Antes o
+  // painel so as exibia quando o filtro colapsava em um mes unico — e como ele
+  // abre em Jan-Dez, os dois blocos ficavam invisiveis por padrao. Agora o mes
+  // de referencia e o ultimo do periodo filtrado: a carteira e as parcelas que
+  // interessam sao as do fim do intervalo, nao as do comeco.
+  const mesReferencia = { mes: period.ateMes, ano: period.ateAno };
 
   const contratosQ = useQuery({
-    queryKey: queryKeys.contratosStatusFaturamento(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1),
-    queryFn: () => getContratosFaturamento((singleMonth!.mes) + 1, singleMonth!.ano),
+    queryKey: queryKeys.contratosStatusFaturamento(mesReferencia.mes, mesReferencia.ano),
+    queryFn: () => getContratosFaturamento(mesReferencia.mes + 1, mesReferencia.ano),
     staleTime: 60_000,
-    enabled: !!singleMonth,
   });
-  const contratos = singleMonth ? contratosQ.data ?? [] : [];
+  const contratos = contratosQ.data ?? [];
 
   const parcelasQ = useQuery({
-    queryKey: queryKeys.parcelasFuturas(singleMonth?.mes ?? -1, singleMonth?.ano ?? -1, 3),
-    queryFn: () => fetchParcelasFuturas(singleMonth!.mes, singleMonth!.ano, 3),
+    queryKey: queryKeys.parcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3),
+    queryFn: () => fetchParcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3),
     staleTime: 60_000,
-    enabled: !!singleMonth,
   });
-  const parcelasFuturas = singleMonth ? parcelasQ.data ?? [] : [];
+  const parcelasFuturas = parcelasQ.data ?? [];
 
   const overviewQ = useBudgetOverviewRange(query);
   const accountTypeLabel = overviewQ.data?.accountType === 'empresa' ? 'empresa' : 'pessoal';
@@ -227,6 +225,21 @@ export function FinanceDashboard() {
     return porCategoria;
   }, [summary, membroId, memberColors, memberNames]);
 
+  // Vencidas e a vencer nao passam pelo filtro de periodo: uma conta vencida em
+  // agosto continua vencida quando se olha dezembro. O rotulo do bloco diz isso.
+  const emAberto = data?.emAberto;
+  const temAlerta = (emAberto?.vencidoQuantidade ?? 0) > 0 || (emAberto?.aVencerQuantidade ?? 0) > 0;
+
+  // Tres faixas: fixa recorrente e compromisso permanente, parcela e compromisso
+  // que termina, e o resto e o que da para cortar. `parceladas` ja vem como
+  // subconjunto de `variaveis`.
+  const comprometido = (data?.despesasDetalhe?.fixas ?? 0) + (data?.despesasDetalhe?.parceladas ?? 0);
+  const livre = Math.max(0, despesas - comprometido);
+
+  // Concentracao em poucos cartoes e informacao de risco, nao so de categoria.
+  const cartaoData = useMemo(() => (data?.porCartao ?? [])
+    .map((c, i) => ({ name: c.cartao, value: c.total, color: PALETA[i % PALETA.length] })), [data]);
+
   const healthBase = Math.max(receitas, despesas, 1);
   const detalhe = data?.despesasDetalhe;
 
@@ -315,6 +328,43 @@ export function FinanceDashboard() {
           title="Não foi possível carregar o painel"
           description={panoramaQ.error?.message}
         />
+      )}
+
+      {/* O que exige acao agora. Some inteiro quando nao ha nada em aberto —
+          ausencia de alerta e a informacao. */}
+      {temAlerta && emAberto && (
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          {emAberto.vencidoQuantidade > 0 && (
+            <Card className="flex items-center gap-4 rounded-2xl border-[#fecdca] bg-[#fffbfa] p-5 dark:border-rose-900/60 dark:bg-rose-950/20">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fee4e2] text-[#b42318] dark:bg-rose-950/60 dark:text-rose-300">
+                <AlertTriangle size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[19px] font-bold leading-none tabular-nums text-[#b42318] dark:text-rose-300">
+                  {formatCurrency(emAberto.vencidoTotal)}
+                </p>
+                <p className="mt-1.5 text-[12px] text-[#7b93a1] dark:text-slate-400">
+                  {emAberto.vencidoQuantidade} despesa{emAberto.vencidoQuantidade === 1 ? '' : 's'} vencida{emAberto.vencidoQuantidade === 1 ? '' : 's'} e não paga{emAberto.vencidoQuantidade === 1 ? '' : 's'}, em qualquer período.
+                </p>
+              </div>
+            </Card>
+          )}
+          {emAberto.aVencerQuantidade > 0 && (
+            <Card className="flex items-center gap-4 rounded-2xl border-[#fedf89] bg-[#fffcf5] p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fef0c7] text-[#b54708] dark:bg-amber-950/60 dark:text-amber-300">
+                <Clock size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[19px] font-bold leading-none tabular-nums text-[#b54708] dark:text-amber-300">
+                  {formatCurrency(emAberto.aVencerTotal)}
+                </p>
+                <p className="mt-1.5 text-[12px] text-[#7b93a1] dark:text-slate-400">
+                  {emAberto.aVencerQuantidade} despesa{emAberto.aVencerQuantidade === 1 ? '' : 's'} vence{emAberto.aVencerQuantidade === 1 ? '' : 'm'} nos próximos 30 dias.
+                </p>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Resumo consolidado */}
@@ -417,12 +467,33 @@ export function FinanceDashboard() {
         </span>
       </Card>
 
-      {/* Contratos panel — só quando o filtro é um único mês */}
-      {singleMonth && contratos.length > 0 && (
+      {/* Cascata do período */}
+      <Card className="rounded-2xl p-[20px_22px_16px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do período</h2>
+            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu o período até o que sobrou, passando por cada corte.</p>
+          </div>
+          <div className="flex-1" />
+          {receitas > 0 && (
+            <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">
+              Sobrou <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoFinal / receitas) * 100).toFixed(1)}%</b> do que entrou
+            </span>
+          )}
+        </div>
+        {panoramaQ.isLoading ? (
+          <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
+        ) : (
+          <MonthWaterfallChart steps={waterfallSteps} />
+        )}
+      </Card>
+
+      {/* Contratos panel — carteira do mês de referência do período */}
+      {contratos.length > 0 && (
         <Card className="rounded-2xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">
-              Carteira de contratos <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[singleMonth.mes]}</span>
+              Carteira de contratos <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {MONTH_NAMES[mesReferencia.mes]}</span>
             </h3>
             <span className="text-sm font-semibold text-[#5f7885] dark:text-slate-300">
               {formatCurrency(contratos.reduce((s, c) => s + c.valorMensal, 0))}/mês
@@ -599,26 +670,41 @@ export function FinanceDashboard() {
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[30px] font-bold leading-none tracking-[-0.03em] tabular-nums text-[#0f2b38] dark:text-white">
-                      {Math.round((detalhe.variaveis / despesas) * 100)}%
+                      {Math.round((livre / despesas) * 100)}%
                     </span>
-                    <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">variáveis</span>
+                    <span className="text-[13px] font-semibold text-[#6c8593] dark:text-slate-400">livre</span>
                   </div>
                   <p className="mt-[5px] text-[11.5px] text-[#5f7885] dark:text-slate-400 text-pretty">
-                    {detalhe.variaveis / despesas >= 0.7
-                      ? 'Quase todo o seu gasto é flexível — dá para cortar sem mexer em compromissos fixos.'
-                      : detalhe.fixas / despesas >= 0.7
-                        ? 'A maior parte do seu gasto é fixa — pouca margem para cortar sem rever compromissos.'
-                        : 'Seu gasto está dividido entre despesas fixas e variáveis.'}
+                    {livre / despesas >= 0.7
+                      ? 'A maior parte do seu gasto é flexível — dá para cortar sem mexer em compromissos.'
+                      : comprometido / despesas >= 0.5
+                        ? 'Mais da metade já está comprometida entre despesas fixas e parcelas contratadas.'
+                        : 'Seu gasto se divide entre compromissos assumidos e gasto livre.'}
                   </p>
                 </div>
                 <div className="flex gap-[3px] h-3">
                   <div className="rounded-l-md bg-[#6366f1]" style={{ width: `${(detalhe.fixas / despesas) * 100}%` }} />
+                  <div className="bg-[#a5b4fc]" style={{ width: `${(detalhe.parceladas / despesas) * 100}%` }} />
                   <div className="flex-1 rounded-r-md bg-[#c7d2fe]" />
                 </div>
-                <div className="flex items-baseline gap-2.5 text-[11.5px]">
-                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#6366f1]" />Fixas <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.fixas)}</b></span>
-                  <div className="flex-1" />
-                  <span className="inline-flex items-center gap-1.5 text-[#7b93a1]"><span className="h-2 w-2 rounded-sm bg-[#c7d2fe]" />Variáveis <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.variaveis)}</b></span>
+                {/* Parcela contratada nao e gasto flexivel: sai das "variaveis"
+                    para o numero acima dizer o que de fato da para cortar. */}
+                <div className="grid gap-1.5 text-[11.5px]">
+                  <span className="flex items-baseline gap-1.5 text-[#7b93a1]">
+                    <span className="h-2 w-2 shrink-0 translate-y-[-1px] rounded-sm bg-[#6366f1]" />Fixas
+                    <span className="flex-1" />
+                    <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.fixas)}</b>
+                  </span>
+                  <span className="flex items-baseline gap-1.5 text-[#7b93a1]">
+                    <span className="h-2 w-2 shrink-0 translate-y-[-1px] rounded-sm bg-[#a5b4fc]" />Parcelas contratadas
+                    <span className="flex-1" />
+                    <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(detalhe.parceladas)}</b>
+                  </span>
+                  <span className="flex items-baseline gap-1.5 text-[#7b93a1]">
+                    <span className="h-2 w-2 shrink-0 translate-y-[-1px] rounded-sm bg-[#c7d2fe]" />Livre
+                    <span className="flex-1" />
+                    <b className="text-[#0f2b38] dark:text-slate-100 tabular-nums">{formatCurrency(livre)}</b>
+                  </span>
                 </div>
               </div>
             )}
@@ -709,48 +795,77 @@ export function FinanceDashboard() {
             })()}
           </Card>
 
-          {/* Card: Parcelas futuras — só quando o filtro é um único mês. Fica por
-              último na grade para que sua ausência não deixe buraco no meio das
-              outras linhas quando o filtro não é um mês único. */}
-          {singleMonth && (
-            <Card className="flex flex-col rounded-2xl p-[18px_20px]">
+          {/* Card: Gasto por cartão */}
+          {cartaoData.length > 0 && (
+            <Card className="flex flex-col rounded-2xl p-[18px_20px_20px]">
               <div className="flex items-baseline gap-2.5">
-                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
+                <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Gasto por cartão</h3>
                 <div className="flex-1" />
-                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
+                <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">em qual cartão</span>
               </div>
-              {parcelasQ.isLoading ? (
-                <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
-              ) : parcelasFuturas.length === 0 ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
-                  <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
-                    <CreditCard size={19} />
-                  </span>
-                  <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
-                </div>
-              ) : (
-                <div className="mt-[18px] flex flex-1 flex-col gap-3">
-                  {parcelasFuturas.map((p) => (
-                    <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
-                          <CreditCard size={13} className="text-amber-600" />
-                        </span>
-                        {MONTH_NAMES[p.mes]} {p.ano !== singleMonth.ano ? p.ano : ''}
-                      </span>
-                      <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
-                    </div>
-                  ))}
-                  <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
-                    <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
-                    <div className="flex-1" />
-                    <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
-                  </div>
-                </div>
-              )}
+              <div className="mt-3 flex flex-1 flex-col items-center gap-3.5">
+                <DonutChart
+                  data={cartaoData}
+                  centerLabel="CARTÕES"
+                  centerValue={formatCurrency(cartaoData.reduce((soma, c) => soma + c.value, 0))}
+                />
+              </div>
+              {(() => {
+                const total = cartaoData.reduce((soma, c) => soma + c.value, 0);
+                const maior = cartaoData[0];
+                const fatia = maior && total > 0 ? maior.value / total : 0;
+                return (
+                  <p className="mt-4 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+                    {cartaoData.length === 1
+                      ? 'Todo o gasto em cartão passa por um único cartão.'
+                      : fatia > 0.7
+                        ? `${maior!.name} concentra a maior parte do gasto em cartão.`
+                        : 'O gasto está distribuído entre os cartões.'}
+                  </p>
+                );
+              })()}
             </Card>
           )}
-        </div>
+
+          {/* Card: Parcelas futuras — o mês de referência é o fim do período
+              filtrado. */}
+          <Card className="flex flex-col rounded-2xl p-[18px_20px]">
+            <div className="flex items-baseline gap-2.5">
+              <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
+              <div className="flex-1" />
+              <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
+            </div>
+            {parcelasQ.isLoading ? (
+              <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
+            ) : parcelasFuturas.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
+                <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
+                  <CreditCard size={19} />
+                </span>
+                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
+              </div>
+            ) : (
+              <div className="mt-[18px] flex flex-1 flex-col gap-3">
+                {parcelasFuturas.map((p) => (
+                  <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
+                        <CreditCard size={13} className="text-amber-600" />
+                      </span>
+                      {MONTH_NAMES[p.mes]} {p.ano !== mesReferencia.ano ? p.ano : ''}
+                    </span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
+                  </div>
+                ))}
+                <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
+                  <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
+                  <div className="flex-1" />
+                  <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
+                </div>
+              </div>
+            )}
+          </Card>
+      </div>
       </div>
 
       {/* Série temporal */}
@@ -784,51 +899,6 @@ export function FinanceDashboard() {
             <span>Maior gasto <b className="text-[#0f2b38] dark:text-slate-100">{highlights.maiorGastoLabel} · {formatCurrency(highlights.maiorGastoValor)}</b></span>
             <span>Saldo do período <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{formatCurrency(saldoFinal)}</b></span>
           </div>
-        )}
-      </Card>
-
-      {/* Comparativo de colunas: Receita x Despesa por mês */}
-      <Card className="rounded-2xl p-[20px_22px_16px]">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">
-              Receitas × Despesas por mês <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodoDescricao}</span>
-            </h2>
-            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Comparativo lado a lado de cada mês do período filtrado.</p>
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-3.5 text-[11.5px] font-semibold text-[#6c8593] dark:text-slate-400">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" />Receitas</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#ef4444]" />Despesas</span>
-          </div>
-        </div>
-        {panoramaQ.isLoading ? (
-          <div className="h-60 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
-        ) : chartData.length === 0 ? (
-          <div className="h-60 flex items-center justify-center text-sm text-slate-400">Sem lançamentos neste período</div>
-        ) : (
-          <MonthlyComparisonBarChart data={chartData} />
-        )}
-      </Card>
-
-      {/* Cascata do período */}
-      <Card className="rounded-2xl p-[20px_22px_16px]">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do período</h2>
-            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu o período até o que sobrou, passando por cada corte.</p>
-          </div>
-          <div className="flex-1" />
-          {receitas > 0 && (
-            <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">
-              Sobrou <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoFinal / receitas) * 100).toFixed(1)}%</b> do que entrou
-            </span>
-          )}
-        </div>
-        {panoramaQ.isLoading ? (
-          <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
-        ) : (
-          <MonthWaterfallChart steps={waterfallSteps} />
         )}
       </Card>
 
