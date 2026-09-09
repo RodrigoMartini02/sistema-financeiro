@@ -20,9 +20,7 @@ export type SlotId =
   | 'billingType'
   | 'installments'
   | 'paidInstallments'
-  | 'recurrenceDay'
   | 'amount'
-  | 'cashPrice'
   | 'paid'
   | 'amountPaid'
   | 'purchaseDate'
@@ -39,9 +37,7 @@ export interface SlotDraft {
   billingType: SlotBillingType | null;
   installments: number | null;
   paidInstallments: number | null;
-  recurrenceDay: number | null;
   amount: number | null;
-  cashPrice: number | null;
   paid: boolean | null;
   amountPaid: number | null;
   date: string | null;
@@ -87,9 +83,7 @@ export function createEmptySlotDraft(kind: SlotDraftKind): SlotDraft {
     billingType: null,
     installments: null,
     paidInstallments: null,
-    recurrenceDay: null,
     amount: null,
-    cashPrice: null,
     paid: null,
     amountPaid: null,
     date: null,
@@ -118,10 +112,7 @@ function isSlotApplicable(slot: SlotId, draft: SlotDraft, catalog: SlotCatalog):
       return draft.paymentMethod === 'credito' || draft.paymentMethod === 'debito';
     case 'installments':
     case 'paidInstallments':
-    case 'cashPrice':
       return draft.billingType === 'parcelas';
-    case 'recurrenceDay':
-      return draft.billingType === 'mensal' && !isCreditCard(draft);
     case 'paid':
       return !isCreditCard(draft);
     case 'amountPaid':
@@ -145,9 +136,7 @@ function isSlotFilled(slot: SlotId, draft: SlotDraft): boolean {
     case 'billingType': return draft.billingType !== null;
     case 'installments': return draft.installments !== null;
     case 'paidInstallments': return draft.paidInstallments !== null;
-    case 'recurrenceDay': return draft.recurrenceDay !== null;
     case 'amount': return draft.amount !== null;
-    case 'cashPrice': return draft.cashPrice !== null;
     case 'paid': return draft.paid !== null;
     case 'amountPaid': return draft.amountPaid !== null;
     case 'purchaseDate': return draft.date !== null;
@@ -170,9 +159,7 @@ const SLOT_ORDER: SlotId[] = [
   'billingType',
   'installments',
   'paidInstallments',
-  'recurrenceDay',
   'amount',
-  'cashPrice',
   'paid',
   'amountPaid',
   'dueDate',
@@ -182,13 +169,12 @@ const SLOT_ORDER: SlotId[] = [
 
 /**
  * Campos cuja resposta invalida outros. Trocar a forma de pagamento derruba o
- * cartao escolhido; trocar o tipo de cobranca derruba parcelas e dia da
- * recorrencia. Sem isso, "nao, era no debito" deixaria para tras um cartao de
- * credito ja respondido.
+ * cartao escolhido; trocar o tipo de cobranca derruba as parcelas. Sem isso,
+ * "nao, era no debito" deixaria para tras um cartao de credito ja respondido.
  */
 const SLOT_DEPENDENTS: Partial<Record<SlotId, SlotId[]>> = {
   paymentMethod: ['cardId', 'paid', 'amountPaid', 'dueDate'],
-  billingType: ['installments', 'paidInstallments', 'recurrenceDay', 'cashPrice'],
+  billingType: ['installments', 'paidInstallments'],
   paid: ['amountPaid', 'dueDate'],
   amount: ['amountPaid'],
 };
@@ -196,8 +182,6 @@ const SLOT_DEPENDENTS: Partial<Record<SlotId, SlotId[]>> = {
 /** Slots que o usuario pode deixar em branco com [Pular]. */
 const SKIPPABLE_SLOTS = new Set<SlotId>([
   'paidInstallments',
-  'recurrenceDay',
-  'cashPrice',
   'invoiceNumber',
   'invoiceDate',
 ]);
@@ -218,8 +202,6 @@ export function clearDependentSlots(draft: SlotDraft, slot: SlotId): SlotDraft {
       case 'cardId': next.cardId = null; break;
       case 'installments': next.installments = null; break;
       case 'paidInstallments': next.paidInstallments = null; break;
-      case 'recurrenceDay': next.recurrenceDay = null; break;
-      case 'cashPrice': next.cashPrice = null; break;
       case 'paid': next.paid = null; break;
       case 'amountPaid': next.amountPaid = null; break;
       case 'dueDate': next.dueDate = null; break;
@@ -318,9 +300,6 @@ function buildQuestion(slot: SlotId, draft: SlotDraft, catalog: SlotCatalog): Sl
     case 'paidInstallments':
       return { slot, question: 'Quantas parcelas você já pagou?', options: [], isConfirmation: false, skippable };
 
-    case 'recurrenceDay':
-      return { slot, question: 'Vence todo dia quantos?', options: [], isConfirmation: false, skippable };
-
     case 'amount': {
       const label = draft.billingType === 'parcelas'
         ? 'Qual o valor da parcela?'
@@ -329,9 +308,6 @@ function buildQuestion(slot: SlotId, draft: SlotDraft, catalog: SlotCatalog): Sl
           : 'Quanto foi?';
       return { slot, question: label, options: [], isConfirmation: false, skippable: false };
     }
-
-    case 'cashPrice':
-      return { slot, question: 'Sabe o preço à vista?', options: [], isConfirmation: false, skippable };
 
     case 'paid':
       return { slot, question: 'Já foi paga?', options: YES_NO_OPTIONS, isConfirmation: false, skippable: false };

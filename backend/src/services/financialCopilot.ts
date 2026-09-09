@@ -351,8 +351,6 @@ function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraf
     billingType: slotDraft.billingType,
     installments: slotDraft.installments,
     paidInstallments: slotDraft.paidInstallments,
-    recurrenceDay: slotDraft.recurrenceDay,
-    cashPrice: slotDraft.cashPrice,
     amountPaid: slotDraft.amountPaid,
     invoiceNumber: slotDraft.invoiceNumber,
     invoiceDate: slotDraft.invoiceDate,

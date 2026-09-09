@@ -20,8 +20,6 @@ export interface FinancialAssistantDraft {
   billingType?: 'nao' | 'parcelas' | 'mensal' | null;
   installments?: number | null;
   paidInstallments?: number | null;
-  recurrenceDay?: number | null;
-  cashPrice?: number | null;
   amountPaid?: number | null;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;

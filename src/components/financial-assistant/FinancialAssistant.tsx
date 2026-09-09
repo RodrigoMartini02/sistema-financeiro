@@ -990,7 +990,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                     billingType,
                                     installments: billingType === 'parcelas' ? draft.installments : null,
                                     paidInstallments: billingType === 'parcelas' ? draft.paidInstallments : null,
-                                    recurrenceDay: billingType === 'mensal' ? draft.recurrenceDay : null,
                                   });
                                 }}
                                 className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"

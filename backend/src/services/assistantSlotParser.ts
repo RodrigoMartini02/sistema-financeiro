@@ -41,6 +41,12 @@ const NEGATIVE = new Set(['nao', 'n', 'negativo', 'errado', 'incorreto', 'ainda 
 const CORRECTION = new Set(['corrigir', 'trocar', 'outro', 'outra', 'outro valor', 'mudar', 'alterar']);
 const SKIP = new Set(['pular', 'nao sei', 'sem', 'nenhum', 'nenhuma', 'depois', 'deixa', 'skip']);
 
+/** Aceita tambem a variante "criar", usada na oferta de nova categoria. */
+export function isAffirmativeAnswer(answer: string): boolean {
+  const text = normalize(normalizeAssistantInputText(answer));
+  return AFFIRMATIVE.has(text) || text === 'criar';
+}
+
 function isAffirmative(text: string): boolean {
   return AFFIRMATIVE.has(text);
 }
@@ -274,27 +280,12 @@ export function applySlotAnswer(
       return { draft: { ...draft, paidInstallments }, reask: null, skipped: null, confirmed: null, understood: true };
     }
 
-    case 'recurrenceDay': {
-      const recurrenceDay = parsePositiveInteger(text, 31);
-      if (recurrenceDay === null || recurrenceDay < 1) return unchanged;
-      return { draft: { ...draft, recurrenceDay }, reask: null, skipped: null, confirmed: null, understood: true };
-    }
-
     case 'amount': {
       // Perguntado o valor, a resposta inteira e o valor: "quatrocentos" basta.
       const amount = extractAmountFromText(raw) ?? extractSpokenAmountWithoutCurrency(text);
       if (amount === null) return unchanged;
       const next = clearDependentSlots({ ...draft, amount }, 'amount');
       return { draft: next, reask: null, skipped: null, confirmed: null, understood: true };
-    }
-
-    case 'cashPrice': {
-      if (isNegative(text)) {
-        return { draft, reask: null, skipped: slot, confirmed: null, understood: true };
-      }
-      const cashPrice = extractAmountFromText(raw);
-      if (cashPrice === null) return unchanged;
-      return { draft: { ...draft, cashPrice }, reask: null, skipped: null, confirmed: null, understood: true };
     }
 
     case 'paid': {

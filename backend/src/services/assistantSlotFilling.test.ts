@@ -93,18 +93,21 @@ test('parcelamento pergunta parcelas e parcelas ja pagas', () => {
   assert.equal(nextSlotQuestion(comParcelas, catalog)?.slot, 'paidInstallments');
 });
 
-test('recorrencia pergunta o dia apenas fora do credito', () => {
+test('recorrencia nao pergunta dia nem preco a vista: o banco nao guarda nenhum dos dois', () => {
   const noPix = expenseDraft({
     description: 'aluguel', category: 'Contas', amount: 2000,
     paymentMethod: 'pix', billingType: 'mensal',
   });
-  assert.equal(nextSlotQuestion(noPix, catalog)?.slot, 'recurrenceDay');
+  // Segue direto para "ja foi paga", sem perguntar o dia da recorrencia.
+  assert.equal(nextSlotQuestion(noPix, catalog)?.slot, 'paid');
 
-  const noCredito = expenseDraft({
-    description: 'streaming', category: 'Contas', amount: 40,
-    paymentMethod: 'credito', cardId: 10, billingType: 'mensal',
+  const parcelado = expenseDraft({
+    description: 'geladeira', category: 'Contas', amount: 300,
+    paymentMethod: 'credito', cardId: 10, billingType: 'parcelas',
+    installments: 10, paidInstallments: 0,
   });
-  assert.notEqual(nextSlotQuestion(noCredito, catalog)?.slot, 'recurrenceDay');
+  // Parcelado no credito vai direto ao vencimento, sem passar por preco a vista.
+  assert.equal(nextSlotQuestion(parcelado, catalog)?.slot, 'dueDate');
 });
 
 test('NF so e oferecida em conta empresa', () => {
@@ -145,7 +148,7 @@ test('corrigir a forma de pagamento descarta o cartao ja escolhido', () => {
   assert.equal(result.draft.cardId, null);
 });
 
-test('trocar o tipo de cobranca descarta parcelas e dia da recorrencia', () => {
+test('trocar o tipo de cobranca descarta as parcelas', () => {
   const draft = expenseDraft({ billingType: 'parcelas', installments: 10, paidInstallments: 2 });
   const result = applySlotAnswer(draft, 'billingType', 'nao repete', catalog);
   assert.equal(result.draft.billingType, 'nao');

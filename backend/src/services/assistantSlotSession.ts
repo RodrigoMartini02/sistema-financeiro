@@ -15,7 +15,7 @@ import {
   type SlotId,
   type SlotQuestion,
 } from './assistantSlotFilling';
-import { applySlotAnswer, seedDraftFromMessage } from './assistantSlotParser';
+import { applySlotAnswer, isAffirmativeAnswer, seedDraftFromMessage } from './assistantSlotParser';
 
 // Estado do preenchimento guiado entre uma mensagem e a seguinte. Vive no
 // `payload` jsonb de copilot_mensagens; quando essa tabela nao existe, volta
@@ -67,9 +67,7 @@ export function parseSlotSessionState(value: unknown): SlotSessionState | null {
   draft.billingType = asBillingType(source['billingType']);
   draft.installments = asBoundedInteger(source['installments'], 2, 360);
   draft.paidInstallments = asBoundedInteger(source['paidInstallments'], 0, 360);
-  draft.recurrenceDay = asBoundedInteger(source['recurrenceDay'], 1, 31);
   draft.amount = asAmount(source['amount']);
-  draft.cashPrice = asAmount(source['cashPrice']);
   draft.paid = typeof source['paid'] === 'boolean' ? source['paid'] : null;
   draft.amountPaid = asAmount(source['amountPaid']);
   draft.date = asIsoDate(source['date']);
@@ -245,8 +243,7 @@ async function resolvePendingCategory(input: {
   userId: number;
   account: FinancialAccount;
 }): Promise<SlotSessionStep> {
-  const answer = input.message.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-  const accepted = ['sim', 's', 'criar', 'pode', 'ok', 'isso', 'confirmo'].includes(answer);
+  const accepted = isAffirmativeAnswer(input.message);
   const pending = input.state.pendingCategory!;
 
   if (!accepted) {
