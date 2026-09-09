@@ -608,8 +608,14 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
 
     const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
 
+    // Sem valor informado, grava o proprio valor da compra. Deixar nulo obrigava
+    // toda leitura a presumir o valor por COALESCE, e escondia juros e desconto
+    // de quem quitou sem digitar nada.
     const result = await pool.query(
-      `UPDATE despesas SET pago = true, data_pagamento = $1, valor_pago = $2 WHERE id = $3 AND usuario_id = $4 RETURNING *`,
+      `UPDATE despesas
+       SET pago = true, data_pagamento = $1, valor_pago = COALESCE($2, valor_original)
+       WHERE id = $3 AND usuario_id = $4
+       RETURNING *`,
       [paymentDate, valor_pago ?? null, expenseId, req.user!.id],
     );
 
