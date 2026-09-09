@@ -373,25 +373,28 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
     const baseParams = [authorIds, de, ate, accountId, ownerForFallback];
 
     const [expensesResult, incomesResult, categoryResult, namesResult] = await Promise.all([
+      // Mesma formula do painel: despesa paga vale o que foi pago, e lancamento
+      // cancelado nao entra. Sem isso, os blocos por membro divergiam dos totais
+      // da tela ao lado.
       pool.query(
-        `SELECT usuario_id, COALESCE(SUM(valor_original), 0) AS total
-         FROM despesas WHERE usuario_id = ANY($1) AND ${periodFilter} AND ${contaFiltro}
+        `SELECT usuario_id, COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total
+         FROM despesas WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodFilter} AND ${contaFiltro}
          GROUP BY usuario_id`,
         baseParams,
       ),
       pool.query(
         `SELECT usuario_id, COALESCE(SUM(valor), 0) AS total
-         FROM receitas WHERE usuario_id = ANY($1) AND ${periodFilter} AND ${contaFiltro}
+         FROM receitas WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodFilter} AND ${contaFiltro}
          GROUP BY usuario_id`,
         baseParams,
       ),
       // Despesa por membro E categoria: alimenta as barras divididas.
       pool.query(
         `SELECT d.usuario_id, d.categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria_nome,
-                COALESCE(SUM(d.valor_original), 0) AS total
+                COALESCE(SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END), 0) AS total
          FROM despesas d
          LEFT JOIN categorias c ON c.id = d.categoria_id
-         WHERE d.usuario_id = ANY($1)
+         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa'
            AND (d.ano * 12 + d.mes) BETWEEN COALESCE($2::int, -2147483648) AND COALESCE($3::int, 2147483647)
            AND ($4::int IS NULL OR d.conta_id = $4 OR (d.conta_id IS NULL AND EXISTS (
              SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $5
