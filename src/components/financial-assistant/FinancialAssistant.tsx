@@ -1139,7 +1139,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 </div>
               )}
 
-              <div className="flex items-end gap-2.5">
+              <div className="flex items-end gap-1.5">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1154,11 +1154,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-[#0891b2] hover:bg-cyan-50 hover:text-[#0891b2] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
                   aria-label="Enviar um arquivo ou foto"
                   title="Enviar um arquivo ou foto"
                 >
-                  <Plus size={20} />
+                  <Plus size={19} />
                 </button>
                 {/* Camera separada do anexo: `capture` no input de arquivo
                     forcaria a camera sempre, e o `+` precisa continuar servindo
@@ -1179,15 +1179,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     <button
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
-                      className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-[#0891b2] hover:bg-cyan-50 hover:text-[#0891b2] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
                       aria-label="Fotografar um boleto ou comprovante"
                       title="Fotografar um boleto ou comprovante"
                     >
-                      <Camera size={20} />
+                      <Camera size={19} />
                     </button>
                   </>
                 )}
-                <div className="flex min-h-12 flex-1 items-end gap-2 rounded-[26px] border border-slate-200 bg-slate-100 py-1 pl-4 pr-1 dark:border-slate-700 dark:bg-slate-900">
+                <div className="flex min-h-11 min-w-0 flex-1 items-end gap-1 rounded-[24px] border border-slate-200 bg-slate-100 py-1 pl-3.5 pr-1 dark:border-slate-700 dark:bg-slate-900">
                   <textarea
                     ref={composerRef}
                     rows={1}
@@ -1207,13 +1207,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       type="button"
                       onClick={toggleVoiceInput}
                       className={[
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition',
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition',
                         isListening ? 'bg-red-500 text-white hover:bg-red-600' : 'text-slate-500 hover:bg-slate-200 hover:text-[#0891b2] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300',
                       ].join(' ')}
                       aria-label={isListening ? 'Parar gravação de voz' : 'Falar em vez de escrever'}
                       title={isListening ? 'Parar voz' : 'Falar em vez de escrever'}
                     >
-                      {isListening ? <Square size={16} fill="currentColor" /> : <Mic size={19} />}
+                      {isListening ? <Square size={15} fill="currentColor" /> : <Mic size={17} />}
                     </button>
                   )}
                 </div>
@@ -1221,7 +1221,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                   type="button"
                   onClick={() => void handleSend()}
                   disabled={isPreparing || (!composer.trim() && attachments.length === 0)}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full bg-[#0891b2] text-white shadow-sm transition hover:bg-[#0e7490] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-full bg-[#0891b2] text-white shadow-sm transition hover:bg-[#0e7490] disabled:cursor-not-allowed disabled:opacity-45"
                   aria-label="Enviar mensagem"
                   title="Enviar"
                 >
