@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { findBoletoLine } from './boletoLine';
 
 export interface FinancialInfo {
   valor: number | null;
@@ -27,6 +28,17 @@ export function extractFinancialInfo(text: string): FinancialInfo {
   const info: FinancialInfo = { valor: null, data: null, vencimento: null, empresa: null, descricao: null, tipo: null, cnpj: null, cpf: null, numero_documento: null };
   if (!text) return info;
 
+  // A linha digitavel tem precedencia sobre os padroes de texto: valor e
+  // vencimento vem codificados dentro dela, com digito verificador, em vez de
+  // depender de o boleto escrever "R$" ou "vencimento" de forma reconhecivel.
+  // Os regex abaixo seguem valendo para recibo, nota e comprovante.
+  const boleto = findBoletoLine(text);
+  if (boleto) {
+    info.valor = boleto.valor;
+    info.vencimento = boleto.vencimento;
+    info.tipo = 'boleto';
+  }
+
   const valuePatterns = [
     /(?:valor\s+cobrado|valor\s+do\s+documento|valor\s+total|total\s+a\s+pagar|total\s+cobrado)\s*[:\-]?\s*R?\$?\s*([\d.]+,\d{2})/i,
     /(?:valor|total|pagamento|cobrad[o]?|pagar)\s*[:\-]?\s*R?\$?\s*([\d.]+,\d{2})/i,
@@ -35,24 +47,30 @@ export function extractFinancialInfo(text: string): FinancialInfo {
     /\b([\d]{1,4},\d{2})\b/,
   ];
 
-  for (const pattern of valuePatterns) {
-    const matches = [...text.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))];
-    let best: number | null = null;
-    for (const m of matches) {
-      const raw = (m[1] ?? m[0])!;
-      const v = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
-      if (!isNaN(v) && v > 0 && v < 10000000 && (best === null || v > best)) best = v;
+  // Só varre o texto se a linha digitavel nao resolveu: com o valor ja decodificado,
+  // rodar os cinco padroes sobre a pagina inteira seria trabalho jogado fora.
+  if (info.valor === null) {
+    for (const pattern of valuePatterns) {
+      const matches = [...text.matchAll(new RegExp(pattern.source, pattern.flags + 'g'))];
+      let best: number | null = null;
+      for (const m of matches) {
+        const raw = (m[1] ?? m[0])!;
+        const v = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
+        if (!isNaN(v) && v > 0 && v < 10000000 && (best === null || v > best)) best = v;
+      }
+      if (best !== null) { info.valor = best; break; }
     }
-    if (best !== null) { info.valor = best; break; }
   }
 
   const duePatterns = [
     /(?:vencimento|vence|validade|prazo|venc\.?)\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
     /data\s+de?\s+vencimento\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
   ];
-  for (const p of duePatterns) {
-    const m = text.match(p);
-    if (m) { info.vencimento = normalizeOcrDate(m[1]!); break; }
+  if (info.vencimento === null) {
+    for (const p of duePatterns) {
+      const m = text.match(p);
+      if (m) { info.vencimento = normalizeOcrDate(m[1]!); break; }
+    }
   }
 
   const datePatterns = [
@@ -79,10 +97,12 @@ export function extractFinancialInfo(text: string): FinancialInfo {
   const cpfM = text.match(/\d{3}[\.\s]?\d{3}[\.\s]?\d{3}[\-\s]?\d{2}(?!\d)/);
   if (cpfM) info.cpf = cpfM[0].replace(/\D/g, '');
 
-  if (/boleto/i.test(text)) info.tipo = 'boleto';
-  else if (/nota\s+fiscal|nf-?e|nfs-?e/i.test(text)) info.tipo = 'nota_fiscal';
-  else if (/comprovante\s+(?:de\s+)?(?:pix|pagamento|transf)/i.test(text)) info.tipo = 'comprovante';
-  else if (/recibo/i.test(text)) info.tipo = 'recibo';
+  if (info.tipo === null) {
+    if (/boleto/i.test(text)) info.tipo = 'boleto';
+    else if (/nota\s+fiscal|nf-?e|nfs-?e/i.test(text)) info.tipo = 'nota_fiscal';
+    else if (/comprovante\s+(?:de\s+)?(?:pix|pagamento|transf)/i.test(text)) info.tipo = 'comprovante';
+    else if (/recibo/i.test(text)) info.tipo = 'recibo';
+  }
 
   return info;
 }
