@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
+  Camera, Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -295,9 +295,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const speech = useSpeech();
   // Reconhecimento nao e padrao: sem suporte, o microfone nem aparece.
   const [recognitionSupported] = useState(() => getSpeechRecognitionConstructor() !== null);
+  // No desktop o `capture` cai no seletor de arquivos comum e o botao ficaria
+  // sem funcao propria; a barra ja tem tres controles e nao comporta um quarto
+  // decorativo.
+  const [temCamera] = useState(() => typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
   const [lastVoiceTranscript, setLastVoiceTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1155,6 +1160,33 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                 >
                   <Plus size={20} />
                 </button>
+                {/* Camera separada do anexo: `capture` no input de arquivo
+                    forcaria a camera sempre, e o `+` precisa continuar servindo
+                    para PDF e galeria. So aparece onde ha camera traseira. */}
+                {temCamera && (
+                  <>
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleFiles(event.target.files);
+                        event.target.value = '';
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-[#0891b2] hover:bg-cyan-50 hover:text-[#0891b2] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-cyan-300"
+                      aria-label="Fotografar um boleto ou comprovante"
+                      title="Fotografar um boleto ou comprovante"
+                    >
+                      <Camera size={20} />
+                    </button>
+                  </>
+                )}
                 <div className="flex min-h-12 flex-1 items-end gap-2 rounded-[26px] border border-slate-200 bg-slate-100 py-1 pl-4 pr-1 dark:border-slate-700 dark:bg-slate-900">
                   <textarea
                     ref={composerRef}
