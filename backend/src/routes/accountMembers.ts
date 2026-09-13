@@ -13,10 +13,11 @@ const router = Router();
 // Resolve a Conta Padrão do gestor autenticado (mesma noção usada em todo o
 // backend: a conta com eh_padrao=true é a que nasceu no cadastro externo).
 /**
- * Conta onde os membros da familia vivem. Exige conta padrao do tipo pessoal:
- * membro familiar nao existe em conta empresa, onde cada colaborador segue
- * isolado. Antes o tipo nao era verificado, e um gestor com conta padrao PJ
- * acabava vinculando membros la.
+ * Conta onde os membros/colaboradores vivem. Vale para os dois tipos de
+ * conta: em conta pessoal sao "membros da familia" com carteira
+ * compartilhada (ver familyVisibility.ts); em conta empresa sao
+ * "colaboradores", que permanecem isolados entre si — o tipo so muda a
+ * visibilidade dos lancamentos, nunca a possibilidade do vinculo em si.
  */
 async function resolveGestorAccountId(gestorId: number): Promise<number | null> {
   const [account] = await db
@@ -24,8 +25,7 @@ async function resolveGestorAccountId(gestorId: number): Promise<number | null> 
     .from(accounts)
     .where(and(eq(accounts.userId, gestorId), eq(accounts.isDefault, true)))
     .limit(1);
-  if (!account || account.type !== 'pessoal') return null;
-  return account.id;
+  return account?.id ?? null;
 }
 
 // GET /api/account-members — lista os membros vinculados à conta do gestor autenticado
@@ -424,11 +424,139 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
   }
 });
 
+// GET /api/account-members/overview — panorama agregado entre TODAS as
+// contas do dono (PF + PJs). Dono sempre acessa todas as suas contas; membro
+// so acessa se accessGeneralOverview estiver liberado, e mesmo assim ve
+// apenas a(s) conta(s) as quais esta vinculado — nunca outras contas do dono.
+router.get('/overview', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano } = req.query as Record<string, string | undefined>;
+
+    const memberAccountId = await resolveMemberAccountId(req.user!.id);
+    const isMember = memberAccountId !== null;
+
+    let accountIds: number[];
+    let ownerId: number;
+
+    if (isMember) {
+      const [permissions] = await db
+        .select({ accessGeneralOverview: memberPermissions.accessGeneralOverview })
+        .from(memberPermissions)
+        .where(eq(memberPermissions.userId, req.user!.id))
+        .limit(1);
+
+      if (!permissions?.accessGeneralOverview) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+
+      const contaVinculada = await pool.query(`SELECT usuario_id FROM contas WHERE id = $1`, [memberAccountId]);
+      const donoDaConta = (contaVinculada.rows[0] as { usuario_id: number } | undefined)?.usuario_id;
+      if (!donoDaConta) {
+        res.status(404).json({ success: false, message: 'Account not found' });
+        return;
+      }
+
+      // Membro so enxerga a conta a qual esta vinculado, nunca as demais
+      // contas do dono — accessGeneralOverview libera VER o panorama, nao
+      // amplia quais contas entram nele.
+      ownerId = donoDaConta;
+      accountIds = [memberAccountId];
+    } else {
+      ownerId = req.user!.id;
+      const ownedAccounts = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(eq(accounts.userId, ownerId), eq(accounts.active, true)));
+
+      if (ownedAccounts.length === 0) {
+        res.status(404).json({ success: false, message: 'No accounts found' });
+        return;
+      }
+
+      accountIds = ownedAccounts.map((a) => a.id);
+    }
+
+    // Registros legados sem conta_id caem na conta padrao do dono (mesma regra
+    // de accountAccess.ts/familyVisibility.ts). Em conta pessoal, membros
+    // lancam sob o proprio usuario_id — por isso o fallback tambem precisa
+    // cobrir os autores vinculados, nao so o dono.
+    const contaPadraoDono = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.userId, ownerId), eq(accounts.isDefault, true)))
+      .limit(1);
+    const contaPadraoId = contaPadraoDono[0]?.id ?? null;
+    const membrosDaContaPadrao = contaPadraoId
+      ? await pool.query(`SELECT usuario_id FROM conta_membros WHERE conta_id = $1 AND status = 'ativo'`, [contaPadraoId])
+      : { rows: [] as { usuario_id: number }[] };
+    const autoresFallback = [ownerId, ...membrosDaContaPadrao.rows.map((r) => r.usuario_id)];
+
+    const mesUnico = mes !== undefined && ano !== undefined
+      ? parseInt(ano) * 12 + parseInt(mes)
+      : null;
+    const deChave = de_ano !== undefined ? parseInt(de_ano) * 12 + (de_mes !== undefined ? parseInt(de_mes) : 0) : null;
+    const ateChave = ate_ano !== undefined ? parseInt(ate_ano) * 12 + (ate_mes !== undefined ? parseInt(ate_mes) : 11) : null;
+    const de = mesUnico ?? deChave;
+    const ate = mesUnico ?? ateChave;
+
+    const periodFilter = `(ano * 12 + mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)`;
+    const baseParams = [accountIds, contaPadraoId, autoresFallback, de, ate];
+
+    const [contasResult, expensesResult, incomesResult] = await Promise.all([
+      pool.query(
+        `SELECT id, tipo, nome, razao_social, nome_fantasia FROM contas WHERE id = ANY($1) ORDER BY eh_padrao DESC, data_criacao, id`,
+        [accountIds],
+      ),
+      // Despesas de TODOS os autores das contas listadas, somadas por conta —
+      // conta_id nunca vem do client, so da lista ja resolvida acima. Fallback
+      // (conta_id nulo) so entra quando a conta padrao do dono esta no
+      // conjunto pedido, e so pelos autores vinculados a ela.
+      pool.query(
+        `SELECT COALESCE(d.conta_id, $2) AS conta_id,
+                COALESCE(SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END), 0) AS total
+         FROM despesas d
+         WHERE d.status = 'ativa' AND ${periodFilter}
+           AND (
+             d.conta_id = ANY($1)
+             OR (d.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND d.usuario_id = ANY($3))
+           )
+         GROUP BY COALESCE(d.conta_id, $2)`,
+        baseParams,
+      ),
+      pool.query(
+        `SELECT COALESCE(r.conta_id, $2) AS conta_id, COALESCE(SUM(r.valor), 0) AS total
+         FROM receitas r
+         WHERE r.status = 'ativa' AND ${periodFilter}
+           AND (
+             r.conta_id = ANY($1)
+             OR (r.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND r.usuario_id = ANY($3))
+           )
+         GROUP BY COALESCE(r.conta_id, $2)`,
+        baseParams,
+      ),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        contas: contasResult.rows,
+        despesas_por_conta: expensesResult.rows,
+        receitas_por_conta: incomesResult.rows,
+      },
+    });
+  } catch (error) {
+    console.error('Accounts overview error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load accounts overview' });
+  }
+});
+
 const PERMISSION_FLAGS: PermissionFlag[] = [
   'accessExpenses', 'accessIncomes', 'accessMonthClosing', 'accessReserves', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
   'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners', 'accessMembers', 'accessSubscription',
   'accessClients', 'accessContracts', 'accessProductCatalog',
+  'accessGeneralOverview',
 ];
 
 // GET /api/account-members/me/permissions — o próprio usuário logado consulta

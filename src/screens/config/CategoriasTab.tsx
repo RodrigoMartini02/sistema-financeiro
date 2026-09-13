@@ -248,7 +248,7 @@ export function CategoriasTab() {
   const guideNovaCategoria = useFirstAccessGuide('categorias:nova-v1');
   const guideSubcategoria = useFirstAccessGuide('categorias:sub-v1');
 
-  const cats = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
+  const cats = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
   const allCats = cats.data ?? [];
 
   // O backend devolve ativas e inativas; o filtro é aplicado aqui. Uma raiz
@@ -262,10 +262,12 @@ export function CategoriasTab() {
   }));
   const totalSubs = tree.reduce((n, r) => n + (r.subcategorias?.length ?? 0), 0);
 
+  // So o prefixo (sem o segmento de conta): invalida TODAS as variantes por
+  // conta, nao so a da conta ativa.
   const saveMut = useMutation({
     mutationFn: async ({ v, id }: { v: CategoriaFormValues; id?: number }) => saveCategoria(v, id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.categorias });
+      qc.invalidateQueries({ queryKey: ['categorias'] });
       setDialog({ open: false });
     },
   });
@@ -273,7 +275,7 @@ export function CategoriasTab() {
   const toggleMut = useMutation({
     mutationFn: toggleCategoria,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.categorias });
+      qc.invalidateQueries({ queryKey: ['categorias'] });
       setDialog({ open: false });
     },
   });

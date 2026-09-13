@@ -43,6 +43,8 @@ export interface IncomeFormValues {
   descricao: string;
   valor: number;
   data: string;
+  /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
+  contaId?: number | null;
   cliente?: string;
   tipoReceita?: string;
   observacoes?: string;
@@ -53,6 +55,9 @@ export interface IncomeFormValues {
   contratoId?: number | null;
   tipoHora?: 'presencial' | 'remoto' | null;
   quantidadeHoras?: number | null;
+  /** Produto do catálogo vendido; a quantidade baixa o estoque. */
+  produtoId?: string | null;
+  quantidadeVendida?: number | null;
 }
 
 export interface Expense {
@@ -89,6 +94,8 @@ export interface Expense {
 
 export interface ExpenseFormValues {
   descricao: string;
+  /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
+  contaId?: number | null;
   valor_original?: number;      // preço base (obrigatório na prática)
   valor_pago?: number;          // valor efetivamente pago, quando divergir do valor da compra
   dataVencimento: string;
@@ -149,6 +156,13 @@ export interface DashboardPanoramaEmAberto {
   aVencerQuantidade: number;
 }
 
+export interface DashboardPanoramaEstoqueBaixo {
+  id: string;
+  nome: string;
+  quantidade_estoque: number;
+  estoque_minimo: number;
+}
+
 export interface DashboardPanoramaData {
   receitas: number;
   despesas: number;
@@ -162,6 +176,8 @@ export interface DashboardPanoramaData {
   porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
   porCartao: { cartao: string; total: number }[];
   emAberto: DashboardPanoramaEmAberto;
+  /** Produtos ativos cujo saldo atingiu o mínimo configurado. */
+  estoqueBaixo?: DashboardPanoramaEstoqueBaixo[];
   granularidade: 'mes' | 'ano';
   serie: DashboardPanoramaSeriePonto[];
   despesasDetalhe: DashboardPanoramaDespesasDetalhe;

@@ -12,8 +12,11 @@ export const queryKeys = {
   dashboard: (month: number, year: number) => ['dashboard', month, year] as const,
   reservas: ['reservas'] as const,
   movimentacoes: (reservaId: number) => ['movimentacoes', reservaId] as const,
-  categorias: ['categorias'] as const,
-  cartoes: ['cartoes'] as const,
+  // Parametrizado por conta: sem argumento, chave estavel identica a antes
+  // (['categorias', 'ativa']) — os call sites que nao lidam com troca de
+  // conta continuam funcionando sem qualquer ajuste alem de virar chamada.
+  categorias: (accountId?: number | null) => ['categorias', accountId ?? 'ativa'] as const,
+  cartoes: (accountId?: number | null) => ['cartoes', accountId ?? 'ativa'] as const,
   contas: ['contas'] as const,
   representantes: ['representantes'] as const,
   socios: ['socios'] as const,
@@ -34,6 +37,8 @@ export const queryKeys = {
     ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroId ?? null] as const,
   accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
     ['account-summary', deMes, deAno, ateMes, ateAno] as const,
+  accountsOverview: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
+    ['accounts-overview', deMes, deAno, ateMes, ateAno] as const,
   membros: () => ['membros'] as const,
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
@@ -48,4 +53,5 @@ export const queryKeys = {
   cardLimits: ['card-limits'] as const,
   catalogoProdutos: ['catalogo-produtos'] as const,
   catalogoConta: ['catalogo-conta'] as const,
+  movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
 };

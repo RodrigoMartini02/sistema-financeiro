@@ -10,6 +10,7 @@ import { SobrePage } from './screens/public/SobrePage';
 import { PlanosPage } from './screens/public/PlanosPage';
 import { ContatoPage } from './screens/public/ContatoPage';
 import { LegalPage } from './screens/public/LegalPage';
+import { CatalogoPublicoPage } from './screens/public/CatalogoPublicoPage';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
@@ -93,6 +94,7 @@ function PublicSite() {
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/termos" element={<LegalPage type="termos" />} />
         <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
+        <Route path="/catalogo/:contaId" element={<CatalogoPublicoPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
       <CookieBanner />

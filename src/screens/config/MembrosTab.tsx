@@ -17,8 +17,8 @@ import { formatDocumentoAuto } from '../../utils/document';
 // Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
 // conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
 // "colaborador" (da equipe).
-interface Termo { singular: string; artigo: string; }
-const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
+export interface Termo { singular: string; artigo: string; }
+export const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
   pessoal: { singular: 'membro', artigo: 'o' },
   empresa: { singular: 'colaborador', artigo: 'o' },
 };

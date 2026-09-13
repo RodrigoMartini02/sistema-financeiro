@@ -5,7 +5,8 @@ export type PermissionFlag =
   | 'accessDashboard' | 'accessReports' | 'accessNotifications' | 'accessAssistant'
   | 'accessAccounts' | 'accessCategories' | 'accessCards' | 'accessServices' | 'accessRepresentatives' | 'accessPartners' | 'accessMembers' | 'accessSubscription'
   | 'accessClients' | 'accessContracts' | 'accessProductCatalog'
-  | 'accessFamilyEntries' | 'editFamilyEntries' | 'accessFamilyCards';
+  | 'accessFamilyEntries' | 'editFamilyEntries' | 'accessFamilyCards'
+  | 'accessGeneralOverview';
 
 export type MemberPermissionsData = Record<PermissionFlag, boolean> & {
   id?: number;
@@ -40,6 +41,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { flag: 'accessReports', label: 'Relatórios' },
       { flag: 'accessNotifications', label: 'Notificações' },
       { flag: 'accessAssistant', label: 'Assistente Financeiro' },
+      { flag: 'accessGeneralOverview', label: 'Panorama Geral (todas as contas do dono)' },
     ],
   },
   {

@@ -63,8 +63,8 @@ export function useOnboardingChecklist(enabled: boolean) {
   const { isDemoMode, isSilencedAll, silenceAll } = useFirstAccessGuideCoordinator();
 
   const canQuery = enabled && !isDismissed && !isDemoMode && !isSilencedAll;
-  const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes, enabled: canQuery });
-  const categoriasQuery = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias, enabled: canQuery });
+  const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes(), enabled: canQuery });
+  const categoriasQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias(), enabled: canQuery });
   const clientesQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: canQuery && isEmpresa });
   const representantesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: canQuery && isEmpresa });
 

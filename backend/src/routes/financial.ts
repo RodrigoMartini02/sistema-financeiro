@@ -144,7 +144,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
 
     const params = [escopo, userId, accountId, deChave, ateChave];
 
-    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, cartaoResult, emAbertoResult] = await Promise.all([
+    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, cartaoResult, emAbertoResult, estoqueBaixoResult] = await Promise.all([
       pool.query(
         `SELECT
           COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
@@ -272,6 +272,28 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
          WHERE usuario_id = ANY($1) AND status = 'ativa' AND pago = false AND ${contaFiltro}`,
         [escopo, userId, accountId],
       ),
+      // Estoque baixo: so produtos ativos COM minimo definido (minimo nulo
+      // significa produto sem controle de alerta). Absoluto como as vencidas:
+      // estoque no fim nao depende do periodo que a tela esta olhando.
+      //
+      // O schema `catalogo` pode nao existir no ambiente (migration 0026/0037
+      // ainda nao aplicada); o painel inteiro nao pode cair por causa disso.
+      pool.query(
+        `SELECT id, nome, quantidade_estoque::float AS quantidade_estoque, estoque_minimo::float AS estoque_minimo
+         FROM catalogo.produtos
+         WHERE usuario_id = $1
+           AND ativo = true
+           AND estoque_minimo IS NOT NULL
+           AND quantidade_estoque <= estoque_minimo
+           AND ($2::int IS NULL OR conta_id = $2 OR conta_id IS NULL)
+         ORDER BY quantidade_estoque ASC, nome ASC
+         LIMIT 20`,
+        [userId, accountId],
+      ).catch((error: unknown) => {
+        const semTabela = typeof error === 'object' && error !== null && 'code' in error && error.code === '42P01';
+        if (semTabela) return { rows: [] };
+        throw error;
+      }),
     ]);
 
     const totaisPrevia = totaisResult.rows[0] as { primeira_data: string | null };
@@ -362,6 +384,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         porOrigem: origemResult.rows,
         porCartao: cartaoResult.rows,
         emAberto: emAbertoResult.rows[0],
+        estoqueBaixo: estoqueBaixoResult.rows,
         granularidade,
         serie: serieResult.rows,
         despesasDetalhe,

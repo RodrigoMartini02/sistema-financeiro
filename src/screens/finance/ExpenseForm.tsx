@@ -87,6 +87,9 @@ interface ExpenseFormProps {
   presetDate?: string;
   isEmpresa: boolean;
   isEditing: boolean;
+  /** Conta (PF/CNPJ) onde o lançamento vai entrar — decide categorias/cartões
+   *  visíveis e o conta_id gravado. Undefined/null usa a conta ativa. */
+  contaId?: number | null;
   /** Estado do modal: fechar limpa o formulário do topo. */
   open: boolean;
   /** Container rolável do modal, para o CategoryFloatingSelect se posicionar. */
@@ -114,7 +117,7 @@ interface ExpenseFormProps {
  * deixaria a fiação maior sem economizar nenhuma ida à rede.
  */
 export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(function ExpenseForm({
-  valoresIniciais, expense, presetDate, isEmpresa, isEditing, open,
+  valoresIniciais, expense, presetDate, isEmpresa, isEditing, open, contaId,
   scrollContainerRef, autoFocus, guideEnabled, onResumoChange, onRemover, titulo,
 }, ref) {
   const qc = useQueryClient();
@@ -132,18 +135,21 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   const [valorInputMode, setValorInputMode] = useState<'parcela' | 'avista'>('parcela');
   const [methodTouched, setMethodTouched] = useState(false);
 
-  const categorias = useQuery({ queryKey: queryKeys.categorias, queryFn: fetchCategorias });
-  const cartoes    = useQuery({ queryKey: queryKeys.cartoes,    queryFn: fetchCartoes });
+  const categorias = useQuery({ queryKey: queryKeys.categorias(contaId), queryFn: () => fetchCategorias(contaId) });
+  const cartoes    = useQuery({ queryKey: queryKeys.cartoes(contaId),    queryFn: () => fetchCartoes(contaId) });
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
   const repetitionGuide = useFirstAccessGuide('despesas:toggles-tipo-v1', {
     enabled: !!guideEnabled && open && !isEditing,
     layer: GUIDE_LAYER_MODAL,
   });
 
+  // Categoria criada aqui nasce na conta SELECIONADA no lancamento, nao na
+  // conta ativa da sessao — se o usuario trocou o seletor para outra conta,
+  // e la que a categoria nova deve entrar.
   const criarCatMut = useMutation({
-    mutationFn: (nome: string) => saveCategoria({ nome }),
+    mutationFn: (nome: string) => saveCategoria({ nome }, undefined, contaId),
     onSuccess: (cat) => {
-      qc.invalidateQueries({ queryKey: queryKeys.categorias });
+      qc.invalidateQueries({ queryKey: ['categorias'] });
       form.setValue('categoria_id', cat.id as any);
       setShowCatForm(null);
     },
@@ -459,6 +465,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
 
   const toFormValues = (data: FormData, anexosArr: Attachment[] = []): ExpenseFormValues => ({
     descricao:       data.descricao,
+    contaId,
     valor_original:  data.valor_original,
     valor_pago:      data.pago && data.valor_pago != null ? data.valor_pago : undefined,
     dataVencimento:  vencimentoDerivado.data,

@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
 import { Dialog } from '../../ui/dialog';
-import { C } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle } from '../../ui/dialogFormTokens';
+import { fetchContas } from '../../services/configService';
+import { getActiveAccountId } from '../../services/apiClient';
+import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from './formatters';
 import { ExpenseForm, type ExpenseFormHandle, type ExpenseFormResumo } from './ExpenseForm';
 
@@ -48,8 +52,25 @@ interface Props {
  * não re-renderize os irmãos.
  */
 export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onClose, onSave }: Props) {
-  const isEmpresa = useMemo(() => localStorage.getItem('contaAtivaTipo') === 'empresa', []);
   const isEditing = !!expense;
+
+  // Seletor de conta: so relevante para quem tem mais de uma (dono de PF+PJs).
+  // Colaborador vinculado a uma unica conta PJ nunca ve mais de uma aqui, entao
+  // o seletor nao aparece — nao ha entre o que escolher.
+  const contasQuery = useQuery({ queryKey: queryKeys.contas, queryFn: () => fetchContas(), enabled: open });
+  const contas = contasQuery.data ?? [];
+  const [contaId, setContaId] = useState<number | null>(() => getActiveAccountId());
+
+  // Ao abrir o modal, volta para a conta ativa — nao herda a escolha de uma
+  // sessao anterior do mesmo modal.
+  useEffect(() => {
+    if (open) setContaId(getActiveAccountId());
+  }, [open]);
+
+  const contaSelecionada = contas.find((c) => c.id === contaId);
+  const isEmpresa = contaSelecionada
+    ? contaSelecionada.tipo === 'empresa'
+    : localStorage.getItem('contaAtivaTipo') === 'empresa';
 
   const bodyRef = useRef<HTMLDivElement>(null);
   // Delimita o formulário do topo, para os atalhos distinguirem de qual
@@ -205,6 +226,26 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
             CategoryFloatingSelect usa para se reposicionar. */}
         <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+          {/* So aparece para quem tem mais de uma conta (dono de PF+PJs). A
+              conta escolhida aqui vale para o formulario do topo E para todo
+              o lote — nao ha selecao por item individual do lote. */}
+          {contas.length > 1 && (
+            <div>
+              <label style={labelStyle}><span>Conta</span></label>
+              <select
+                value={contaId ?? ''}
+                onChange={(e) => setContaId(e.target.value ? Number(e.target.value) : null)}
+                style={fieldInputStyle}
+              >
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome_fantasia || c.razao_social || c.nome} {c.tipo === 'empresa' ? '(PJ)' : '(PF)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Formulário de entrada: sempre no topo, sempre vazio depois de
               adicionar ao lote. O wrapper delimita a região para o atalho
               Shift+Enter saber que a tecla veio daqui.
@@ -226,6 +267,7 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
               isEmpresa={isEmpresa}
               isEditing={isEditing}
               open={open}
+              contaId={contaId}
               scrollContainerRef={bodyRef}
               autoFocus
               guideEnabled
@@ -263,6 +305,7 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
                     isEmpresa={isEmpresa}
                     isEditing={isEditing}
                     open={open}
+                    contaId={contaId}
                     scrollContainerRef={bodyRef}
                     titulo={`Despesa ${indice + 1}`}
                     onRemover={() => removerDoLote(item.id)}

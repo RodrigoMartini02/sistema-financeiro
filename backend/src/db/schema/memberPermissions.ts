@@ -59,6 +59,11 @@ export const memberPermissions = pgTable('membro_permissoes', {
   // cartao e pessoal por natureza, entao compartilha-lo e escolha explicita.
   accessFamilyCards: boolean('acesso_cartoes_familia').notNull().default(false),
 
+  // Visao agregada entre TODAS as contas do dono (PF + PJs). Separada de
+  // accessReports: aquela e sobre a carteira de uma unica conta, esta expoe a
+  // existencia e os totais de outras contas do dono ao membro/colaborador.
+  accessGeneralOverview: boolean('acesso_panorama_geral').notNull().default(false),
+
   updatedAt: timestamp('data_atualizacao').defaultNow(),
 });
 

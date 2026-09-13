@@ -10,13 +10,29 @@ export interface ProdutoImagem {
 export interface Produto {
   id: string;
   usuarioId: number;
+  /** Conta financeira (PF/PJ) dona do produto. Nulo nos produtos antigos. */
+  contaId: number | null;
   nome: string;
   descricao: string | null;
   valor: string;
+  quantidadeEstoque: string;
+  /** Nulo = produto sem alerta de estoque baixo. */
+  estoqueMinimo: string | null;
   ativo: boolean;
   imagens: ProdutoImagem[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MovimentacaoEstoque {
+  id: string;
+  produtoId: string;
+  usuarioId: number;
+  tipo: 'entrada' | 'saida';
+  quantidade: string;
+  motivo: string | null;
+  receitaId: number | null;
+  createdAt: string;
 }
 
 export interface CatalogoConta {
@@ -28,14 +44,34 @@ export async function fetchProdutos(): Promise<Produto[]> {
   return apiRequest<Produto[]>('/catalogo/produtos');
 }
 
-export async function saveProduto(
-  data: { nome: string; descricao: string; valor: number; ativo?: boolean },
-  id?: string,
-): Promise<Produto> {
+export interface ProdutoFormData {
+  nome: string;
+  descricao: string;
+  valor: number;
+  ativo?: boolean;
+  conta_id?: number | null;
+  estoque_minimo?: number | null;
+}
+
+export async function saveProduto(data: ProdutoFormData, id?: string): Promise<Produto> {
   if (id) {
     return apiRequest<Produto>(`/catalogo/produtos/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
   return apiRequest<Produto>('/catalogo/produtos', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function registrarMovimentacaoEstoque(
+  produtoId: string,
+  data: { tipo: 'entrada' | 'saida'; quantidade: number; motivo?: string },
+): Promise<{ saldoAtual: number }> {
+  return apiRequest(`/catalogo/produtos/${produtoId}/estoque`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchMovimentacoesEstoque(produtoId: string): Promise<MovimentacaoEstoque[]> {
+  return apiRequest<MovimentacaoEstoque[]>(`/catalogo/produtos/${produtoId}/estoque/movimentacoes`);
 }
 
 export async function deleteProduto(id: string): Promise<void> {

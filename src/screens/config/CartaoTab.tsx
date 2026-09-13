@@ -398,11 +398,14 @@ export function CartaoTab() {
   const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('cartoes:novo-v1');
 
-  const cartoes = useQuery({ queryKey: queryKeys.cartoes, queryFn: fetchCartoes });
+  const cartoes = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes() });
 
+  // So o prefixo (sem o segmento de conta): invalida TODAS as variantes por
+  // conta, nao so a da conta ativa — editar um cartao aqui deve refletir em
+  // qualquer conta que o modal de lancamento tenha selecionado.
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: CartaoFormValues; id?: number }) => saveCartao(v, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.cartoes }); setDialog({ open: false }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cartoes'] }); setDialog({ open: false }); },
   });
 
   // Soft delete: o PUT exige nome e limite, então reenviamos os dados atuais
@@ -420,7 +423,7 @@ export function CartaoTab() {
       tipo: c.tipo ?? undefined,
       ativo: !c.ativo,
     }, c.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.cartoes }); setDialog({ open: false }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cartoes'] }); setDialog({ open: false }); },
   });
 
   const todos = cartoes.data ?? [];

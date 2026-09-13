@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings, PackageSearch } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
@@ -18,6 +18,7 @@ import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
 import { buildMemberColors, memberColor, firstName, PALETA } from './memberColors';
+import { PanoramaGeralView } from './PanoramaGeralView';
 
 const now = new Date();
 const THIS_YEAR = now.getFullYear();
@@ -40,6 +41,11 @@ export function FinanceDashboard() {
   // null = familia inteira. Um id = so aquele membro. O estado nao persiste
   // entre sessoes: o painel sempre abre na visao da familia, que e a completa.
   const [membroId, setMembroId] = useState<number | null>(null);
+
+  // Alterna entre a visao desta conta (comportamento historico, inalterado) e
+  // o Panorama Geral (agregado entre todas as contas do dono). Nao persiste
+  // entre sessoes, mesmo criterio do filtro de membro acima.
+  const [visao, setVisao] = useState<'conta' | 'panorama'>('conta');
 
   const membrosQ = useQuery({
     queryKey: queryKeys.membros(),
@@ -229,6 +235,7 @@ export function FinanceDashboard() {
   // agosto continua vencida quando se olha dezembro. O rotulo do bloco diz isso.
   const emAberto = data?.emAberto;
   const temAlerta = (emAberto?.vencidoQuantidade ?? 0) > 0 || (emAberto?.aVencerQuantidade ?? 0) > 0;
+  const estoqueBaixo = data?.estoqueBaixo ?? [];
 
   // Tres faixas: fixa recorrente e compromisso permanente, parcela e compromisso
   // que termina, e o resto e o que da para cortar. `parceladas` ja vem como
@@ -273,17 +280,41 @@ export function FinanceDashboard() {
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-            <p className="m-0 text-[12px] text-[#7b93a1] dark:text-slate-400">
-              {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
-              {data?.primeiraData && data?.ultimaData && (
-                <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
-              )}
-            </p>
+          <p className="m-0 text-[12px] text-[#7b93a1] dark:text-slate-400">
+            {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
+            {data?.primeiraData && data?.ultimaData && (
+              <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
+            )}
+          </p>
+          {/* Linha própria abaixo da descrição: alternância de visão sempre à
+              esquerda; filtro de membro + período à direita, na mesma linha. */}
+          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+            <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+              {([
+                { id: 'conta', label: 'Esta conta' },
+                { id: 'panorama', label: 'Panorama Geral' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setVisao(opt.id)}
+                  aria-pressed={visao === opt.id}
+                  className={[
+                    'rounded-full px-3 py-1 text-[11.5px] font-semibold transition',
+                    visao === opt.id
+                      ? 'bg-[#0891b2] text-white'
+                      : 'text-[#5f7885] hover:bg-[#f5f9fb] dark:text-slate-300 dark:hover:bg-slate-700',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
-              {/* So aparece quando ha membros: numa conta de uma pessoa nao ha
-                  escopo a alternar. */}
-              {temMembros && (
+              {/* So aparece quando ha membros e a visao e desta conta: numa
+                  conta de uma pessoa, ou no Panorama Geral, nao ha esse escopo
+                  a alternar. */}
+              {temMembros && visao === 'conta' && (
                 <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
                   {[{ id: null, label: 'Família' }, ...porMembro.map((m) => ({ id: m.usuarioId, label: m.nome }))].map((opt) => (
                     <button
@@ -307,7 +338,7 @@ export function FinanceDashboard() {
             </div>
           </div>
         </div>
-        {guide.isVisible && hasNoEntries && (
+        {guide.isVisible && hasNoEntries && visao === 'conta' && (
           <div className="relative">
             <FirstAccessGuideCard
               icon={Settings}
@@ -323,6 +354,10 @@ export function FinanceDashboard() {
         )}
       </div>
 
+      {visao === 'panorama' ? (
+        <PanoramaGeralView period={period} />
+      ) : (
+        <>
       {panoramaQ.error && (
         <ErrorState
           title="Não foi possível carregar o painel"
@@ -365,6 +400,36 @@ export function FinanceDashboard() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Estoque baixo: mesma familia dos alertas acima — o que exige acao
+          agora. Some inteiro quando nenhum produto atingiu o minimo. */}
+      {estoqueBaixo.length > 0 && (
+        <Card className="rounded-2xl border-[#fedf89] bg-[#fffcf5] p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fef0c7] text-[#b54708] dark:bg-amber-950/60 dark:text-amber-300">
+              <PackageSearch size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[19px] font-bold leading-none tabular-nums text-[#b54708] dark:text-amber-300">
+                {estoqueBaixo.length} produto{estoqueBaixo.length === 1 ? '' : 's'}
+              </p>
+              <p className="mt-1.5 text-[12px] text-[#7b93a1] dark:text-slate-400">
+                {estoqueBaixo.length === 1 ? 'atingiu' : 'atingiram'} o estoque mínimo configurado.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[#fedf89] pt-3 dark:border-amber-900/60">
+            {estoqueBaixo.map((produto) => (
+              <span
+                key={produto.id}
+                className="rounded-full border border-[#fedf89] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#b54708] dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+              >
+                {produto.nome} · {produto.quantidade_estoque}
+              </span>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Resumo consolidado */}
@@ -907,6 +972,8 @@ export function FinanceDashboard() {
         periodLabel={periodoDescricao}
         segmentosPorCategoria={categoriaPorMembro}
       />
+        </>
+      )}
     </div>
   );
 }

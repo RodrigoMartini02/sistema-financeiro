@@ -308,8 +308,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const categoriesQuery = useQuery({
-    queryKey: queryKeys.categorias,
-    queryFn: fetchCategorias,
+    queryKey: queryKeys.categorias(),
+    queryFn: () => fetchCategorias(),
     enabled: open,
     staleTime: 60_000,
   });
@@ -320,8 +320,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     staleTime: 30_000,
   });
   const cardsQuery = useQuery({
-    queryKey: queryKeys.cartoes,
-    queryFn: fetchCartoes,
+    queryKey: queryKeys.cartoes(),
+    queryFn: () => fetchCartoes(),
     enabled: open,
     staleTime: 60_000,
   });
@@ -787,7 +787,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     {group.messages.map((message) => (
                 <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={[
-                      message.showWelcomeActions ? 'max-w-[94%]' : 'max-w-[86%]',
+                      'max-w-[86%]',
                       'px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
                       message.role === 'user'
                         ? 'rounded-l-xl rounded-br-xl bg-[#0891b2] text-white'
@@ -803,17 +803,19 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               Selecione uma das opções abaixo.
                             </p>
                           )}
-                          {/* Mesmos chips das respostas rapidas do resto da conversa.
-                              Continuam existindo porque definem o intentHint, que tira
-                              a ambiguidade de tipo: "recebi 200 do aluguel" sozinho nao
-                              diz se e receita ou despesa. */}
-                          <div className="mt-2.5 flex flex-col gap-1.5">
+                          {/* Mesmo estilo de pill das respostas rapidas do resto da
+                              conversa (quickReplies mais abaixo) — chips inline, nao
+                              botoes de formulario empilhados. Continuam existindo
+                              porque definem o intentHint, que tira a ambiguidade de
+                              tipo: "recebi 200 do aluguel" sozinho nao diz se e
+                              receita ou despesa. */}
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
                             {WELCOME_ACTIONS.map(({ intent, icon }) => (
                               <button
                                 key={intent}
                                 type="button"
                                 onClick={() => selectIntent(intent)}
-                                className="flex w-full items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2.5 text-left text-sm font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                                className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
                               >
                                 {icon}
                                 {INTENT_DETAILS[intent].label}
