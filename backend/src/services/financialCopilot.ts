@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
-import { inferDeterministicCopilotIntent, type CopilotIntentHint } from './copilotIntent';
+import { inferDeterministicCopilotIntent, isQuestion, type CopilotIntentHint } from './copilotIntent';
 import { AiUsageLimitError, assertAiUsageWithinLimits, assertVoiceUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
 import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
@@ -508,10 +508,19 @@ export async function runFinancialCopilot(input: {
   await storeMessage({ conversationId, role: 'user', content: input.message });
 
   const draftContext = contextWithIntentHint(input.context, input.intentHint);
-  let intent = inferDeterministicCopilotIntent(input.message, input.attachments.length, {
-    intentHint: input.intentHint,
-    hasPendingDraft: hasPendingDraft(draftContext),
-  });
+
+  // Sessao de preenchimento guiado ativa (ex: "Entendi que e X, certo?")
+  // manda no proximo turno, a menos que a mensagem seja claramente uma
+  // pergunta nova. Sem isso, uma resposta curta como "sim" nao bate com
+  // nenhum padrao de registro nem de pergunta, cai em 'help' e abandona o
+  // fluxo que ja sabia exatamente o que estava perguntando.
+  const hasActiveSlotSession = Boolean(input.slotState?.pendingSlot);
+  let intent: CopilotIntent = hasActiveSlotSession && !isQuestion(normalizeText(input.message))
+    ? 'register'
+    : inferDeterministicCopilotIntent(input.message, input.attachments.length, {
+      intentHint: input.intentHint,
+      hasPendingDraft: hasPendingDraft(draftContext),
+    });
   let providerName: 'openai' | 'anthropic' | 'gemini' | 'deterministic' = 'deterministic';
   let providerModel: string | null = null;
   let inputTokens = 0;

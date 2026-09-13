@@ -112,3 +112,28 @@ export async function fetchAccountSummary(period: AccountSummaryPeriod = {}): Pr
   const suffix = q.toString() ? `?${q}` : '';
   return apiRequest<AccountSummary>(`/account-members/summary${suffix}`);
 }
+
+export interface AccountsOverviewConta {
+  id: number;
+  tipo: 'pessoal' | 'empresa';
+  nome: string;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+}
+
+export interface AccountsOverview {
+  contas: AccountsOverviewConta[];
+  despesas_por_conta: { conta_id: number; total: string }[];
+  receitas_por_conta: { conta_id: number; total: string }[];
+}
+
+/** Panorama Geral: agrega receitas/despesas de todas as contas do dono (PF + PJs). */
+export async function fetchAccountsOverview(period: AccountSummaryPeriod = {}): Promise<AccountsOverview> {
+  const q = new URLSearchParams();
+  if (period.deMes !== undefined) q.set('de_mes', String(period.deMes));
+  if (period.deAno !== undefined) q.set('de_ano', String(period.deAno));
+  if (period.ateMes !== undefined) q.set('ate_mes', String(period.ateMes));
+  if (period.ateAno !== undefined) q.set('ate_ano', String(period.ateAno));
+  const suffix = q.toString() ? `?${q}` : '';
+  return apiRequest<AccountsOverview>(`/account-members/overview${suffix}`);
+}

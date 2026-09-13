@@ -104,12 +104,15 @@ function extractSpokenAmountWithoutCurrency(text: string): number | null {
 }
 
 /**
- * Numero grudado na forma de pagamento — "200 no pix", "150 no debito". A
- * forma de pagamento identifica o numero como valor sem precisar de "R$".
+ * Numero grudado na forma de pagamento — "200 no pix", "150 no debito", ou
+ * "150 reais hoje no pix" quando uma palavra de data se intromete entre o
+ * valor e a forma de pagamento. Essa palavra opcional e o que faltava: sem
+ * ela, "150 reais hoje no pix" nao batia com nenhum regex de valor porque o
+ * numero nao ficava colado a "no pix".
  */
 function extractAmountBeforePaymentMethod(text: string): number | null {
   const match = text.match(
-    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais?)?\s+(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro|boleto)\b/i,
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais?)?\s+(?:(?:hoje|ontem|amanh[aã])\s+)?(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro|boleto)\b/i,
   );
   if (!match?.[1]) return null;
 

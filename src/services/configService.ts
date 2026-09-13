@@ -1,16 +1,16 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta } from '../types/config';
 
-export async function fetchCategorias(): Promise<Categoria[]> {
-  const accountId = getActiveAccountId();
-  const q = accountId ? `?conta_id=${accountId}` : '';
+export async function fetchCategorias(accountId?: number | null): Promise<Categoria[]> {
+  const id = accountId ?? getActiveAccountId();
+  const q = id ? `?conta_id=${id}` : '';
   return apiRequest<Categoria[]>(`/categorias${q}`);
 }
 
-export async function saveCategoria(values: CategoriaFormValues, id?: number): Promise<Categoria> {
+export async function saveCategoria(values: CategoriaFormValues, id?: number, accountId?: number | null): Promise<Categoria> {
   const body: Record<string, unknown> = { nome: values.nome.trim() };
   if (values.parent_id !== undefined) body.parent_id = values.parent_id;
-  if (!id) body.conta_id = getActiveAccountId();
+  if (!id) body.conta_id = accountId ?? getActiveAccountId();
   return apiRequest<Categoria>(id ? `/categorias/${id}` : '/categorias', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),
@@ -21,15 +21,15 @@ export async function toggleCategoria(id: number): Promise<void> {
   return apiRequest<void>(`/categorias/${id}/toggle-active`, { method: 'PATCH' });
 }
 
-export async function fetchCartoes(): Promise<Cartao[]> {
-  const accountId = getActiveAccountId();
-  const q = accountId ? `?conta_id=${accountId}` : '';
+export async function fetchCartoes(accountId?: number | null): Promise<Cartao[]> {
+  const id = accountId ?? getActiveAccountId();
+  const q = id ? `?conta_id=${id}` : '';
   return apiRequest<Cartao[]>(`/cartoes${q}`);
 }
 
-export async function saveCartao(values: CartaoFormValues, id?: number): Promise<Cartao> {
-  const accountId = getActiveAccountId();
-  const body = { ...values, conta_id: accountId };
+export async function saveCartao(values: CartaoFormValues, id?: number, accountId?: number | null): Promise<Cartao> {
+  const contaId = accountId ?? getActiveAccountId();
+  const body = { ...values, conta_id: contaId };
   return apiRequest<Cartao>(id ? `/cartoes/${id}` : '/cartoes', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),

@@ -14,6 +14,8 @@ import {
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
 import { fetchContratosAtivos, fetchClientes, saveCliente } from '../../services/clientesService';
+import { fetchContas } from '../../services/configService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { fetchIncomeSuggestions, type IncomeSuggestionMatch } from '../../services/incomeSuggestionsService';
 import { suggestIncomeTypeForDescription } from '../../utils/incomeTypeSuggestions';
 import { queryKeys } from '../../services/queryKeys';
@@ -45,7 +47,17 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   const qc = useQueryClient();
   const defaultDate = presetDate ?? `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
   const isNew = !income;
-  const isEmpresa = useMemo(() => localStorage.getItem('contaAtivaTipo') === 'empresa', []);
+
+  // Seletor de conta: so relevante para quem tem mais de uma (dono de PF+PJs).
+  // Colaborador vinculado a uma unica conta PJ nunca ve mais de uma aqui.
+  const contasQuery = useQuery({ queryKey: queryKeys.contas, queryFn: () => fetchContas(), enabled: open });
+  const contas = contasQuery.data ?? [];
+  const [contaId, setContaId] = useState<number | null>(() => getActiveAccountId());
+
+  const contaSelecionada = contas.find((c) => c.id === contaId);
+  const isEmpresa = contaSelecionada
+    ? contaSelecionada.tipo === 'empresa'
+    : localStorage.getItem('contaAtivaTipo') === 'empresa';
 
   const bodyRef = useRef<HTMLDivElement>(null);
   const attachmentRef = useRef<AttachmentSectionHandle>(null);
@@ -172,6 +184,9 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
       setTipoSugestao(null); setDuplicataInfo(null);
       return;
     }
+    // Ao abrir o modal, volta para a conta ativa — nao herda a escolha de
+    // uma sessao anterior do mesmo modal.
+    setContaId(getActiveAccountId());
     setAnexos(income?.anexos ?? []);
     setClienteTocado(!!income?.cliente);
     setRepresentanteTocado(!!income?.representanteId);
@@ -276,6 +291,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   const handleSubmit = async (data: FormData) => {
     const formValues: IncomeFormValues = {
       descricao:         data.descricao,
+      contaId,
       valor:             data.valor,
       data:              data.data,
       cliente:           data.cliente,
@@ -338,6 +354,24 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
         {/* Corpo rolável. Blocos separados por linha de 1px, não por cards com
             borda: dentro de um modal, card sobre card cria moldura dupla. */}
         <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* So aparece para quem tem mais de uma conta (dono de PF+PJs). */}
+          {contas.length > 1 && (
+            <div>
+              <label style={labelStyle}><span>Conta</span></label>
+              <select
+                value={contaId ?? ''}
+                onChange={(e) => setContaId(e.target.value ? Number(e.target.value) : null)}
+                style={fieldInputStyle}
+              >
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome_fantasia || c.razao_social || c.nome} {c.tipo === 'empresa' ? '(PJ)' : '(PF)'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* ── Descrição + Anexos ─────────────────────────────────── */}
           <div>

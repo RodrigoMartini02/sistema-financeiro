@@ -15,7 +15,7 @@ import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { SociosTab } from '../screens/config/SociosTab';
-import { MembrosTab } from '../screens/config/MembrosTab';
+import { MembrosTab, TERMOS } from '../screens/config/MembrosTab';
 import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
@@ -41,7 +41,9 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase,  group: 'Pessoas' },
-  { id: 'membros',        label: 'Membros da família', icon: UsersRound, group: 'Pessoas' },
+  // Label generico aqui — o texto exibido (membro/colaborador) e resolvido em
+  // visibleItems a partir de TERMOS, mesma fonte usada dentro de MembrosTab.
+  { id: 'membros',        label: 'Membros', icon: UsersRound, group: 'Pessoas' },
   { id: 'permissoes',     label: 'Permissões',         icon: ShieldCheck, group: 'Pessoas' },
   { id: 'acessos',        label: 'Acessos',        icon: Activity,   group: 'Pessoas' },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot,     group: 'Avançado' },
@@ -87,19 +89,25 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     onItemChange?.(item);
   };
 
+  // Membro (conta pessoal) e colaborador (conta empresa) sao o mesmo dado por
+  // tras (conta_membros) — so o termo exibido muda, ver TERMOS em MembrosTab.
+  const membroLabel = contaTipo === 'empresa' ? TERMOS.empresa.singular : TERMOS.pessoal.singular;
+  const membroLabelCapitalizado = membroLabel.charAt(0).toUpperCase() + membroLabel.slice(1);
+
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
-    // Membros da familia e as permissoes deles so existem em conta pessoal:
-    // em conta empresa cada colaborador segue isolado.
-    if (item.id === 'membros' || item.id === 'permissoes') return isGestor && contaTipo === 'pessoal';
+    // Membros/colaboradores e as permissoes deles existem nos dois tipos de
+    // conta: em pessoal com carteira compartilhada, em empresa isolados entre
+    // si (ver familyVisibility.ts) — so a existencia do vinculo era bloqueada.
+    if (item.id === 'membros' || item.id === 'permissoes') return isGestor;
     // PJ-only: catalogo alimenta contratos e faturamento; representantes e
     // socios nao existem em conta pessoal.
     if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos') {
       return contaTipo !== 'pessoal';
     }
     return true;
-  });
+  }).map((item) => (item.id === 'membros' ? { ...item, label: `${membroLabelCapitalizado}s` } : item));
 
   const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;
 

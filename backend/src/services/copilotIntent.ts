@@ -11,7 +11,7 @@ function normalizeText(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-function isQuestion(text: string): boolean {
+export function isQuestion(text: string): boolean {
   return text.includes('?')
     || /\b(quanto|qual|quais|como|onde|quando|quem|tem|mostre|mostrar|liste|listar|veja|verifique)\b/.test(text);
 }

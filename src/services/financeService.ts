@@ -119,7 +119,7 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
 }
 
 export async function saveIncome(month: number, year: number, values: IncomeFormValues, id?: number) {
-  const accountId = getActiveAccountId();
+  const accountId = values.contaId ?? getActiveAccountId();
   const body = {
     descricao: values.descricao, valor: values.valor,
     data_recebimento: values.data, mes: month, ano: year,
@@ -159,7 +159,7 @@ export async function deleteIncome(id: number) {
 }
 
 export async function saveExpense(month: number, year: number, values: ExpenseFormValues, id?: number) {
-  const accountId = getActiveAccountId();
+  const accountId = values.contaId ?? getActiveAccountId();
   const valorOriginal = values.valor_original ?? 0;
   const body: Record<string, unknown> = {
     descricao: values.descricao,

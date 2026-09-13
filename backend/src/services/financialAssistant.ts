@@ -84,7 +84,12 @@ function normalizeText(value: string): string {
 }
 
 export function normalizeAssistantInputText(value: string): string {
-  return normalizeText(value).replace(/\b(pics|pixs)\b/gi, 'pix');
+  return normalizeText(value)
+    .replace(/\b(pics|pixs)\b/gi, 'pix')
+    // Typo comum ao digitar rapido/por voz: as letras "a" e "i" trocadas
+    // fazem "reias" escapar de todo regex que busca "reais", sobrevivendo
+    // ate a descricao confirmada ao usuario.
+    .replace(/\breias\b/gi, 'reais');
 }
 
 function normalizeBase64(value: string): Buffer {

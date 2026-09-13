@@ -6,6 +6,7 @@ import {
   fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
   type PermissionFlag, type MemberPermissionsData,
 } from '../../services/permissoesService';
+import { TERMOS } from './MembrosTab';
 import { C } from '../../ui/dialogFormTokens';
 import { CFG } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
@@ -72,7 +73,7 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
         <EmptyState
           icon={Users}
           title="Nenhum membro para configurar"
-          description={`Cadastre alguém em ${contaTipo === 'empresa' ? 'Colaboradores' : 'Membros da família'} para liberar telas do sistema.`}
+          description={`Cadastre alguém em ${TERMOS[contaTipo].singular === 'colaborador' ? 'Colaboradores' : 'Membros'} para liberar telas do sistema.`}
         />
       </div>
     );
