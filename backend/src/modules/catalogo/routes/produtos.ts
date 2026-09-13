@@ -3,12 +3,14 @@ import fs from 'fs';
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
-import { eq, and, asc, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
 import { requireScreenAccess } from '../../../middleware/permissions';
-import { catalogoProdutos, catalogoProdutoImagens } from '../db/schema';
+import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque } from '../db/schema';
+import { accounts } from '../../../db/schema';
 import { isValidProdutoValor, isValidProdutoImagemMimeType } from '../../../services/catalogo';
+import { EstoqueError, registrarMovimentacaoEstoque, type TipoMovimentacaoEstoque } from '../../../services/estoque';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
@@ -32,6 +34,40 @@ const upload = multer({
 });
 
 const router = Router();
+
+/** Sentinela: conta informada existe no corpo mas nao pertence ao usuario. */
+const INVALID_CONTA = Symbol('INVALID_CONTA');
+
+/**
+ * Valida que a conta financeira informada pertence ao usuario. `conta_id` vem
+ * do localStorage do navegador — sem esta checagem, trocar o valor no cliente
+ * bastaria para pendurar um produto na conta de outra pessoa.
+ */
+async function resolveContaDoUsuario(
+  contaIdBruto: unknown,
+  usuarioId: number,
+): Promise<number | null | typeof INVALID_CONTA> {
+  if (contaIdBruto === undefined || contaIdBruto === null || contaIdBruto === '') return null;
+
+  const contaId = Number(contaIdBruto);
+  if (!Number.isInteger(contaId)) return INVALID_CONTA;
+
+  const [conta] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, contaId), eq(accounts.userId, usuarioId)))
+    .limit(1);
+
+  return conta ? conta.id : INVALID_CONTA;
+}
+
+/** Nulo/vazio = produto sem alerta de estoque baixo. */
+function parseEstoqueMinimo(valor: unknown): string | null {
+  if (valor === undefined || valor === null || valor === '') return null;
+  const numero = Number(valor);
+  if (!Number.isFinite(numero) || numero < 0) return null;
+  return numero.toFixed(3);
+}
 
 // GET /api/catalogo/produtos
 router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
@@ -73,7 +109,7 @@ router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async
 // POST /api/catalogo/produtos
 router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, descricao, valor } = req.body as Record<string, unknown>;
+    const { nome, descricao, valor, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
       res.status(400).json({ success: false, message: 'Nome é obrigatório' });
@@ -86,13 +122,21 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
     }
     const valorNumerico = Number(valor);
 
+    const contaId = await resolveContaDoUsuario(conta_id, req.user!.id);
+    if (contaId === INVALID_CONTA) {
+      res.status(400).json({ success: false, message: 'Conta inválida' });
+      return;
+    }
+
     const [produto] = await db
       .insert(catalogoProdutos)
       .values({
         usuarioId: req.user!.id,
+        contaId,
         nome: String(nome).trim(),
         descricao: descricao ? String(descricao).trim() : null,
         valor: valorNumerico.toFixed(2),
+        estoqueMinimo: parseEstoqueMinimo(estoque_minimo),
       })
       .returning();
 
@@ -106,7 +150,7 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
 // PUT /api/catalogo/produtos/:id
 router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, descricao, valor, ativo } = req.body as Record<string, unknown>;
+    const { nome, descricao, valor, ativo, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
       res.status(400).json({ success: false, message: 'Nome é obrigatório' });
@@ -119,12 +163,22 @@ router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), as
     }
     const valorNumerico = Number(valor);
 
+    const contaId = await resolveContaDoUsuario(conta_id, req.user!.id);
+    if (contaId === INVALID_CONTA) {
+      res.status(400).json({ success: false, message: 'Conta inválida' });
+      return;
+    }
+
     const [produto] = await db
       .update(catalogoProdutos)
       .set({
         nome: String(nome).trim(),
         descricao: descricao ? String(descricao).trim() : null,
         valor: valorNumerico.toFixed(2),
+        // `conta_id` ausente no corpo mantem a conta atual; so troca quando
+        // o campo e enviado de fato.
+        contaId: conta_id === undefined ? undefined : contaId,
+        estoqueMinimo: estoque_minimo === undefined ? undefined : parseEstoqueMinimo(estoque_minimo),
         ativo: typeof ativo === 'boolean' ? ativo : undefined,
         updatedAt: new Date(),
       })
@@ -311,6 +365,68 @@ router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessPro
   } catch (error) {
     console.error('Delete catalogo produto imagem error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete imagem' });
+  }
+});
+
+// POST /api/catalogo/produtos/:id/estoque — registra entrada ou saida manual
+router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { tipo, quantidade, motivo } = req.body as Record<string, unknown>;
+
+    if (tipo !== 'entrada' && tipo !== 'saida') {
+      res.status(400).json({ success: false, message: 'Tipo deve ser entrada ou saida' });
+      return;
+    }
+
+    const resultado = await registrarMovimentacaoEstoque({
+      produtoId: req.params['id']!,
+      usuarioId: req.user!.id,
+      tipo: tipo as TipoMovimentacaoEstoque,
+      quantidade: Number(quantidade),
+      motivo: motivo ? String(motivo).trim() : null,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: tipo === 'entrada' ? 'Entrada registrada' : 'Saída registrada',
+      data: resultado,
+    });
+  } catch (error) {
+    if (error instanceof EstoqueError) {
+      const status = error.code === 'PRODUTO_NAO_ENCONTRADO' ? 404 : 400;
+      res.status(status).json({ success: false, code: error.code, message: error.message });
+      return;
+    }
+    console.error('Registrar movimentacao estoque error:', error);
+    res.status(500).json({ success: false, message: 'Failed to register stock movement' });
+  }
+});
+
+// GET /api/catalogo/produtos/:id/estoque/movimentacoes — historico do produto
+router.get('/:id/estoque/movimentacoes', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [produto] = await db
+      .select({ id: catalogoProdutos.id })
+      .from(catalogoProdutos)
+      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .limit(1);
+
+    if (!produto) {
+      res.status(404).json({ success: false, message: 'Produto not found' });
+      return;
+    }
+
+    const movimentacoes = await db
+      .select()
+      .from(catalogoMovimentacoesEstoque)
+      .where(eq(catalogoMovimentacoesEstoque.produtoId, produto.id))
+      .orderBy(desc(catalogoMovimentacoesEstoque.createdAt))
+      .limit(100);
+
+    res.json({ success: true, data: movimentacoes });
+  } catch (error) {
+    console.error('List movimentacoes estoque error:', error);
+    res.status(500).json({ success: false, message: 'Failed to list stock movements' });
   }
 });
 

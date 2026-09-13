@@ -15,6 +15,7 @@ import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
 import { fetchContratosAtivos, fetchClientes, saveCliente } from '../../services/clientesService';
 import { fetchContas } from '../../services/configService';
+import { fetchProdutos } from '../../services/catalogoService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchIncomeSuggestions, type IncomeSuggestionMatch } from '../../services/incomeSuggestionsService';
 import { suggestIncomeTypeForDescription } from '../../utils/incomeTypeSuggestions';
@@ -70,6 +71,10 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
   const [contratoId, setContratoId] = useState<number | null>(null);
   const [tipoHora, setTipoHora] = useState<'presencial' | 'remoto' | null>(null);
   const [quantidadeHoras, setQuantidadeHoras] = useState<number | ''>('');
+
+  // Venda de produto do catalogo: baixa o estoque pela quantidade informada.
+  const [produtoId, setProdutoId] = useState<string | null>(null);
+  const [quantidadeVendida, setQuantidadeVendida] = useState<number | ''>('');
   const [clienteTocado, setClienteTocado] = useState(false);
   const [representanteTocado, setRepresentanteTocado] = useState(false);
 
@@ -93,6 +98,18 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
     staleTime: 60_000,
   });
   const contratosAtivos = contratosQ.data ?? [];
+
+  // So produtos ativos da conta escolhida no lancamento: vender de uma conta
+  // o produto de outra misturaria os estoques.
+  const produtosQ = useQuery({
+    queryKey: queryKeys.catalogoProdutos,
+    queryFn: fetchProdutos,
+    enabled: open && isEmpresa,
+    staleTime: 60_000,
+  });
+  const produtosDisponiveis = (produtosQ.data ?? []).filter(
+    (p) => p.ativo && (p.contaId === null || p.contaId === contaId),
+  );
 
   const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes, staleTime: 60_000 });
   const tiposReceita = (typesQ.data ?? []).filter((t) => t.ativo);
@@ -157,6 +174,20 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
     : null;
   const valorCalculado = (valorHora && quantidadeHoras) ? Number(quantidadeHoras) * valorHora : null;
 
+  const produtoSelecionado = produtoId ? (produtosDisponiveis.find((p) => p.id === produtoId) ?? null) : null;
+  const estoqueDisponivel = produtoSelecionado ? Number(produtoSelecionado.quantidadeEstoque) : null;
+  const valorProdutoCalculado = (produtoSelecionado && quantidadeVendida)
+    ? Number(quantidadeVendida) * Number(produtoSelecionado.valor)
+    : null;
+
+  // Preenche o valor a partir do produto, mas nao trava: e sugestao. Desconto,
+  // frete ou negociacao continuam sendo digitados por cima normalmente.
+  useEffect(() => {
+    if (valorProdutoCalculado && valorProdutoCalculado > 0) {
+      form.setValue('valor', valorProdutoCalculado);
+    }
+  }, [valorProdutoCalculado, form]);
+
   useEffect(() => {
     if (valorCalculado && valorCalculado > 0) {
       form.setValue('valor', valorCalculado);
@@ -179,6 +210,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
       setAnexos([]); setReplicar(false);
       setReplicarMes(month); setReplicarAno(year);
       setHorasFaturar(false); setContratoId(null); setTipoHora(null); setQuantidadeHoras('');
+      setProdutoId(null); setQuantidadeVendida('');
       setClienteTocado(false); setRepresentanteTocado(false);
       setShowTipoForm(null); setShowClienteForm(null);
       setTipoSugestao(null); setDuplicataInfo(null);
@@ -303,6 +335,10 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
       contratoId:        isNew && horasFaturar ? contratoId : null,
       tipoHora:          isNew && horasFaturar ? tipoHora : null,
       quantidadeHoras:   isNew && horasFaturar && quantidadeHoras !== '' ? Number(quantidadeHoras) : null,
+      // So na criacao: reeditar uma receita ja gravada nao pode baixar o
+      // estoque de novo pela mesma venda.
+      produtoId:         isNew && produtoId && quantidadeVendida !== '' ? produtoId : null,
+      quantidadeVendida: isNew && produtoId && quantidadeVendida !== '' ? Number(quantidadeVendida) : null,
     };
     await onSave(formValues);
     setDuplicataInfo(null);
@@ -676,6 +712,55 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                   </div>
                 )}
               </div>
+            </div>
+            </>
+          )}
+
+          {/* ── Produto vendido (nova receita only) ───────────────── */}
+          {isNew && isEmpresa && produtosDisponiveis.length > 0 && (
+            <>
+            <div style={{ height: 1, background: '#eef2f6' }} />
+            <div>
+              <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-[minmax(0,1fr)_140px]" style={{ columnGap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Produto vendido</label>
+                  <select
+                    value={produtoId ?? ''}
+                    onChange={(e) => {
+                      setProdutoId(e.target.value || null);
+                      if (!e.target.value) setQuantidadeVendida('');
+                    }}
+                    style={{ ...fieldInputStyle, width: '100%' }}
+                  >
+                    <option value="">Nenhum (lançamento avulso)</option>
+                    {produtosDisponiveis.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome} — {formatCurrency(Number(p.valor))} · {Number(p.quantidadeEstoque)} em estoque
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Quantidade</label>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={quantidadeVendida}
+                    onChange={(e) => setQuantidadeVendida(e.target.value !== '' ? Number(e.target.value) : '')}
+                    disabled={!produtoId}
+                    placeholder="0"
+                    style={{ ...smallInputStyle, width: '100%', ...(produtoId ? {} : { background: C.panelBg }) }}
+                  />
+                </div>
+              </div>
+              {produtoSelecionado && (
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: C.textMuted }}>
+                  {estoqueDisponivel != null && quantidadeVendida !== '' && Number(quantidadeVendida) > estoqueDisponivel
+                    ? <span style={{ color: C.danger }}>Estoque insuficiente: há {estoqueDisponivel} disponível.</span>
+                    : <>Baixa {quantidadeVendida || 0} do estoque · restam {Math.max(0, (estoqueDisponivel ?? 0) - Number(quantidadeVendida || 0))}. O valor acima pode ser ajustado.</>}
+                </p>
+              )}
             </div>
             </>
           )}

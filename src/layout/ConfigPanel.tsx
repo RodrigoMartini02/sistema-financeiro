@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck,
+  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
@@ -19,6 +19,7 @@ import { MembrosTab, TERMOS } from '../screens/config/MembrosTab';
 import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
+import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
   | 'seguranca' | 'contas' | 'assinatura'
@@ -39,6 +40,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'categorias',     label: 'Categorias',     icon: Tag,        group: 'Finanças' },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
+  { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase,  group: 'Pessoas' },
   // Label generico aqui — o texto exibido (membro/colaborador) e resolvido em
@@ -102,8 +104,8 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     // si (ver familyVisibility.ts) — so a existencia do vinculo era bloqueada.
     if (item.id === 'membros' || item.id === 'permissoes') return isGestor;
     // PJ-only: catalogo alimenta contratos e faturamento; representantes e
-    // socios nao existem em conta pessoal.
-    if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos') {
+    // socios nao existem em conta pessoal; produtos/estoque e venda de PJ.
+    if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos' || item.id === 'catalogo') {
       return contaTipo !== 'pessoal';
     }
     return true;
@@ -172,6 +174,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'cartoes' && <CartaoTab />}
           {current.id === 'servicos' && <ServicosTab />}
+          {current.id === 'catalogo' && <CatalogoTab />}
           {current.id === 'representantes' && <RepresentantesTab />}
           {current.id === 'socios' && <SociosTab />}
           {current.id === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}

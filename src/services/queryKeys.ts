@@ -53,4 +53,5 @@ export const queryKeys = {
   cardLimits: ['card-limits'] as const,
   catalogoProdutos: ['catalogo-produtos'] as const,
   catalogoConta: ['catalogo-conta'] as const,
+  movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
 };

@@ -131,6 +131,8 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
     contrato_id: values.contratoId ?? null,
     tipo_hora: values.tipoHora ?? null,
     quantidade_horas: values.quantidadeHoras ?? null,
+    produto_id: values.produtoId ?? null,
+    quantidade_vendida: values.quantidadeVendida ?? null,
   };
   const saved = await apiRequest<RawIncome>(id ? `/receitas/${id}` : '/receitas', {
     method: id ? 'PUT' : 'POST', body: JSON.stringify(body),
@@ -144,7 +146,13 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
       const dataRep = `${a}-${String(m + 1).padStart(2, '0')}-${values.data.slice(8, 10)}`;
       await apiRequest<RawIncome>('/receitas', {
         method: 'POST',
-        body: JSON.stringify({ ...body, mes: m, ano: a, data_recebimento: dataRep }),
+        // Sem produto nas copias: replicar e projetar receita futura, e so a
+        // venda original saiu do estoque de fato. Repetir o vinculo baixaria
+        // o mesmo produto uma vez por mes replicado.
+        body: JSON.stringify({
+          ...body, mes: m, ano: a, data_recebimento: dataRep,
+          produto_id: null, quantidade_vendida: null,
+        }),
       });
       m++;
       if (m > 11) { m = 0; a++; }
@@ -308,6 +316,10 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       vencido_total: string | number; vencido_quantidade: string | number;
       a_vencer_total: string | number; a_vencer_quantidade: string | number;
     };
+    estoqueBaixo?: Array<{
+      id: string; nome: string;
+      quantidade_estoque: string | number; estoque_minimo: string | number;
+    }>;
     granularidade: 'mes' | 'ano';
     serie: Array<{ ano: string | number; mes: string | number | null; receitas: string | number; despesas: string | number }>;
     despesasDetalhe: {
@@ -334,6 +346,12 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       aVencerTotal: asNumber(raw.emAberto?.a_vencer_total),
       aVencerQuantidade: asNumber(raw.emAberto?.a_vencer_quantidade),
     },
+    estoqueBaixo: (raw.estoqueBaixo ?? []).map((p) => ({
+      id: p.id,
+      nome: p.nome,
+      quantidade_estoque: asNumber(p.quantidade_estoque),
+      estoque_minimo: asNumber(p.estoque_minimo),
+    })),
     granularidade: raw.granularidade,
     serie: raw.serie.map((s) => ({
       ano: Number(s.ano),

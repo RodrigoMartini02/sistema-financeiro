@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings, PackageSearch } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
@@ -235,6 +235,7 @@ export function FinanceDashboard() {
   // agosto continua vencida quando se olha dezembro. O rotulo do bloco diz isso.
   const emAberto = data?.emAberto;
   const temAlerta = (emAberto?.vencidoQuantidade ?? 0) > 0 || (emAberto?.aVencerQuantidade ?? 0) > 0;
+  const estoqueBaixo = data?.estoqueBaixo ?? [];
 
   // Tres faixas: fixa recorrente e compromisso permanente, parcela e compromisso
   // que termina, e o resto e o que da para cortar. `parceladas` ja vem como
@@ -399,6 +400,36 @@ export function FinanceDashboard() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Estoque baixo: mesma familia dos alertas acima — o que exige acao
+          agora. Some inteiro quando nenhum produto atingiu o minimo. */}
+      {estoqueBaixo.length > 0 && (
+        <Card className="rounded-2xl border-[#fedf89] bg-[#fffcf5] p-5 dark:border-amber-900/60 dark:bg-amber-950/20">
+          <div className="flex items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#fef0c7] text-[#b54708] dark:bg-amber-950/60 dark:text-amber-300">
+              <PackageSearch size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[19px] font-bold leading-none tabular-nums text-[#b54708] dark:text-amber-300">
+                {estoqueBaixo.length} produto{estoqueBaixo.length === 1 ? '' : 's'}
+              </p>
+              <p className="mt-1.5 text-[12px] text-[#7b93a1] dark:text-slate-400">
+                {estoqueBaixo.length === 1 ? 'atingiu' : 'atingiram'} o estoque mínimo configurado.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[#fedf89] pt-3 dark:border-amber-900/60">
+            {estoqueBaixo.map((produto) => (
+              <span
+                key={produto.id}
+                className="rounded-full border border-[#fedf89] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#b54708] dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+              >
+                {produto.nome} · {produto.quantidade_estoque}
+              </span>
+            ))}
+          </div>
+        </Card>
       )}
 
       {/* Resumo consolidado */}

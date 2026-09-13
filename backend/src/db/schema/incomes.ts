@@ -32,6 +32,11 @@ export const incomes = pgTable(
     // RECEBIDA — e o unico status que entra nos totais do painel.
     status: varchar('status', { length: 20 }).notNull().default('ativa'),
     contractId: integer('contrato_id'),
+    // Venda de um produto do catalogo: a quantidade baixa o estoque, o valor
+    // da receita segue livre (o preco do produto so pre-preenche o campo).
+    // FK fraca como contrato_id/representante_id — validada em codigo.
+    productId: varchar('produto_id', { length: 36 }),
+    soldQuantity: decimal('quantidade_vendida', { precision: 12, scale: 3 }),
     commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
     client: varchar('cliente', { length: 100 }),
     incomeType: varchar('tipo_receita', { length: 30 }),

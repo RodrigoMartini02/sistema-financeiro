@@ -8,6 +8,7 @@ import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { createCommissionExpense } from '../services/commissionService';
+import { EstoqueError, registrarMovimentacaoEstoqueNaTransacao } from '../services/estoque';
 
 const router = Router();
 
@@ -91,6 +92,7 @@ router.post(
         descricao, valor, data_recebimento, observacoes, anexos, conta_id,
         cliente, tipo_receita, representante_id, valor_comissao,
         contrato_id, tipo_hora, quantidade_horas,
+        produto_id, quantidade_vendida,
       } = req.body as Record<string, unknown>;
 
       if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
@@ -115,14 +117,21 @@ router.post(
         : null;
       const comissaoContaId = conta_id ? parseInt(String(conta_id)) : null;
 
+      // Venda de produto do catalogo: so baixa estoque quando os dois campos
+      // vem juntos. Quantidade sem produto (ou o contrario) e lancamento
+      // avulso — o valor da receita segue livre de qualquer forma.
+      const produtoIdVenda = produto_id ? String(produto_id) : null;
+      const qtdVendida = quantidade_vendida != null ? parseFloat(String(quantidade_vendida)) : null;
+      const baixaEstoque = produtoIdVenda && qtdVendida != null && qtdVendida > 0;
+
       const client = await pool.connect();
       let result: { rows: unknown[] } = { rows: [] };
       try {
         await client.query('BEGIN');
 
         result = await client.query(
-          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id, produto_id, quantidade_vendida)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING *`,
           [
             req.user!.id,
@@ -139,8 +148,24 @@ router.post(
             representanteIdInt,
             valor_comissao != null ? parseFloat(String(valor_comissao)) : null,
             contratoIdInt,
+            baixaEstoque ? produtoIdVenda : null,
+            baixaEstoque ? qtdVendida : null,
           ],
         );
+
+        // Na mesma transacao do INSERT: falhar aqui desfaz a receita tambem,
+        // nunca deixa estoque baixado sem a venda correspondente.
+        if (baixaEstoque) {
+          const receitaCriada = result.rows[0] as { id: number };
+          await registrarMovimentacaoEstoqueNaTransacao(client, {
+            produtoId: produtoIdVenda!,
+            usuarioId: req.user!.id,
+            tipo: 'saida',
+            quantidade: qtdVendida!,
+            motivo: 'Venda registrada em receita',
+            receitaId: receitaCriada.id,
+          });
+        }
 
         // Debitar horas do contrato se informadas
         if (contratoIdInt && qtdHoras && qtdHoras > 0 && tipo_hora) {
@@ -176,6 +201,13 @@ router.post(
 
       res.status(201).json({ success: true, message: 'Income created', data: result.rows[0] });
     } catch (error) {
+      // Estoque insuficiente e erro do usuario, nao falha do servidor: a
+      // mensagem diz quanto ha disponivel para ele corrigir a quantidade.
+      if (error instanceof EstoqueError) {
+        const status = error.code === 'PRODUTO_NAO_ENCONTRADO' ? 404 : 400;
+        res.status(status).json({ success: false, code: error.code, message: error.message });
+        return;
+      }
       console.error('Create income error:', error);
       res.status(500).json({ success: false, message: 'Failed to create income' });
     }
