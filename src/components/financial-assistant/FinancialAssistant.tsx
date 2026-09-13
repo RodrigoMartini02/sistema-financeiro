@@ -344,14 +344,35 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
 
   useEffect(() => {
-    if (open) {
-      window.setTimeout(() => composerRef.current?.focus(), 100);
-    }
+    if (!open) return;
+    // Sem autofoco em tela de toque: focar o campo abre o teclado junto com o
+    // assistente, e a viewport encolhendo durante a animacao de abertura
+    // deixava a conversa fora de vista. No desktop o foco continua, porque la
+    // nao ha teclado virtual e comecar digitando e o esperado.
+    const temTecladoVirtual = window.matchMedia('(pointer: coarse)').matches;
+    if (temTecladoVirtual) return;
+    const timer = window.setTimeout(() => composerRef.current?.focus(), 100);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, draft, isPreparing]);
+
+  // Teclado virtual abrindo/fechando encolhe a viewport sem disparar resize da
+  // janela. Sem reagir a isso, a ultima mensagem fica atras do teclado — o
+  // usuario digita sem ver o que estava lendo. Salto instantaneo de proposito:
+  // animar competiria com a propria animacao do teclado.
+  useEffect(() => {
+    if (!open) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const acompanharTeclado = () => {
+      messagesEndRef.current?.scrollIntoView({ block: 'end' });
+    };
+    viewport.addEventListener('resize', acompanharTeclado);
+    return () => viewport.removeEventListener('resize', acompanharTeclado);
+  }, [open]);
 
   useEffect(() => () => recognitionRef.current?.abort?.(), []);
 
@@ -701,7 +722,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           )}
           <section
             className={isStandalone
-              ? 'absolute inset-0 flex min-h-[100dvh] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950'
+              // h-[100dvh], nao min-h: com altura MINIMA o container nao encolhe
+              // quando o teclado abre e reduz a viewport — ele mantem a altura
+              // antiga e empurra a conversa toda para fora da tela, para cima.
+              ? 'absolute inset-0 flex h-[100dvh] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950'
               : 'absolute inset-0 flex flex-col overflow-hidden bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(800px,calc(100vh-2.5rem))] sm:w-[440px] sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
             role={isStandalone ? undefined : 'dialog'}
             aria-label="Assistente Financeiro"
@@ -803,19 +827,17 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               Selecione uma das opções abaixo.
                             </p>
                           )}
-                          {/* Mesmo estilo de pill das respostas rapidas do resto da
-                              conversa (quickReplies mais abaixo) — chips inline, nao
-                              botoes de formulario empilhados. Continuam existindo
-                              porque definem o intentHint, que tira a ambiguidade de
-                              tipo: "recebi 200 do aluguel" sozinho nao diz se e
-                              receita ou despesa. */}
-                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {/* Um abaixo do outro, logo apos a saudacao. Existem
+                              porque definem o intentHint, que tira a ambiguidade
+                              de tipo: "recebi 200 do aluguel" sozinho nao diz se
+                              e receita ou despesa. */}
+                          <div className="mt-2.5 flex flex-col gap-1.5">
                             {WELCOME_ACTIONS.map(({ intent, icon }) => (
                               <button
                                 key={intent}
                                 type="button"
                                 onClick={() => selectIntent(intent)}
-                                className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                                className="flex items-center gap-2 text-left text-sm font-semibold text-[#0e7490] transition hover:text-[#0891b2] dark:text-cyan-300 dark:hover:text-cyan-200"
                               >
                                 {icon}
                                 {INTENT_DETAILS[intent].label}
