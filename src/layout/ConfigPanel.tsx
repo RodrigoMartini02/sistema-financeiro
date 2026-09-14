@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck, ShoppingBag,
+  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck, ShoppingBag, Workflow,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
@@ -21,10 +21,15 @@ import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 import { CatalogoTab } from '../screens/config/CatalogoTab';
 
+// Sob demanda: o canvas do fluxo carrega a React Flow, que e pesada, e esta
+// aba so existe para admin — nao faz sentido no bundle de todo mundo.
+const FluxoAssistenteTab = lazy(() => import('../screens/config/fluxo/FluxoAssistenteTab')
+  .then((m) => ({ default: m.FluxoAssistenteTab })));
+
 export type ConfigItemId =
   | 'seguranca' | 'contas' | 'assinatura'
   | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'membros' | 'permissoes'
-  | 'acessos' | 'integracoes-ia' | 'catalogo';
+  | 'acessos' | 'integracoes-ia' | 'catalogo' | 'fluxo-assistente';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
@@ -49,6 +54,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'permissoes',     label: 'Permissões',         icon: ShieldCheck, group: 'Pessoas' },
   { id: 'acessos',        label: 'Acessos',        icon: Activity,   group: 'Pessoas' },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot,     group: 'Avançado' },
+  { id: 'fluxo-assistente', label: 'Fluxo do assistente', icon: Workflow, group: 'Avançado' },
 ];
 
 const GROUP_ORDER: ConfigGroupLabel[] = ['Geral', 'Finanças', 'Pessoas', 'Avançado'];
@@ -98,7 +104,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
 
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
-    if (item.id === 'integracoes-ia') return isAdmin;
+    if (item.id === 'integracoes-ia' || item.id === 'fluxo-assistente') return isAdmin;
     // Membros/colaboradores e as permissoes deles existem nos dois tipos de
     // conta: em pessoal com carteira compartilhada, em empresa isolados entre
     // si (ver familyVisibility.ts) — so a existencia do vinculo era bloqueada.
@@ -181,6 +187,11 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
           {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
+          {current.id === 'fluxo-assistente' && isAdmin && (
+            <Suspense fallback={<p style={{ padding: 20, fontSize: 12.5, color: CFG.muted }}>Carregando o editor...</p>}>
+              <FluxoAssistenteTab />
+            </Suspense>
+          )}
         </div>
       </div>
     </Drawer>

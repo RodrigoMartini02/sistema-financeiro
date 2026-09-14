@@ -4,14 +4,29 @@ import {
   applyDraftDefaults,
   cardsForPaymentMethod,
   createEmptySlotDraft,
-  nextSlotQuestion,
-  pendingConfirmations,
   type SlotCatalog,
   type SlotDraft,
+  type SlotId,
+  type SlotQuestion,
 } from './assistantSlotFilling';
 import { applySlotAnswer, seedDraftFromMessage } from './assistantSlotParser';
 import { inferKind } from './financialAssistant';
 import { advanceSlotSession } from './assistantSlotSession';
+import { AssistantFlowEngine } from './assistantFlowEngine';
+import { DEFAULT_FLOW_DEFINITION } from './assistantFlowDefault';
+
+// A ordem e o texto das perguntas agora vem do fluxo editavel. Estes testes
+// seguem valendo como estao: rodam contra o fluxo PADRAO, que e a traducao
+// exata do comportamento que existia em codigo.
+const flowEngine = new AssistantFlowEngine(DEFAULT_FLOW_DEFINITION);
+
+function nextSlotQuestion(draft: SlotDraft, cat: SlotCatalog, skipped: SlotId[] = []): SlotQuestion | null {
+  return flowEngine.nextQuestion(draft, cat, skipped);
+}
+
+function pendingConfirmations(draft: SlotDraft, confirmed: SlotId[]): SlotId[] {
+  return flowEngine.pendingConfirmations(draft, confirmed);
+}
 
 const catalog: SlotCatalog = {
   categories: [

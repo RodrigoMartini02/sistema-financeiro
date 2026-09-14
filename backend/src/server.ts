@@ -94,6 +94,7 @@ import internalJobsRoutes from './routes/internal-jobs';
 import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
+import assistantFlowRoutes from './routes/assistantFlows';
 import futebolRoutes from './modules/futebol/routes';
 import { startFootballCron } from './modules/futebol/cron';
 import { startChampionshipsCron } from './modules/futebol/championshipsCron';
@@ -146,6 +147,7 @@ app.use('/api/assistant', authenticate, requireActivePlan, requireScreenAccess('
 app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
 app.use('/api/orcamento', authenticate, requireActivePlan, requireScreenAccess('accessBudget'), budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
+app.use('/api/assistant-flows', assistantFlowRoutes);
 app.use('/api/futebol', futebolRoutes);
 app.use('/api/catalogo', catalogoRoutes);
 
