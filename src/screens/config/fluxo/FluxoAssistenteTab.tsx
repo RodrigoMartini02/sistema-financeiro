@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ReactFlow, Background, Controls, MiniMap,
-  type Node, type Edge, type NodeTypes,
+  ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, useReactFlow,
+  type Node, type Edge, type NodeTypes, type Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { AlertTriangle, CheckCircle2, RotateCcw, Save } from 'lucide-react';
 import {
   fetchActiveFlow, saveActiveFlow, restoreDefaultFlow,
-  type FlowDefinition, type FlowNode, type FlowAbertura,
+  type FlowDefinition, type FlowNode, type FlowAbertura, TRANSICAO_QUALQUER,
 } from '../../../services/assistantFlowService';
 import { queryKeys } from '../../../services/queryKeys';
 import { CFG } from '../../../ui/configTokens';
@@ -16,6 +16,9 @@ import { C } from '../../../ui/dialogFormTokens';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { PerguntaNode, type PerguntaNodeData } from './PerguntaNode';
 import { AberturaNode, ConsultaNode, type AberturaNodeData } from './AberturaNode';
+import { PaletaCampos } from './PaletaCampos';
+import { PainelEdicaoNo } from './PainelEdicaoNo';
+import { SLOTS_DISPONIVEIS, novoIdParaSlot } from './slotsDisponiveis';
 import { validateFlow, issuesByNode, type FlowIssue } from './flowValidation';
 import {
   branchesForNode, defaultTargetForNode, primeiroNoParaKind,
@@ -84,10 +87,9 @@ function toGraph(
       });
     }
 
-    // Despesa e receita entram pelo mesmo primeiro no (a descricao), entao
-    // as duas setas se sobreporiam com rotulos brigando pelo mesmo espaco.
-    // Mesma solucao das ramificacoes: destino igual, aresta compartilhada.
-    const destinoPorOpcao = new Map<string, string[]>();
+    // Uma seta por intencao, cada uma saindo do seu proprio handle. Despesa
+    // e receita caem no mesmo primeiro no, mas continuam sendo duas escolhas
+    // diferentes — agrupa-las escondia a estrutura.
     for (const opcao of definition.abertura.opcoes) {
       // Cada intencao entra no fluxo por um `kind` diferente, e sao as
       // condicoes do proprio fluxo que decidem onde isso cai. E o que torna
@@ -101,18 +103,13 @@ function toGraph(
       if (!destino) continue;
       if (destino !== CONSULTA_NODE_ID && !nodePorId.has(destino)) continue;
 
-      const lista = destinoPorOpcao.get(destino) ?? [];
-      lista.push(opcao.label);
-      destinoPorOpcao.set(destino, lista);
-    }
-
-    for (const [destino, labels] of destinoPorOpcao) {
       edges.push({
-        id: `abertura-${destino}`,
+        id: `abertura-${opcao.intent}`,
         source: ABERTURA_NODE_ID,
+        sourceHandle: opcao.intent,
         target: destino,
         type: 'smoothstep',
-        label: labels.join(' · '),
+        label: opcao.label,
         labelStyle: { fontSize: 10, fill: '#6d28d9', fontWeight: 600 },
         labelBgStyle: { fill: '#f5f3ff', fillOpacity: 0.95 },
         labelBgPadding: [6, 3],
@@ -127,27 +124,35 @@ function toGraph(
   for (const origem of definition.ordem) {
     if (!nodePorId.has(origem)) continue;
 
+    const no = nodePorId.get(origem)!;
+
+    // Transicao gravada manda no destino; a derivacao so preenche o que
+    // ainda nao foi desenhado. E o que faz um fluxo v1 aparecer certo antes
+    // de qualquer edicao, e a edicao ganhar precedencia depois.
+    const destinoGravado = new Map<string, string | null>();
+    for (const transicao of no.transicoes ?? []) {
+      destinoGravado.set(transicao.quando, transicao.destino);
+    }
+
     const ramos = branchesForNode(definition, origem);
 
-    if (ramos.length > 0) {
-      // Respostas que levam ao mesmo lugar compartilham a seta: "PIX" e
-      // "Dinheiro" viram uma aresta "PIX · Dinheiro". Uma seta por chip
-      // empilharia linhas identicas com rotulos diferentes.
-      const porDestino = new Map<string, string[]>();
+    if (ramos.length > 0 || destinoGravado.size > 0) {
+      // Uma seta por resposta, saindo do handle daquela resposta. Nao se
+      // agrupa mais: duas respostas que caem no mesmo no continuam sendo
+      // duas decisoes diferentes, e juntar as setas escondia isso.
       for (const ramo of ramos) {
-        if (!ramo.destinoId) continue;
-        const lista = porDestino.get(ramo.destinoId) ?? [];
-        lista.push(ramo.label);
-        porDestino.set(ramo.destinoId, lista);
-      }
+        const destinoId = destinoGravado.has(ramo.valor)
+          ? destinoGravado.get(ramo.valor)!
+          : ramo.destinoId;
+        if (!destinoId || !nodePorId.has(destinoId)) continue;
 
-      for (const [destinoId, labels] of porDestino) {
         edges.push({
-          id: `${origem}-${destinoId}`,
+          id: `${origem}-${ramo.valor}-${destinoId}`,
           source: origem,
+          sourceHandle: ramo.valor,
           target: destinoId,
           type: 'smoothstep',
-          label: labels.join(' · '),
+          label: ramo.label,
           labelStyle: { fontSize: 10, fill: '#0e7490', fontWeight: 600 },
           labelBgStyle: { fill: '#ecfeff', fillOpacity: 0.95 },
           labelBgPadding: [6, 3],
@@ -217,95 +222,24 @@ function PainelAbertura({ abertura }: { abertura: FlowAbertura }) {
   );
 }
 
-function PainelPropriedades({ node }: { node: FlowNode | null }) {
-  if (!node) {
-    return (
-      <p style={{ margin: 0, fontSize: 12, color: CFG.muted }}>
-        Clique em um bloco do fluxo para ver os detalhes dele.
-      </p>
-    );
-  }
 
+/**
+ * Wrapper com o Provider: `useReactFlow` (usado para converter a posicao do
+ * drop em coordenada do canvas) so funciona dentro dele.
+ */
+export function FluxoAssistenteTab() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
-          Campo
-        </span>
-        <p style={{ margin: '2px 0 0', fontFamily: 'monospace', fontSize: 12.5, color: C.text }}>{node.slot}</p>
-      </div>
-
-      <div>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
-          {node.variantes.length > 1 ? `Variantes (${node.variantes.length})` : 'Pergunta'}
-        </span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-          {node.variantes.map((variante, i) => (
-            <div
-              key={i}
-              style={{
-                borderRadius: 8, border: `1px solid ${CFG.borderSoft}`, padding: '6px 8px',
-                background: '#fff',
-              }}
-            >
-              {variante.quando && variante.quando.length > 0 && (
-                <p style={{ margin: '0 0 3px', fontSize: 10.5, color: '#7c3aed' }}>
-                  quando {variante.quando.map((c) => `${c.campo} ${c.operador} ${String(c.valor ?? '')}`).join(' e ')}
-                </p>
-              )}
-              <p style={{ margin: 0, fontSize: 12, color: C.text }}>{variante.texto}</p>
-              {(variante.opcoes ?? []).length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
-                  {variante.opcoes!.map((o) => (
-                    <span
-                      key={`${o.value}-${o.label}`}
-                      title={`envia: ${o.value}`}
-                      style={{
-                        borderRadius: 999, background: CFG.chipBg, padding: '1px 6px',
-                        fontSize: 10, color: CFG.chipText,
-                      }}
-                    >
-                      {o.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {node.aplicaQuando && node.aplicaQuando.length > 0 && (
-        <div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
-            Só pergunta quando
-          </span>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 16, fontSize: 11.5, color: C.textMuted }}>
-            {node.aplicaQuando.map((c, i) => (
-              <li key={i}>{c.campo} {c.operador} {String(c.valor ?? '')}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {node.limpaAoResponder && node.limpaAoResponder.length > 0 && (
-        <div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
-            Ao responder, limpa
-          </span>
-          <p style={{ margin: '2px 0 0', fontSize: 11.5, color: C.textMuted }}>
-            {node.limpaAoResponder.join(', ')}
-          </p>
-        </div>
-      )}
-    </div>
+    <ReactFlowProvider>
+      <EditorFluxo />
+    </ReactFlowProvider>
   );
 }
 
-export function FluxoAssistenteTab() {
+function EditorFluxo() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
+  const [abaPainel, setAbaPainel] = useState<'campos' | 'propriedades'>('campos');
   const [erroSalvar, setErroSalvar] = useState('');
 
   const fluxoQ = useQuery({ queryKey: queryKeys.assistantFlow, queryFn: fetchActiveFlow });
@@ -336,6 +270,11 @@ export function FluxoAssistenteTab() {
     [definicao, issuesPorNo, selecionadoId],
   );
 
+  const slotsEmUso = useMemo(
+    () => new Set((definicao?.nos ?? []).map((no) => no.slot)),
+    [definicao],
+  );
+
   const noSelecionado = useMemo(
     () => definicao?.nos.find((n) => n.id === selecionadoId) ?? null,
     [definicao, selecionadoId],
@@ -364,6 +303,147 @@ export function FluxoAssistenteTab() {
    * pixel: o React Flow ja anima o movimento, e gravar em tempo real
    * re-renderizaria o grafo inteiro a cada frame.
    */
+  /**
+   * Liga uma resposta a um destino: e aqui que o desenho vira dado.
+   *
+   * O `sourceHandle` e o valor da resposta (foi assim que o handle foi
+   * criado), entao ele vira o `quando` da transicao. Gravar move o fluxo
+   * para v2, onde o motor passa a obedecer o desenho em vez de derivar o
+   * destino das condicoes.
+   */
+  const handleConnect = (conexao: Connection) => {
+    const { source, target, sourceHandle } = conexao;
+    if (!source || !target) return;
+
+    // Ligacao a partir da abertura nao e transicao de no: a abertura escolhe
+    // o fluxo pelo `kind`, e isso nao se redireciona por aresta.
+    if (source === ABERTURA_NODE_ID) return;
+
+    setRascunho((atual) => {
+      if (!atual) return atual;
+
+      // Sem handle a ligacao vale para qualquer resposta.
+      const quando = sourceHandle ?? TRANSICAO_QUALQUER;
+
+      return {
+        ...atual,
+        versaoFormato: 2,
+        nos: atual.nos.map((no) => {
+          if (no.id !== source) return no;
+
+          // Uma resposta leva a um lugar so: religar substitui.
+          const semAntiga = (no.transicoes ?? []).filter((t) => t.quando !== quando);
+          return { ...no, transicoes: [...semAntiga, { quando, destino: target }] };
+        }),
+      };
+    });
+    setAlterado(true);
+  };
+
+  /** Apagar a seta volta a resposta para a varredura da ordem. */
+  const handleEdgesDelete = (arestas: Edge[]) => {
+    setRascunho((atual) => {
+      if (!atual) return atual;
+
+      return {
+        ...atual,
+        nos: atual.nos.map((no) => {
+          const remover = arestas.filter((aresta) => aresta.source === no.id);
+          if (remover.length === 0 || !no.transicoes) return no;
+
+          const quandos = new Set(remover.map((a) => a.sourceHandle ?? TRANSICAO_QUALQUER));
+          const restantes = no.transicoes.filter((t) => !quandos.has(t.quando));
+          if (restantes.length > 0) return { ...no, transicoes: restantes };
+
+          const { transicoes: _removidas, ...semTransicoes } = no;
+          return semTransicoes;
+        }),
+      };
+    });
+    setAlterado(true);
+  };
+
+  /** Grava a edicao do no no rascunho; Salvar manda tudo de uma vez. */
+  const handleNoChange = (atualizado: FlowNode) => {
+    setRascunho((atual) => {
+      if (!atual) return atual;
+      return {
+        ...atual,
+        nos: atual.nos.map((no) => (no.id === atualizado.id ? atualizado : no)),
+      };
+    });
+    setAlterado(true);
+  };
+
+  /**
+   * Remove o no, sua posicao na ordem e toda transicao que apontava para ele.
+   * Sem a ultima parte sobraria referencia orfa, que o parser descarta em
+   * silencio — e o desenho passaria a mentir sobre o caminho.
+   */
+  const handleRemoverNo = (nodeId: string) => {
+    setRascunho((atual) => {
+      if (!atual) return atual;
+      return {
+        ...atual,
+        nos: atual.nos
+          .filter((no) => no.id !== nodeId)
+          .map((no) => (no.transicoes
+            ? { ...no, transicoes: no.transicoes.filter((t) => t.destino !== nodeId) }
+            : no)),
+        ordem: atual.ordem.filter((id) => id !== nodeId),
+      };
+    });
+    setSelecionadoId(null);
+    setAlterado(true);
+  };
+
+  const { screenToFlowPosition } = useReactFlow();
+
+  /**
+   * Cria a pergunta no ponto onde o campo foi solto.
+   *
+   * O id vem de novoIdParaSlot porque o mesmo campo pode aparecer em mais de
+   * um ponto do fluxo — o id nao pode ser o slot.
+   */
+  const handleDrop = (evento: React.DragEvent) => {
+    evento.preventDefault();
+
+    const slot = evento.dataTransfer.getData('application/fluxo-slot');
+    if (!slot) return;
+
+    const campo = SLOTS_DISPONIVEIS.find((item) => item.slot === slot);
+    if (!campo) return;
+
+    const posicao = screenToFlowPosition({ x: evento.clientX, y: evento.clientY });
+
+    setRascunho((atual) => {
+      if (!atual) return atual;
+
+      const ids = new Set(atual.nos.map((no) => no.id));
+      const id = novoIdParaSlot(campo.slot, ids);
+
+      return {
+        ...atual,
+        // Gravar passa a produzir v2: o fluxo agora pode ter transicoes.
+        versaoFormato: 2,
+        nos: [...atual.nos, {
+          id,
+          slot: campo.slot,
+          variantes: [{ texto: campo.perguntaPadrao }],
+          posicao,
+        }],
+        ordem: [...atual.ordem, id],
+      };
+    });
+    setAlterado(true);
+    setSelecionadoId(null);
+  };
+
+  const handleDragOver = (evento: React.DragEvent) => {
+    evento.preventDefault();
+    evento.dataTransfer.dropEffect = 'move';
+  };
+
   const handleNodeDragStop = (_event: unknown, node: Node) => {
     setRascunho((atual) => {
       if (!atual) return atual;
@@ -507,14 +587,25 @@ export function FluxoAssistenteTab() {
           // usar o espaco disponivel — e quanto maior, mais do fluxo cabe sem
           // precisar de zoom.
           style={{ borderColor: CFG.borderSoft, height: 'calc(100vh - 260px)', minHeight: 420, background: '#fafcfd' }}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
         >
           <ReactFlow
             nodes={grafo.nodes}
             edges={grafo.edges}
             nodeTypes={nodeTypes}
-            onNodeClick={(_event, node) => setSelecionadoId(node.id)}
+            onNodeClick={(_event, node) => {
+              setSelecionadoId(node.id);
+              setAbaPainel('propriedades');
+            }}
             onNodeDragStop={handleNodeDragStop}
             onPaneClick={() => setSelecionadoId(null)}
+            onConnect={handleConnect}
+            onEdgesDelete={handleEdgesDelete}
+            onNodesDelete={(nos) => nos.forEach((no) => handleRemoverNo(no.id))}
+            // Religar uma seta existente troca o destino em vez de duplicar.
+            edgesReconnectable
+            deleteKeyCode={['Backspace', 'Delete']}
             nodesDraggable
             fitView
             // Margem para os rotulos das ramificacoes nao encostarem na borda,
@@ -533,9 +624,37 @@ export function FluxoAssistenteTab() {
           className="rounded-xl border p-3"
           style={{ borderColor: CFG.borderSoft, background: '#fff', maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}
         >
-          {selecionadoId === ABERTURA_NODE_ID && definicao?.abertura
-            ? <PainelAbertura abertura={definicao.abertura} />
-            : <PainelPropriedades node={noSelecionado} />}
+          {/* Duas abas: de onde se tira campo novo, e o que se edita no que
+              ja esta no quadro. */}
+          <div className="mb-3 flex gap-1">
+            {(['campos', 'propriedades'] as const).map((aba) => (
+              <button
+                key={aba}
+                type="button"
+                onClick={() => setAbaPainel(aba)}
+                className={[
+                  'flex-1 rounded-md px-2 py-1 text-[11.5px] font-semibold transition',
+                  abaPainel === aba
+                    ? 'bg-cyan-50 text-cyan-700'
+                    : 'text-slate-500 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                {aba === 'campos' ? 'Campos' : 'Propriedades'}
+              </button>
+            ))}
+          </div>
+
+          {abaPainel === 'campos' ? (
+            <PaletaCampos slotsEmUso={slotsEmUso} />
+          ) : selecionadoId === ABERTURA_NODE_ID && definicao?.abertura ? (
+            <PainelAbertura abertura={definicao.abertura} />
+          ) : (
+            <PainelEdicaoNo
+              node={noSelecionado}
+              onChange={handleNoChange}
+              onRemover={handleRemoverNo}
+            />
+          )}
         </div>
       </div>
     </div>

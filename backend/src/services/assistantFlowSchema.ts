@@ -60,6 +60,27 @@ export interface FlowQuestionVariant {
   isConfirmation?: boolean;
 }
 
+/** Valor curinga: vale quando nenhum `quando` especifico bateu. */
+export const TRANSICAO_QUALQUER = '*';
+
+/**
+ * Para onde uma resposta leva.
+ *
+ * Antes o destino era derivado: nextQuestion varria a `ordem` e devolvia o
+ * primeiro no aplicavel. Derivar funciona para o fluxo que ja existe, mas
+ * impede desenhar um caminho novo — nao havia onde grava-lo. Com transicao
+ * explicita o desenho passa a mandar.
+ *
+ * Continua opcional: no sem transicao cai na varredura de antes, que e o que
+ * mantem todo fluxo v1 rodando identico.
+ */
+export interface FlowTransicao {
+  /** Valor da resposta que leva a este destino, ou `*` para qualquer outra. */
+  quando: string;
+  /** Id do no de destino, ou null para encerrar o fluxo. */
+  destino: string | null;
+}
+
 export interface FlowNode {
   id: string;
   slot: SlotId;
@@ -75,6 +96,11 @@ export interface FlowNode {
   limpaAoResponder?: SlotId[];
   /** Passa pelo "certo?" antes de valer. */
   exigeConfirmacao?: boolean;
+  /**
+   * Para onde cada resposta leva. Ausente = varredura da `ordem`, o
+   * comportamento de sempre.
+   */
+  transicoes?: FlowTransicao[];
   /** Posicao no canvas; so o editor usa. */
   posicao?: { x: number; y: number };
 }
@@ -108,7 +134,8 @@ export interface FlowAbertura {
 }
 
 export interface FlowDefinition {
-  versaoFormato: 1;
+  /** 1 = so varredura da ordem; 2 = pode ter transicoes explicitas. */
+  versaoFormato: 1 | 2;
   /** Ordem de avaliacao dos nos. As arestas do canvas derivam daqui. */
   ordem: string[];
   nos: FlowNode[];
@@ -171,6 +198,27 @@ function parseVariant(raw: unknown): FlowQuestionVariant | null {
   return variant;
 }
 
+/**
+ * Transicao vinda do banco ou da rede.
+ *
+ * O destino so e checado contra os ids existentes depois, em
+ * parseFlowDefinition, porque aqui ainda nao se sabe quais nos o fluxo tem.
+ */
+function parseTransicao(raw: unknown): FlowTransicao | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+
+  const quando = obj['quando'];
+  if (typeof quando !== 'string' || quando.length === 0) return null;
+
+  const destino = obj['destino'];
+  // null e destino valido: encerra o fluxo.
+  if (destino !== null && typeof destino !== 'string') return null;
+  if (typeof destino === 'string' && destino.length === 0) return null;
+
+  return { quando: quando.slice(0, 120), destino };
+}
+
 function parseNode(raw: unknown): FlowNode | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const obj = raw as Record<string, unknown>;
@@ -198,6 +246,11 @@ function parseNode(raw: unknown): FlowNode | null {
 
   const limpa = asArray(obj['limpaAoResponder']).filter(isKnownSlot);
   if (limpa.length > 0) node.limpaAoResponder = limpa;
+
+  const transicoes = asArray(obj['transicoes'])
+    .map(parseTransicao)
+    .filter((t): t is FlowTransicao => t !== null);
+  if (transicoes.length > 0) node.transicoes = transicoes;
 
   const posicao = obj['posicao'];
   if (typeof posicao === 'object' && posicao !== null) {
@@ -276,7 +329,10 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
   }
   const obj = raw as Record<string, unknown>;
 
-  if (obj['versaoFormato'] !== 1) {
+  // v1 e v2 convivem: a diferenca e so a existencia de transicoes, e fluxo
+  // sem elas roda pela varredura da ordem, como sempre rodou.
+  const versaoFormato = obj['versaoFormato'];
+  if (versaoFormato !== 1 && versaoFormato !== 2) {
     throw new FlowDefinitionError('Versão de formato de fluxo não suportada.');
   }
 
@@ -293,6 +349,18 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
     idsVistos.add(no.id);
   }
 
+  // Transicao para no inexistente e descartada: apontar para o vazio deixaria
+  // a conversa sem proxima pergunta. Mesma regua do slot desconhecido.
+  for (const no of nos) {
+    if (!no.transicoes) continue;
+    const validas = no.transicoes.filter((t) => t.destino === null || idsVistos.has(t.destino));
+    if (validas.length > 0) {
+      no.transicoes = validas;
+    } else {
+      delete no.transicoes;
+    }
+  }
+
   // Ordem so pode citar no existente; no fora da ordem nunca seria perguntado.
   const ordem = asArray(obj['ordem']).filter((id): id is string => typeof id === 'string' && idsVistos.has(id));
   if (ordem.length === 0) {
@@ -307,7 +375,7 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
   const abertura = parseAbertura(obj['abertura']);
 
   return {
-    versaoFormato: 1,
+    versaoFormato,
     ordem,
     nos,
     obrigatorios: {

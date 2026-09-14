@@ -44,20 +44,28 @@ export function AberturaNode({ data }: NodeProps) {
           {abertura.saudacao}
         </p>
 
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        {/* Uma saida por intencao: e a escolha aqui que decide qual fluxo
+            roda, entao cada uma precisa da sua propria seta. */}
+        <div className="mt-1.5 flex flex-col gap-1">
           {abertura.opcoes.map((opcao) => (
-            <span
-              key={opcao.intent}
-              title={opcao.abertura}
-              className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9.5px] font-medium text-violet-700 dark:bg-violet-900/60 dark:text-violet-200"
-            >
-              {opcao.label}
-            </span>
+            <div key={opcao.intent} className="relative flex items-center">
+              <span
+                title={opcao.abertura}
+                className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9.5px] font-medium text-violet-700 dark:bg-violet-900/60 dark:text-violet-200"
+              >
+                {opcao.label}
+              </span>
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={opcao.intent}
+                className="!bg-violet-500"
+                style={{ right: -14 }}
+              />
+            </div>
           ))}
         </div>
       </div>
-
-      <Handle type="source" position={Position.Bottom} className="!bg-violet-500" />
     </div>
   );
 }

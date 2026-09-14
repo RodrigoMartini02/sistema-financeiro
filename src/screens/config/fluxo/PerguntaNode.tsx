@@ -62,19 +62,27 @@ export function PerguntaNode({ data }: NodeProps) {
           {principal?.texto ?? '(sem texto)'}
         </p>
 
+        {/* Cada resposta e um ponto de saida proprio: e dali que sai a seta
+            para o destino dela, e e dali que se arrasta uma ligacao nova.
+            Empilhados, um por linha, para cada handle ter seu proprio Y. */}
         {chips.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {chips.slice(0, 4).map((opcao) => (
-              <span
-                key={`${opcao.value}-${opcao.label}`}
-                className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9.5px] font-medium text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300"
-              >
-                {opcao.label}
-              </span>
+          <div className="mt-1.5 flex flex-col gap-1">
+            {chips.map((opcao) => (
+              <div key={`${opcao.value}-${opcao.label}`} className="relative flex items-center">
+                <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9.5px] font-medium text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300">
+                  {opcao.label}
+                </span>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  // O id do handle e o valor da resposta: e o que liga a seta
+                  // desenhada a transicao gravada.
+                  id={opcao.value}
+                  className="!bg-cyan-500"
+                  style={{ right: -14 }}
+                />
+              </div>
             ))}
-            {chips.length > 4 && (
-              <span className="text-[9.5px] text-slate-400">+{chips.length - 4}</span>
-            )}
           </div>
         )}
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createEmptySlotDraft, type SlotCatalog, type SlotDraft } from './assistantSlotFilling';
 import { AssistantFlowEngine } from './assistantFlowEngine';
-import { DEFAULT_FLOW_DEFINITION } from './assistantFlowDefault';
+import { DEFAULT_FLOW_DEFINITION, comAberturaPadrao } from './assistantFlowDefault';
 import { parseFlowDefinition, FlowDefinitionError } from './assistantFlowSchema';
 
 /**
@@ -318,4 +318,101 @@ test('abertura sem posicao continua valida', () => {
 
   assert.equal(parsed.abertura?.posicao, undefined);
   assert.equal(parsed.abertura?.opcoes.length, 3);
+});
+
+test('fluxo gravado sem abertura recebe a padrao ao ser carregado', () => {
+  // Fluxo da versao 1, anterior a abertura existir: o editor abria sem o no
+  // de inicio e o canvas comecava no meio da conversa.
+  const { abertura: _ignorado, ...semAbertura } = JSON.parse(
+    JSON.stringify(DEFAULT_FLOW_DEFINITION),
+  );
+
+  const completado = comAberturaPadrao(semAbertura);
+
+  assert.equal(completado.abertura?.opcoes.length, 3);
+  assert.equal(completado.abertura?.saudacao, DEFAULT_FLOW_DEFINITION.abertura?.saudacao);
+});
+
+test('abertura propria nao e sobrescrita pela padrao', () => {
+  const editada = {
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'E aí, o que manda?',
+      opcoes: [{ intent: 'register_expense', label: 'Gastei', abertura: 'Conta aí.' }],
+    },
+  };
+
+  const resultado = comAberturaPadrao(editada);
+
+  assert.equal(resultado.abertura?.saudacao, 'E aí, o que manda?');
+  assert.equal(resultado.abertura?.opcoes.length, 1);
+});
+
+test('completar a abertura nao altera nos, ordem nem obrigatorios', () => {
+  const { abertura: _ignorado, ...semAbertura } = JSON.parse(
+    JSON.stringify(DEFAULT_FLOW_DEFINITION),
+  );
+
+  const completado = comAberturaPadrao(semAbertura);
+
+  assert.deepEqual(completado.ordem, DEFAULT_FLOW_DEFINITION.ordem);
+  assert.deepEqual(completado.obrigatorios, DEFAULT_FLOW_DEFINITION.obrigatorios);
+  assert.deepEqual(completado.nos, DEFAULT_FLOW_DEFINITION.nos);
+});
+
+test('fluxo v2 preserva as transicoes declaradas', () => {
+  const parsed = parseFlowDefinition({
+    versaoFormato: 2,
+    ordem: ['paymentMethod', 'cardId', 'amount'],
+    obrigatorios: { income: [], expense: [] },
+    nos: [
+      {
+        id: 'paymentMethod',
+        slot: 'paymentMethod',
+        variantes: [{ texto: 'Como pagou?' }],
+        transicoes: [
+          { quando: 'credito', destino: 'cardId' },
+          { quando: '*', destino: 'amount' },
+        ],
+      },
+      { id: 'cardId', slot: 'cardId', variantes: [{ texto: 'Qual cartão?' }] },
+      { id: 'amount', slot: 'amount', variantes: [{ texto: 'Quanto?' }] },
+    ],
+  });
+
+  assert.equal(parsed.versaoFormato, 2);
+  assert.deepEqual(parsed.nos[0]?.transicoes, [
+    { quando: 'credito', destino: 'cardId' },
+    { quando: '*', destino: 'amount' },
+  ]);
+});
+
+test('transicao para no inexistente e descartada', () => {
+  // Apontar para o vazio deixaria a conversa sem proxima pergunta.
+  const parsed = parseFlowDefinition({
+    versaoFormato: 2,
+    ordem: ['amount'],
+    obrigatorios: { income: [], expense: [] },
+    nos: [
+      {
+        id: 'amount',
+        slot: 'amount',
+        variantes: [{ texto: 'Quanto?' }],
+        transicoes: [
+          { quando: 'x', destino: 'no-que-nao-existe' },
+          { quando: 'y', destino: null },
+        ],
+      },
+    ],
+  });
+
+  // Só a que aponta para null (encerrar) sobrevive.
+  assert.deepEqual(parsed.nos[0]?.transicoes, [{ quando: 'y', destino: null }]);
+});
+
+test('versao de formato desconhecida continua sendo recusada', () => {
+  assert.throws(
+    () => parseFlowDefinition({ versaoFormato: 3, ordem: ['a'], nos: [] }),
+    FlowDefinitionError,
+  );
 });

@@ -221,9 +221,67 @@ function validarAbertura(definition: FlowDefinition): FlowIssue[] {
   return issues;
 }
 
+/**
+ * O parser entende este valor para este slot?
+ *
+ * Usada enquanto se digita no painel: valor que o parser nao reconhece deixa
+ * a conversa respondendo "Nao peguei essa parte" quando o usuario clica no
+ * chip — erro que so aparece conversando, e e tarde.
+ *
+ * Template (`{amount}`) resolve em runtime e nao da para checar aqui.
+ */
+export function valorDeChipAceito(slot: string, valor: string): boolean {
+  const aceitos = VALORES_ACEITOS[slot];
+  if (!aceitos) return true;
+  if (isTemplate(valor)) return true;
+
+  const normalizado = valor.trim().toLowerCase();
+  return aceitos.includes(normalizado) || VALORES_UNIVERSAIS.has(normalizado);
+}
+
+/** Valores que o parser entende para o slot, para sugerir no painel. */
+export function valoresAceitosDoSlot(slot: string): string[] {
+  return VALORES_ACEITOS[slot] ?? [];
+}
+
+/**
+ * Transicoes desenhadas no canvas.
+ *
+ * Destino inexistente e ERRO: a conversa ficaria sem proxima pergunta. Ciclo
+ * e AVISO, nao erro — `A -> B -> A` so trava se os dois nos continuarem
+ * aplicaveis, e o motor ainda pula no ja preenchido.
+ */
+function validarTransicoes(definition: FlowDefinition): FlowIssue[] {
+  const issues: FlowIssue[] = [];
+  const ids = new Set(definition.nos.map((no) => no.id));
+
+  for (const no of definition.nos) {
+    for (const transicao of no.transicoes ?? []) {
+      if (transicao.destino !== null && !ids.has(transicao.destino)) {
+        issues.push({
+          nodeId: no.id,
+          severity: 'erro',
+          message: `A resposta "${transicao.quando}" aponta para um bloco que não existe.`,
+        });
+      }
+
+      if (transicao.destino === no.id) {
+        issues.push({
+          nodeId: no.id,
+          severity: 'aviso',
+          message: `A resposta "${transicao.quando}" volta para a própria pergunta.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
 export function validateFlow(definition: FlowDefinition): FlowIssue[] {
   return [
     ...validarAbertura(definition),
+    ...validarTransicoes(definition),
     ...validarIdsDuplicados(definition),
     ...validarObrigatorios(definition),
     ...validarOrfaos(definition),

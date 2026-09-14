@@ -26,6 +26,15 @@ export interface FlowQuestionVariant {
   isConfirmation?: boolean;
 }
 
+/** Valor curinga: vale quando nenhum `quando` específico bateu. */
+export const TRANSICAO_QUALQUER = '*';
+
+/** Para onde uma resposta leva. Ausente = varredura da ordem. */
+export interface FlowTransicao {
+  quando: string;
+  destino: string | null;
+}
+
 export interface FlowNode {
   id: string;
   slot: string;
@@ -34,6 +43,7 @@ export interface FlowNode {
   skippable?: boolean;
   limpaAoResponder?: string[];
   exigeConfirmacao?: boolean;
+  transicoes?: FlowTransicao[];
   posicao?: { x: number; y: number };
 }
 
@@ -54,7 +64,7 @@ export interface FlowAbertura {
 }
 
 export interface FlowDefinition {
-  versaoFormato: 1;
+  versaoFormato: 1 | 2;
   ordem: string[];
   nos: FlowNode[];
   obrigatorios: { income: string[]; expense: string[] };

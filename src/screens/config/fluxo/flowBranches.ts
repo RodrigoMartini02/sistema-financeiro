@@ -144,9 +144,9 @@ function rascunhoBase(definition: FlowDefinition, ateIndice: number): RascunhoSi
 /**
  * Ramos de um no: um por valor de chip, quando os destinos divergem.
  *
- * Devolve lista vazia quando o no nao tem chip estatico ou quando todos os
- * valores levam ao mesmo lugar — nesse caso uma aresta unica ja diz tudo, e
- * N setas paralelas para o mesmo destino so poluiriam o desenho.
+ * Devolve lista vazia so quando o no nao tem chip estatico. Respostas que
+ * levam ao mesmo lugar continuam na lista: cada uma tem seu proprio ponto de
+ * saida no canvas, e omitir uma deixaria aquele chip sem seta.
  */
 export function branchesForNode(definition: FlowDefinition, nodeId: string): FlowBranch[] {
   const indice = definition.ordem.indexOf(nodeId);
@@ -169,10 +169,9 @@ export function branchesForNode(definition: FlowDefinition, nodeId: string): Flo
     destinoId: primeiroNoAplicavel(definition, indice + 1, rascunhoApos(node, opcao.value, base)),
   }));
 
-  // Todos no mesmo destino: uma aresta simples conta a mesma historia.
-  const destinos = new Set(ramos.map((r) => r.destinoId));
-  if (destinos.size <= 1) return [];
-
+  // Antes, respostas com o mesmo destino eram suprimidas: as setas eram
+  // agrupadas e N linhas identicas so poluiriam. Agora cada resposta tem seu
+  // proprio ponto de saida, e suprimir deixaria o chip sem seta nenhuma.
   return ramos;
 }
 
