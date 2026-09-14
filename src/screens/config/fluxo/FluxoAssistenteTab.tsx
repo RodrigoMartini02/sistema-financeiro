@@ -16,6 +16,7 @@ import { C } from '../../../ui/dialogFormTokens';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { PerguntaNode, type PerguntaNodeData } from './PerguntaNode';
 import { validateFlow, issuesByNode, type FlowIssue } from './flowValidation';
+import { branchesForNode, defaultTargetForNode } from './flowBranches';
 
 const nodeTypes: NodeTypes = { pergunta: PerguntaNode };
 
@@ -44,26 +45,58 @@ function toGraph(
     } satisfies PerguntaNodeData,
   }));
 
+  // Arestas derivadas das condicoes que ja existem no fluxo: um no com chips
+  // cujos valores levam a destinos diferentes vira uma seta por resposta,
+  // rotulada. Antes todos os nos eram ligados em linha reta com um "se
+  // aplicavel" que nao dizia se aplicavel quando o que.
   const edges: Edge[] = [];
-  for (let i = 0; i < definition.ordem.length - 1; i += 1) {
-    const origem = definition.ordem[i]!;
-    const destino = definition.ordem[i + 1]!;
-    if (!nodePorId.has(origem) || !nodePorId.has(destino)) continue;
 
-    const noDestino = nodePorId.get(destino)!;
-    const condicional = (noDestino.aplicaQuando?.length ?? 0) > 0;
+  for (const origem of definition.ordem) {
+    if (!nodePorId.has(origem)) continue;
 
+    const ramos = branchesForNode(definition, origem);
+
+    if (ramos.length > 0) {
+      // Respostas que levam ao mesmo lugar compartilham a seta: "PIX" e
+      // "Dinheiro" viram uma aresta "PIX · Dinheiro". Uma seta por chip
+      // empilharia linhas identicas com rotulos diferentes.
+      const porDestino = new Map<string, string[]>();
+      for (const ramo of ramos) {
+        if (!ramo.destinoId) continue;
+        const lista = porDestino.get(ramo.destinoId) ?? [];
+        lista.push(ramo.label);
+        porDestino.set(ramo.destinoId, lista);
+      }
+
+      for (const [destinoId, labels] of porDestino) {
+        edges.push({
+          id: `${origem}-${destinoId}`,
+          source: origem,
+          target: destinoId,
+          type: 'smoothstep',
+          label: labels.join(' · '),
+          labelStyle: { fontSize: 10, fill: '#0e7490', fontWeight: 600 },
+          labelBgStyle: { fill: '#ecfeff', fillOpacity: 0.95 },
+          labelBgPadding: [6, 3],
+          labelBgBorderRadius: 6,
+          style: { stroke: '#0891b2', strokeWidth: 1.5 },
+        });
+      }
+      continue;
+    }
+
+    // Sem ramificacao: uma aresta so ate o proximo no que se aplica.
+    const destino = defaultTargetForNode(definition, origem);
+    if (!destino || !nodePorId.has(destino)) continue;
+
+    // Tronco em cinza: o olho segue os ramos coloridos, que sao a informacao
+    // nova, e a sequencia simples fica de fundo.
     edges.push({
       id: `${origem}-${destino}`,
       source: origem,
       target: destino,
       type: 'smoothstep',
-      animated: condicional,
-      // Tracejado quando o proximo passo depende de condicao: nem sempre esse
-      // caminho e percorrido.
-      style: condicional ? { strokeDasharray: '4 4' } : undefined,
-      label: condicional ? 'se aplicável' : undefined,
-      labelStyle: { fontSize: 9, fill: '#7b93a1' },
+      style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
     });
   }
 
@@ -256,6 +289,18 @@ export function FluxoAssistenteTab() {
 
   return (
     <div className="grid gap-2.5">
+      {/* Como tela propria, e ela que se apresenta — dentro do drawer o titulo
+          vinha do cabecalho de Configuracoes. */}
+      <div>
+        <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">
+          Fluxo do assistente
+        </h1>
+        <p className="m-0 mt-[3px] text-[12px] text-[#7b93a1] dark:text-slate-400">
+          A ordem e o texto das perguntas que o assistente faz ao registrar um lançamento.
+          Arraste os blocos para reorganizar o desenho.
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {erros.length === 0 ? (
@@ -334,7 +379,10 @@ export function FluxoAssistenteTab() {
       <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_260px]">
         <div
           className="rounded-xl border"
-          style={{ borderColor: CFG.borderSoft, height: 520, background: '#fafcfd' }}
+          // Altura pela viewport, nao fixa: como tela inteira, o canvas deve
+          // usar o espaco disponivel — e quanto maior, mais do fluxo cabe sem
+          // precisar de zoom.
+          style={{ borderColor: CFG.borderSoft, height: 'calc(100vh - 260px)', minHeight: 420, background: '#fafcfd' }}
         >
           <ReactFlow
             nodes={grafo.nodes}
@@ -345,6 +393,10 @@ export function FluxoAssistenteTab() {
             onPaneClick={() => setSelecionadoId(null)}
             nodesDraggable
             fitView
+            // Margem para os rotulos das ramificacoes nao encostarem na borda,
+            // e teto de zoom para o fluxo nao abrir gigante em tela grande.
+            fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+            minZoom={0.2}
             proOptions={{ hideAttribution: false }}
           >
             <Background gap={16} />
@@ -355,7 +407,7 @@ export function FluxoAssistenteTab() {
 
         <div
           className="rounded-xl border p-3"
-          style={{ borderColor: CFG.borderSoft, background: '#fff', maxHeight: 520, overflowY: 'auto' }}
+          style={{ borderColor: CFG.borderSoft, background: '#fff', maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}
         >
           <PainelPropriedades node={noSelecionado} />
         </div>

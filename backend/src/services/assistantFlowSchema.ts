@@ -79,6 +79,32 @@ export interface FlowNode {
   posicao?: { x: number; y: number };
 }
 
+/** Intencoes que a abertura oferece. Espelha FinancialCopilotIntentHint. */
+export const FLOW_INTENTS = ['register_expense', 'register_income', 'ask'] as const;
+export type FlowIntent = typeof FLOW_INTENTS[number];
+
+export function isFlowIntent(value: unknown): value is FlowIntent {
+  return typeof value === 'string' && (FLOW_INTENTS as readonly string[]).includes(value);
+}
+
+export interface FlowIntentOption {
+  intent: FlowIntent;
+  /** Texto do chip. */
+  label: string;
+  /** Fala do assistente logo apos a escolha, para a conversa nao ficar muda. */
+  abertura: string;
+}
+
+/**
+ * Primeira tela da conversa. Nao e um `FlowNode` porque nao preenche slot
+ * nenhum nem consome resposta do parser: e a escolha que decide QUAL fluxo
+ * vai rodar. Vivia no frontend como texto fixo, fora do alcance do editor.
+ */
+export interface FlowAbertura {
+  saudacao: string;
+  opcoes: FlowIntentOption[];
+}
+
 export interface FlowDefinition {
   versaoFormato: 1;
   /** Ordem de avaliacao dos nos. As arestas do canvas derivam daqui. */
@@ -86,6 +112,8 @@ export interface FlowDefinition {
   nos: FlowNode[];
   /** Sem estes o lancamento nao grava, por tipo de lancamento. */
   obrigatorios: { income: SlotId[]; expense: SlotId[] };
+  /** Ausente nos fluxos gravados antes da abertura entrar no editor. */
+  abertura?: FlowAbertura;
 }
 
 export class FlowDefinitionError extends Error {}
@@ -184,6 +212,44 @@ function parseRequiredSlots(raw: unknown): SlotId[] {
   return asArray(raw).filter(isKnownSlot);
 }
 
+function parseIntentOption(raw: unknown): FlowIntentOption | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+
+  // Intencao fora da lista nunca entra: o backend nao saberia que fluxo rodar.
+  if (!isFlowIntent(obj['intent'])) return null;
+
+  const label = obj['label'];
+  const abertura = obj['abertura'];
+  if (typeof label !== 'string' || label.trim().length === 0) return null;
+  if (typeof abertura !== 'string' || abertura.trim().length === 0) return null;
+
+  return {
+    intent: obj['intent'],
+    label: label.slice(0, 60),
+    abertura: abertura.slice(0, 300),
+  };
+}
+
+/**
+ * Abertura gravada. Ausente ou invalida devolve `undefined` — quem chama cai
+ * na abertura padrao, em vez de o chat abrir sem saudacao nem botoes.
+ */
+function parseAbertura(raw: unknown): FlowAbertura | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  const saudacao = obj['saudacao'];
+  if (typeof saudacao !== 'string' || saudacao.trim().length === 0) return undefined;
+
+  const opcoes = asArray(obj['opcoes'])
+    .map(parseIntentOption)
+    .filter((o): o is FlowIntentOption => o !== null);
+  if (opcoes.length === 0) return undefined;
+
+  return { saudacao: saudacao.slice(0, 300), opcoes };
+}
+
 /**
  * Valida e normaliza uma definicao vinda do banco ou da rede.
  *
@@ -224,6 +290,8 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
     ? obrigatoriosRaw as Record<string, unknown>
     : {};
 
+  const abertura = parseAbertura(obj['abertura']);
+
   return {
     versaoFormato: 1,
     ordem,
@@ -232,5 +300,6 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
       income: parseRequiredSlots(obrigatoriosObj['income']),
       expense: parseRequiredSlots(obrigatoriosObj['expense']),
     },
+    ...(abertura ? { abertura } : {}),
   };
 }

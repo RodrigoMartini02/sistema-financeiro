@@ -1,9 +1,24 @@
 import { Request, Response, Router } from 'express';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { FlowDefinitionError, parseFlowDefinition } from '../services/assistantFlowSchema';
+import { DEFAULT_FLOW_DEFINITION } from '../services/assistantFlowDefault';
 import { getActiveFlowForEditing, restoreDefaultFlow, saveActiveFlow } from '../services/assistantFlowStore';
 
 const router = Router();
+
+// GET /api/assistant-flows/abertura — saudação e chips iniciais do chat.
+// Sem requireAdmin: todo usuário do assistente precisa dela para abrir a
+// conversa; o que é restrito é EDITAR o fluxo, não consumi-lo.
+router.get('/abertura', authenticate, async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const fluxo = await getActiveFlowForEditing();
+    // Fluxo gravado sem abertura (anterior a esta feature) cai no padrão.
+    res.json({ success: true, data: fluxo.definicao.abertura ?? DEFAULT_FLOW_DEFINITION.abertura });
+  } catch (error) {
+    console.error('Load assistant opening failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Não foi possível carregar a abertura do assistente.' });
+  }
+});
 
 // GET /api/assistant-flows/active — fluxo que o assistente esta executando
 router.get('/active', authenticate, requireAdmin, async (_req: Request, res: Response): Promise<void> => {

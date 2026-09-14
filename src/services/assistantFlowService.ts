@@ -37,11 +37,26 @@ export interface FlowNode {
   posicao?: { x: number; y: number };
 }
 
+export type FlowIntent = 'register_expense' | 'register_income' | 'ask';
+
+export interface FlowIntentOption {
+  intent: FlowIntent;
+  label: string;
+  /** Fala do assistente logo após a escolha. */
+  abertura: string;
+}
+
+export interface FlowAbertura {
+  saudacao: string;
+  opcoes: FlowIntentOption[];
+}
+
 export interface FlowDefinition {
   versaoFormato: 1;
   ordem: string[];
   nos: FlowNode[];
   obrigatorios: { income: string[]; expense: string[] };
+  abertura?: FlowAbertura;
 }
 
 export interface AssistantFlow {
@@ -53,6 +68,11 @@ export interface AssistantFlow {
 
 export async function fetchActiveFlow(): Promise<AssistantFlow> {
   return apiRequest<AssistantFlow>('/assistant-flows/active');
+}
+
+/** Saudação e chips iniciais. Disponível a qualquer usuário do assistente. */
+export async function fetchAbertura(): Promise<FlowAbertura> {
+  return apiRequest<FlowAbertura>('/assistant-flows/abertura');
 }
 
 export async function saveActiveFlow(definicao: FlowDefinition, nome?: string): Promise<{ id: number; versao: number }> {

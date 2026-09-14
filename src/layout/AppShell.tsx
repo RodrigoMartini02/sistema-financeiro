@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import {
   BarChart3, Bell, Building2, LayoutDashboard,
-  Moon, Settings, Sun, TrendingDown, Wallet, X,
+  Moon, Settings, Sun, TrendingDown, Wallet, Workflow, X,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
@@ -15,7 +15,10 @@ import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
   | 'painel' | 'movimentacoes'
-  | 'relatorios' | 'clientes';
+  | 'relatorios' | 'clientes' | 'fluxo-assistente';
+
+/** Dono do sistema: o unico que edita o fluxo de conversa do assistente. */
+const FLOW_EDITOR_DOCUMENT = '08996441988';
 
 interface AppShellProps {
   user?: AuthUser;
@@ -176,6 +179,10 @@ export function AppShell({
   });
   const canViewNotifications = ownPermissions?.accessNotifications ?? true;
   const canViewDashboard = ownPermissions?.accessDashboard ?? true;
+  // O fluxo do assistente vale para todos os usuarios, entao so o dono do
+  // sistema edita. Mesmo criterio da aba de Acessos em Configuracoes.
+  const podeEditarFluxo = !isDemoMode
+    && (user?.documento ?? '').replace(/\D/g, '') === FLOW_EDITOR_DOCUMENT;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
     const item = isDemoMode ? undefined : readConfigParam();
@@ -280,6 +287,28 @@ export function AppShell({
             <Settings size={17} />
             <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
           </button>
+
+          {/* Editor do fluxo do assistente. Tela inteira, nao aba do drawer: o
+              canvas precisa de espaco. Restrito ao dono do sistema \u2014 e ele quem
+              define como o assistente conversa com todo mundo. */}
+          {podeEditarFluxo && (
+            <button
+              onClick={() => { onNavigate?.('fluxo-assistente'); setMobileOpen(false); }}
+              className={[
+                'relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg text-sm font-medium transition',
+                activeSection === 'fluxo-assistente'
+                  ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
+                  : 'text-[#E8F4F5] hover:bg-[rgba(14,196,216,0.06)]',
+              ].join(' ')}
+              style={{ paddingLeft: activeSection === 'fluxo-assistente' ? '10px' : '12px', paddingRight: '12px' }}
+            >
+              {activeSection === 'fluxo-assistente' && (
+                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />
+              )}
+              <Workflow size={17} className={activeSection === 'fluxo-assistente' ? 'text-[#0EC4D8]' : ''} />
+              <span className="flex-1 text-left">Fluxo do assistente</span>
+            </button>
+          )}
         </div>
         )}
       </nav>

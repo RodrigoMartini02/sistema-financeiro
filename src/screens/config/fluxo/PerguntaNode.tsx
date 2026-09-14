@@ -26,6 +26,16 @@ export function PerguntaNode({ data }: NodeProps) {
   const principal = node.variantes[0];
   const chips = principal?.opcoes ?? [];
 
+  // A condicao de `kind` vale para quase todo no de despesa e diria pouco no
+  // rotulo; o que interessa e a condicao que de fato ramifica.
+  const condicoesRelevantes = (node.aplicaQuando ?? []).filter((c) => c.campo !== 'kind');
+  const condicaoResumida = condicoesRelevantes
+    .map((c) => (Array.isArray(c.valor) ? `${c.campo} é ${c.valor.join(' ou ')}` : `${c.campo} ${c.operador === 'diferente' ? '≠' : '='} ${String(c.valor)}`))
+    .join(' e ');
+  const condicaoCompleta = (node.aplicaQuando ?? [])
+    .map((c) => `${c.campo} ${c.operador} ${String(c.valor ?? '')}`)
+    .join(' e ');
+
   const borda = temErro
     ? 'border-red-400 dark:border-red-500'
     : temAviso
@@ -81,9 +91,14 @@ export function PerguntaNode({ data }: NodeProps) {
           {node.skippable && (
             <span className="rounded bg-slate-100 px-1 text-[9.5px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">pulável</span>
           )}
-          {node.aplicaQuando && node.aplicaQuando.length > 0 && (
-            <span className="rounded bg-violet-50 px-1 text-[9.5px] text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-              condicional
+          {condicaoResumida && (
+            // Diz QUANDO o no aparece, nao so que e condicional — era o que
+            // faltava para entender por que um campo some da conversa.
+            <span
+              className="rounded bg-violet-50 px-1 text-[9.5px] text-violet-600 dark:bg-violet-950/50 dark:text-violet-300"
+              title={condicaoCompleta}
+            >
+              só se {condicaoResumida}
             </span>
           )}
         </div>

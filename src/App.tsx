@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
@@ -17,6 +17,11 @@ import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
 import { ClientesTab } from './screens/config/ClientesTab';
+
+// Sob demanda: o canvas carrega a React Flow, pesada, e a tela e restrita ao
+// dono do sistema — nao faz sentido no bundle de todo mundo.
+const FluxoAssistenteTab = lazy(() => import('./screens/config/fluxo/FluxoAssistenteTab')
+  .then((m) => ({ default: m.FluxoAssistenteTab })));
 import { CONFIG_SCOPE_CLASS } from './ui/configTokens';
 import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
@@ -171,6 +176,15 @@ function AppContent() {
       // precisa declarar o escopo por conta própria — sem ele as variáveis
       // --cfg-* não resolvem e os componentes de Configurações perdem cor.
       case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientesTab /></div>;
+      // Mesmo motivo do ClientesTab acima: usa componentes de Configurações
+      // fora do drawer, então declara o escopo por conta própria.
+      case 'fluxo-assistente': return (
+        <div className={CONFIG_SCOPE_CLASS}>
+          <Suspense fallback={<p className="p-5 text-[12.5px] text-slate-500">Carregando o editor...</p>}>
+            <FluxoAssistenteTab />
+          </Suspense>
+        </div>
+      );
     }
   };
 
