@@ -809,7 +809,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </span>
                     </div>
                     {group.messages.map((message) => (
-                <div key={message.id} className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                <div key={message.id}>
+                <div className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                     <div className={[
                       'max-w-[86%]',
                       'px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
@@ -818,34 +819,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         : 'rounded-r-xl rounded-bl-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100',
                     ].join(' ')}>
                       <p>{message.content}</p>
-                      {message.showWelcomeActions && (
-                        <div className="mt-2.5">
-                          {/* A linha de apoio so aparece na abertura: quem acabou
-                              de lancar algo ja sabe como a conversa funciona. */}
-                          {message.id === 'welcome' && (
-                            <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                              Selecione uma das opções abaixo.
-                            </p>
-                          )}
-                          {/* Um abaixo do outro, logo apos a saudacao. Existem
-                              porque definem o intentHint, que tira a ambiguidade
-                              de tipo: "recebi 200 do aluguel" sozinho nao diz se
-                              e receita ou despesa. */}
-                          <div className="mt-2.5 flex flex-col gap-1.5">
-                            {WELCOME_ACTIONS.map(({ intent, icon }) => (
-                              <button
-                                key={intent}
-                                type="button"
-                                onClick={() => selectIntent(intent)}
-                                className="flex items-center gap-2 text-left text-sm font-semibold text-[#0e7490] transition hover:text-[#0891b2] dark:text-cyan-300 dark:hover:text-cyan-200"
-                              >
-                                {icon}
-                                {INTENT_DETAILS[intent].label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                       {message.attachments?.map((attachment) => (
                         <div
                           key={attachment.nome}
@@ -884,6 +857,27 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Fora do balao, logo abaixo dele: sao acoes do usuario, nao
+                      conteudo da fala do assistente. Definem o intentHint, que
+                      tira a ambiguidade de tipo — "recebi 200 do aluguel"
+                      sozinho nao diz se e receita ou despesa. */}
+                  {message.showWelcomeActions && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {WELCOME_ACTIONS.map(({ intent, icon }) => (
+                        <button
+                          key={intent}
+                          type="button"
+                          onClick={() => selectIntent(intent)}
+                          className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                        >
+                          {icon}
+                          {INTENT_DETAILS[intent].label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   </div>
                     ))}
                   </div>
