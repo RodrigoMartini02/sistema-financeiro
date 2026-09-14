@@ -6,16 +6,14 @@ import type { FinancialAccount } from './budgetService';
 import {
   applyDraftDefaults,
   createEmptySlotDraft,
-  isDraftComplete,
-  nextSlotQuestion,
-  pendingConfirmations,
-  slotQuestionFor,
   type SlotCatalog,
   type SlotDraft,
   type SlotId,
   type SlotQuestion,
 } from './assistantSlotFilling';
 import { applySlotAnswer, isAffirmativeAnswer, seedDraftFromMessage } from './assistantSlotParser';
+import type { AssistantFlowEngine } from './assistantFlowEngine';
+import { getActiveFlowEngine } from './assistantFlowStore';
 
 // Estado do preenchimento guiado entre uma mensagem e a seguinte. Vive no
 // `payload` jsonb de copilot_mensagens; quando essa tabela nao existe, volta
@@ -204,32 +202,37 @@ function withCatalogScopedReferences(state: SlotSessionState, catalog: SlotCatal
   return { ...state, draft };
 }
 
-/** Passo do fluxo a partir do estado atual, sem consumir resposta. */
-function buildStep(state: SlotSessionState, catalog: SlotCatalog, misunderstood = false): SlotSessionStep {
+/**
+ * Passo do fluxo a partir do estado atual, sem consumir resposta.
+ *
+ * A ordem das perguntas e o texto de cada uma vem do fluxo desenhado na tela
+ * (`engine`), nao mais de constantes no codigo.
+ */
+function buildStep(
+  engine: AssistantFlowEngine,
+  state: SlotSessionState,
+  catalog: SlotCatalog,
+  misunderstood = false,
+): SlotSessionStep {
   // Uma frase pode preencher a descricao sem que o usuario tenha confirmado que
   // era aquilo mesmo; a confirmacao vem antes de qualquer pergunta nova.
-  const [awaitingConfirmation] = pendingConfirmations(state.draft, state.confirmed);
+  const [awaitingConfirmation] = engine.pendingConfirmations(state.draft, state.confirmed);
   if (awaitingConfirmation) {
-    const question = buildConfirmationQuestion(state.draft, catalog, awaitingConfirmation);
-    return { state: { ...state, pendingSlot: awaitingConfirmation }, question, complete: false, misunderstood };
+    // Diferente de nextQuestion, que pula slot preenchido — aqui e justamente
+    // o valor extraido que precisa aparecer no texto para o usuario aprovar.
+    const question = engine.questionFor(awaitingConfirmation, state.draft, catalog);
+    if (question) {
+      return { state: { ...state, pendingSlot: awaitingConfirmation }, question, complete: false, misunderstood };
+    }
   }
 
-  const question = nextSlotQuestion(state.draft, catalog, state.skipped);
+  const question = engine.nextQuestion(state.draft, catalog, state.skipped);
   if (question) {
     return { state: { ...state, pendingSlot: question.slot }, question, complete: false, misunderstood };
   }
 
-  const complete = isDraftComplete(state.draft, catalog, state.skipped);
+  const complete = engine.isDraftComplete(state.draft, catalog, state.skipped);
   return { state: { ...state, pendingSlot: null }, question: null, complete, misunderstood };
-}
-
-/**
- * Pergunta de confirmacao de um slot ja preenchido ("Entendi que e X, certo?").
- * Diferente de `nextSlotQuestion`, que pula slot preenchido — aqui e justamente
- * o valor extraido que precisa aparecer no texto para o usuario aprovar.
- */
-function buildConfirmationQuestion(draft: SlotDraft, catalog: SlotCatalog, slot: SlotId): SlotQuestion {
-  return slotQuestionFor(slot, draft, catalog);
 }
 
 /**
@@ -237,6 +240,7 @@ function buildConfirmationQuestion(draft: SlotDraft, catalog: SlotCatalog, slot:
  * devolve a pergunta de categoria, sem criar nada.
  */
 async function resolvePendingCategory(input: {
+  engine: AssistantFlowEngine;
   state: SlotSessionState;
   catalog: SlotCatalog;
   message: string;
@@ -253,13 +257,13 @@ async function resolvePendingCategory(input: {
       pendingCategory: null,
       draft: { ...input.state.draft, category: null },
     };
-    return buildStep(cleared, input.catalog);
+    return buildStep(input.engine, cleared, input.catalog);
   }
 
   const created = await createCategory(input.userId, input.account, pending);
   if (!created) {
     const cleared: SlotSessionState = { ...input.state, pendingCategory: null };
-    return buildStep(cleared, input.catalog, true);
+    return buildStep(input.engine, cleared, input.catalog, true);
   }
 
   // A categoria nova ja vale para este lancamento e para as proximas perguntas.
@@ -274,7 +278,7 @@ async function resolvePendingCategory(input: {
     draft: { ...input.state.draft, category: created },
     confirmed: [...input.state.confirmed, 'category'],
   };
-  return buildStep(next, catalog);
+  return buildStep(input.engine, next, catalog);
 }
 
 /**
@@ -287,13 +291,14 @@ export async function startSlotSession(input: {
   catalog: SlotCatalog;
   userId: number;
 }): Promise<SlotSessionStep> {
+  const engine = await getActiveFlowEngine();
   const draft = seedDraftFromMessage(input.kind, input.message, input.catalog);
 
   if (input.kind === 'expense' && draft.description && !draft.category) {
     draft.category = await suggestCategory(draft.description, input.userId, input.catalog);
   }
 
-  return buildStep({ draft, pendingSlot: null, skipped: [], confirmed: [] }, input.catalog);
+  return buildStep(engine, { draft, pendingSlot: null, skipped: [], confirmed: [] }, input.catalog);
 }
 
 /**
@@ -308,6 +313,7 @@ export async function advanceSlotSession(input: {
   account: FinancialAccount;
 }): Promise<SlotSessionStep> {
   const { catalog } = input;
+  const engine = await getActiveFlowEngine();
   // O estado pode ter voltado pelo request: cartao e categoria so valem se
   // pertencerem mesmo a conta ativa, nunca pelo que o client afirmou.
   const state = withCatalogScopedReferences(input.state, catalog);
@@ -315,6 +321,7 @@ export async function advanceSlotSession(input: {
   // Ha uma criacao de categoria aguardando o "sim": essa resposta e sobre ela.
   if (state.pendingCategory) {
     return resolvePendingCategory({
+      engine,
       state,
       catalog,
       message: input.message,
@@ -324,7 +331,7 @@ export async function advanceSlotSession(input: {
   }
 
   if (!state.pendingSlot) {
-    return buildStep(state, catalog);
+    return buildStep(engine, state, catalog);
   }
 
   const result = applySlotAnswer(state.draft, state.pendingSlot, input.message, catalog);
@@ -349,7 +356,7 @@ export async function advanceSlotSession(input: {
   if (!result.understood) {
     // Repete a mesma pergunta em vez de adivinhar — a spec e explicita: nunca
     // gravar um chute.
-    return buildStep(state, catalog, true);
+    return buildStep(engine, state, catalog, true);
   }
 
   const next: SlotSessionState = {
@@ -377,7 +384,7 @@ export async function advanceSlotSession(input: {
     next.draft.category = await suggestCategory(next.draft.description, input.userId, catalog);
   }
 
-  return buildStep(next, catalog);
+  return buildStep(engine, next, catalog);
 }
 
 export function finalizeSlotDraft(state: SlotSessionState): SlotDraft {
