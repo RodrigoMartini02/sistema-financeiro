@@ -14,6 +14,12 @@ import type { FlowCondition, FlowDefinition, FlowNode } from '../../../services/
  * para o valor que o usuario respondeu.
  */
 
+/** Id reservado do no sintetico da abertura. Nao existe em `definicao.nos`. */
+export const ABERTURA_NODE_ID = '__abertura__';
+
+/** Id do no terminal da consulta livre, fora do preenchimento guiado. */
+export const CONSULTA_NODE_ID = '__consulta__';
+
 export interface FlowBranch {
   /** Valor do chip que leva a este destino. */
   valor: string;
@@ -175,4 +181,15 @@ export function defaultTargetForNode(definition: FlowDefinition, nodeId: string)
   const indice = definition.ordem.indexOf(nodeId);
   if (indice < 0) return null;
   return primeiroNoAplicavel(definition, indice + 1, rascunhoBase(definition, indice + 1));
+}
+
+/**
+ * Primeiro no que o assistente pergunta para uma intencao da abertura.
+ *
+ * Recebe so o `kind`, que e o que a escolha da abertura define — dai as
+ * condicoes do fluxo decidem o resto. E por isso que receita cai direto em
+ * descricao: `category` e `paymentMethod` exigem `kind = expense`.
+ */
+export function primeiroNoParaKind(definition: FlowDefinition, kind: 'expense' | 'income'): string | null {
+  return primeiroNoAplicavel(definition, 0, { kind, isCompanyAccount: true });
 }

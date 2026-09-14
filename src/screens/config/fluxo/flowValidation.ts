@@ -1,4 +1,5 @@
 import type { FlowDefinition, FlowNode } from '../../../services/assistantFlowService';
+import { primeiroNoParaKind, ABERTURA_NODE_ID } from './flowBranches';
 
 /**
  * Erros que o desenho nao revela sozinho.
@@ -183,8 +184,46 @@ function validarIdsDuplicados(definition: FlowDefinition): FlowIssue[] {
   return issues;
 }
 
+/**
+ * Abertura: avisos, nunca erros.
+ *
+ * Fluxo sem abertura continua rodando — o backend cai na abertura padrao e o
+ * chat abre normalmente. Marcar como erro travaria o botao Salvar por algo
+ * que nao quebra a conversa.
+ */
+function validarAbertura(definition: FlowDefinition): FlowIssue[] {
+  if (!definition.abertura) {
+    return [{
+      nodeId: null,
+      severity: 'aviso',
+      message: 'O fluxo não define a abertura; o chat vai abrir com a saudação padrão.',
+    }];
+  }
+
+  const issues: FlowIssue[] = [];
+
+  for (const opcao of definition.abertura.opcoes) {
+    // A consulta sai do preenchimento guiado de proposito: nao ter destino
+    // aqui e o comportamento correto, nao um caminho quebrado.
+    if (opcao.intent === 'ask') continue;
+
+    const kind = opcao.intent === 'register_expense' ? 'expense' : 'income';
+    const destino = primeiroNoParaKind(definition, kind);
+    if (!destino) {
+      issues.push({
+        nodeId: ABERTURA_NODE_ID,
+        severity: 'aviso',
+        message: `"${opcao.label}" não leva a nenhuma pergunta: nenhum nó se aplica a ${kind}.`,
+      });
+    }
+  }
+
+  return issues;
+}
+
 export function validateFlow(definition: FlowDefinition): FlowIssue[] {
   return [
+    ...validarAbertura(definition),
     ...validarIdsDuplicados(definition),
     ...validarObrigatorios(definition),
     ...validarOrfaos(definition),

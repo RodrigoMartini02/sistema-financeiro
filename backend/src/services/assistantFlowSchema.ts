@@ -103,6 +103,8 @@ export interface FlowIntentOption {
 export interface FlowAbertura {
   saudacao: string;
   opcoes: FlowIntentOption[];
+  /** Posicao no canvas; so o editor usa, igual a de FlowNode. */
+  posicao?: { x: number; y: number };
 }
 
 export interface FlowDefinition {
@@ -247,7 +249,19 @@ function parseAbertura(raw: unknown): FlowAbertura | undefined {
     .filter((o): o is FlowIntentOption => o !== null);
   if (opcoes.length === 0) return undefined;
 
-  return { saudacao: saudacao.slice(0, 300), opcoes };
+  const abertura: FlowAbertura = { saudacao: saudacao.slice(0, 300), opcoes };
+
+  // Mesma checagem de parseNode: posicao malformada e descartada em vez de
+  // derrubar a abertura inteira — o canvas cai no fallback de layout.
+  const posicao = obj['posicao'];
+  if (typeof posicao === 'object' && posicao !== null) {
+    const pos = posicao as Record<string, unknown>;
+    if (typeof pos['x'] === 'number' && typeof pos['y'] === 'number') {
+      abertura.posicao = { x: pos['x'], y: pos['y'] };
+    }
+  }
+
+  return abertura;
 }
 
 /**

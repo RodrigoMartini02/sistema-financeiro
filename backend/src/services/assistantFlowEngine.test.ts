@@ -282,3 +282,40 @@ test('fluxo editado muda a conversa sem tocar em codigo', () => {
   assert.equal(custom.nextQuestion(despesa(), catalogo())?.question, 'Quanto custou?');
   assert.equal(custom.nextQuestion(despesa({ amount: 10 }), catalogo())?.question, 'Com o que foi?');
 });
+
+test('abertura preserva a posicao do canvas quando ela e valida', () => {
+  const parsed = parseFlowDefinition({
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      opcoes: [{ intent: 'register_expense', label: 'Despesa', abertura: 'Conta aí.' }],
+      posicao: { x: 120, y: -260 },
+    },
+  });
+
+  assert.deepEqual(parsed.abertura?.posicao, { x: 120, y: -260 });
+});
+
+test('posicao malformada e descartada sem derrubar a abertura', () => {
+  // So a posicao e invalida: a saudacao e as opcoes seguem valendo, senao o
+  // chat abriria sem botao por causa de um detalhe de desenho.
+  const parsed = parseFlowDefinition({
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      opcoes: [{ intent: 'register_expense', label: 'Despesa', abertura: 'Conta aí.' }],
+      posicao: { x: 'esquerda', y: null },
+    },
+  });
+
+  assert.equal(parsed.abertura?.posicao, undefined);
+  assert.equal(parsed.abertura?.saudacao, 'Oi!');
+  assert.equal(parsed.abertura?.opcoes.length, 1);
+});
+
+test('abertura sem posicao continua valida', () => {
+  const parsed = parseFlowDefinition(JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)));
+
+  assert.equal(parsed.abertura?.posicao, undefined);
+  assert.equal(parsed.abertura?.opcoes.length, 3);
+});

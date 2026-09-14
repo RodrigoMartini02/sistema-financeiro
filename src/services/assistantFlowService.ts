@@ -49,6 +49,8 @@ export interface FlowIntentOption {
 export interface FlowAbertura {
   saudacao: string;
   opcoes: FlowIntentOption[];
+  /** Posição no canvas; só o editor usa. */
+  posicao?: { x: number; y: number };
 }
 
 export interface FlowDefinition {

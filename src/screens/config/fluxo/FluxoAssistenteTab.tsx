@@ -8,17 +8,24 @@ import '@xyflow/react/dist/style.css';
 import { AlertTriangle, CheckCircle2, RotateCcw, Save } from 'lucide-react';
 import {
   fetchActiveFlow, saveActiveFlow, restoreDefaultFlow,
-  type FlowDefinition, type FlowNode,
+  type FlowDefinition, type FlowNode, type FlowAbertura,
 } from '../../../services/assistantFlowService';
 import { queryKeys } from '../../../services/queryKeys';
 import { CFG } from '../../../ui/configTokens';
 import { C } from '../../../ui/dialogFormTokens';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { PerguntaNode, type PerguntaNodeData } from './PerguntaNode';
+import { AberturaNode, ConsultaNode, type AberturaNodeData } from './AberturaNode';
 import { validateFlow, issuesByNode, type FlowIssue } from './flowValidation';
-import { branchesForNode, defaultTargetForNode } from './flowBranches';
+import {
+  branchesForNode, defaultTargetForNode, primeiroNoParaKind,
+  ABERTURA_NODE_ID, CONSULTA_NODE_ID,
+} from './flowBranches';
 
-const nodeTypes: NodeTypes = { pergunta: PerguntaNode };
+const nodeTypes: NodeTypes = { pergunta: PerguntaNode, abertura: AberturaNode, consulta: ConsultaNode };
+
+/** Posicao de origem da abertura quando o fluxo salvo ainda nao tem uma. */
+const ABERTURA_POSICAO_PADRAO = { x: 0, y: -260 };
 
 /**
  * Converte o fluxo salvo no grafo que o canvas desenha.
@@ -50,6 +57,72 @@ function toGraph(
   // rotulada. Antes todos os nos eram ligados em linha reta com um "se
   // aplicavel" que nao dizia se aplicavel quando o que.
   const edges: Edge[] = [];
+
+  // A abertura e um no sintetico: existe no desenho, nao em `definition.nos`.
+  // Ela nao preenche slot nenhum — escolhe QUAL fluxo roda — e por isso nao
+  // passa por parseNode nem entra na `ordem` que o motor percorre.
+  if (definition.abertura) {
+    nodes.push({
+      id: ABERTURA_NODE_ID,
+      type: 'abertura',
+      position: definition.abertura.posicao ?? ABERTURA_POSICAO_PADRAO,
+      data: {
+        abertura: definition.abertura,
+        issues: issuesPorNo.get(ABERTURA_NODE_ID) ?? [],
+        selecionado: selecionadoId === ABERTURA_NODE_ID,
+      } satisfies AberturaNodeData,
+    });
+
+    const temConsulta = definition.abertura.opcoes.some((o) => o.intent === 'ask');
+    if (temConsulta) {
+      nodes.push({
+        id: CONSULTA_NODE_ID,
+        type: 'consulta',
+        position: { x: -320, y: 0 },
+        data: {},
+        selectable: false,
+      });
+    }
+
+    // Despesa e receita entram pelo mesmo primeiro no (a descricao), entao
+    // as duas setas se sobreporiam com rotulos brigando pelo mesmo espaco.
+    // Mesma solucao das ramificacoes: destino igual, aresta compartilhada.
+    const destinoPorOpcao = new Map<string, string[]>();
+    for (const opcao of definition.abertura.opcoes) {
+      // Cada intencao entra no fluxo por um `kind` diferente, e sao as
+      // condicoes do proprio fluxo que decidem onde isso cai. E o que torna
+      // visivel que receita so pergunta descricao e valor.
+      const destino = opcao.intent === 'register_expense'
+        ? primeiroNoParaKind(definition, 'expense')
+        : opcao.intent === 'register_income'
+          ? primeiroNoParaKind(definition, 'income')
+          : CONSULTA_NODE_ID;
+
+      if (!destino) continue;
+      if (destino !== CONSULTA_NODE_ID && !nodePorId.has(destino)) continue;
+
+      const lista = destinoPorOpcao.get(destino) ?? [];
+      lista.push(opcao.label);
+      destinoPorOpcao.set(destino, lista);
+    }
+
+    for (const [destino, labels] of destinoPorOpcao) {
+      edges.push({
+        id: `abertura-${destino}`,
+        source: ABERTURA_NODE_ID,
+        target: destino,
+        type: 'smoothstep',
+        label: labels.join(' · '),
+        labelStyle: { fontSize: 10, fill: '#6d28d9', fontWeight: 600 },
+        labelBgStyle: { fill: '#f5f3ff', fillOpacity: 0.95 },
+        labelBgPadding: [6, 3],
+        labelBgBorderRadius: 6,
+        // Violeta separa a escolha de fluxo das ramificacoes de resposta
+        // (ciano) e do tronco (cinza): sao tres coisas diferentes.
+        style: { stroke: '#8b5cf6', strokeWidth: 1.5 },
+      });
+    }
+  }
 
   for (const origem of definition.ordem) {
     if (!nodePorId.has(origem)) continue;
@@ -103,11 +176,52 @@ function toGraph(
   return { nodes, edges };
 }
 
+/**
+ * Detalhes da abertura. Separado do painel de pergunta porque os campos sao
+ * outros: nao ha slot, variantes nem condicoes — ha a saudacao e as
+ * intencoes, cada uma com a fala que o assistente dá logo apos a escolha.
+ */
+function PainelAbertura({ abertura }: { abertura: FlowAbertura }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
+          Início da conversa
+        </span>
+        <p style={{ margin: '2px 0 0', fontSize: 12.5, color: C.text }}>{abertura.saudacao}</p>
+      </div>
+
+      <div>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: CFG.muted }}>
+          Opções ({abertura.opcoes.length})
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+          {abertura.opcoes.map((opcao) => (
+            <div
+              key={opcao.intent}
+              style={{
+                borderRadius: 8, border: `1px solid ${CFG.borderSoft}`, padding: '6px 8px',
+                background: '#fff',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: C.text }}>{opcao.label}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: CFG.muted }}>{opcao.abertura}</p>
+              <p style={{ margin: '3px 0 0', fontFamily: 'monospace', fontSize: 10, color: '#7c3aed' }}>
+                {opcao.intent}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PainelPropriedades({ node }: { node: FlowNode | null }) {
   if (!node) {
     return (
       <p style={{ margin: 0, fontSize: 12, color: CFG.muted }}>
-        Clique em uma pergunta no fluxo para ver os detalhes dela.
+        Clique em um bloco do fluxo para ver os detalhes dele.
       </p>
     );
   }
@@ -253,6 +367,16 @@ export function FluxoAssistenteTab() {
   const handleNodeDragStop = (_event: unknown, node: Node) => {
     setRascunho((atual) => {
       if (!atual) return atual;
+
+      // A abertura nao esta em `nos`: a posicao dela mora no proprio bloco.
+      if (node.id === ABERTURA_NODE_ID) {
+        if (!atual.abertura) return atual;
+        return {
+          ...atual,
+          abertura: { ...atual.abertura, posicao: { x: node.position.x, y: node.position.y } },
+        };
+      }
+
       return {
         ...atual,
         nos: atual.nos.map((no) => (
@@ -409,7 +533,9 @@ export function FluxoAssistenteTab() {
           className="rounded-xl border p-3"
           style={{ borderColor: CFG.borderSoft, background: '#fff', maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}
         >
-          <PainelPropriedades node={noSelecionado} />
+          {selecionadoId === ABERTURA_NODE_ID && definicao?.abertura
+            ? <PainelAbertura abertura={definicao.abertura} />
+            : <PainelPropriedades node={noSelecionado} />}
         </div>
       </div>
     </div>
