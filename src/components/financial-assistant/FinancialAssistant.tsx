@@ -112,6 +112,13 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
   },
 };
 
+/**
+ * Visual unico dos chips da conversa — abertura e respostas rapidas. Ficam
+ * empilhados, cada um com a largura do proprio texto, como menu de bot de
+ * atendimento. Compartilhado para os dois grupos nunca divergirem.
+ */
+const ASSISTANT_CHIP_CLASS = 'flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60';
+
 const WELCOME_ACTIONS: Array<{ intent: FinancialCopilotIntentHint; icon: ReactNode }> = [
   { intent: 'register_expense', icon: <Plus size={15} /> },
   { intent: 'register_income', icon: <Plus size={15} /> },
@@ -444,7 +451,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     }
   };
 
-  const handleSend = async (overrideMessage?: string) => {
+  /**
+   * `displayLabel` separa o que o usuario LE do que o backend RECEBE. Nos
+   * chips os dois divergem: escolher o cartao "Nubank" envia o id "6", e
+   * escolher "Não repete" envia "nao" — sem essa separacao o balao mostrava
+   * o valor tecnico no lugar da escolha feita.
+   */
+  const handleSend = async (overrideMessage?: string, displayLabel?: string) => {
     const message = (overrideMessage ?? composer).trim();
     if ((!message && attachments.length === 0) || isPreparing) return;
 
@@ -456,6 +469,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
     const messageAttachments = attachments;
     const displayedMessage = message || 'Analise os arquivos enviados.';
+    const bubbleText = displayLabel ?? displayedMessage;
     setError(null);
     setMessages((current) => [
       // Respondida a pergunta, os botoes saem de cena: deixa-los ativos
@@ -464,7 +478,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       {
         id: newMessageId(),
         role: 'user',
-        content: displayedMessage,
+        content: bubbleText,
         createdAt: new Date().toISOString(),
         attachments: messageAttachments.map((attachment) => ({ nome: attachment.nome, tamanho: attachment.tamanho })),
       },
@@ -841,28 +855,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         </div>
                       ))}
                       {message.cards?.map((card, index) => <CopilotCardView key={`${card.type}-${index}`} card={card} />)}
-                      {message.quickReplies && message.quickReplies.length > 0 && (
-                        <div className="mt-2.5 flex flex-wrap gap-1.5">
-                          {message.quickReplies.map((quickReply) => (
-                            <button
-                              key={`${quickReply.value}-${quickReply.label}`}
-                              type="button"
-                              onClick={() => void handleSend(quickReply.value)}
-                              disabled={isPreparing}
-                              className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] transition hover:border-cyan-400 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
-                            >
-                              {quickReply.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  {/* Fora do balao, logo abaixo dele: sao acoes do usuario, nao
-                      conteudo da fala do assistente. Definem o intentHint, que
-                      tira a ambiguidade de tipo — "recebi 200 do aluguel"
-                      sozinho nao diz se e receita ou despesa. */}
+                  {/* Fora do balao, empilhados: sao acoes do usuario, nao
+                      conteudo da fala do assistente. Mesmo formato para os
+                      chips de abertura e para as respostas rapidas de cada
+                      pergunta do fluxo. */}
                   {message.showWelcomeActions && (
                     <div className="mt-2 flex flex-col items-start gap-1.5">
                       {WELCOME_ACTIONS.map(({ intent, icon }) => (
@@ -870,10 +869,27 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           key={intent}
                           type="button"
                           onClick={() => selectIntent(intent)}
-                          className="flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60"
+                          className={ASSISTANT_CHIP_CLASS}
                         >
                           {icon}
                           {INTENT_DETAILS[intent].label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {message.quickReplies && message.quickReplies.length > 0 && (
+                    <div className="mt-2 flex flex-col items-start gap-1.5">
+                      {message.quickReplies.map((quickReply) => (
+                        <button
+                          key={`${quickReply.value}-${quickReply.label}`}
+                          type="button"
+                          // Envia o value tecnico, exibe o label no balao.
+                          onClick={() => void handleSend(quickReply.value, quickReply.label)}
+                          disabled={isPreparing}
+                          className={`${ASSISTANT_CHIP_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {quickReply.label}
                         </button>
                       ))}
                     </div>
