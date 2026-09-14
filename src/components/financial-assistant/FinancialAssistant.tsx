@@ -864,7 +864,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       tira a ambiguidade de tipo — "recebi 200 do aluguel"
                       sozinho nao diz se e receita ou despesa. */}
                   {message.showWelcomeActions && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
+                    <div className="mt-2 flex flex-col items-start gap-1.5">
                       {WELCOME_ACTIONS.map(({ intent, icon }) => (
                         <button
                           key={intent}
