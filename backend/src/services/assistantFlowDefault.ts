@@ -234,3 +234,27 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
     },
   ],
 };
+
+/**
+ * Completa a abertura em fluxo gravado antes dela existir.
+ *
+ * O fluxo salvo na versao 1 nao tem o bloco `abertura`: o editor abria sem o
+ * no de inicio e o canvas comecava no meio da conversa. Aqui o padrao
+ * preenche o que falta, preservando nos, ordem, obrigatorios e posicoes.
+ *
+ * Nao e feito em parseFlowDefinition de proposito: aquela funcao diz o que o
+ * dado E, e inventar um campo ausente apagaria a diferenca entre "fluxo sem
+ * abertura" e "fluxo com a abertura padrao" — diferenca que a validacao da
+ * tela usa para avisar. Ela roda tambem no PUT, onde completar mascararia um
+ * payload incompleto vindo do editor.
+ *
+ * Fica aqui, e nao no store, para o teste nao arrastar a conexao com o banco
+ * que assistantFlowStore importa.
+ */
+export function comAberturaPadrao(definicao: FlowDefinition): FlowDefinition {
+  if (definicao.abertura) {
+    return definicao;
+  }
+
+  return { ...definicao, abertura: DEFAULT_FLOW_DEFINITION.abertura };
+}
