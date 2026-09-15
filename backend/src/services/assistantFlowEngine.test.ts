@@ -416,3 +416,50 @@ test('versao de formato desconhecida continua sendo recusada', () => {
     FlowDefinitionError,
   );
 });
+
+test('opcao preserva a posicao do bloco no canvas', () => {
+  const parsed = parseFlowDefinition({
+    versaoFormato: 2,
+    ordem: ['paid'],
+    obrigatorios: { income: [], expense: [] },
+    nos: [{
+      id: 'paid',
+      slot: 'paid',
+      variantes: [{
+        texto: 'Já foi paga?',
+        opcoesSource: 'estatica',
+        opcoes: [
+          { label: 'Sim', value: 'sim', posicao: { x: 120, y: 40 } },
+          { label: 'Não', value: 'nao' },
+        ],
+      }],
+    }],
+  });
+
+  const opcoes = parsed.nos[0]?.variantes[0]?.opcoes ?? [];
+  assert.deepEqual(opcoes[0]?.posicao, { x: 120, y: 40 });
+  // Sem posicao gravada o canvas usa o layout automatico.
+  assert.equal(opcoes[1]?.posicao, undefined);
+});
+
+test('posicao malformada na opcao nao derruba a opcao', () => {
+  const parsed = parseFlowDefinition({
+    versaoFormato: 2,
+    ordem: ['paid'],
+    obrigatorios: { income: [], expense: [] },
+    nos: [{
+      id: 'paid',
+      slot: 'paid',
+      variantes: [{
+        texto: 'Já foi paga?',
+        opcoesSource: 'estatica',
+        opcoes: [{ label: 'Sim', value: 'sim', posicao: { x: 'esquerda', y: null } }],
+      }],
+    }],
+  });
+
+  const opcao = parsed.nos[0]?.variantes[0]?.opcoes?.[0];
+  assert.equal(opcao?.label, 'Sim');
+  assert.equal(opcao?.value, 'sim');
+  assert.equal(opcao?.posicao, undefined);
+});

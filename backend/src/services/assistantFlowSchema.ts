@@ -50,13 +50,24 @@ export interface FlowCondition {
   valor?: string | number | boolean | Array<string | number | boolean>;
 }
 
+/**
+ * Opcao de resposta no fluxo.
+ *
+ * Estende SlotOption com o que so o editor usa. O motor devolve SlotOption
+ * para o chat — `posicao` fica no fluxo e nunca trafega para a conversa.
+ */
+export interface FlowOption extends SlotOption {
+  /** Posicao do bloco da resposta no canvas. */
+  posicao?: { x: number; y: number };
+}
+
 export interface FlowQuestionVariant {
   /** Aplicada quando todas as condicoes batem; a primeira que bater vence. */
   quando?: FlowCondition[];
   /** Texto com variaveis no formato {campo} — ver renderTemplate. */
   texto: string;
   opcoesSource?: FlowOptionSource;
-  opcoes?: SlotOption[];
+  opcoes?: FlowOption[];
   isConfirmation?: boolean;
 }
 
@@ -165,13 +176,26 @@ function parseCondition(raw: unknown): FlowCondition | null {
   return condition;
 }
 
-function parseOption(raw: unknown): SlotOption | null {
+function parseOption(raw: unknown): FlowOption | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const obj = raw as Record<string, unknown>;
   const label = obj['label'];
   const value = obj['value'];
   if (typeof label !== 'string' || typeof value !== 'string') return null;
-  return { label: label.slice(0, 120), value: value.slice(0, 120) };
+
+  const opcao: FlowOption = { label: label.slice(0, 120), value: value.slice(0, 120) };
+
+  // Mesma checagem de parseNode: posicao malformada e descartada sem levar a
+  // opcao junto — o canvas cai no layout automatico.
+  const posicao = obj['posicao'];
+  if (typeof posicao === 'object' && posicao !== null) {
+    const pos = posicao as Record<string, unknown>;
+    if (typeof pos['x'] === 'number' && typeof pos['y'] === 'number') {
+      opcao.posicao = { x: pos['x'], y: pos['y'] };
+    }
+  }
+
+  return opcao;
 }
 
 function parseVariant(raw: unknown): FlowQuestionVariant | null {

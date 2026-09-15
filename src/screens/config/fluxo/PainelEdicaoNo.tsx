@@ -1,8 +1,7 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { CFG } from '../../../ui/configTokens';
 import { C } from '../../../ui/dialogFormTokens';
-import type { FlowNode, FlowOption } from '../../../services/assistantFlowService';
-import { valorDeChipAceito, valoresAceitosDoSlot } from './flowValidation';
+import type { FlowNode } from '../../../services/assistantFlowService';
 
 /**
  * Edição do nó selecionado: pergunta, chips e comportamento.
@@ -55,49 +54,6 @@ export function PainelEdicaoNo({ node, onChange, onRemover }: PainelEdicaoNoProp
     });
   };
 
-  const alterarOpcao = (indiceVariante: number, indiceOpcao: number, campo: keyof FlowOption, valor: string) => {
-    onChange({
-      ...node,
-      variantes: node.variantes.map((variante, i) => {
-        if (i !== indiceVariante) return variante;
-        return {
-          ...variante,
-          opcoes: (variante.opcoes ?? []).map((opcao, j) => (
-            j === indiceOpcao ? { ...opcao, [campo]: valor } : opcao
-          )),
-        };
-      }),
-    });
-  };
-
-  const adicionarOpcao = (indiceVariante: number) => {
-    onChange({
-      ...node,
-      variantes: node.variantes.map((variante, i) => {
-        if (i !== indiceVariante) return variante;
-        return {
-          ...variante,
-          // `estatica` porque a opção nasce escrita à mão; categorias e cartões
-          // vêm do catálogo da conta e não se editam aqui.
-          opcoesSource: variante.opcoesSource ?? 'estatica',
-          opcoes: [...(variante.opcoes ?? []), { label: 'Nova opção', value: 'nova' }],
-        };
-      }),
-    });
-  };
-
-  const removerOpcao = (indiceVariante: number, indiceOpcao: number) => {
-    onChange({
-      ...node,
-      variantes: node.variantes.map((variante, i) => {
-        if (i !== indiceVariante) return variante;
-        return { ...variante, opcoes: (variante.opcoes ?? []).filter((_, j) => j !== indiceOpcao) };
-      }),
-    });
-  };
-
-  const sugestoes = valoresAceitosDoSlot(node.slot);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div>
@@ -142,78 +98,19 @@ export function PainelEdicaoNo({ node, onChange, onRemover }: PainelEdicaoNoProp
                 aria-label={`Texto da pergunta ${indiceVariante + 1}`}
               />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {(variante.opcoes ?? []).map((opcao, indiceOpcao) => {
-                  const valorQuebra = !valorDeChipAceito(node.slot, opcao.value);
+              {/* As respostas se editam nos proprios blocos do canvas: cada
+                  uma e um no, e clicar nela abre o painel dela. */}
+              {(variante.opcoes ?? []).length > 0 && (
+                <p style={{ margin: 0, fontSize: 10.5, color: CFG.muted }}>
+                  {(variante.opcoes ?? []).length} resposta(s) — clique no bloco de cada uma para editar.
+                </p>
+              )}
 
-                  return (
-                    <div key={indiceOpcao} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        <input
-                          value={opcao.label}
-                          onChange={(evento) => alterarOpcao(indiceVariante, indiceOpcao, 'label', evento.target.value)}
-                          placeholder="Texto do botão"
-                          style={{ ...campoTexto, flex: 1 }}
-                          aria-label="Texto do botão"
-                        />
-                        <input
-                          value={opcao.value}
-                          onChange={(evento) => alterarOpcao(indiceVariante, indiceOpcao, 'value', evento.target.value)}
-                          placeholder="valor"
-                          style={{
-                            ...campoTexto,
-                            flex: 1,
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            borderColor: valorQuebra ? '#f59e0b' : CFG.borderSoft,
-                          }}
-                          aria-label="Valor enviado ao assistente"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removerOpcao(indiceVariante, indiceOpcao)}
-                          title="Remover opção"
-                          style={{
-                            border: 'none', background: 'transparent', cursor: 'pointer',
-                            color: CFG.muted, padding: 2, display: 'flex',
-                          }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-
-                      {/* O valor é o que vai para o parser, não o que aparece.
-                          Avisar aqui evita descobrir só conversando. */}
-                      {valorQuebra && (
-                        <p style={{ margin: 0, fontSize: 10, color: '#b45309' }}>
-                          O assistente não entende &quot;{opcao.value}&quot;
-                          {sugestoes.length > 0 && <> — esperado: {sugestoes.join(', ')}</>}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {variante.opcoesSource !== 'categorias' && variante.opcoesSource !== 'cartoes' && (
-                  <button
-                    type="button"
-                    onClick={() => adicionarOpcao(indiceVariante)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 4, border: 'none',
-                      background: 'transparent', cursor: 'pointer', color: CFG.muted,
-                      fontSize: 11, padding: '2px 0', alignSelf: 'flex-start',
-                    }}
-                  >
-                    <Plus size={12} /> Adicionar resposta
-                  </button>
-                )}
-
-                {(variante.opcoesSource === 'categorias' || variante.opcoesSource === 'cartoes') && (
-                  <p style={{ margin: 0, fontSize: 10, fontStyle: 'italic', color: CFG.muted }}>
-                    As opções vêm {variante.opcoesSource === 'categorias' ? 'das categorias' : 'dos cartões'} da conta.
-                  </p>
-                )}
-              </div>
+              {(variante.opcoesSource === 'categorias' || variante.opcoesSource === 'cartoes') && (
+                <p style={{ margin: 0, fontSize: 10, fontStyle: 'italic', color: CFG.muted }}>
+                  As opções vêm {variante.opcoesSource === 'categorias' ? 'das categorias' : 'dos cartões'} da conta.
+                </p>
+              )}
             </div>
           ))}
         </div>

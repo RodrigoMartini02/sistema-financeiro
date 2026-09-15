@@ -16,6 +16,8 @@ export interface FlowCondition {
 export interface FlowOption {
   label: string;
   value: string;
+  /** Posição do bloco da resposta no canvas; só o editor usa. */
+  posicao?: { x: number; y: number };
 }
 
 export interface FlowQuestionVariant {

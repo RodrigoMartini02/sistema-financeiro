@@ -43,29 +43,10 @@ export function AberturaNode({ data }: NodeProps) {
         <p className="line-clamp-3 text-xs leading-snug text-slate-700 dark:text-slate-200">
           {abertura.saudacao}
         </p>
-
-        {/* Uma saida por intencao: e a escolha aqui que decide qual fluxo
-            roda, entao cada uma precisa da sua propria seta. */}
-        <div className="mt-1.5 flex flex-col gap-1">
-          {abertura.opcoes.map((opcao) => (
-            <div key={opcao.intent} className="relative flex items-center">
-              <span
-                title={opcao.abertura}
-                className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9.5px] font-medium text-violet-700 dark:bg-violet-900/60 dark:text-violet-200"
-              >
-                {opcao.label}
-              </span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={opcao.intent}
-                className="!bg-violet-500"
-                style={{ right: -14 }}
-              />
-            </div>
-          ))}
-        </div>
       </div>
+
+      {/* Uma saida so: as intencoes viraram blocos proprios abaixo do card. */}
+      <Handle type="source" position={Position.Bottom} className="!bg-violet-500" />
     </div>
   );
 }

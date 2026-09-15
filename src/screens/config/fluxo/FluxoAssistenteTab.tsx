@@ -16,8 +16,11 @@ import { C } from '../../../ui/dialogFormTokens';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { PerguntaNode, type PerguntaNodeData } from './PerguntaNode';
 import { AberturaNode, ConsultaNode, type AberturaNodeData } from './AberturaNode';
+import { RespostaNode, idDaResposta, partesDaResposta, type RespostaNodeData } from './RespostaNode';
+import { respostasDesenhaveis, posicaoPadraoDaResposta } from './layoutRespostas';
 import { PaletaCampos } from './PaletaCampos';
 import { PainelEdicaoNo } from './PainelEdicaoNo';
+import { PainelEdicaoResposta } from './PainelEdicaoResposta';
 import { SLOTS_DISPONIVEIS, novoIdParaSlot } from './slotsDisponiveis';
 import { validateFlow, issuesByNode, type FlowIssue } from './flowValidation';
 import {
@@ -25,7 +28,7 @@ import {
   ABERTURA_NODE_ID, CONSULTA_NODE_ID,
 } from './flowBranches';
 
-const nodeTypes: NodeTypes = { pergunta: PerguntaNode, abertura: AberturaNode, consulta: ConsultaNode };
+const nodeTypes: NodeTypes = { pergunta: PerguntaNode, abertura: AberturaNode, consulta: ConsultaNode, resposta: RespostaNode };
 
 /** Posicao de origem da abertura quando o fluxo salvo ainda nao tem uma. */
 const ABERTURA_POSICAO_PADRAO = { x: 0, y: -260 };
@@ -87,9 +90,34 @@ function toGraph(
       });
     }
 
-    // Uma seta por intencao, cada uma saindo do seu proprio handle. Despesa
-    // e receita caem no mesmo primeiro no, mas continuam sendo duas escolhas
-    // diferentes — agrupa-las escondia a estrutura.
+    // Cada intencao vira um bloco proprio abaixo do card, como as demais
+    // respostas: a escolha e independente da saudacao.
+    const posicaoAbertura = definition.abertura.posicao ?? ABERTURA_POSICAO_PADRAO;
+
+    definition.abertura.opcoes.forEach((opcao, indice) => {
+      const idOpcao = idDaResposta(ABERTURA_NODE_ID, opcao.intent);
+
+      nodes.push({
+        id: idOpcao,
+        type: 'resposta',
+        position: posicaoPadraoDaResposta(posicaoAbertura, indice, definition.abertura!.opcoes.length),
+        data: {
+          label: opcao.label,
+          valor: opcao.intent,
+          selecionado: selecionadoId === idOpcao,
+          dinamica: false,
+        } satisfies RespostaNodeData,
+      });
+
+      edges.push({
+        id: `abertura-para-${idOpcao}`,
+        source: ABERTURA_NODE_ID,
+        target: idOpcao,
+        type: 'smoothstep',
+        style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
+      });
+    });
+
     for (const opcao of definition.abertura.opcoes) {
       // Cada intencao entra no fluxo por um `kind` diferente, e sao as
       // condicoes do proprio fluxo que decidem onde isso cai. E o que torna
@@ -105,8 +133,7 @@ function toGraph(
 
       edges.push({
         id: `abertura-${opcao.intent}`,
-        source: ABERTURA_NODE_ID,
-        sourceHandle: opcao.intent,
+        source: idDaResposta(ABERTURA_NODE_ID, opcao.intent),
         target: destino,
         type: 'smoothstep',
         label: opcao.label,
@@ -134,32 +161,68 @@ function toGraph(
       destinoGravado.set(transicao.quando, transicao.destino);
     }
 
+    const respostas = respostasDesenhaveis(no);
     const ramos = branchesForNode(definition, origem);
+    const destinoDerivado = new Map(ramos.map((ramo) => [ramo.valor, ramo.destinoId]));
 
-    if (ramos.length > 0 || destinoGravado.size > 0) {
-      // Uma seta por resposta, saindo do handle daquela resposta. Nao se
-      // agrupa mais: duas respostas que caem no mesmo no continuam sendo
-      // duas decisoes diferentes, e juntar as setas escondia isso.
-      for (const ramo of ramos) {
-        const destinoId = destinoGravado.has(ramo.valor)
-          ? destinoGravado.get(ramo.valor)!
-          : ramo.destinoId;
-        if (!destinoId || !nodePorId.has(destinoId)) continue;
+    if (respostas.length > 0) {
+      const posicaoDoNo = no.posicao ?? { x: 0, y: 0 };
+      const indiceNaOrdem = definition.ordem.indexOf(origem);
+
+      respostas.forEach((resposta, indice) => {
+        const idResposta = idDaResposta(origem, resposta.valor);
+
+        // A resposta e um bloco proprio, fora do card: a decisao e
+        // independente da fala, e e dela que sai a seta do proximo passo.
+        nodes.push({
+          id: idResposta,
+          type: 'resposta',
+          position: resposta.posicao ?? posicaoPadraoDaResposta(posicaoDoNo, indice, respostas.length),
+          data: {
+            label: resposta.label,
+            valor: resposta.valor,
+            selecionado: selecionadoId === idResposta,
+            dinamica: resposta.dinamica,
+          } satisfies RespostaNodeData,
+        });
+
+        // Card -> bloco: sem rotulo, porque o rotulo e o proprio bloco.
+        edges.push({
+          id: `${origem}-para-${idResposta}`,
+          source: origem,
+          target: idResposta,
+          type: 'smoothstep',
+          style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
+        });
+
+        const destinoId = destinoGravado.has(resposta.valor)
+          ? destinoGravado.get(resposta.valor)!
+          : destinoDerivado.get(resposta.valor) ?? null;
+        if (!destinoId || !nodePorId.has(destinoId)) return;
+
+        // Retorno: a resposta volta para uma pergunta anterior ou para a
+        // propria. E o caso do "Corrigir", que sempre existiu na conversa e
+        // nunca aparecia no desenho.
+        const indiceDestino = definition.ordem.indexOf(destinoId);
+        const eRetorno = indiceDestino >= 0 && indiceNaOrdem >= 0 && indiceDestino <= indiceNaOrdem;
 
         edges.push({
-          id: `${origem}-${ramo.valor}-${destinoId}`,
-          source: origem,
-          sourceHandle: ramo.valor,
+          id: `${idResposta}-para-${destinoId}`,
+          source: idResposta,
           target: destinoId,
           type: 'smoothstep',
-          label: ramo.label,
-          labelStyle: { fontSize: 10, fill: '#0e7490', fontWeight: 600 },
-          labelBgStyle: { fill: '#ecfeff', fillOpacity: 0.95 },
-          labelBgPadding: [6, 3],
-          labelBgBorderRadius: 6,
-          style: { stroke: '#0891b2', strokeWidth: 1.5 },
+          animated: eRetorno,
+          ...(eRetorno ? { label: 'volta' } : {}),
+          labelStyle: { fontSize: 9.5, fill: '#b45309', fontWeight: 600 },
+          labelBgStyle: { fill: '#fffbeb', fillOpacity: 0.95 },
+          labelBgPadding: [5, 2],
+          labelBgBorderRadius: 5,
+          style: {
+            stroke: eRetorno ? '#f59e0b' : '#0891b2',
+            strokeWidth: 1.5,
+          },
         });
-      }
+      });
       continue;
     }
 
@@ -275,6 +338,19 @@ function EditorFluxo() {
     [definicao],
   );
 
+  // Bloco de resposta selecionado: o id sintetico diz o no dono e o valor.
+  const respostaSelecionada = useMemo(() => {
+    if (!selecionadoId || !definicao) return null;
+
+    const partes = partesDaResposta(selecionadoId);
+    if (!partes || partes.nodeId === ABERTURA_NODE_ID) return null;
+
+    const dono = definicao.nos.find((no) => no.id === partes.nodeId);
+    if (!dono) return null;
+
+    return { node: dono, valor: partes.valor };
+  }, [definicao, selecionadoId]);
+
   const noSelecionado = useMemo(
     () => definicao?.nos.find((n) => n.id === selecionadoId) ?? null,
     [definicao, selecionadoId],
@@ -319,17 +395,24 @@ function EditorFluxo() {
     // o fluxo pelo `kind`, e isso nao se redireciona por aresta.
     if (source === ABERTURA_NODE_ID) return;
 
+    // A ligacao sai do bloco da resposta: quem grava a transicao e o no dono
+    // dela, com `quando` = valor da opcao.
+    const partes = partesDaResposta(source);
+    if (partes && partes.nodeId === ABERTURA_NODE_ID) return;
+
+    const noOrigem = partes ? partes.nodeId : source;
+
     setRascunho((atual) => {
       if (!atual) return atual;
 
       // Sem handle a ligacao vale para qualquer resposta.
-      const quando = sourceHandle ?? TRANSICAO_QUALQUER;
+      const quando = partes ? partes.valor : (sourceHandle ?? TRANSICAO_QUALQUER);
 
       return {
         ...atual,
         versaoFormato: 2,
         nos: atual.nos.map((no) => {
-          if (no.id !== source) return no;
+          if (no.id !== noOrigem) return no;
 
           // Uma resposta leva a um lugar so: religar substitui.
           const semAntiga = (no.transicoes ?? []).filter((t) => t.quando !== quando);
@@ -340,6 +423,44 @@ function EditorFluxo() {
     setAlterado(true);
   };
 
+  /**
+   * Apagar no canvas: bloco de resposta remove a opcao, card remove a
+   * pergunta inteira. Tratar os dois igual apagaria a pergunta ao tentar
+   * tirar so uma resposta dela.
+   */
+  const handleNodesDelete = (nos: Node[]) => {
+    for (const no of nos) {
+      const partes = partesDaResposta(no.id);
+      if (!partes) {
+        handleRemoverNo(no.id);
+        continue;
+      }
+      if (partes.nodeId === ABERTURA_NODE_ID) continue;
+
+      setRascunho((atual) => {
+        if (!atual) return atual;
+        return {
+          ...atual,
+          nos: atual.nos.map((noAtual) => {
+            if (noAtual.id !== partes.nodeId) return noAtual;
+            return {
+              ...noAtual,
+              variantes: noAtual.variantes.map((variante) => ({
+                ...variante,
+                opcoes: (variante.opcoes ?? []).filter((opcao) => opcao.value !== partes.valor),
+              })),
+              // A transicao daquela resposta perde o sentido junto com ela.
+              ...(noAtual.transicoes
+                ? { transicoes: noAtual.transicoes.filter((t) => t.quando !== partes.valor) }
+                : {}),
+            };
+          }),
+        };
+      });
+      setAlterado(true);
+    }
+  };
+
   /** Apagar a seta volta a resposta para a varredura da ordem. */
   const handleEdgesDelete = (arestas: Edge[]) => {
     setRascunho((atual) => {
@@ -348,10 +469,16 @@ function EditorFluxo() {
       return {
         ...atual,
         nos: atual.nos.map((no) => {
-          const remover = arestas.filter((aresta) => aresta.source === no.id);
+          const remover = arestas.filter((aresta) => {
+            const origemAresta = partesDaResposta(aresta.source);
+            return (origemAresta ? origemAresta.nodeId : aresta.source) === no.id;
+          });
           if (remover.length === 0 || !no.transicoes) return no;
 
-          const quandos = new Set(remover.map((a) => a.sourceHandle ?? TRANSICAO_QUALQUER));
+          const quandos = new Set(remover.map((a) => {
+            const origemAresta = partesDaResposta(a.source);
+            return origemAresta ? origemAresta.valor : (a.sourceHandle ?? TRANSICAO_QUALQUER);
+          }));
           const restantes = no.transicoes.filter((t) => !quandos.has(t.quando));
           if (restantes.length > 0) return { ...no, transicoes: restantes };
 
@@ -447,6 +574,28 @@ function EditorFluxo() {
   const handleNodeDragStop = (_event: unknown, node: Node) => {
     setRascunho((atual) => {
       if (!atual) return atual;
+
+      // Bloco de resposta: a posicao mora na opcao, nao no no.
+      const partes = partesDaResposta(node.id);
+      if (partes) {
+        return {
+          ...atual,
+          nos: atual.nos.map((no) => {
+            if (no.id !== partes.nodeId) return no;
+            return {
+              ...no,
+              variantes: no.variantes.map((variante) => ({
+                ...variante,
+                opcoes: (variante.opcoes ?? []).map((opcao) => (
+                  opcao.value === partes.valor
+                    ? { ...opcao, posicao: { x: node.position.x, y: node.position.y } }
+                    : opcao
+                )),
+              })),
+            };
+          }),
+        };
+      }
 
       // A abertura nao esta em `nos`: a posicao dela mora no proprio bloco.
       if (node.id === ABERTURA_NODE_ID) {
@@ -602,7 +751,7 @@ function EditorFluxo() {
             onPaneClick={() => setSelecionadoId(null)}
             onConnect={handleConnect}
             onEdgesDelete={handleEdgesDelete}
-            onNodesDelete={(nos) => nos.forEach((no) => handleRemoverNo(no.id))}
+            onNodesDelete={handleNodesDelete}
             // Religar uma seta existente troca o destino em vez de duplicar.
             edgesReconnectable
             deleteKeyCode={['Backspace', 'Delete']}
@@ -648,6 +797,13 @@ function EditorFluxo() {
             <PaletaCampos slotsEmUso={slotsEmUso} />
           ) : selecionadoId === ABERTURA_NODE_ID && definicao?.abertura ? (
             <PainelAbertura abertura={definicao.abertura} />
+          ) : respostaSelecionada && definicao ? (
+            <PainelEdicaoResposta
+              definicao={definicao}
+              node={respostaSelecionada.node}
+              valor={respostaSelecionada.valor}
+              onChange={handleNoChange}
+            />
           ) : (
             <PainelEdicaoNo
               node={noSelecionado}
