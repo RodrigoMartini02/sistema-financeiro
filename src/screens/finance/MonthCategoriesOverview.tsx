@@ -1,7 +1,11 @@
-import { Target } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Target } from 'lucide-react';
 import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
 import { Card } from '../../ui/card';
 import { budgetPercentage, formatCurrency } from './formatters';
+
+/** Categorias mostradas antes de "ver todas". */
+const CATEGORIAS_VISIVEIS = 5;
 
 export interface CategoriaSegmento {
   usuarioId: number;
@@ -37,12 +41,19 @@ function statusLabel(item: BudgetOverviewItem): string {
 }
 
 export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCategoria }: MonthCategoriesOverviewProps) {
+  const [expandido, setExpandido] = useState(false);
+
   if (!overview) return null;
 
   const porMembro = segmentosPorCategoria !== undefined;
 
   const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
   if (items.length === 0) return null;
+
+  // As maiores contam a maior parte da historia; a cauda longa de categorias
+  // pequenas empurrava o resto do painel para fora da tela.
+  const visiveis = expandido ? items : items.slice(0, CATEGORIAS_VISIVEIS);
+  const ocultas = items.length - visiveis.length;
 
   const total = items.reduce((s, item) => s + item.projectedAmount, 0);
   const acimaCount = items.filter((item) => item.status === 'over' || item.status === 'attention').length;
@@ -104,7 +115,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
         </div>
 
         <div className="grid">
-          {items.map((item) => {
+          {visiveis.map((item) => {
             const barWidth = Math.min(100, (item.projectedAmount / max) * 100);
             const targetPosition = item.targetAmount ? Math.min(100, (item.targetAmount / max) * 100) : null;
             return (
@@ -147,6 +158,19 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
             );
           })}
         </div>
+
+        {(ocultas > 0 || expandido) && (
+          <button
+            type="button"
+            onClick={() => setExpandido((atual) => !atual)}
+            aria-expanded={expandido}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#eef4f7] py-2 text-[11.5px] font-semibold text-[#0891b2] transition hover:bg-[#f5f9fb] dark:border-slate-700 dark:hover:bg-slate-800"
+          >
+            {expandido
+              ? <>Ver menos <ChevronUp size={13} /></>
+              : <>Ver todas as {items.length} categorias <ChevronDown size={13} /></>}
+          </button>
+        )}
 
         <p className="mt-3.5 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
           {porMembro ? 'Ordenadas por valor gasto, divididas por membro. As metas são individuais — filtre por membro para vê-las.' : 'Ordenadas por valor gasto. Os limites são definidos em Configurações › Metas.'}
