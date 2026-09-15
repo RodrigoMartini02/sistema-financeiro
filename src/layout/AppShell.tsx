@@ -179,9 +179,13 @@ export function AppShell({
   });
   const canViewNotifications = ownPermissions?.accessNotifications ?? true;
   const canViewDashboard = ownPermissions?.accessDashboard ?? true;
-  // O fluxo do assistente vale para todos os usuarios, entao so o dono do
-  // sistema edita. Mesmo criterio da aba de Acessos em Configuracoes.
-  const podeEditarFluxo = !isDemoMode
+  // Fora do produto: o assistente deixou de conduzir a conversa por perguntas
+  // e passou a ler a frase de uma vez, entao nao ha sequencia para desenhar.
+  // A tela e o motor seguem no codigo, testados, para serem retomados — ver
+  // .plans/card-preenchido-no-assistente.md.
+  const FLUXO_EDITOR_ATIVO = false;
+  const podeEditarFluxo = FLUXO_EDITOR_ATIVO
+    && !isDemoMode
     && (user?.documento ?? '').replace(/\D/g, '') === FLOW_EDITOR_DOCUMENT;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {

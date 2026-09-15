@@ -302,6 +302,34 @@ export async function startSlotSession(input: {
 }
 
 /**
+ * Le a frase e devolve o rascunho de uma vez, sem conduzir perguntas.
+ *
+ * Caminho ativo do assistente. Quem escreve "gastei 50 no mercado no credito"
+ * ja tem os dados na cabeca; perguntar campo a campo obriga a solta-los em
+ * conta-gotas, no ritmo da maquina. Aqui a extracao acontece uma vez e o
+ * usuario completa o que faltar no card, editando o que quiser.
+ *
+ * Reaproveita `seedDraftFromMessage` e `suggestCategory`, os mesmos que o
+ * fluxo guiado usa — o que muda e nao chamar o motor depois.
+ */
+export async function readDraftFromMessage(input: {
+  kind: SlotDraft['kind'];
+  message: string;
+  catalog: SlotCatalog;
+  userId: number;
+}): Promise<SlotDraft> {
+  const draft = seedDraftFromMessage(input.kind, input.message, input.catalog);
+
+  // Receita grava so descricao e valor: sugerir categoria seria oferecer um
+  // campo que a tabela nao tem.
+  if (input.kind === 'expense' && draft.description && !draft.category) {
+    draft.category = await suggestCategory(draft.description, input.userId, input.catalog);
+  }
+
+  return draft;
+}
+
+/**
  * Consome a resposta do slot pendente e avanca. Sem slot pendente, trata a
  * mensagem como uma nova leitura livre sobre o rascunho em andamento.
  */

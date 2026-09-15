@@ -13,14 +13,14 @@ import {
   type AssistantDraftContext,
   type FinancialAssistantDraft,
 } from './financialAssistant';
+// advanceSlotSession/startSlotSession pertencem ao fluxo guiado, hoje fora do
+// produto: o assistente le a frase de uma vez com readDraftFromMessage. Eles
+// seguem exportados e testados para a retomada do fluxograma.
 import {
-  advanceSlotSession,
-  finalizeSlotDraft,
   loadSlotCatalog,
   parseSlotSessionState,
-  startSlotSession,
+  readDraftFromMessage,
   type SlotSessionState,
-  type SlotSessionStep,
 } from './assistantSlotSession';
 import type { SlotDraft } from './assistantSlotFilling';
 import { buildQuerySystemPrompt, runAssistantQuery } from './assistantToolRunner';
@@ -361,8 +361,13 @@ function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraf
  * Recupera o estado do preenchimento guiado. A ultima mensagem do assistente
  * que carregava um slot pendente e a fonte; sem a tabela de mensagens, o client
  * reenvia o estado no proprio request.
+ *
+ * Sem chamador enquanto o fluxo guiado esta fora do produto. Preservada, e nao
+ * removida, porque o fluxograma sera retomado — ver
+ * .plans/card-preenchido-no-assistente.md. Exportada para nao virar codigo
+ * morto invisivel ao compilador.
  */
-function resolveSlotState(history: StoredMessage[], fromRequest: SlotSessionState | null): SlotSessionState | null {
+export function resolveSlotState(history: StoredMessage[], fromRequest: SlotSessionState | null): SlotSessionState | null {
   if (fromRequest) return fromRequest;
 
   for (let index = history.length - 1; index >= 0; index -= 1) {
@@ -376,7 +381,8 @@ function resolveSlotState(history: StoredMessage[], fromRequest: SlotSessionStat
   return null;
 }
 
-const MISUNDERSTOOD_PREFIX = 'Não peguei essa parte, me ajuda?';
+/** Usado pelo fluxo guiado, hoje fora do produto. Ver resolveSlotState. */
+export const MISUNDERSTOOD_PREFIX = 'Não peguei essa parte, me ajuda?';
 
 /** Historico da conversa no formato neutro que os adaptadores de tool traduzem. */
 function toToolHistory(history: StoredMessage[]): ToolMessage[] {
@@ -401,78 +407,67 @@ async function buildSpokenReply(userId: number, reply: string): Promise<string |
 }
 
 /**
- * Conduz o lancamento por perguntas, uma de cada vez, ate o rascunho fechar.
- * Nenhuma escrita financeira acontece aqui: o fim do fluxo e o card de revisao.
+ * Le a frase e devolve o card de revisao preenchido, de uma vez.
+ *
+ * Antes isto conduzia o lancamento por 7 a 10 perguntas encadeadas, uma por
+ * mensagem, ate o rascunho fechar. Quem escreve "gastei 50 no mercado no
+ * credito" ja sabe todas as respostas: o ping-pong so impunha o ritmo da
+ * maquina a quem ja tinha a informacao pronta.
+ *
+ * O fluxo guiado (assistantSlotSession, assistantFlowEngine e o editor de
+ * fluxograma) continua no codigo e testado, fora do produto, para ser
+ * retomado — ver .plans/card-preenchido-no-assistente.md.
+ *
+ * Nenhuma escrita financeira acontece aqui: quem grava e o card, apos o
+ * usuario confirmar.
  */
 async function runSlotFlow(input: {
   userId: number;
   account: FinancialAccount;
   conversationId: number | null;
   message: string;
+  /** Sem leitor: o card nasce da frase atual, nao da conversa anterior. */
   history: StoredMessage[];
   intentHint: AssistantIntentHint | null;
+  /** Sem leitor: nao ha mais preenchimento em andamento entre mensagens. */
   slotState: SlotSessionState | null;
   voiceMode: boolean;
 }): Promise<FinancialCopilotResponse> {
   const catalog = await loadSlotCatalog(input.userId, input.account);
-  const existingState = resolveSlotState(input.history, input.slotState);
 
-  let step: SlotSessionStep;
-  if (existingState) {
-    step = await advanceSlotSession({
-      state: existingState,
-      message: input.message,
-      catalog,
-      userId: input.userId,
-      account: input.account,
-    });
-  } else {
-    // O botao do menu e uma escolha explicita e vence o palpite. Sem ele, a
-    // frase decide: "recebi 1200 do freela" e receita, nao despesa.
-    const kind = input.intentHint === 'register_income'
-      ? 'income'
-      : input.intentHint === 'register_expense'
-        ? 'expense'
-        : inferKind(input.message);
-    step = await startSlotSession({ kind, message: input.message, catalog, userId: input.userId });
-  }
+  // O botao do menu e uma escolha explicita e vence o palpite. Sem ele, a
+  // frase decide: "recebi 1200 do freela" e receita, nao despesa.
+  const kind = input.intentHint === 'register_income'
+    ? 'income'
+    : input.intentHint === 'register_expense'
+      ? 'expense'
+      : inferKind(input.message);
 
-  if (step.question) {
-    const reply = step.misunderstood
-      ? `${MISUNDERSTOOD_PREFIX} ${step.question.question}`
-      : step.question.question;
-    const response: FinancialCopilotResponse = {
-      conversationId: input.conversationId,
-      mode: 'slot',
-      reply,
-      cards: [],
-      draft: null,
-      missingFields: [],
-      quickReplies: step.question.skippable
-        ? [...step.question.options, { label: 'Pular', value: 'pular' }]
-        : step.question.options,
-      slotState: step.state,
-      spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, reply) : undefined,
-    };
-    await storeMessage({
-      conversationId: input.conversationId,
-      role: 'assistant',
-      content: response.reply,
-      payload: { mode: response.mode, slotState: step.state },
-    });
-    return response;
-  }
+  const slotDraft = await readDraftFromMessage({
+    kind,
+    message: input.message,
+    catalog,
+    userId: input.userId,
+  });
 
-  const draft = slotDraftToAssistantDraft(finalizeSlotDraft(step.state));
+  const draft = slotDraftToAssistantDraft(slotDraft);
+
+  // A fala reconhece o que foi entendido em vez de anunciar um card generico:
+  // e o que deixa claro que o resto ficou em branco de proposito, para o
+  // usuario completar.
+  const reply = draft.description && draft.amount
+    ? 'Entendi isso. Confira e ajuste o que precisar antes de salvar.'
+    : 'Peguei o que deu. Complete o que faltar e salve.';
+
   const response: FinancialCopilotResponse = {
     conversationId: input.conversationId,
     mode: 'draft',
-    reply: 'Confira os dados antes de confirmar.',
+    reply,
     cards: [],
     draft,
     missingFields: [],
     slotState: null,
-    spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, 'Confira os dados antes de confirmar.') : undefined,
+    spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, reply) : undefined,
   };
   await storeMessage({
     conversationId: input.conversationId,

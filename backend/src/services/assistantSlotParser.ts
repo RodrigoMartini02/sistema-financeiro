@@ -111,8 +111,33 @@ function extractSpokenAmountWithoutCurrency(text: string): number | null {
  * numero nao ficava colado a "no pix".
  */
 function extractAmountBeforePaymentMethod(text: string): number | null {
+  // (?![\dx]) impede casar o "1" de "10x": em "3000 em 10x no credito" o
+  // numero colado ao x e a parcela, nao o valor da compra.
   const match = text.match(
-    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:reais?)?\s+(?:(?:hoje|ontem|amanh[aã])\s+)?(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro|boleto)\b/i,
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\dx])\s*(?:reais?)?\s+(?:(?:hoje|ontem|amanh[aã])\s+)?(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro|boleto)\b/i,
+  );
+  if (!match?.[1]) return null;
+
+  const compact = match[1];
+  const normalized = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(compact)
+    ? compact.replace(/\./g, '').replace(',', '.')
+    : compact.replace(',', '.');
+
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount) || amount <= 0 || amount >= 10_000_000) return null;
+  return Math.round(amount * 100) / 100;
+}
+
+/**
+ * Valor que vem antes do parcelamento: "celular 3000 em 10x".
+ *
+ * As demais extracoes ancoram no simbolo de moeda ou na forma de pagamento, e
+ * nenhuma cobre o numero seguido de "em 10x" — o caso mais comum de compra
+ * parcelada ficava sem valor.
+ */
+function extractAmountBeforeInstallments(text: string): number | null {
+  const match = text.match(
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\dx])\s*(?:reais?)?\s+(?:em|no|na)?\s*\d{1,3}\s*(?:x|vezes|parcelas)\b/i,
   );
   if (!match?.[1]) return null;
 
@@ -402,9 +427,18 @@ export function seedDraftFromMessage(
 
   // Ancorado no verbo de gasto: solto, "dois mercados" viraria valor 2.
   const spokenAfterVerb = text.match(/\b(?:paguei|gastei|comprei|custou|recebi|ganhei|foi|de)\s+([a-z\s]+)/);
+
+  // Valor por extenso so quando a frase nao tem numero escrito. Em "comprei um
+  // celular 3000 em 10x", o "um" e artigo, nao quantidade — e leria 1 no lugar
+  // de 3000. Onde ha digito, ele e a fonte do valor.
+  const temNumeroEscrito = /\d/.test(raw);
+
   draft.amount = extractAmountFromText(raw)
-    ?? (spokenAfterVerb?.[1] ? extractSpokenAmountWithoutCurrency(spokenAfterVerb[1]) : null)
-    ?? extractAmountBeforePaymentMethod(raw);
+    ?? (!temNumeroEscrito && spokenAfterVerb?.[1]
+      ? extractSpokenAmountWithoutCurrency(spokenAfterVerb[1])
+      : null)
+    ?? extractAmountBeforePaymentMethod(raw)
+    ?? extractAmountBeforeInstallments(raw);
   draft.date = extractDateFromText(raw);
   // "mercado do mes, 200 no debito, hoje": o formato com virgula que a spec
   // sugere nos casos ambiguos ja separa a descricao do resto.
