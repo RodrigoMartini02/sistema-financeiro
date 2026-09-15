@@ -329,6 +329,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Altura real da area visivel. `100dvh` e a altura da JANELA, e no Android e
+  // no iOS o teclado nao a altera — encolhe so o visualViewport. Sem medir
+  // aqui, o container mantem a altura cheia e o rodape com a barra de digitar
+  // fica atras do teclado.
+  const [alturaVisivel, setAlturaVisivel] = useState<number | null>(null);
+
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categorias(),
     queryFn: () => fetchCategorias(),
@@ -414,18 +420,35 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   }, [messages, draft, isPreparing]);
 
   // Teclado virtual abrindo/fechando encolhe a viewport sem disparar resize da
-  // janela. Sem reagir a isso, a ultima mensagem fica atras do teclado — o
-  // usuario digita sem ver o que estava lendo. Salto instantaneo de proposito:
-  // animar competiria com a propria animacao do teclado.
+  // janela. Duas consequencias, tratadas juntas aqui:
+  //
+  // 1. a altura precisa acompanhar, senao o rodape fica atras do teclado;
+  // 2. a ultima mensagem precisa reaparecer, senao o usuario digita sem ver o
+  //    que estava lendo.
+  //
+  // Salto instantaneo de proposito: animar competiria com a propria animacao
+  // do teclado.
   useEffect(() => {
     if (!open) return;
     const viewport = window.visualViewport;
+    // Sem a API, o `100dvh` do CSS continua valendo.
     if (!viewport) return;
+
     const acompanharTeclado = () => {
+      setAlturaVisivel(viewport.height);
       messagesEndRef.current?.scrollIntoView({ block: 'end' });
     };
+
+    acompanharTeclado();
     viewport.addEventListener('resize', acompanharTeclado);
-    return () => viewport.removeEventListener('resize', acompanharTeclado);
+    // No iOS a viewport desloca quando o teclado abre: sem ouvir o scroll, a
+    // altura fica certa e a posicao errada.
+    viewport.addEventListener('scroll', acompanharTeclado);
+
+    return () => {
+      viewport.removeEventListener('resize', acompanharTeclado);
+      viewport.removeEventListener('scroll', acompanharTeclado);
+    };
   }, [open]);
 
   useEffect(() => () => recognitionRef.current?.abort?.(), []);
@@ -785,11 +808,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           )}
           <section
             className={isStandalone
-              // h-[100dvh], nao min-h: com altura MINIMA o container nao encolhe
-              // quando o teclado abre e reduz a viewport — ele mantem a altura
-              // antiga e empurra a conversa toda para fora da tela, para cima.
+              // h-[100dvh] e o fallback para quando visualViewport nao existe;
+              // quem manda e a altura medida no style, porque o teclado nao
+              // altera a altura da janela — so a da viewport visivel.
               ? 'absolute inset-0 flex h-[100dvh] flex-col overflow-hidden bg-slate-50 dark:bg-slate-950'
               : 'absolute inset-0 flex flex-col overflow-hidden bg-slate-50 shadow-2xl dark:bg-slate-950 sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(800px,calc(100vh-2.5rem))] sm:w-[440px] sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-slate-950/25 dark:sm:border-slate-800'}
+            // A altura medida vence o 100dvh do CSS: so ela encolhe quando o
+            // teclado abre. No modo flutuante nao se aplica — ele tem altura
+            // propria e fica ancorado no canto, sem disputa com o teclado.
+            style={isStandalone && alturaVisivel ? { height: alturaVisivel } : undefined}
             role={isStandalone ? undefined : 'dialog'}
             aria-label="Assistente Financeiro"
             aria-modal={isStandalone ? undefined : true}
