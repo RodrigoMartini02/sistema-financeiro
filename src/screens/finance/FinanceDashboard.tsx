@@ -532,27 +532,6 @@ export function FinanceDashboard() {
         </span>
       </Card>
 
-      {/* Cascata do período */}
-      <Card className="rounded-2xl p-[20px_22px_16px]">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do período</h2>
-            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu o período até o que sobrou, passando por cada corte.</p>
-          </div>
-          <div className="flex-1" />
-          {receitas > 0 && (
-            <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">
-              Sobrou <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoFinal / receitas) * 100).toFixed(1)}%</b> do que entrou
-            </span>
-          )}
-        </div>
-        {panoramaQ.isLoading ? (
-          <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
-        ) : (
-          <MonthWaterfallChart steps={waterfallSteps} />
-        )}
-      </Card>
-
       {/* Contratos panel — carteira do mês de referência do período */}
       {contratos.length > 0 && (
         <Card className="rounded-2xl p-5">
@@ -972,6 +951,27 @@ export function FinanceDashboard() {
         periodLabel={periodoDescricao}
         segmentosPorCategoria={categoriaPorMembro}
       />
+
+      {/* Cascata do período */}
+      <Card className="rounded-2xl p-[20px_22px_16px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Cascata do período</h2>
+            <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Do saldo que abriu o período até o que sobrou, passando por cada corte.</p>
+          </div>
+          <div className="flex-1" />
+          {receitas > 0 && (
+            <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">
+              Sobrou <b className={saldoFinal >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}>{((saldoFinal / receitas) * 100).toFixed(1)}%</b> do que entrou
+            </span>
+          )}
+        </div>
+        {panoramaQ.isLoading ? (
+          <div className="h-64 flex items-center justify-center text-sm text-slate-400">Carregando...</div>
+        ) : (
+          <MonthWaterfallChart steps={waterfallSteps} />
+        )}
+      </Card>
         </>
       )}
     </div>

@@ -10,7 +10,7 @@ import {
   type SlotQuestion,
 } from './assistantSlotFilling';
 import { applySlotAnswer, seedDraftFromMessage } from './assistantSlotParser';
-import { inferKind } from './financialAssistant';
+import { inferKind, inferKindWithOrigin } from './financialAssistant';
 import { advanceSlotSession } from './assistantSlotSession';
 import { AssistantFlowEngine } from './assistantFlowEngine';
 import { DEFAULT_FLOW_DEFINITION } from './assistantFlowDefault';
@@ -395,4 +395,34 @@ test('valor por extenso continua valendo quando a frase nao tem digito', () => {
 
   const semNumero = seedDraftFromMessage('expense', 'comprei um cafe', catalog);
   assert.equal(semNumero.amount, 1);
+});
+
+test('frase sem sinal de tipo e marcada como palpite, nao como certeza', () => {
+  // "freela 800" e "pix do cliente 500" sao receita na vida real, mas nada na
+  // frase diz isso: viravam despesa com a mesma cara de certeza de "gastei 50".
+  for (const frase of ['mercado 50', 'uber 25', 'freela 800', 'pix do cliente 500']) {
+    assert.equal(inferKindWithOrigin(frase).origin, 'padrao', frase);
+  }
+});
+
+test('verbo na frase decide o tipo sem precisar perguntar', () => {
+  const despesa = inferKindWithOrigin('gastei 50 no mercado');
+  assert.deepEqual(despesa, { kind: 'expense', origin: 'texto' });
+
+  const receita = inferKindWithOrigin('recebi 1200 do freela');
+  assert.deepEqual(receita, { kind: 'income', origin: 'texto' });
+
+  const venda = inferKindWithOrigin('vendi a bicicleta 300');
+  assert.deepEqual(venda, { kind: 'income', origin: 'texto' });
+});
+
+test('rascunho em andamento nao e palpite: o tipo ja foi decidido antes', () => {
+  const comContexto = inferKindWithOrigin('mercado 50', { kind: 'income' });
+  assert.deepEqual(comContexto, { kind: 'income', origin: 'texto' });
+});
+
+test('inferKind mantem o comportamento de sempre para quem so quer o tipo', () => {
+  assert.equal(inferKind('gastei 50 no mercado'), 'expense');
+  assert.equal(inferKind('recebi 1200 do freela'), 'income');
+  assert.equal(inferKind('mercado 50'), 'expense');
 });

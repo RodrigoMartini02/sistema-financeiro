@@ -19,7 +19,7 @@ import {
   sendFinancialCopilotMessage,
 } from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
-import { fetchCartoes, fetchCategorias } from '../../services/configService';
+import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
@@ -30,6 +30,7 @@ import {
   fontSizeToScale, readStoredFontSize, storeFontSize, type AssistantFontSize,
 } from './fontSize';
 import { useSpeech } from './useSpeech';
+import { escolherSaudacao } from './saudacao';
 
 type ChatRole = 'assistant' | 'user';
 
@@ -295,15 +296,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage(ABERTURA_PADRAO.saudacao)]);
 
-  // Saudacao do fluxo chegou depois do primeiro render: atualiza a mensagem
-  // de boas-vindas sem tocar no resto da conversa.
-  useEffect(() => {
-    setMessages((atual) => atual.map((m) => (
-      m.id === 'welcome' && m.content !== abertura.saudacao
-        ? { ...m, content: abertura.saudacao }
-        : m
-    )));
-  }, [abertura.saudacao]);
   const [fontSize, setFontSize] = useState<AssistantFontSize>(() => readStoredFontSize());
   const handleFontSizeChange = (nextFontSize: AssistantFontSize) => {
     setFontSize(nextFontSize);
@@ -315,7 +307,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [draft, setDraft] = useState<FinancialAssistantDraft | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [hasRestoredLatest, setHasRestoredLatest] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -356,11 +347,43 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     enabled: open,
     staleTime: 60_000,
   });
+  // Mesma fonte do modal: o seletor so aparece para quem tem mais de uma
+  // conta, e a nota fiscal so em conta PJ.
+  const contasQuery = useQuery({
+    queryKey: queryKeys.contas,
+    queryFn: () => fetchContas(),
+    enabled: open,
+    staleTime: 5 * 60_000,
+  });
+  const contas = contasQuery.data ?? [];
+
+  // Sem escolha no card, vale a conta ativa — mesmo comportamento de antes,
+  // agora visivel. `contaAtivaTipo` e o fallback que o modal tambem usa.
+  const contaDoLancamento = contas.find((conta) => conta.id === draft?.contaId);
+  const contaEhEmpresa = contaDoLancamento
+    ? contaDoLancamento.tipo === 'empresa'
+    : localStorage.getItem('contaAtivaTipo') === 'empresa';
+
   const conversationsQuery = useQuery({
     queryKey: queryKeys.copilotConversations,
     queryFn: fetchFinancialCopilotConversations,
     staleTime: 30_000,
   });
+
+  // A conversa mais recente da o tempo desde a ultima visita. Ja vem nesta
+  // query, entao a saudacao nao custa request nenhum.
+  const saudacaoAtual = escolherSaudacao(abertura, conversationsQuery.data?.[0]?.updatedAt);
+
+  // A saudacao so e conhecida depois que abertura e historico chegam: ate la
+  // o chat ja abriu com a padrao, e aqui o texto e trocado sem tocar no resto
+  // da conversa.
+  useEffect(() => {
+    setMessages((atual) => atual.map((m) => (
+      m.id === 'welcome' && m.content !== saudacaoAtual
+        ? { ...m, content: saudacaoAtual }
+        : m
+    )));
+  }, [saudacaoAtual]);
   const categories = (categoriesQuery.data ?? []).filter((category) => category.ativo);
   // Mesma regra do modal: um cartao so-credito nao aparece numa compra no debito.
   const cardsForDraft = (cardsQuery.data ?? []).filter((card) => (
@@ -565,7 +588,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setSlotState(null);
     setLastVoiceTranscript(null);
     setHistoryOpen(false);
-    setHasRestoredLatest(true);
     setError(null);
   };
 
@@ -587,7 +609,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setSlotState(null);
       setLastVoiceTranscript(null);
       setHistoryOpen(false);
-      setHasRestoredLatest(true);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Não foi possível restaurar a conversa.');
     }
@@ -604,12 +625,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     }
   };
 
-  useEffect(() => {
-    if (!open || hasRestoredLatest || conversationId || messages.length !== 1 || !conversationsQuery.data?.[0]) return;
-    setHasRestoredLatest(true);
-    void restoreConversation(conversationsQuery.data[0].id);
-  }, [conversationId, conversationsQuery.data, hasRestoredLatest, messages.length, open]);
-
+  // Sem restauracao automatica da ultima conversa: ela fazia setMessages com o
+  // historico e engolia a saudacao, entao reabrir o app caia no meio de uma
+  // conversa antiga. O historico continua a um toque, no menu do cabecalho.
   const toggleVoiceInput = () => {
     if (isListening) {
       recognitionRef.current?.stop();
@@ -673,6 +691,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       if (draft.kind === 'income') {
         await saveIncome(month, year, {
           descricao: draft.description.trim(),
+          contaId: draft.contaId ?? undefined,
           valor: draft.amount,
           data: date,
           anexos: draftAttachments,
@@ -685,6 +704,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         const recorrente = draft.billingType === 'mensal';
         await saveExpense(month, year, {
           descricao: draft.description.trim(),
+          // Undefined mantem a conta ativa, que e o comportamento de antes.
+          contaId: draft.contaId ?? undefined,
           valor_original: draft.amount,
           dataVencimento: date,
           dataCompra: draft.date ?? date,
@@ -940,10 +961,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
                 {draft && (
                   <Card className="border-cyan-200 p-0 dark:border-cyan-900/70">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-cyan-50/60 px-3.5 py-3 dark:border-slate-800 dark:bg-cyan-950/20">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-cyan-50/60 px-3.5 py-2.5 dark:border-slate-800 dark:bg-cyan-950/20">
                       <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">Confira antes de salvar</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Nada entra na sua conta sem você confirmar.</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">
+                          {draft.kind === 'income' ? 'Dinheiro que entrou' : 'Despesa'}
+                        </p>
                       </div>
                       <Badge tone={draft.confidence === 'high' ? 'income' : draft.confidence === 'medium' ? 'warning' : 'neutral'}>
                         {draft.confidence === 'high' ? 'Leitura alta' : draft.confidence === 'medium' ? 'Conferir' : 'Dados parciais'}
@@ -951,35 +973,41 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     </div>
 
                     <div className="px-3.5">
-                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
-                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Tipo</span>
-                        <span className="relative flex-1">
-                          <select
-                            value={draft.kind}
-                            onChange={(event) => updateDraft({ kind: event.target.value as FinancialAssistantDraft['kind'] })}
-                            className={[
-                              'h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold outline-none transition',
-                              draft.kind === 'income' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-900 dark:text-white',
-                            ].join(' ')}
-                          >
-                            <option value="expense">Despesa</option>
-                            <option value="income">Dinheiro que entrou</option>
-                          </select>
-                          <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
-                        </span>
-                      </label>
+                      {/* Só para quem tem mais de uma conta, como no modal:
+                          com uma só não há entre o que escolher. Antes o card
+                          usava a conta ativa sem mostrar qual era. */}
+                      {contas.length > 1 && (
+                        <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Conta</span>
+                          <span className="relative flex-1">
+                            <select
+                              value={draft.contaId ?? ''}
+                              onChange={(event) => updateDraft({ contaId: event.target.value ? Number(event.target.value) : null })}
+                              className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                            >
+                              <option value="">Conta ativa</option>
+                              {contas.map((conta) => (
+                                <option key={conta.id} value={conta.id}>
+                                  {conta.nome_fantasia || conta.razao_social || conta.nome} {conta.tipo === 'empresa' ? '(PJ)' : '(PF)'}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                          </span>
+                        </label>
+                      )}
 
-                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                      <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                         <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Descrição</span>
                         <input
                           value={draft.description ?? ''}
                           onChange={(event) => updateDraft({ description: event.target.value || null })}
                           placeholder="Ex.: Mercado Central"
-                          className="h-8 flex-1 bg-transparent text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:font-normal dark:text-white"
+                          className="h-7 flex-1 bg-transparent text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:font-normal dark:text-white"
                         />
                       </label>
 
-                      <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                      <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                         <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor</span>
                         <input
                           type="number"
@@ -987,11 +1015,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           step="0.01"
                           value={draft.amount ?? ''}
                           onChange={(event) => updateDraft({ amount: event.target.value ? Number(event.target.value) : null })}
-                          className="h-8 flex-1 appearance-none bg-transparent text-xl font-bold tabular-nums text-slate-900 outline-none transition [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
+                          className="h-7 flex-1 appearance-none bg-transparent text-lg font-bold tabular-nums text-slate-900 outline-none transition [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
                         />
                       </label>
 
-                      <label className={['flex items-center gap-3 py-3.5', draft.kind === 'expense' ? 'border-b border-slate-100 dark:border-slate-800' : ''].join(' ')}>
+                      <label className={['flex items-center gap-3 py-2', draft.kind === 'expense' ? 'border-b border-slate-100 dark:border-slate-800' : ''].join(' ')}>
                         <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {draft.kind === 'expense' ? 'Vencimento' : 'Data'}
                         </span>
@@ -1001,19 +1029,34 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           onChange={(event) => draft.kind === 'expense'
                             ? updateDraft({ dueDate: event.target.value || null })
                             : updateDraft({ date: event.target.value || null })}
-                          className="h-8 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                          className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
                         />
                       </label>
 
+                      {/* Separada do vencimento, como no modal: comprar hoje e
+                          vencer no mês que vem é o caso comum no crédito. Era
+                          gravada em silêncio (draft.date ?? vencimento). */}
+                      {draft.kind === 'expense' && (
+                        <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Data da compra</span>
+                          <input
+                            type="date"
+                            value={draft.date ?? ''}
+                            onChange={(event) => updateDraft({ date: event.target.value || null })}
+                            className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                          />
+                        </label>
+                      )}
+
                       {draft.kind === 'expense' && (
                         <>
-                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                             <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Categoria</span>
                             <span className="relative flex-1">
                               <select
                                 value={draft.category ?? ''}
                                 onChange={(event) => updateDraft({ category: event.target.value || null })}
-                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="">Sem categoria</option>
                                 {categories.map((category) => <option key={category.id} value={category.nome}>{category.nome}</option>)}
@@ -1021,13 +1064,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>
                           </label>
-                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                             <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Pagamento</span>
                             <span className="relative flex-1">
                               <select
                                 value={draft.paymentMethod}
                                 onChange={(event) => updateDraft({ paymentMethod: event.target.value as FinancialAssistantDraft['paymentMethod'] })}
-                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="pix">Pix</option>
                                 <option value="boleto">Boleto</option>
@@ -1039,13 +1082,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             </span>
                           </label>
                           {cardsForDraft.length > 0 && (
-                            <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                               <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cartão</span>
                               <span className="relative flex-1">
                                 <select
                                   value={draft.cardId ?? ''}
                                   onChange={(event) => updateDraft({ cardId: event.target.value ? Number(event.target.value) : null })}
-                                  className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                  className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                                 >
                                   <option value="">Sem cartão</option>
                                   {cardsForDraft.map((card) => <option key={card.id} value={card.id}>{card.nome}</option>)}
@@ -1055,7 +1098,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             </label>
                           )}
 
-                          <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                          <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                             <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cobrança</span>
                             <span className="relative flex-1">
                               <select
@@ -1068,7 +1111,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                     paidInstallments: billingType === 'parcelas' ? draft.paidInstallments : null,
                                   });
                                 }}
-                                className="h-8 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="nao">Não repete</option>
                                 <option value="parcelas">Parcelado</option>
@@ -1079,7 +1122,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           </label>
 
                           {draft.billingType === 'parcelas' && (
-                            <label className="flex items-center gap-3 border-b border-slate-100 py-3.5 dark:border-slate-800">
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                               <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Parcelas</span>
                               <span className="flex flex-1 items-center gap-2">
                                 <input
@@ -1088,7 +1131,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                   max="360"
                                   value={draft.installments ?? ''}
                                   onChange={(event) => updateDraft({ installments: event.target.value ? Number(event.target.value) : null })}
-                                  className="h-8 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                  className="h-7 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
                                 />
                                 <span className="text-xs text-slate-500 dark:text-slate-400">vezes ·</span>
                                 <input
@@ -1096,14 +1139,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                   min="0"
                                   value={draft.paidInstallments ?? ''}
                                   onChange={(event) => updateDraft({ paidInstallments: event.target.value ? Number(event.target.value) : null })}
-                                  className="h-8 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                  className="h-7 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
                                 />
                                 <span className="text-xs text-slate-500 dark:text-slate-400">já pagas</span>
                               </span>
                             </label>
                           )}
 
-                          <label className="flex items-center gap-3 py-3.5">
+                          <label className="flex items-center gap-3 py-2">
                             <input
                               type="checkbox"
                               checked={draft.paid}
@@ -1114,7 +1157,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           </label>
 
                           {draft.paid && (
-                            <label className="flex items-center gap-3 border-t border-slate-100 py-3.5 dark:border-slate-800">
+                            <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
                               <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor pago</span>
                               <input
                                 type="number"
@@ -1123,9 +1166,36 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 value={draft.amountPaid ?? ''}
                                 onChange={(event) => updateDraft({ amountPaid: event.target.value ? Number(event.target.value) : null })}
                                 placeholder={draft.amount ? String(draft.amount) : ''}
-                                className="h-8 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
+                                className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
                               />
                             </label>
+                          )}
+
+                          {/* Nota fiscal so em conta PJ, mesmo criterio do
+                              modal. O card ja gravava numero_nf e
+                              data_emissao_nf sem oferecer onde corrigi-los. */}
+                          {contaEhEmpresa && (
+                            <>
+                              <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
+                                <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Nota fiscal</span>
+                                <input
+                                  value={draft.invoiceNumber ?? ''}
+                                  onChange={(event) => updateDraft({ invoiceNumber: event.target.value || null })}
+                                  placeholder="Número"
+                                  className="h-7 flex-1 bg-transparent text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:font-normal dark:text-white"
+                                />
+                              </label>
+
+                              <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
+                                <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Emissão</span>
+                                <input
+                                  type="date"
+                                  value={draft.invoiceDate ?? ''}
+                                  onChange={(event) => updateDraft({ invoiceDate: event.target.value || null })}
+                                  className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                />
+                              </label>
+                            </>
                           )}
                         </>
                       )}
@@ -1139,23 +1209,26 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </p>
                     )}
 
-                    <div className="grid gap-2 px-3.5 pb-3.5">
+                    {/* Lado a lado: empilhados custavam 110px de altura,
+                        e o card precisa caber inteiro na tela. */}
+                    <div className="grid grid-cols-[1fr_auto] gap-2 px-3.5 pb-3">
                       <button
                         type="button"
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex h-[52px] items-center justify-center gap-2 rounded-lg bg-emerald-700 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSaving ? <LoaderCircle size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-                        {isSaving ? 'Salvando...' : `Sim, salvar ${formatDraftAmount(draft.amount)}`}
+                        {isSaving ? 'Salvando...' : `Salvar ${formatDraftAmount(draft.amount)}`}
                       </button>
                       <button
                         type="button"
                         onClick={discardDraft}
+                        aria-label="Descartar este lançamento sem salvar"
                         disabled={isSaving}
-                        className="flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
+                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
                       >
-                        <X size={16} /> Não salvar
+                        <X size={16} /> Descartar
                       </button>
                     </div>
                   </Card>

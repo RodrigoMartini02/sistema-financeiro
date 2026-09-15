@@ -59,7 +59,12 @@ export interface FlowIntentOption {
 }
 
 export interface FlowAbertura {
+  /** Primeira vez, e fallback quando as demais não existem. */
   saudacao: string;
+  /** Voltou no mesmo dia. */
+  saudacaoRetorno?: string;
+  /** Voltou dias depois. */
+  saudacaoRetornoLongo?: string;
   opcoes: FlowIntentOption[];
   /** Posição no canvas; só o editor usa. */
   posicao?: { x: number; y: number };

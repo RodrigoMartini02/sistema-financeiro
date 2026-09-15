@@ -20,7 +20,11 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
   // qual fluxo roda: despesa e receita seguem para o preenchimento guiado,
   // consulta sai para a via de perguntas livres.
   abertura: {
-    saudacao: 'Olá! O que vamos fazer hoje?',
+    // Variam com o tempo desde a ultima conversa: repetir a mesma frase a cada
+    // abertura soa robotico, e uma saudacao longa atrasa quem quer so lancar.
+    saudacao: 'Oi! Sou seu assistente. O que vamos lançar?',
+    saudacaoRetorno: 'Oi de novo! O que vamos lançar?',
+    saudacaoRetornoLongo: 'Que bom que voltou! O que vamos lançar hoje?',
     opcoes: [
       { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
       { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },

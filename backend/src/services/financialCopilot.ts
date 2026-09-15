@@ -9,6 +9,7 @@ import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } fro
 import {
   createFinancialAssistantDraft,
   inferKind,
+  inferKindWithOrigin,
   type AssistantAttachmentInput,
   type AssistantDraftContext,
   type FinancialAssistantDraft,
@@ -407,6 +408,37 @@ async function buildSpokenReply(userId: number, reply: string): Promise<string |
 }
 
 /**
+ * Resposta a pergunta de tipo, quando ela foi feita na mensagem anterior.
+ *
+ * O chip devolve "despesa" ou "receita" como mensagem comum; sem olhar o
+ * historico, o backend perguntaria de novo em laco. A frase original fica no
+ * payload da pergunta para o card nascer do que o usuario realmente escreveu,
+ * nao da palavra do chip.
+ */
+function resolverRespostaDeTipo(
+  history: StoredMessage[],
+  message: string,
+): { kind: SlotDraft['kind']; mensagemOriginal: string } | null {
+  const ultima = [...history].reverse().find((item) => item.role === 'assistant');
+  const payload = ultima?.payload as Record<string, unknown> | null | undefined;
+  if (!payload || payload['aguardandoTipo'] !== true) return null;
+
+  const texto = message.trim().toLowerCase();
+  const kind = /receita|entrou|entrada|recebi/.test(texto)
+    ? 'income'
+    : /despesa|gasto|paguei|sa[ií]da/.test(texto)
+      ? 'expense'
+      : null;
+  if (!kind) return null;
+
+  const original = payload['mensagemOriginal'];
+  return {
+    kind,
+    mensagemOriginal: typeof original === 'string' && original.trim() ? original : message,
+  };
+}
+
+/**
  * Le a frase e devolve o card de revisao preenchido, de uma vez.
  *
  * Antes isto conduzia o lancamento por 7 a 10 perguntas encadeadas, uma por
@@ -435,17 +467,54 @@ async function runSlotFlow(input: {
 }): Promise<FinancialCopilotResponse> {
   const catalog = await loadSlotCatalog(input.userId, input.account);
 
-  // O botao do menu e uma escolha explicita e vence o palpite. Sem ele, a
-  // frase decide: "recebi 1200 do freela" e receita, nao despesa.
-  const kind = input.intentHint === 'register_income'
+  // Resposta a pergunta de tipo: o card nasce da frase original, nao da
+  // palavra do chip.
+  const respostaTipo = resolverRespostaDeTipo(input.history, input.message);
+
+  // O botao do menu e uma escolha explicita e vence o palpite.
+  const escolhaExplicita = respostaTipo?.kind ?? (input.intentHint === 'register_income'
     ? 'income'
     : input.intentHint === 'register_expense'
       ? 'expense'
-      : inferKind(input.message);
+      : null);
+
+  const mensagemParaLer = respostaTipo?.mensagemOriginal ?? input.message;
+  const inferido = inferKindWithOrigin(mensagemParaLer);
+
+  // Sem escolha explicita e sem sinal na frase, o codigo assumiria despesa:
+  // "freela 800" e "pix do cliente 500" viravam despesa com a mesma cara de
+  // certeza de "gastei 50". Uma pergunta aqui evita gravar errado — e e a
+  // unica que sobrou no fluxo, porque so aparece quando ha duvida real.
+  if (!escolhaExplicita && inferido.origin === 'padrao') {
+    const pergunta = 'Isso é uma despesa ou dinheiro que entrou?';
+    const resposta: FinancialCopilotResponse = {
+      conversationId: input.conversationId,
+      mode: 'slot',
+      reply: pergunta,
+      cards: [],
+      draft: null,
+      missingFields: [],
+      quickReplies: [
+        { label: 'É despesa', value: 'despesa' },
+        { label: 'É dinheiro que entrou', value: 'receita' },
+      ],
+      slotState: null,
+      spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, pergunta) : undefined,
+    };
+    await storeMessage({
+      conversationId: input.conversationId,
+      role: 'assistant',
+      content: pergunta,
+      payload: { mode: resposta.mode, aguardandoTipo: true, mensagemOriginal: input.message },
+    });
+    return resposta;
+  }
+
+  const kind = escolhaExplicita ?? inferido.kind;
 
   const slotDraft = await readDraftFromMessage({
     kind,
-    message: input.message,
+    message: mensagemParaLer,
     catalog,
     userId: input.userId,
   });

@@ -138,7 +138,12 @@ export interface FlowIntentOption {
  * vai rodar. Vivia no frontend como texto fixo, fora do alcance do editor.
  */
 export interface FlowAbertura {
+  /** Primeira vez, e fallback quando as demais nao existem. */
   saudacao: string;
+  /** Voltou no mesmo dia. */
+  saudacaoRetorno?: string;
+  /** Voltou dias depois. */
+  saudacaoRetornoLongo?: string;
   opcoes: FlowIntentOption[];
   /** Posicao no canvas; so o editor usa, igual a de FlowNode. */
   posicao?: { x: number; y: number };
@@ -327,6 +332,18 @@ function parseAbertura(raw: unknown): FlowAbertura | undefined {
   if (opcoes.length === 0) return undefined;
 
   const abertura: FlowAbertura = { saudacao: saudacao.slice(0, 300), opcoes };
+
+  // Ausente ou invalida cai na saudacao padrao: um texto de retorno malformado
+  // nao pode deixar o chat abrir sem saudacao nenhuma.
+  const retorno = obj['saudacaoRetorno'];
+  if (typeof retorno === 'string' && retorno.trim().length > 0) {
+    abertura.saudacaoRetorno = retorno.slice(0, 300);
+  }
+
+  const retornoLongo = obj['saudacaoRetornoLongo'];
+  if (typeof retornoLongo === 'string' && retornoLongo.trim().length > 0) {
+    abertura.saudacaoRetornoLongo = retornoLongo.slice(0, 300);
+  }
 
   // Mesma checagem de parseNode: posicao malformada e descartada em vez de
   // derrubar a abertura inteira — o canvas cai no fallback de layout.
