@@ -336,18 +336,54 @@ export function extractDateFromText(text: string): string | null {
   return dayOnly?.[0] ? parseDateToken(dayOnly[0]) : null;
 }
 
-export function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
+/**
+ * Como o tipo do lancamento foi decidido.
+ *
+ * `padrao` significa que nada na frase indicou receita nem despesa e o codigo
+ * assumiu despesa. Sem essa distincao, "freela 800" e "pix do cliente 500"
+ * viram despesa com a mesma cara de certeza de "gastei 50 no mercado" — e o
+ * card nao tem como avisar que chutou.
+ */
+export type KindOrigin = 'texto' | 'padrao';
+
+export interface KindInference {
+  kind: DraftKind;
+  origin: KindOrigin;
+}
+
+/**
+ * Decide o tipo e informa se foi por sinal na frase ou por falta dele.
+ *
+ * Mesmas regras de sempre; o que muda e devolver a origem junto.
+ */
+export function inferKindWithOrigin(
+  text: string,
+  context?: AssistantDraftContext,
+  financial?: FinancialInfo | null,
+): KindInference {
   const lower = text.toLowerCase();
-  if (/\b(receita|nova receita)\b/.test(lower)) return 'income';
+  if (/\b(receita|nova receita)\b/.test(lower)) return { kind: 'income', origin: 'texto' };
   if (/\b(recebi|recebimento|entrada|sal[aá]rio|vendi|venda|faturamento|cliente pagou|ganhei|dep[oó]sito)\b/.test(lower)) {
-    return 'income';
+    return { kind: 'income', origin: 'texto' };
   }
-  if (/\b(gastei|comprei|compras|passei)\b/.test(lower)) return 'expense';
+  if (/\b(gastei|comprei|compras|passei)\b/.test(lower)) return { kind: 'expense', origin: 'texto' };
   if (/\b(paguei|pagar|despesa|boleto|fatura|compra|d[eé]bito|sa[ií]da)\b/.test(lower)) {
-    return 'expense';
+    return { kind: 'expense', origin: 'texto' };
   }
-  if (financial?.tipo === 'boleto' || financial?.tipo === 'nota_fiscal') return 'expense';
-  return context?.kind ?? 'expense';
+  if (financial?.tipo === 'boleto' || financial?.tipo === 'nota_fiscal') {
+    return { kind: 'expense', origin: 'texto' };
+  }
+
+  // Contexto vindo de um rascunho em andamento nao e palpite: o tipo ja foi
+  // decidido antes, nesta mesma conversa.
+  if (context?.kind) return { kind: context.kind, origin: 'texto' };
+
+  return { kind: 'expense', origin: 'padrao' };
+}
+
+/** Assinatura preservada para quem so precisa do tipo. */
+export function inferKind(text: string, context?: AssistantDraftContext, financial?: FinancialInfo | null): DraftKind {
+  return inferKindWithOrigin(text, context, financial).kind;
 }
 
 function inferPaymentMethod(text: string, financial?: FinancialInfo | null, pix?: PixInfo | null, context?: AssistantDraftContext): PaymentMethod {

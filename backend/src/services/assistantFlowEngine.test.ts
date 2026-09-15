@@ -463,3 +463,41 @@ test('posicao malformada na opcao nao derruba a opcao', () => {
   assert.equal(opcao?.value, 'sim');
   assert.equal(opcao?.posicao, undefined);
 });
+
+test('abertura preserva as saudacoes de retorno', () => {
+  const parsed = parseFlowDefinition(JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)));
+
+  assert.equal(parsed.abertura?.saudacaoRetorno, 'Oi de novo! O que vamos lançar?');
+  assert.equal(parsed.abertura?.saudacaoRetornoLongo, 'Que bom que voltou! O que vamos lançar hoje?');
+});
+
+test('saudacao de retorno invalida cai na padrao sem derrubar a abertura', () => {
+  // Um texto de retorno malformado nao pode deixar o chat abrir sem saudacao.
+  const parsed = parseFlowDefinition({
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      saudacaoRetorno: '   ',
+      saudacaoRetornoLongo: 42,
+      opcoes: [{ intent: 'register_expense', label: 'Despesa', abertura: 'Conta aí.' }],
+    },
+  });
+
+  assert.equal(parsed.abertura?.saudacao, 'Oi!');
+  assert.equal(parsed.abertura?.saudacaoRetorno, undefined);
+  assert.equal(parsed.abertura?.saudacaoRetornoLongo, undefined);
+  assert.equal(parsed.abertura?.opcoes.length, 1);
+});
+
+test('abertura sem saudacoes de retorno continua valida', () => {
+  const parsed = parseFlowDefinition({
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      opcoes: [{ intent: 'register_expense', label: 'Despesa', abertura: 'Conta aí.' }],
+    },
+  });
+
+  assert.equal(parsed.abertura?.saudacao, 'Oi!');
+  assert.equal(parsed.abertura?.saudacaoRetorno, undefined);
+});

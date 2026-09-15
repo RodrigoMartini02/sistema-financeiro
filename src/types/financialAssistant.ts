@@ -23,6 +23,11 @@ export interface FinancialAssistantDraft {
   amountPaid?: number | null;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
+  /**
+   * Conta (PF/CNPJ) escolhida no card. So o frontend usa: o backend le o
+   * lancamento da conta ativa, e a troca acontece na hora de gravar.
+   */
+  contaId?: number | null;
 }
 
 export interface FinancialAssistantResponse {
