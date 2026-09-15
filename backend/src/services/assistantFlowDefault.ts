@@ -16,6 +16,17 @@ import type { FlowDefinition } from './assistantFlowSchema';
  */
 export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
   versaoFormato: 1,
+  // Textos que viviam fixos em FinancialAssistant.tsx. A escolha aqui decide
+  // qual fluxo roda: despesa e receita seguem para o preenchimento guiado,
+  // consulta sai para a via de perguntas livres.
+  abertura: {
+    saudacao: 'Olá! O que vamos fazer hoje?',
+    opcoes: [
+      { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
+      { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },
+      { intent: 'ask', label: 'Consultar', abertura: 'Pode perguntar. O que você quer saber?' },
+    ],
+  },
   ordem: [
     'description', 'category', 'paymentMethod', 'cardId', 'billingType',
     'installments', 'paidInstallments', 'amount', 'paid', 'amountPaid',
@@ -47,7 +58,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
       slot: 'category',
       exigeConfirmacao: true,
       aplicaQuando: [{ campo: 'kind', operador: 'igual', valor: 'expense' }],
-      posicao: { x: 0, y: 140 },
+      posicao: { x: 0, y: 190 },
       variantes: [
         {
           quando: [{ campo: 'category', operador: 'preenchido' }],
@@ -64,7 +75,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
       slot: 'paymentMethod',
       aplicaQuando: [{ campo: 'kind', operador: 'igual', valor: 'expense' }],
       limpaAoResponder: ['cardId', 'paid', 'amountPaid', 'dueDate'],
-      posicao: { x: 0, y: 280 },
+      posicao: { x: 0, y: 380 },
       variantes: [
         {
           texto: 'Como você pagou?',
@@ -85,7 +96,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'paymentMethod', operador: 'em', valor: ['credito', 'debito'] },
       ],
-      posicao: { x: 0, y: 420 },
+      posicao: { x: 340, y: 570 },
       variantes: [
         {
           // Com um cartao so, listar seria pedir uma escolha que nao existe.
@@ -103,7 +114,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
       slot: 'billingType',
       aplicaQuando: [{ campo: 'kind', operador: 'igual', valor: 'expense' }],
       limpaAoResponder: ['installments', 'paidInstallments'],
-      posicao: { x: 0, y: 560 },
+      posicao: { x: 0, y: 760 },
       variantes: [
         {
           texto: 'É uma cobrança única, parcelada ou recorrente?',
@@ -123,7 +134,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'billingType', operador: 'igual', valor: 'parcelas' },
       ],
-      posicao: { x: 0, y: 700 },
+      posicao: { x: 340, y: 950 },
       variantes: [{ texto: 'Em quantas vezes?' }],
     },
     {
@@ -134,14 +145,14 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'billingType', operador: 'igual', valor: 'parcelas' },
       ],
-      posicao: { x: 0, y: 840 },
+      posicao: { x: 340, y: 1140 },
       variantes: [{ texto: 'Quantas parcelas você já pagou?' }],
     },
     {
       id: 'amount',
       slot: 'amount',
       limpaAoResponder: ['amountPaid'],
-      posicao: { x: 0, y: 980 },
+      posicao: { x: 0, y: 1330 },
       variantes: [
         { quando: [{ campo: 'billingType', operador: 'igual', valor: 'parcelas' }], texto: 'Qual o valor da parcela?' },
         { quando: [{ campo: 'billingType', operador: 'igual', valor: 'mensal' }], texto: 'Qual o valor mensal?' },
@@ -157,7 +168,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'paymentMethod', operador: 'diferente', valor: 'credito' },
       ],
       limpaAoResponder: ['amountPaid', 'dueDate'],
-      posicao: { x: 0, y: 1120 },
+      posicao: { x: 0, y: 1520 },
       variantes: [
         {
           texto: 'Já foi paga?',
@@ -174,7 +185,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'paymentMethod', operador: 'diferente', valor: 'credito' },
         { campo: 'paid', operador: 'igual', valor: true },
       ],
-      posicao: { x: 0, y: 1260 },
+      posicao: { x: 340, y: 1710 },
       variantes: [
         {
           quando: [{ campo: 'amount', operador: 'preenchido' }],
@@ -196,7 +207,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'paid', operador: 'diferente', valor: true },
       ],
-      posicao: { x: 0, y: 1400 },
+      posicao: { x: 0, y: 1900 },
       variantes: [{ texto: 'Para quando é o vencimento?' }],
     },
     {
@@ -207,7 +218,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'isCompanyAccount', operador: 'igual', valor: true },
       ],
-      posicao: { x: 0, y: 1540 },
+      posicao: { x: 0, y: 2090 },
       variantes: [{ texto: 'Tem número de nota fiscal?' }],
     },
     {
@@ -218,8 +229,32 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
         { campo: 'kind', operador: 'igual', valor: 'expense' },
         { campo: 'isCompanyAccount', operador: 'igual', valor: true },
       ],
-      posicao: { x: 0, y: 1680 },
+      posicao: { x: 0, y: 2280 },
       variantes: [{ texto: 'Qual a data de emissão da nota?' }],
     },
   ],
 };
+
+/**
+ * Completa a abertura em fluxo gravado antes dela existir.
+ *
+ * O fluxo salvo na versao 1 nao tem o bloco `abertura`: o editor abria sem o
+ * no de inicio e o canvas comecava no meio da conversa. Aqui o padrao
+ * preenche o que falta, preservando nos, ordem, obrigatorios e posicoes.
+ *
+ * Nao e feito em parseFlowDefinition de proposito: aquela funcao diz o que o
+ * dado E, e inventar um campo ausente apagaria a diferenca entre "fluxo sem
+ * abertura" e "fluxo com a abertura padrao" — diferenca que a validacao da
+ * tela usa para avisar. Ela roda tambem no PUT, onde completar mascararia um
+ * payload incompleto vindo do editor.
+ *
+ * Fica aqui, e nao no store, para o teste nao arrastar a conexao com o banco
+ * que assistantFlowStore importa.
+ */
+export function comAberturaPadrao(definicao: FlowDefinition): FlowDefinition {
+  if (definicao.abertura) {
+    return definicao;
+  }
+
+  return { ...definicao, abertura: DEFAULT_FLOW_DEFINITION.abertura };
+}

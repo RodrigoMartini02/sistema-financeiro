@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { assistantFlows } from '../db/schema';
 import { AssistantFlowEngine } from './assistantFlowEngine';
-import { DEFAULT_FLOW_DEFINITION } from './assistantFlowDefault';
+import { DEFAULT_FLOW_DEFINITION, comAberturaPadrao } from './assistantFlowDefault';
 import { parseFlowDefinition, type FlowDefinition } from './assistantFlowSchema';
 
 /**
@@ -127,7 +127,7 @@ export async function getActiveFlowForEditing(): Promise<{
         return {
           id: row.id,
           nome: row.nome,
-          definicao: parseFlowDefinition(row.definicao),
+          definicao: comAberturaPadrao(parseFlowDefinition(row.definicao)),
           versao: row.versao,
         };
       } catch {

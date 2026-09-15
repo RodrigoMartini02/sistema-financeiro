@@ -24,7 +24,16 @@ export function PerguntaNode({ data }: NodeProps) {
   // A primeira variante e a que aparece com mais frequencia; as demais sao
   // casos condicionais e ficam indicadas pelo contador.
   const principal = node.variantes[0];
-  const chips = principal?.opcoes ?? [];
+
+  // A condicao de `kind` vale para quase todo no de despesa e diria pouco no
+  // rotulo; o que interessa e a condicao que de fato ramifica.
+  const condicoesRelevantes = (node.aplicaQuando ?? []).filter((c) => c.campo !== 'kind');
+  const condicaoResumida = condicoesRelevantes
+    .map((c) => (Array.isArray(c.valor) ? `${c.campo} é ${c.valor.join(' ou ')}` : `${c.campo} ${c.operador === 'diferente' ? '≠' : '='} ${String(c.valor)}`))
+    .join(' e ');
+  const condicaoCompleta = (node.aplicaQuando ?? [])
+    .map((c) => `${c.campo} ${c.operador} ${String(c.valor ?? '')}`)
+    .join(' e ');
 
   const borda = temErro
     ? 'border-red-400 dark:border-red-500'
@@ -52,27 +61,6 @@ export function PerguntaNode({ data }: NodeProps) {
           {principal?.texto ?? '(sem texto)'}
         </p>
 
-        {chips.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {chips.slice(0, 4).map((opcao) => (
-              <span
-                key={`${opcao.value}-${opcao.label}`}
-                className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9.5px] font-medium text-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300"
-              >
-                {opcao.label}
-              </span>
-            ))}
-            {chips.length > 4 && (
-              <span className="text-[9.5px] text-slate-400">+{chips.length - 4}</span>
-            )}
-          </div>
-        )}
-
-        {principal?.opcoesSource && principal.opcoesSource !== 'estatica' && (
-          <p className="mt-1.5 text-[9.5px] italic text-slate-400">
-            opções vêm de {principal.opcoesSource === 'categorias' ? 'categorias' : 'cartões'} da conta
-          </p>
-        )}
 
         <div className="mt-1.5 flex flex-wrap gap-1">
           {node.variantes.length > 1 && (
@@ -81,9 +69,14 @@ export function PerguntaNode({ data }: NodeProps) {
           {node.skippable && (
             <span className="rounded bg-slate-100 px-1 text-[9.5px] text-slate-500 dark:bg-slate-800 dark:text-slate-400">pulável</span>
           )}
-          {node.aplicaQuando && node.aplicaQuando.length > 0 && (
-            <span className="rounded bg-violet-50 px-1 text-[9.5px] text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-              condicional
+          {condicaoResumida && (
+            // Diz QUANDO o no aparece, nao so que e condicional — era o que
+            // faltava para entender por que um campo some da conversa.
+            <span
+              className="rounded bg-violet-50 px-1 text-[9.5px] text-violet-600 dark:bg-violet-950/50 dark:text-violet-300"
+              title={condicaoCompleta}
+            >
+              só se {condicaoResumida}
             </span>
           )}
         </div>

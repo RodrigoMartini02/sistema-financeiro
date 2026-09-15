@@ -20,6 +20,7 @@ import {
 } from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
 import { fetchCartoes, fetchCategorias } from '../../services/configService';
+import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { Card } from '../../ui/card';
@@ -83,34 +84,32 @@ const ACCEPTED_FILE_TYPES = new Set([
   'application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/plain',
 ]);
 
-function buildInitialMessage(): ChatMessage {
+/**
+ * Abertura exibida enquanto a do fluxo nao chegou — e quando ela falha.
+ *
+ * O chat abre instantaneamente, sem rede, como sempre abriu; se o servidor
+ * responder com algo diferente, o texto e substituido em seguida. Sem isso,
+ * trazer a abertura para o fluxo custaria uma tela de carregamento no lugar
+ * de uma saudação imediata.
+ */
+const ABERTURA_PADRAO: FlowAbertura = {
+  saudacao: 'Olá! O que vamos fazer hoje?',
+  opcoes: [
+    { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
+    { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },
+    { intent: 'ask', label: 'Consultar', abertura: 'Pode perguntar. O que você quer saber?' },
+  ],
+};
+
+function buildInitialMessage(saudacao: string): ChatMessage {
   return {
     id: 'welcome',
     role: 'assistant',
-    content: 'Olá! O que vamos fazer hoje?',
+    content: saudacao,
     createdAt: new Date().toISOString(),
     showWelcomeActions: true,
   };
 }
-
-const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
-  label: string;
-  /** Fala do assistente logo apos a escolha, para a conversa nao ficar muda. */
-  opening: string;
-}> = {
-  register_expense: {
-    label: 'Lançar despesa',
-    opening: 'Beleza! Me conta o que você gastou.',
-  },
-  register_income: {
-    label: 'Lançar receita',
-    opening: 'Boa! Me conta o que você recebeu.',
-  },
-  ask: {
-    label: 'Consultar',
-    opening: 'Pode perguntar. O que você quer saber?',
-  },
-};
 
 /**
  * Visual unico dos chips da conversa — abertura e respostas rapidas. Ficam
@@ -119,11 +118,15 @@ const INTENT_DETAILS: Record<FinancialCopilotIntentHint, {
  */
 const ASSISTANT_CHIP_CLASS = 'flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60';
 
-const WELCOME_ACTIONS: Array<{ intent: FinancialCopilotIntentHint; icon: ReactNode }> = [
-  { intent: 'register_expense', icon: <Plus size={15} /> },
-  { intent: 'register_income', icon: <Plus size={15} /> },
-  { intent: 'ask', icon: <MessageCircleMore size={15} /> },
-];
+/**
+ * Icone de cada intencao. Fica em codigo enquanto os textos vem do fluxo:
+ * escolher icone e decisao de UI, nao de conversa.
+ */
+const INTENT_ICONS: Record<FinancialCopilotIntentHint, ReactNode> = {
+  register_expense: <Plus size={15} />,
+  register_income: <Plus size={15} />,
+  ask: <MessageCircleMore size={15} />,
+};
 
 function formatDraftAmount(value: number | null): string {
   if (!value) return 'Valor não informado';
@@ -279,7 +282,28 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const queryClient = useQueryClient();
   const isStandalone = mode === 'standalone';
   const [open, setOpen] = useState(isStandalone);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage()]);
+
+  // A abertura vem do fluxo editavel, mas o chat nao espera por ela: abre com
+  // a padrao e troca quando a resposta chega. `placeholderData` evita que o
+  // primeiro render tenha `undefined`.
+  const { data: abertura = ABERTURA_PADRAO } = useQuery({
+    queryKey: queryKeys.assistantAbertura,
+    queryFn: fetchAbertura,
+    placeholderData: ABERTURA_PADRAO,
+    staleTime: 5 * 60_000,
+  });
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage(ABERTURA_PADRAO.saudacao)]);
+
+  // Saudacao do fluxo chegou depois do primeiro render: atualiza a mensagem
+  // de boas-vindas sem tocar no resto da conversa.
+  useEffect(() => {
+    setMessages((atual) => atual.map((m) => (
+      m.id === 'welcome' && m.content !== abertura.saudacao
+        ? { ...m, content: abertura.saudacao }
+        : m
+    )));
+  }, [abertura.saudacao]);
   const [fontSize, setFontSize] = useState<AssistantFontSize>(() => readStoredFontSize());
   const handleFontSizeChange = (nextFontSize: AssistantFontSize) => {
     setFontSize(nextFontSize);
@@ -399,6 +423,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setLastVoiceTranscript(null);
     setError(null);
     const createdAt = new Date().toISOString();
+    // Textos vem do fluxo; o padrao cobre o caso de uma intencao sem opcao
+    // correspondente (fluxo editado removendo uma delas).
+    const opcao = abertura.opcoes.find((o) => o.intent === nextIntent)
+      ?? ABERTURA_PADRAO.opcoes.find((o) => o.intent === nextIntent)!;
     setMessages((current) => [
       // Escolhida a acao, os chips saem de cena: manter os tres ativos
       // convidaria a trocar de intencao no meio do lancamento.
@@ -406,7 +434,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       {
         id: newMessageId(),
         role: 'user',
-        content: INTENT_DETAILS[nextIntent].label,
+        content: opcao.label,
         createdAt,
       },
       // A resposta e local: o backend recusa mensagem vazia, e uma ida ao
@@ -414,7 +442,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       {
         id: newMessageId(),
         role: 'assistant',
-        content: INTENT_DETAILS[nextIntent].opening,
+        content: opcao.abertura,
         createdAt,
       },
     ]);
@@ -528,7 +556,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   const startNewConversation = () => {
     setConversationId(null);
-    setMessages([buildInitialMessage()]);
+    setMessages([buildInitialMessage(abertura.saudacao)]);
     setDraft(null);
     setDraftAttachments([]);
     setComposer('');
@@ -864,15 +892,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       pergunta do fluxo. */}
                   {message.showWelcomeActions && (
                     <div className="mt-2 flex flex-col items-start gap-1.5">
-                      {WELCOME_ACTIONS.map(({ intent, icon }) => (
+                      {abertura.opcoes.map((opcao) => (
                         <button
-                          key={intent}
+                          key={opcao.intent}
                           type="button"
-                          onClick={() => selectIntent(intent)}
+                          onClick={() => selectIntent(opcao.intent)}
                           className={ASSISTANT_CHIP_CLASS}
                         >
-                          {icon}
-                          {INTENT_DETAILS[intent].label}
+                          {INTENT_ICONS[opcao.intent]}
+                          {opcao.label}
                         </button>
                       ))}
                     </div>

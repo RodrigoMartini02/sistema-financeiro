@@ -50,14 +50,46 @@ export interface FlowCondition {
   valor?: string | number | boolean | Array<string | number | boolean>;
 }
 
+/**
+ * Opcao de resposta no fluxo.
+ *
+ * Estende SlotOption com o que so o editor usa. O motor devolve SlotOption
+ * para o chat — `posicao` fica no fluxo e nunca trafega para a conversa.
+ */
+export interface FlowOption extends SlotOption {
+  /** Posicao do bloco da resposta no canvas. */
+  posicao?: { x: number; y: number };
+}
+
 export interface FlowQuestionVariant {
   /** Aplicada quando todas as condicoes batem; a primeira que bater vence. */
   quando?: FlowCondition[];
   /** Texto com variaveis no formato {campo} — ver renderTemplate. */
   texto: string;
   opcoesSource?: FlowOptionSource;
-  opcoes?: SlotOption[];
+  opcoes?: FlowOption[];
   isConfirmation?: boolean;
+}
+
+/** Valor curinga: vale quando nenhum `quando` especifico bateu. */
+export const TRANSICAO_QUALQUER = '*';
+
+/**
+ * Para onde uma resposta leva.
+ *
+ * Antes o destino era derivado: nextQuestion varria a `ordem` e devolvia o
+ * primeiro no aplicavel. Derivar funciona para o fluxo que ja existe, mas
+ * impede desenhar um caminho novo — nao havia onde grava-lo. Com transicao
+ * explicita o desenho passa a mandar.
+ *
+ * Continua opcional: no sem transicao cai na varredura de antes, que e o que
+ * mantem todo fluxo v1 rodando identico.
+ */
+export interface FlowTransicao {
+  /** Valor da resposta que leva a este destino, ou `*` para qualquer outra. */
+  quando: string;
+  /** Id do no de destino, ou null para encerrar o fluxo. */
+  destino: string | null;
 }
 
 export interface FlowNode {
@@ -75,17 +107,53 @@ export interface FlowNode {
   limpaAoResponder?: SlotId[];
   /** Passa pelo "certo?" antes de valer. */
   exigeConfirmacao?: boolean;
+  /**
+   * Para onde cada resposta leva. Ausente = varredura da `ordem`, o
+   * comportamento de sempre.
+   */
+  transicoes?: FlowTransicao[];
   /** Posicao no canvas; so o editor usa. */
   posicao?: { x: number; y: number };
 }
 
+/** Intencoes que a abertura oferece. Espelha FinancialCopilotIntentHint. */
+export const FLOW_INTENTS = ['register_expense', 'register_income', 'ask'] as const;
+export type FlowIntent = typeof FLOW_INTENTS[number];
+
+export function isFlowIntent(value: unknown): value is FlowIntent {
+  return typeof value === 'string' && (FLOW_INTENTS as readonly string[]).includes(value);
+}
+
+export interface FlowIntentOption {
+  intent: FlowIntent;
+  /** Texto do chip. */
+  label: string;
+  /** Fala do assistente logo apos a escolha, para a conversa nao ficar muda. */
+  abertura: string;
+}
+
+/**
+ * Primeira tela da conversa. Nao e um `FlowNode` porque nao preenche slot
+ * nenhum nem consome resposta do parser: e a escolha que decide QUAL fluxo
+ * vai rodar. Vivia no frontend como texto fixo, fora do alcance do editor.
+ */
+export interface FlowAbertura {
+  saudacao: string;
+  opcoes: FlowIntentOption[];
+  /** Posicao no canvas; so o editor usa, igual a de FlowNode. */
+  posicao?: { x: number; y: number };
+}
+
 export interface FlowDefinition {
-  versaoFormato: 1;
+  /** 1 = so varredura da ordem; 2 = pode ter transicoes explicitas. */
+  versaoFormato: 1 | 2;
   /** Ordem de avaliacao dos nos. As arestas do canvas derivam daqui. */
   ordem: string[];
   nos: FlowNode[];
   /** Sem estes o lancamento nao grava, por tipo de lancamento. */
   obrigatorios: { income: SlotId[]; expense: SlotId[] };
+  /** Ausente nos fluxos gravados antes da abertura entrar no editor. */
+  abertura?: FlowAbertura;
 }
 
 export class FlowDefinitionError extends Error {}
@@ -108,13 +176,26 @@ function parseCondition(raw: unknown): FlowCondition | null {
   return condition;
 }
 
-function parseOption(raw: unknown): SlotOption | null {
+function parseOption(raw: unknown): FlowOption | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const obj = raw as Record<string, unknown>;
   const label = obj['label'];
   const value = obj['value'];
   if (typeof label !== 'string' || typeof value !== 'string') return null;
-  return { label: label.slice(0, 120), value: value.slice(0, 120) };
+
+  const opcao: FlowOption = { label: label.slice(0, 120), value: value.slice(0, 120) };
+
+  // Mesma checagem de parseNode: posicao malformada e descartada sem levar a
+  // opcao junto — o canvas cai no layout automatico.
+  const posicao = obj['posicao'];
+  if (typeof posicao === 'object' && posicao !== null) {
+    const pos = posicao as Record<string, unknown>;
+    if (typeof pos['x'] === 'number' && typeof pos['y'] === 'number') {
+      opcao.posicao = { x: pos['x'], y: pos['y'] };
+    }
+  }
+
+  return opcao;
 }
 
 function parseVariant(raw: unknown): FlowQuestionVariant | null {
@@ -139,6 +220,27 @@ function parseVariant(raw: unknown): FlowQuestionVariant | null {
   if (obj['isConfirmation'] === true) variant.isConfirmation = true;
 
   return variant;
+}
+
+/**
+ * Transicao vinda do banco ou da rede.
+ *
+ * O destino so e checado contra os ids existentes depois, em
+ * parseFlowDefinition, porque aqui ainda nao se sabe quais nos o fluxo tem.
+ */
+function parseTransicao(raw: unknown): FlowTransicao | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+
+  const quando = obj['quando'];
+  if (typeof quando !== 'string' || quando.length === 0) return null;
+
+  const destino = obj['destino'];
+  // null e destino valido: encerra o fluxo.
+  if (destino !== null && typeof destino !== 'string') return null;
+  if (typeof destino === 'string' && destino.length === 0) return null;
+
+  return { quando: quando.slice(0, 120), destino };
 }
 
 function parseNode(raw: unknown): FlowNode | null {
@@ -169,6 +271,11 @@ function parseNode(raw: unknown): FlowNode | null {
   const limpa = asArray(obj['limpaAoResponder']).filter(isKnownSlot);
   if (limpa.length > 0) node.limpaAoResponder = limpa;
 
+  const transicoes = asArray(obj['transicoes'])
+    .map(parseTransicao)
+    .filter((t): t is FlowTransicao => t !== null);
+  if (transicoes.length > 0) node.transicoes = transicoes;
+
   const posicao = obj['posicao'];
   if (typeof posicao === 'object' && posicao !== null) {
     const p = posicao as Record<string, unknown>;
@@ -184,6 +291,56 @@ function parseRequiredSlots(raw: unknown): SlotId[] {
   return asArray(raw).filter(isKnownSlot);
 }
 
+function parseIntentOption(raw: unknown): FlowIntentOption | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+
+  // Intencao fora da lista nunca entra: o backend nao saberia que fluxo rodar.
+  if (!isFlowIntent(obj['intent'])) return null;
+
+  const label = obj['label'];
+  const abertura = obj['abertura'];
+  if (typeof label !== 'string' || label.trim().length === 0) return null;
+  if (typeof abertura !== 'string' || abertura.trim().length === 0) return null;
+
+  return {
+    intent: obj['intent'],
+    label: label.slice(0, 60),
+    abertura: abertura.slice(0, 300),
+  };
+}
+
+/**
+ * Abertura gravada. Ausente ou invalida devolve `undefined` — quem chama cai
+ * na abertura padrao, em vez de o chat abrir sem saudacao nem botoes.
+ */
+function parseAbertura(raw: unknown): FlowAbertura | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const obj = raw as Record<string, unknown>;
+
+  const saudacao = obj['saudacao'];
+  if (typeof saudacao !== 'string' || saudacao.trim().length === 0) return undefined;
+
+  const opcoes = asArray(obj['opcoes'])
+    .map(parseIntentOption)
+    .filter((o): o is FlowIntentOption => o !== null);
+  if (opcoes.length === 0) return undefined;
+
+  const abertura: FlowAbertura = { saudacao: saudacao.slice(0, 300), opcoes };
+
+  // Mesma checagem de parseNode: posicao malformada e descartada em vez de
+  // derrubar a abertura inteira — o canvas cai no fallback de layout.
+  const posicao = obj['posicao'];
+  if (typeof posicao === 'object' && posicao !== null) {
+    const pos = posicao as Record<string, unknown>;
+    if (typeof pos['x'] === 'number' && typeof pos['y'] === 'number') {
+      abertura.posicao = { x: pos['x'], y: pos['y'] };
+    }
+  }
+
+  return abertura;
+}
+
 /**
  * Valida e normaliza uma definicao vinda do banco ou da rede.
  *
@@ -196,7 +353,10 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
   }
   const obj = raw as Record<string, unknown>;
 
-  if (obj['versaoFormato'] !== 1) {
+  // v1 e v2 convivem: a diferenca e so a existencia de transicoes, e fluxo
+  // sem elas roda pela varredura da ordem, como sempre rodou.
+  const versaoFormato = obj['versaoFormato'];
+  if (versaoFormato !== 1 && versaoFormato !== 2) {
     throw new FlowDefinitionError('Versão de formato de fluxo não suportada.');
   }
 
@@ -213,6 +373,18 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
     idsVistos.add(no.id);
   }
 
+  // Transicao para no inexistente e descartada: apontar para o vazio deixaria
+  // a conversa sem proxima pergunta. Mesma regua do slot desconhecido.
+  for (const no of nos) {
+    if (!no.transicoes) continue;
+    const validas = no.transicoes.filter((t) => t.destino === null || idsVistos.has(t.destino));
+    if (validas.length > 0) {
+      no.transicoes = validas;
+    } else {
+      delete no.transicoes;
+    }
+  }
+
   // Ordem so pode citar no existente; no fora da ordem nunca seria perguntado.
   const ordem = asArray(obj['ordem']).filter((id): id is string => typeof id === 'string' && idsVistos.has(id));
   if (ordem.length === 0) {
@@ -224,13 +396,16 @@ export function parseFlowDefinition(raw: unknown): FlowDefinition {
     ? obrigatoriosRaw as Record<string, unknown>
     : {};
 
+  const abertura = parseAbertura(obj['abertura']);
+
   return {
-    versaoFormato: 1,
+    versaoFormato,
     ordem,
     nos,
     obrigatorios: {
       income: parseRequiredSlots(obrigatoriosObj['income']),
       expense: parseRequiredSlots(obrigatoriosObj['expense']),
     },
+    ...(abertura ? { abertura } : {}),
   };
 }

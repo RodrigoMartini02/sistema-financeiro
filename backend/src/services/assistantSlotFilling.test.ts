@@ -368,3 +368,31 @@ test('recusar a criacao volta a perguntar a categoria', async () => {
   assert.equal(step.state.draft.category, null);
   assert.equal(step.question?.slot, 'category');
 });
+
+test('valor de compra parcelada nao e confundido com o numero de parcelas', () => {
+  // "um celular" fazia o extrator de valor por extenso ler 1, e o numero antes
+  // de "em 10x" nao era coberto por nenhuma extracao: o card abria com o valor
+  // errado, que e pior que abrir vazio.
+  const draft = seedDraftFromMessage('expense', 'comprei um celular 3000 em 10x no credito', catalog);
+
+  assert.equal(draft.amount, 3000);
+  assert.equal(draft.installments, 10);
+  assert.equal(draft.billingType, 'parcelas');
+});
+
+test('valor antes do parcelamento e lido sem forma de pagamento na frase', () => {
+  const draft = seedDraftFromMessage('expense', 'notebook 4500 em 12 vezes', catalog);
+
+  assert.equal(draft.amount, 4500);
+  assert.equal(draft.installments, 12);
+});
+
+test('valor por extenso continua valendo quando a frase nao tem digito', () => {
+  // A correcao acima nao pode desligar a leitura por voz, onde o valor vem
+  // escrito por extenso e nao ha numero na frase.
+  const falado = seedDraftFromMessage('expense', 'gastei cinquenta reais no mercado', catalog);
+  assert.equal(falado.amount, 50);
+
+  const semNumero = seedDraftFromMessage('expense', 'comprei um cafe', catalog);
+  assert.equal(semNumero.amount, 1);
+});
