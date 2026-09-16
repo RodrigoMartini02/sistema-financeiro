@@ -142,8 +142,10 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
       )
     : allItems;
 
-  const handleSave = async (values: IncomeFormValues) => {
-    await finance.saveIncome.mutateAsync({ values, id: dialog.item?.id });
+  const handleSave = async (items: IncomeFormValues[]) => {
+    // Editando, e um item so e ele carrega o id; criando, o lote grava uma a
+    // uma, todas novas.
+    for (const v of items) await finance.saveIncome.mutateAsync({ values: v, id: dialog.item?.id });
     setDialog({ open: false });
   };
 

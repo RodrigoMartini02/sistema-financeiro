@@ -232,8 +232,10 @@ export function CalendarView({ month, year, subView }: Props) {
         isSaving={finance.saveIncome.isPending}
         error={finance.saveIncome.error?.message}
         onClose={() => setDialog(null)}
-        onSave={async (values) => {
-          await finance.saveIncome.mutateAsync({ values, id: dialog?.id });
+        onSave={async (items) => {
+          // Editando, e um item so e ele carrega o id; criando, o lote grava
+          // uma a uma, todas novas.
+          for (const v of items) await finance.saveIncome.mutateAsync({ values: v, id: dialog?.id });
           setDialog(null);
         }}
       />
