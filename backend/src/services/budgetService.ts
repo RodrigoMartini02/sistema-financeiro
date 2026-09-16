@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accountMembers, accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
-import { resolveVisibleUserIds } from '../utils/familyVisibility';
+import { resolveAccountOwnerId, resolveVisibleUserIds } from '../utils/familyVisibility';
 
 export interface FinancialAccount {
   id: number;
@@ -199,6 +199,12 @@ export async function getBudgetOverview(input: {
   // coluna precisa somar o mesmo conjunto. Sem membros, devolve so o proprio
   // usuario e o comportamento fica identico ao de antes.
   const scopeIds = await resolveVisibleUserIds(userId, accountId);
+  // Categorias sao da CONTA, nunca do membro (nao ha copia por pessoa — ver
+  // routes/categories.ts). Sem resolver o dono aqui, um membro sem
+  // acesso_lancamentos_familia nunca via categoria nenhuma, mesmo so
+  // olhando os proprios lancamentos: categories.userId sempre aponta para o
+  // dono da conta pessoal, nunca para o membro.
+  const ownerId = await resolveAccountOwnerId(userId, accountId);
   const [categoryRows, expenseRows, incomeRows, hierarchyRows] = await Promise.all([
     // Mesmo critério de conta usado em routes/categories.ts: categorias padrão
     // do tipo da conta ativa (tipo preenchido) ou exclusivas desta conta. Sem
@@ -214,7 +220,7 @@ export async function getBudgetOverview(input: {
       name: categories.name,
       parentId: categories.parentId,
     }).from(categories).where(and(
-      eq(categories.userId, userId),
+      eq(categories.userId, ownerId),
       sql`COALESCE(categorias.ativo, true) = true`,
       or(eq(categories.type, account.type), eq(categories.accountId, account.id))!,
     )),
@@ -231,7 +237,7 @@ export async function getBudgetOverview(input: {
     // Buscar o pai só entre as categorias exibidas faria esse valor sumir da
     // conta sem aviso, e o total dos itens deixaria de bater com projectedTotal.
     db.select({ id: categories.id, parentId: categories.parentId })
-      .from(categories).where(eq(categories.userId, userId)),
+      .from(categories).where(eq(categories.userId, ownerId)),
   ]);
 
   if (account.type === 'empresa') {

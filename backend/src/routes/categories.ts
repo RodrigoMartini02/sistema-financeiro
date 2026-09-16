@@ -4,7 +4,7 @@ import { db, pool } from '../db/client';
 import { categories } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ensureDefaultCategories } from '../services/defaultCategories';
-import { resolveVisibleUserIds } from '../utils/familyVisibility';
+import { resolveAccountOwnerId, resolveVisibleUserIds } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -27,12 +27,20 @@ async function resolveAccountType(contaId: string, userIds: number[]): Promise<s
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    const targetUserId = usuario_id && req.user!.type === 'admin' ? parseInt(usuario_id) : req.user!.id;
+    const accountIdNum = conta_id ? parseInt(conta_id) : null;
 
     // Carteira compartilhada: em conta pessoal as categorias sao da conta, nao
     // de cada pessoa. O membro nao recebe mais copias das categorias do gestor
     // (ver 0031), entao sem isto ele nao teria categoria nenhuma ao lancar.
-    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    //
+    // resolveAccountOwnerId nao depende de nenhuma permissao de familia: um
+    // membro sem acesso_lancamentos_familia ainda precisa enxergar o catalogo
+    // da conta para categorizar e ver o grafico dos proprios lancamentos —
+    // isso nunca expoe lancamentos de outra pessoa, so o catalogo.
+    const targetUserId = usuario_id && req.user!.type === 'admin'
+      ? parseInt(usuario_id)
+      : await resolveAccountOwnerId(req.user!.id, accountIdNum);
+    const visiveis = await resolveVisibleUserIds(req.user!.id, accountIdNum);
 
     let whereClause: string;
     const params: unknown[] = [];

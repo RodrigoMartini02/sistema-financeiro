@@ -3,7 +3,7 @@ import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import {
-  diferencaValor, formatDiferenca, getFormaLabel, getStatusColor,
+  diferencaValor, formatDiferenca, getFirstName, getFormaLabel, getStatusColor,
   StatusBadge, TipoBadge, valorExibido,
 } from './DespesasScreen';
 
@@ -79,6 +79,7 @@ export function ExpenseCard({
             {item.categoria}
           </span>
           <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
+          {item.autorNome && <span>· {getFirstName(item.autorNome)}</span>}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusBadge item={item} />
