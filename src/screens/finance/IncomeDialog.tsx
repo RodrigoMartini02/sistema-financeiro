@@ -528,64 +528,69 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
               </div>
             </div>
 
-            <div style={{ marginTop: 2, position: 'relative' }}>
-              <label style={labelStyle}>Cliente / fonte</label>
-              <input
-                {...form.register('cliente', { onChange: () => setClienteTocado(true) })}
-                list="clientes-datalist"
-                placeholder="Ex: Empresa XYZ"
-                autoComplete="off"
-                style={{
-                  ...fieldInputStyle, height: 42, fontSize: 14,
-                  border: `1.5px solid ${!clienteValido ? '#b42318' : C.borderInput}`,
-                }}
-              />
-              <datalist id="clientes-datalist">
-                {clientes.map((c) => <option key={c.id} value={c.nome} />)}
-              </datalist>
-              {!clienteValido && clienteWatch?.trim() && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                  <span style={{ color: '#b42318' }}>Cliente não cadastrado.</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowClienteForm(clienteWatch.trim())}
-                    style={{ fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
-                  >
-                    + Cadastrar "{clienteWatch.trim()}"
-                  </button>
-                </div>
-              )}
-              {showClienteForm !== null && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
-                  <input
-                    type="text"
-                    defaultValue={showClienteForm}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClienteMut.mutate(v); }
-                      if (e.key === 'Escape') { e.preventDefault(); setShowClienteForm(null); }
-                    }}
-                    id="novo-cliente-input"
-                    style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    disabled={criarClienteMut.isPending}
-                    onClick={() => {
-                      const el = document.getElementById('novo-cliente-input') as HTMLInputElement | null;
-                      const v = el?.value.trim();
-                      if (v) criarClienteMut.mutate(v);
-                    }}
-                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    {criarClienteMut.isPending ? '...' : 'Criar'}
-                  </button>
-                  <button type="button" onClick={() => setShowClienteForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Conta pessoal nao tem cliente. Mesmo criterio dos demais
+                campos de PJ deste modal (tipo de receita, representante,
+                produtos), que ja eram condicionais. */}
+            {isEmpresa && (
+              <div style={{ marginTop: 2, position: 'relative' }}>
+                <label style={labelStyle}>Cliente / fonte</label>
+                <input
+                  {...form.register('cliente', { onChange: () => setClienteTocado(true) })}
+                  list="clientes-datalist"
+                  placeholder="Ex: Empresa XYZ"
+                  autoComplete="off"
+                  style={{
+                    ...fieldInputStyle, height: 42, fontSize: 14,
+                    border: `1.5px solid ${!clienteValido ? '#b42318' : C.borderInput}`,
+                  }}
+                />
+                <datalist id="clientes-datalist">
+                  {clientes.map((c) => <option key={c.id} value={c.nome} />)}
+                </datalist>
+                {!clienteValido && clienteWatch?.trim() && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <span style={{ color: '#b42318' }}>Cliente não cadastrado.</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowClienteForm(clienteWatch.trim())}
+                      style={{ fontWeight: 600, color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                    >
+                      + Cadastrar "{clienteWatch.trim()}"
+                    </button>
+                  </div>
+                )}
+                {showClienteForm !== null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                    <input
+                      type="text"
+                      defaultValue={showClienteForm}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClienteMut.mutate(v); }
+                        if (e.key === 'Escape') { e.preventDefault(); setShowClienteForm(null); }
+                      }}
+                      id="novo-cliente-input"
+                      style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      disabled={criarClienteMut.isPending}
+                      onClick={() => {
+                        const el = document.getElementById('novo-cliente-input') as HTMLInputElement | null;
+                        const v = el?.value.trim();
+                        if (v) criarClienteMut.mutate(v);
+                      }}
+                      style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      {criarClienteMut.isPending ? '...' : 'Criar'}
+                    </button>
+                    <button type="button" onClick={() => setShowClienteForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Tipo de receita (conta PJ apenas) ────────────────── */}
