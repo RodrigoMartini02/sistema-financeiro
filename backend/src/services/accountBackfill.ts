@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accounts, expenses, incomes, months, reserves } from '../db/schema';
 import { ensureDefaultCategories } from './defaultCategories';
+import { isActiveFamilyMember } from '../utils/familyVisibility';
 
 export interface AccountBackfillResult {
   created: boolean;
@@ -21,6 +22,12 @@ export async function ensureUserHasAccount(userId: number): Promise<AccountBackf
     .limit(1);
 
   if (existing) return { created: false };
+
+  // Membro vinculado a conta de outra pessoa nunca deve ganhar conta
+  // propria — ele so opera dentro da conta do gestor. Sem esta checagem,
+  // toda verificacao de sessao (/auth/verify) recriaria uma conta "Pessoal"
+  // e categorias soltas para ele.
+  if (await isActiveFamilyMember(userId)) return { created: false };
 
   return db.transaction(async (transaction) => {
     const [created] = await transaction

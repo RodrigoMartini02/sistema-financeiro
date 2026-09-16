@@ -7,6 +7,7 @@ import { authenticate, requireAdmin } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { accountWhere } from '../utils/accountFilter';
+import { isActiveFamilyMember } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -684,7 +685,12 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
       .set({ financialData: null, categories: null, cards: null, updatedAt: new Date() })
       .where(eq(users.id, userId));
 
-    await ensureDefaultCategories(userId, 'pessoal');
+    // Membro vinculado a conta de outra pessoa nao tem catalogo proprio —
+    // recriar categorias padrao aqui deixaria sobras soltas (conta_id nulo)
+    // duplicando visualmente o catalogo da conta do gestor.
+    if (!(await isActiveFamilyMember(userId))) {
+      await ensureDefaultCategories(userId, 'pessoal');
+    }
 
     res.json({ success: true, message: 'System reset: data, categories, cards and notifications cleared.' });
   } catch (error) {

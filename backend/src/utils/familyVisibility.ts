@@ -180,3 +180,19 @@ export async function resolveOwnerForWrite(
   const pode = await canEditOthersEntries(requesterId, row.conta_id);
   return pode ? row.usuario_id : null;
 }
+
+/**
+ * Diz se o usuario e membro vinculado ativo da conta pessoal de outra
+ * pessoa (`conta_membros`). Um membro nunca deve ganhar conta ou catalogo
+ * proprios — ele opera inteiramente dentro da conta do gestor ao qual esta
+ * vinculado. Usado para impedir que rotinas como criacao automatica de
+ * conta padrao ou reset de dados recriem uma conta "Pessoal" e categorias
+ * soltas para quem ja e membro de outra conta.
+ */
+export async function isActiveFamilyMember(userId: number): Promise<boolean> {
+  const vinculo = await pool.query(
+    `SELECT 1 FROM conta_membros WHERE usuario_id = $1 AND status = 'ativo' LIMIT 1`,
+    [userId],
+  );
+  return vinculo.rows.length > 0;
+}
