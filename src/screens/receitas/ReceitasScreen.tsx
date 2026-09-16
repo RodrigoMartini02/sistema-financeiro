@@ -275,6 +275,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     key={item.id}
                     item={item}
                     hoje={hoje}
+                    isEmpresa={isEmpresa}
                     onConfirmRecebimento={() => handleConfirmarRecebimento(item)}
                     onCancel={() => handleCancelarReceita(item)}
                     onOpenAttachments={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
@@ -291,12 +292,16 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Data</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
+                    {isEmpresa && (
+                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
+                    )}
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
                     {mostrarAutor && (
-                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Quem lançou</th>
+                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Usuário</th>
                     )}
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
+                    {isEmpresa && (
+                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
+                    )}
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center">Anexos</th>
                     <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Ações</th>
@@ -330,21 +335,23 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           <p className="text-[11px] text-slate-400 truncate max-w-[180px]">{item.observacoes}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
-                        {item.representanteNome ? (
-                          <span className="flex items-center gap-1">
-                            <Tag size={11} className="text-blue-400 shrink-0" />
-                            <span className="text-blue-700 font-medium">{item.representanteNome}</span>
-                          </span>
-                        ) : item.cliente ? (
-                          <span className="flex items-center gap-1">
-                            <Tag size={11} className="text-slate-400 shrink-0" />
-                            {item.cliente}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
+                      {isEmpresa && (
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                          {item.representanteNome ? (
+                            <span className="flex items-center gap-1">
+                              <Tag size={11} className="text-blue-400 shrink-0" />
+                              <span className="text-blue-700 font-medium">{item.representanteNome}</span>
+                            </span>
+                          ) : item.cliente ? (
+                            <span className="flex items-center gap-1">
+                              <Tag size={11} className="text-slate-400 shrink-0" />
+                              {item.cliente}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         {tipoBadge(item.tipoReceita) ?? <span className="text-slate-300 text-xs">—</span>}
                       </td>
@@ -353,11 +360,13 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           {item.autorNome ?? '—'}
                         </td>
                       )}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {item.valorComissao && item.valorComissao > 0
-                          ? <span className="font-semibold text-amber-600">{formatCurrency(item.valorComissao)}</span>
-                          : <span className="text-slate-300 text-xs">—</span>}
-                      </td>
+                      {isEmpresa && (
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {item.valorComissao && item.valorComissao > 0
+                            ? <span className="font-semibold text-amber-600">{formatCurrency(item.valorComissao)}</span>
+                            : <span className="text-slate-300 text-xs">—</span>}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-right font-bold text-green-700 whitespace-nowrap">
                         {formatCurrency(item.valor)}
                       </td>
@@ -418,7 +427,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
-                    <td colSpan={mostrarAutor ? 6 : 5} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    <td colSpan={3 + (isEmpresa ? 2 : 0) + (mostrarAutor ? 1 : 0)} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
                       Total
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-green-700 text-sm whitespace-nowrap">

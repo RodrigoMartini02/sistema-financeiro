@@ -673,7 +673,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     <th className={TH_CLASS}>Vencimento</th>
                     <th className={TH_CLASS}>Data compra</th>
                     <th className={TH_CLASS}>Categoria</th>
-                    {mostrarAutor && <th className={TH_CLASS}>Quem lançou</th>}
+                    {mostrarAutor && <th className={TH_CLASS}>Usuário</th>}
                     <th className={TH_CLASS}>Pagamento</th>
                     {/* Data de pagamento ganhou coluna propria: ja existia filtro
                         por ela, mas o dado vivia como texto secundario dentro de

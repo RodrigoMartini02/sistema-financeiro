@@ -25,6 +25,7 @@ export function tipoBadge(tipo?: string | null) {
 interface IncomeCardProps {
   item: Income;
   hoje: string;
+  isEmpresa: boolean;
   onConfirmRecebimento: () => void;
   onCancel: () => void;
   onOpenAttachments: () => void;
@@ -32,7 +33,7 @@ interface IncomeCardProps {
   onDelete: () => void;
 }
 
-export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenAttachments, onEdit, onDelete }: IncomeCardProps) {
+export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCancel, onOpenAttachments, onEdit, onDelete }: IncomeCardProps) {
   const isPrevista = item.status === 'prevista';
   const isAtrasada = isPrevista && item.data < hoje;
   const isCancelada = item.status === 'cancelada';
@@ -57,7 +58,7 @@ export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenA
         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{item.descricao}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
           <span>{formatDate(item.data)}</span>
-          {item.representanteNome ? (
+          {isEmpresa && (item.representanteNome ? (
             <span className="flex items-center gap-1 text-blue-700 dark:text-blue-400 font-medium">
               <Tag size={11} className="shrink-0" /> {item.representanteNome}
             </span>
@@ -65,7 +66,7 @@ export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenA
             <span className="flex items-center gap-1">
               <Tag size={11} className="shrink-0 text-slate-400" /> {item.cliente}
             </span>
-          ) : null}
+          ) : null)}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {isCancelada && (
@@ -82,7 +83,7 @@ export function IncomeCard({ item, hoje, onConfirmRecebimento, onCancel, onOpenA
             </span>
           )}
           {tipoBadge(item.tipoReceita)}
-          {item.valorComissao && item.valorComissao > 0 && (
+          {isEmpresa && item.valorComissao && item.valorComissao > 0 && (
             <span className="text-[11px] font-semibold text-amber-600">comissão {formatCurrency(item.valorComissao)}</span>
           )}
           {anexosCount > 0 && (

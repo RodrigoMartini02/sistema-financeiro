@@ -556,6 +556,7 @@ const PERMISSION_FLAGS: PermissionFlag[] = [
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
   'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners', 'accessMembers', 'accessSubscription',
   'accessClients', 'accessContracts', 'accessProductCatalog',
+  'accessFamilyEntries', 'editFamilyEntries', 'accessFamilyCards',
   'accessGeneralOverview',
 ];
 
