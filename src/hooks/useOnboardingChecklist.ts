@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCartoes, fetchCategorias } from '../services/configService';
+import { getActiveAccountId } from '../services/apiClient';
 import { fetchClientes } from '../services/clientesService';
 import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
@@ -64,7 +65,8 @@ export function useOnboardingChecklist(enabled: boolean) {
 
   const canQuery = enabled && !isDismissed && !isDemoMode && !isSilencedAll;
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes(), enabled: canQuery });
-  const categoriasQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias(), enabled: canQuery });
+  const accountId = getActiveAccountId();
+  const categoriasQuery = useQuery({ queryKey: queryKeys.categorias(accountId), queryFn: () => fetchCategorias(accountId), enabled: canQuery });
   const clientesQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: canQuery && isEmpresa });
   const representantesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: canQuery && isEmpresa });
 

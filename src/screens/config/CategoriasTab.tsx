@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ChevronRight, Tag, FolderTree } from 'lucide-react';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import type { Categoria, CategoriaFormValues } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
@@ -248,7 +249,8 @@ export function CategoriasTab() {
   const guideNovaCategoria = useFirstAccessGuide('categorias:nova-v1');
   const guideSubcategoria = useFirstAccessGuide('categorias:sub-v1');
 
-  const cats = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
+  const accountId = getActiveAccountId();
+  const cats = useQuery({ queryKey: queryKeys.categorias(accountId), queryFn: () => fetchCategorias(accountId) });
   const allCats = cats.data ?? [];
 
   // O backend devolve ativas e inativas; o filtro é aplicado aqui. Uma raiz
