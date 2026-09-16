@@ -23,6 +23,42 @@ async function resolveAccountType(contaId: string, userIds: number[]): Promise<s
   return result.rows.length > 0 ? (result.rows[0] as { tipo: string }).tipo : null;
 }
 
+/**
+ * Encontra uma categoria pelo id, aceitando tanto a categoria autorada pelo
+ * proprio requester quanto — quando ela pertence a uma conta pessoal
+ * compartilhada — a categoria autorada pelo dono ou por outro membro da
+ * mesma conta. Sem isto, o dono nao conseguiria editar uma categoria criada
+ * por um membro (e vice-versa), mesmo sendo a mesma conta.
+ *
+ * Retorna null quando a categoria nao existe ou nao pertence a conta/usuario
+ * que o requester pode acessar.
+ */
+async function findAccessibleCategory(
+  categoryId: number,
+  requesterId: number,
+): Promise<{ id: number; usuarioId: number; contaId: number | null; tipo: string | null; nome: string } | null> {
+  const own = await pool.query(
+    'SELECT id, usuario_id, conta_id, tipo, nome FROM categorias WHERE id = $1 AND usuario_id = $2',
+    [categoryId, requesterId],
+  );
+  if (own.rows.length > 0) {
+    const row = own.rows[0] as { id: number; usuario_id: number; conta_id: number | null; tipo: string | null; nome: string };
+    return { id: row.id, usuarioId: row.usuario_id, contaId: row.conta_id, tipo: row.tipo, nome: row.nome };
+  }
+
+  const candidate = await pool.query(
+    'SELECT id, usuario_id, conta_id, tipo, nome FROM categorias WHERE id = $1',
+    [categoryId],
+  );
+  const row = candidate.rows[0] as { id: number; usuario_id: number; conta_id: number | null; tipo: string | null; nome: string } | undefined;
+  if (!row || !row.conta_id) return null;
+
+  const ownerId = await resolveAccountOwnerId(requesterId, row.conta_id);
+  if (ownerId !== row.usuario_id) return null;
+
+  return { id: row.id, usuarioId: row.usuario_id, contaId: row.conta_id, tipo: row.tipo, nome: row.nome };
+}
+
 // GET /api/categories
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -149,11 +185,7 @@ router.get('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [category] = await db
-      .select()
-      .from(categories)
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id)))
-      .limit(1);
+    const category = await findAccessibleCategory(categoryId, req.user!.id);
 
     if (!category) {
       res.status(404).json({ success: false, message: 'Category not found' });
@@ -183,12 +215,21 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
     const parentId = parent_id ? parseInt(parent_id) : null;
 
-    // Toda categoria criada manualmente pelo usuario e CUSTOM — exclusiva
-    // da conta onde foi criada, nunca compartilhada com outras contas do
-    // mesmo tipo. Categorias PADRAO so sao gravadas por ensureDefaultCategories.
+    // Toda categoria criada manualmente e CUSTOM — exclusiva da conta onde
+    // foi criada, nunca compartilhada com outras contas do mesmo tipo.
+    // Categorias PADRAO so sao gravadas por ensureDefaultCategories.
+    //
+    // Em conta pessoal compartilhada, o catalogo pertence a conta, nao a
+    // quem criou: por isso resolvemos o dono via resolveAccountOwnerId e
+    // gravamos/deduplicamos sob esse usuario_id, mesmo quando quem esta
+    // criando e um membro. Sem isto, uma categoria criada pelo membro
+    // ficaria presa ao usuario_id dele e nao apareceria nem para ele mesmo
+    // na leitura (GET resolve pelo dono), nem para o resto da familia.
     let accountId: number | null = null;
+    let ownerId = req.user!.id;
     if (conta_id) {
-      const accountType = await resolveAccountType(conta_id, [req.user!.id]);
+      ownerId = await resolveAccountOwnerId(req.user!.id, parseInt(conta_id));
+      const accountType = await resolveAccountType(conta_id, [ownerId]);
       if (!accountType) {
         res.status(400).json({ success: false, message: 'Account not found' });
         return;
@@ -199,7 +240,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     if (parentId) {
       const parentResult = await pool.query(
         'SELECT id, parent_id FROM categorias WHERE id = $1 AND usuario_id = $2',
-        [parentId, req.user!.id],
+        [parentId, ownerId],
       );
       if (parentResult.rows.length === 0) {
         res.status(400).json({ success: false, message: 'Parent category not found' });
@@ -213,7 +254,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
     const dupResult = await pool.query(
       `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND conta_id IS NOT DISTINCT FROM $3`,
-      [req.user!.id, nome.trim(), accountId],
+      [ownerId, nome.trim(), accountId],
     );
 
     if (dupResult.rows.length > 0) {
@@ -225,7 +266,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       `INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, conta_id)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, nome, cor, icone, parent_id, conta_id, data_criacao, data_atualizacao`,
-      [req.user!.id, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, accountId],
+      [ownerId, nome.trim(), cor ?? '#3498db', icone ?? null, parentId, accountId],
     );
 
     res.status(201).json({ success: true, message: 'Category created', data: result.rows[0] });
@@ -250,8 +291,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const [existing] = await db.select({ id: categories.id, type: categories.type, accountId: categories.accountId, userId: categories.userId }).from(categories)
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
+    const existing = await findAccessibleCategory(categoryId, req.user!.id);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
@@ -260,14 +300,16 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     // Categoria padrao (tipo preenchido) checa duplicidade por tipo;
     // categoria custom (conta_id preenchido) checa duplicidade por conta_id.
-    const duplicateResult = existing.type
+    // Sempre sob o usuario_id dono da categoria, nao o requester — em conta
+    // pessoal compartilhada os dois podem divergir.
+    const duplicateResult = existing.tipo
       ? await pool.query(
           `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND tipo = $4`,
-          [req.user!.id, nome.trim(), categoryId, existing.type],
+          [existing.usuarioId, nome.trim(), categoryId, existing.tipo],
         )
       : await pool.query(
           `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3 AND conta_id IS NOT DISTINCT FROM $4`,
-          [req.user!.id, nome.trim(), categoryId, existing.accountId],
+          [existing.usuarioId, nome.trim(), categoryId, existing.contaId],
         );
     if (duplicateResult.rows.length > 0) {
       res.status(400).json({ success: false, message: 'A category with this name already exists' });
@@ -279,7 +321,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
        SET nome = $1, cor = COALESCE($2, cor), icone = COALESCE($3, icone), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $4 AND usuario_id = $5
        RETURNING id, nome, cor, icone, parent_id, tipo, conta_id, data_criacao, data_atualizacao`,
-      [nome.trim(), cor ?? null, icone ?? null, categoryId, req.user!.id],
+      [nome.trim(), cor ?? null, icone ?? null, categoryId, existing.usuarioId],
     );
 
     res.json({ success: true, message: 'Category updated', data: result.rows[0] });
@@ -298,12 +340,18 @@ router.patch('/:id/toggle-active', authenticate, async (req: Request, res: Respo
       return;
     }
 
+    const existing = await findAccessibleCategory(categoryId, req.user!.id);
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Category not found' });
+      return;
+    }
+
     const result = await pool.query(
       `UPDATE categorias
        SET ativo = NOT COALESCE(ativo, true), data_atualizacao = CURRENT_TIMESTAMP
        WHERE id = $1 AND usuario_id = $2
        RETURNING id, nome, COALESCE(ativo, true) AS active`,
-      [categoryId, req.user!.id],
+      [categoryId, existing.usuarioId],
     );
 
     if (result.rows.length === 0) {
@@ -325,8 +373,7 @@ router.put('/:id/favorite', authenticate, async (req: Request, res: Response): P
     const categoryId = parseInt(req.params['id']!);
     const { forma_favorita, cartao_favorito_id } = req.body as Record<string, string | undefined>;
 
-    const [existing] = await db.select({ id: categories.id, userId: categories.userId }).from(categories)
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
+    const existing = await findAccessibleCategory(categoryId, req.user!.id);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
@@ -335,7 +382,7 @@ router.put('/:id/favorite', authenticate, async (req: Request, res: Response): P
 
     const [updated] = await db.update(categories)
       .set({ favoritePaymentMethod: forma_favorita ?? null, favoriteCardId: cartao_favorito_id ? parseInt(cartao_favorito_id) : null, updatedAt: new Date() })
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id)))
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, existing.usuarioId)))
       .returning();
 
     res.json({ success: true, message: 'Favorite saved', data: updated });
@@ -354,8 +401,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    const [existing] = await db.select({ id: categories.id, name: categories.name, userId: categories.userId }).from(categories)
-      .where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id))).limit(1);
+    const existing = await findAccessibleCategory(categoryId, req.user!.id);
 
     if (!existing) {
       res.status(404).json({ success: false, message: 'Category not found' });
@@ -368,9 +414,12 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
+    // Em conta pessoal compartilhada, despesas de qualquer membro contam
+    // para o uso da categoria — nao so as do requester.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, existing.contaId);
     const usageResult = await pool.query(
-      'SELECT COUNT(*) AS total FROM despesas WHERE categoria_id = $1 AND usuario_id = $2',
-      [categoryId, req.user!.id],
+      'SELECT COUNT(*) AS total FROM despesas WHERE categoria_id = $1 AND usuario_id = ANY($2)',
+      [categoryId, visiveis],
     );
     const totalUses = parseInt((usageResult.rows[0] as { total: string }).total);
     if (totalUses > 0) {
@@ -378,8 +427,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    await db.delete(categories).where(and(eq(categories.id, categoryId), eq(categories.userId, req.user!.id)));
-    res.json({ success: true, message: `Category "${existing.name}" deleted` });
+    await db.delete(categories).where(and(eq(categories.id, categoryId), eq(categories.userId, existing.usuarioId)));
+    res.json({ success: true, message: `Category "${existing.nome}" deleted` });
   } catch (error) {
     console.error('Delete category error:', error);
     res.status(500).json({ success: false, message: 'Failed to delete category' });

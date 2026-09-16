@@ -20,6 +20,7 @@ import {
 } from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
@@ -335,9 +336,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   // fica atras do teclado.
   const [alturaVisivel, setAlturaVisivel] = useState<number | null>(null);
 
+  // Mesma fonte que contaEhEmpresa usa abaixo: a conta escolhida no draft do
+  // lancamento em edicao, com fallback para a conta ativa global.
+  const contaAtivaId = draft?.contaId ?? getActiveAccountId();
   const categoriesQuery = useQuery({
-    queryKey: queryKeys.categorias(),
-    queryFn: () => fetchCategorias(),
+    queryKey: queryKeys.categorias(contaAtivaId),
+    queryFn: () => fetchCategorias(contaAtivaId),
     enabled: open,
     staleTime: 60_000,
   });
