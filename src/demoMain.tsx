@@ -46,7 +46,7 @@ function DemoAppContent() {
         isSaving={finance.saveIncome.isPending}
         error={finance.saveIncome.error?.message}
         onClose={() => setQuickAction('none')}
-        onSave={async (values) => { await finance.saveIncome.mutateAsync({ values }); setQuickAction('none'); }}
+        onSave={async (items) => { for (const v of items) await finance.saveIncome.mutateAsync({ values: v }); setQuickAction('none'); }}
       />
       <ExpenseDialog
         open={quickAction === 'nova-despesa'}

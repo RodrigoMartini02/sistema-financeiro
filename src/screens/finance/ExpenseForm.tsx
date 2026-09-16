@@ -180,6 +180,11 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   const repeticao          = useWatch({ control: form.control, name: 'repeticao' });
   const totalParcelas      = useWatch({ control: form.control, name: 'totalParcelas' });
   const parcelasJaPagas    = useWatch({ control: form.control, name: 'parcelasJaPagas' });
+  // O campo e type="text", entao o watch entrega string: "4" concatenado em
+  // setMonth viraria mes "54" e jogaria a data para outro ano. O zod so coage
+  // no submit, e o rodape mostra o que vem do watch. Valor vazio ou parcial
+  // cai em 0 pelo || — nem "" nem "0" sao nullish, entao ?? nao bastaria.
+  const jaPagas = Number(parcelasJaPagas) || 0;
   const diaRecorrencia     = useWatch({ control: form.control, name: 'diaRecorrencia' });
 
   const isCredito = formaPagamento === 'credito';
@@ -378,7 +383,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   // Reduzir o número de parcelas reajusta "já pagas" para caber no novo limite.
   useEffect(() => {
     const max = Math.max((totalParcelas ?? 2) - 1, 0);
-    if ((parcelasJaPagas ?? 0) > max) form.setValue('parcelasJaPagas', max);
+    if (jaPagas > max) form.setValue('parcelasJaPagas', max);
   }, [totalParcelas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Vencimento e status derivados ─────────────────────────────────
@@ -438,9 +443,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
     if (repeticao !== 'parcelas') return null;
     const base = vencimentoDerivado.data;
     const d = new Date(base + 'T12:00:00');
-    d.setMonth(d.getMonth() + (parcelasJaPagas ?? 0));
+    d.setMonth(d.getMonth() + jaPagas);
     return formatBr(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-  }, [repeticao, vencimentoDerivado.data, parcelasJaPagas]);
+  }, [repeticao, vencimentoDerivado.data, jaPagas]);
 
   const mensalTexto = isCredito
     ? `todo mês na fatura ${selectedCard?.nome ?? 'do cartão'}, até cancelar`
@@ -451,7 +456,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   const resumoTotal = useMemo(() => {
     if (repeticao === 'parcelas' && totalParceladoDerivado > 0) {
       const partes = [`${totalParcelas}x de ${formatCurrency(valorDigitado)}`, `total ${formatCurrency(totalParceladoDerivado)}`];
-      if ((parcelasJaPagas ?? 0) > 0) partes.push(`${parcelasJaPagas} paga${(parcelasJaPagas ?? 0) > 1 ? 's' : ''}`);
+      if (jaPagas > 0) partes.push(`${jaPagas} paga${jaPagas > 1 ? 's' : ''}`);
       if (proximaParcelaVence) partes.push(`próxima vence ${proximaParcelaVence}`);
       return partes.join(' · ');
     }
@@ -459,7 +464,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
       return valorDigitado > 0 ? `${formatCurrency(valorDigitado)} · ${mensalTexto}` : mensalTexto;
     }
     return valorDigitado > 0 ? `total ${formatCurrency(valorDigitado)}` : '';
-  }, [repeticao, totalParceladoDerivado, totalParcelas, valorDigitado, parcelasJaPagas, proximaParcelaVence, mensalTexto]);
+  }, [repeticao, totalParceladoDerivado, totalParcelas, valorDigitado, jaPagas, proximaParcelaVence, mensalTexto]);
 
   const valorLabel = repeticao === 'parcelas' ? 'Valor da parcela' : repeticao === 'mensal' ? 'Valor mensal' : 'Valor da compra';
 
