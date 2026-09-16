@@ -785,8 +785,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           type="button"
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-          aria-label="Abrir assistente financeiro"
-          title="Assistente Financeiro"
+          aria-label="Abrir o Nico, seu assistente financeiro"
+          title="Nico"
         >
           <img
             src="/icons/assistente-perfil.webp"
@@ -803,7 +803,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               type="button"
               className="absolute inset-0 hidden bg-slate-950/25 backdrop-blur-[1px] sm:block"
               onClick={() => setOpen(false)}
-              aria-label="Fechar assistente financeiro"
+              aria-label="Fechar o Nico"
             />
           )}
           <section
@@ -818,19 +818,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
             // propria e fica ancorado no canto, sem disputa com o teclado.
             style={isStandalone && alturaVisivel ? { height: alturaVisivel } : undefined}
             role={isStandalone ? undefined : 'dialog'}
-            aria-label="Assistente Financeiro"
+            aria-label="Nico, assistente financeiro"
             aria-modal={isStandalone ? undefined : true}
           >
             <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3 text-white">
               <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
                 <img
                   src="/icons/assistente-perfil.webp"
-                  alt="Avatar do assistente financeiro"
+                  alt="Avatar do Nico"
                   className="h-full w-full object-cover object-[center_35%]"
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-base font-bold">Assistente Financeiro</p>
+                {/* Nome identifica, funcao explica: quem abre pela primeira
+                    vez precisa dos dois. */}
+                <p className="text-base font-bold leading-tight">Nico</p>
+                <p className="text-[11.5px] text-cyan-100/70">Assistente financeiro</p>
               </div>
               <AssistantHeaderMenu
                 onOpenHistory={() => setHistoryOpen((current) => !current)}
@@ -844,7 +847,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Fechar assistente"
+                  aria-label="Fechar o Nico"
                   title="Fechar"
                 >
                   <X size={19} />
