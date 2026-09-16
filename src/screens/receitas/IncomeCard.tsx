@@ -58,6 +58,7 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
         <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{item.descricao}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
           <span>{formatDate(item.data)}</span>
+          {item.autorNome && <span>· {item.autorNome}</span>}
           {isEmpresa && (item.representanteNome ? (
             <span className="flex items-center gap-1 text-blue-700 dark:text-blue-400 font-medium">
               <Tag size={11} className="shrink-0" /> {item.representanteNome}

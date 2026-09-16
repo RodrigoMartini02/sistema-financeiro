@@ -321,11 +321,11 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   };
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
-  // Autores distintos entre os lancamentos do periodo. A coluna "Quem lancou"
-  // so aparece quando ha mais de um: numa conta usada por uma pessoa so, ela
-  // repetiria o mesmo nome em toda linha.
+  // Autores distintos entre os lancamentos do periodo. O filtro por membro so
+  // aparece quando ha mais de um: numa conta usada por uma pessoa so, filtrar
+  // por ela mesma seria redundante. A coluna "Usuario" em si aparece sempre.
   const autores = [...new Set(allItems.map((i) => i.autorNome).filter(Boolean) as string[])].sort();
-  const mostrarAutor = autores.length > 1;
+  const mostrarFiltroAutor = autores.length > 1;
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
   const cartoesUsados = [...new Map(
     allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
@@ -540,7 +540,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   { value: 'descricao', label: 'A–Z' },
                 ]}
               />
-              {mostrarAutor && (
+              {mostrarFiltroAutor && (
                 <FilterChip
                   value={filtroAutor}
                   onChange={setFiltroAutor}
@@ -644,7 +644,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   <col style={{ width: '86px' }} />{/* vencimento */}
                   <col style={{ width: '86px' }} />{/* data compra */}
                   <col style={{ width: '116px' }} />{/* categoria */}
-                  {mostrarAutor && <col style={{ width: '80px' }} />}
+                  <col style={{ width: '80px' }} />{/* usuário */}
                   <col style={{ width: '104px' }} />{/* pagamento */}
                   <col style={{ width: '86px' }} />{/* data pagamento */}
                   <col style={{ width: '74px' }} />{/* status */}
@@ -673,7 +673,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     <th className={TH_CLASS}>Vencimento</th>
                     <th className={TH_CLASS}>Data compra</th>
                     <th className={TH_CLASS}>Categoria</th>
-                    {mostrarAutor && <th className={TH_CLASS}>Usuário</th>}
+                    <th className={TH_CLASS}>Usuário</th>
                     <th className={TH_CLASS}>Pagamento</th>
                     {/* Data de pagamento ganhou coluna propria: ja existia filtro
                         por ela, mas o dado vivia como texto secundario dentro de
@@ -746,13 +746,10 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                         <span className="truncate">{item.categoria}</span>
                       </td>
 
-                      {/* Quem lancou: so aparece quando ha mais de uma pessoa
-                          lancando na conta. Primeiro nome basta para distinguir. */}
-                      {mostrarAutor && (
-                        <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-                          {getFirstName(item.autorNome)}
-                        </td>
-                      )}
+                      {/* Usuario que lancou. Primeiro nome basta para distinguir. */}
+                      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+                        {getFirstName(item.autorNome)}
+                      </td>
 
                       {/* Pagamento */}
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
