@@ -151,9 +151,6 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
             <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">
               {activeAccount?.nome ?? userName}
             </span>
-            <span className="whitespace-nowrap text-[10.5px] font-medium text-[rgba(14,196,216,0.55)]">
-              {userName}
-            </span>
           </div>
           <ChevronDown
             size={14}
