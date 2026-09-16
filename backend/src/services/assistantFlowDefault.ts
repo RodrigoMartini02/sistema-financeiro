@@ -22,7 +22,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
   abertura: {
     // Variam com o tempo desde a ultima conversa: repetir a mesma frase a cada
     // abertura soa robotico, e uma saudacao longa atrasa quem quer so lancar.
-    saudacao: 'Oi! Sou seu assistente. O que vamos lançar?',
+    saudacao: 'Oi! Sou o Nico. O que vamos lançar?',
     saudacaoRetorno: 'Oi de novo! O que vamos lançar?',
     saudacaoRetornoLongo: 'Que bom que voltou! O que vamos lançar hoje?',
     opcoes: [
