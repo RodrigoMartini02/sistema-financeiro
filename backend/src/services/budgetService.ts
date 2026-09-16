@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
+import { accountMembers, accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
 import { resolveVisibleUserIds } from '../utils/familyVisibility';
 
 export interface FinancialAccount {
@@ -117,8 +117,32 @@ export async function resolveFinancialAccount(userId: number, requestedAccountId
     .where(where)
     .limit(1);
 
-  if (!account) throw new BudgetInputError('Conta financeira não encontrada.');
-  return account;
+  if (account) return account;
+
+  // O solicitante pode não ser dono de conta nenhuma e ainda assim ter
+  // acesso legítimo: um membro de família só existe vinculado à conta do
+  // gestor via conta_membros, nunca como accounts.userId. Sem este fallback,
+  // todo membro recebia "conta não encontrada" ao abrir o orçamento.
+  const [membership] = await db
+    .select({ accountId: accountMembers.accountId })
+    .from(accountMembers)
+    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.status, 'ativo')))
+    .limit(1);
+
+  if (membership) {
+    const memberWhere = requestedAccountId
+      ? and(eq(accounts.id, requestedAccountId), eq(accounts.id, membership.accountId), eq(accounts.active, true))
+      : and(eq(accounts.id, membership.accountId), eq(accounts.active, true));
+    const [memberAccount] = await db
+      .select({ id: accounts.id, type: accounts.type, name: accounts.name })
+      .from(accounts)
+      .where(memberWhere)
+      .limit(1);
+
+    if (memberAccount) return memberAccount;
+  }
+
+  throw new BudgetInputError('Conta financeira não encontrada.');
 }
 
 // deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de

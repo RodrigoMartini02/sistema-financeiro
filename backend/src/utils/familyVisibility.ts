@@ -133,7 +133,7 @@ export async function resolveOwnerForWrite(
   requesterId: number,
 ): Promise<number | null> {
   const reg = await pool.query(
-    `SELECT usuario_id, conta_id FROM ${tabela} WHERE id = `,
+    `SELECT usuario_id, conta_id FROM ${tabela} WHERE id = $1`,
     [registroId],
   );
   const row = reg.rows[0] as { usuario_id: number; conta_id: number | null } | undefined;
