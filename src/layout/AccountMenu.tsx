@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, KeyRound, LogOut, Settings } from 'lucide-react';
+import { Check, ChevronDown, LogOut, Settings } from 'lucide-react';
 import type { AuthUser } from '../types/auth';
 import type { Conta } from '../types/config';
 import { logout } from '../services/session';
@@ -86,14 +86,8 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
     onOpenConfig?.();
   };
 
-  const handleOpenSecurity = () => {
-    setOpen(false);
-    onOpenConfig?.('seguranca');
-  };
-
   const menuItems: Array<{ onSelect: () => void }> = [
     ...data.map((c) => ({ onSelect: () => select(c) })),
-    { onSelect: handleOpenSecurity },
     { onSelect: handleOpenConfig },
     { onSelect: handleLogout },
   ];
@@ -229,19 +223,8 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
                 ref={(el) => { itemRefs.current[data.length] = el; }}
                 role="menuitem"
                 type="button"
-                onClick={handleOpenSecurity}
-                onKeyDown={(e) => handleItemKeyDown(e, data.length)}
-                className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
-              >
-                <KeyRound size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
-                <span className="flex-1 text-left">Segurança</span>
-              </button>
-              <button
-                ref={(el) => { itemRefs.current[data.length + 1] = el; }}
-                role="menuitem"
-                type="button"
                 onClick={handleOpenConfig}
-                onKeyDown={(e) => handleItemKeyDown(e, data.length + 1)}
+                onKeyDown={(e) => handleItemKeyDown(e, data.length)}
                 className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
               >
                 <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />

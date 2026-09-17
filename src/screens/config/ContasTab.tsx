@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, ChevronDown, ChevronRight, ChevronUp, Tag, User, Pencil, AlertCircle, Plus, ShieldAlert, UserX } from 'lucide-react';
 import { fetchContas, saveConta, deleteConta, updateFotoConta, reactivateConta } from '../../services/configService';
 import {
-  fetchMembros, createMembro, deactivateMembro, PendingExpensesError,
+  fetchMembros, createMembro, deactivateMembro, updateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
 import { queryKeys } from '../../services/queryKeys';
@@ -373,7 +373,7 @@ function ContaDialog({
   open: boolean; conta?: Conta;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; telefone?: string; data_nascimento?: string; email?: string }) => void;
+  onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; telefone?: string; data_nascimento?: string; email?: string; novaSenha?: string }) => void;
   onDelete?: () => void;
   onSaveFoto?: (dataUrl: string | null) => void;
 }) {
@@ -421,6 +421,7 @@ function ContaDialog({
     const fd = new FormData(e.currentTarget);
     const nomeFantasia = tipo === 'empresa' ? (fd.get('nome_fantasia') as string || '') : '';
     const razaoSocial = tipo === 'empresa' ? (fd.get('razao_social') as string || '') : '';
+    const novaSenha = (fd.get('nova_senha') as string || '').trim();
     onSave({
       tipo,
       nome: tipo === 'empresa' ? (nomeFantasia || razaoSocial || 'Empresa') : (fd.get('nome') as string),
@@ -432,6 +433,7 @@ function ContaDialog({
       telefone: fd.get('telefone') as string || undefined,
       email: fd.get('email') as string || undefined,
       data_nascimento: tipo === 'pessoal' ? (fd.get('data_nascimento') as string || undefined) : undefined,
+      ...(novaSenha ? { novaSenha } : {}),
     });
   };
 
@@ -597,6 +599,26 @@ function ContaDialog({
             </div>
           </div>
 
+          {/* Senha do usuário logado (não da conta) — só ao editar, nunca ao
+              criar uma conta nova. Campo único: preenchido vira a nova senha,
+              vazio não muda nada. */}
+          {conta && (
+            <div>
+              <label style={labelStyle}>Nova senha</label>
+              <input
+                name="nova_senha"
+                type="password"
+                placeholder="••••••••"
+                minLength={8}
+                autoComplete="new-password"
+                style={fieldInputStyle}
+              />
+              <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+                Deixe em branco para manter a senha atual. Mínimo 8 caracteres.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
               {error}
@@ -623,15 +645,15 @@ function ContaDialog({
   );
 }
 
-// ─── Meus dados (membro editando o próprio cadastro) ──────────────────────────
+// ─── Editar usuário (a si mesmo, ou — se gestor — outro membro) ───────────────
 
-function MeusDadosDialog({
-  open, membro, isSaving, error, onClose, onSave, onSaveFoto,
+function EditarUsuarioDialog({
+  open, membro, isSelf, isSaving, error, onClose, onSave, onSaveFoto,
 }: {
-  open: boolean; membro?: MembroListItem;
+  open: boolean; membro?: MembroListItem; isSelf: boolean;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (nome: string) => void;
+  onSave: (input: { nome: string; novaSenha?: string }) => void;
   onSaveFoto: (dataUrl: string | null) => void;
 }) {
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -639,11 +661,15 @@ function MeusDadosDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    onSave(String(fd.get('nome') ?? '').trim());
+    const novaSenha = String(fd.get('nova_senha') ?? '').trim();
+    onSave({
+      nome: String(fd.get('nome') ?? '').trim(),
+      ...(novaSenha ? { novaSenha } : {}),
+    });
   };
 
   return (
-    <Dialog open={open} title="Meus dados" onClose={onClose} size="xs" scrollBody={false}>
+    <Dialog open={open} title={isSelf ? 'Meus dados' : `Editar ${membro?.nome ?? ''}`} onClose={onClose} size="xs" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* O avatar é o controle de upload — sem botão separado, mesmo padrão de ContaDialog. */}
@@ -686,11 +712,27 @@ function MeusDadosDialog({
               key={membro?.usuario_id}
               name="nome"
               defaultValue={membro?.nome}
-              placeholder="Seu nome"
+              placeholder={isSelf ? 'Seu nome' : 'Nome completo'}
               autoFocus
               required
               style={fieldInputStyle}
             />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Nova senha</label>
+            <input
+              key={`senha-${membro?.usuario_id}`}
+              name="nova_senha"
+              type="password"
+              placeholder="••••••••"
+              minLength={8}
+              autoComplete="new-password"
+              style={fieldInputStyle}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+              Deixe em branco para manter a senha atual. Mínimo 8 caracteres.
+            </p>
           </div>
 
           {error && (
@@ -728,7 +770,9 @@ function MembrosDaConta({
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
   const [mutError, setMutError] = useState('');
   const [pendingDialog, setPendingDialog] = useState<{ membro: MembroListItem; pendencias: PendingExpense[] } | null>(null);
-  const [meusDadosOpen, setMeusDadosOpen] = useState(false);
+  // Membro sendo editado no dialog: eu mesmo (qualquer usuário) ou, se
+  // gestor, qualquer outro membro da conta.
+  const [editandoMembro, setEditandoMembro] = useState<MembroListItem | null>(null);
 
   // Botão "+ Membro" vive na linha da conta (fora deste componente, que só
   // existe depois de expandida) — mesmo padrão de "+ Subcategoria" em
@@ -763,16 +807,27 @@ function MembrosDaConta({
     onError: (e: Error) => setMutError(e.message),
   });
 
-  // Membro editando os próprios dados (nome, foto) — nunca dados de outro
-  // membro, mesmo com accessMembers. Endpoints já seguros por design: sempre
-  // operam sobre o usuário do token, nunca sobre um id recebido do client.
-  const meusDadosMut = useMutation({
-    mutationFn: (nome: string) => updateMe({ nome }),
-    onSuccess: () => { invalidate(); setMeusDadosOpen(false); setMutError(''); },
+  const editandoSouEu = editandoMembro?.usuario_id === meId;
+
+  // Editando a si mesmo: endpoints já seguros por design, sempre operam
+  // sobre o usuário do token. Gestor editando outro membro: rota
+  // administrativa nova, nunca exige a senha atual do membro.
+  const editarUsuarioMut = useMutation({
+    mutationFn: async (input: { nome: string; novaSenha?: string }): Promise<void> => {
+      if (editandoSouEu) {
+        await updateMe({ nome: input.nome, nova_senha: input.novaSenha });
+      } else {
+        await updateMembro(editandoMembro!.usuario_id, input, conta.id);
+      }
+    },
+    onSuccess: () => { invalidate(); setEditandoMembro(null); setMutError(''); },
     onError: (e: Error) => setMutError(e.message),
   });
   const fotoMut = useMutation({
-    mutationFn: (foto: string | null) => updateFoto(foto),
+    mutationFn: (foto: string | null) =>
+      editandoSouEu
+        ? updateFoto(foto)
+        : updateMembro(editandoMembro!.usuario_id, { nome: editandoMembro!.nome, foto }, conta.id).then(() => undefined),
     onSuccess: () => invalidate(),
     onError: (e: Error) => setMutError(e.message),
   });
@@ -824,18 +879,18 @@ function MembrosDaConta({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {list.map((m) => {
             // Todo mundo clica em si mesmo para editar os próprios dados;
-            // gestor clica em qualquer um só para visualizar (edição de
-            // outro membro é feita pelo dialog de criação, não por aqui).
+            // gestor também pode clicar em qualquer outro membro para editar
+            // nome, foto e definir uma nova senha.
             const souEu = m.usuario_id === meId;
-            const clicavel = souEu;
+            const clicavel = souEu || isGestor;
             return (
               <div
                 key={m.membro_id}
                 role={clicavel ? 'button' : undefined}
                 tabIndex={clicavel ? 0 : undefined}
-                onClick={clicavel ? () => { setMutError(''); setMeusDadosOpen(true); } : undefined}
+                onClick={clicavel ? () => { setMutError(''); setEditandoMembro(m); } : undefined}
                 onKeyDown={clicavel ? (e) => {
-                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMutError(''); setMeusDadosOpen(true); }
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMutError(''); setEditandoMembro(m); }
                 } : undefined}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, minHeight: 34, padding: '0 12px',
@@ -876,7 +931,7 @@ function MembrosDaConta({
         </div>
       )}
 
-      {mutError && !pendingDialog && !novoDialogOpen && !meusDadosOpen && (
+      {mutError && !pendingDialog && !novoDialogOpen && !editandoMembro && (
         <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
           {mutError}
         </div>
@@ -893,13 +948,14 @@ function MembrosDaConta({
         />
       )}
 
-      <MeusDadosDialog
-        open={meusDadosOpen}
-        membro={eu}
-        isSaving={meusDadosMut.isPending}
+      <EditarUsuarioDialog
+        open={!!editandoMembro}
+        membro={editandoMembro ?? eu}
+        isSelf={editandoSouEu}
+        isSaving={editarUsuarioMut.isPending}
         error={mutError}
-        onClose={() => setMeusDadosOpen(false)}
-        onSave={(nome) => meusDadosMut.mutate(nome)}
+        onClose={() => setEditandoMembro(null)}
+        onSave={(input) => editarUsuarioMut.mutate(input)}
         onSaveFoto={(dataUrl) => fotoMut.mutate(dataUrl)}
       />
 
@@ -926,9 +982,11 @@ interface ContasTabProps {
   /** Gestor/admin edita contas e gerencia membros; membro só edita a si mesmo. */
   isGestor: boolean;
   meId?: number;
+  /** Nome atual do usuário logado — exigido por PUT /usuarios/me ao trocar a própria senha. */
+  meNome?: string;
 }
 
-export function ContasTab({ isGestor, meId }: ContasTabProps) {
+export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Conta }>({ open: false });
   const [mutError, setMutError] = useState('');
@@ -980,8 +1038,16 @@ export function ContasTab({ isGestor, meId }: ContasTabProps) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.contas }),
   });
 
-  const handleSave = (v: Parameters<typeof saveConta>[0]) => {
+  // Senha é do usuário logado (gestor), não da conta — vai por uma chamada
+  // separada (updateMe), fora do payload de saveConta.
+  const senhaMut = useMutation({
+    mutationFn: (novaSenha: string) => updateMe({ nome: meNome ?? '', nova_senha: novaSenha }),
+    onError: (e: Error) => setMutError(e.message),
+  });
+
+  const handleSave = ({ novaSenha, ...v }: Parameters<typeof saveConta>[0] & { novaSenha?: string }) => {
     saveMut.mutate({ v, id: dialog.item?.id });
+    if (novaSenha) senhaMut.mutate(novaSenha);
   };
 
   return (

@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot, Briefcase, CreditCard, KeyRound, Layers,
+  Bot, Briefcase, CreditCard, Layers,
   Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
 import { fetchMe } from '../services/usuariosService';
 import { PlanosScreen } from '../screens/planos/PlanosScreen';
-import { SecurityTab } from '../screens/config/SecurityTab';
 import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
 import { CartaoTab } from '../screens/config/CartaoTab';
@@ -21,7 +20,7 @@ import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
-  | 'seguranca' | 'contas' | 'assinatura'
+  | 'contas' | 'assinatura'
   | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
@@ -35,7 +34,6 @@ type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
 const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: ConfigGroupLabel }[] = [
   { id: 'contas',         label: 'Contas',         icon: Layers,     group: 'Geral' },
   { id: 'assinatura',     label: 'Assinatura',     icon: Crown,      group: 'Geral' },
-  { id: 'seguranca',      label: 'Segurança',      icon: KeyRound,   group: 'Geral' },
   { id: 'categorias',     label: 'Categorias',     icon: Tag,        group: 'Finanças' },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
@@ -159,8 +157,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
               quando o ativo deixa de existir para a conta. Sem isso, trocar de
               conta empresa para pessoal com o catalogo aberto continuaria
               renderizando uma tela que o menu ja escondeu. */}
-          {current.id === 'seguranca' && <SecurityTab />}
-          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} />}
+          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} meNome={me?.nome} />}
           {current.id === 'assinatura' && <PlanosScreen embedded />}
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'cartoes' && <CartaoTab />}

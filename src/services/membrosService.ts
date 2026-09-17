@@ -61,6 +61,27 @@ export async function fetchMembroPendencias(usuarioId: number, contaId?: number)
   return apiRequest<PendingExpense[]>(`/account-members/${usuarioId}/pending${suffix}`);
 }
 
+export interface MembroUpdateBody {
+  nome: string;
+  foto?: string | null;
+  /** Preenchido, vira a nova senha do membro; vazio/omitido, não muda. */
+  novaSenha?: string;
+}
+
+// Gestor edita nome/foto/senha de um membro da própria conta — poder
+// administrativo, nunca exige a senha atual do membro.
+export async function updateMembro(usuarioId: number, body: MembroUpdateBody, contaId?: number): Promise<{ id: number; nome: string; foto: string | null }> {
+  return apiRequest(`/account-members/${usuarioId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      nome: body.nome,
+      ...(body.foto !== undefined ? { foto: body.foto } : {}),
+      ...(body.novaSenha ? { nova_senha: body.novaSenha } : {}),
+      ...(contaId ? { conta_id: contaId } : {}),
+    }),
+  });
+}
+
 export interface DeactivateMembroResult {
   pendencias_transferidas: number;
 }
