@@ -6,7 +6,7 @@ import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireGestor } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
-import { resolveMemberAccountId, type PermissionFlag } from '../middleware/permissions';
+import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
 
 const router = Router();
 
@@ -28,24 +28,75 @@ async function resolveGestorAccountId(gestorId: number): Promise<number | null> 
   return account?.id ?? null;
 }
 
-// GET /api/account-members — lista os membros vinculados à conta do gestor autenticado
-router.get('/', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+/**
+ * Resolve qual conta usar para as rotas de membros: a informada pelo client
+ * (validando que pertence ao gestor autenticado — nunca confiar nela sem essa
+ * checagem), ou a Conta Padrão quando nenhuma é informada, para não quebrar
+ * quem já chamava essas rotas sem conta_id.
+ */
+async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string | undefined): Promise<number | null> {
+  if (!contaIdParam) return resolveGestorAccountId(gestorId);
+
+  const contaId = parseInt(contaIdParam);
+  if (!Number.isInteger(contaId) || contaId <= 0) return null;
+
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, contaId), eq(accounts.userId, gestorId)))
+    .limit(1);
+  return account?.id ?? null;
+}
+
+// GET /api/account-members — lista os membros vinculados à conta.
+//
+// Gestor: vê a conta que escolher (conta_id opcional, valida propriedade) ou
+// a Conta Padrão. Aceita conta_id opcional para escolher uma conta específica
+// (entre as várias que o gestor pode ter); sem ele, usa a Conta Padrão.
+//
+// Membro: conta_id é ignorado — a conta é sempre a que ele está vinculado
+// (nunca aceita do client, para não vazar outra conta). Sem accessMembers,
+// só recebe a si mesmo na lista; com accessMembers, recebe a lista completa,
+// igual ao gestor veria.
+router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const accountId = await resolveGestorAccountId(req.user!.id);
+    const memberAccountId = await resolveMemberAccountId(req.user!.id);
+    const isMember = memberAccountId !== null;
+
+    let accountId: number | null;
+    if (isMember) {
+      accountId = memberAccountId;
+    } else {
+      const { conta_id } = req.query as Record<string, string | undefined>;
+      accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
+    }
+
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
     }
 
-    const result = await pool.query(
-      `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-              u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
-       FROM conta_membros m
-       JOIN usuarios u ON u.id = m.usuario_id
-       WHERE m.conta_id = $1
-       ORDER BY u.nome ASC`,
-      [accountId],
-    );
+    const podeVerTodos = !isMember || (await hasScreenAccess(req.user!.id, 'accessMembers'));
+
+    const result = podeVerTodos
+      ? await pool.query(
+          `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+           FROM conta_membros m
+           JOIN usuarios u ON u.id = m.usuario_id
+           WHERE m.conta_id = $1
+           ORDER BY u.nome ASC`,
+          [accountId],
+        )
+      : await pool.query(
+          `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+           FROM conta_membros m
+           JOIN usuarios u ON u.id = m.usuario_id
+           WHERE m.conta_id = $1 AND m.usuario_id = $2
+           ORDER BY u.nome ASC`,
+          [accountId, req.user!.id],
+        );
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -67,9 +118,9 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, senha, documento } = req.body as Record<string, string | undefined>;
+      const { nome, email, senha, documento, conta_id } = req.body as Record<string, string | undefined>;
 
-      const accountId = await resolveGestorAccountId(req.user!.id);
+      const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
       if (!accountId) {
         res.status(404).json({ success: false, message: 'Account not found' });
         return;
@@ -146,7 +197,8 @@ router.post(
 router.get('/:id/pending', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberUserId = parseInt(req.params['id']!);
-    const accountId = await resolveGestorAccountId(req.user!.id);
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
@@ -198,9 +250,9 @@ router.put(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const memberUserId = parseInt(req.params['id']!);
-      const { transferir_para: rawTransferTo } = req.body as Record<string, unknown>;
+      const { transferir_para: rawTransferTo, conta_id: contaId } = req.body as Record<string, unknown>;
 
-      const accountId = await resolveGestorAccountId(req.user!.id);
+      const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
       if (!accountId) {
         res.status(404).json({ success: false, message: 'Account not found' });
         return;

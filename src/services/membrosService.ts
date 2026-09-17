@@ -41,16 +41,24 @@ export interface AccountSummary {
   membros: { usuario_id: number; nome: string }[];
 }
 
-export async function fetchMembros(): Promise<MembroListItem[]> {
-  return apiRequest<MembroListItem[]>('/account-members');
+// contaId opcional: sem ele, o backend usa a Conta Padrão do gestor (mesmo
+// comportamento de sempre). Informado, escopa a chamada a essa conta
+// específica — necessário para gestores com mais de uma conta.
+export async function fetchMembros(contaId?: number): Promise<MembroListItem[]> {
+  const suffix = contaId ? `?conta_id=${contaId}` : '';
+  return apiRequest<MembroListItem[]>(`/account-members${suffix}`);
 }
 
-export async function createMembro(body: MembroCreateBody): Promise<{ id: number; nome: string; email: string }> {
-  return apiRequest('/account-members', { method: 'POST', body: JSON.stringify(body) });
+export async function createMembro(body: MembroCreateBody, contaId?: number): Promise<{ id: number; nome: string; email: string }> {
+  return apiRequest('/account-members', {
+    method: 'POST',
+    body: JSON.stringify(contaId ? { ...body, conta_id: contaId } : body),
+  });
 }
 
-export async function fetchMembroPendencias(usuarioId: number): Promise<PendingExpense[]> {
-  return apiRequest<PendingExpense[]>(`/account-members/${usuarioId}/pending`);
+export async function fetchMembroPendencias(usuarioId: number, contaId?: number): Promise<PendingExpense[]> {
+  const suffix = contaId ? `?conta_id=${contaId}` : '';
+  return apiRequest<PendingExpense[]>(`/account-members/${usuarioId}/pending${suffix}`);
 }
 
 export interface DeactivateMembroResult {
@@ -68,7 +76,7 @@ export class PendingExpensesError extends Error {
 // Implementação própria (não usa apiRequest genérico) porque a resposta de
 // erro "PENDING_EXPENSES" carrega a lista de pendências (data), que o
 // contrato de erro genérico de apiRequest não propaga — só a mensagem.
-export async function deactivateMembro(usuarioId: number, transferirPara?: number): Promise<DeactivateMembroResult> {
+export async function deactivateMembro(usuarioId: number, transferirPara?: number, contaId?: number): Promise<DeactivateMembroResult> {
   const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
   const response = await fetch(`${getApiUrl()}/account-members/${usuarioId}/deactivate`, {
     method: 'PUT',
@@ -76,7 +84,10 @@ export async function deactivateMembro(usuarioId: number, transferirPara?: numbe
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(transferirPara ? { transferir_para: transferirPara } : {}),
+    body: JSON.stringify({
+      ...(transferirPara ? { transferir_para: transferirPara } : {}),
+      ...(contaId ? { conta_id: contaId } : {}),
+    }),
   });
   const payload = await response.json().catch(() => ({})) as {
     success?: boolean; message?: string; code?: string; data?: PendingExpense[] | DeactivateMembroResult;

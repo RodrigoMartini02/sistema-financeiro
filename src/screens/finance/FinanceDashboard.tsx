@@ -4,6 +4,7 @@ import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchDashboardPanorama, getContratosFaturamento, fetchParcelasFuturas } from '../../services/financeService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -47,9 +48,10 @@ export function FinanceDashboard() {
   // entre sessoes, mesmo criterio do filtro de membro acima.
   const [visao, setVisao] = useState<'conta' | 'panorama'>('conta');
 
+  const activeAccountId = getActiveAccountId();
   const membrosQ = useQuery({
-    queryKey: queryKeys.membros(),
-    queryFn: fetchMembros,
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
     staleTime: 5 * 60_000,
   });
   // Sem membros vinculados nao ha o que separar: o painel se comporta como antes.

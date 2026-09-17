@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, KeyRound, Layers,
-  Tag, UserCheck, Activity, Crown, UsersRound, ShieldCheck, ShoppingBag,
+  Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
@@ -15,7 +15,6 @@ import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { SociosTab } from '../screens/config/SociosTab';
-import { MembrosTab, TERMOS } from '../screens/config/MembrosTab';
 import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
@@ -23,7 +22,7 @@ import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
   | 'seguranca' | 'contas' | 'assinatura'
-  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'membros' | 'permissoes'
+  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
@@ -43,9 +42,6 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
   { id: 'socios',         label: 'Sócios',         icon: Briefcase,  group: 'Pessoas' },
-  // Label generico aqui — o texto exibido (membro/colaborador) e resolvido em
-  // visibleItems a partir de TERMOS, mesma fonte usada dentro de MembrosTab.
-  { id: 'membros',        label: 'Membros', icon: UsersRound, group: 'Pessoas' },
   { id: 'permissoes',     label: 'Permissões',         icon: ShieldCheck, group: 'Pessoas' },
   { id: 'acessos',        label: 'Acessos',        icon: Activity,   group: 'Pessoas' },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot,     group: 'Avançado' },
@@ -91,25 +87,20 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     onItemChange?.(item);
   };
 
-  // Membro (conta pessoal) e colaborador (conta empresa) sao o mesmo dado por
-  // tras (conta_membros) — so o termo exibido muda, ver TERMOS em MembrosTab.
-  const membroLabel = contaTipo === 'empresa' ? TERMOS.empresa.singular : TERMOS.pessoal.singular;
-  const membroLabelCapitalizado = membroLabel.charAt(0).toUpperCase() + membroLabel.slice(1);
-
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
-    // Membros/colaboradores e as permissoes deles existem nos dois tipos de
-    // conta: em pessoal com carteira compartilhada, em empresa isolados entre
-    // si (ver familyVisibility.ts) — so a existencia do vinculo era bloqueada.
-    if (item.id === 'membros' || item.id === 'permissoes') return isGestor;
+    // Gestao de membros/colaboradores agora vive dentro de Contas; Permissoes
+    // continua item proprio, e existe nos dois tipos de conta: em pessoal com
+    // carteira compartilhada, em empresa isolados entre si (familyVisibility.ts).
+    if (item.id === 'permissoes') return isGestor;
     // PJ-only: catalogo alimenta contratos e faturamento; representantes e
     // socios nao existem em conta pessoal; produtos/estoque e venda de PJ.
     if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos' || item.id === 'catalogo') {
       return contaTipo !== 'pessoal';
     }
     return true;
-  }).map((item) => (item.id === 'membros' ? { ...item, label: `${membroLabelCapitalizado}s` } : item));
+  });
 
   const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;
 
@@ -169,7 +160,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
               conta empresa para pessoal com o catalogo aberto continuaria
               renderizando uma tela que o menu ja escondeu. */}
           {current.id === 'seguranca' && <SecurityTab />}
-          {current.id === 'contas' && <ContasTab />}
+          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} />}
           {current.id === 'assinatura' && <PlanosScreen embedded />}
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'cartoes' && <CartaoTab />}
@@ -177,7 +168,6 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'catalogo' && <CatalogoTab />}
           {current.id === 'representantes' && <RepresentantesTab />}
           {current.id === 'socios' && <SociosTab />}
-          {current.id === 'membros' && <MembrosTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
           {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
