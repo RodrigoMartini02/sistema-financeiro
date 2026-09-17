@@ -9,6 +9,11 @@ export interface MembroListItem {
   email: string;
   documento?: string | null;
   usuario_status: string;
+  telefone?: string | null;
+  data_nascimento?: string | null;
+  pais?: string | null;
+  estado?: string | null;
+  cidade?: string | null;
 }
 
 export interface MembroCreateBody {
@@ -66,10 +71,18 @@ export interface MembroUpdateBody {
   foto?: string | null;
   /** Preenchido, vira a nova senha do membro; vazio/omitido, não muda. */
   novaSenha?: string;
+  email?: string;
+  documento?: string;
+  telefone?: string;
+  data_nascimento?: string;
+  pais?: string;
+  estado?: string;
+  cidade?: string;
 }
 
-// Gestor edita nome/foto/senha de um membro da própria conta — poder
-// administrativo, nunca exige a senha atual do membro.
+// Gestor edita os dados cadastrais completos de um membro da própria
+// conta (incluindo senha) — poder administrativo, nunca exige a senha
+// atual do membro.
 export async function updateMembro(usuarioId: number, body: MembroUpdateBody, contaId?: number): Promise<{ id: number; nome: string; foto: string | null }> {
   return apiRequest(`/account-members/${usuarioId}`, {
     method: 'PUT',
@@ -77,6 +90,13 @@ export async function updateMembro(usuarioId: number, body: MembroUpdateBody, co
       nome: body.nome,
       ...(body.foto !== undefined ? { foto: body.foto } : {}),
       ...(body.novaSenha ? { nova_senha: body.novaSenha } : {}),
+      ...(body.email !== undefined ? { email: body.email } : {}),
+      ...(body.documento !== undefined ? { documento: body.documento } : {}),
+      ...(body.telefone !== undefined ? { telefone: body.telefone } : {}),
+      ...(body.data_nascimento !== undefined ? { data_nascimento: body.data_nascimento } : {}),
+      ...(body.pais !== undefined ? { pais: body.pais } : {}),
+      ...(body.estado !== undefined ? { estado: body.estado } : {}),
+      ...(body.cidade !== undefined ? { cidade: body.cidade } : {}),
       ...(contaId ? { conta_id: contaId } : {}),
     }),
   });

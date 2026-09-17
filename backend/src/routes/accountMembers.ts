@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { and, eq, isNotNull, or } from 'drizzle-orm';
+import { and, eq, isNotNull, ne, or } from 'drizzle-orm';
 import { body } from 'express-validator';
 import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
@@ -81,7 +81,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = podeVerTodos
       ? await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
+                  u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
            WHERE m.conta_id = $1
@@ -90,7 +91,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
         )
       : await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
+                  u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
            WHERE m.conta_id = $1 AND m.usuario_id = $2
@@ -377,7 +379,11 @@ router.put(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const memberUserId = parseInt(req.params['id']!);
-      const { nome, foto, nova_senha: novaSenha, conta_id: contaId } = req.body as Record<string, unknown>;
+      const {
+        nome, foto, nova_senha: novaSenha, conta_id: contaId,
+        email, documento, telefone, data_nascimento: dataNascimento,
+        pais, estado, cidade,
+      } = req.body as Record<string, string | undefined>;
 
       const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
       if (!accountId) {
@@ -396,26 +402,86 @@ router.put(
         return;
       }
 
+      const [current] = await db
+        .select({ email: users.email, document: users.document })
+        .from(users)
+        .where(eq(users.id, memberUserId))
+        .limit(1);
+
+      if (!current) {
+        res.status(404).json({ success: false, message: 'Member not found' });
+        return;
+      }
+
       const updateData: Partial<typeof users.$inferInsert> = {
         name: String(nome).trim(),
         updatedAt: new Date(),
       };
       if (foto !== undefined) updateData.photo = foto as string | null;
+      if (telefone !== undefined) updateData.telefone = telefone || null;
+      if (dataNascimento !== undefined) updateData.dataNascimento = dataNascimento || null;
+      if (pais !== undefined) updateData.country = pais || null;
+      if (estado !== undefined) updateData.state = estado || null;
+      if (cidade !== undefined) updateData.city = cidade || null;
+
+      if (email) {
+        const newEmail = email.toLowerCase();
+        if (newEmail !== current.email) {
+          const [emailInUse] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.email, newEmail), ne(users.id, memberUserId)))
+            .limit(1);
+
+          if (emailInUse) {
+            res.status(400).json({ success: false, message: 'Email already in use' });
+            return;
+          }
+        }
+        updateData.email = newEmail;
+      }
+
+      if (documento) {
+        const cleanDoc = documento.replace(/[^\d]+/g, '');
+
+        if (!validateDocument(cleanDoc)) {
+          res.status(400).json({ success: false, message: 'Invalid CPF/CNPJ' });
+          return;
+        }
+
+        if (cleanDoc !== current.document) {
+          const [documentInUse] = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.document, cleanDoc), ne(users.id, memberUserId)))
+            .limit(1);
+
+          if (documentInUse) {
+            res.status(400).json({ success: false, message: 'Document already in use' });
+            return;
+          }
+        }
+
+        updateData.document = cleanDoc;
+      }
 
       if (novaSenha) {
-        const senhaStr = String(novaSenha);
-        if (senhaStr.length < 8) {
+        if (novaSenha.length < 8) {
           res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
           return;
         }
-        updateData.password = await bcrypt.hash(senhaStr, 10);
+        updateData.password = await bcrypt.hash(novaSenha, 10);
       }
 
       const [updated] = await db
         .update(users)
         .set(updateData)
         .where(eq(users.id, memberUserId))
-        .returning({ id: users.id, nome: users.name, foto: users.photo });
+        .returning({
+          id: users.id, nome: users.name, foto: users.photo, email: users.email, documento: users.document,
+          telefone: users.telefone, data_nascimento: users.dataNascimento,
+          pais: users.country, estado: users.state, cidade: users.city,
+        });
 
       res.json({ success: true, message: 'Member updated successfully', data: updated });
     } catch (error) {
