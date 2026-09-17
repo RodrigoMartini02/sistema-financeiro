@@ -362,6 +362,69 @@ router.put(
   },
 );
 
+// PUT /api/account-members/:id — gestor edita nome/foto/senha de um membro
+// vinculado à própria conta. Poder administrativo: nunca exige a senha
+// atual do membro, diferente de PUT /usuarios/me (o próprio usuário
+// trocando a própria senha).
+router.put(
+  '/:id',
+  authenticate,
+  requireGestor,
+  [
+    body('nome').notEmpty().withMessage('Name is required'),
+    validate,
+  ],
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const memberUserId = parseInt(req.params['id']!);
+      const { nome, foto, nova_senha: novaSenha, conta_id: contaId } = req.body as Record<string, unknown>;
+
+      const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
+      if (!accountId) {
+        res.status(404).json({ success: false, message: 'Account not found' });
+        return;
+      }
+
+      const [membership] = await db
+        .select({ id: accountMembers.id })
+        .from(accountMembers)
+        .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
+        .limit(1);
+
+      if (!membership) {
+        res.status(404).json({ success: false, message: 'Member not found in this account' });
+        return;
+      }
+
+      const updateData: Partial<typeof users.$inferInsert> = {
+        name: String(nome).trim(),
+        updatedAt: new Date(),
+      };
+      if (foto !== undefined) updateData.photo = foto as string | null;
+
+      if (novaSenha) {
+        const senhaStr = String(novaSenha);
+        if (senhaStr.length < 8) {
+          res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
+          return;
+        }
+        updateData.password = await bcrypt.hash(senhaStr, 10);
+      }
+
+      const [updated] = await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, memberUserId))
+        .returning({ id: users.id, nome: users.name, foto: users.photo });
+
+      res.json({ success: true, message: 'Member updated successfully', data: updated });
+    } catch (error) {
+      console.error('Update account member error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update member' });
+    }
+  },
+);
+
 // GET /api/account-members/summary — visão agregada da conta (soma de
 // despesas/receitas de todos os autores vinculados, gestor incluído).
 // Gestor sempre acessa; membro só se tiver acesso_relatorios liberado (a

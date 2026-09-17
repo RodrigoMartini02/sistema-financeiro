@@ -51,7 +51,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
 // PUT /api/users/me
 router.put('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, pais, estado, cidade, telefone, data_nascimento, senha_atual, nova_senha } =
+    const { nome, email, documento, pais, estado, cidade, telefone, data_nascimento, nova_senha } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -70,17 +70,11 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Sem exigência de senha atual: campo único, preenchido vira a nova
+    // senha; vazio, nada muda. Decisão explícita do usuário do produto —
+    // simplificação de UX assumida em troca dessa camada de confirmação.
     let newHashedPassword: string | null = null;
     if (nova_senha) {
-      if (!senha_atual) {
-        res.status(400).json({ success: false, message: 'Provide current password to change it' });
-        return;
-      }
-      const valid = await bcrypt.compare(senha_atual, current.password);
-      if (!valid) {
-        res.status(400).json({ success: false, message: 'Current password is incorrect' });
-        return;
-      }
       if (nova_senha.length < 8) {
         res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
         return;
