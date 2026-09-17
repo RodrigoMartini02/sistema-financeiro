@@ -10,7 +10,7 @@ import { queryKeys } from '../../services/queryKeys';
 import type { Conta } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
-import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle, cfgRowStyle, cfgRowIndexStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle, cfgRowStyle, cfgRowIndexStyle } from '../../ui/configTokens';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
 import { EmptyState } from '../../ui/EmptyState';
@@ -714,7 +714,14 @@ function MeusDadosDialog({
 
 // ─── Membros de uma conta específica (expandido dentro da linha da conta) ────
 
-function MembrosDaConta({ conta, isGestor, meId }: { conta: Conta; isGestor: boolean; meId?: number }) {
+function MembrosDaConta({
+  conta, isGestor, meId, openNovoMembro, onNovoMembroHandled,
+}: {
+  conta: Conta; isGestor: boolean; meId?: number;
+  /** Abre o dialog de criação vindo do botão "+ Membro" na própria linha da conta. */
+  openNovoMembro?: boolean;
+  onNovoMembroHandled?: () => void;
+}) {
   const termo = TERMOS[conta.tipo];
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -722,6 +729,17 @@ function MembrosDaConta({ conta, isGestor, meId }: { conta: Conta; isGestor: boo
   const [mutError, setMutError] = useState('');
   const [pendingDialog, setPendingDialog] = useState<{ membro: MembroListItem; pendencias: PendingExpense[] } | null>(null);
   const [meusDadosOpen, setMeusDadosOpen] = useState(false);
+
+  // Botão "+ Membro" vive na linha da conta (fora deste componente, que só
+  // existe depois de expandida) — mesmo padrão de "+ Subcategoria" em
+  // CategoriasTab. openNovoMembro chega como sinal de fora para abrir aqui.
+  useEffect(() => {
+    if (openNovoMembro) {
+      setMutError('');
+      setNovoDialogOpen(true);
+      onNovoMembroHandled?.();
+    }
+  }, [openNovoMembro]);
 
   const listQuery = useQuery({
     queryKey: queryKeys.membros(conta.id),
@@ -792,21 +810,9 @@ function MembrosDaConta({ conta, isGestor, meId }: { conta: Conta; isGestor: boo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '2px 0 2px 22px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: CFG.faint }}>
-          {list.length} {termo.singular}{list.length === 1 ? '' : 's'}
-        </span>
-        {isGestor && (
-          <button
-            type="button"
-            style={cfgPrimaryButtonStyle}
-            onClick={() => { setMutError(''); setNovoDialogOpen(true); }}
-          >
-            <Plus size={11} strokeWidth={2.8} />
-            Novo {termo.singular}
-          </button>
-        )}
-      </div>
+      <span style={{ fontSize: 11, fontWeight: 600, color: CFG.faint }}>
+        {list.length} {termo.singular}{list.length === 1 ? '' : 's'}
+      </span>
 
       {listQuery.isLoading ? (
         <p style={{ padding: '12px 0', textAlign: 'center', fontSize: 12, color: CFG.muted }}>
@@ -928,6 +934,10 @@ export function ContasTab({ isGestor, meId }: ContasTabProps) {
   const [mutError, setMutError] = useState('');
   const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const [expanded, setExpanded] = useState<number[]>([]);
+  // Conta cujo "+ Membro" foi clicado na linha — abre o dialog de criação
+  // dentro de MembrosDaConta e garante que a conta esteja expandida, mesmo
+  // padrão de "+ Subcategoria" em CategoriasTab.
+  const [novoMembroContaId, setNovoMembroContaId] = useState<number | null>(null);
 
   const contasQuery = useQuery({
     queryKey: [...queryKeys.contas, mostrarDesativados],
@@ -937,6 +947,10 @@ export function ContasTab({ isGestor, meId }: ContasTabProps) {
 
   const toggleExpand = (id: number) =>
     setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const handleCreateMembroClick = (contaId: number) => {
+    setExpanded((prev) => (prev.includes(contaId) ? prev : [...prev, contaId]));
+    setNovoMembroContaId(contaId);
+  };
   const createGuide = useFirstAccessGuide('perfis:novo-v1');
 
   const listaExibida = mostrarDesativados ? data.filter((c) => !c.ativo) : data.filter((c) => c.ativo);
@@ -1068,6 +1082,24 @@ export function ContasTab({ isGestor, meId }: ContasTabProps) {
                   </span>
                 </button>
 
+                {/* Mesmo padrão de "+ Subcategoria" em CategoriasTab: ação de
+                    criar direto na linha, sem precisar expandir primeiro. */}
+                {c.ativo && isGestor && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleCreateMembroClick(c.id); }}
+                    style={{
+                      flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                      border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+                      fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
+                    }}
+                  >
+                    <Plus size={11} strokeWidth={2.8} />
+                    <span className="hidden sm:inline">{TERMOS[c.tipo].singular.charAt(0).toUpperCase() + TERMOS[c.tipo].singular.slice(1)}</span>
+                    <span className="sm:hidden">Novo</span>
+                  </button>
+                )}
+
                 {c.ativo && (
                   <button
                     type="button"
@@ -1088,7 +1120,15 @@ export function ContasTab({ isGestor, meId }: ContasTabProps) {
                 )}
               </div>
 
-              {isExpanded && c.ativo && <MembrosDaConta conta={c} isGestor={isGestor} meId={meId} />}
+              {isExpanded && c.ativo && (
+                <MembrosDaConta
+                  conta={c}
+                  isGestor={isGestor}
+                  meId={meId}
+                  openNovoMembro={novoMembroContaId === c.id}
+                  onNovoMembroHandled={() => setNovoMembroContaId(null)}
+                />
+              )}
             </div>
           );
         })}
