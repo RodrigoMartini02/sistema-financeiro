@@ -1,5 +1,6 @@
 import { Request, Response, Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { requireScreenAccess } from '../middleware/permissions';
 import { BudgetInputError, deleteBudgetTarget, getBudgetOverview, saveBudgetTarget } from '../services/budgetService';
 
 const router = Router();
@@ -23,6 +24,13 @@ function parseOptionalInt(value: unknown): number | undefined {
 // Aceita ou mes/ano (mês único, usado pela tela de cadastro de metas) ou
 // de_mes/de_ano/ate_mes/ate_ano (intervalo, usado pelo painel financeiro) —
 // mesmo padrão de parâmetros opcionais de /financial/panorama.
+//
+// Sem requireScreenAccess de propósito: este resumo também alimenta o
+// gráfico de categorias do Dashboard, que deve aparecer para qualquer membro
+// autenticado — o controle de QUAIS dados aparecem já é feito dentro de
+// getBudgetOverview (resolveVisibleUserIds restringe aos próprios
+// lançamentos sem a permissão de família). accessBudget continua exigido só
+// para editar/remover metas, abaixo.
 router.get('/resumo', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const query = req.query as Record<string, unknown>;
@@ -51,7 +59,7 @@ router.get('/resumo', authenticate, async (req: Request, res: Response): Promise
   }
 });
 
-router.put('/metas', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.put('/metas', authenticate, requireScreenAccess('accessBudget'), async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body as Record<string, unknown>;
     await saveBudgetTarget({
@@ -72,7 +80,7 @@ router.put('/metas', authenticate, async (req: Request, res: Response): Promise<
   }
 });
 
-router.delete('/metas/:categoryId', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.delete('/metas/:categoryId', authenticate, requireScreenAccess('accessBudget'), async (req: Request, res: Response): Promise<void> => {
   try {
     const categoryId = Number(req.params['categoryId']);
     if (!Number.isInteger(categoryId) || categoryId <= 0) throw new BudgetInputError('Categoria inválida.');
