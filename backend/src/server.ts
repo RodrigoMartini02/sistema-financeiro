@@ -145,7 +145,10 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
 app.use('/api/assistant', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
 app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
-app.use('/api/orcamento', authenticate, requireActivePlan, requireScreenAccess('accessBudget'), budgetRoutes);
+// accessBudget controla só a tela de Planejamento (editar/remover meta) — o
+// resumo de categorias também alimenta o gráfico do Dashboard, que qualquer
+// usuário autenticado deve ver com os próprios dados. Ver budget.ts.
+app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/assistant-flows', assistantFlowRoutes);
 app.use('/api/futebol', futebolRoutes);
