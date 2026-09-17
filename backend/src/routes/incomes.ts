@@ -34,10 +34,13 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, visiveis);
 
     const result = await pool.query(
-      `SELECT r.*, rep.nome AS representante_nome, u.nome AS autor_nome
+      // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
+      // na conta sem isso refletir no cadastro de login (usuarios.nome).
+      `SELECT r.*, rep.nome AS representante_nome, COALESCE(ct.nome, u.nome) AS autor_nome
        FROM receitas r
        LEFT JOIN representantes rep ON rep.id = r.representante_id
        LEFT JOIN usuarios u ON u.id = r.usuario_id
+       LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true
        ${where} ORDER BY r.data_recebimento DESC`,
       params,
     );

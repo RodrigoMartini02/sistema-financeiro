@@ -455,8 +455,16 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
         baseParams,
       ),
       // Os graficos rotulam por nome; o id sozinho nao serve para o usuario.
+      // COALESCE com a conta padrao: o dono pode ter corrigido o nome na
+      // conta (contas.nome) sem isso refletir no cadastro de login
+      // (usuarios.nome, que pode ter vindo em caixa alta de um import). Um
+      // membro sem conta propria cai direto no nome do cadastro, que e o
+      // unico que ele tem.
       pool.query(
-        `SELECT id AS usuario_id, nome FROM usuarios WHERE id = ANY($1)`,
+        `SELECT u.id AS usuario_id, COALESCE(ct.nome, u.nome) AS nome
+         FROM usuarios u
+         LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true
+         WHERE u.id = ANY($1)`,
         [authorIds],
       ),
     ]);
