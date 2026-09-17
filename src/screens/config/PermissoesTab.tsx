@@ -6,7 +6,9 @@ import {
   fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
   type PermissionFlag, type MemberPermissionsData,
 } from '../../services/permissoesService';
-import { TERMOS } from './MembrosTab';
+import { getActiveAccountId } from '../../services/apiClient';
+import { queryKeys } from '../../services/queryKeys';
+import { TERMOS } from './ContasTab';
 import { C } from '../../ui/dialogFormTokens';
 import { CFG } from '../../ui/configTokens';
 import { ToggleRow } from '../../ui/form';
@@ -27,7 +29,11 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
   const [selecionado, setSelecionado] = useState<number | null>(null);
   const [error, setError] = useState('');
 
-  const membrosQuery = useQuery({ queryKey: ['membros'], queryFn: fetchMembros });
+  const activeAccountId = getActiveAccountId();
+  const membrosQuery = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+  });
   const ativos = (membrosQuery.data ?? []).filter((m) => m.membro_status === 'ativo');
 
   // Seleciona o primeiro assim que a lista chega, para a tela não abrir com o

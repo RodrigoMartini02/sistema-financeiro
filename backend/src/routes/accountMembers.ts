@@ -28,10 +28,33 @@ async function resolveGestorAccountId(gestorId: number): Promise<number | null> 
   return account?.id ?? null;
 }
 
-// GET /api/account-members — lista os membros vinculados à conta do gestor autenticado
+/**
+ * Resolve qual conta usar para as rotas de membros: a informada pelo client
+ * (validando que pertence ao gestor autenticado — nunca confiar nela sem essa
+ * checagem), ou a Conta Padrão quando nenhuma é informada, para não quebrar
+ * quem já chamava essas rotas sem conta_id.
+ */
+async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string | undefined): Promise<number | null> {
+  if (!contaIdParam) return resolveGestorAccountId(gestorId);
+
+  const contaId = parseInt(contaIdParam);
+  if (!Number.isInteger(contaId) || contaId <= 0) return null;
+
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, contaId), eq(accounts.userId, gestorId)))
+    .limit(1);
+  return account?.id ?? null;
+}
+
+// GET /api/account-members — lista os membros vinculados à conta do gestor
+// autenticado. Aceita conta_id opcional para escolher uma conta específica
+// (entre as várias que o gestor pode ter); sem ele, usa a Conta Padrão.
 router.get('/', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
   try {
-    const accountId = await resolveGestorAccountId(req.user!.id);
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
@@ -67,9 +90,9 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, senha, documento } = req.body as Record<string, string | undefined>;
+      const { nome, email, senha, documento, conta_id } = req.body as Record<string, string | undefined>;
 
-      const accountId = await resolveGestorAccountId(req.user!.id);
+      const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
       if (!accountId) {
         res.status(404).json({ success: false, message: 'Account not found' });
         return;
@@ -146,7 +169,8 @@ router.post(
 router.get('/:id/pending', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberUserId = parseInt(req.params['id']!);
-    const accountId = await resolveGestorAccountId(req.user!.id);
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
@@ -198,9 +222,9 @@ router.put(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const memberUserId = parseInt(req.params['id']!);
-      const { transferir_para: rawTransferTo } = req.body as Record<string, unknown>;
+      const { transferir_para: rawTransferTo, conta_id: contaId } = req.body as Record<string, unknown>;
 
-      const accountId = await resolveGestorAccountId(req.user!.id);
+      const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
       if (!accountId) {
         res.status(404).json({ success: false, message: 'Account not found' });
         return;

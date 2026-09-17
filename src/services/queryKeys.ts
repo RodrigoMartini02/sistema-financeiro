@@ -39,7 +39,9 @@ export const queryKeys = {
     ['account-summary', deMes, deAno, ateMes, ateAno] as const,
   accountsOverview: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
     ['accounts-overview', deMes, deAno, ateMes, ateAno] as const,
-  membros: () => ['membros'] as const,
+  // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
+  // a antes (['membros', 'ativa']).
+  membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
