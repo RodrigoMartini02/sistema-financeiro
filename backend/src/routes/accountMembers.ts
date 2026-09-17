@@ -6,7 +6,7 @@ import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireGestor } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
-import { resolveMemberAccountId, type PermissionFlag } from '../middleware/permissions';
+import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
 
 const router = Router();
 
@@ -48,27 +48,55 @@ async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string 
   return account?.id ?? null;
 }
 
-// GET /api/account-members — lista os membros vinculados à conta do gestor
-// autenticado. Aceita conta_id opcional para escolher uma conta específica
+// GET /api/account-members — lista os membros vinculados à conta.
+//
+// Gestor: vê a conta que escolher (conta_id opcional, valida propriedade) ou
+// a Conta Padrão. Aceita conta_id opcional para escolher uma conta específica
 // (entre as várias que o gestor pode ter); sem ele, usa a Conta Padrão.
-router.get('/', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+//
+// Membro: conta_id é ignorado — a conta é sempre a que ele está vinculado
+// (nunca aceita do client, para não vazar outra conta). Sem accessMembers,
+// só recebe a si mesmo na lista; com accessMembers, recebe a lista completa,
+// igual ao gestor veria.
+router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { conta_id } = req.query as Record<string, string | undefined>;
-    const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
+    const memberAccountId = await resolveMemberAccountId(req.user!.id);
+    const isMember = memberAccountId !== null;
+
+    let accountId: number | null;
+    if (isMember) {
+      accountId = memberAccountId;
+    } else {
+      const { conta_id } = req.query as Record<string, string | undefined>;
+      accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
+    }
+
     if (!accountId) {
       res.status(404).json({ success: false, message: 'Account not found' });
       return;
     }
 
-    const result = await pool.query(
-      `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-              u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
-       FROM conta_membros m
-       JOIN usuarios u ON u.id = m.usuario_id
-       WHERE m.conta_id = $1
-       ORDER BY u.nome ASC`,
-      [accountId],
-    );
+    const podeVerTodos = !isMember || (await hasScreenAccess(req.user!.id, 'accessMembers'));
+
+    const result = podeVerTodos
+      ? await pool.query(
+          `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+           FROM conta_membros m
+           JOIN usuarios u ON u.id = m.usuario_id
+           WHERE m.conta_id = $1
+           ORDER BY u.nome ASC`,
+          [accountId],
+        )
+      : await pool.query(
+          `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
+                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status
+           FROM conta_membros m
+           JOIN usuarios u ON u.id = m.usuario_id
+           WHERE m.conta_id = $1 AND m.usuario_id = $2
+           ORDER BY u.nome ASC`,
+          [accountId, req.user!.id],
+        );
 
     res.json({ success: true, data: result.rows });
   } catch (error) {

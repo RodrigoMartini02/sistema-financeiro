@@ -160,7 +160,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
               conta empresa para pessoal com o catalogo aberto continuaria
               renderizando uma tela que o menu ja escondeu. */}
           {current.id === 'seguranca' && <SecurityTab />}
-          {current.id === 'contas' && <ContasTab />}
+          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} />}
           {current.id === 'assinatura' && <PlanosScreen embedded />}
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'cartoes' && <CartaoTab />}

@@ -22,6 +22,7 @@ import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { formatCPF, formatCNPJ, formatDocumento, formatDocumentoAuto } from '../../utils/document';
+import { updateMe, updateFoto } from '../../services/usuariosService';
 
 // Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
 // conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
@@ -622,21 +623,112 @@ function ContaDialog({
   );
 }
 
+// ─── Meus dados (membro editando o próprio cadastro) ──────────────────────────
+
+function MeusDadosDialog({
+  open, membro, isSaving, error, onClose, onSave, onSaveFoto,
+}: {
+  open: boolean; membro?: MembroListItem;
+  isSaving: boolean; error?: string;
+  onClose: () => void;
+  onSave: (nome: string) => void;
+  onSaveFoto: (dataUrl: string | null) => void;
+}) {
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    onSave(String(fd.get('nome') ?? '').trim());
+  };
+
+  return (
+    <Dialog open={open} title="Meus dados" onClose={onClose} size="xs" scrollBody={false}>
+      <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* O avatar é o controle de upload — sem botão separado, mesmo padrão de ContaDialog. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => setAvatarDialogOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
+              }}
+              aria-label="Enviar foto de perfil"
+              style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
+            >
+              <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
+                <User size={22} />
+              </span>
+              <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
+                <Pencil size={10} />
+              </span>
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Foto de perfil</span>
+              <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>
+                Toque no avatar para enviar · PNG ou SVG, até 1 MB
+              </span>
+            </div>
+          </div>
+          <AvatarUploadDialog
+            open={avatarDialogOpen}
+            onClose={() => setAvatarDialogOpen(false)}
+            onConfirm={(dataUrl) => { onSaveFoto(dataUrl); setAvatarDialogOpen(false); }}
+            isSaving={false}
+          />
+          <div style={cfgDividerStyle} />
+
+          <div>
+            <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
+            <input
+              key={membro?.usuario_id}
+              name="nome"
+              defaultValue={membro?.nome}
+              placeholder="Seu nome"
+              autoFocus
+              required
+              style={fieldInputStyle}
+            />
+          </div>
+
+          {error && (
+            <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div style={dialogFooterStyle}>
+          <div style={{ marginLeft: 'auto' }}>
+            <button type="submit" disabled={isSaving} style={isSaving ? saveButtonDisabledStyle : saveButtonStyle}>
+              {isSaving ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
 // ─── Membros de uma conta específica (expandido dentro da linha da conta) ────
 
-function MembrosDaConta({ conta }: { conta: Conta }) {
+function MembrosDaConta({ conta, isGestor, meId }: { conta: Conta; isGestor: boolean; meId?: number }) {
   const termo = TERMOS[conta.tipo];
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [novoDialogOpen, setNovoDialogOpen] = useState(false);
   const [mutError, setMutError] = useState('');
   const [pendingDialog, setPendingDialog] = useState<{ membro: MembroListItem; pendencias: PendingExpense[] } | null>(null);
+  const [meusDadosOpen, setMeusDadosOpen] = useState(false);
 
   const listQuery = useQuery({
     queryKey: queryKeys.membros(conta.id),
     queryFn: () => fetchMembros(conta.id),
   });
   const list = listQuery.data ?? [];
+  const eu = list.find((m) => m.usuario_id === meId);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: queryKeys.membros(conta.id) });
 
@@ -650,6 +742,20 @@ function MembrosDaConta({ conta }: { conta: Conta }) {
     mutationFn: ({ usuarioId, transferirPara }: { usuarioId: number; transferirPara?: number }) =>
       deactivateMembro(usuarioId, transferirPara, conta.id),
     onSuccess: () => { invalidate(); setPendingDialog(null); setMutError(''); },
+    onError: (e: Error) => setMutError(e.message),
+  });
+
+  // Membro editando os próprios dados (nome, foto) — nunca dados de outro
+  // membro, mesmo com accessMembers. Endpoints já seguros por design: sempre
+  // operam sobre o usuário do token, nunca sobre um id recebido do client.
+  const meusDadosMut = useMutation({
+    mutationFn: (nome: string) => updateMe({ nome }),
+    onSuccess: () => { invalidate(); setMeusDadosOpen(false); setMutError(''); },
+    onError: (e: Error) => setMutError(e.message),
+  });
+  const fotoMut = useMutation({
+    mutationFn: (foto: string | null) => updateFoto(foto),
+    onSuccess: () => invalidate(),
     onError: (e: Error) => setMutError(e.message),
   });
 
@@ -690,14 +796,16 @@ function MembrosDaConta({ conta }: { conta: Conta }) {
         <span style={{ fontSize: 11, fontWeight: 600, color: CFG.faint }}>
           {list.length} {termo.singular}{list.length === 1 ? '' : 's'}
         </span>
-        <button
-          type="button"
-          style={cfgPrimaryButtonStyle}
-          onClick={() => { setMutError(''); setNovoDialogOpen(true); }}
-        >
-          <Plus size={11} strokeWidth={2.8} />
-          Novo {termo.singular}
-        </button>
+        {isGestor && (
+          <button
+            type="button"
+            style={cfgPrimaryButtonStyle}
+            onClick={() => { setMutError(''); setNovoDialogOpen(true); }}
+          >
+            <Plus size={11} strokeWidth={2.8} />
+            Novo {termo.singular}
+          </button>
+        )}
       </div>
 
       {listQuery.isLoading ? (
@@ -708,57 +816,85 @@ function MembrosDaConta({ conta }: { conta: Conta }) {
         <EmptyState icon={ShieldAlert} title={`Nenhum ${termo.singular} vinculado ainda`} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {list.map((m) => (
-            <div
-              key={m.membro_id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, minHeight: 34, padding: '0 12px',
-                borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surfaceAlt,
-              }}
-            >
-              <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 500, color: CFG.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {m.nome}
-              </span>
-              <span style={{ flex: 'none', fontSize: 11, color: CFG.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                {m.email}
-              </span>
-              {m.membro_status === 'ativo' ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleDeactivate(m)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleDeactivate(m); }
-                  }}
-                  title={`Desativar ${termo.singular}`}
-                  style={{
-                    flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 11, fontWeight: 600, color: CFG.danger, cursor: 'pointer',
-                  }}
-                >
-                  <UserX size={11} /> Desativar
+          {list.map((m) => {
+            // Todo mundo clica em si mesmo para editar os próprios dados;
+            // gestor clica em qualquer um só para visualizar (edição de
+            // outro membro é feita pelo dialog de criação, não por aqui).
+            const souEu = m.usuario_id === meId;
+            const clicavel = souEu;
+            return (
+              <div
+                key={m.membro_id}
+                role={clicavel ? 'button' : undefined}
+                tabIndex={clicavel ? 0 : undefined}
+                onClick={clicavel ? () => { setMutError(''); setMeusDadosOpen(true); } : undefined}
+                onKeyDown={clicavel ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMutError(''); setMeusDadosOpen(true); }
+                } : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, minHeight: 34, padding: '0 12px',
+                  borderRadius: 12, border: `1px solid ${CFG.border}`, background: CFG.surfaceAlt,
+                  cursor: clicavel ? 'pointer' : 'default',
+                }}
+              >
+                <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 500, color: CFG.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.nome}{souEu && <span style={{ color: CFG.faint, fontWeight: 400 }}> (você)</span>}
                 </span>
-              ) : (
-                <span style={cfgBadgeStyle}>Inativo</span>
-              )}
-            </div>
-          ))}
+                <span style={{ flex: 'none', fontSize: 11, color: CFG.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                  {m.email}
+                </span>
+                {m.membro_status === 'ativo' ? (
+                  isGestor && !souEu && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); handleDeactivate(m); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleDeactivate(m); }
+                      }}
+                      title={`Desativar ${termo.singular}`}
+                      style={{
+                        flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 600, color: CFG.danger, cursor: 'pointer',
+                      }}
+                    >
+                      <UserX size={11} /> Desativar
+                    </span>
+                  )
+                ) : (
+                  <span style={cfgBadgeStyle}>Inativo</span>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {mutError && !pendingDialog && !novoDialogOpen && (
+      {mutError && !pendingDialog && !novoDialogOpen && !meusDadosOpen && (
         <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
           {mutError}
         </div>
       )}
 
-      <NovoMembroDialog
-        open={novoDialogOpen}
-        isSaving={createMut.isPending}
+      {isGestor && (
+        <NovoMembroDialog
+          open={novoDialogOpen}
+          isSaving={createMut.isPending}
+          error={mutError}
+          termo={termo}
+          onClose={() => setNovoDialogOpen(false)}
+          onSave={(body) => createMut.mutate(body)}
+        />
+      )}
+
+      <MeusDadosDialog
+        open={meusDadosOpen}
+        membro={eu}
+        isSaving={meusDadosMut.isPending}
         error={mutError}
-        termo={termo}
-        onClose={() => setNovoDialogOpen(false)}
-        onSave={(body) => createMut.mutate(body)}
+        onClose={() => setMeusDadosOpen(false)}
+        onSave={(nome) => meusDadosMut.mutate(nome)}
+        onSaveFoto={(dataUrl) => fotoMut.mutate(dataUrl)}
       />
 
       {pendingDialog && (
@@ -780,7 +916,13 @@ function MembrosDaConta({ conta }: { conta: Conta }) {
 
 // ─── Tab ─────────────────────────────────────────────────────────────────────
 
-export function ContasTab() {
+interface ContasTabProps {
+  /** Gestor/admin edita contas e gerencia membros; membro só edita a si mesmo. */
+  isGestor: boolean;
+  meId?: number;
+}
+
+export function ContasTab({ isGestor, meId }: ContasTabProps) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Conta }>({ open: false });
   const [mutError, setMutError] = useState('');
@@ -838,10 +980,10 @@ export function ContasTab() {
             label={`${listaExibida.length} conta${listaExibida.length === 1 ? '' : 's'} ${mostrarDesativados ? 'desativada' : 'ativa'}${listaExibida.length === 1 ? '' : 's'}`}
           />
         }
-        actionLabel="Nova conta"
+        actionLabel={isGestor ? 'Nova conta' : undefined}
         onAction={() => { setMutError(''); setDialog({ open: true }); }}
       >
-        {createGuide.isVisible && (
+        {isGestor && createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Briefcase}
             description={firstAccessGuideMessages.perfisNovo}
@@ -872,7 +1014,13 @@ export function ContasTab() {
               <div style={cfgRowStyle}>
                 <button
                   type="button"
-                  onClick={() => { setMutError(''); setDialog({ open: true, item: c }); }}
+                  onClick={() => {
+                    // Membro nunca edita a conta do gestor — ela é só o caminho
+                    // até a lista de membros, então o clique no corpo expande
+                    // em vez de abrir o dialog de edição.
+                    if (isGestor) { setMutError(''); setDialog({ open: true, item: c }); }
+                    else toggleExpand(c.id);
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1,
                     border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer',
@@ -894,7 +1042,7 @@ export function ContasTab() {
                       <AlertCircle size={11} /> Incompleta
                     </span>
                   )}
-                  {!c.ativo && (
+                  {!c.ativo && isGestor && (
                     <span
                       role="button"
                       tabIndex={0}
@@ -940,7 +1088,7 @@ export function ContasTab() {
                 )}
               </div>
 
-              {isExpanded && c.ativo && <MembrosDaConta conta={c} />}
+              {isExpanded && c.ativo && <MembrosDaConta conta={c} isGestor={isGestor} meId={meId} />}
             </div>
           );
         })}
