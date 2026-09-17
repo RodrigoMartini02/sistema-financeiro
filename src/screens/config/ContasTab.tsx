@@ -653,10 +653,21 @@ function EditarUsuarioDialog({
   open: boolean; membro?: MembroListItem; isSelf: boolean;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (input: { nome: string; novaSenha?: string }) => void;
+  onSave: (input: {
+    nome: string; novaSenha?: string; email?: string; documento?: string;
+    telefone?: string; data_nascimento?: string;
+  }) => void;
   onSaveFoto: (dataUrl: string | null) => void;
 }) {
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  // Documento é controlado para aplicar a máscara a cada tecla, mesmo padrão
+  // de ContaDialog — membro é sempre pessoa física, então sempre CPF.
+  const [documento, setDocumento] = useState(() => formatCPF(membro?.documento ?? ''));
+
+  useEffect(() => {
+    if (!open) return;
+    setDocumento(formatCPF(membro?.documento ?? ''));
+  }, [open, membro]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -664,6 +675,10 @@ function EditarUsuarioDialog({
     const novaSenha = String(fd.get('nova_senha') ?? '').trim();
     onSave({
       nome: String(fd.get('nome') ?? '').trim(),
+      email: (fd.get('email') as string) || undefined,
+      documento: documento.trim() || undefined,
+      telefone: (fd.get('telefone') as string) || undefined,
+      data_nascimento: (fd.get('data_nascimento') as string) || undefined,
       ...(novaSenha ? { novaSenha } : {}),
     });
   };
@@ -717,6 +732,57 @@ function EditarUsuarioDialog({
               required
               style={fieldInputStyle}
             />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>CPF</label>
+              <input
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+                className={CFG_MONO_CLASS}
+                style={fieldInputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Data de nascimento</label>
+              <input
+                key={`nasc-${membro?.usuario_id}`}
+                name="data_nascimento"
+                type="date"
+                defaultValue={membro?.data_nascimento?.slice(0, 10) ?? ''}
+                style={fieldInputStyle}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Telefone</label>
+              <input
+                key={`tel-${membro?.usuario_id}`}
+                name="telefone"
+                defaultValue={membro?.telefone ?? ''}
+                placeholder="(00) 00000-0000"
+                maxLength={20}
+                style={fieldInputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>E-mail</label>
+              <input
+                key={`email-${membro?.usuario_id}`}
+                name="email"
+                type="email"
+                defaultValue={membro?.email ?? ''}
+                placeholder="contato@email.com"
+                style={fieldInputStyle}
+              />
+            </div>
           </div>
 
           <div>
@@ -813,9 +879,15 @@ function MembrosDaConta({
   // sobre o usuário do token. Gestor editando outro membro: rota
   // administrativa nova, nunca exige a senha atual do membro.
   const editarUsuarioMut = useMutation({
-    mutationFn: async (input: { nome: string; novaSenha?: string }): Promise<void> => {
+    mutationFn: async (input: {
+      nome: string; novaSenha?: string; email?: string; documento?: string;
+      telefone?: string; data_nascimento?: string;
+    }): Promise<void> => {
       if (editandoSouEu) {
-        await updateMe({ nome: input.nome, nova_senha: input.novaSenha });
+        await updateMe({
+          nome: input.nome, nova_senha: input.novaSenha, email: input.email,
+          documento: input.documento, telefone: input.telefone, data_nascimento: input.data_nascimento,
+        });
       } else {
         await updateMembro(editandoMembro!.usuario_id, input, conta.id);
       }
