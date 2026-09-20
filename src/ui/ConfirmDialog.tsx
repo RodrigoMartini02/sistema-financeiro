@@ -1,12 +1,11 @@
 import { Dialog } from './dialog';
-import { C, saveButtonStyle } from './dialogFormTokens';
+import { C, saveButtonStyle, dangerButtonStyle } from './dialogFormTokens';
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
   confirmLabel?: string;
-  cancelLabel?: string;
   variant?: 'danger' | 'default';
   isLoading?: boolean;
   onConfirm: () => void;
@@ -18,7 +17,6 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
   variant = 'danger',
   isLoading = false,
   onConfirm,
@@ -31,22 +29,11 @@ export function ConfirmDialog({
         <div style={{ margin: '0 26px', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button
             type="button"
-            onClick={onCancel}
-            disabled={isLoading}
-            style={{ padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1 }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
             onClick={onConfirm}
             disabled={isLoading}
             style={{
-              ...saveButtonStyle,
+              ...(variant === 'danger' ? dangerButtonStyle : saveButtonStyle),
               cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1,
-              // A confirmação destrutiva mantém preenchimento sólido: é a ação
-              // que o usuário precisa distinguir com clareza antes de confirmar.
-              ...(variant === 'danger' ? { background: C.danger } : null),
             }}
           >
             {isLoading ? 'Aguarde...' : confirmLabel}
