@@ -6,8 +6,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/financeService';
+import { fetchCategorias } from '../../services/configService';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
+import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
@@ -270,6 +272,11 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     queryFn: () => fetchMembros(activeAccountId ?? undefined),
     staleTime: 5 * 60_000,
   });
+  const categoriasQ = useQuery({
+    queryKey: queryKeys.categorias(activeAccountId),
+    queryFn: () => fetchCategorias(activeAccountId),
+    staleTime: 5 * 60_000,
+  });
   const temMembros = (membrosQ.data?.length ?? 0) > 0;
   // O proprio usuario e mais uma opcao do grupo "Membros" (nao mais base
   // fixa) — inicia marcado assim que o id chega, mas so uma vez, para nao
@@ -355,7 +362,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     if (ok) finance.deleteExpense.mutate({ id: item.id });
   };
 
-  const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
+  // Fonte é a lista mestra de categorias ativas (não os nomes já usados nas
+  // despesas carregadas): uma categoria desativada não deve aparecer aqui, e
+  // uma raiz com subcategoria ativa nunca é diretamente filtrável — só as
+  // subs, mesma regra do seletor de despesas (CategoryFloatingSelect).
+  const categoriaOptions = groupSelectableCategories(categoriasQ.data ?? [])
+    .flatMap((group) => group.items.map((c) => ({
+      value: c.nome,
+      label: group.parent ? `${group.parent.nome} › ${c.nome}` : c.nome,
+    })))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
   const cartoesUsados = [...new Map(
     allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
@@ -448,7 +464,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     {
       id: 'categoria',
       label: 'Categoria',
-      options: categorias.map((c) => ({ value: c, label: c })),
+      options: categoriaOptions,
       selected: filtroCategoria,
       onChange: setFiltroCategoria,
     },

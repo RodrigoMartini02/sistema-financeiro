@@ -39,6 +39,39 @@ function activeCategories(categories: Categoria[]): Categoria[] {
   return categories.filter((category) => category.ativo);
 }
 
+/** Categoria com subcategoria ativa: nunca é selecionável em lançamento/filtro — só as subs. */
+export function hasActiveSubcategory(category: Categoria, categories: Categoria[]): boolean {
+  return categories.some((c) => c.parent_id === category.id && c.ativo);
+}
+
+export interface SelectableCategoryGroup {
+  /** null quando a categoria não tem pai nem filhos ativos — item solto, sem agrupamento. */
+  parent: Categoria | null;
+  items: Categoria[];
+}
+
+/**
+ * Categorias ativas prontas para seleção em despesas/filtros, agrupadas por pai.
+ * Uma raiz com subcategoria ativa vira só o cabeçalho do grupo (não aparece em
+ * `items`, que é onde a lista de seleção de fato itera) — só suas subs entram.
+ */
+export function groupSelectableCategories(categories: Categoria[]): SelectableCategoryGroup[] {
+  const active = activeCategories(categories);
+  const roots = active.filter((c) => !c.parent_id);
+  const groups: SelectableCategoryGroup[] = [];
+
+  for (const root of roots) {
+    const children = active.filter((c) => c.parent_id === root.id);
+    if (children.length > 0) {
+      groups.push({ parent: root, items: children });
+    } else {
+      groups.push({ parent: null, items: [root] });
+    }
+  }
+
+  return groups;
+}
+
 function findCategoryByName(categories: Categoria[], name: string): Categoria | undefined {
   const normalizedName = normalizeCategoryText(name);
   return activeCategories(categories).find((category) => normalizeCategoryText(category.nome) === normalizedName);

@@ -4,6 +4,7 @@ import {
   integer,
   varchar,
   timestamp,
+  boolean,
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
@@ -39,6 +40,7 @@ export const categories = pgTable(
     favoritePaymentMethod: varchar('forma_favorita', { length: 20 }),
     favoriteCardId: integer('cartao_favorito_id'),
     parentId: integer('parent_id'),
+    ativo: boolean('ativo').default(true),
     createdAt: timestamp('data_criacao').defaultNow(),
     updatedAt: timestamp('data_atualizacao').defaultNow(),
   },

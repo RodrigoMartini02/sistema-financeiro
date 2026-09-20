@@ -76,6 +76,7 @@ function expenseFromApi(r: RawExpense): Expense {
     valorFinal,
     valorFinalTotal: valorFinal > 0 ? valorFinal : undefined,
     categoria: r.categoria_nome ?? 'Sem categoria',
+    categoriaId: r.categoria_id ?? null,
     categoriaPai: r.categoria_pai_nome ?? null,
     formaPagamento: r.forma_pagamento ?? 'dinheiro',
     cartaoId: r.cartao_id ?? null,
