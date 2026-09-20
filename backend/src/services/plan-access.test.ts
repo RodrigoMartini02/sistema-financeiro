@@ -16,7 +16,7 @@ test('keeps admin access active regardless of stored plan data', () => {
 });
 test('expires a trial after fifteen full days', () => {
   const result = getEffectivePlanAccess({
-    userType: 'padrao',
+    userType: 'membro',
     planStatus: PLAN_STATUS.trial,
     planExpiration: null,
     createdAt: '2026-07-24 12:00:00',
@@ -28,7 +28,7 @@ test('expires a trial after fifteen full days', () => {
 
 test('keeps a valid trial active and reports its remaining days', () => {
   const result = getEffectivePlanAccess({
-    userType: 'padrao',
+    userType: 'membro',
     planStatus: PLAN_STATUS.trial,
     planExpiration: null,
     createdAt: '2026-07-25 12:00:00',
@@ -40,7 +40,7 @@ test('keeps a valid trial active and reports its remaining days', () => {
 
 test('expires a one-time plan at its Brasilia timestamp', () => {
   const result = getEffectivePlanAccess({
-    userType: 'padrao',
+    userType: 'membro',
     planStatus: PLAN_STATUS.active,
     planExpiration: '2026-08-08 12:00:00',
     createdAt: '2026-01-01 00:00:00',
@@ -51,7 +51,7 @@ test('expires a one-time plan at its Brasilia timestamp', () => {
 
 test('keeps a recurring plan active when it has no expiration date', () => {
   const result = getEffectivePlanAccess({
-    userType: 'padrao',
+    userType: 'membro',
     planStatus: PLAN_STATUS.active,
     planExpiration: null,
     createdAt: '2026-01-01 00:00:00',

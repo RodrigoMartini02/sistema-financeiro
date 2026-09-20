@@ -26,8 +26,8 @@ interface ConfigTabHeaderProps {
  * opcionais, ação primária à direita.
  *
  * Existe porque esse bloco era repetido de forma idêntica em 7 tabs. Telas
- * cujo cabeçalho é uma busca (UsuariosTab, MembrosTab) continuam usando
- * `ListToolbar` — não força-se este componente onde ele não serve.
+ * cujo cabeçalho é uma busca continuam usando `ListToolbar` — não força-se
+ * este componente onde ele não serve.
  */
 export function ConfigTabHeader({
   countLabel, filters, actionLabel, onAction, children,

@@ -184,7 +184,7 @@ router.post(
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
-            type: (tipo as 'padrao' | 'gestor' | 'admin' | undefined) ?? 'padrao',
+            type: (tipo as 'membro' | 'titular' | 'admin' | undefined) ?? 'titular',
             status: 'ativo',
             googleId: google_id ?? null,
             country: pais ?? null,

@@ -7,12 +7,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
-// Permissões de acesso a tela de um membro (usuario tipo 'padrao' vinculado
-// via conta_membros) dentro da conta do gestor. Cada coluna = acesso
+// Permissões de acesso a tela de um membro (usuario tipo 'membro' vinculado
+// via conta_membros) dentro da conta do titular. Cada coluna = acesso
 // completo (ver/criar/editar/excluir) a UMA tela/funcionalidade — não há
 // separação de leitura/escrita, nem acesso a lançamentos de outros membros
 // (o membro só mexe nos próprios dados, mesmo com a tela liberada).
-// Restritivo por padrão: toda coluna nasce false, e o gestor libera
+// Restritivo por padrão: toda coluna nasce false, e o titular libera
 // explicitamente pela tela de permissões. Uma linha por membro, criada
 // automaticamente na criação dele.
 export const memberPermissions = pgTable('membro_permissoes', {

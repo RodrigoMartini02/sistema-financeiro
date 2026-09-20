@@ -5,8 +5,8 @@ import { getPlanStatusForUser, isPlanAccessActive } from '../services/plan-lifec
 interface TokenPayload {
   id: number;
   document: string;
-  type: 'padrao' | 'gestor' | 'admin';
-  tipo?: 'padrao' | 'gestor' | 'admin';
+  type: 'membro' | 'titular' | 'admin';
+  tipo?: 'membro' | 'titular' | 'admin';
   documento?: string;
 }
 
@@ -39,7 +39,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     req.user = {
       id: decoded.id,
       document: decoded.document ?? decoded.documento ?? '',
-      type: decoded.type ?? decoded.tipo ?? 'padrao',
+      type: decoded.type ?? decoded.tipo ?? 'membro',
     };
     next();
   } catch (error) {
@@ -55,10 +55,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-// Gestor (dono de conta) ou Admin (plataforma) — acesso de escopo de conta.
-export function requireGestor(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || (req.user.type !== 'gestor' && req.user.type !== 'admin')) {
-    res.status(403).json({ success: false, message: 'Access denied. Account managers only.' });
+// Titular (dono de conta) ou Admin (plataforma) — acesso de escopo de conta.
+export function requireTitular(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user || (req.user.type !== 'titular' && req.user.type !== 'admin')) {
+    res.status(403).json({ success: false, message: 'Access denied. Account owners only.' });
     return;
   }
   next();

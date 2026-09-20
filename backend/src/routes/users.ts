@@ -280,8 +280,8 @@ router.get('/stats/general', authenticate, requireAdmin, async (_req: Request, r
         COUNT(CASE WHEN status = 'ativo' THEN 1 END) AS active_users,
         COUNT(CASE WHEN status = 'inativo' THEN 1 END) AS inactive_users,
         COUNT(CASE WHEN status = 'bloqueado' THEN 1 END) AS blocked_users,
-        COUNT(CASE WHEN tipo = 'padrao' THEN 1 END) AS standard_users,
-        COUNT(CASE WHEN tipo = 'gestor' THEN 1 END) AS gestor_users,
+        COUNT(CASE WHEN tipo = 'membro' THEN 1 END) AS standard_users,
+        COUNT(CASE WHEN tipo = 'titular' THEN 1 END) AS gestor_users,
         COUNT(CASE WHEN tipo = 'admin' THEN 1 END) AS admin_users,
         COUNT(CASE WHEN plano_status = 'ativo' AND tipo != 'admin' THEN 1 END) AS paying_users,
         COUNT(CASE WHEN (plano_status = 'trial' OR plano_status IS NULL) AND tipo != 'admin' THEN 1 END) AS trial_users,
@@ -351,7 +351,7 @@ router.get('/', authenticate, requireAdmin, async (req: Request, res: Response):
 // POST /api/users (Admin only)
 router.post('/', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, senha, tipo = 'gestor', status = 'ativo', pais, estado, cidade } =
+    const { nome, email, documento, senha, tipo = 'titular', status = 'ativo', pais, estado, cidade } =
       req.body as Record<string, string | undefined>;
 
     if (!nome || !email || !documento || !senha) {
@@ -388,7 +388,7 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response)
         email,
         document: cleanDoc,
         password: hashedPassword,
-        type: tipo as 'padrao' | 'gestor' | 'admin',
+        type: tipo as 'membro' | 'titular' | 'admin',
         status: status as 'ativo' | 'inativo' | 'bloqueado',
         country: pais ?? null,
         state: estado ?? null,
@@ -567,7 +567,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
     if (nome) updateData.name = nome;
     if (email) updateData.email = email;
     if (senha) updateData.password = await bcrypt.hash(senha, 10);
-    if (tipo) updateData.type = tipo as 'padrao' | 'gestor' | 'admin';
+    if (tipo) updateData.type = tipo as 'membro' | 'titular' | 'admin';
     if (newStatus) updateData.status = newStatus as 'ativo' | 'inativo' | 'bloqueado';
     if (pais !== undefined) updateData.country = pais || null;
     if (estado !== undefined) updateData.state = estado || null;
