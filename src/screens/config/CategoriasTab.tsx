@@ -175,6 +175,9 @@ function CategoriaRow({
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat.nome}</span>
+            {cat.tipo != null && (
+              <span style={cfgBadgeStyle} title="Categoria padrão do sistema">P</span>
+            )}
             {hasSubs && !isChild && (
               <span style={cfgBadgeStyle}>{cat.subcategorias!.length} sub</span>
             )}
