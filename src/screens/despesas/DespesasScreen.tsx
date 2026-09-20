@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/financeService';
 import { fetchMembros } from '../../services/membrosService';
+import { fetchMe } from '../../services/usuariosService';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
@@ -245,7 +246,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const [filtroStatus, setFiltroStatus] = useState<Set<FiltroStatus>>(new Set());
   const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(new Set());
-  const [filtroAutor, setFiltroAutor] = useState<Set<string>>(new Set());
+  const [filtroMembros, setFiltroMembros] = useState<Set<string>>(new Set());
   const [filtroFormaPag, setFiltroFormaPag] = useState<Set<string>>(new Set());
   const [filtroCartao, setFiltroCartao] = useState<Set<string>>(new Set());
   const [filtroDataPag, setFiltroDataPag] = useState<Set<FiltroDataPag>>(new Set());
@@ -257,8 +258,12 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const qc = useQueryClient();
   const confirm = useConfirm();
 
-  // Escopo do servidor: por padrao so os proprios lancamentos. "Familia" so
-  // aparece como opcao quando ha outros membros vinculados a conta.
+  const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
+
+  // Escopo do servidor: por padrao so os proprios lancamentos. O grupo
+  // "Membros" do painel de filtro so aparece quando ha outros membros
+  // vinculados a conta; marcar 1+ deles e a unica forma de trazer os
+  // lancamentos deles do servidor, entao o escopo deriva dessa selecao.
   const activeAccountId = getActiveAccountId();
   const membrosQ = useQuery({
     queryKey: queryKeys.membros(activeAccountId),
@@ -266,7 +271,10 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     staleTime: 5 * 60_000,
   });
   const temMembros = (membrosQ.data?.length ?? 0) > 1;
-  const [escopoFamilia, setEscopoFamilia] = useState(false);
+  const escopoFamilia = filtroMembros.size > 0;
+  // Outros membros da conta, sem o proprio usuario logado — ele e a base fixa
+  // sempre visivel, nunca uma opcao removivel do filtro.
+  const outrosMembros = (membrosQ.data ?? []).filter((m) => m.usuario_id !== meQ.data?.id);
 
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.expenses ?? [];
@@ -342,11 +350,6 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   };
 
   const categorias = [...new Set(allItems.map((i) => i.categoria))].sort();
-  // Autores distintos entre os lancamentos do periodo. O filtro por membro so
-  // aparece quando ha mais de um: numa conta usada por uma pessoa so, filtrar
-  // por ela mesma seria redundante. A coluna "Usuario" em si aparece sempre.
-  const autores = [...new Set(allItems.map((i) => i.autorNome).filter(Boolean) as string[])].sort();
-  const mostrarFiltroAutor = autores.length > 1;
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
   const cartoesUsados = [...new Map(
     allItems.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
@@ -366,11 +369,19 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     return false;
   };
 
+  // Nomes visiveis quando ha membros marcados: o proprio usuario (sempre) +
+  // os membros selecionados (por id, resolvidos para nome — Expense so
+  // carrega autorNome, sem id de autor).
+  const nomesVisiveis = new Set(
+    [meQ.data?.nome, ...outrosMembros.filter((m) => filtroMembros.has(String(m.usuario_id))).map((m) => m.nome)]
+      .filter(Boolean) as string[],
+  );
+
   const filtered = allItems
     .filter((i) => {
       if (filtroStatus.size > 0 && !filtroStatus.has(getStatus(i))) return false;
       if (filtroCategoria.size > 0 && !filtroCategoria.has(i.categoria)) return false;
-      if (filtroAutor.size > 0 && (!i.autorNome || !filtroAutor.has(i.autorNome))) return false;
+      if (filtroMembros.size > 0 && (!i.autorNome || !nomesVisiveis.has(i.autorNome))) return false;
       if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
       if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
       if (!passaFiltroDataPag(i)) return false;
@@ -395,7 +406,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const hasFilter2 =
     filtroStatus.size > 0 || filtroCategoria.size > 0 || filtroFormaPag.size > 0
-    || filtroCartao.size > 0 || filtroDataPag.size > 0 || filtroAutor.size > 0;
+    || filtroCartao.size > 0 || filtroDataPag.size > 0 || filtroMembros.size > 0;
 
   const handleClearFilters = () => {
     setFiltroStatus(new Set());
@@ -403,12 +414,9 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     setFiltroFormaPag(new Set());
     setFiltroCartao(new Set());
     setFiltroDataPag(new Set());
-    setFiltroAutor(new Set());
+    setFiltroMembros(new Set());
   };
 
-  // "Escopo familia" e o unico grupo que nao filtra o array local — ele troca
-  // o parametro enviado ao servidor (useFinanceDashboard acima). Representado
-  // aqui como grupo de opcao unica para viver no mesmo painel dos demais.
   const filterGroups: FilterGroup[] = [
     {
       id: 'status',
@@ -453,28 +461,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       selected: filtroDataPag,
       onChange: (next) => setFiltroDataPag(next as Set<FiltroDataPag>),
     },
+    // Lista so os OUTROS membros — o proprio usuario logado sempre aparece
+    // nos resultados, nao e uma opcao removivel. Marcar 1+ soma os
+    // lancamentos deles aos proprios (uniao), acionando o escopo familia no
+    // servidor (derivado acima em `escopoFamilia`).
     ...(temMembros ? [{
-      id: 'escopo-familia',
-      label: 'Lançamentos',
-      options: [
-        { value: 'eu', label: 'Só eu' },
-        { value: 'familia', label: 'Família' },
-      ],
-      // Opcao unica (nao multi): o painel so adiciona/remove uma entrada do
-      // Set por clique, entao a opcao clicada e sempre a que nao estava no
-      // Set anterior — ela vira o novo valor exclusivo, a outra e descartada.
-      selected: new Set([escopoFamilia ? 'familia' : 'eu']),
-      onChange: (next: Set<string>) => {
-        const clicado = [...next].find((v) => v !== (escopoFamilia ? 'familia' : 'eu'));
-        if (clicado) setEscopoFamilia(clicado === 'familia');
-      },
-    }] : []),
-    ...(mostrarFiltroAutor ? [{
-      id: 'autor',
-      label: 'Membro',
-      options: autores.map((a) => ({ value: a, label: a })),
-      selected: filtroAutor,
-      onChange: setFiltroAutor,
+      id: 'membros',
+      label: 'Membros',
+      options: outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+      selected: filtroMembros,
+      onChange: setFiltroMembros,
     }] : []),
   ];
 
