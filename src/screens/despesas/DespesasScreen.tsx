@@ -923,17 +923,10 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
         expense={deleteInstallmentDialog.item ?? null}
         isLoading={finance.deleteExpense.isPending}
         onClose={() => setDeleteInstallmentDialog({ open: false })}
-        onDeleteOne={() => {
+        onDeleteSelected={(ids) => {
           if (!deleteInstallmentDialog.item) return;
           finance.deleteExpense.mutate(
-            { id: deleteInstallmentDialog.item.id },
-            { onSuccess: () => setDeleteInstallmentDialog({ open: false }) },
-          );
-        }}
-        onDeleteGroup={() => {
-          if (!deleteInstallmentDialog.item) return;
-          finance.deleteExpense.mutate(
-            { id: deleteInstallmentDialog.item.id, deleteGroup: true },
+            { id: deleteInstallmentDialog.item.id, ids },
             { onSuccess: () => setDeleteInstallmentDialog({ open: false }) },
           );
         }}

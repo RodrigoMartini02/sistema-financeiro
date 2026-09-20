@@ -23,6 +23,7 @@ interface RawExpense {
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
+  grupo_parcelamento_id?: number | null;
   valor_original?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null;
   data_criacao?: string | null;
@@ -85,7 +86,8 @@ function expenseFromApi(r: RawExpense): Expense {
     dataPagamento: r.data_pagamento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada') ?? 'ativa',
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,
-    parcela, observacoes: r.observacoes,
+    parcela, grupoParcelamentoId: r.grupo_parcelamento_id ?? null,
+    observacoes: r.observacoes,
     valorOriginal: r.valor_original ? asNumber(r.valor_original) : null,
     valorPago: r.valor_pago != null ? asNumber(r.valor_pago) : null,
     numeroNf: r.numero_nf ?? null,
@@ -198,9 +200,22 @@ export async function saveExpense(month: number, year: number, values: ExpenseFo
   });
 }
 
-export async function deleteExpense(id: number, options?: { deleteGroup?: boolean }) {
-  const suffix = options?.deleteGroup ? '?delete_group=true' : '';
+// `id` e sempre a parcela ancora (usada pelo backend pra resolver dono/grupo).
+// `ids`, quando informado, exclui exatamente essas parcelas do grupo — usado
+// pela grade de multi-selecao. `deleteGroup` continua excluindo o grupo
+// inteiro, como antes.
+export async function deleteExpense(id: number, options?: { deleteGroup?: boolean; ids?: number[] }) {
+  const params = new URLSearchParams();
+  if (options?.ids?.length) params.set('ids', options.ids.join(','));
+  else if (options?.deleteGroup) params.set('delete_group', 'true');
+  const suffix = params.toString() ? `?${params}` : '';
   return apiRequest<void>(`/despesas/${id}${suffix}`, { method: 'DELETE' });
+}
+
+// Todas as parcelas de um parcelamento, para a grade de exclusao.
+export async function fetchExpenseGroup(grupoId: number): Promise<Expense[]> {
+  const rows = await apiRequest<RawExpense[]>(`/despesas/group/${grupoId}`);
+  return rows.map(expenseFromApi);
 }
 
 export async function pagarDespesa(id: number, dataPagamento: string, valorPago: number) {

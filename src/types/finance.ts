@@ -86,6 +86,10 @@ export interface Expense {
   recorrente: boolean;
   parcelado: boolean;
   parcela?: string | null;
+  /** Id da 1a parcela do grupo — todas as parcelas de um parcelamento (a
+   *  propria 1a inclusive) compartilham este valor. Usado para buscar/excluir
+   *  o grupo inteiro na grade de multi-selecao. */
+  grupoParcelamentoId?: number | null;
   observacoes?: string | null;
   numeroNf?: string | null;
   dataEmissaoNf?: string | null;

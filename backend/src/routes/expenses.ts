@@ -546,6 +546,34 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   }
 });
 
+// GET /api/expenses/group/:grupoId — todas as parcelas de um parcelamento,
+// para a grade de exclusao com multi-selecao. Mesmo criterio de agrupamento
+// usado no DELETE com delete_group=true: a propria 1a parcela tem
+// grupo_parcelamento_id apontando pra si mesma (ver createFutureInstallments).
+router.get('/group/:grupoId', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const grupoId = parseInt(req.params['grupoId']!);
+
+    const donoGrupo = await resolveOwnerForWrite('despesas', grupoId, req.user!.id);
+    if (donoGrupo === null) {
+      res.status(404).json({ success: false, message: 'Expense group not found' });
+      return;
+    }
+
+    const result = await pool.query(
+      `SELECT * FROM despesas
+       WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2
+       ORDER BY parcela_atual ASC NULLS LAST, data_vencimento ASC`,
+      [grupoId, donoGrupo],
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('List expense group error:', error);
+    res.status(500).json({ success: false, message: 'Failed to list expense group' });
+  }
+});
+
 // PUT /api/expenses/:id/cancelar
 router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -573,10 +601,18 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
 });
 
 // DELETE /api/expenses/:id
+//
+// Tres modos, todos convivendo pela mesma rota:
+//   (nenhum parametro)     exclui so a parcela :id
+//   ?delete_group=true     exclui id + todo o grupo (comportamento antigo)
+//   ?ids=1,2,3             exclui exatamente essas parcelas do mesmo grupo —
+//                          usado pela grade de selecao multipla; :id continua
+//                          sendo a parcela ancora (usada so pra resolver o dono
+//                          e o grupo, nao precisa estar necessariamente na lista)
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const expenseId = parseInt(req.params['id']!);
-    const { delete_group } = req.query as { delete_group?: string };
+    const { delete_group, ids } = req.query as { delete_group?: string; ids?: string };
 
     const donoDelete = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
     if (donoDelete === null) {
@@ -584,7 +620,37 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       return;
     }
 
-    if (delete_group === 'true') {
+    if (ids !== undefined) {
+      const selectedIds = ids.split(',').map((v) => parseInt(v.trim())).filter((v) => Number.isInteger(v));
+      if (selectedIds.length === 0) {
+        res.status(400).json({ success: false, message: 'No valid ids provided' });
+        return;
+      }
+
+      // Nunca confiar que o client mandou so ids do mesmo grupo: confere no
+      // servidor que cada um pertence ao dono resolvido E ao mesmo grupo da
+      // parcela ancora (id = grupo_parcelamento_id OU grupo_parcelamento_id
+      // igual ao da ancora) — impede excluir parcelas de outro parcelamento
+      // numa mesma chamada.
+      const groupCheck = await pool.query(
+        `SELECT COUNT(*) AS total FROM despesas
+         WHERE id = ANY($1) AND usuario_id = $2
+           AND (id = $3 OR grupo_parcelamento_id = $3 OR grupo_parcelamento_id = (
+             SELECT grupo_parcelamento_id FROM despesas WHERE id = $3
+           ))`,
+        [selectedIds, donoDelete, expenseId],
+      );
+      const validCount = parseInt((groupCheck.rows[0] as { total: string }).total);
+      if (validCount !== selectedIds.length) {
+        res.status(400).json({ success: false, message: 'All ids must belong to the same expense group' });
+        return;
+      }
+
+      await pool.query(
+        `DELETE FROM despesas WHERE id = ANY($1) AND usuario_id = $2`,
+        [selectedIds, donoDelete],
+      );
+    } else if (delete_group === 'true') {
       await pool.query(
         `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2`,
         [expenseId, donoDelete],
