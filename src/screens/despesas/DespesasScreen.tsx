@@ -380,7 +380,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   // sem id de autor). Nenhum marcado = nenhum nome visivel = nada exibido.
   const nomesVisiveis = new Set(
     [...filtroMembros]
-      .map((id) => (id === meIdStr ? meQ.data?.nome : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
+      .map((id) => (id === meIdStr ? (meQ.data?.nomeExibicao ?? meQ.data?.nome) : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
       .filter(Boolean) as string[],
   );
 
@@ -485,7 +485,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       id: 'membros',
       label: 'Membros',
       options: [
-        { value: String(meQ.data.id), label: meQ.data.nome },
+        { value: String(meQ.data.id), label: meQ.data.nomeExibicao ?? meQ.data.nome },
         ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
       ],
       selected: filtroMembros,
