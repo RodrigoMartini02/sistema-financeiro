@@ -357,7 +357,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                         )}
                       </td>
                       <td className="px-4 py-1.5">
-                        <p className="text-slate-900 truncate max-w-[180px]">{item.descricao}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[180px]">{item.descricao}</p>
                         {item.observacoes && (
                           <p className="text-[11px] text-slate-400 truncate max-w-[180px]">{item.observacoes}</p>
                         )}
@@ -392,7 +392,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                             : <span className="text-slate-300 text-xs">—</span>}
                         </td>
                       )}
-                      <td className="px-4 py-1.5 text-right text-green-700 whitespace-nowrap">
+                      <td className="px-4 py-1.5 text-right text-xs text-green-600 dark:text-green-400 whitespace-nowrap">
                         {formatCurrency(item.valor)}
                       </td>
                       <td className="px-4 py-1.5 text-center">
