@@ -53,8 +53,11 @@ async function calculateBalanceBreakdown(userId: number, year: number, month: nu
       `SELECT COALESCE(SUM(valor), 0) AS total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
       [userId, year, month, ...extra],
     ),
+    // Cada parcela ja grava o proprio valor individual (digitado direto ou
+    // derivado do preco a vista dividido no formulario) — soma direta, sem
+    // dividir de novo por numero_parcelas. Mesma formula de financial.ts.
     pool.query(
-      `SELECT COALESCE(SUM(CASE WHEN parcelado = true AND COALESCE(numero_parcelas, 0) > 0 AND parcela_atual = 1 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) / numero_parcelas ELSE (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
+      `SELECT COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
       [userId, year, month, ...extra],
     ),
     pool.query(
@@ -129,16 +132,15 @@ router.post('/:ano/:mes/fechar', authenticate, async (req: Request, res: Respons
   try {
     const year = parseInt(req.params['ano']!);
     const month = parseInt(req.params['mes']!);
-    const { saldo_final, conta_id } = req.body as Record<string, unknown>;
+    const { conta_id } = req.body as Record<string, unknown>;
     const accountId = conta_id ? parseInt(String(conta_id)) : null;
     if (!(await canWriteToAccount(accountId, req.user!.id))) {
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
-    const parsedFinalBalance = parseFloat(String(saldo_final ?? ''));
-    const finalBalance = Number.isFinite(parsedFinalBalance)
-      ? parsedFinalBalance
-      : await calculateFinalBalance(req.user!.id, year, month, accountId);
+    // Sempre calculado pelo servidor — nunca aceitar saldo_final do client,
+    // que poderia divergir do cálculo real e gravar um snapshot incorreto.
+    const finalBalance = await calculateFinalBalance(req.user!.id, year, month, accountId);
 
     const result = await pool.query(
       `INSERT INTO meses (usuario_id, ano, mes, fechado, saldo_final, conta_id)

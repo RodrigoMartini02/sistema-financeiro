@@ -710,14 +710,11 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
     const accountId = conta_id ? parseInt(conta_id) : null;
     const limiteMeses = Math.min(Math.max(meses || 3, 1), 12);
 
+    // Cada parcela ja grava o proprio valor individual — soma direta, sem
+    // dividir de novo por numero_parcelas (mesmo ajuste de months.ts).
     const result = await pool.query(
       `SELECT mes, ano,
-        SUM(
-          CASE WHEN parcela_atual = 1 AND numero_parcelas > 1
-               THEN valor_original::float / NULLIF(numero_parcelas, 0)
-               ELSE valor_original::float
-          END
-        ) AS total
+        SUM(valor_original::float) AS total
        FROM despesas
        WHERE usuario_id = $1
          AND parcelado = true

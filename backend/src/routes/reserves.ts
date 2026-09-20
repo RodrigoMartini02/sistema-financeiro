@@ -7,12 +7,22 @@ import { accountWhere } from '../utils/accountFilter';
 
 const router = Router();
 
+// $4 e a conta. Um lancamento com conta_id NULL conta como da conta pessoal
+// do dono, mesmo padrao de accountFilter.ts. Gera a clausula com o alias
+// certo em cada subquery, em vez de compartilhar uma string fixa.
+function accountMatch(alias: string): string {
+  return `(${alias}.conta_id = $4 OR ($4::int IS NULL) OR (${alias}.conta_id IS NULL AND EXISTS (
+    SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+  )))`;
+}
+
 const AVAILABLE_BALANCE_SQL = `
   WITH uf AS (
     SELECT ano, mes, saldo_final
     FROM meses
     WHERE usuario_id = $1 AND fechado = true
       AND (ano < $2 OR (ano = $2 AND mes <= $3))
+      AND ${accountMatch('meses')}
     ORDER BY ano DESC, mes DESC
     LIMIT 1
   )
@@ -24,9 +34,11 @@ const AVAILABLE_BALANCE_SQL = `
         WHERE r.usuario_id = $1
           AND r.descricao NOT ILIKE 'Saldo Anterior%'
           AND (r.ano < $2 OR (r.ano = $2 AND r.mes <= $3))
+          AND ${accountMatch('r')}
           AND NOT EXISTS (
               SELECT 1 FROM meses m
               WHERE m.usuario_id = $1 AND m.ano = r.ano AND m.mes = r.mes AND m.fechado = true
+                AND ${accountMatch('m')}
           )
           AND (
               NOT EXISTS (SELECT 1 FROM uf)
@@ -39,9 +51,11 @@ const AVAILABLE_BALANCE_SQL = `
         FROM despesas d
         WHERE d.usuario_id = $1
           AND (d.ano < $2 OR (d.ano = $2 AND d.mes <= $3))
+          AND ${accountMatch('d')}
           AND NOT EXISTS (
               SELECT 1 FROM meses m
               WHERE m.usuario_id = $1 AND m.ano = d.ano AND m.mes = d.mes AND m.fechado = true
+                AND ${accountMatch('m')}
           )
           AND (
               NOT EXISTS (SELECT 1 FROM uf)
@@ -52,15 +66,17 @@ const AVAILABLE_BALANCE_SQL = `
     - COALESCE((
         SELECT SUM(valor) FROM reservas
         WHERE usuario_id = $1 AND (ano < $2 OR (ano = $2 AND mes <= $3))
+          AND ${accountMatch('reservas')}
     ), 0)
     AS saldo_disponivel
 `;
 
-async function isMonthClosed(userId: number, month: number, year: number): Promise<boolean> {
+async function isMonthClosed(userId: number, month: number, year: number, accountId: number | null = null): Promise<boolean> {
   try {
+    const { clause, params: extra } = accountWhere(accountId, 4);
     const result = await pool.query(
-      'SELECT fechado FROM meses WHERE usuario_id = $1 AND mes = $2 AND ano = $3',
-      [userId, month, year],
+      `SELECT fechado FROM meses WHERE usuario_id = $1 AND mes = $2 AND ano = $3${clause}`,
+      [userId, month, year, ...extra],
     );
     return result.rows.length > 0 && (result.rows[0] as { fechado: boolean }).fechado === true;
   } catch {
@@ -73,9 +89,10 @@ async function checkAvailableBalance(
   month: number,
   year: number,
   amount: number,
+  accountId: number | null = null,
 ): Promise<{ ok: boolean; available: number; message?: string }> {
   try {
-    const result = await pool.query(AVAILABLE_BALANCE_SQL, [userId, year, month]);
+    const result = await pool.query(AVAILABLE_BALANCE_SQL, [userId, year, month, accountId]);
     const available = parseFloat((result.rows[0] as { saldo_disponivel: string }).saldo_disponivel) || 0;
     if (available < amount) {
       return { ok: false, available, message: `Insufficient balance. Available: R$ ${available.toFixed(2)}` };
@@ -205,7 +222,8 @@ router.post(
       // em /move, onde há de fato entrada ou saída no mês.
 
       if (reserveType !== 'objetivo') {
-        const balanceCheck = await checkAvailableBalance(req.user!.id, month, year, amount);
+        const accountId = conta_id ? parseInt(String(conta_id)) : null;
+        const balanceCheck = await checkAvailableBalance(req.user!.id, month, year, amount, accountId);
         if (!balanceCheck.ok) {
           res.status(400).json({ success: false, message: balanceCheck.message, saldoAtual: balanceCheck.available });
           return;
@@ -300,8 +318,9 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     }
 
     const reserve = reserveResult.rows[0] as Record<string, unknown>;
+    const reserveAccountId = reserve['conta_id'] != null ? Number(reserve['conta_id']) : null;
 
-    if (await isMonthClosed(req.user!.id, Number(reserve['mes']), Number(reserve['ano']))) {
+    if (await isMonthClosed(req.user!.id, Number(reserve['mes']), Number(reserve['ano']), reserveAccountId)) {
       res.status(400).json({ success: false, message: 'Cannot delete reserves from a closed month' });
       return;
     }
@@ -334,11 +353,6 @@ router.post(
       const currentYear = Number(yearPart);
       const currentMonth = Number(monthPart) - 1;
 
-      if (await isMonthClosed(req.user!.id, currentMonth, currentYear)) {
-        res.status(400).json({ success: false, message: 'Cannot move reserves in a closed month' });
-        return;
-      }
-
       const reserveResult = await pool.query(
         'SELECT * FROM reservas WHERE id = $1 AND usuario_id = $2',
         [id, req.user!.id],
@@ -350,7 +364,13 @@ router.post(
       }
 
       const reserve = reserveResult.rows[0] as Record<string, unknown>;
+      const reserveAccountId = reserve['conta_id'] != null ? Number(reserve['conta_id']) : null;
       const amount = parseFloat(String(valor));
+
+      if (await isMonthClosed(req.user!.id, currentMonth, currentYear, reserveAccountId)) {
+        res.status(400).json({ success: false, message: 'Cannot move reserves in a closed month' });
+        return;
+      }
 
       if (tipo === 'saida') {
         const reserveBalance = parseFloat(String(reserve['valor']));
@@ -364,7 +384,7 @@ router.post(
       }
 
       if (tipo === 'entrada') {
-        const balanceCheck = await checkAvailableBalance(req.user!.id, currentMonth, currentYear, amount);
+        const balanceCheck = await checkAvailableBalance(req.user!.id, currentMonth, currentYear, amount, reserveAccountId);
         if (!balanceCheck.ok) {
           res.status(400).json({ success: false, message: balanceCheck.message, saldoAtual: balanceCheck.available });
           return;
