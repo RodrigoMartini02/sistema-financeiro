@@ -75,7 +75,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const meTipo = me?.tipo;
   const meDocument = (me?.documento ?? '').replace(/\D/g, '');
   const isAdmin = meTipo === 'admin';
-  const isGestor = meTipo === 'gestor' || isAdmin;
+  const isGestor = meTipo === 'titular' || isAdmin;
   const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
   const contaTipo = localStorage.getItem('contaAtivaTipo');
 

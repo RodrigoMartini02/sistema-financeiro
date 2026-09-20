@@ -4,7 +4,7 @@ import { and, eq, isNotNull, ne, or } from 'drizzle-orm';
 import { body } from 'express-validator';
 import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
-import { authenticate, requireGestor } from '../middleware/auth';
+import { authenticate, requireTitular } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
 
@@ -111,7 +111,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 router.post(
   '/',
   authenticate,
-  requireGestor,
+  requireTitular,
   [
     body('nome').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Invalid email'),
@@ -159,7 +159,7 @@ router.post(
             email: normalizedEmail,
             document: cleanDoc,
             password: hashedPassword,
-            type: 'padrao',
+            type: 'membro',
             status: 'ativo',
           })
           .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
@@ -196,7 +196,7 @@ router.post(
 
 // GET /api/account-members/:id/pending — pendências (parcelas futuras +
 // recorrências ativas) do membro que precisam de destino antes da desativação
-router.get('/:id/pending', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/pending', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberUserId = parseInt(req.params['id']!);
     const { conta_id } = req.query as Record<string, string | undefined>;
@@ -248,7 +248,7 @@ router.get('/:id/pending', authenticate, requireGestor, async (req: Request, res
 router.put(
   '/:id/deactivate',
   authenticate,
-  requireGestor,
+  requireTitular,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const memberUserId = parseInt(req.params['id']!);
@@ -371,7 +371,7 @@ router.put(
 router.put(
   '/:id',
   authenticate,
-  requireGestor,
+  requireTitular,
   [
     body('nome').notEmpty().withMessage('Name is required'),
     validate,
@@ -778,7 +778,7 @@ router.get('/me/permissions', authenticate, async (req: Request, res: Response):
 
 // GET /api/account-members/:id/permissions — permissões atuais de um membro
 // (visão do gestor). Gestão de permissões nunca é delegável a outro membro.
-router.get('/:id/permissions', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+router.get('/:id/permissions', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberUserId = parseInt(req.params['id']!);
     const accountId = await resolveGestorAccountId(req.user!.id);
@@ -812,8 +812,8 @@ router.get('/:id/permissions', authenticate, requireGestor, async (req: Request,
 });
 
 // PUT /api/account-members/:id/permissions — gestor atualiza as permissões
-// de um membro específico. Nunca delegável a outro membro (só requireGestor).
-router.put('/:id/permissions', authenticate, requireGestor, async (req: Request, res: Response): Promise<void> => {
+// de um membro específico. Nunca delegável a outro membro (só requireTitular).
+router.put('/:id/permissions', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberUserId = parseInt(req.params['id']!);
     const accountId = await resolveGestorAccountId(req.user!.id);

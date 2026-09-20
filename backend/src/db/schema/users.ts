@@ -19,8 +19,8 @@ export const users = pgTable(
     document: varchar('documento', { length: 20 }),
     password: varchar('senha', { length: 255 }).notNull(),
     type: varchar('tipo', { length: 20 })
-      .default('gestor')
-      .$type<'padrao' | 'gestor' | 'admin'>(),
+      .default('titular')
+      .$type<'membro' | 'titular' | 'admin'>(),
     status: varchar('status', { length: 20 })
       .default('ativo')
       .$type<'ativo' | 'inativo' | 'bloqueado'>(),

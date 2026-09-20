@@ -9,9 +9,9 @@ import {
 import { users } from './users';
 import { accounts } from './accounts';
 
-// Vincula um usuario (membro, tipo 'padrao') a uma conta gerenciada por um
-// gestor. Um usuario so pode ser membro de uma conta por vez (usuario_id
-// unico). Despesas/receitas do membro entram na mesma conta_id do gestor,
+// Vincula um usuario (membro, tipo 'membro') a uma conta gerenciada por um
+// titular. Um usuario so pode ser membro de uma conta por vez (usuario_id
+// unico). Despesas/receitas do membro entram na mesma conta_id do titular,
 // discriminadas por usuario_id (autor) nas tabelas despesas/receitas.
 export const accountMembers = pgTable(
   'conta_membros',
