@@ -21,9 +21,15 @@ export async function toggleCategoria(id: number): Promise<void> {
   return apiRequest<void>(`/categorias/${id}/toggle-active`, { method: 'PATCH' });
 }
 
-export async function fetchCartoes(accountId?: number | null): Promise<Cartao[]> {
+// `escopo: 'familia'` traz também os cartões dos demais membros/colaboradores
+// com permissão de compartilhar cartões — usado ao lançar uma despesa
+// (escolher um cartão de outra pessoa). Sem ele, vêm só os próprios cartões.
+export async function fetchCartoes(accountId?: number | null, escopo?: 'familia'): Promise<Cartao[]> {
   const id = accountId ?? getActiveAccountId();
-  const q = id ? `?conta_id=${id}` : '';
+  const params = new URLSearchParams();
+  if (id) params.set('conta_id', String(id));
+  if (escopo) params.set('escopo', escopo);
+  const q = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<Cartao[]>(`/cartoes${q}`);
 }
 

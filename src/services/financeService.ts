@@ -94,8 +94,12 @@ function expenseFromApi(r: RawExpense): Expense {
   };
 }
 
-export async function fetchFinanceDashboard(month: number, year: number): Promise<FinanceDashboardData> {
+// `escopo: 'familia'` traz também os lançamentos dos demais membros/
+// colaboradores com permissão de carteira compartilhada. Sem ele (padrão),
+// só os próprios lançamentos.
+export async function fetchFinanceDashboard(month: number, year: number, escopo?: 'familia'): Promise<FinanceDashboardData> {
   const q = new URLSearchParams({ mes: String(month), ano: String(year) });
+  if (escopo) q.set('escopo', escopo);
   appendProfile(q);
   const [incomes, expenses, balance] = await Promise.all([
     apiRequest<RawIncome[]>(`/receitas?${q}`),
@@ -299,8 +303,10 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
   if (filtro.deAno !== undefined) q.set('de_ano', String(filtro.deAno));
   if (filtro.ateMes !== undefined) q.set('ate_mes', String(filtro.ateMes));
   if (filtro.ateAno !== undefined) q.set('ate_ano', String(filtro.ateAno));
-  // Ausente = painel da familia inteira. Presente = so aquele membro.
-  if (filtro.membroId != null) q.set('membro_id', String(filtro.membroId));
+  // Ausente = so o proprio usuario (padrao). null = familia inteira,
+  // escolhida explicitamente. Um id = so aquele membro.
+  if (filtro.membroId === null) q.set('membro_id', 'familia');
+  else if (filtro.membroId !== undefined) q.set('membro_id', String(filtro.membroId));
   appendProfile(q);
   const suffix = q.toString() ? `?${q}` : '';
   const raw = await apiRequest<{

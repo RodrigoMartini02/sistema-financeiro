@@ -62,7 +62,7 @@ async function findAccessibleCategory(
 // GET /api/categories
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
+    const { usuario_id, conta_id, escopo } = req.query as Record<string, string | undefined>;
     const accountIdNum = conta_id ? parseInt(conta_id) : null;
 
     // Carteira compartilhada: em conta pessoal as categorias sao da conta, nao
@@ -76,7 +76,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const targetUserId = usuario_id && req.user!.type === 'admin'
       ? parseInt(usuario_id)
       : await resolveAccountOwnerId(req.user!.id, accountIdNum);
-    const visiveis = await resolveVisibleUserIds(req.user!.id, accountIdNum);
+    const visiveis = await resolveVisibleUserIds(req.user!.id, accountIdNum, escopo === 'familia');
 
     let whereClause: string;
     const params: unknown[] = [];
@@ -415,8 +415,10 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     }
 
     // Em conta pessoal compartilhada, despesas de qualquer membro contam
-    // para o uso da categoria — nao so as do requester.
-    const visiveis = await resolveVisibleUserIds(req.user!.id, existing.contaId);
+    // para o uso da categoria — nao so as do requester. Sempre expandido
+    // aqui: e checagem de integridade antes de excluir, nao exibicao de
+    // dados, entao nao depende do escopo de visualizacao escolhido na tela.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, existing.contaId, true);
     const usageResult = await pool.query(
       'SELECT COUNT(*) AS total FROM despesas WHERE categoria_id = $1 AND usuario_id = ANY($2)',
       [categoryId, visiveis],

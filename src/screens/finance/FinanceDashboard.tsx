@@ -39,9 +39,10 @@ export function FinanceDashboard() {
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
-  // null = familia inteira. Um id = so aquele membro. O estado nao persiste
-  // entre sessoes: o painel sempre abre na visao da familia, que e a completa.
-  const [membroId, setMembroId] = useState<number | null>(null);
+  // undefined = so o proprio usuario (padrao). null = familia inteira,
+  // escolhida explicitamente. Um id = so aquele membro. O estado nao persiste
+  // entre sessoes: o painel sempre abre na visao "so eu".
+  const [membroId, setMembroId] = useState<number | null | undefined>(undefined);
 
   // Alterna entre a visao desta conta (comportamento historico, inalterado) e
   // o Panorama Geral (agregado entre todas as contas do dono). Nao persiste
@@ -65,12 +66,15 @@ export function FinanceDashboard() {
   });
   const data = panoramaQ.data;
 
+  // A comparacao "por membro" so faz sentido no modo Familia — nos demais
+  // escopos ("Eu" ou um membro especifico) nao ha o que comparar.
   const summaryQ = useQuery({
-    queryKey: queryKeys.accountSummary(query.deMes, query.deAno, query.ateMes, query.ateAno),
+    queryKey: queryKeys.accountSummary(query.deMes, query.deAno, query.ateMes, query.ateAno, membroId === null),
     queryFn: () => fetchAccountSummary({
       deMes: query.deMes, deAno: query.deAno, ateMes: query.ateMes, ateAno: query.ateAno,
+      ...(membroId === null ? { escopo: 'familia' as const } : {}),
     }),
-    enabled: temMembros,
+    enabled: temMembros && membroId === null,
     staleTime: 30_000,
   });
 
@@ -318,9 +322,18 @@ export function FinanceDashboard() {
                   a alternar. */}
               {temMembros && visao === 'conta' && (
                 <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
-                  {[{ id: null, label: 'Família' }, ...porMembro.map((m) => ({ id: m.usuarioId, label: m.nome }))].map((opt) => (
+                  {[
+                    { id: undefined, label: 'Eu' },
+                    { id: null, label: 'Família' },
+                    // Nomes vem de membrosQ (sempre disponivel), nao de
+                    // porMembro (que so existe no modo Familia) — o seletor
+                    // nao pode depender de ja estar no modo que ele oferece.
+                    // Inclui o proprio solicitante: clicar nele reproduz "Eu".
+                    ...(membrosQ.data ?? [])
+                      .map((m) => ({ id: m.usuario_id as number | null | undefined, label: firstName(m.nome) })),
+                  ].map((opt) => (
                     <button
-                      key={opt.id ?? 'familia'}
+                      key={opt.id ?? (opt.label === 'Família' ? 'familia' : 'eu')}
                       type="button"
                       onClick={() => setMembroId(opt.id)}
                       aria-pressed={membroId === opt.id}
@@ -581,9 +594,9 @@ export function FinanceDashboard() {
       )}
 
       {/* Análise do período */}
-      {/* Bloco por membro: o comparativo fica visível nos dois modos, porque é
-          ele que dá referência ao número individual. Os donuts são de
-          composição — filtrado num membro, não há o que compor. */}
+      {/* Bloco por membro: só existe no modo Família — summaryQ (fonte de
+          porMembro) só roda com membroId === null, então nos modos "Eu" e
+          "membro específico" porMembro fica vazio e a seção some sozinha. */}
       {temMembros && porMembro.length > 0 && (
         <div>
           <div className="mb-[11px] flex items-center gap-3">

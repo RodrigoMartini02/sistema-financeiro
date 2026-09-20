@@ -7,6 +7,7 @@ import { users, accounts, accountMembers, expenses, memberPermissions } from '..
 import { authenticate, requireTitular } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
+import { resolveVisibleUserIds } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -497,7 +498,7 @@ router.put(
 // visão agregada por autor é um tipo de relatório/consolidação da conta).
 router.get('/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano } = req.query as Record<string, string | undefined>;
+    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano, escopo } = req.query as Record<string, string | undefined>;
 
     const memberAccountId = await resolveMemberAccountId(req.user!.id);
     const isMember = memberAccountId !== null;
@@ -521,16 +522,13 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
       return;
     }
 
-    const memberRows = await pool.query(
-      `SELECT usuario_id FROM conta_membros WHERE conta_id = $1 AND status = 'ativo'`,
-      [accountId],
-    );
+    // Este resumo alimenta a comparacao "por membro da familia" do painel —
+    // so faz sentido, e so deve trazer dados de outros, quando o solicitante
+    // pediu explicitamente o escopo ampliado E tem a permissao de familia.
+    const authorIds = await resolveVisibleUserIds(req.user!.id, accountId, escopo === 'familia');
+
     const accountOwner = await pool.query(`SELECT usuario_id FROM contas WHERE id = $1`, [accountId]);
     const ownerId = (accountOwner.rows[0] as { usuario_id: number } | undefined)?.usuario_id;
-    const authorIds = [
-      ...(ownerId ? [ownerId] : []),
-      ...memberRows.rows.map((r: { usuario_id: number }) => r.usuario_id),
-    ];
 
     // O painel filtra por INTERVALO (de/ate), nao por mes unico. Os parametros
     // mes/ano continuam aceitos para nao quebrar quem ja chamava assim.

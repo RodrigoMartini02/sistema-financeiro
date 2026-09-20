@@ -149,6 +149,8 @@ export interface AccountSummaryPeriod {
   deAno?: number;
   ateMes?: number;
   ateAno?: number;
+  /** Sem valor = só o próprio usuário. `'familia'` = compara todos os membros. */
+  escopo?: 'familia';
 }
 
 /**
@@ -161,6 +163,7 @@ export async function fetchAccountSummary(period: AccountSummaryPeriod = {}): Pr
   if (period.deAno !== undefined) q.set('de_ano', String(period.deAno));
   if (period.ateMes !== undefined) q.set('ate_mes', String(period.ateMes));
   if (period.ateAno !== undefined) q.set('ate_ano', String(period.ateAno));
+  if (period.escopo) q.set('escopo', period.escopo);
   const suffix = q.toString() ? `?${q}` : '';
   return apiRequest<AccountSummary>(`/account-members/summary${suffix}`);
 }

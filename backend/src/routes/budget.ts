@@ -28,9 +28,9 @@ function parseOptionalInt(value: unknown): number | undefined {
 // Sem requireScreenAccess de propósito: este resumo também alimenta o
 // gráfico de categorias do Dashboard, que deve aparecer para qualquer membro
 // autenticado — o controle de QUAIS dados aparecem já é feito dentro de
-// getBudgetOverview (resolveVisibleUserIds restringe aos próprios
-// lançamentos sem a permissão de família). accessBudget continua exigido só
-// para editar/remover metas, abaixo.
+// getBudgetOverview (resolveVisibleUserIds restringe por padrão aos próprios
+// lançamentos; só amplia com escopo=familia + a permissão correspondente).
+// accessBudget continua exigido só para editar/remover metas, abaixo.
 router.get('/resumo', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const query = req.query as Record<string, unknown>;
@@ -46,6 +46,7 @@ router.get('/resumo', authenticate, async (req: Request, res: Response): Promise
     const result = await getBudgetOverview({
       userId: req.user!.id,
       accountId: parseAccountId(query['conta_id']),
+      expandir: query['escopo'] === 'familia',
       ...period,
     });
     res.json({ success: true, data: result });

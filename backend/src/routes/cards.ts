@@ -15,13 +15,14 @@ const TIPOS_VALIDOS = ['credito', 'debito', 'ambos'];
 // GET /api/cards
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { usuario_id, conta_id } = req.query as Record<string, string | undefined>;
+    const { usuario_id, conta_id, escopo } = req.query as Record<string, string | undefined>;
     const targetUserId = usuario_id && req.user!.type === 'admin' ? parseInt(usuario_id) : req.user!.id;
 
-    // Com a permissao de cartoes da familia, o membro enxerga tambem os
+    // Com a permissao de cartoes da familia, o membro pode enxergar tambem os
     // cartoes dos demais — para poder registrar um gasto feito no cartao de
-    // outra pessoa. O cartao continua sendo do dono; isto so amplia a leitura.
-    const donosVisiveis = await resolveVisibleCardOwnerIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    // outra pessoa, ou para ver a lista completa quando pede explicitamente
+    // (escopo=familia). Por padrao, so os proprios cartoes.
+    const donosVisiveis = await resolveVisibleCardOwnerIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
 
     let whereClause: string;
     const params: unknown[] = [];

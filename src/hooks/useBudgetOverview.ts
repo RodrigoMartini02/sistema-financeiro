@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../services/queryKeys';
 import { fetchBudgetOverview, fetchBudgetOverviewRange, type BudgetOverviewRangeQuery } from '../services/budgetService';
 
-export function useBudgetOverview(month: number, year: number) {
+export function useBudgetOverview(month: number, year: number, escopo?: 'familia') {
   return useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
+    queryKey: queryKeys.budgetOverview(month, year, escopo),
+    queryFn: () => fetchBudgetOverview(month, year, escopo),
     staleTime: 30_000,
   });
 }

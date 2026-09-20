@@ -9,14 +9,20 @@ export function invalidateFinanceQueries(qc: QueryClient, month: number, year: n
 export const queryKeys = {
   session: ['session'] as const,
   planStatus: ['plano-status'] as const,
-  dashboard: (month: number, year: number) => ['dashboard', month, year] as const,
+  // Sem escopo, chave estavel identica a antes: invalidateFinanceQueries
+  // (que so passa month/year) continua casando por prefixo com as duas
+  // variantes de escopo, invalidando as duas de uma vez.
+  dashboard: (month: number, year: number, escopo?: 'familia') =>
+    ['dashboard', month, year, ...(escopo ? [escopo] : [])] as const,
   reservas: ['reservas'] as const,
   movimentacoes: (reservaId: number) => ['movimentacoes', reservaId] as const,
   // Parametrizado por conta: sem argumento, chave estavel identica a antes
   // (['categorias', 'ativa']) — os call sites que nao lidam com troca de
   // conta continuam funcionando sem qualquer ajuste alem de virar chamada.
   categorias: (accountId?: number | null) => ['categorias', accountId ?? 'ativa'] as const,
-  cartoes: (accountId?: number | null) => ['cartoes', accountId ?? 'ativa'] as const,
+  // escopo na chave: 'familia' e o default ('so eu') pedem dados diferentes
+  // do servidor e nao podem compartilhar cache.
+  cartoes: (accountId?: number | null, escopo?: 'familia') => ['cartoes', accountId ?? 'ativa', escopo ?? 'eu'] as const,
   contas: ['contas'] as const,
   representantes: ['representantes'] as const,
   socios: ['socios'] as const,
@@ -32,11 +38,13 @@ export const queryKeys = {
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
   // O membro faz parte da chave: sem isso o React Query serviria os numeros do
-  // escopo anterior ao trocar de membro no seletor.
+  // escopo anterior ao trocar de membro no seletor. undefined ("so eu") e
+  // null ("familia") sao escopos diferentes e nao podem colapsar na mesma
+  // chave — por isso o sentinela distingue os dois em vez de usar `?? null`.
   dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, membroId?: number | null) =>
-    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroId ?? null] as const,
-  accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
-    ['account-summary', deMes, deAno, ateMes, ateAno] as const,
+    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroId === undefined ? 'eu' : membroId] as const,
+  accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, familia?: boolean) =>
+    ['account-summary', deMes, deAno, ateMes, ateAno, familia ?? false] as const,
   accountsOverview: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
     ['accounts-overview', deMes, deAno, ateMes, ateAno] as const,
   // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
@@ -47,7 +55,8 @@ export const queryKeys = {
     ['expense-suggestions', descricao, categoriaId] as const,
   incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
   appointments: (month: number, year: number) => ['appointments', month, year] as const,
-  budgetOverview: (month: number, year: number) => ['budget-overview', month, year] as const,
+  budgetOverview: (month: number, year: number, escopo?: 'familia') =>
+    ['budget-overview', month, year, ...(escopo ? [escopo] : [])] as const,
   budgetOverviewRange: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
     ['budget-overview-range', deMes, deAno, ateMes, ateAno] as const,
   copilotConversations: ['copilot-conversations'] as const,

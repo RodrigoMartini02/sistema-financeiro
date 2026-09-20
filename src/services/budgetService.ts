@@ -11,10 +11,13 @@ export interface BudgetOverviewRangeQuery {
   deAno?: number;
   ateMes?: number;
   ateAno?: number;
+  /** Sem valor = só o próprio usuário. `'familia'` = soma todos os membros. */
+  escopo?: 'familia';
 }
 
-export function fetchBudgetOverview(month: number, year: number): Promise<BudgetOverview> {
-  return apiRequest<BudgetOverview>(`/orcamento/resumo?mes=${month}&ano=${year}${contaQuery()}`);
+export function fetchBudgetOverview(month: number, year: number, escopo?: 'familia'): Promise<BudgetOverview> {
+  const escopoQuery = escopo ? `&escopo=${escopo}` : '';
+  return apiRequest<BudgetOverview>(`/orcamento/resumo?mes=${month}&ano=${year}${escopoQuery}${contaQuery()}`);
 }
 
 export function fetchBudgetOverviewRange(query: BudgetOverviewRangeQuery): Promise<BudgetOverview> {
@@ -23,6 +26,7 @@ export function fetchBudgetOverviewRange(query: BudgetOverviewRangeQuery): Promi
   if (query.deAno !== undefined) params.set('de_ano', String(query.deAno));
   if (query.ateMes !== undefined) params.set('ate_mes', String(query.ateMes));
   if (query.ateAno !== undefined) params.set('ate_ano', String(query.ateAno));
+  if (query.escopo) params.set('escopo', query.escopo);
   return apiRequest<BudgetOverview>(`/orcamento/resumo?${params}${contaQuery()}`);
 }
 

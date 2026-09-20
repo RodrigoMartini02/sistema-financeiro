@@ -3,9 +3,12 @@ import { pool } from '../db/client';
 /**
  * Resolve quais usuários um solicitante pode enxergar numa conta.
  *
- * Regra: em conta PESSOAL, o gestor e os membros vinculados compartilham a
- * mesma carteira — desde que o solicitante tenha a permissão
- * `acesso_lancamentos_familia`. Fora disso, cada um vê apenas o que cadastrou.
+ * Regra: em conta PESSOAL, o titular e os membros vinculados PODEM
+ * compartilhar a mesma carteira — desde que o solicitante tenha a permissão
+ * `acesso_lancamentos_familia` E peça explicitamente a visão ampliada
+ * (parâmetro `expandir`). Por padrão, mesmo com a permissão, cada um vê
+ * apenas o que cadastrou — a permissão habilita o pedido, não liga a
+ * expansão sozinha.
  *
  * Conta EMPRESA nunca compartilha: colaboradores seguem isolados. Membros
  * da família só existem em conta pessoal.
@@ -24,13 +27,20 @@ export type FamilyScope = 'acesso_lancamentos_familia' | 'acesso_cartoes_familia
  * Base compartilhada: valida conta, vinculo e permissao, e devolve os usuarios
  * visiveis. Recebe qual permissao consultar em vez de existir uma copia por
  * recurso — duplicar isso seria duplicar codigo de seguranca.
+ *
+ * `expandir` e a intencao explicita do solicitante (ex.: selecionou "Familia"
+ * na tela). Sem ela, a resposta e sempre so o proprio usuario — ter a
+ * permissao nao basta para ampliar sozinho a visibilidade por padrao, so
+ * habilita o solicitante a pedir a ampliacao quando quiser.
  */
 async function resolveByScope(
   requesterId: number,
   accountId: number | null,
   scope: FamilyScope,
+  expandir: boolean,
 ): Promise<number[]> {
   const sozinho = [requesterId];
+  if (!expandir) return sozinho;
   if (!accountId) return sozinho;
 
   const conta = await pool.query(
@@ -74,9 +84,20 @@ async function resolveByScope(
   return [...ids];
 }
 
-/** Usuarios cujos LANCAMENTOS o solicitante pode ver. */
-export function resolveVisibleUserIds(requesterId: number, accountId: number | null): Promise<number[]> {
-  return resolveByScope(requesterId, accountId, 'acesso_lancamentos_familia');
+/**
+ * Usuarios cujos LANCAMENTOS o solicitante pode ver.
+ *
+ * `expandir` (default `false`) e quem decide se a familia inteira entra na
+ * resposta — sem ela, mesmo com a permissao liberada, volta so o proprio
+ * solicitante. Isso e o que faz a visao "so eu" ser sempre o padrao das
+ * telas, e a visao "familia" uma escolha explicita do usuario.
+ */
+export function resolveVisibleUserIds(
+  requesterId: number,
+  accountId: number | null,
+  expandir = false,
+): Promise<number[]> {
+  return resolveByScope(requesterId, accountId, 'acesso_lancamentos_familia', expandir);
 }
 
 /**
@@ -117,9 +138,16 @@ export async function resolveAccountOwnerId(requesterId: number, accountId: numb
  *
  * Permissao separada da de lancamentos: cartao e pessoal por natureza, e ver o
  * cartao de outro membro nao decorre de ver os lancamentos dele.
+ *
+ * Mesma regra de `expandir` de resolveVisibleUserIds: default `false`, so
+ * amplia quando o solicitante pede explicitamente.
  */
-export function resolveVisibleCardOwnerIds(requesterId: number, accountId: number | null): Promise<number[]> {
-  return resolveByScope(requesterId, accountId, 'acesso_cartoes_familia');
+export function resolveVisibleCardOwnerIds(
+  requesterId: number,
+  accountId: number | null,
+  expandir = false,
+): Promise<number[]> {
+  return resolveByScope(requesterId, accountId, 'acesso_cartoes_familia', expandir);
 }
 
 /**

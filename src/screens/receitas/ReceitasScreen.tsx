@@ -2,8 +2,9 @@ import { useState, type ReactNode } from 'react';
 import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { apiRequest } from '../../services/apiClient';
+import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
+import { fetchMembros } from '../../services/membrosService';
 import type { Income, IncomeFormValues } from '../../types/finance';
 import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
@@ -54,7 +55,19 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
 
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const finance = useFinanceDashboard(month, year);
+
+  // Escopo do servidor: por padrao so os proprios lancamentos. "Familia" so
+  // aparece como opcao quando ha outros membros vinculados a conta.
+  const activeAccountId = getActiveAccountId();
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+    staleTime: 5 * 60_000,
+  });
+  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const [escopoFamilia, setEscopoFamilia] = useState(false);
+
+  const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.incomes ?? [];
   const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
 
@@ -223,6 +236,26 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
           {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             {toolbarStart && <div className="flex min-w-0 flex-wrap items-center gap-2">{toolbarStart}</div>}
+            <div className="flex flex-wrap items-center gap-2">
+              {temMembros && (
+                <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
+                  {[{ v: false, label: 'Só eu' }, { v: true, label: 'Família' }].map((opt) => (
+                    <button
+                      key={String(opt.v)}
+                      type="button"
+                      onClick={() => setEscopoFamilia(opt.v)}
+                      aria-pressed={escopoFamilia === opt.v}
+                      className={[
+                        'rounded-full px-3 py-1 text-xs font-semibold transition',
+                        escopoFamilia === opt.v ? 'bg-brand-500 text-white' : 'text-slate-500 hover:bg-slate-100',
+                      ].join(' ')}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="relative w-full max-w-xs">
               <input
                 type="search"

@@ -190,15 +190,16 @@ function previousThreePeriods(month: number, year: number): Array<{ month: numbe
 export async function getBudgetOverview(input: {
   userId: number;
   accountId: number | null;
+  /** Traz o gasto agregado da família (com permissão); default: só o usuário. */
+  expandir?: boolean;
 } & BudgetPeriodInput): Promise<BudgetOverview> {
-  const { userId, accountId, ...period } = input;
+  const { userId, accountId, expandir, ...period } = input;
   const resolved = resolvePeriod(period);
   const account = await resolveFinancialAccount(userId, accountId);
-  // O teto de gasto e da carteira, nao de quem esta olhando: com membros
-  // vinculados, o painel soma a familia inteira nas barras por categoria, e a
-  // coluna precisa somar o mesmo conjunto. Sem membros, devolve so o proprio
-  // usuario e o comportamento fica identico ao de antes.
-  const scopeIds = await resolveVisibleUserIds(userId, accountId);
+  // O teto de gasto e da carteira: quando o solicitante pede explicitamente o
+  // escopo de familia (e tem a permissao), a coluna soma todos os membros nas
+  // barras por categoria. Por padrao, so o proprio usuario.
+  const scopeIds = await resolveVisibleUserIds(userId, accountId, expandir === true);
   // Categorias sao da CONTA, nunca do membro (nao ha copia por pessoa — ver
   // routes/categories.ts). Sem resolver o dono aqui, um membro sem
   // acesso_lancamentos_familia nunca via categoria nenhuma, mesmo so
