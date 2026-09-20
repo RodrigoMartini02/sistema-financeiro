@@ -212,10 +212,19 @@ export async function deleteExpense(id: number, options?: { deleteGroup?: boolea
   return apiRequest<void>(`/despesas/${id}${suffix}`, { method: 'DELETE' });
 }
 
-// Todas as parcelas de um parcelamento, para a grade de exclusao.
+// Todas as parcelas de um parcelamento, para a grade de exclusao/cancelamento.
 export async function fetchExpenseGroup(grupoId: number): Promise<Expense[]> {
   const rows = await apiRequest<RawExpense[]>(`/despesas/group/${grupoId}`);
   return rows.map(expenseFromApi);
+}
+
+// `id` e sempre a parcela ancora. `ids`, quando informado, cancela
+// exatamente essas parcelas do grupo — usado pela grade de multi-selecao.
+export async function cancelarDespesa(id: number, options?: { ids?: number[] }) {
+  const params = new URLSearchParams();
+  if (options?.ids?.length) params.set('ids', options.ids.join(','));
+  const suffix = params.toString() ? `?${params}` : '';
+  return apiRequest<void>(`/despesas/${id}/cancelar${suffix}`, { method: 'PUT' });
 }
 
 export async function pagarDespesa(id: number, dataPagamento: string, valorPago: number) {

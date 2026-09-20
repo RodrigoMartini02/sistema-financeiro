@@ -32,6 +32,7 @@ const AVAILABLE_BALANCE_SQL = `
         SELECT SUM(r.valor)
         FROM receitas r
         WHERE r.usuario_id = $1
+          AND r.status = 'ativa'
           AND r.descricao NOT ILIKE 'Saldo Anterior%'
           AND (r.ano < $2 OR (r.ano = $2 AND r.mes <= $3))
           AND ${accountMatch('r')}
@@ -50,6 +51,7 @@ const AVAILABLE_BALANCE_SQL = `
         SELECT SUM(d.valor_original)
         FROM despesas d
         WHERE d.usuario_id = $1
+          AND d.status = 'ativa'
           AND (d.ano < $2 OR (d.ano = $2 AND d.mes <= $3))
           AND ${accountMatch('d')}
           AND NOT EXISTS (

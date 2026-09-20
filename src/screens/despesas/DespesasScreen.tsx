@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { pagarDespesa, moverDespesa } from '../../services/financeService';
+import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/financeService';
 import { fetchMembros } from '../../services/membrosService';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
@@ -240,7 +240,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     open: false, title: '', anexos: [],
   });
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; item?: Expense }>({ open: false });
-  const [deleteInstallmentDialog, setDeleteInstallmentDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
+  const [installmentDialog, setInstallmentDialog] = useState<{ open: boolean; item?: Expense; mode: 'excluir' | 'cancelar' }>({ open: false, mode: 'excluir' });
 
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
   const [filtroCategoria, setFiltroCategoria] = useState('');
@@ -296,8 +296,11 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   });
 
   const cancelarMut = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/despesas/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: () => invalidateFinanceQueries(qc, month, year),
+    mutationFn: ({ id, ids }: { id: number; ids?: number[] }) => cancelarDespesa(id, { ids }),
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      setInstallmentDialog({ open: false, mode: 'excluir' });
+    },
   });
 
   const handleMoverProximoMes = async (item: Expense) => {
@@ -312,17 +315,21 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const handleCancelarDespesa = async (item: Expense) => {
     if (item.status === 'cancelada') return;
+    if (item.parcela) {
+      setInstallmentDialog({ open: true, item, mode: 'cancelar' });
+      return;
+    }
     const ok = await confirm({
       title: 'Cancelar despesa',
       message: `Cancelar "${item.descricao}"?`,
       confirmLabel: 'Cancelar despesa',
     });
-    if (ok) cancelarMut.mutate(item.id);
+    if (ok) cancelarMut.mutate({ id: item.id });
   };
 
   const handleExcluirDespesa = async (item: Expense) => {
     if (item.parcela) {
-      setDeleteInstallmentDialog({ open: true, item });
+      setInstallmentDialog({ open: true, item, mode: 'excluir' });
       return;
     }
     const ok = await confirm({
@@ -919,16 +926,21 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
         }}
       />
       <DeleteInstallmentDialog
-        open={deleteInstallmentDialog.open}
-        expense={deleteInstallmentDialog.item ?? null}
-        isLoading={finance.deleteExpense.isPending}
-        onClose={() => setDeleteInstallmentDialog({ open: false })}
-        onDeleteSelected={(ids) => {
-          if (!deleteInstallmentDialog.item) return;
-          finance.deleteExpense.mutate(
-            { id: deleteInstallmentDialog.item.id, ids },
-            { onSuccess: () => setDeleteInstallmentDialog({ open: false }) },
-          );
+        open={installmentDialog.open}
+        expense={installmentDialog.item ?? null}
+        mode={installmentDialog.mode}
+        isLoading={installmentDialog.mode === 'excluir' ? finance.deleteExpense.isPending : cancelarMut.isPending}
+        onClose={() => setInstallmentDialog({ open: false, mode: 'excluir' })}
+        onConfirmSelected={(ids) => {
+          if (!installmentDialog.item) return;
+          if (installmentDialog.mode === 'excluir') {
+            finance.deleteExpense.mutate(
+              { id: installmentDialog.item.id, ids },
+              { onSuccess: () => setInstallmentDialog({ open: false, mode: 'excluir' }) },
+            );
+          } else {
+            cancelarMut.mutate({ id: installmentDialog.item.id, ids });
+          }
         }}
       />
     </>

@@ -47,7 +47,9 @@ async function fetchDespesas(
   formaFiltro: string | undefined,
   statusFiltro: (typeof STATUS_VALUES)[number],
 ): Promise<DespesaRow[]> {
-  let where = 'WHERE d.usuario_id = $1 AND d.data_vencimento >= $2 AND d.data_vencimento <= $3';
+  // Mesmo criterio de fetchReceitas (abaixo): despesa cancelada nunca entra
+  // no relatorio, so o registro fica no banco (soft-status).
+  let where = "WHERE d.usuario_id = $1 AND d.status = 'ativa' AND d.data_vencimento >= $2 AND d.data_vencimento <= $3";
   const params: unknown[] = [userId, dataInicio, dataFim];
   let paramIndex = 4;
 
