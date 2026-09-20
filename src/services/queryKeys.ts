@@ -3,7 +3,6 @@ import type { QueryClient } from '@tanstack/react-query';
 export function invalidateFinanceQueries(qc: QueryClient, month: number, year: number) {
   qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
   qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
-  qc.invalidateQueries({ queryKey: queryKeys.reservas });
 }
 
 export const queryKeys = {
@@ -14,8 +13,6 @@ export const queryKeys = {
   // variantes de escopo, invalidando as duas de uma vez.
   dashboard: (month: number, year: number, escopo?: 'familia') =>
     ['dashboard', month, year, ...(escopo ? [escopo] : [])] as const,
-  reservas: ['reservas'] as const,
-  movimentacoes: (reservaId: number) => ['movimentacoes', reservaId] as const,
   // Parametrizado por conta: sem argumento, chave estavel identica a antes
   // (['categorias', 'ativa']) — os call sites que nao lidam com troca de
   // conta continuam funcionando sem qualquer ajuste alem de virar chamada.

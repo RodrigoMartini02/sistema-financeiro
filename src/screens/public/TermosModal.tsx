@@ -15,7 +15,7 @@ export const TERMOS_CONTEUDO = `
 Estes Termos de Uso regulam o acesso e a utilização do FINGERENCE Sistema Financeiro ("FINGERENCE", "Plataforma"), disponibilizado por seus mantenedores ("Nós"). Ao criar uma conta, acessar ou utilizar o FINGERENCE, você ("Usuário") declara ter lido, compreendido e concordado integralmente com estes Termos. Caso não concorde, não utilize a Plataforma.
 
 **2. DESCRIÇÃO DO SERVIÇO**
-O FINGERENCE é um sistema de gestão financeira pessoal e empresarial que oferece controle de receitas, despesas, reservas, cartões de crédito, relatórios analíticos e gerenciamento de múltiplos perfis financeiros. O FINGERENCE é uma ferramenta de organização financeira e não constitui instituição financeira, prestadora de serviços de pagamento, assessoria de investimentos ou produto regulado pelo Banco Central do Brasil.
+O FINGERENCE é um sistema de gestão financeira pessoal e empresarial que oferece controle de receitas, despesas, cartões de crédito, relatórios analíticos e gerenciamento de múltiplos perfis financeiros. O FINGERENCE é uma ferramenta de organização financeira e não constitui instituição financeira, prestadora de serviços de pagamento, assessoria de investimentos ou produto regulado pelo Banco Central do Brasil.
 
 **3. ELEGIBILIDADE E CADASTRO**
 O acesso ao FINGERENCE é destinado a pessoas físicas maiores de 18 anos e pessoas jurídicas regularmente constituídas. O Usuário é responsável pela veracidade das informações fornecidas no cadastro e pela guarda de suas credenciais de acesso. É vedada a criação de múltiplas contas com a finalidade de burlar restrições da Plataforma.
@@ -75,7 +75,7 @@ O controlador dos dados pessoais tratados por meio do FINGERENCE Sistema Finance
 Para a prestação do serviço, coletamos as seguintes categorias de dados pessoais:
 • Dados de identificação: nome completo, CPF/CNPJ e endereço de e-mail, fornecidos no cadastro.
 • Dados de acesso: endereço IP, data, hora e dispositivo utilizado nos acessos, coletados automaticamente por razões de segurança.
-• Dados financeiros: receitas, despesas, reservas, categorias e demais informações inseridas voluntariamente pelo Usuário.
+• Dados financeiros: receitas, despesas, categorias e demais informações inseridas voluntariamente pelo Usuário.
 • Dados de comunicação: mensagens trocadas com nosso suporte.
 Não coletamos dados sensíveis conforme definido no Art. 5º, II da LGPD, como origem racial, convicção religiosa, dados genéticos, biométricos ou relativos à saúde.
 

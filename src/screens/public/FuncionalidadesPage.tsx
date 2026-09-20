@@ -9,7 +9,6 @@ import {
   Layers,
   ListPlus,
   LockKeyhole,
-  PiggyBank,
   ReceiptText,
   ShieldCheck,
   TrendingUp,
@@ -45,12 +44,6 @@ const MODULOS: ModuleFeature[] = [
     accent: 'border-emerald-100 bg-emerald-50 text-emerald-600',
   },
   {
-    icon: PiggyBank,
-    title: 'Reservas',
-    description: 'Separe metas, caixa de segurança e objetivos sem perder o saldo disponível de vista.',
-    accent: 'border-amber-100 bg-amber-50 text-amber-600',
-  },
-  {
     icon: ListPlus,
     title: 'Cadastro em lote',
     description: 'Registre várias receitas ou despesas de uma vez, ideal para rotinas com maior volume.',
@@ -84,7 +77,7 @@ const FLUXO = [
   {
     icon: BookOpen,
     title: 'Leia o histórico',
-    description: 'Relatórios e reservas mostram o caminho do dinheiro sem depender de planilhas soltas.',
+    description: 'Relatórios mostram o caminho do dinheiro sem depender de planilhas soltas.',
   },
 ];
 
@@ -268,7 +261,7 @@ export function FuncionalidadesPage() {
               Do lançamento ao relatório, tudo fica conectado.
             </h2>
             <p className="mt-5 max-w-[680px] text-[15px] leading-[1.8] text-slate-600">
-              Controle lançamentos, cartões, reservas e relatórios em uma sequência simples, com dados separados por conta e sempre prontos para consulta.
+              Controle lançamentos, cartões e relatórios em uma sequência simples, com dados separados por conta e sempre prontos para consulta.
             </p>
             <div className="mt-8 grid gap-4">
               {FLUXO.map(({ icon: Icon, title, description }) => (

@@ -11,7 +11,7 @@ const benefits: Benefit[] = [
   {
     icon: Layers,
     title: 'Tudo organizado, sem esforço',
-    description: 'Receitas, despesas, cartões e reservas em um só lugar — sem planilhas soltas ou anotações perdidas.',
+    description: 'Receitas, despesas e cartões em um só lugar — sem planilhas soltas ou anotações perdidas.',
   },
   {
     icon: Zap,

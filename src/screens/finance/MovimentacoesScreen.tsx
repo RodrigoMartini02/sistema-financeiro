@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, List, Lock, LockOpen, PiggyBank, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { Calendar, List, Lock, LockOpen, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -14,7 +14,6 @@ import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
 import { DespesasScreen, type FilteredSummary } from '../despesas/DespesasScreen';
 import { ReceitasScreen } from '../receitas/ReceitasScreen';
-import { ReservasPanel } from '../reservas/ReservasPanel';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
@@ -109,14 +108,6 @@ function MovementTableToggle({ activeTab, onChange }: MovementTableToggleProps) 
   );
 }
 
-function getDefaultMovementDate(month: number, year: number): string {
-  const today = new Date();
-  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-  const day = isCurrentMonth ? today.getDate() : 1;
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
-}
-
 export function MovimentacoesScreen() {
   const { setQuickAction, setFillViewport } = useAppContext();
   const now = new Date();
@@ -125,14 +116,12 @@ export function MovimentacoesScreen() {
   const [activeTab, setActiveTab] = useState<MovementTab>('receitas');
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
-  const [reserveDialogOpen, setReserveDialogOpen] = useState(false);
   const isPlanning = activeTab === 'planejamento';
   const isCalendario = viewMode === 'calendario' && !isPlanning;
   const isLista = !isCalendario;
   const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
   const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
   const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
-  const reservaGuide = useFirstAccessGuide('reservas:movimentar-v1', { enabled: isLista });
 
   // Altura total tambem na lista de despesas: cabecalho, filtros e cards de
   // resumo ficam fixos e so o corpo da tabela rola. Receitas e Planejamento
@@ -301,28 +290,6 @@ export function MovimentacoesScreen() {
                   />
                 )}
               </div>
-              <div className="relative">
-                <Button
-                  variant="secondary"
-                  icon={<PiggyBank size={15} />}
-                  onClick={() => setReserveDialogOpen(true)}
-                  aria-label="Movimentar reserva"
-                  title="Movimentar reserva"
-                  className="!px-2.5"
-                />
-                {reservaGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    align="right"
-                    className="w-[min(24rem,calc(100vw-2rem))]"
-                    icon={PiggyBank}
-                    description={firstAccessGuideMessages.reservasMovimentar}
-                    onDismiss={reservaGuide.dismiss}
-                    onSilenceAll={reservaGuide.silenceAll}
-                  />
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -389,12 +356,6 @@ export function MovimentacoesScreen() {
             </div>
           )}
       </div>
-
-      <ReservasPanel
-        open={reserveDialogOpen}
-        defaultDate={getDefaultMovementDate(month, year)}
-        onClose={() => setReserveDialogOpen(false)}
-      />
     </>
   );
 }

@@ -4,7 +4,6 @@ export const firstAccessGuideMessages = {
   receitasBusca: 'Use a busca para localizar receitas por descri\u00e7\u00e3o, cliente ou tipo.',
   despesasNova: 'Clique em Nova despesa para registrar um gasto, vencimento ou conta a pagar.',
   despesasFiltros: 'Use os filtros para separar despesas pagas, pendentes, atrasadas ou por categoria.',
-  reservasNova: 'Clique em Nova reserva para separar dinheiro para uma meta.',
   relatoriosConsultar: 'Depois de alterar o per\u00edodo, clique em Consultar para atualizar o relat\u00f3rio.',
   relatoriosExportar: 'Clique em Exportar PDF para baixar o relat\u00f3rio completo em um documento PDF.',
   categoriasNova: 'Clique em Nova categoria para organizar seus lan\u00e7amentos por tipo.',
@@ -27,11 +26,6 @@ export const firstAccessGuideMessages = {
   receitasHoras: 'Abra Horas a faturar para lan\u00e7ar horas de um contrato e calcular o valor automaticamente.',
   receitasReplicar: 'Use Replicar at\u00e9 para duplicar esta receita automaticamente nos meses seguintes.',
   receitasRepresentante: 'Ao vincular um representante, a comiss\u00e3o dele \u00e9 calculada automaticamente sobre esta receita.',
-
-  // Reservas
-  reservasMovimentar: 'Use Movimentar para registrar dep\u00f3sitos ou retiradas nesta reserva.',
-  reservasAbaMovimentar: 'A aba Movimentar aparece depois que a reserva \u00e9 criada, para registrar dep\u00f3sitos e retiradas.',
-  reservasContribuicaoSugerida: 'Com meta e prazo definidos, calculamos quanto guardar por m\u00eas para atingir o objetivo.',
 
   // Categorias
   categoriasDesativar: 'N\u00e3o \u00e9 poss\u00edvel excluir categorias. Desative as que n\u00e3o usa mais para ocult\u00e1-las sem perder o hist\u00f3rico.',

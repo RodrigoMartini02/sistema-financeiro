@@ -43,7 +43,6 @@ const MODULE_PRIORITY: Record<string, number> = {
   usuarios: 2,
   despesas: 3,
   receitas: 3,
-  reservas: 3,
   painel: 4,
   meses: 4,
   planos: 4,

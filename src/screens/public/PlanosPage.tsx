@@ -19,7 +19,6 @@ const PLANOS = [
       'Controle mensal de receitas e despesas',
       'Cartão de crédito',
       'Parcelas e recorrências avançadas',
-      'Reservas financeiras',
       'Relatórios detalhados',
       'Categorias personalizadas',
     ],
@@ -44,7 +43,6 @@ const PLANOS = [
 
 const COMPARATIVO = [
   { item: 'Controle mensal de receitas e despesas', plus: true, premium: true },
-  { item: 'Reservas financeiras', plus: true, premium: true },
   { item: 'Cartão de crédito', plus: true, premium: true },
   { item: 'Parcelas e recorrências avançadas', plus: true, premium: true },
   { item: 'Relatórios detalhados', plus: true, premium: true },

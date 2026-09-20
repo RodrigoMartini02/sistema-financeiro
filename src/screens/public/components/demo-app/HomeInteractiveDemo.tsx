@@ -8,7 +8,7 @@ export function HomeInteractiveDemo() {
             Use o sistema de verdade, com seus próprios dados.
           </h2>
           <p className="mx-auto mt-4 max-w-[680px] text-[15px] leading-relaxed text-slate-600">
-            Lance uma despesa, uma receita, crie uma reserva e veja tudo refletir na hora. É uma
+            Lance uma despesa, uma receita e veja tudo refletir na hora. É uma
             demonstração — nada aqui é salvo.
           </p>
         </header>
