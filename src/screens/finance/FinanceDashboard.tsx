@@ -18,6 +18,7 @@ import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
+import { fetchOwnPermissions } from '../../services/permissoesService';
 import { buildMemberColors, memberColor, firstName, PALETA } from './memberColors';
 import { PanoramaGeralView } from './PanoramaGeralView';
 
@@ -57,6 +58,16 @@ export function FinanceDashboard() {
   });
   // Sem membros vinculados nao ha o que separar: o painel se comporta como antes.
   const temMembros = (membrosQ.data?.length ?? 0) > 0;
+
+  // Mesma query/chave usada em AppShell.tsx — cache compartilhado. Sem a
+  // permissao, o membro nem ve a opcao Panorama Geral no toggle abaixo, em
+  // vez de so descobrir o bloqueio ao clicar (403 do backend).
+  const { data: ownPermissions } = useQuery({
+    queryKey: ['own-permissions'],
+    queryFn: fetchOwnPermissions,
+    staleTime: 5 * 60_000,
+  });
+  const canViewPanorama = ownPermissions?.accessGeneralOverview ?? true;
 
   const query = { ...periodToQuery(period), membroId };
   const panoramaQ = useQuery({
@@ -298,7 +309,7 @@ export function FinanceDashboard() {
             <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
               {([
                 { id: 'conta', label: 'Esta conta' },
-                { id: 'panorama', label: 'Panorama Geral' },
+                ...(canViewPanorama ? [{ id: 'panorama', label: 'Panorama Geral' }] as const : []),
               ] as const).map((opt) => (
                 <button
                   key={opt.id}

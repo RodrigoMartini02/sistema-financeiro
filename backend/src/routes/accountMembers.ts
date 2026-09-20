@@ -56,9 +56,13 @@ async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string 
 // (entre as várias que o gestor pode ter); sem ele, usa a Conta Padrão.
 //
 // Membro: conta_id é ignorado — a conta é sempre a que ele está vinculado
-// (nunca aceita do client, para não vazar outra conta). Sem accessMembers,
-// só recebe a si mesmo na lista; com accessMembers, recebe a lista completa,
-// igual ao gestor veria.
+// (nunca aceita do client, para não vazar outra conta). Esta lista alimenta a
+// opção "Família" nas telas financeiras (Despesas, Receitas, Dashboard,
+// Orçamento, Cartões) — por isso usa accessFamilyEntries, a permissão que já
+// significa "ver lançamentos dos outros membros", em vez de accessMembers
+// (que é sobre a tela de gestão de membros, nunca acessível a um membro).
+// Sem accessFamilyEntries, só recebe a si mesmo na lista; com ela, recebe a
+// lista completa, igual ao gestor veria.
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const memberAccountId = await resolveMemberAccountId(req.user!.id);
@@ -77,7 +81,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const podeVerTodos = !isMember || (await hasScreenAccess(req.user!.id, 'accessMembers'));
+    const podeVerTodos = !isMember || (await hasScreenAccess(req.user!.id, 'accessFamilyEntries'));
 
     const result = podeVerTodos
       ? await pool.query(
