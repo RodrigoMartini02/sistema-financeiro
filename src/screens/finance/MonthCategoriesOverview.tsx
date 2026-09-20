@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronUp, Target } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight, ChevronUp, Target } from 'lucide-react';
 import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
 import { Card } from '../../ui/card';
 import { budgetPercentage, formatCurrency } from './formatters';
 
-/** Categorias mostradas antes de "ver todas". */
+/** Categorias-raiz mostradas antes de "ver todas" — subs não contam aqui, só aparecem ao expandir a raiz. */
 const CATEGORIAS_VISIVEIS = 5;
+
+/** Raiz com suas subcategorias já agrupadas, mesmo formato de BudgetPanel/CategoriasTab. */
+interface CategoriaTreeNode {
+  root: BudgetOverviewItem;
+  children: BudgetOverviewItem[];
+}
 
 export interface CategoriaSegmento {
   usuarioId: number;
@@ -42,24 +48,44 @@ function statusLabel(item: BudgetOverviewItem): string {
 
 export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCategoria }: MonthCategoriesOverviewProps) {
   const [expandido, setExpandido] = useState(false);
+  // Raizes iniciam colapsadas — guarda quem foi expandido, mesma abordagem de
+  // CategoriasTab (o default "fechado" não depende de um efeito para popular ids).
+  const [expandedRoots, setExpandedRoots] = useState<number[]>([]);
 
   if (!overview) return null;
 
   const porMembro = segmentosPorCategoria !== undefined;
 
-  const items = overview.items.filter((item) => item.projectedAmount > 0).sort((a, b) => b.projectedAmount - a.projectedAmount);
-  if (items.length === 0) return null;
+  // Contadores do cabecalho somam TODOS os itens carregados (raiz + sub) —
+  // sao um resumo global do periodo, independente do corte visual de "top 5".
+  const allItems = overview.items.filter((item) => item.projectedAmount > 0);
+  if (allItems.length === 0) return null;
 
-  // As maiores contam a maior parte da historia; a cauda longa de categorias
-  // pequenas empurrava o resto do painel para fora da tela.
-  const visiveis = expandido ? items : items.slice(0, CATEGORIAS_VISIVEIS);
-  const ocultas = items.length - visiveis.length;
+  const total = allItems.reduce((s, item) => s + item.projectedAmount, 0);
+  const acimaCount = allItems.filter((item) => item.status === 'over' || item.status === 'attention').length;
+  const semMetaCount = allItems.filter((item) => !item.targetAmount && !item.hasActiveSubcategories).length;
+  const noLimiteCount = allItems.filter((item) => item.status === 'attention').length;
+  const max = Math.max(1, ...allItems.map((item) => Math.max(item.projectedAmount, item.targetAmount ?? 0)));
 
-  const total = items.reduce((s, item) => s + item.projectedAmount, 0);
-  const acimaCount = items.filter((item) => item.status === 'over' || item.status === 'attention').length;
-  const semMetaCount = items.filter((item) => !item.targetAmount && !item.hasActiveSubcategories).length;
-  const noLimiteCount = items.filter((item) => item.status === 'attention').length;
-  const max = Math.max(1, ...items.map((item) => Math.max(item.projectedAmount, item.targetAmount ?? 0)));
+  // Arvore: raiz + subs, mesmo padrao de BudgetPanel. Uma sub cujo pai nao
+  // aparece em allItems (pai sem gasto, ou desativado) vira raiz propria, para
+  // nao sumir da tela.
+  const visibleIds = new Set(allItems.map((item) => item.categoryId));
+  const roots = allItems
+    .filter((item) => item.parentId === null || !visibleIds.has(item.parentId))
+    .sort((a, b) => b.projectedAmount - a.projectedAmount);
+  const tree: CategoriaTreeNode[] = roots.map((root) => ({
+    root,
+    children: allItems.filter((item) => item.parentId === root.categoryId).sort((a, b) => b.projectedAmount - a.projectedAmount),
+  }));
+
+  // O corte "top 5 / ver mais" conta so raizes — subs so aparecem ao expandir
+  // a raiz correspondente, sem ocupar vaga nesse corte.
+  const treeVisivel = expandido ? tree : tree.slice(0, CATEGORIAS_VISIVEIS);
+  const raizesOcultas = tree.length - treeVisivel.length;
+
+  const toggleRoot = (id: number) =>
+    setExpandedRoots((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   return (
     <Card className="overflow-hidden rounded-2xl p-0">
@@ -92,7 +118,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
 
       <div className="px-5 py-5">
         <div className="mb-3 flex items-center justify-between text-[11px] text-[#5f7885] dark:text-slate-400">
-          <span>{formatCurrency(total)} em {items.length} categorias</span>
+          <span>{formatCurrency(total)} em {tree.length} categoria{tree.length === 1 ? '' : 's'}</span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {porMembro ? (
               // A legenda passa a ser das pessoas: e a cor delas que preenche a
@@ -115,51 +141,84 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
         </div>
 
         <div className="grid">
-          {visiveis.map((item) => {
-            const barWidth = Math.min(100, (item.projectedAmount / max) * 100);
-            const targetPosition = item.targetAmount ? Math.min(100, (item.targetAmount / max) * 100) : null;
-            return (
-              <div key={item.categoryId} className="flex items-center gap-3.5 border-t border-[#eef4f7] py-[11px] first:border-t-0 dark:border-slate-700">
-                <span className="w-28 shrink-0 truncate text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100" title={item.categoryName}>{item.categoryName}</span>
-                <div className="relative h-6 flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800">
-                  {porMembro ? (
-                    // Segmentos lado a lado dentro da largura total da barra:
-                    // cada um e a fatia de um membro naquela categoria.
-                    <div className="flex h-6 overflow-hidden rounded-md" style={{ width: `${barWidth}%` }}>
-                      {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => (
-                        <div
-                          key={seg.usuarioId}
-                          style={{
-                            width: `${(seg.valor / item.projectedAmount) * 100}%`,
-                            background: seg.color,
-                          }}
-                          title={`${seg.nome}: ${formatCurrency(seg.valor)}`}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-6 rounded-md" style={{ width: `${barWidth}%`, background: statusColor(item) }} />
+          {treeVisivel.map((node) => {
+            const hasChildren = node.children.length > 0;
+            const isNodeExpanded = expandedRoots.includes(node.root.categoryId);
+            const renderRow = (item: BudgetOverviewItem, isChild: boolean, expandControl?: ReactNode) => {
+              const barWidth = Math.min(100, (item.projectedAmount / max) * 100);
+              const targetPosition = item.targetAmount ? Math.min(100, (item.targetAmount / max) * 100) : null;
+              return (
+                <div
+                  key={item.categoryId}
+                  className={`flex items-center gap-3.5 border-t border-[#eef4f7] py-[11px] first:border-t-0 dark:border-slate-700 ${isChild ? 'pl-6' : ''}`}
+                >
+                  {!isChild && (
+                    <span className="flex w-4 shrink-0 items-center justify-center">
+                      {expandControl}
+                    </span>
                   )}
-                  {!porMembro && targetPosition !== null && (
-                    <span className="absolute -inset-y-1 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" style={{ left: `${targetPosition}%` }} />
+                  <span
+                    className={`w-28 shrink-0 truncate text-[#0f2b38] dark:text-slate-100 ${isChild ? 'text-[11.5px] font-medium' : 'text-[12.5px] font-semibold'}`}
+                    title={item.categoryName}
+                  >
+                    {item.categoryName}
+                  </span>
+                  <div className="relative h-6 flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800">
+                    {porMembro ? (
+                      // Segmentos lado a lado dentro da largura total da barra:
+                      // cada um e a fatia de um membro naquela categoria.
+                      <div className="flex h-6 overflow-hidden rounded-md" style={{ width: `${barWidth}%` }}>
+                        {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => (
+                          <div
+                            key={seg.usuarioId}
+                            style={{
+                              width: `${(seg.valor / item.projectedAmount) * 100}%`,
+                              background: seg.color,
+                            }}
+                            title={`${seg.nome}: ${formatCurrency(seg.valor)}`}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-6 rounded-md" style={{ width: `${barWidth}%`, background: statusColor(item) }} />
+                    )}
+                    {!porMembro && targetPosition !== null && (
+                      <span className="absolute -inset-y-1 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" style={{ left: `${targetPosition}%` }} />
+                    )}
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(item.projectedAmount)}</span>
+                  {porMembro ? (
+                    <span className="w-[152px] shrink-0 truncate text-right text-[11.5px] text-[#7b93a1] dark:text-slate-400">
+                      {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => seg.nome).join(' · ')}
+                    </span>
+                  ) : (
+                    <span className={`w-[152px] shrink-0 text-right text-[11.5px] font-bold tabular-nums ${item.status === 'over' ? 'text-[#b42318] dark:text-rose-300' : item.status === 'attention' ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#7b93a1] dark:text-slate-400'}`}>
+                      {statusLabel(item)}
+                    </span>
                   )}
                 </div>
-                <span className="w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(item.projectedAmount)}</span>
-                {porMembro ? (
-                  <span className="w-[152px] shrink-0 truncate text-right text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-                    {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => seg.nome).join(' · ')}
-                  </span>
-                ) : (
-                  <span className={`w-[152px] shrink-0 text-right text-[11.5px] font-bold tabular-nums ${item.status === 'over' ? 'text-[#b42318] dark:text-rose-300' : item.status === 'attention' ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#7b93a1] dark:text-slate-400'}`}>
-                    {statusLabel(item)}
-                  </span>
-                )}
+              );
+            };
+            return (
+              <div key={node.root.categoryId}>
+                {renderRow(node.root, false, hasChildren ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleRoot(node.root.categoryId)}
+                    aria-expanded={isNodeExpanded}
+                    aria-label={isNodeExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
+                    className="flex h-4 w-4 items-center justify-center rounded text-[#7b93a1] transition hover:text-[#0891b2] dark:text-slate-400"
+                  >
+                    <ChevronRight size={13} strokeWidth={2.2} style={{ transform: isNodeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }} />
+                  </button>
+                ) : null)}
+                {hasChildren && isNodeExpanded && node.children.map((child) => renderRow(child, true))}
               </div>
             );
           })}
         </div>
 
-        {(ocultas > 0 || expandido) && (
+        {(raizesOcultas > 0 || expandido) && (
           <button
             type="button"
             onClick={() => setExpandido((atual) => !atual)}
@@ -168,7 +227,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
           >
             {expandido
               ? <>Ver menos <ChevronUp size={13} /></>
-              : <>Ver todas as {items.length} categorias <ChevronDown size={13} /></>}
+              : <>Ver todas as {tree.length} categorias <ChevronDown size={13} /></>}
           </button>
         )}
 

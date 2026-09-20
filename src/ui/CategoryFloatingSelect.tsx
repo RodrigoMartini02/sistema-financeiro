@@ -191,7 +191,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
               {groupsFiltered.map((group) => (
                 <div key={group.parent?.id ?? group.items[0].id}>
                   {group.parent && (
-                    <p style={{ margin: '6px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>
+                    <p style={{ margin: '6px 0 2px 9px', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.text }}>
                       {group.parent.nome}
                     </p>
                   )}

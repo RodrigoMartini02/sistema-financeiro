@@ -363,14 +363,18 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   };
 
   // Fonte é a lista mestra de categorias ativas (não os nomes já usados nas
-  // despesas carregadas): uma categoria desativada não deve aparecer aqui, e
-  // uma raiz com subcategoria ativa nunca é diretamente filtrável — só as
-  // subs, mesma regra do seletor de despesas (CategoryFloatingSelect).
+  // despesas carregadas): uma categoria desativada não deve aparecer aqui.
+  // Categoria com sub ativa vira cabeçalho no filtro (value dela nunca bate
+  // com i.categoria de despesa nenhuma — marcá-la só serve de atalho para
+  // marcar todas as subs de uma vez, via cascata do MultiFilterPanel), igual
+  // ao agrupamento do seletor de despesas (CategoryFloatingSelect).
   const categoriaOptions = groupSelectableCategories(categoriasQ.data ?? [])
-    .flatMap((group) => group.items.map((c) => ({
-      value: c.nome,
-      label: group.parent ? `${group.parent.nome} › ${c.nome}` : c.nome,
-    })))
+    .flatMap((group) => group.parent
+      ? [
+          { value: group.parent.nome, label: group.parent.nome },
+          ...group.items.map((c) => ({ value: c.nome, label: c.nome, parentValue: group.parent!.nome })),
+        ]
+      : group.items.map((c) => ({ value: c.nome, label: c.nome })))
     .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
   const formas = [...new Set(allItems.map((i) => i.formaPagamento))].sort();
   const cartoesUsados = [...new Map(
