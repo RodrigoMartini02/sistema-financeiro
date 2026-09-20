@@ -151,29 +151,19 @@ export function DeleteInstallmentDialog({
           <span style={{ fontSize: 12.5, color: C.textSoft }}>
             {selecionadas.size} de {parcelas.length} parcela{parcelas.length === 1 ? '' : 's'} selecionada{selecionadas.size === 1 ? '' : 's'}
           </span>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isLoading}
-              style={{ padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1 }}
-            >
-              Fechar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmAction}
-              disabled={isLoading || selecionadas.size === 0 || groupQuery.isLoading}
-              style={{
-                padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 700,
-                border: 'none', background: C.danger, color: '#fff',
-                cursor: (isLoading || selecionadas.size === 0) ? 'not-allowed' : 'pointer',
-                opacity: (isLoading || selecionadas.size === 0) ? 0.5 : 1,
-              }}
-            >
-              {isLoading ? acaoLabelGerundio : `${acaoLabel} selecionadas (${selecionadas.size})`}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleConfirmAction}
+            disabled={isLoading || selecionadas.size === 0 || groupQuery.isLoading}
+            style={{
+              padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 700,
+              border: 'none', background: C.danger, color: '#fff',
+              cursor: (isLoading || selecionadas.size === 0) ? 'not-allowed' : 'pointer',
+              opacity: (isLoading || selecionadas.size === 0) ? 0.5 : 1,
+            }}
+          >
+            {isLoading ? acaoLabelGerundio : `${acaoLabel} selecionadas`}
+          </button>
         </div>
       </div>
     </Dialog>
