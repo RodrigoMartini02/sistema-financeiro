@@ -6,14 +6,21 @@
 -- ATENCAO: nao executar sem confirmacao explicita do usuario. O ambiente
 -- pode estar apontando para producao.
 
--- 1. Atualiza dados existentes.
+-- 1. Relaxa o CHECK constraint temporariamente para aceitar tanto os valores
+--    antigos quanto os novos, permitindo o UPDATE abaixo rodar sem violar o
+--    dominio em nenhum momento.
+ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_tipo_check;
+ALTER TABLE usuarios ADD CONSTRAINT usuarios_tipo_check
+  CHECK (tipo IN ('padrao', 'gestor', 'admin', 'master', 'membro', 'titular'));
+
+-- 2. Atualiza dados existentes.
 UPDATE usuarios SET tipo = 'membro' WHERE tipo = 'padrao';
 UPDATE usuarios SET tipo = 'titular' WHERE tipo = 'gestor';
 
--- 2. Recria o CHECK constraint com o dominio correto.
+-- 3. Aperta o CHECK constraint para o dominio final.
 ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_tipo_check;
 ALTER TABLE usuarios ADD CONSTRAINT usuarios_tipo_check
   CHECK (tipo IN ('membro', 'titular', 'admin'));
 
--- 3. Atualiza o default da coluna.
+-- 4. Atualiza o default da coluna.
 ALTER TABLE usuarios ALTER COLUMN tipo SET DEFAULT 'titular';
