@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { Z_DROPDOWN } from './zIndex';
 
 export interface FilterGroupOption {
@@ -29,6 +29,9 @@ interface MultiFilterPanelProps {
 // telas de listagem alem de Despesas.
 export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFilterPanelProps) {
   const [open, setOpen] = useState(false);
+  // Todos os grupos comecam colapsados — cada um expande/colapsa
+  // independentemente, sem exclusividade entre eles (nao e accordion).
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +48,15 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
     if (next.has(value)) next.delete(value);
     else next.add(value);
     group.onChange(next);
+  };
+
+  const toggleGrupoAberto = (groupId: string) => {
+    setGruposAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
   };
 
   return (
@@ -88,29 +100,55 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
-            {groups.map((group) => (
-              <div key={group.id}>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  {group.label}
-                </p>
-                <div className="flex flex-col gap-0.5">
-                  {group.options.map((opt) => (
-                    <label
-                      key={opt.value}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+          <div className="flex flex-col gap-1">
+            {groups.map((group) => {
+              const isOpen = gruposAbertos.has(group.id);
+              const isGroupActive = group.selected.size > 0;
+              return (
+                <div key={group.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGrupoAberto(group.id)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg px-1.5 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700"
+                  >
+                    <span
+                      className={[
+                        'text-[11px] font-semibold uppercase tracking-wide',
+                        isGroupActive ? 'text-[#0a9db5] dark:text-[#0EC4D8]' : 'text-slate-400 dark:text-slate-500',
+                      ].join(' ')}
                     >
-                      <input
-                        type="checkbox"
-                        checked={group.selected.has(opt.value)}
-                        onChange={() => toggleOption(group, opt.value)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      size={12}
+                      className={[
+                        'shrink-0 transition-transform duration-150',
+                        isOpen ? 'rotate-180' : '',
+                        isGroupActive ? 'text-[#0a9db5] dark:text-[#0EC4D8]' : 'text-slate-400 dark:text-slate-500',
+                      ].join(' ')}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="flex flex-col gap-0.5 pb-1">
+                      {group.options.map((opt) => (
+                        <label
+                          key={opt.value}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={group.selected.has(opt.value)}
+                            onChange={() => toggleOption(group, opt.value)}
+                          />
+                          {opt.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
