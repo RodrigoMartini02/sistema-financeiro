@@ -3,6 +3,8 @@ import { AlertTriangle, ChevronRight, Pencil, Plus, Target, Trash2 } from 'lucid
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BudgetOverviewItem, BudgetTargetMode } from '../../types/budget';
 import { deleteBudgetTarget, fetchBudgetOverview, saveBudgetTarget } from '../../services/budgetService';
+import { fetchMembros } from '../../services/membrosService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import { Card } from '../../ui/card';
 import { Dialog } from '../../ui/dialog';
@@ -263,9 +265,21 @@ function MetaDialog({
 
 export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
   const queryClient = useQueryClient();
+
+  // Escopo do servidor: por padrao so o proprio usuario. "Familia" so
+  // aparece como opcao quando ha outros membros vinculados a conta.
+  const activeAccountId = getActiveAccountId();
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+    staleTime: 5 * 60_000,
+  });
+  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const [escopoFamilia, setEscopoFamilia] = useState(false);
+
   const overviewQuery = useQuery({
-    queryKey: queryKeys.budgetOverview(month, year),
-    queryFn: () => fetchBudgetOverview(month, year),
+    queryKey: queryKeys.budgetOverview(month, year, escopoFamilia ? 'familia' : undefined),
+    queryFn: () => fetchBudgetOverview(month, year, escopoFamilia ? 'familia' : undefined),
     staleTime: 30_000,
   });
   const overview = overviewQuery.data;
@@ -357,7 +371,28 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             {toolbarStart && <div className="mb-3">{toolbarStart}</div>}
-            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: CFG.text }}>Planejamento de orçamento</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: CFG.text }}>Planejamento de orçamento</h3>
+              {temMembros && (
+                <div className="flex items-center gap-1 rounded-full border p-1" style={{ borderColor: CFG.border }}>
+                  {[{ v: false, label: 'Só eu' }, { v: true, label: 'Família' }].map((opt) => (
+                    <button
+                      key={String(opt.v)}
+                      type="button"
+                      onClick={() => setEscopoFamilia(opt.v)}
+                      aria-pressed={escopoFamilia === opt.v}
+                      style={{
+                        borderRadius: 999, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+                        background: escopoFamilia === opt.v ? CFG.primary : 'transparent',
+                        color: escopoFamilia === opt.v ? '#fff' : CFG.muted,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <p style={{ margin: '4px 0 0', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
               {tree.length} categoria{tree.length === 1 ? '' : 's'}
               {totalSubs > 0 ? ` · ${totalSubs} sub` : ''}

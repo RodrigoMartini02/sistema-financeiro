@@ -42,11 +42,13 @@ interface CardLimitRow {
 // (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
 // nunca canceladas podem ter status nulo e sumiriam de um `= 'ativa'` direto.
 export async function getCardLimits(userId: number, accountId: number | null): Promise<CardLimit[]> {
-  // Com a permissao de cartoes da familia, o card mostra tambem os cartoes dos
-  // outros membros. O mesmo conjunto vale para o cartao (quem e o dono) e para
-  // a despesa (quem lancou): ampliar so o cartao mostraria o cartao do outro
-  // com limite zerado, porque as despesas dele nao entrariam na soma.
-  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId);
+  // Sempre expandido: este limite alimenta o formulario de lancamento, que
+  // já lista os cartões da família (fetchCartoes com escopo=familia) para
+  // permitir usar um cartão de outro membro. O mesmo conjunto vale para o
+  // cartao (quem e o dono) e para a despesa (quem lancou): ampliar so o
+  // cartao mostraria o cartao do outro com limite zerado, porque as despesas
+  // dele nao entrariam na soma.
+  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, true);
   const params: unknown[] = [donosVisiveis];
   let accountClause = '';
   let expenseAccountClause = '';

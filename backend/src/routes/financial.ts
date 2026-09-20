@@ -118,12 +118,21 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
     const userId = req.user!.id;
     const accountId = conta_id ? parseInt(conta_id) : null;
 
-    // Escopo do painel: a familia inteira, ou um membro especifico. O membro
-    // pedido vem do cliente e so passa se a carteira permitir enxerga-lo.
-    const membroId = membro_id !== undefined ? parseInt(membro_id) : null;
-    if (membroId !== null && Number.isNaN(membroId)) {
-      res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
-      return;
+    // Escopo do painel: por padrao (sem membro_id), so o proprio usuario.
+    // membro_id=familia pede a familia inteira; membro_id=<id> pede um membro
+    // especifico. O membro pedido vem do cliente e so passa se a carteira
+    // permitir enxerga-lo.
+    let membroId: number | null | undefined;
+    if (membro_id === undefined) {
+      membroId = undefined;
+    } else if (membro_id === 'familia') {
+      membroId = null;
+    } else {
+      membroId = parseInt(membro_id);
+      if (Number.isNaN(membroId)) {
+        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+        return;
+      }
     }
     const escopo = await resolveDashboardScope(userId, accountId, membroId);
     if (escopo === null) {

@@ -6,13 +6,13 @@ import {
 } from '../services/financeService';
 import type { IncomeFormValues, ExpenseFormValues } from '../types/finance';
 
-export function useFinanceDashboard(month: number, year: number, enabled = true) {
+export function useFinanceDashboard(month: number, year: number, enabled = true, escopo?: 'familia') {
   const qc = useQueryClient();
-  const key = queryKeys.dashboard(month, year);
+  const key = queryKeys.dashboard(month, year, escopo);
 
   const dashboard = useQuery({
     queryKey: key,
-    queryFn: () => fetchFinanceDashboard(month, year),
+    queryFn: () => fetchFinanceDashboard(month, year, escopo),
     enabled,
     staleTime: 30_000,
   });

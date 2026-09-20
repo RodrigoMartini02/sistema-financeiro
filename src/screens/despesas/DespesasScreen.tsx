@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa } from '../../services/financeService';
+import { fetchMembros } from '../../services/membrosService';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
@@ -254,7 +255,19 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const finance = useFinanceDashboard(month, year);
+
+  // Escopo do servidor: por padrao so os proprios lancamentos. "Familia" so
+  // aparece como opcao quando ha outros membros vinculados a conta.
+  const activeAccountId = getActiveAccountId();
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+    staleTime: 5 * 60_000,
+  });
+  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const [escopoFamilia, setEscopoFamilia] = useState(false);
+
+  const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.expenses ?? [];
 
   const mesStatusQuery = useQuery({
@@ -540,6 +553,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   { value: 'descricao', label: 'A–Z' },
                 ]}
               />
+              {temMembros && (
+                <FilterChip
+                  value={escopoFamilia ? 'familia' : 'eu'}
+                  onChange={(v) => setEscopoFamilia(v === 'familia')}
+                  options={[
+                    { value: 'eu', label: 'Só eu' },
+                    { value: 'familia', label: 'Família' },
+                  ]}
+                />
+              )}
               {mostrarFiltroAutor && (
                 <FilterChip
                   value={filtroAutor}

@@ -352,8 +352,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     staleTime: 30_000,
   });
   const cardsQuery = useQuery({
-    queryKey: queryKeys.cartoes(),
-    queryFn: () => fetchCartoes(),
+    queryKey: queryKeys.cartoes(undefined, 'familia'),
+    queryFn: () => fetchCartoes(undefined, 'familia'),
     enabled: open,
     staleTime: 60_000,
   });

@@ -126,7 +126,10 @@ export interface DashboardPanoramaFiltro {
   deAno?: number;
   ateMes?: number;
   ateAno?: number;
-  /** Sem valor = painel da família inteira. Com valor = apenas aquele membro. */
+  /**
+   * `undefined` (padrão) = só o próprio usuário. `null` = família inteira,
+   * escolhida explicitamente. Um id = apenas aquele membro.
+   */
   membroId?: number | null;
 }
 

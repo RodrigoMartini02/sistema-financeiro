@@ -136,7 +136,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   const [methodTouched, setMethodTouched] = useState(false);
 
   const categorias = useQuery({ queryKey: queryKeys.categorias(contaId), queryFn: () => fetchCategorias(contaId) });
-  const cartoes    = useQuery({ queryKey: queryKeys.cartoes(contaId),    queryFn: () => fetchCartoes(contaId) });
+  const cartoes    = useQuery({ queryKey: queryKeys.cartoes(contaId, 'familia'),    queryFn: () => fetchCartoes(contaId, 'familia') });
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
   const repetitionGuide = useFirstAccessGuide('despesas:toggles-tipo-v1', {
     enabled: !!guideEnabled && open && !isEditing,

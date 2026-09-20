@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import { fetchCartoes, saveCartao } from '../../services/configService';
+import { fetchMembros } from '../../services/membrosService';
+import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
@@ -398,7 +400,21 @@ export function CartaoTab() {
   const [mostrarDesativados, setMostrarDesativados] = useState(false);
   const createGuide = useFirstAccessGuide('cartoes:novo-v1');
 
-  const cartoes = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes() });
+  // Escopo do servidor: por padrao so os proprios cartoes. "Familia" so
+  // aparece como opcao quando ha outros membros vinculados a conta.
+  const activeAccountId = getActiveAccountId();
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+    staleTime: 5 * 60_000,
+  });
+  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const [escopoFamilia, setEscopoFamilia] = useState(false);
+
+  const cartoes = useQuery({
+    queryKey: queryKeys.cartoes(undefined, escopoFamilia ? 'familia' : undefined),
+    queryFn: () => fetchCartoes(undefined, escopoFamilia ? 'familia' : undefined),
+  });
 
   // So o prefixo (sem o segmento de conta): invalida TODAS as variantes por
   // conta, nao so a da conta ativa — editar um cartao aqui deve refletir em
@@ -436,11 +452,32 @@ export function CartaoTab() {
     <div className="grid gap-2.5">
       <ConfigTabHeader
         filters={
-          <ConfigSwitch
-            checked={mostrarDesativados}
-            onChange={setMostrarDesativados}
-            label={contagem}
-          />
+          <>
+            <ConfigSwitch
+              checked={mostrarDesativados}
+              onChange={setMostrarDesativados}
+              label={contagem}
+            />
+            {temMembros && (
+              <div className="flex items-center gap-1 rounded-full border p-1" style={{ borderColor: CFG.border }}>
+                {[{ v: false, label: 'Só eu' }, { v: true, label: 'Família' }].map((opt) => (
+                  <button
+                    key={String(opt.v)}
+                    type="button"
+                    onClick={() => setEscopoFamilia(opt.v)}
+                    aria-pressed={escopoFamilia === opt.v}
+                    style={{
+                      borderRadius: 999, padding: '4px 12px', fontSize: 11.5, fontWeight: 600,
+                      background: escopoFamilia === opt.v ? CFG.primary : 'transparent',
+                      color: escopoFamilia === opt.v ? '#fff' : CFG.muted,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         }
         actionLabel="Novo cartão"
         onAction={() => setDialog({ open: true })}

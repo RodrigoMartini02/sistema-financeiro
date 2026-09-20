@@ -33,7 +33,10 @@ function buildWhereClause(
  */
 async function validateCardId(cardId: unknown, userId: number, accountId: number | null): Promise<number | null> {
   if (!cardId) return null;
-  const donosPermitidos = await resolveVisibleCardOwnerIds(userId, accountId);
+  // Lancar uma despesa pode usar um cartao de outro membro da familia (se a
+  // permissao existir) mesmo que a listagem esteja restrita a "so eu" — usar
+  // um cartao compartilhado e uma acao de escrita distinta de listar dados.
+  const donosPermitidos = await resolveVisibleCardOwnerIds(userId, accountId, true);
   const result = await pool.query(
     'SELECT id FROM cartoes WHERE id = $1 AND usuario_id = ANY($2)',
     [cardId, donosPermitidos],
@@ -198,11 +201,12 @@ async function createRecurringOccurrences(
 // GET /api/expenses
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    // Carteira compartilhada: em conta pessoal o solicitante pode enxergar os
-    // lancamentos dos demais membros, se tiver a permissao. Fora disso a lista
-    // volta so com ele mesmo, e o filtro fica identico ao de antes.
-    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    const { mes, ano, usuario_id, conta_id, escopo } = req.query as Record<string, string | undefined>;
+    // Carteira compartilhada: por padrao a lista traz so o proprio
+    // solicitante. Só amplia para os demais membros da conta quando o
+    // cliente pede explicitamente (escopo=familia) E o solicitante tem a
+    // permissao correspondente.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis);
 
     const result = await pool.query(

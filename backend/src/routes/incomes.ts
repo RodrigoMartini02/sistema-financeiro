@@ -27,10 +27,11 @@ function buildWhereClause(
 // GET /api/incomes
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, usuario_id, conta_id } = req.query as Record<string, string | undefined>;
-    // Mesma regra das despesas: em conta pessoal, com permissao, o solicitante
-    // ve os lancamentos dos demais membros.
-    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    const { mes, ano, usuario_id, conta_id, escopo } = req.query as Record<string, string | undefined>;
+    // Mesma regra das despesas: por padrao so os proprios lancamentos; amplia
+    // para os demais membros so quando o cliente pede (escopo=familia) E o
+    // solicitante tem a permissao correspondente.
+    const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, visiveis);
 
     const result = await pool.query(
