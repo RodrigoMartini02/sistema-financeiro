@@ -262,8 +262,8 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   // Escopo do servidor: por padrao so os proprios lancamentos. O grupo
   // "Membros" do painel de filtro so aparece quando ha outros membros
-  // vinculados a conta; marcar 1+ deles e a unica forma de trazer os
-  // lancamentos deles do servidor, entao o escopo deriva dessa selecao.
+  // vinculados a conta; marcar 1+ outro alem de si mesmo e a unica forma de
+  // trazer os lancamentos deles do servidor, entao o escopo deriva disso.
   const activeAccountId = getActiveAccountId();
   const membrosQ = useQuery({
     queryKey: queryKeys.membros(activeAccountId),
@@ -271,10 +271,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     staleTime: 5 * 60_000,
   });
   const temMembros = (membrosQ.data?.length ?? 0) > 0;
-  const escopoFamilia = filtroMembros.size > 0;
-  // Outros membros da conta, sem o proprio usuario logado — ele e a base fixa
-  // sempre visivel, nunca uma opcao removivel do filtro.
+  // O proprio usuario e mais uma opcao do grupo "Membros" (nao mais base
+  // fixa) — inicia marcado assim que o id chega, mas so uma vez, para nao
+  // sobrescrever uma selecao manual (ex: o usuario desmarcou a si mesmo).
+  const meIdStr = meQ.data ? String(meQ.data.id) : null;
+  useEffect(() => {
+    if (!meIdStr) return;
+    setFiltroMembros((prev) => (prev.size === 0 ? new Set([meIdStr]) : prev));
+  }, [meIdStr]);
   const outrosMembros = (membrosQ.data ?? []).filter((m) => m.usuario_id !== meQ.data?.id);
+  const escopoFamilia = [...filtroMembros].some((id) => id !== meIdStr);
 
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.expenses ?? [];
@@ -369,11 +375,12 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     return false;
   };
 
-  // Nomes visiveis quando ha membros marcados: o proprio usuario (sempre) +
-  // os membros selecionados (por id, resolvidos para nome — Expense so
-  // carrega autorNome, sem id de autor).
+  // Nomes visiveis: reflete literalmente quem esta marcado no grupo
+  // "Membros" (por id, resolvido para nome — Expense so carrega autorNome,
+  // sem id de autor). Nenhum marcado = nenhum nome visivel = nada exibido.
   const nomesVisiveis = new Set(
-    [meQ.data?.nome, ...outrosMembros.filter((m) => filtroMembros.has(String(m.usuario_id))).map((m) => m.nome)]
+    [...filtroMembros]
+      .map((id) => (id === meIdStr ? meQ.data?.nome : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
       .filter(Boolean) as string[],
   );
 
@@ -381,7 +388,10 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     .filter((i) => {
       if (filtroStatus.size > 0 && !filtroStatus.has(getStatus(i))) return false;
       if (filtroCategoria.size > 0 && !filtroCategoria.has(i.categoria)) return false;
-      if (filtroMembros.size > 0 && (!i.autorNome || !nomesVisiveis.has(i.autorNome))) return false;
+      // Enquanto o proprio usuario ainda nao carregou (meIdStr null), o
+      // filtro de membros ainda nao tem base para aplicar — nao bloqueia a
+      // exibicao para nao mostrar "vazio" por uma fracao de segundo.
+      if (meIdStr != null && (!i.autorNome || !nomesVisiveis.has(i.autorNome))) return false;
       if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
       if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
       if (!passaFiltroDataPag(i)) return false;
@@ -404,9 +414,14 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       }
     });
 
+  // O grupo Membros comecando com so o proprio usuario marcado e o estado
+  // de base (equivalente a "nenhum filtro"), nao uma selecao do usuario —
+  // so conta como filtro ativo quando ele difere disso (desmarcou a si
+  // mesmo, ou marcou mais alguem).
+  const membrosEhEstadoBase = meIdStr != null && filtroMembros.size === 1 && filtroMembros.has(meIdStr);
   const hasFilter2 =
     filtroStatus.size > 0 || filtroCategoria.size > 0 || filtroFormaPag.size > 0
-    || filtroCartao.size > 0 || filtroDataPag.size > 0 || filtroMembros.size > 0;
+    || filtroCartao.size > 0 || filtroDataPag.size > 0 || !membrosEhEstadoBase;
 
   const handleClearFilters = () => {
     setFiltroStatus(new Set());
@@ -414,7 +429,8 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     setFiltroFormaPag(new Set());
     setFiltroCartao(new Set());
     setFiltroDataPag(new Set());
-    setFiltroMembros(new Set());
+    // "Limpar" nunca desmarca o proprio usuario — so reseta os demais.
+    setFiltroMembros(meIdStr ? new Set([meIdStr]) : new Set());
   };
 
   const filterGroups: FilterGroup[] = [
@@ -461,14 +477,17 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       selected: filtroDataPag,
       onChange: (next) => setFiltroDataPag(next as Set<FiltroDataPag>),
     },
-    // Lista so os OUTROS membros — o proprio usuario logado sempre aparece
-    // nos resultados, nao e uma opcao removivel. Marcar 1+ soma os
-    // lancamentos deles aos proprios (uniao), acionando o escopo familia no
-    // servidor (derivado acima em `escopoFamilia`).
-    ...(temMembros ? [{
+    // O proprio usuario e mais uma opcao (rotulada com o nome real dele,
+    // igual as demais) — inicia marcado, mas pode ser desmarcado. Nenhum
+    // marcado = nada exibido. Marcar outro membro alem de si aciona o
+    // escopo familia no servidor (derivado acima em `escopoFamilia`).
+    ...(temMembros && meQ.data ? [{
       id: 'membros',
       label: 'Membros',
-      options: outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+      options: [
+        { value: String(meQ.data.id), label: meQ.data.nome },
+        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+      ],
       selected: filtroMembros,
       onChange: setFiltroMembros,
     }] : []),

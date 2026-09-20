@@ -1,7 +1,6 @@
 export const firstAccessGuideMessages = {
   painelMes: 'Use o seletor de m\u00eas para trocar o per\u00edodo antes de analisar os indicadores.',
   receitasNova: 'Clique em Nova receita para registrar uma entrada recebida ou prevista.',
-  receitasBusca: 'Use a busca para localizar receitas por descri\u00e7\u00e3o, cliente ou tipo.',
   despesasNova: 'Clique em Nova despesa para registrar um gasto, vencimento ou conta a pagar.',
   despesasFiltros: 'Use os filtros para separar despesas pagas, pendentes, atrasadas ou por categoria.',
   relatoriosConsultar: 'Depois de alterar o per\u00edodo, clique em Consultar para atualizar o relat\u00f3rio.',
