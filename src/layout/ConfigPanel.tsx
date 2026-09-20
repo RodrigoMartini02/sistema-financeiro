@@ -88,6 +88,9 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const visibleItems = ITEMS.filter((item) => {
     if (item.id === 'acessos') return canViewAnalytics;
     if (item.id === 'integracoes-ia') return isAdmin;
+    // Assinatura/plano e responsabilidade do titular da conta — membro nunca
+    // gerencia pagamento, mesmo que a API ja bloqueie a acao.
+    if (item.id === 'assinatura') return isGestor;
     // Gestao de membros/colaboradores agora vive dentro de Contas; Permissoes
     // continua item proprio, e existe nos dois tipos de conta: em pessoal com
     // carteira compartilhada, em empresa isolados entre si (familyVisibility.ts).
