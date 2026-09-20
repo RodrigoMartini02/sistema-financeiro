@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
-import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Search, Pencil, Trash2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, Building2, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { fetchMembros } from '../../services/membrosService';
+import { fetchMe } from '../../services/usuariosService';
 import type { Income, IncomeFormValues } from '../../types/finance';
 import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
@@ -13,6 +14,7 @@ import { ErrorState } from '../../ui/states';
 import { EmptyState } from '../../ui/EmptyState';
 import { IncomeDialog } from '../finance/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
+import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -51,13 +53,17 @@ interface ReceitasScreenProps {
 export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProps) {
   const [dialog, setDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
   const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({ open: false, title: '', anexos: [] });
-  const [busca, setBusca] = useState('');
+  const [filtroMembros, setFiltroMembros] = useState<Set<string>>(new Set());
 
   const qc = useQueryClient();
   const confirm = useConfirm();
 
-  // Escopo do servidor: por padrao so os proprios lancamentos. "Familia" so
-  // aparece como opcao quando ha outros membros vinculados a conta.
+  const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
+
+  // Escopo do servidor: por padrao so os proprios lancamentos. O grupo
+  // "Membros" do painel de filtro so aparece quando ha outros membros
+  // vinculados a conta; marcar 1+ outro alem de si mesmo e a unica forma de
+  // trazer os lancamentos deles do servidor, entao o escopo deriva disso.
   const activeAccountId = getActiveAccountId();
   const membrosQ = useQuery({
     queryKey: queryKeys.membros(activeAccountId),
@@ -65,7 +71,16 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     staleTime: 5 * 60_000,
   });
   const temMembros = (membrosQ.data?.length ?? 0) > 0;
-  const [escopoFamilia, setEscopoFamilia] = useState(false);
+  // O proprio usuario e mais uma opcao do grupo "Membros" — inicia marcado
+  // assim que o id chega, mas so uma vez, para nao sobrescrever uma selecao
+  // manual (ex: o usuario desmarcou a si mesmo).
+  const meIdStr = meQ.data ? String(meQ.data.id) : null;
+  useEffect(() => {
+    if (!meIdStr) return;
+    setFiltroMembros((prev) => (prev.size === 0 ? new Set([meIdStr]) : prev));
+  }, [meIdStr]);
+  const outrosMembros = (membrosQ.data ?? []).filter((m) => m.usuario_id !== meQ.data?.id);
+  const escopoFamilia = [...filtroMembros].some((id) => id !== meIdStr);
 
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.incomes ?? [];
@@ -118,9 +133,6 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     queryFn: () => getContratosFaturamento(month + 1, year),
     enabled: isEmpresa,
   });
-  const searchGuide = useFirstAccessGuide('receitas:busca-v1', {
-    enabled: !finance.dashboard.isLoading && allItems.length > 0,
-  });
   const contratosGuide = useFirstAccessGuide('receitas:contratos-faturamento-v1', {
     enabled: isEmpresa && (contratosQ.data?.length ?? 0) > 0,
   });
@@ -143,13 +155,39 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
 
   const hoje = getLocalTodayIso();
 
-  const items = busca.trim()
-    ? allItems.filter((i) =>
-        i.descricao.toLowerCase().includes(busca.toLowerCase()) ||
-        (i.cliente ?? '').toLowerCase().includes(busca.toLowerCase()) ||
-        (i.tipoReceita ?? '').toLowerCase().includes(busca.toLowerCase())
-      )
-    : allItems;
+  // Nomes visiveis: reflete literalmente quem esta marcado no grupo
+  // "Membros" (por id, resolvido para nome). Nenhum marcado = nada exibido.
+  const nomesVisiveis = new Set(
+    [...filtroMembros]
+      .map((id) => (id === meIdStr ? meQ.data?.nome : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
+      .filter(Boolean) as string[],
+  );
+
+  const items = meIdStr == null
+    ? allItems
+    : allItems.filter((i) => i.autorNome && nomesVisiveis.has(i.autorNome));
+
+  // O grupo Membros comecando com so o proprio usuario marcado e o estado
+  // de base (equivalente a "nenhum filtro"), nao uma selecao do usuario —
+  // so conta como filtro ativo quando ele difere disso.
+  const membrosEhEstadoBase = meIdStr != null && filtroMembros.size === 1 && filtroMembros.has(meIdStr);
+  const hasFilter2 = !membrosEhEstadoBase;
+  const handleClearFilters = () => {
+    // "Limpar" nunca desmarca o proprio usuario — so reseta os demais.
+    setFiltroMembros(meIdStr ? new Set([meIdStr]) : new Set());
+  };
+  const filterGroups: FilterGroup[] = [
+    ...(temMembros && meQ.data ? [{
+      id: 'membros',
+      label: 'Membros',
+      options: [
+        { value: String(meQ.data.id), label: meQ.data.nome },
+        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+      ],
+      selected: filtroMembros,
+      onChange: setFiltroMembros,
+    }] : []),
+  ];
 
   const handleSave = async (items: IncomeFormValues[]) => {
     // Editando, e um item so e ele carrega o id; criando, o lote grava uma a
@@ -237,53 +275,15 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             {toolbarStart && <div className="flex min-w-0 flex-wrap items-center gap-2">{toolbarStart}</div>}
             <div className="flex flex-wrap items-center gap-2">
-              {temMembros && (
-                <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1">
-                  {[{ v: false, label: 'Só eu' }, { v: true, label: 'Família' }].map((opt) => (
-                    <button
-                      key={String(opt.v)}
-                      type="button"
-                      onClick={() => setEscopoFamilia(opt.v)}
-                      aria-pressed={escopoFamilia === opt.v}
-                      className={[
-                        'rounded-full px-3 py-1 text-xs font-semibold transition',
-                        escopoFamilia === opt.v ? 'bg-brand-500 text-white' : 'text-slate-500 hover:bg-slate-100',
-                      ].join(' ')}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="relative w-full max-w-xs">
-              <input
-                type="search"
-                placeholder="Buscar receita..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200"
-              />
-              {searchGuide.isVisible && !finance.dashboard.isLoading && allItems.length > 0 && (
-                <FirstAccessGuideCard
-                  icon={Search}
-                  description={firstAccessGuideMessages.receitasBusca}
-                  align="right"
-                  floating
-                  placement="top"
-                  className="w-[min(24rem,calc(100vw-2rem))]"
-                  onDismiss={searchGuide.dismiss}
-                  onSilenceAll={searchGuide.silenceAll}
-                />
-              )}
+              <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter2} onClear={handleClearFilters} />
             </div>
           </div>
 
           {finance.dashboard.isLoading ? (
             <EmptyState title="Carregando" description="Buscando receitas do mês." />
           ) : items.length === 0 ? (
-            busca ? (
-              <EmptyState title="Nenhum resultado" description="Tente outro termo de busca." />
+            filtroMembros.size === 0 ? (
+              <EmptyState title="Nenhum membro selecionado" description="Selecione ao menos um membro no filtro para ver as receitas." />
             ) : (
               <div className="grid justify-items-center gap-3 py-8">
                 <EmptyState
@@ -319,19 +319,19 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
               <table className="w-full text-sm min-w-[540px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Data</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Data</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Descrição</th>
                     {isEmpresa && (
-                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
+                      <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
                     )}
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Usuário</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Usuário</th>
                     {isEmpresa && (
-                      <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
+                      <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
                     )}
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center">Anexos</th>
-                    <th className="px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Ações</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Valor</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center">Anexos</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -340,7 +340,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     const isAtrasada = isPrevista && item.data < hoje;
                     return (
                     <tr key={item.id} className={`group hover:bg-slate-50 transition-colors${item.status === 'cancelada' ? ' opacity-50' : ''}${isPrevista ? ' border-l-2 border-blue-300 bg-blue-50/30' : ''}${isAtrasada ? ' border-l-2 border-red-300 bg-red-50/30' : ''}`}>
-                      <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                      <td className="px-4 py-1.5 text-xs text-slate-500 whitespace-nowrap">
                         {formatDate(item.data)}
                         {item.status === 'cancelada' && (
                           <span className="ml-1.5 inline-flex items-center rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">Cancelada</span>
@@ -356,14 +356,14 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-900 truncate max-w-[180px]">{item.descricao}</p>
+                      <td className="px-4 py-1.5">
+                        <p className="text-slate-900 truncate max-w-[180px]">{item.descricao}</p>
                         {item.observacoes && (
                           <p className="text-[11px] text-slate-400 truncate max-w-[180px]">{item.observacoes}</p>
                         )}
                       </td>
                       {isEmpresa && (
-                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                        <td className="px-4 py-1.5 text-sm text-slate-600 whitespace-nowrap">
                           {item.representanteNome ? (
                             <span className="flex items-center gap-1">
                               <Tag size={11} className="text-blue-400 shrink-0" />
@@ -379,23 +379,23 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           )}
                         </td>
                       )}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-1.5">
                         {tipoBadge(item.tipoReceita) ?? <span className="text-slate-300 text-xs">—</span>}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                      <td className="px-4 py-1.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                         {item.autorNome ?? '—'}
                       </td>
                       {isEmpresa && (
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <td className="px-4 py-1.5 text-right whitespace-nowrap">
                           {item.valorComissao && item.valorComissao > 0
                             ? <span className="font-semibold text-amber-600">{formatCurrency(item.valorComissao)}</span>
                             : <span className="text-slate-300 text-xs">—</span>}
                         </td>
                       )}
-                      <td className="px-4 py-3 text-right font-bold text-green-700 whitespace-nowrap">
+                      <td className="px-4 py-1.5 text-right text-green-700 whitespace-nowrap">
                         {formatCurrency(item.valor)}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-1.5 text-center">
                         {(item.anexos?.length ?? 0) > 0 ? (
                           <button
                             onClick={() => setAnexosDialog({ open: true, title: item.descricao, anexos: item.anexos! })}
@@ -409,7 +409,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           <span className="text-slate-200 text-xs">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-1.5">
                         <div className="flex justify-end gap-1">
                           <button
                             onClick={() => setDialog({ open: true, item })}
@@ -450,18 +450,6 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     );
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="border-t border-slate-200 bg-slate-50">
-                    <td colSpan={4 + (isEmpresa ? 2 : 0)} className="px-4 py-3 text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      Total
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-green-700 text-sm whitespace-nowrap">
-                      {formatCurrency(items.filter(i => i.status !== 'cancelada').reduce((s, i) => s + i.valor, 0))}
-                    </td>
-                    <td />
-                    <td />
-                  </tr>
-                </tfoot>
               </table>
               </div>
             </>
