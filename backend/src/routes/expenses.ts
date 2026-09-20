@@ -575,9 +575,23 @@ router.get('/group/:grupoId', authenticate, async (req: Request, res: Response):
 });
 
 // PUT /api/expenses/:id/cancelar
+//
+// Dois modos, convivendo pela mesma rota (mesmo espirito do DELETE):
+//   (nenhum parametro)   cancela so a parcela :id
+//   ?ids=1,2,3           cancela exatamente essas parcelas do mesmo grupo —
+//                        usado pela grade de selecao multipla; :id continua
+//                        sendo a parcela ancora (resolve dono/grupo)
+//
+// A regra "nunca cancelar parcela ja paga ao usar o atalho selecionar tudo"
+// e responsabilidade do CLIENTE: quando o usuario aciona "selecionar todas",
+// o frontend so inclui parcelas pendentes na lista de ids. Uma parcela paga
+// selecionada manualmente e individualmente continua podendo ser cancelada —
+// e uma escolha explicita do usuario sobre aquele item especifico, nao uma
+// automacao. O servidor so garante grupo/propriedade, igual ao DELETE.
 router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const expenseId = parseInt(req.params['id']!);
+    const { ids } = req.query as { ids?: string };
 
     const donoCancel = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
     if (donoCancel === null) {
@@ -585,14 +599,44 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
       return;
     }
 
-    const result = await pool.query(
-      "UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING id",
-      [expenseId, donoCancel],
-    );
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Expense not found' });
-      return;
+    if (ids !== undefined) {
+      const selectedIds = ids.split(',').map((v) => parseInt(v.trim())).filter((v) => Number.isInteger(v));
+      if (selectedIds.length === 0) {
+        res.status(400).json({ success: false, message: 'No valid ids provided' });
+        return;
+      }
+
+      // Mesma checagem de grupo usada no DELETE em lote: nunca confiar que o
+      // client mandou so ids do mesmo grupo/dono.
+      const groupCheck = await pool.query(
+        `SELECT COUNT(*) AS total FROM despesas
+         WHERE id = ANY($1) AND usuario_id = $2
+           AND (id = $3 OR grupo_parcelamento_id = $3 OR grupo_parcelamento_id = (
+             SELECT grupo_parcelamento_id FROM despesas WHERE id = $3
+           ))`,
+        [selectedIds, donoCancel, expenseId],
+      );
+      const validCount = parseInt((groupCheck.rows[0] as { total: string }).total);
+      if (validCount !== selectedIds.length) {
+        res.status(400).json({ success: false, message: 'All ids must belong to the same expense group' });
+        return;
+      }
+
+      await pool.query(
+        `UPDATE despesas SET status = 'cancelada' WHERE id = ANY($1) AND usuario_id = $2`,
+        [selectedIds, donoCancel],
+      );
+    } else {
+      const result = await pool.query(
+        "UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING id",
+        [expenseId, donoCancel],
+      );
+      if (result.rows.length === 0) {
+        res.status(404).json({ success: false, message: 'Expense not found' });
+        return;
+      }
     }
+
     res.json({ success: true, message: 'Expense cancelled' });
   } catch (error) {
     console.error('Cancel expense error:', error);

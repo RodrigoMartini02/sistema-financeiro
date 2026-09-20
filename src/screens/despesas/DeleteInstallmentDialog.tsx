@@ -10,17 +10,20 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import type { Expense } from '../../types/finance';
 import { StatusBadge } from './DespesasScreen';
 
+type InstallmentDialogMode = 'excluir' | 'cancelar';
+
 interface DeleteInstallmentDialogProps {
   open: boolean;
   expense: Expense | null;
+  mode: InstallmentDialogMode;
   isLoading?: boolean;
   onClose: () => void;
-  /** ids das parcelas selecionadas para exclusão. */
-  onDeleteSelected: (ids: number[]) => void;
+  /** ids das parcelas selecionadas para excluir/cancelar. */
+  onConfirmSelected: (ids: number[]) => void;
 }
 
 export function DeleteInstallmentDialog({
-  open, expense, isLoading = false, onClose, onDeleteSelected,
+  open, expense, mode, isLoading = false, onClose, onConfirmSelected,
 }: DeleteInstallmentDialogProps) {
   const grupoId = expense?.grupoParcelamentoId ?? null;
   const confirm = useConfirm();
@@ -42,7 +45,13 @@ export function DeleteInstallmentDialog({
   if (!expense) return null;
 
   const parcelas = groupQuery.data ?? [];
-  const todasSelecionadas = parcelas.length > 0 && selecionadas.size === parcelas.length;
+  // No modo cancelar, "selecionar todas" nunca inclui parcela já paga — o
+  // dinheiro debitado permanece um gasto real. Uma paga só entra na seleção
+  // se o usuário clicar nela individualmente (ação explícita, abaixo).
+  const parcelasElegiveisParaTodas = mode === 'cancelar' ? parcelas.filter((p) => !p.pago) : parcelas;
+  const todasSelecionadas = parcelasElegiveisParaTodas.length > 0
+    && parcelasElegiveisParaTodas.every((p) => selecionadas.has(p.id))
+    && selecionadas.size === parcelasElegiveisParaTodas.length;
 
   const toggleItem = (id: number) => {
     setSelecionadas((prev) => {
@@ -54,30 +63,37 @@ export function DeleteInstallmentDialog({
   };
 
   const toggleSelectAll = () => {
-    setSelecionadas(todasSelecionadas ? new Set() : new Set(parcelas.map((p) => p.id)));
+    setSelecionadas(todasSelecionadas ? new Set() : new Set(parcelasElegiveisParaTodas.map((p) => p.id)));
   };
 
-  const handleConfirmDelete = async () => {
+  const acaoLabel = mode === 'excluir' ? 'Excluir' : 'Cancelar';
+  const acaoLabelGerundio = mode === 'excluir' ? 'Excluindo...' : 'Cancelando...';
+
+  const handleConfirmAction = async () => {
     const ids = [...selecionadas];
     if (ids.length === 0) return;
 
     const incluiPaga = parcelas.some((p) => ids.includes(p.id) && p.pago);
+    const avisoIrreversivel = mode === 'excluir' ? ' Esta ação não pode ser desfeita.' : '';
+    const avisoPaga = incluiPaga
+      ? (mode === 'excluir' ? ' A seleção inclui parcela(s) já paga(s).' : ' A seleção inclui parcela(s) já paga(s) — o valor já debitado será marcado como cancelado.')
+      : '';
     const ok = await confirm({
-      title: 'Excluir parcelas',
+      title: `${acaoLabel} parcelas`,
       message: ids.length === parcelas.length
-        ? `Excluir todas as ${parcelas.length} parcelas de "${expense.descricao}"? Esta ação não pode ser desfeita.`
-        : `Excluir ${ids.length} parcela${ids.length === 1 ? '' : 's'} de "${expense.descricao}"?${incluiPaga ? ' A seleção inclui parcela(s) já paga(s).' : ''} Esta ação não pode ser desfeita.`,
-      confirmLabel: 'Excluir',
+        ? `${acaoLabel} todas as ${parcelas.length} parcelas de "${expense.descricao}"?${avisoIrreversivel}`
+        : `${acaoLabel} ${ids.length} parcela${ids.length === 1 ? '' : 's'} de "${expense.descricao}"?${avisoPaga}${avisoIrreversivel}`,
+      confirmLabel: acaoLabel,
       variant: 'danger',
     });
-    if (ok) onDeleteSelected(ids);
+    if (ok) onConfirmSelected(ids);
   };
 
   return (
-    <Dialog open={open} title="Excluir despesa parcelada" onClose={onClose} size="md">
+    <Dialog open={open} title={mode === 'excluir' ? 'Excluir despesa parcelada' : 'Cancelar despesa parcelada'} onClose={onClose} size="md">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <p style={{ margin: '0 26px', fontSize: 13.5, color: C.textSoft }}>
-          {`"${expense.descricao}" faz parte de um parcelamento. Selecione as parcelas que deseja excluir.`}
+          {`"${expense.descricao}" faz parte de um parcelamento. Selecione as parcelas que deseja ${mode === 'excluir' ? 'excluir' : 'cancelar'}.`}
         </p>
 
         <div style={{ margin: '0 26px', maxHeight: 340, overflowY: 'auto', border: `1px solid ${C.borderInput}`, borderRadius: 12 }}>
@@ -142,11 +158,11 @@ export function DeleteInstallmentDialog({
               disabled={isLoading}
               style={{ padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.5 : 1 }}
             >
-              Cancelar
+              Fechar
             </button>
             <button
               type="button"
-              onClick={handleConfirmDelete}
+              onClick={handleConfirmAction}
               disabled={isLoading || selecionadas.size === 0 || groupQuery.isLoading}
               style={{
                 padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 700,
@@ -155,7 +171,7 @@ export function DeleteInstallmentDialog({
                 opacity: (isLoading || selecionadas.size === 0) ? 0.5 : 1,
               }}
             >
-              {isLoading ? 'Excluindo...' : `Excluir selecionadas (${selecionadas.size})`}
+              {isLoading ? acaoLabelGerundio : `${acaoLabel} selecionadas (${selecionadas.size})`}
             </button>
           </div>
         </div>
