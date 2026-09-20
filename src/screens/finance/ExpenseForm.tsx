@@ -31,7 +31,7 @@ const schema = z.object({
   precoAVista:     z.coerce.number().min(0).optional(),
   dataCompra:      z.string().min(10, 'Informe a data da compra'),
   dataVencimentoManual: z.string().optional(),
-  categoria_id:    z.coerce.number().optional(),
+  categoria_id:    z.coerce.number({ error: 'Selecione uma categoria' }).min(1, 'Selecione uma categoria'),
   cartao_id:       z.coerce.number().optional(),
   formaPagamento:  z.string().min(1),
   pago:            z.boolean(),
@@ -369,7 +369,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
       precoAVista:     undefined,
       dataCompra:      expense?.dataCompra ?? presetDate ?? todayIso(),
       dataVencimentoManual: expense?.dataVencimento,
-      categoria_id:    undefined,
+      categoria_id:    expense?.categoriaId ?? undefined,
       cartao_id:       undefined,
       formaPagamento:  expense?.formaPagamento ?? '',
       pago:            expense?.pago ?? false,
@@ -675,6 +675,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
               />
             )}
           />
+          {form.formState.errors.categoria_id?.message && (
+            <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{form.formState.errors.categoria_id.message}</div>
+          )}
           {showCatForm !== null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
               <input

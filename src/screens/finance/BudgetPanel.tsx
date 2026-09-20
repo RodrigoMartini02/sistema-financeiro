@@ -240,9 +240,11 @@ function MetaDialog({
             </p>
           )}
 
-          <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
-            A meta considera também os gastos das subcategorias desta categoria.
-          </p>
+          {item.parentId === null && (
+            <p style={{ margin: 0, fontSize: 11.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted }}>
+              A meta considera também os gastos das subcategorias desta categoria.
+            </p>
+          )}
 
           {mensagem && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
@@ -441,13 +443,12 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
                   expanded={expanded}
                   onToggleExpand={() => toggleExpand(node.root.categoryId)}
                   subCount={node.children.length}
-                  // Órfã (pai desativado) aparece como raiz para não sumir da
-                  // tela, mas segue sendo subcategoria para o backend, que só
-                  // aceita meta na raiz — então não oferece a ação.
-                  onEditTarget={node.root.parentId === null
+                  // Categoria com subcategoria ativa nunca tem meta própria —
+                  // ela vira só o agregado, e a meta migra para cada sub.
+                  onEditTarget={!node.root.hasActiveSubcategories
                     ? () => setEditingCategoryId(node.root.categoryId)
                     : undefined}
-                  onRemoveTarget={node.root.parentId === null
+                  onRemoveTarget={!node.root.hasActiveSubcategories
                     ? () => removeMutation.mutate(node.root.categoryId)
                     : undefined}
                   isRemoving={removeMutation.isPending}
@@ -459,7 +460,9 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
                     index={`${i + 1}.${j + 1}`}
                     isChild
                     subCount={0}
-                    isRemoving={false}
+                    onEditTarget={() => setEditingCategoryId(child.categoryId)}
+                    onRemoveTarget={() => removeMutation.mutate(child.categoryId)}
+                    isRemoving={removeMutation.isPending}
                   />
                 ))}
               </div>

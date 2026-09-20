@@ -247,7 +247,10 @@ export function CategoriasTab() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Categoria; parentId?: number }>({ open: false });
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false);
-  const [collapsed, setCollapsed] = useState<number[]>([]);
+  // Categorias iniciam colapsadas: guarda quem foi expandido (não quem foi
+  // fechado), já que a árvore só existe depois do fetch e o default precisa
+  // ser "fechado" sem depender de um efeito para popular os ids das raízes.
+  const [expanded, setExpanded] = useState<number[]>([]);
 
   const guideNovaCategoria = useFirstAccessGuide('categorias:nova-v1');
   const guideSubcategoria = useFirstAccessGuide('categorias:sub-v1');
@@ -286,7 +289,7 @@ export function CategoriasTab() {
   });
 
   const toggleExpand = (id: number) =>
-    setCollapsed((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setExpanded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const estado = mostrarDesativadas ? 'desativada' : 'ativa';
   const contagem = `${roots.length} categoria${roots.length === 1 ? '' : 's'} ${estado}${roots.length === 1 ? '' : 's'}`;
@@ -325,13 +328,13 @@ export function CategoriasTab() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tree.map((root, i) => {
           const rootIndex = String(i + 1).padStart(2, '0');
-          const expanded = !collapsed.includes(root.id);
+          const isExpanded = expanded.includes(root.id);
           return (
             <div key={root.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <CategoriaRow
                 cat={root}
                 index={rootIndex}
-                expanded={expanded}
+                expanded={isExpanded}
                 onToggleExpand={() => toggleExpand(root.id)}
                 onEdit={(item) => setDialog({ open: true, item })}
                 onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
@@ -339,7 +342,7 @@ export function CategoriasTab() {
                   ? { description: firstAccessGuideMessages.categoriasSub, onDismiss: guideSubcategoria.dismiss }
                   : undefined}
               />
-              {expanded && root.subcategorias?.map((sub, j) => (
+              {isExpanded && root.subcategorias?.map((sub, j) => (
                 <CategoriaRow
                   key={sub.id}
                   cat={sub}

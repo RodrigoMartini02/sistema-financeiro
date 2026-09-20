@@ -14,6 +14,8 @@ export interface BudgetOverviewItem {
   categoryName: string;
   /** null nas categorias raiz; id do pai nas subcategorias. */
   parentId: number | null;
+  /** true quando a categoria tem subcategoria ativa — nesse caso ela nunca tem meta própria, só o agregado. */
+  hasActiveSubcategories: boolean;
   mode: 'amount' | 'income_percent' | null;
   targetValue: number | null;
   targetAmount: number | null;
@@ -237,7 +239,10 @@ export async function getBudgetOverview(input: {
     // depois foi desativada continua no período e precisa somar no total do pai.
     // Buscar o pai só entre as categorias exibidas faria esse valor sumir da
     // conta sem aviso, e o total dos itens deixaria de bater com projectedTotal.
-    db.select({ id: categories.id, parentId: categories.parentId })
+    // `ativo` também vem aqui (não só no `sql` acima) para decidir quais pais
+    // têm subcategoria ATIVA — uma sub desativada não deve mais bloquear meta
+    // própria na raiz.
+    db.select({ id: categories.id, parentId: categories.parentId, ativo: categories.ativo })
       .from(categories).where(eq(categories.userId, ownerId)),
   ]);
 
@@ -314,13 +319,25 @@ export async function getBudgetOverview(input: {
     return rolled;
   };
 
+  // Categoria com subcategoria ativa nunca tem meta própria: a meta migra para
+  // cada subcategoria, e a raiz vira só o agregado (rollup acima). Sem essa
+  // checagem, category.parentId === null sozinho não bastava mais — uma sub
+  // desativada não deve tirar a meta própria da raiz.
+  const parentIdsWithActiveSub = new Set(
+    hierarchyRows.filter((category) => category.parentId != null && category.ativo !== false)
+      .map((category) => category.parentId as number),
+  );
+
   const projectedWithSubs = withSubcategories(projectedByCategory);
   const paidWithSubs = withSubcategories(paidByCategory);
   const historicWithSubs = withSubcategories(historicByCategory);
 
   const targetsByCategory = new Map(targetRows.map((row) => [row.categoryId, row]));
   const items = categoryRows.map((category): BudgetOverviewItem => {
-    const target = targetsByCategory.get(category.id);
+    const hasActiveSubcategories = parentIdsWithActiveSub.has(category.id);
+    // Raiz com subcategoria ativa nunca exibe meta própria, mesmo que exista uma
+    // linha antiga em orcamento_metas — só o agregado (rollup) importa aqui.
+    const target = hasActiveSubcategories ? undefined : targetsByCategory.get(category.id);
     const targetValue = target ? asNumber(target.targetValue) : null;
     const targetAmount = target
       ? target.mode === 'income_percent'
@@ -339,6 +356,7 @@ export async function getBudgetOverview(input: {
       categoryId: category.id,
       categoryName: category.name,
       parentId: category.parentId ?? null,
+      hasActiveSubcategories,
       mode: target?.mode ?? null,
       targetValue,
       targetAmount,
@@ -382,13 +400,19 @@ export async function saveBudgetTarget(input: {
     throw new BudgetInputError('O valor da meta está fora do limite permitido.');
   }
 
-  const [category] = await db.select({ id: categories.id, parentId: categories.parentId }).from(categories)
+  const [category] = await db.select({ id: categories.id }).from(categories)
     .where(and(eq(categories.id, categoryId), eq(categories.userId, input.userId))).limit(1);
   if (!category) throw new BudgetInputError('Categoria não encontrada.');
-  // A meta fica na raiz porque o total dela já soma as subcategorias (ver rollup
-  // em getBudgetOverview); metas nos dois níveis se sobreporiam.
-  if (category.parentId !== null) {
-    throw new BudgetInputError('A meta deve ser definida na categoria principal, que já considera os gastos das subcategorias.');
+
+  // Categoria com subcategoria ativa nunca tem meta própria: ela vira só o
+  // agregado (rollup em getBudgetOverview) e a meta migra para cada sub —
+  // senão o gasto da sub contaria duas vezes (na própria meta e dentro do
+  // rollup da meta do pai).
+  const [activeSub] = await db.select({ id: categories.id }).from(categories)
+    .where(and(eq(categories.parentId, categoryId), eq(categories.userId, input.userId), sql`COALESCE(categorias.ativo, true) = true`))
+    .limit(1);
+  if (activeSub) {
+    throw new BudgetInputError('Categorias com subcategorias não podem ter meta própria — defina a meta em cada subcategoria.');
   }
 
   const [existing] = await db.select({ id: budgetTargets.id }).from(budgetTargets)

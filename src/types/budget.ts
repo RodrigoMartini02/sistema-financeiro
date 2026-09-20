@@ -5,6 +5,8 @@ export interface BudgetOverviewItem {
   categoryName: string;
   /** null nas categorias raiz; id do pai nas subcategorias. */
   parentId: number | null;
+  /** true quando a categoria tem subcategoria ativa — nesse caso ela nunca tem meta própria, só o agregado. */
+  hasActiveSubcategories: boolean;
   mode: BudgetTargetMode | null;
   targetValue: number | null;
   targetAmount: number | null;

@@ -36,7 +36,7 @@ function statusColor(item: BudgetOverviewItem): string {
 }
 
 function statusLabel(item: BudgetOverviewItem): string {
-  if (!item.targetAmount) return 'sem meta';
+  if (!item.targetAmount) return item.hasActiveSubcategories ? 'soma das subs' : 'sem meta';
   return `${budgetPercentage(item).toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
 }
 
@@ -57,7 +57,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
 
   const total = items.reduce((s, item) => s + item.projectedAmount, 0);
   const acimaCount = items.filter((item) => item.status === 'over' || item.status === 'attention').length;
-  const semMetaCount = items.filter((item) => !item.targetAmount).length;
+  const semMetaCount = items.filter((item) => !item.targetAmount && !item.hasActiveSubcategories).length;
   const noLimiteCount = items.filter((item) => item.status === 'attention').length;
   const max = Math.max(1, ...items.map((item) => Math.max(item.projectedAmount, item.targetAmount ?? 0)));
 

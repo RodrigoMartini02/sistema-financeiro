@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import type { Categoria } from '../types/config';
-import { normalizeCategoryText } from '../utils/categorySuggestions';
+import { groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
 import { C as sharedC } from './dialogFormTokens';
 
 // Mantém os mesmos valores hex já usados neste componente (alguns divergem
@@ -37,8 +37,14 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const active = categories.filter((c) => c.ativo);
-  const selected = active.find((c) => c.id === value);
+  // Só o que é diretamente selecionável entra aqui: categoria com sub ativa
+  // vira cabeçalho de grupo (group.parent), nunca uma opção clicável — só as
+  // subs (group.items) são selecionáveis nesse caso.
+  const groups = groupSelectableCategories(categories)
+    .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) }))
+    .sort((a, b) => (a.parent?.nome ?? a.items[0].nome).localeCompare(b.parent?.nome ?? b.items[0].nome, 'pt-BR'));
+  const selectable = groups.flatMap((group) => group.items);
+  const selected = selectable.find((c) => c.id === value);
 
   const openMenu = () => {
     const fieldRect = fieldRef.current?.getBoundingClientRect();
@@ -79,14 +85,22 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
   }, [open, scrollContainerRef]);
 
   const normalizedQuery = normalizeCategoryText(query);
-  const featured = featuredIds.map((id) => active.find((c) => c.id === id)).filter((c): c is Categoria => Boolean(c));
-  const alphabetical = active.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const featured = featuredIds.map((id) => selectable.find((c) => c.id === id)).filter((c): c is Categoria => Boolean(c));
 
-  const filtered = normalizedQuery
-    ? alphabetical.filter((c) => normalizeCategoryText(c.nome).includes(normalizedQuery))
-    : [...featured, ...alphabetical.filter((c) => !featured.some((f) => f.id === c.id))];
+  // Buscar pelo nome do pai também deve trazer as subs dele — senão digitar
+  // "Alimentação" (que não é mais selecionável sozinha) não encontraria nada.
+  const groupsFiltered = normalizedQuery
+    ? groups
+      .map((group) => ({
+        ...group,
+        items: (group.parent && normalizeCategoryText(group.parent.nome).includes(normalizedQuery))
+          ? group.items
+          : group.items.filter((c) => normalizeCategoryText(c.nome).includes(normalizedQuery)),
+      }))
+      .filter((group) => group.items.length > 0)
+    : groups;
 
-  const exactMatch = active.some((c) => normalizeCategoryText(c.nome) === normalizedQuery);
+  const exactMatch = selectable.some((c) => normalizeCategoryText(c.nome) === normalizedQuery);
   const showCreateOption = normalizedQuery.length > 0 && !exactMatch;
 
   const pick = (id: number) => {
@@ -155,24 +169,50 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
 
             <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 200, overflowY: 'auto' }}>
               {!normalizedQuery && featured.length > 0 && (
-                <p style={{ margin: '4px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>Recentes</p>
+                <>
+                  <p style={{ margin: '4px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>Recentes</p>
+                  {featured.map((category) => (
+                    <div
+                      key={`featured-${category.id}`}
+                      onClick={() => pick(category.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
+                        cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+                        fontWeight: value === category.id ? 600 : 500,
+                        color: value === category.id ? C.primaryDark : C.textSoft,
+                        background: value === category.id ? C.primarySoft : 'transparent',
+                      }}
+                    >
+                      {category.nome}
+                    </div>
+                  ))}
+                </>
               )}
-              {filtered.map((category) => (
-                <div
-                  key={category.id}
-                  onClick={() => pick(category.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
-                    cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-                    fontWeight: value === category.id ? 600 : 500,
-                    color: value === category.id ? C.primaryDark : C.textSoft,
-                    background: value === category.id ? C.primarySoft : 'transparent',
-                  }}
-                >
-                  {category.nome}
+              {groupsFiltered.map((group) => (
+                <div key={group.parent?.id ?? group.items[0].id}>
+                  {group.parent && (
+                    <p style={{ margin: '6px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>
+                      {group.parent.nome}
+                    </p>
+                  )}
+                  {group.items.map((category) => (
+                    <div
+                      key={category.id}
+                      onClick={() => pick(category.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
+                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+                        fontWeight: value === category.id ? 600 : 500,
+                        color: value === category.id ? C.primaryDark : C.textSoft,
+                        background: value === category.id ? C.primarySoft : 'transparent',
+                      }}
+                    >
+                      {category.nome}
+                    </div>
+                  ))}
                 </div>
               ))}
-              {filtered.length === 0 && !showCreateOption && (
+              {groupsFiltered.length === 0 && !showCreateOption && (
                 <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
               )}
               {showCreateOption && (
