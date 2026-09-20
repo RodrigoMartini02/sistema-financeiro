@@ -7,6 +7,10 @@ export interface UsuarioMe {
   telefone?: string | null; data_nascimento?: string | null;
   foto?: string | null; data_cadastro?: string;
   plano_status?: string; plano_tipo?: string;
+  // Nome da conta pessoal quando cadastrado, senao o nome de login (`nome`)
+  // — a mesma fonte que autorNome de despesas/receitas ja usa. Usar aqui
+  // para comparar contra autorNome; nunca reenviar em PUT /users/me.
+  nomeExibicao?: string;
 }
 
 export interface UsuarioMePutBody {

@@ -14,27 +14,25 @@ const router = Router();
 // GET /api/users/me
 router.get('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const [user] = await db
-      .select({
-        id: users.id,
-        nome: users.name,
-        email: users.email,
-        documento: users.document,
-        pais: users.country,
-        estado: users.state,
-        cidade: users.city,
-        telefone: users.telefone,
-        data_nascimento: users.dataNascimento,
-        tipo: users.type,
-        status: users.status,
-        plano_status: users.planStatus,
-        plano_tipo: users.planType,
-        plano_expiracao: users.planExpiration,
-        data_cadastro: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.id, req.user!.id))
-      .limit(1);
+    // SQL raw (nao Drizzle) so aqui: precisa do mesmo COALESCE(conta, login)
+    // ja usado em expenses.ts/incomes.ts para o autor do lancamento — dono
+    // pode ter corrigido o nome na conta sem isso refletir no cadastro de
+    // login (usuarios.nome). nomeExibicao e um campo A MAIS, o campo `nome`
+    // original permanece intocado (ContasTab.tsx reenvia esse valor no PUT
+    // /users/me ao trocar senha; se virasse o nome da conta, sobrescreveria
+    // usuarios.nome sem o usuario pedir).
+    const result = await pool.query(
+      `SELECT u.id, u.nome, u.email, u.documento, u.pais, u.estado, u.cidade,
+              u.telefone, u.data_nascimento, u.tipo, u.status,
+              u.plano_status, u.plano_tipo, u.plano_expiracao, u.data_cadastro,
+              COALESCE(c.nome, u.nome) AS "nomeExibicao"
+       FROM usuarios u
+       LEFT JOIN contas c ON c.usuario_id = u.id AND c.eh_padrao = true
+       WHERE u.id = $1
+       LIMIT 1`,
+      [req.user!.id],
+    );
+    const user = result.rows[0];
 
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
