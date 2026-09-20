@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog } from '../../ui/dialog';
-import { C } from '../../ui/dialogFormTokens';
+import { C, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { useConfirm } from '../../context/ConfirmContext';
 import { fetchExpenseGroup } from '../../services/financeService';
@@ -156,8 +156,7 @@ export function DeleteInstallmentDialog({
             onClick={handleConfirmAction}
             disabled={isLoading || selecionadas.size === 0 || groupQuery.isLoading}
             style={{
-              padding: '10px 18px', borderRadius: 11, fontSize: 13.5, fontWeight: 700,
-              border: 'none', background: C.danger, color: '#fff',
+              ...dangerButtonStyle,
               cursor: (isLoading || selecionadas.size === 0) ? 'not-allowed' : 'pointer',
               opacity: (isLoading || selecionadas.size === 0) ? 0.5 : 1,
             }}

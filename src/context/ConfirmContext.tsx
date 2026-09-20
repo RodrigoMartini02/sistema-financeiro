@@ -5,7 +5,6 @@ interface ConfirmOptions {
   title: string;
   message: string;
   confirmLabel?: string;
-  cancelLabel?: string;
   variant?: 'danger' | 'default';
 }
 
@@ -42,7 +41,6 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         title={options?.title ?? ''}
         message={options?.message ?? ''}
         confirmLabel={options?.confirmLabel}
-        cancelLabel={options?.cancelLabel}
         variant={options?.variant}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
