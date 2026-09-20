@@ -64,7 +64,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
     queryFn: () => fetchMembros(activeAccountId ?? undefined),
     staleTime: 5 * 60_000,
   });
-  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const temMembros = (membrosQ.data?.length ?? 0) > 0;
   const [escopoFamilia, setEscopoFamilia] = useState(false);
 
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);

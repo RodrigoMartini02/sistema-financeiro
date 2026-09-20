@@ -274,7 +274,7 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
     queryFn: () => fetchMembros(activeAccountId ?? undefined),
     staleTime: 5 * 60_000,
   });
-  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const temMembros = (membrosQ.data?.length ?? 0) > 0;
   const [escopoFamilia, setEscopoFamilia] = useState(false);
 
   const overviewQuery = useQuery({

@@ -270,7 +270,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     queryFn: () => fetchMembros(activeAccountId ?? undefined),
     staleTime: 5 * 60_000,
   });
-  const temMembros = (membrosQ.data?.length ?? 0) > 1;
+  const temMembros = (membrosQ.data?.length ?? 0) > 0;
   const escopoFamilia = filtroMembros.size > 0;
   // Outros membros da conta, sem o proprio usuario logado — ele e a base fixa
   // sempre visivel, nunca uma opcao removivel do filtro.
