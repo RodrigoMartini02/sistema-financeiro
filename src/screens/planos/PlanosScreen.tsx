@@ -46,7 +46,7 @@ const PLANO_DEF = {
     precoNum: 4.99,
     label: 'R$ 4,99/mês',
     periodo: 'Cobrado mensalmente',
-    recursos: ['Controle mensal completo', 'Receitas e despesas ilimitadas', 'Reservas e metas', 'Categorias e cartões', 'Relatórios detalhados'],
+    recursos: ['Controle mensal completo', 'Receitas e despesas ilimitadas', 'Categorias e cartões', 'Relatórios detalhados'],
   },
   premium: {
     nome: 'Premium',

@@ -74,7 +74,6 @@ import incomeRoutes from './routes/incomes';
 import expenseRoutes from './routes/expenses';
 import monthRoutes from './routes/months';
 import yearRoutes from './routes/years';
-import reserveRoutes from './routes/reserves';
 import appointmentRoutes from './routes/appointments';
 import financialRoutes from './routes/financial';
 import planRoutes from './routes/plans';
@@ -119,8 +118,6 @@ app.use('/api/meses', authenticate, requireActivePlan, requireScreenAccess('acce
 app.use('/api/relatorios', authenticate, requireActivePlan, requireScreenAccess('accessReports'), reportRoutes);
 app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
-app.use('/api/reserves', authenticate, requireActivePlan, requireScreenAccess('accessReserves'), reserveRoutes);
-app.use('/api/reservas', authenticate, requireActivePlan, requireScreenAccess('accessReserves'), reserveRoutes);        // PT alias
 app.use('/api/appointments', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes);
 app.use('/api/compromissos', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes); // PT alias
 app.use('/api/financial', financialRoutes);

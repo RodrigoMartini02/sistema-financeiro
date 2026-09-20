@@ -72,22 +72,6 @@ export interface CartaoDemo {
   tipo: 'credito' | 'debito' | 'ambos' | null;
 }
 
-export interface ReservaDemo {
-  id: number;
-  observacoes: string;
-  valor: number;
-  data: string;
-  mes: number;
-  ano: number;
-  tipo_reserva: 'normal' | 'objetivo';
-  objetivo_valor: number | null;
-  objetivo_atingido: boolean;
-  data_objetivo: string | null;
-  cor: string | null;
-  icone: string | null;
-  conta_id: number | null;
-}
-
 let nextId = 1000;
 function generateId(): number {
   nextId += 1;
@@ -137,15 +121,7 @@ function createSeed() {
     },
   ];
 
-  const reservas: ReservaDemo[] = [
-    {
-      id: generateId(), observacoes: 'Viagem de férias', valor: 900, data: todayIso(-10), mes, ano,
-      tipo_reserva: 'objetivo', objetivo_valor: 3000, objetivo_atingido: false, data_objetivo: null,
-      cor: '#0EC4D8', icone: null, conta_id: null,
-    },
-  ];
-
-  return { categorias, cartoes, receitas, despesas, reservas };
+  return { categorias, cartoes, receitas, despesas };
 }
 
 export interface DemoFakeDatabase {
@@ -153,7 +129,6 @@ export interface DemoFakeDatabase {
   cartoes: CartaoDemo[];
   receitas: RawIncomeDemo[];
   despesas: RawExpenseDemo[];
-  reservas: ReservaDemo[];
 }
 
 export function createDemoFakeDatabase(): DemoFakeDatabase {

@@ -6,7 +6,6 @@ export * from './categories';
 export * from './cards';
 export * from './incomes';
 export * from './expenses';
-export * from './reserves';
 export * from './months';
 export * from './years';
 export * from './ratings';

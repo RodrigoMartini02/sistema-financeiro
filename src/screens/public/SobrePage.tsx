@@ -17,7 +17,7 @@ const VALORES = [
   {
     icon: BarChart3,
     title: 'Visibilidade real',
-    description: 'Nada de números escondidos. Cada saldo, cada parcela, cada reserva fica visível.',
+    description: 'Nada de números escondidos. Cada saldo e cada parcela ficam visíveis.',
     accent: 'border-cyan-100 bg-cyan-50 text-cyan-700',
   },
   {
@@ -101,7 +101,7 @@ export function SobrePage() {
           <article className="rounded-lg border border-slate-200 bg-[#f8fbfb] p-7 shadow-[0_16px_42px_rgba(15,23,42,0.05)] sm:p-8">
             <Label>Origem</Label>
             <div className="mt-5 space-y-5 text-[16px] leading-[1.85] text-slate-600">
-              <p>Criado para pessoas que precisam de controle real, não de estimativas. O FINGERENCE acompanha cada lançamento, cada parcela, cada reserva e entrega um saldo que você pode confiar.</p>
+              <p>Criado para pessoas que precisam de controle real, não de estimativas. O FINGERENCE acompanha cada lançamento e cada parcela e entrega um saldo que você pode confiar.</p>
               <p>Com perfis separados para finanças pessoais e empresariais, você mantém contextos distintos sem perder a visão geral. A IA integrada analisa seu histórico e responde perguntas sobre suas finanças em linguagem natural.</p>
               <p>Desenvolvido com foco em privacidade: sem integração bancária, sem rastreamento de dados e sem surpresas.</p>
             </div>

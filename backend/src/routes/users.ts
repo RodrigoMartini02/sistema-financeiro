@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { users, categories, cards as cardsTable, expenses, incomes, reserves, months } from '../db/schema';
+import { users, categories, cards as cardsTable, expenses, incomes, months } from '../db/schema';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
@@ -669,7 +669,6 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
     await Promise.all([
       db.delete(incomes).where(eq(incomes.userId, userId)),
       db.delete(expenses).where(eq(expenses.userId, userId)),
-      db.delete(reserves).where(eq(reserves.userId, userId)),
       db.delete(months).where(eq(months.userId, userId)),
       db.delete(categories).where(eq(categories.userId, userId)),
       db.delete(cardsTable).where(eq(cardsTable.userId, userId)),

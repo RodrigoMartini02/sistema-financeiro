@@ -172,68 +172,6 @@ export function resolveFakeApiRequest(
     return db.cartoes;
   }
 
-  // Reservas
-  if (matchEndpoint(endpoint, /^\/reservas$/) && method === 'GET') {
-    return db.reservas;
-  }
-  if (matchEndpoint(endpoint, /^\/reservas$/) && method === 'POST') {
-    const body = parseBody<Record<string, unknown>>(init);
-    const { mes, ano } = currentMonthYear();
-    const novaReserva = {
-      id: generateId(),
-      observacoes: String(body.observacoes ?? ''),
-      valor: 0,
-      data: todayIso(),
-      mes, ano,
-      tipo_reserva: body.objetivo_valor ? ('objetivo' as const) : ('normal' as const),
-      objetivo_valor: (body.objetivo_valor as number | null) ?? null,
-      objetivo_atingido: false,
-      data_objetivo: (body.data_objetivo as string | null) ?? null,
-      cor: (body.cor as string | null) ?? null,
-      icone: (body.icone as string | null) ?? null,
-      conta_id: null,
-    };
-    db.reservas = [...db.reservas, novaReserva];
-    return novaReserva;
-  }
-  const reservaIdMatch = matchEndpoint(endpoint, /^\/reservas\/(\d+)$/);
-  if (reservaIdMatch && method === 'DELETE') {
-    const id = Number(reservaIdMatch[1]);
-    db.reservas = db.reservas.filter((item) => item.id !== id);
-    return undefined;
-  }
-  if (reservaIdMatch && method === 'PUT') {
-    const id = Number(reservaIdMatch[1]);
-    const body = parseBody<Record<string, unknown>>(init);
-    db.reservas = db.reservas.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            observacoes: String(body.observacoes ?? item.observacoes),
-            objetivo_valor: (body.objetivo_valor as number | null) ?? item.objetivo_valor,
-            data_objetivo: (body.data_objetivo as string | null) ?? item.data_objetivo,
-            cor: (body.cor as string | null) ?? item.cor,
-            icone: (body.icone as string | null) ?? item.icone,
-          }
-        : item,
-    );
-    return db.reservas.find((item) => item.id === id);
-  }
-  const reservaMoveMatch = matchEndpoint(endpoint, /^\/reservas\/(\d+)\/move$/);
-  if (reservaMoveMatch && method === 'POST') {
-    const id = Number(reservaMoveMatch[1]);
-    const body = parseBody<Record<string, unknown>>(init);
-    const valor = Number(body.valor ?? 0);
-    const delta = body.tipo === 'retirada' ? -valor : valor;
-    db.reservas = db.reservas.map((item) =>
-      item.id === id ? { ...item, valor: item.valor + delta } : item,
-    );
-    return { id: generateId(), reserva_id: id, tipo: body.tipo, valor, data_hora: new Date().toISOString() };
-  }
-  if (matchEndpoint(endpoint, /^\/reservas\/\d+\/movements$/)) {
-    return [];
-  }
-
   // Compromissos/agenda — sem dado relevante na demo
   if (matchEndpoint(endpoint, /^\/appointments$/) && method === 'GET') {
     return [];

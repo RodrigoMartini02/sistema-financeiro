@@ -1151,7 +1151,7 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
 
       <InfoBanner variant="warn">
         <AlertCircle size={13} style={{ flex: 'none' }} />
-        Cada conta separa receitas, despesas e reservas de uma empresa ou pessoa.
+        Cada conta separa receitas e despesas de uma empresa ou pessoa.
       </InfoBanner>
 
       {contasQuery.isLoading && (

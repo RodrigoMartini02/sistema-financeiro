@@ -1047,7 +1047,6 @@ CREATE TABLE public.membro_permissoes (
     acesso_despesas boolean DEFAULT false NOT NULL,
     acesso_receitas boolean DEFAULT false NOT NULL,
     acesso_fechamento_mes boolean DEFAULT false NOT NULL,
-    acesso_reservas boolean DEFAULT false NOT NULL,
     acesso_planejamento boolean DEFAULT false NOT NULL,
     acesso_calendario boolean DEFAULT false NOT NULL,
     acesso_painel boolean DEFAULT false NOT NULL,
@@ -1161,42 +1160,6 @@ CREATE SEQUENCE public.modulos_contrato_id_seq
 --
 
 ALTER SEQUENCE public.modulos_contrato_id_seq OWNED BY public.modulos_contrato.id;
-
-
---
--- Name: movimentacoes_reservas; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.movimentacoes_reservas (
-    id integer NOT NULL,
-    reserva_id integer NOT NULL,
-    tipo character varying(10) NOT NULL,
-    valor numeric(10,2) NOT NULL,
-    data_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    observacoes text,
-    conta_id integer,
-    CONSTRAINT movimentacoes_reservas_tipo_check CHECK (((tipo)::text = ANY ((ARRAY['entrada'::character varying, 'saida'::character varying])::text[])))
-);
-
-
---
--- Name: movimentacoes_reservas_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.movimentacoes_reservas_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: movimentacoes_reservas_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.movimentacoes_reservas_id_seq OWNED BY public.movimentacoes_reservas.id;
 
 
 --
@@ -1488,50 +1451,6 @@ CREATE SEQUENCE public.representantes_id_seq
 --
 
 ALTER SEQUENCE public.representantes_id_seq OWNED BY public.representantes.id;
-
-
---
--- Name: reservas; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.reservas (
-    id integer NOT NULL,
-    usuario_id integer NOT NULL,
-    valor numeric(10,2) NOT NULL,
-    mes integer NOT NULL,
-    ano integer NOT NULL,
-    data date NOT NULL,
-    observacoes text,
-    data_criacao timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    tipo_reserva character varying(50) DEFAULT 'normal'::character varying,
-    objetivo_valor numeric(12,2),
-    objetivo_atingido boolean DEFAULT false,
-    data_objetivo date,
-    conta_id integer,
-    cor character varying(7) DEFAULT '#6366f1'::character varying,
-    icone character varying(10) DEFAULT 'ðŸ’°'::character varying,
-    CONSTRAINT reservas_mes_check CHECK (((mes >= 0) AND (mes <= 11)))
-);
-
-
---
--- Name: reservas_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.reservas_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: reservas_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.reservas_id_seq OWNED BY public.reservas.id;
 
 
 --
@@ -2035,13 +1954,6 @@ ALTER TABLE ONLY public.modulos_contrato ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- Name: movimentacoes_reservas id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.movimentacoes_reservas ALTER COLUMN id SET DEFAULT nextval('public.movimentacoes_reservas_id_seq'::regclass);
-
-
---
 -- Name: orcamento_metas id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2088,13 +2000,6 @@ ALTER TABLE ONLY public.recorrencias_ia ALTER COLUMN id SET DEFAULT nextval('pub
 --
 
 ALTER TABLE ONLY public.representantes ALTER COLUMN id SET DEFAULT nextval('public.representantes_id_seq'::regclass);
-
-
---
--- Name: reservas id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.reservas ALTER COLUMN id SET DEFAULT nextval('public.reservas_id_seq'::regclass);
 
 
 --
@@ -2521,13 +2426,6 @@ ALTER TABLE ONLY public.modulos_contrato
     ADD CONSTRAINT modulos_contrato_pkey PRIMARY KEY (id);
 
 
---
--- Name: movimentacoes_reservas movimentacoes_reservas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.movimentacoes_reservas
-    ADD CONSTRAINT movimentacoes_reservas_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: orcamento_metas orcamento_metas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
@@ -2615,14 +2513,6 @@ ALTER TABLE ONLY public.recorrencias_ia
 
 ALTER TABLE ONLY public.representantes
     ADD CONSTRAINT representantes_pkey PRIMARY KEY (id);
-
-
---
--- Name: reservas reservas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.reservas
-    ADD CONSTRAINT reservas_pkey PRIMARY KEY (id);
 
 
 --
@@ -3070,12 +2960,6 @@ CREATE INDEX idx_meses_usuario_ano_mes ON public.meses USING btree (usuario_id, 
 CREATE INDEX idx_modulos_contrato ON public.modulos_contrato USING btree (contrato_id);
 
 
---
--- Name: idx_movimentacoes_reserva; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_movimentacoes_reserva ON public.movimentacoes_reservas USING btree (reserva_id);
-
 
 --
 -- Name: idx_orcamento_metas_usuario_conta; Type: INDEX; Schema: public; Owner: -
@@ -3138,20 +3022,6 @@ CREATE INDEX idx_representantes_conta ON public.representantes USING btree (cont
 --
 
 CREATE INDEX idx_representantes_usuario ON public.representantes USING btree (usuario_id);
-
-
---
--- Name: idx_reservas_conta; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_reservas_conta ON public.reservas USING btree (conta_id);
-
-
---
--- Name: idx_reservas_usuario_mes_ano; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_reservas_usuario_mes_ano ON public.reservas USING btree (usuario_id, mes, ano);
 
 
 --
@@ -3722,22 +3592,6 @@ ALTER TABLE ONLY public.modulos_contrato
 
 
 --
--- Name: movimentacoes_reservas movimentacoes_reservas_conta_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.movimentacoes_reservas
-    ADD CONSTRAINT movimentacoes_reservas_conta_id_fkey FOREIGN KEY (conta_id) REFERENCES public.contas(id);
-
-
---
--- Name: movimentacoes_reservas movimentacoes_reservas_reserva_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.movimentacoes_reservas
-    ADD CONSTRAINT movimentacoes_reservas_reserva_id_fkey FOREIGN KEY (reserva_id) REFERENCES public.reservas(id) ON DELETE CASCADE;
-
-
---
 -- Name: orcamento_metas orcamento_metas_categoria_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3839,22 +3693,6 @@ ALTER TABLE ONLY public.representantes
 
 ALTER TABLE ONLY public.representantes
     ADD CONSTRAINT representantes_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-
-
---
--- Name: reservas reservas_conta_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.reservas
-    ADD CONSTRAINT reservas_conta_id_fkey FOREIGN KEY (conta_id) REFERENCES public.contas(id);
-
-
---
--- Name: reservas reservas_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.reservas
-    ADD CONSTRAINT reservas_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
 
 
 --

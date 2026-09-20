@@ -13,17 +13,17 @@ type SeoConfig = {
 const SEO_BY_PATH: Record<string, SeoConfig> = {
   '/': {
     title: 'FINGERENCE | Controle financeiro pessoal e empresarial',
-    description: 'Organize receitas, despesas, cartões, reservas e relatórios em perfis separados para sua vida pessoal e sua empresa.',
+    description: 'Organize receitas, despesas, cartões e relatórios em perfis separados para sua vida pessoal e sua empresa.',
     canonicalPath: '/',
   },
   '/index.html': {
     title: 'FINGERENCE | Controle financeiro pessoal e empresarial',
-    description: 'Organize receitas, despesas, cartões, reservas e relatórios em perfis separados para sua vida pessoal e sua empresa.',
+    description: 'Organize receitas, despesas, cartões e relatórios em perfis separados para sua vida pessoal e sua empresa.',
     canonicalPath: '/',
   },
   '/funcionalidades': {
     title: 'Funcionalidades do FINGERENCE | Controle financeiro completo',
-    description: 'Conheça os módulos do FINGERENCE para despesas, receitas, reservas, cartão de crédito, relatórios e múltiplos perfis financeiros.',
+    description: 'Conheça os módulos do FINGERENCE para despesas, receitas, cartão de crédito, relatórios e múltiplos perfis financeiros.',
     canonicalPath: '/funcionalidades/',
   },
   '/sobre': {
