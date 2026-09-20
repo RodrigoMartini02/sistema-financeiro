@@ -43,5 +43,11 @@ export function useActiveAccount({ enabled = true }: UseActiveAccountOptions = {
     window.location.reload();
   };
 
-  return { contas: data, activeId, activeAccount, select };
+  // true no ciclo de render em que o efeito acima ainda vai gravar
+  // contaAtivaId e recarregar a página — quem consome este hook para decidir
+  // "a conta ativa já está estável" deve tratar isso como não resolvido
+  // ainda, senão dispara buscas com o localStorage prestes a mudar.
+  const willReloadForAccountSwitch = !!activeAccount && String(activeAccount.id) !== activeId;
+
+  return { contas: data, activeId, activeAccount, select, isLoading: contas.isLoading, willReloadForAccountSwitch };
 }

@@ -39,6 +39,7 @@ import { trackPageView } from './services/analyticsService';
 import { useOnboardingChecklist, type OnboardingTarget } from './hooks/useOnboardingChecklist';
 import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
 import { queryKeys } from './services/queryKeys';
+import { useActiveAccount } from './hooks/useActiveAccount';
 
 interface PlanoStatus {
   status: 'trial' | 'ativo' | 'expirado';
@@ -129,8 +130,23 @@ function AppContent() {
   });
 
   const hasPlanAccess = planQuery.data?.status === 'trial' || planQuery.data?.status === 'ativo';
-  const finance = useFinanceDashboard(month, year, hasPlanAccess);
-  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user && hasPlanAccess);
+
+  // Resolve a conta ativa (localStorage) antes de disparar qualquer busca de
+  // saldo/dashboard. Sem isso, a primeira renderização após o login roda com
+  // getActiveAccountId() === null (a conta ainda não foi persistida), e o
+  // saldo do mês soma receitas/despesas de TODAS as contas do usuário juntas
+  // — um bug de mistura entre contas, não de família. Este hook também
+  // recarrega a página assim que grava a conta ativa pela primeira vez.
+  const { activeAccount, contas: contasDoUsuario, isLoading: contasLoading, willReloadForAccountSwitch } =
+    useActiveAccount({ enabled: isAppRoute && !!session.user });
+  // Resolvido quando a query terminou, não há uma troca de conta pendente
+  // (que recarregaria a página), e ou já existe conta ativa, ou o usuário
+  // simplesmente não tem nenhuma conta (nada a aguardar nesse caso).
+  const activeAccountResolved =
+    !contasLoading && !willReloadForAccountSwitch && (!!activeAccount || contasDoUsuario.length === 0);
+
+  const finance = useFinanceDashboard(month, year, hasPlanAccess && activeAccountResolved);
+  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user && hasPlanAccess && activeAccountResolved);
 
   if (!isAppRoute) return <PublicSite />;
   if (!session.hasToken) {
