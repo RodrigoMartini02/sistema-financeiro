@@ -51,6 +51,7 @@ export const queryKeys = {
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
   parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
+  expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
   incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
