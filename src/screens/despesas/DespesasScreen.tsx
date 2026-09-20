@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import {
   Paperclip, Plus, Ban,
-  CircleCheck, ArrowRight, X, ChevronDown, CheckSquare, Pencil, Trash2,
+  CircleCheck, ArrowRight, ChevronDown, CheckSquare, Pencil, Trash2,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
@@ -27,9 +27,10 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { daysAgoLocalIso, getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from './ExpenseCard';
 import { DeleteInstallmentDialog } from './DeleteInstallmentDialog';
+import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 
-type FiltroStatus = 'todos' | 'pago' | 'em_dia' | 'atrasada';
-type FiltroDataPag = 'qualquer' | 'hoje' | 'semana' | 'mes';
+type FiltroStatus = 'pago' | 'em_dia' | 'atrasada';
+type FiltroDataPag = 'hoje' | 'semana' | 'mes';
 type Ordenar = 'cadastro_desc' | 'vencimento_asc' | 'vencimento_desc' | 'valor_asc' | 'valor_desc' | 'descricao';
 
 const FORMA_LABELS: Record<string, string> = {
@@ -242,12 +243,12 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [installmentDialog, setInstallmentDialog] = useState<{ open: boolean; item?: Expense; mode: 'excluir' | 'cancelar' }>({ open: false, mode: 'excluir' });
 
-  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('todos');
-  const [filtroCategoria, setFiltroCategoria] = useState('');
-  const [filtroAutor, setFiltroAutor] = useState('');
-  const [filtroFormaPag, setFiltroFormaPag] = useState('');
-  const [filtroCartao, setFiltroCartao] = useState('');
-  const [filtroDataPag, setFiltroDataPag] = useState<FiltroDataPag>('qualquer');
+  const [filtroStatus, setFiltroStatus] = useState<Set<FiltroStatus>>(new Set());
+  const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(new Set());
+  const [filtroAutor, setFiltroAutor] = useState<Set<string>>(new Set());
+  const [filtroFormaPag, setFiltroFormaPag] = useState<Set<string>>(new Set());
+  const [filtroCartao, setFiltroCartao] = useState<Set<string>>(new Set());
+  const [filtroDataPag, setFiltroDataPag] = useState<Set<FiltroDataPag>>(new Set());
   const [ordenar, setOrdenar] = useState<Ordenar>('cadastro_desc');
   const [selecionadas, setSelecionadas] = useState<Set<number>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
@@ -355,16 +356,24 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const semanaAgo = daysAgoLocalIso(7);
   const mesPrefixo = `${year}-${String(month + 1).padStart(2, '0')}`;
 
+  // Cada grupo filtra em OR (qualquer opcao marcada passa); grupos
+  // diferentes combinam em AND. Set vazio = grupo sem filtro, todos passam.
+  const passaFiltroDataPag = (i: Expense): boolean => {
+    if (filtroDataPag.size === 0) return true;
+    if (filtroDataPag.has('hoje') && i.dataPagamento === hoje) return true;
+    if (filtroDataPag.has('semana') && i.dataPagamento && i.dataPagamento >= semanaAgo && i.dataPagamento <= hoje) return true;
+    if (filtroDataPag.has('mes') && i.dataPagamento?.startsWith(mesPrefixo)) return true;
+    return false;
+  };
+
   const filtered = allItems
     .filter((i) => {
-      if (filtroStatus !== 'todos' && getStatus(i) !== filtroStatus) return false;
-      if (filtroCategoria && i.categoria !== filtroCategoria) return false;
-      if (filtroAutor && i.autorNome !== filtroAutor) return false;
-      if (filtroFormaPag && i.formaPagamento !== filtroFormaPag) return false;
-      if (filtroCartao && String(i.cartaoId ?? '') !== filtroCartao) return false;
-      if (filtroDataPag === 'hoje' && i.dataPagamento !== hoje) return false;
-      if (filtroDataPag === 'semana' && (!i.dataPagamento || i.dataPagamento < semanaAgo || i.dataPagamento > hoje)) return false;
-      if (filtroDataPag === 'mes' && (!i.dataPagamento || !i.dataPagamento.startsWith(mesPrefixo))) return false;
+      if (filtroStatus.size > 0 && !filtroStatus.has(getStatus(i))) return false;
+      if (filtroCategoria.size > 0 && !filtroCategoria.has(i.categoria)) return false;
+      if (filtroAutor.size > 0 && (!i.autorNome || !filtroAutor.has(i.autorNome))) return false;
+      if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
+      if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
+      if (!passaFiltroDataPag(i)) return false;
       return true;
     })
     .sort((a, b) => {
@@ -385,7 +394,89 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     });
 
   const hasFilter2 =
-    filtroStatus !== 'todos' || filtroCategoria !== '' || filtroFormaPag !== '' || filtroCartao !== '' || filtroDataPag !== 'qualquer' || filtroAutor !== '';
+    filtroStatus.size > 0 || filtroCategoria.size > 0 || filtroFormaPag.size > 0
+    || filtroCartao.size > 0 || filtroDataPag.size > 0 || filtroAutor.size > 0;
+
+  const handleClearFilters = () => {
+    setFiltroStatus(new Set());
+    setFiltroCategoria(new Set());
+    setFiltroFormaPag(new Set());
+    setFiltroCartao(new Set());
+    setFiltroDataPag(new Set());
+    setFiltroAutor(new Set());
+  };
+
+  // "Escopo familia" e o unico grupo que nao filtra o array local — ele troca
+  // o parametro enviado ao servidor (useFinanceDashboard acima). Representado
+  // aqui como grupo de opcao unica para viver no mesmo painel dos demais.
+  const filterGroups: FilterGroup[] = [
+    {
+      id: 'status',
+      label: 'Status',
+      options: [
+        { value: 'pago', label: 'Pago' },
+        { value: 'em_dia', label: 'Em dia' },
+        { value: 'atrasada', label: 'Atrasada' },
+      ],
+      selected: filtroStatus,
+      onChange: (next) => setFiltroStatus(next as Set<FiltroStatus>),
+    },
+    {
+      id: 'categoria',
+      label: 'Categoria',
+      options: categorias.map((c) => ({ value: c, label: c })),
+      selected: filtroCategoria,
+      onChange: setFiltroCategoria,
+    },
+    {
+      id: 'forma-pagamento',
+      label: 'Forma de pagamento',
+      options: formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
+      selected: filtroFormaPag,
+      onChange: setFiltroFormaPag,
+    },
+    ...(cartoesUsados.length > 0 ? [{
+      id: 'cartao',
+      label: 'Cartão',
+      options: cartoesUsados.map(([id, nome]) => ({ value: id, label: nome })),
+      selected: filtroCartao,
+      onChange: setFiltroCartao,
+    }] : []),
+    {
+      id: 'data-pagamento',
+      label: 'Data de pagamento',
+      options: [
+        { value: 'hoje', label: 'Pago hoje' },
+        { value: 'semana', label: 'Esta semana' },
+        { value: 'mes', label: 'Este mês' },
+      ],
+      selected: filtroDataPag,
+      onChange: (next) => setFiltroDataPag(next as Set<FiltroDataPag>),
+    },
+    ...(temMembros ? [{
+      id: 'escopo-familia',
+      label: 'Lançamentos',
+      options: [
+        { value: 'eu', label: 'Só eu' },
+        { value: 'familia', label: 'Família' },
+      ],
+      // Opcao unica (nao multi): o painel so adiciona/remove uma entrada do
+      // Set por clique, entao a opcao clicada e sempre a que nao estava no
+      // Set anterior — ela vira o novo valor exclusivo, a outra e descartada.
+      selected: new Set([escopoFamilia ? 'familia' : 'eu']),
+      onChange: (next: Set<string>) => {
+        const clicado = [...next].find((v) => v !== (escopoFamilia ? 'familia' : 'eu'));
+        if (clicado) setEscopoFamilia(clicado === 'familia');
+      },
+    }] : []),
+    ...(mostrarFiltroAutor ? [{
+      id: 'autor',
+      label: 'Membro',
+      options: autores.map((a) => ({ value: a, label: a })),
+      selected: filtroAutor,
+      onChange: setFiltroAutor,
+    }] : []),
+  ];
 
   useEffect(() => {
     onFilteredSummaryChange?.({
@@ -503,52 +594,6 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                 />
               )}
               <FilterChip
-                value={filtroStatus}
-                onChange={(v) => setFiltroStatus(v as FiltroStatus)}
-                options={[
-                  { value: 'todos', label: 'Status' },
-                  { value: 'pago', label: 'Pago' },
-                  { value: 'em_dia', label: 'Em dia' },
-                  { value: 'atrasada', label: 'Atrasada' },
-                ]}
-              />
-              <FilterChip
-                value={filtroCategoria}
-                onChange={setFiltroCategoria}
-                options={[
-                  { value: '', label: 'Categoria' },
-                  ...categorias.map((c) => ({ value: c, label: c })),
-                ]}
-              />
-              <FilterChip
-                value={filtroFormaPag}
-                onChange={setFiltroFormaPag}
-                options={[
-                  { value: '', label: 'Pagamento' },
-                  ...formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
-                ]}
-              />
-              {cartoesUsados.length > 0 && (
-                <FilterChip
-                  value={filtroCartao}
-                  onChange={setFiltroCartao}
-                  options={[
-                    { value: '', label: 'Cartão' },
-                    ...cartoesUsados.map(([id, nome]) => ({ value: id, label: nome })),
-                  ]}
-                />
-              )}
-              <FilterChip
-                value={filtroDataPag}
-                onChange={(v) => setFiltroDataPag(v as FiltroDataPag)}
-                options={[
-                  { value: 'qualquer', label: 'Data pag.' },
-                  { value: 'hoje', label: 'Pago hoje' },
-                  { value: 'semana', label: 'Esta semana' },
-                  { value: 'mes', label: 'Este mês' },
-                ]}
-              />
-              <FilterChip
                 value={ordenar}
                 onChange={(v) => setOrdenar(v as Ordenar)}
                 options={[
@@ -560,42 +605,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                   { value: 'descricao', label: 'A–Z' },
                 ]}
               />
-              {temMembros && (
-                <FilterChip
-                  value={escopoFamilia ? 'familia' : 'eu'}
-                  onChange={(v) => setEscopoFamilia(v === 'familia')}
-                  options={[
-                    { value: 'eu', label: 'Só eu' },
-                    { value: 'familia', label: 'Família' },
-                  ]}
-                />
-              )}
-              {mostrarFiltroAutor && (
-                <FilterChip
-                  value={filtroAutor}
-                  onChange={setFiltroAutor}
-                  options={[
-                    { value: '', label: 'Todos os membros' },
-                    ...autores.map((a) => ({ value: a, label: a })),
-                  ]}
-                />
-              )}
-              {hasFilter2 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFiltroStatus('todos');
-                    setFiltroCategoria('');
-                    setFiltroFormaPag('');
-                    setFiltroCartao('');
-                    setFiltroDataPag('qualquer');
-                    setFiltroAutor('');
-                  }}
-                  className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-100 transition dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-                >
-                  <X size={10} /> Limpar
-                </button>
-              )}
+              <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter2} onClear={handleClearFilters} />
             </div>
           </div>
 
