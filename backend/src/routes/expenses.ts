@@ -800,19 +800,16 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
   }
 });
 
-// GET /api/despesas/parcelas-futuras?mes=X&ano=Y&meses=3&membro_id=...
+// GET /api/despesas/parcelas-futuras?ano=Y&membro_id=...
+// Devolve as parcelas de TODOS os 12 meses do ano informado, separando o que
+// ja foi pago do que segue em aberto — o grafico do painel mostra o ano
+// inteiro, nao uma janela relativa ao mes corrente.
 router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes: mesQ, ano: anoQ, meses: mesesQ, conta_id } = req.query as Record<string, string | undefined>;
+    const { ano: anoQ, conta_id } = req.query as Record<string, string | undefined>;
     const membroIdRaw = req.query['membro_id'];
-    const mes = parseInt(mesQ ?? '');
     const ano = parseInt(anoQ ?? '');
-    const meses = parseInt(mesesQ ?? '3');
 
-    if (isNaN(mes) || mes < 0 || mes > 11) {
-      res.status(400).json({ success: false, message: 'Parâmetro mes inválido (0-11)' });
-      return;
-    }
     if (isNaN(ano) || ano < 2000 || ano > 2100) {
       res.status(400).json({ success: false, message: 'Parâmetro ano inválido' });
       return;
@@ -820,7 +817,6 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
 
     const userId = req.user!.id;
     const accountId = conta_id ? parseInt(conta_id) : null;
-    const limiteMeses = Math.min(Math.max(meses || 3, 1), 12);
 
     // Mesmo contrato de membro_id do painel (/financial/panorama): ausente =
     // so o proprio usuario; 'familia' = todos os visiveis; um id ou uma lista
@@ -865,14 +861,13 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
        FROM despesas
        WHERE usuario_id = ANY($1)
          AND parcelado = true
-         AND (ano * 12 + mes) > ($2 * 12 + $3)
-         AND (ano * 12 + mes) <= ($2 * 12 + $3 + $4)
-         AND ($5::int IS NULL OR conta_id = $5 OR (conta_id IS NULL AND EXISTS (
-           SELECT 1 FROM contas pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = ANY($1)
+         AND ano = $2::int
+         AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+           SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = ANY($1)
          )))
        GROUP BY mes, ano
        ORDER BY ano, mes`,
-      [visiveis, ano, mes, limiteMeses, accountId],
+      [visiveis, ano, accountId],
     );
 
     res.json({ success: true, data: result.rows });

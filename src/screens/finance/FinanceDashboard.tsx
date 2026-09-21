@@ -140,9 +140,11 @@ export function FinanceDashboard() {
   });
   const contratos = contratosQ.data ?? [];
 
+  // Ano inteiro: o grafico de parcelas cobre os 12 meses do ano do fim do
+  // periodo filtrado, nao uma janela relativa ao mes corrente.
   const parcelasQ = useQuery({
-    queryKey: queryKeys.parcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3, membroId),
-    queryFn: () => fetchParcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3, membroId),
+    queryKey: queryKeys.parcelasFuturas(mesReferencia.ano, membroId),
+    queryFn: () => fetchParcelasFuturas(mesReferencia.ano, membroId),
     staleTime: 60_000,
   });
   const parcelasFuturas = parcelasQ.data ?? [];
@@ -277,6 +279,16 @@ export function FinanceDashboard() {
   const healthBase = Math.max(receitas, despesas, 1);
   const detalhe = data?.despesasDetalhe;
 
+  // Graficos de 12 meses (juros x descontos e parcelas): cobrem o ano do fim
+  // do periodo filtrado, e os totais do rodape somam esse ano inteiro — nao o
+  // periodo, que pode ser um recorte menor.
+  const anoGraficos = data?.anoReferencia ?? mesReferencia.ano;
+  const jurosDescontosMensal = data?.jurosDescontosMensal ?? [];
+  const jurosAno = jurosDescontosMensal.reduce((s, m) => s + m.juros, 0);
+  const descontosAno = jurosDescontosMensal.reduce((s, m) => s + m.descontos, 0);
+  const parcelasPagasAno = parcelasFuturas.reduce((s, p) => s + p.pagas, 0);
+  const parcelasEmAbertoAno = parcelasFuturas.reduce((s, p) => s + p.emAberto, 0);
+
   // Cascata do período: saldo anterior ao período -> receitas -> maiores despesas por categoria -> saldo final
   // A cascata sai da lista completa de categorias, nao do top 8 do donut: escalar
   // as oito maiores para fechar com o total fazia cada barra exibir um valor que
@@ -352,11 +364,11 @@ export function FinanceDashboard() {
               <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
             )}
           </p>
-          {/* Linha própria abaixo da descrição: filtro sanduíche (Visão +
-              Membros) e período, na mesma linha. */}
-          <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
+          {/* Linha própria abaixo da descrição: período e filtro sanduíche
+              (Visão + Membros), ambos alinhados à direita. */}
+          <div className="mt-1 flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
             <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
           </div>
         </div>
         {guide.isVisible && hasNoEntries && visao === 'conta' && (
@@ -680,32 +692,6 @@ export function FinanceDashboard() {
           <div className="h-px flex-1 bg-[#e6eef3] dark:bg-slate-700" />
         </div>
         <div className="grid gap-3.5 xl:grid-cols-3">
-          {/* Card: Juros × Descontos */}
-          <Card className="flex flex-col rounded-2xl p-[18px_20px]">
-            <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Juros × Descontos</h3>
-            {!detalhe || (detalhe.juros === 0 && detalhe.descontos === 0) ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[26px] text-center">
-                <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
-                  <TrendingUp size={19} />
-                </span>
-                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Sem juros ou descontos no período</span>
-                <span className="max-w-[200px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Nenhuma despesa foi paga com acréscimo nem com abatimento neste período.</span>
-              </div>
-            ) : (
-              <div className="mt-[14px] flex flex-1 flex-col">
-                <JurosDescontosChart juros={detalhe.juros} descontos={detalhe.descontos} />
-                {detalhe.juros > 0 && detalhe.descontos > 0 && (
-                  <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500 dark:border-slate-700">
-                    <span>Saldo financeiro</span>
-                    <span className={detalhe.descontos >= detalhe.juros ? 'font-semibold text-green-600' : 'font-semibold text-red-600'}>
-                      {detalhe.descontos >= detalhe.juros ? '+' : '-'}{formatCurrency(Math.abs(detalhe.descontos - detalhe.juros))}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-
           {/* Card: Composição das despesas */}
           <Card className="flex flex-col rounded-2xl p-[18px_20px]">
             <div className="flex items-baseline gap-2.5">
@@ -877,38 +863,71 @@ export function FinanceDashboard() {
             </Card>
           )}
 
-          {/* Card: Parcelas futuras — o mês de referência é o fim do período
-              filtrado. */}
-          <Card className="flex flex-col rounded-2xl p-[18px_20px]">
-            <div className="flex items-baseline gap-2.5">
-              <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas futuras</h3>
+      </div>
+      </div>
+
+      {/* Juros × Descontos e Parcelas: os dois cobrem o ano inteiro, em
+          largura total e empilhados — 12 meses não cabem numa coluna de
+          um terço da tela. */}
+      <Card className="rounded-2xl p-[18px_22px]">
+        <div className="flex items-baseline gap-2.5">
+          <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Juros × Descontos</h3>
+          <div className="flex-1" />
+          <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">ano de {anoGraficos}</span>
+        </div>
+        {jurosDescontosMensal.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-[9px] py-[26px] text-center">
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
+              <TrendingUp size={19} />
+            </span>
+            <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Sem juros ou descontos em {anoGraficos}</span>
+            <span className="max-w-[280px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Nenhuma despesa foi paga com acréscimo nem com abatimento neste ano.</span>
+          </div>
+        ) : (
+          <div className="mt-[14px]">
+            <JurosDescontosChart mensal={jurosDescontosMensal} />
+            <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-[#eef4f7] pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <span>Juros no ano <strong className="font-semibold text-red-600">{formatCurrency(jurosAno)}</strong></span>
+              <span>Descontos no ano <strong className="font-semibold text-green-600">{formatCurrency(descontosAno)}</strong></span>
               <div className="flex-1" />
-              <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">próximos 3 meses</span>
+              <span>
+                Saldo financeiro{' '}
+                <strong className={descontosAno >= jurosAno ? 'font-semibold text-green-600' : 'font-semibold text-red-600'}>
+                  {descontosAno >= jurosAno ? '+' : '-'}{formatCurrency(Math.abs(descontosAno - jurosAno))}
+                </strong>
+              </span>
             </div>
-            {parcelasQ.isLoading ? (
-              <div className="flex-1 py-6 text-center text-sm text-slate-400">Carregando...</div>
-            ) : parcelasFuturas.length === 0 ? (
-              <div className="flex flex-1 flex-col items-center justify-center gap-[9px] py-[22px] text-center">
-                <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
-                  <CreditCard size={19} />
-                </span>
-                <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
-              </div>
-            ) : (
-              <div className="mt-[14px] flex flex-1 flex-col">
-                <ParcelasFuturasChart parcelas={parcelasFuturas} anoReferencia={mesReferencia.ano} />
-                <div className="mt-1 flex items-center border-t border-[#eef4f7] pt-3 dark:border-slate-700">
-                  <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">Total comprometido</span>
-                  <div className="flex-1" />
-                  <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">
-                    {formatCurrency(parcelasFuturas.reduce((s, p) => s + p.pagas + p.emAberto, 0))}
-                  </span>
-                </div>
-              </div>
-            )}
-          </Card>
-      </div>
-      </div>
+          </div>
+        )}
+      </Card>
+
+      <Card className="rounded-2xl p-[18px_22px]">
+        <div className="flex items-baseline gap-2.5">
+          <h3 className="text-[13.5px] font-bold text-[#0f2b38] dark:text-white">Parcelas</h3>
+          <div className="flex-1" />
+          <span className="text-[11.5px] text-[#5f7885] dark:text-slate-400">ano de {anoGraficos}</span>
+        </div>
+        {parcelasQ.isLoading ? (
+          <div className="py-6 text-center text-sm text-slate-400">Carregando...</div>
+        ) : parcelasFuturas.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-[9px] py-[22px] text-center">
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-[#ecfdf3] text-[#067647]">
+              <CreditCard size={19} />
+            </span>
+            <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em {anoGraficos}</span>
+          </div>
+        ) : (
+          <div className="mt-[14px]">
+            <ParcelasFuturasChart parcelas={parcelasFuturas} />
+            <div className="mt-1 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-[#eef4f7] pt-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <span>Pagas <strong className="font-semibold text-green-600">{formatCurrency(parcelasPagasAno)}</strong></span>
+              <span>Em aberto <strong className="font-semibold text-amber-600">{formatCurrency(parcelasEmAbertoAno)}</strong></span>
+              <div className="flex-1" />
+              <span>Total no ano <strong className="font-semibold text-[#0f2b38] dark:text-white">{formatCurrency(parcelasPagasAno + parcelasEmAbertoAno)}</strong></span>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Série temporal */}
       <Card className="rounded-2xl p-[20px_22px_16px]">

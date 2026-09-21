@@ -293,13 +293,12 @@ export interface ParcelaFutura {
   emAberto: number;
 }
 
+/** Parcelas de todos os 12 meses de `ano`, separadas entre pagas e em aberto. */
 export async function fetchParcelasFuturas(
-  mes: number,
   ano: number,
-  meses = 3,
   membroId?: number | number[] | null,
 ): Promise<ParcelaFutura[]> {
-  const q = new URLSearchParams({ mes: String(mes), ano: String(ano), meses: String(meses) });
+  const q = new URLSearchParams({ ano: String(ano) });
   // Mesmo contrato de fetchDashboardPanorama: ausente = so eu, null =
   // familia inteira, lista = exatamente esses membros.
   if (membroId === null) q.set('membro_id', 'familia');
@@ -375,6 +374,8 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       juros: string | number; descontos: string | number; fixas: string | number; variaveis: string | number;
       parceladas: string | number; pagas: string | number; pendentes: string | number;
     };
+    anoReferencia: string | number;
+    jurosDescontosMensal?: Array<{ mes: string | number; juros: string | number; descontos: string | number }>;
   }>(`/financial/panorama${suffix}`);
 
   return {
@@ -422,5 +423,11 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       pagas: asNumber(raw.despesasDetalhe.pagas),
       pendentes: asNumber(raw.despesasDetalhe.pendentes),
     },
+    anoReferencia: Number(raw.anoReferencia),
+    jurosDescontosMensal: (raw.jurosDescontosMensal ?? []).map((m) => ({
+      mes: Number(m.mes),
+      juros: asNumber(m.juros),
+      descontos: asNumber(m.descontos),
+    })),
   };
 }
