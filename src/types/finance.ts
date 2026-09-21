@@ -182,7 +182,15 @@ export interface DashboardPanoramaData {
   totalLancamentos: number;
   primeiraData: string | null;
   ultimaData: string | null;
-  porCategoria: { categoriaId: number | null; categoria: string; parentId: number | null; total: number }[];
+  /** Uma linha por (categoria, autor) — a tela agrega e usa a quebra por autor nas barras. */
+  porCategoria: {
+    categoriaId: number | null;
+    categoria: string;
+    parentId: number | null;
+    usuarioId: number | null;
+    autorNome: string | null;
+    total: number;
+  }[];
   porFormaPagamento: { forma_pagamento: string; total: number }[];
   porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
   porCartao: { cartao: string; total: number }[];

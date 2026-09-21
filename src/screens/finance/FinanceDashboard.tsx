@@ -227,9 +227,16 @@ export function FinanceDashboard() {
     .map((d, i) => ({ ...d, color: PALETA[i % PALETA.length] })), [data]);
 
   // Dados por membro. A cor sai do usuario_id, nao da posicao na lista: assim a
-  // mesma pessoa mantem a cor nos donuts e nas barras de categoria.
+  // mesma pessoa mantem a cor nos donuts e nas barras de categoria. A fonte e
+  // `pessoas` (titular + membros), nao `summary`, que so existe no modo em que
+  // todos estao marcados — as barras de categoria precisam da cor em qualquer
+  // combinacao do filtro.
   const summary = summaryQ.data;
-  const memberColors = useMemo(() => buildMemberColors(summary?.membros ?? []), [summary]);
+  const memberColors = useMemo(
+    () => buildMemberColors(pessoas.map((p) => ({ usuario_id: p.usuarioId }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pessoas.map((p) => p.usuarioId).join(',')],
+  );
 
   const porMembro = useMemo(() => {
     if (!summary) return [];
@@ -294,8 +301,15 @@ export function FinanceDashboard() {
   // as oito maiores para fechar com o total fazia cada barra exibir um valor que
   // nao era o gasto real daquela categoria.
   const waterfallSteps = useMemo(() => {
-    const todas = [...(data?.porCategoria ?? [])]
-      .map((c) => ({ name: c.categoria, value: c.total }))
+    // porCategoria vem quebrado por autor (uma linha por categoria+pessoa):
+    // consolida por nome antes de ordenar, senao a mesma categoria apareceria
+    // repetida, uma barra por pessoa.
+    const somaPorCategoria = new Map<string, number>();
+    for (const c of data?.porCategoria ?? []) {
+      somaPorCategoria.set(c.categoria, (somaPorCategoria.get(c.categoria) ?? 0) + c.total);
+    }
+    const todas = [...somaPorCategoria.entries()]
+      .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
     const topCategorias = todas.slice(0, 5);
     const restantes = todas.slice(5);
@@ -966,6 +980,8 @@ export function FinanceDashboard() {
       <MonthCategoriesOverview
         porCategoria={data?.porCategoria}
         periodLabel={periodoDescricao}
+        memberColors={memberColors}
+        segmentarPorMembro={membroIds.size > 1}
       />
 
       {/* Cascata do período */}

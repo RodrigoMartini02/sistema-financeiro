@@ -356,7 +356,10 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     saldoAnterior: string | number; saldoFinal: string | number;
     totalLancamentos: string | number;
     primeiraData: string | null; ultimaData: string | null;
-    porCategoria: Array<{ categoria_id: number | string | null; categoria: string; parent_id: number | string | null; total: string | number }>;
+    porCategoria: Array<{
+      categoria_id: number | string | null; categoria: string; parent_id: number | string | null;
+      usuario_id: number | string | null; autor_nome: string | null; total: string | number;
+    }>;
     porFormaPagamento: Array<{ forma_pagamento: string; total: string | number }>;
     porOrigem: Array<{ origem: 'contrato' | 'avulsa'; total: string | number }>;
     porCartao: Array<{ cartao: string; total: string | number }>;
@@ -390,6 +393,8 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
       categoriaId: c.categoria_id != null ? Number(c.categoria_id) : null,
       categoria: c.categoria,
       parentId: c.parent_id != null ? Number(c.parent_id) : null,
+      usuarioId: c.usuario_id != null ? Number(c.usuario_id) : null,
+      autorNome: c.autor_nome,
       total: asNumber(c.total),
     })),
     porFormaPagamento: raw.porFormaPagamento.map((f) => ({ forma_pagamento: f.forma_pagamento, total: asNumber(f.total) })),

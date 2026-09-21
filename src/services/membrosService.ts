@@ -9,6 +9,7 @@ export interface MembroListItem {
   email: string;
   documento?: string | null;
   usuario_status: string;
+  foto?: string | null;
   telefone?: string | null;
   data_nascimento?: string | null;
   pais?: string | null;
