@@ -12,9 +12,9 @@ import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
-import { Button } from '../../ui/button';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
+import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
 import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import type { Expense, Income } from '../../types/finance';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
@@ -34,25 +34,11 @@ type ViewMode = 'lista' | 'calendario';
 
 function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 dark:border-slate-600 dark:bg-slate-800">
-      <button
-        type="button"
-        onClick={() => onChange('lista')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          mode === 'lista' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
-      >
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={() => onChange('lista')} style={mode === 'lista' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}>
         <List size={13} /> Lista
       </button>
-      <button
-        type="button"
-        onClick={() => onChange('calendario')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          mode === 'calendario' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
-      >
+      <button type="button" onClick={() => onChange('calendario')} style={mode === 'calendario' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}>
         <Calendar size={13} /> Calendário
       </button>
     </div>
@@ -61,16 +47,13 @@ function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: V
 
 function MovementSectionToggle({ activeTab, onChange }: { activeTab: MovementTab; onChange: (tab: MovementTab) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 dark:border-slate-600 dark:bg-slate-800" role="tablist" aria-label="Conteúdo de movimentações">
+    <div className="flex items-center gap-1.5" role="tablist" aria-label="Conteúdo de movimentações">
       <button
         type="button"
         role="tab"
         aria-selected={activeTab === 'lancamentos'}
         onClick={() => onChange('lancamentos')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          activeTab === 'lancamentos' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
+        style={activeTab === 'lancamentos' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}
       >
         <List size={13} /> Lançamentos
       </button>
@@ -79,10 +62,7 @@ function MovementSectionToggle({ activeTab, onChange }: { activeTab: MovementTab
         role="tab"
         aria-selected={activeTab === 'planejamento'}
         onClick={() => onChange('planejamento')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          activeTab === 'planejamento' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
+        style={activeTab === 'planejamento' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}
       >
         <Target size={13} /> Planejamento
       </button>
@@ -294,7 +274,9 @@ export function MovimentacoesScreen() {
             {!isCalendario && !isPlanning && (
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                  <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
+                    <Plus size={15} /> Nova receita
+                  </button>
                   {novaReceitaGuide.isVisible && (
                     <FirstAccessGuideCard
                       floating
@@ -309,7 +291,9 @@ export function MovimentacoesScreen() {
                   )}
                 </div>
                 <div className="relative">
-                  <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                  <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
+                    <Plus size={15} /> Nova despesa
+                  </button>
                   {novaDespesaGuide.isVisible && (
                     <FirstAccessGuideCard
                       floating

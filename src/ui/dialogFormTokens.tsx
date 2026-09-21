@@ -83,6 +83,30 @@ export const dangerButtonStyle: CSSProperties = {
   cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .13s ease',
 };
 
+/** Ação positiva em pill outline (mesmo padrão de dangerButtonStyle, em verde). */
+export const successOutlineButtonStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 30, padding: '0 14px', borderRadius: 999,
+  border: `1px solid ${C.successBorder}`, background: '#fff',
+  color: C.success, fontSize: 12.5, fontWeight: 600, lineHeight: 1,
+  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .13s ease',
+};
+
+/** Pill outline neutra para toggles (Lista/Calendário, Lançamentos/Planejamento). */
+export const neutralOutlineButtonStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 30, padding: '0 14px', borderRadius: 999,
+  border: `1px solid ${C.primary}`, background: C.primarySoft,
+  color: C.primaryDark, fontSize: 12.5, fontWeight: 600, lineHeight: 1,
+  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background .13s ease',
+};
+
+export const neutralOutlineButtonOffStyle: CSSProperties = {
+  ...neutralOutlineButtonStyle,
+  border: `1px solid ${C.chipOffBorder}`, background: '#fff', color: C.chipOffText,
+  fontWeight: 500,
+};
+
 /** Rodapé padrão dos modais. */
 export const dialogFooterStyle: CSSProperties = {
   flex: 'none', display: 'flex', alignItems: 'center', gap: 10,
