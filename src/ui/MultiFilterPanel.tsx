@@ -5,6 +5,11 @@ import { Z_DROPDOWN } from './zIndex';
 export interface FilterGroupOption {
   value: string;
   label: string;
+  /** Presente quando esta opção é subcategoria de outra opção do mesmo grupo
+   *  (aponta para o `value` do pai) — vira uma linha indentada sob o cabeçalho
+   *  do pai em vez de uma opção solta. Opções sem filhos e sem `parentValue`
+   *  continuam soltas, como sempre foram. */
+  parentValue?: string;
 }
 
 export interface FilterGroup {
@@ -19,6 +24,17 @@ interface MultiFilterPanelProps {
   groups: FilterGroup[];
   hasActiveFilters: boolean;
   onClear: () => void;
+}
+
+// Checkbox nativo não tem prop declarativa para o estado indeterminado — só
+// dá para setar via `ref.current.indeterminate`, daí este componente à parte
+// em vez de inline no map principal.
+function ParentCheckbox({ checked, indeterminate, onChange }: { checked: boolean; indeterminate: boolean; onChange: () => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return <input ref={ref} type="checkbox" checked={checked} onChange={onChange} />;
 }
 
 // Botao unico + card popover com todos os grupos de filtro em multi-selecao
@@ -48,6 +64,36 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
     if (next.has(value)) next.delete(value);
     else next.add(value);
     group.onChange(next);
+  };
+
+  // Marcar/desmarcar o pai aplica o mesmo estado a todas as suas filhas de
+  // uma vez — o valor do pai em si nunca entra no Set retornado, porque
+  // nenhum dado real é filtrado por ele (só as filhas representam algo
+  // selecionável de fato); ele é só um atalho de seleção em lote.
+  const toggleParent = (group: FilterGroup, children: FilterGroupOption[], markAll: boolean) => {
+    const next = new Set(group.selected);
+    for (const child of children) {
+      if (markAll) next.add(child.value);
+      else next.delete(child.value);
+    }
+    group.onChange(next);
+  };
+
+  // Organiza as opções de um grupo em: soltas (sem parentValue e sem
+  // filhas) e agrupadas por pai (parentValue aponta para outra option do
+  // mesmo grupo). Uma option com filhas vira só cabeçalho — ela mesma não
+  // aparece como linha solta, mesmo que não tenha `parentValue`.
+  const organizeOptions = (options: FilterGroupOption[]) => {
+    const childrenByParent = new Map<string, FilterGroupOption[]>();
+    for (const opt of options) {
+      if (!opt.parentValue) continue;
+      const list = childrenByParent.get(opt.parentValue) ?? [];
+      list.push(opt);
+      childrenByParent.set(opt.parentValue, list);
+    }
+    const loose = options.filter((opt) => !opt.parentValue && !childrenByParent.has(opt.value));
+    const parents = options.filter((opt) => !opt.parentValue && childrenByParent.has(opt.value));
+    return { loose, parents, childrenByParent };
   };
 
   const toggleGrupoAberto = (groupId: string) => {
@@ -129,23 +175,55 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
                       ].join(' ')}
                     />
                   </button>
-                  {isOpen && (
-                    <div className="flex flex-col gap-0.5 pb-1">
-                      {group.options.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={group.selected.has(opt.value)}
-                            onChange={() => toggleOption(group, opt.value)}
-                          />
-                          {opt.label}
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                  {isOpen && (() => {
+                    const { loose, parents, childrenByParent } = organizeOptions(group.options);
+                    return (
+                      <div className="flex flex-col gap-0.5 pb-1">
+                        {loose.map((opt) => (
+                          <label
+                            key={opt.value}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={group.selected.has(opt.value)}
+                              onChange={() => toggleOption(group, opt.value)}
+                            />
+                            {opt.label}
+                          </label>
+                        ))}
+                        {parents.map((parent) => {
+                          const children = childrenByParent.get(parent.value)!;
+                          const markedCount = children.filter((c) => group.selected.has(c.value)).length;
+                          return (
+                            <div key={parent.value}>
+                              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700">
+                                <ParentCheckbox
+                                  checked={markedCount === children.length}
+                                  indeterminate={markedCount > 0 && markedCount < children.length}
+                                  onChange={() => toggleParent(group, children, markedCount !== children.length)}
+                                />
+                                {parent.label}
+                              </label>
+                              {children.map((child) => (
+                                <label
+                                  key={child.value}
+                                  className="ml-4 flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={group.selected.has(child.value)}
+                                    onChange={() => toggleOption(group, child.value)}
+                                  />
+                                  {child.label}
+                                </label>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
