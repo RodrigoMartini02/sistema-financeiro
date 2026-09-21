@@ -590,18 +590,18 @@ export function LancamentosTable({
                 <table className="w-full text-sm table-fixed">
                   <colgroup>
                     <col style={{ width: '34px' }} />
-                    <col style={{ width: '150px' }} />
+                    <col style={{ width: '190px' }} />
+                    <col style={{ width: '116px' }} />
+                    <col style={{ width: '104px' }} />
+                    <col style={{ width: '80px' }} />
                     <col style={{ width: '72px' }} />
                     <col style={{ width: '86px' }} />
                     <col style={{ width: '86px' }} />
-                    <col style={{ width: '116px' }} />
-                    <col style={{ width: '80px' }} />
-                    <col style={{ width: '104px' }} />
-                    <col style={{ width: '86px' }} />
+                    <col style={{ width: '110px' }} />
                     <col style={{ width: '74px' }} />
                     <col style={{ width: '104px' }} />
                     {isEmpresa && <col style={{ width: '64px' }} />}
-                    <col style={{ width: '58px' }} />
+                    <col style={{ width: '38px' }} />
                     <col style={{ width: '104px' }} />
                   </colgroup>
                   <thead className="sticky top-0 z-10">
@@ -617,12 +617,12 @@ export function LancamentosTable({
                         />
                       </th>
                       <th className={TH_CLASS}>Descrição</th>
-                      <th className={TH_CLASS}>Tipo</th>
-                      <th className={TH_CLASS}>Vencimento</th>
-                      <th className={TH_CLASS}>Data compra</th>
                       <th className={TH_CLASS}>Categoria</th>
-                      <th className={TH_CLASS}>Usuário</th>
                       <th className={TH_CLASS}>Pagamento</th>
+                      <th className={TH_CLASS}>Usuário</th>
+                      <th className={TH_CLASS}>Tipo</th>
+                      <th className={TH_CLASS}>Data compra</th>
+                      <th className={TH_CLASS}>Vencimento</th>
                       <th className={TH_CLASS}>Data pagamento</th>
                       <th className={TH_CLASS}>Status</th>
                       <th className={TH_CLASS}>Valor</th>
@@ -781,23 +781,23 @@ function ExpenseRow({
         </p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
-      <td className={TD_CLASS}><TipoBadge item={item} /></td>
-      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
-        {formatDate(item.dataVencimento)}
-      </td>
-      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-        {item.dataCompra ? formatDate(item.dataCompra) : DASH}
-      </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
         {item.categoriaPai && <span className={SECONDARY_CLASS}>{item.categoriaPai} › </span>}
         <span className="truncate">{item.categoria}</span>
       </td>
-      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-        {getFirstName(item.autorNome)}
-      </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {getFormaLabel(item.formaPagamento)}
         {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>}
+      </td>
+      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+        {getFirstName(item.autorNome)}
+      </td>
+      <td className={TD_CLASS}><TipoBadge item={item} /></td>
+      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+        {item.dataCompra ? formatDate(item.dataCompra) : DASH}
+      </td>
+      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
+        {formatDate(item.dataVencimento)}
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {item.dataPagamento && item.pago ? formatDate(item.dataPagamento) : DASH}
@@ -826,8 +826,13 @@ function ExpenseRow({
       </td>
       <td className={TD_CLASS}>
         <div className="flex justify-center gap-0.5">
-          <ActionBtn onClick={onEdit} title="Editar" colorClass="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
-            <Pencil size={14} />
+          <ActionBtn
+            onClick={onMoveToNextMonth}
+            disabled={item.pago || item.status === 'cancelada'}
+            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : 'Mover para próximo mês'}
+            colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
+          >
+            <ArrowRight size={14} />
           </ActionBtn>
           <ActionBtn
             onClick={onPay}
@@ -837,13 +842,8 @@ function ExpenseRow({
           >
             <CircleCheck size={15} />
           </ActionBtn>
-          <ActionBtn
-            onClick={onMoveToNextMonth}
-            disabled={item.pago || item.status === 'cancelada'}
-            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : 'Mover para próximo mês'}
-            colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
-          >
-            <ArrowRight size={14} />
+          <ActionBtn onClick={onEdit} title="Editar" colorClass="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <Pencil size={14} />
           </ActionBtn>
           <ActionBtn
             onClick={onCancel}
@@ -895,22 +895,22 @@ function IncomeRow({
         <p className="truncate text-xs text-slate-600 dark:text-slate-300">{item.descricao}</p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
-      {/* Tipo — usa o tipo de receita como equivalente informativo */}
-      <td className={TD_CLASS}>{tipoBadge(item.tipoReceita) ?? DASH}</td>
-      {/* Vencimento não existe em receita — usa a data de recebimento como equivalente */}
-      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
-        {formatDate(item.data)}
-      </td>
-      {/* Data compra — não se aplica a receita */}
-      <td className={TD_CLASS}>{DASH}</td>
       {/* Categoria — não se aplica a receita */}
       <td className={TD_CLASS}>{DASH}</td>
-      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-        {getFirstName(item.autorNome)}
-      </td>
       {/* Pagamento — mostra cliente/representante quando é conta empresa, senão traço */}
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {isEmpresa && (item.representanteNome || item.cliente) ? (item.representanteNome ?? item.cliente) : DASH}
+      </td>
+      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
+        {getFirstName(item.autorNome)}
+      </td>
+      {/* Tipo — usa o tipo de receita como equivalente informativo */}
+      <td className={TD_CLASS}>{tipoBadge(item.tipoReceita) ?? DASH}</td>
+      {/* Data compra — não se aplica a receita */}
+      <td className={TD_CLASS}>{DASH}</td>
+      {/* Vencimento não existe em receita — usa a data de recebimento como equivalente */}
+      <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
+        {formatDate(item.data)}
       </td>
       {/* Data pagamento — não se aplica a receita */}
       <td className={TD_CLASS}>{DASH}</td>
