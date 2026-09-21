@@ -87,7 +87,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       ? await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
                   u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
-                  u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
+                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
            WHERE m.conta_id = $1
@@ -97,7 +97,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       : await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
                   u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
-                  u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
+                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
            WHERE m.conta_id = $1 AND m.usuario_id = $2

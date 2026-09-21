@@ -700,7 +700,9 @@ function EditarUsuarioDialog({
               style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
             >
               <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
-                <User size={22} />
+                {membro?.foto
+                  ? <img src={membro.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+                  : <User size={22} />}
               </span>
               <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
                 <Pencil size={10} />
