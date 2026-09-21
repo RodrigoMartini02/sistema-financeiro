@@ -8,8 +8,11 @@ export interface CardLimit {
   disponivel: number;
 }
 
-export async function fetchCardLimits(): Promise<CardLimit[]> {
+export async function fetchCardLimits(escopo?: 'familia'): Promise<CardLimit[]> {
   const accountId = getActiveAccountId();
-  const q = accountId ? `?conta_id=${accountId}` : '';
-  return apiRequest<CardLimit[]>(`/cartoes/limites${q}`);
+  const params = new URLSearchParams();
+  if (accountId) params.set('conta_id', String(accountId));
+  if (escopo) params.set('escopo', escopo);
+  const q = params.toString();
+  return apiRequest<CardLimit[]>(`/cartoes/limites${q ? `?${q}` : ''}`);
 }

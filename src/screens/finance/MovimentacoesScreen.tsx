@@ -135,7 +135,11 @@ export function MovimentacoesScreen() {
       .filter(Boolean) as string[],
   );
 
-  const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
+  const cardLimits = useQuery({
+    queryKey: queryKeys.cardLimits(activeAccountId, escopoFamilia ? 'familia' : undefined),
+    queryFn: () => fetchCardLimits(escopoFamilia ? 'familia' : undefined),
+    staleTime: 60_000,
+  });
 
   // Filtro de Tipo: substitui as antigas abas Receitas/Despesas por um grupo
   // de filtro multi-selecao dentro do mesmo painel — default ambos marcados.
@@ -364,7 +368,7 @@ export function MovimentacoesScreen() {
           <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="grid gap-x-5 gap-y-1.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
               {cardLimits.data!.map((card) => (
-                <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} />
+                <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} disponivel={card.disponivel} />
               ))}
             </div>
           </div>

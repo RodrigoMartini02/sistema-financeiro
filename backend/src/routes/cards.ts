@@ -57,9 +57,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // GET /api/cards/limites — deve vir antes de /:id para não colidir com o parâmetro
 router.get('/limites', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { conta_id } = req.query as Record<string, string | undefined>;
+    const { conta_id, escopo } = req.query as Record<string, string | undefined>;
     const accountId = conta_id ? parseInt(conta_id) : null;
-    const data = await getCardLimits(req.user!.id, accountId);
+    const data = await getCardLimits(req.user!.id, accountId, escopo === 'familia');
     res.json({ success: true, data });
   } catch (error) {
     console.error('Get card limits error:', error);

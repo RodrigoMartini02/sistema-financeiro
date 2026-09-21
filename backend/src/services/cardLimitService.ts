@@ -41,14 +41,14 @@ interface CardLimitRow {
 // status usa COALESCE porque a coluna só é preenchida ao cancelar uma despesa
 // (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
 // nunca canceladas podem ter status nulo e sumiriam de um `= 'ativa'` direto.
-export async function getCardLimits(userId: number, accountId: number | null): Promise<CardLimit[]> {
-  // Sempre expandido: este limite alimenta o formulario de lancamento, que
-  // já lista os cartões da família (fetchCartoes com escopo=familia) para
-  // permitir usar um cartão de outro membro. O mesmo conjunto vale para o
-  // cartao (quem e o dono) e para a despesa (quem lancou): ampliar so o
-  // cartao mostraria o cartao do outro com limite zerado, porque as despesas
-  // dele nao entrariam na soma.
-  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, true);
+export async function getCardLimits(userId: number, accountId: number | null, expandir: boolean): Promise<CardLimit[]> {
+  // `expandir` e a intencao explicita de quem chama (ex.: ExpenseForm sempre
+  // pede familia, para poder usar um cartao de outro membro; a tela de
+  // Movimentacoes repassa o filtro de Membros escolhido). Ampliar so o cartao
+  // sem ampliar as despesas mostraria o cartao do outro com limite zerado,
+  // porque as despesas dele nao entrariam na soma — por isso o mesmo
+  // `expandir` decide tanto os donos de cartao quanto os donos de despesa.
+  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, expandir);
   const params: unknown[] = [donosVisiveis];
   let accountClause = '';
   let expenseAccountClause = '';
