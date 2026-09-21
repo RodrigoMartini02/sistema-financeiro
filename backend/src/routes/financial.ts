@@ -2,18 +2,9 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate, requireActivePlan } from '../middleware/auth';
 import { resolveDashboardScope } from '../utils/dashboardScope';
+import { calculatePreviousBalance, fetchAporteInicial } from '../services/balanceService';
 
 const router = Router();
-
-async function fetchAporteInicial(userId: number, accountId: number | null): Promise<number> {
-  if (!accountId) return 0;
-  const result = await pool.query(
-    `SELECT aporte_inicial FROM contas WHERE id = $1 AND usuario_id = $2`,
-    [accountId, userId],
-  );
-  const raw = (result.rows[0] as { aporte_inicial: string | null } | undefined)?.aporte_inicial;
-  return raw ? parseFloat(raw) : 0;
-}
 
 // GET /api/financial/anual?ano=2026
 router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
@@ -28,55 +19,60 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
     const userId = req.user!.id;
     const accountId = conta_id ? parseInt(conta_id) : null;
 
-    const result = await pool.query(
-      `SELECT
-        gs.mes,
-        COALESCE(r.total, 0)::float AS receitas,
-        COALESCE(d.total, 0)::float AS despesas,
-        COALESCE(m.saldo_final, COALESCE(r.total, 0) - COALESCE(d.total, 0))::float AS saldo_final,
-        COALESCE(p.total, 0)::float AS receitas_previstas
-      FROM generate_series(0, 11) AS gs(mes)
-      LEFT JOIN (
-        SELECT mes, SUM(valor) AS total
-        FROM receitas
-        WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-          )))
-        GROUP BY mes
-      ) r ON r.mes = gs.mes
-      LEFT JOIN (
-        SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) AS total
-        FROM despesas
-        WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-          )))
-        GROUP BY mes
-      ) d ON d.mes = gs.mes
-      LEFT JOIN (
-        SELECT DISTINCT ON (mes) mes, saldo_final
-        FROM meses
-        WHERE ano = $1 AND usuario_id = $2
-          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-          )))
-        ORDER BY mes, conta_id NULLS LAST
-      ) m ON m.mes = gs.mes
-      LEFT JOIN (
-        SELECT mes, SUM(valor) AS total
-        FROM receitas
-        WHERE ano = $1 AND usuario_id = $2 AND status IN ('prevista', 'faturada')
-          AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-            SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-          )))
-        GROUP BY mes
-      ) p ON p.mes = gs.mes
-      ORDER BY gs.mes`,
-      [ano, userId, accountId],
-    );
+    const [result, saldoAntesDeJaneiro] = await Promise.all([
+      pool.query(
+        `SELECT
+          gs.mes,
+          COALESCE(r.total, 0)::float AS receitas,
+          COALESCE(d.total, 0)::float AS despesas,
+          COALESCE(p.total, 0)::float AS receitas_previstas
+        FROM generate_series(0, 11) AS gs(mes)
+        LEFT JOIN (
+          SELECT mes, SUM(valor) AS total
+          FROM receitas
+          WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
+            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+            )))
+          GROUP BY mes
+        ) r ON r.mes = gs.mes
+        LEFT JOIN (
+          SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) AS total
+          FROM despesas
+          WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
+            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+            )))
+          GROUP BY mes
+        ) d ON d.mes = gs.mes
+        LEFT JOIN (
+          SELECT mes, SUM(valor) AS total
+          FROM receitas
+          WHERE ano = $1 AND usuario_id = $2 AND status IN ('prevista', 'faturada')
+            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+            )))
+          GROUP BY mes
+        ) p ON p.mes = gs.mes
+        ORDER BY gs.mes`,
+        [ano, userId, accountId],
+      ),
+      // Ponto de partida do acumulado: saldo de tudo que aconteceu antes de
+      // janeiro deste ano. Sem tabela `meses` para ler o saldo mês a mês, o
+      // saldo_final de cada mês é acumulado aqui em memória a partir deste
+      // valor — uma única query extra, em vez de recalcular do zero 12 vezes.
+      calculatePreviousBalance(userId, ano, 0, accountId),
+    ]);
 
-    res.json({ success: true, data: result.rows });
+    let acumulado = saldoAntesDeJaneiro;
+    const data = result.rows.map((row) => {
+      const receitas = row.receitas as number;
+      const despesas = row.despesas as number;
+      acumulado += receitas - despesas;
+      return { ...row, saldo_final: acumulado };
+    });
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Dashboard anual error:', error);
     res.status(500).json({ success: false, message: 'Failed to load annual data' });

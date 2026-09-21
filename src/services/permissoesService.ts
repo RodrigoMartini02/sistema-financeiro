@@ -1,7 +1,7 @@
 import { apiRequest } from './apiClient';
 
 export type PermissionFlag =
-  | 'accessExpenses' | 'accessIncomes' | 'accessMonthClosing' | 'accessBudget' | 'accessCalendar'
+  | 'accessExpenses' | 'accessIncomes' | 'accessBudget' | 'accessCalendar'
   | 'accessDashboard' | 'accessReports' | 'accessNotifications' | 'accessAssistant'
   | 'accessAccounts' | 'accessCategories' | 'accessCards' | 'accessServices' | 'accessRepresentatives' | 'accessPartners' | 'accessMembers' | 'accessSubscription'
   | 'accessClients' | 'accessContracts' | 'accessProductCatalog'
@@ -27,7 +27,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     items: [
       { flag: 'accessExpenses', label: 'Despesas' },
       { flag: 'accessIncomes', label: 'Receitas' },
-      { flag: 'accessMonthClosing', label: 'Fechamento de mês' },
       { flag: 'accessBudget', label: 'Planejamento/Orçamento' },
       { flag: 'accessCalendar', label: 'Calendário/Compromissos' },
     ],

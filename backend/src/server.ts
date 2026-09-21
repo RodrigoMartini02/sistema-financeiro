@@ -114,7 +114,7 @@ app.use('/api/incomes', authenticate, requireActivePlan, requireScreenAccess('ac
 app.use('/api/receitas', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);         // PT alias
 app.use('/api/expenses', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);
 app.use('/api/despesas', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);        // PT alias
-app.use('/api/meses', authenticate, requireActivePlan, requireScreenAccess('accessMonthClosing'), monthRoutes);
+app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);
 app.use('/api/relatorios', authenticate, requireActivePlan, requireScreenAccess('accessReports'), reportRoutes);
 app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
 app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias

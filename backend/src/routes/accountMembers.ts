@@ -743,7 +743,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
 });
 
 const PERMISSION_FLAGS: PermissionFlag[] = [
-  'accessExpenses', 'accessIncomes', 'accessMonthClosing', 'accessBudget', 'accessCalendar',
+  'accessExpenses', 'accessIncomes', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
   'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners', 'accessMembers', 'accessSubscription',
   'accessClients', 'accessContracts', 'accessProductCatalog',

@@ -11,7 +11,6 @@ export const firstAccessGuideMessages = {
   usuariosFiltros: 'Use os filtros para encontrar usu\u00e1rios por status ou tipo de acesso.',
 
   // Despesas
-  despesasFecharMes: 'Fechar o m\u00eas trava novos lan\u00e7amentos e pagamentos no per\u00edodo. Reabra quando precisar editar algo.',
   despesasLote: 'Selecione v\u00e1rias despesas pendentes para pag\u00e1-las de uma vez.',
   despesasPagarSelecionadas: 'Clique em Pagar selecionadas para dar baixa em todas as despesas marcadas de uma s\u00f3 vez.',
   despesasMoverMes: 'Use Mover para pr\u00f3ximo m\u00eas para adiar uma despesa sem precisar recri\u00e1-la.',
