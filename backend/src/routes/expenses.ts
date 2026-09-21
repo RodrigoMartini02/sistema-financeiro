@@ -6,6 +6,7 @@ import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
+import { resolveDashboardScope } from '../utils/dashboardScope';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
@@ -799,10 +800,11 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
   }
 });
 
-// GET /api/despesas/parcelas-futuras?mes=X&ano=Y&meses=3
+// GET /api/despesas/parcelas-futuras?mes=X&ano=Y&meses=3&membro_id=...
 router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { mes: mesQ, ano: anoQ, meses: mesesQ, conta_id } = req.query as Record<string, string | undefined>;
+    const membroIdRaw = req.query['membro_id'];
     const mes = parseInt(mesQ ?? '');
     const ano = parseInt(anoQ ?? '');
     const meses = parseInt(mesesQ ?? '3');
@@ -820,23 +822,57 @@ router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response
     const accountId = conta_id ? parseInt(conta_id) : null;
     const limiteMeses = Math.min(Math.max(meses || 3, 1), 12);
 
+    // Mesmo contrato de membro_id do painel (/financial/panorama): ausente =
+    // so o proprio usuario; 'familia' = todos os visiveis; um id ou uma lista
+    // de ids = exatamente esses membros. resolveDashboardScope e quem valida
+    // que cada id pedido esta no conjunto visivel ao solicitante.
+    let membroId: number | number[] | null | undefined;
+    if (membroIdRaw === undefined) {
+      membroId = undefined;
+    } else if (membroIdRaw === 'familia') {
+      membroId = null;
+    } else if (Array.isArray(membroIdRaw)) {
+      const ids = membroIdRaw.map((v) => parseInt(String(v)));
+      if (ids.some((id) => Number.isNaN(id))) {
+        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+        return;
+      }
+      membroId = ids;
+    } else {
+      membroId = parseInt(String(membroIdRaw));
+      if (Number.isNaN(membroId)) {
+        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+        return;
+      }
+    }
+
+    const visiveis = await resolveDashboardScope(userId, accountId, membroId);
+    if (visiveis === null) {
+      res.status(400).json({ success: false, message: 'Membro não disponível' });
+      return;
+    }
+
     // Cada parcela ja grava o proprio valor individual — soma direta, sem
     // dividir de novo por numero_parcelas (mesmo ajuste de months.ts).
+    // Pagas e em aberto somadas separadamente na mesma query: antes o filtro
+    // pago = false so trazia em aberto, e uma parcela "futura" (mes ainda nao
+    // chegado) so pode estar paga se tiver sido antecipada — caso raro mas
+    // real, que o grafico precisa mostrar como serie propria.
     const result = await pool.query(
       `SELECT mes, ano,
-        SUM(valor_original::float) AS total
+        COALESCE(SUM(valor_original::float) FILTER (WHERE pago), 0) AS pagas,
+        COALESCE(SUM(valor_original::float) FILTER (WHERE NOT pago), 0) AS em_aberto
        FROM despesas
-       WHERE usuario_id = $1
+       WHERE usuario_id = ANY($1)
          AND parcelado = true
-         AND pago = false
          AND (ano * 12 + mes) > ($2 * 12 + $3)
          AND (ano * 12 + mes) <= ($2 * 12 + $3 + $4)
          AND ($5::int IS NULL OR conta_id = $5 OR (conta_id IS NULL AND EXISTS (
-           SELECT 1 FROM contas pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = $1
+           SELECT 1 FROM contas pf WHERE pf.id = $5 AND pf.tipo = 'pessoal' AND pf.usuario_id = ANY($1)
          )))
        GROUP BY mes, ano
        ORDER BY ano, mes`,
-      [userId, ano, mes, limiteMeses, accountId],
+      [visiveis, ano, mes, limiteMeses, accountId],
     );
 
     res.json({ success: true, data: result.rows });

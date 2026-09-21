@@ -1,82 +1,49 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronUp, Target } from 'lucide-react';
-import type { BudgetOverview, BudgetOverviewItem } from '../../types/budget';
+import type { DashboardPanoramaData } from '../../types/finance';
 import { Card } from '../../ui/card';
-import { budgetPercentage, formatCurrency } from './formatters';
+import { formatCurrency } from './formatters';
 
 /** Categorias-raiz mostradas antes de "ver todas" — subs não contam aqui, só aparecem ao expandir a raiz. */
 const CATEGORIAS_VISIVEIS = 5;
 
-/** Raiz com suas subcategorias já agrupadas, mesmo formato de BudgetPanel/CategoriasTab. */
+type CategoriaLinha = DashboardPanoramaData['porCategoria'][number];
+
+/** Raiz com suas subcategorias já agrupadas. */
 interface CategoriaTreeNode {
-  root: BudgetOverviewItem;
-  children: BudgetOverviewItem[];
+  root: CategoriaLinha;
+  children: CategoriaLinha[];
 }
 
-export interface CategoriaSegmento {
-  usuarioId: number;
-  valor: number;
-  nome: string;
-  color: string;
-}
+const COR_CATEGORIA = '#0891b2';
+const COR_SUBCATEGORIA = '#7dd3d8';
 
 interface MonthCategoriesOverviewProps {
-  overview: BudgetOverview | undefined;
+  porCategoria: DashboardPanoramaData['porCategoria'] | undefined;
   periodLabel: string;
-  /**
-   * Divisao da categoria por membro. Presente apenas no modo familia — filtrado
-   * num membro, tudo na barra ja e dele e a divisao nao diria nada.
-   *
-   * Quando presente, a meta some: ela e individual (orcamento_metas por
-   * usuario_id), e somar metas de varias pessoas nao produz um numero com
-   * significado. Isso tambem libera a cor da barra, que passa a identificar o
-   * membro em vez do status da meta.
-   */
-  segmentosPorCategoria?: Map<string, CategoriaSegmento[]> | undefined;
 }
 
-function statusColor(item: BudgetOverviewItem): string {
-  if (item.status === 'over') return '#ef4444';
-  if (item.status === 'attention') return '#f59e0b';
-  return '#0891b2';
-}
-
-function statusLabel(item: BudgetOverviewItem): string {
-  if (!item.targetAmount) return item.hasActiveSubcategories ? 'soma das subs' : 'sem meta';
-  return `${budgetPercentage(item).toFixed(0)}% de ${formatCurrency(item.targetAmount)}`;
-}
-
-export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCategoria }: MonthCategoriesOverviewProps) {
+export function MonthCategoriesOverview({ porCategoria, periodLabel }: MonthCategoriesOverviewProps) {
   const [expandido, setExpandido] = useState(false);
-  // Raizes iniciam colapsadas — guarda quem foi expandido, mesma abordagem de
-  // CategoriasTab (o default "fechado" não depende de um efeito para popular ids).
+  // Raizes iniciam colapsadas — mesma abordagem de CategoriasTab (o default
+  // "fechado" não depende de um efeito para popular ids).
   const [expandedRoots, setExpandedRoots] = useState<number[]>([]);
 
-  if (!overview) return null;
-
-  const porMembro = segmentosPorCategoria !== undefined;
-
-  // Contadores do cabecalho somam TODOS os itens carregados (raiz + sub) —
-  // sao um resumo global do periodo, independente do corte visual de "top 5".
-  const allItems = overview.items.filter((item) => item.projectedAmount > 0);
+  const allItems = (porCategoria ?? []).filter((item) => item.total > 0);
   if (allItems.length === 0) return null;
 
-  const total = allItems.reduce((s, item) => s + item.projectedAmount, 0);
-  const acimaCount = allItems.filter((item) => item.status === 'over' || item.status === 'attention').length;
-  const semMetaCount = allItems.filter((item) => !item.targetAmount && !item.hasActiveSubcategories).length;
-  const noLimiteCount = allItems.filter((item) => item.status === 'attention').length;
-  const max = Math.max(1, ...allItems.map((item) => Math.max(item.projectedAmount, item.targetAmount ?? 0)));
+  const total = allItems.reduce((s, item) => s + item.total, 0);
+  const max = Math.max(1, ...allItems.map((item) => item.total));
 
-  // Arvore: raiz + subs, mesmo padrao de BudgetPanel. Uma sub cujo pai nao
-  // aparece em allItems (pai sem gasto, ou desativado) vira raiz propria, para
-  // nao sumir da tela.
-  const visibleIds = new Set(allItems.map((item) => item.categoryId));
+  // Arvore: raiz + subs. Uma sub cujo pai nao aparece em allItems (pai sem
+  // gasto no periodo) vira raiz propria, para nao sumir da tela.
+  const visibleIds = new Set(allItems.map((item) => item.categoriaId));
   const roots = allItems
     .filter((item) => item.parentId === null || !visibleIds.has(item.parentId))
-    .sort((a, b) => b.projectedAmount - a.projectedAmount);
+    .sort((a, b) => b.total - a.total);
   const tree: CategoriaTreeNode[] = roots.map((root) => ({
     root,
-    children: allItems.filter((item) => item.parentId === root.categoryId).sort((a, b) => b.projectedAmount - a.projectedAmount),
+    children: allItems.filter((item) => item.parentId === root.categoriaId).sort((a, b) => b.total - a.total),
   }));
 
   // O corte "top 5 / ver mais" conta so raizes — subs so aparecem ao expandir
@@ -84,8 +51,10 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
   const treeVisivel = expandido ? tree : tree.slice(0, CATEGORIAS_VISIVEIS);
   const raizesOcultas = tree.length - treeVisivel.length;
 
-  const toggleRoot = (id: number) =>
+  const toggleRoot = (id: number | null) => {
+    if (id === null) return;
     setExpandedRoots((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   return (
     <Card className="overflow-hidden rounded-2xl p-0">
@@ -95,24 +64,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
         </span>
         <div>
           <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Categorias <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodLabel}</span></h2>
-          <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu no período e como isso se compara ao limite que você definiu.</p>
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          {!porMembro && acimaCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#fbd5d1] bg-[#fef3f2] px-2.5 py-1 text-[11.5px] font-bold text-[#b42318] dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />{acimaCount} acima do limite
-            </span>
-          )}
-          {!porMembro && noLimiteCount > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f0e0b0] bg-[#fdf6e3] px-2.5 py-1 text-[11.5px] font-bold text-[#8a6d1f] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />{noLimiteCount} no limite
-            </span>
-          )}
-          {!porMembro && semMetaCount > 0 && (
-            <span className="inline-flex items-center rounded-full border border-[#dcebf1] bg-[#f2f9fb] px-2.5 py-1 text-[11.5px] font-bold text-[#5f7885] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
-              {semMetaCount} sem meta
-            </span>
-          )}
+          <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu no período, considerando o filtro atual.</p>
         </div>
       </div>
 
@@ -120,36 +72,20 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
         <div className="mb-3 flex items-center justify-between text-[11px] text-[#5f7885] dark:text-slate-400">
           <span>{formatCurrency(total)} em {tree.length} categoria{tree.length === 1 ? '' : 's'}</span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            {porMembro ? (
-              // A legenda passa a ser das pessoas: e a cor delas que preenche a
-              // barra agora. Sai da primeira categoria, que tem todos os membros
-              // com movimento no periodo.
-              [...new Map(
-                [...segmentosPorCategoria!.values()].flat().map((seg) => [seg.usuarioId, seg]),
-              ).values()].map((seg) => (
-                <span key={seg.usuarioId} className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-sm" style={{ background: seg.color }} />{seg.nome}
-                </span>
-              ))
-            ) : (
-              <>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm bg-[#0891b2]" />gasto no período</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-3.5 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" />seu limite</span>
-              </>
-            )}
+            <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm" style={{ background: COR_CATEGORIA }} />categoria</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-sm" style={{ background: COR_SUBCATEGORIA }} />subcategoria</span>
           </div>
         </div>
 
         <div className="grid">
           {treeVisivel.map((node) => {
             const hasChildren = node.children.length > 0;
-            const isNodeExpanded = expandedRoots.includes(node.root.categoryId);
-            const renderRow = (item: BudgetOverviewItem, isChild: boolean, expandControl?: ReactNode) => {
-              const barWidth = Math.min(100, (item.projectedAmount / max) * 100);
-              const targetPosition = item.targetAmount ? Math.min(100, (item.targetAmount / max) * 100) : null;
+            const isNodeExpanded = expandedRoots.includes(node.root.categoriaId ?? -1);
+            const renderRow = (item: CategoriaLinha, isChild: boolean, expandControl?: React.ReactNode) => {
+              const barWidth = Math.min(100, (item.total / max) * 100);
               return (
                 <div
-                  key={item.categoryId}
+                  key={item.categoriaId ?? item.categoria}
                   className={`flex items-center gap-3.5 border-t border-[#eef4f7] py-[11px] first:border-t-0 dark:border-slate-700 ${isChild ? 'pl-6' : ''}`}
                 >
                   {!isChild && (
@@ -159,52 +95,26 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
                   )}
                   <span
                     className={`w-28 shrink-0 truncate text-[#0f2b38] dark:text-slate-100 ${isChild ? 'text-[11.5px] font-medium' : 'text-[12.5px] font-semibold'}`}
-                    title={item.categoryName}
+                    title={item.categoria}
                   >
-                    {item.categoryName}
+                    {item.categoria}
                   </span>
-                  <div className="relative h-6 flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800">
-                    {porMembro ? (
-                      // Segmentos lado a lado dentro da largura total da barra:
-                      // cada um e a fatia de um membro naquela categoria.
-                      <div className="flex h-6 overflow-hidden rounded-md" style={{ width: `${barWidth}%` }}>
-                        {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => (
-                          <div
-                            key={seg.usuarioId}
-                            style={{
-                              width: `${(seg.valor / item.projectedAmount) * 100}%`,
-                              background: seg.color,
-                            }}
-                            title={`${seg.nome}: ${formatCurrency(seg.valor)}`}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="h-6 rounded-md" style={{ width: `${barWidth}%`, background: statusColor(item) }} />
-                    )}
-                    {!porMembro && targetPosition !== null && (
-                      <span className="absolute -inset-y-1 w-0.5 rounded bg-[#0f2b38] dark:bg-slate-200" style={{ left: `${targetPosition}%` }} />
-                    )}
+                  <div className={`relative flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800 ${isChild ? 'h-4' : 'h-6'}`}>
+                    <div
+                      className={`rounded-md ${isChild ? 'h-4' : 'h-6'}`}
+                      style={{ width: `${barWidth}%`, background: isChild ? COR_SUBCATEGORIA : COR_CATEGORIA }}
+                    />
                   </div>
-                  <span className="w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(item.projectedAmount)}</span>
-                  {porMembro ? (
-                    <span className="w-[152px] shrink-0 truncate text-right text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-                      {(segmentosPorCategoria!.get(item.categoryName) ?? []).map((seg) => seg.nome).join(' · ')}
-                    </span>
-                  ) : (
-                    <span className={`w-[152px] shrink-0 text-right text-[11.5px] font-bold tabular-nums ${item.status === 'over' ? 'text-[#b42318] dark:text-rose-300' : item.status === 'attention' ? 'text-[#8a6d1f] dark:text-amber-300' : 'text-[#7b93a1] dark:text-slate-400'}`}>
-                      {statusLabel(item)}
-                    </span>
-                  )}
+                  <span className="w-24 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(item.total)}</span>
                 </div>
               );
             };
             return (
-              <div key={node.root.categoryId}>
+              <div key={node.root.categoriaId ?? node.root.categoria}>
                 {renderRow(node.root, false, hasChildren ? (
                   <button
                     type="button"
-                    onClick={() => toggleRoot(node.root.categoryId)}
+                    onClick={() => toggleRoot(node.root.categoriaId)}
                     aria-expanded={isNodeExpanded}
                     aria-label={isNodeExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
                     className="flex h-4 w-4 items-center justify-center rounded text-[#7b93a1] transition hover:text-[#0891b2] dark:text-slate-400"
@@ -232,7 +142,7 @@ export function MonthCategoriesOverview({ overview, periodLabel, segmentosPorCat
         )}
 
         <p className="mt-3.5 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
-          {porMembro ? 'Ordenadas por valor gasto, divididas por membro. As metas são individuais — filtre por membro para vê-las.' : 'Ordenadas por valor gasto. Os limites são definidos em Configurações › Metas.'}
+          Ordenadas por valor gasto no período, considerando o filtro de membros ativo.
         </p>
       </div>
     </Card>

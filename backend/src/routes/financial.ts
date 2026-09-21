@@ -83,7 +83,8 @@ router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: 
 // Todos os parâmetros de período são opcionais — ausência de todos = todo o histórico do usuário.
 router.get('/panorama', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { de_mes, de_ano, ate_mes, ate_ano, conta_id, membro_id } = req.query as Record<string, string | undefined>;
+    const { de_mes, de_ano, ate_mes, ate_ano, conta_id } = req.query as Record<string, string | undefined>;
+    const membroIdRaw = req.query['membro_id'];
 
     const deMes = de_mes !== undefined ? parseInt(de_mes) : null;
     const deAno = de_ano !== undefined ? parseInt(de_ano) : null;
@@ -116,15 +117,23 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
 
     // Escopo do painel: por padrao (sem membro_id), so o proprio usuario.
     // membro_id=familia pede a familia inteira; membro_id=<id> pede um membro
-    // especifico. O membro pedido vem do cliente e so passa se a carteira
-    // permitir enxerga-lo.
-    let membroId: number | null | undefined;
-    if (membro_id === undefined) {
+    // especifico; membro_id repetido (?membro_id=1&membro_id=2) pede uma
+    // combinacao especifica (filtro sanduiche do Painel). O membro pedido vem
+    // do cliente e so passa se a carteira permitir enxerga-lo.
+    let membroId: number | number[] | null | undefined;
+    if (membroIdRaw === undefined) {
       membroId = undefined;
-    } else if (membro_id === 'familia') {
+    } else if (membroIdRaw === 'familia') {
       membroId = null;
+    } else if (Array.isArray(membroIdRaw)) {
+      const ids = membroIdRaw.map((v) => parseInt(String(v)));
+      if (ids.some((id) => Number.isNaN(id))) {
+        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+        return;
+      }
+      membroId = ids;
     } else {
-      membroId = parseInt(membro_id);
+      membroId = parseInt(String(membroIdRaw));
       if (Number.isNaN(membroId)) {
         res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
         return;
@@ -170,14 +179,15 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         params,
       ),
       pool.query(
-        `SELECT COALESCE(c.nome, 'Sem categoria') AS categoria, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
+        `SELECT c.id AS categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria, c.parent_id AS parent_id,
+           SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
          FROM despesas d
          LEFT JOIN categorias c ON d.categoria_id = c.id
          WHERE d.usuario_id = ANY($1) AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
            AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
            )))
-         GROUP BY c.nome
+         GROUP BY c.id, c.nome, c.parent_id
          ORDER BY total DESC`,
         params,
       ),

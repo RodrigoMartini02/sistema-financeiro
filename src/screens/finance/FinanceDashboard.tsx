@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, Clock, TrendingDown, TrendingUp, CreditCard, Settings, PackageSearch } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Clock, TrendingUp, CreditCard, Settings, PackageSearch } from 'lucide-react';
 import { MONTH_NAMES } from '../../types/finance';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
@@ -10,17 +10,20 @@ import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { useBudgetOverviewRange } from '../../hooks/useBudgetOverview';
 import { formatCurrency, formatDate } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
+import { JurosDescontosChart } from './charts/JurosDescontosChart';
+import { ParcelasFuturasChart } from './charts/ParcelasFuturasChart';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { DashboardPeriodFilter, describePeriod, type DashboardPeriod } from './DashboardPeriodFilter';
 import { fetchAccountSummary, fetchMembros } from '../../services/membrosService';
+import { fetchMe } from '../../services/usuariosService';
 import { fetchOwnPermissions } from '../../services/permissoesService';
 import { buildMemberColors, memberColor, firstName, PALETA } from './memberColors';
 import { PanoramaGeralView } from './PanoramaGeralView';
+import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 
 const now = new Date();
 const THIS_YEAR = now.getFullYear();
@@ -40,10 +43,11 @@ export function FinanceDashboard() {
   const guide = useFirstAccessGuide('painel:mes-v1');
   const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
 
-  // undefined = so o proprio usuario (padrao). null = familia inteira,
-  // escolhida explicitamente. Um id = so aquele membro. O estado nao persiste
-  // entre sessoes: o painel sempre abre na visao "so eu".
-  const [membroId, setMembroId] = useState<number | null | undefined>(undefined);
+  // Ids marcados no filtro sanduiche. Toda pessoa — inclusive o proprio
+  // usuario logado — e uma opcao nomeada, identificada pelo usuario_id: nao
+  // existe sentinela "eu". Vazio so acontece antes de meQ resolver; o efeito
+  // abaixo marca o proprio usuario assim que o id chega.
+  const [membroIds, setMembroIds] = useState<Set<string>>(new Set());
 
   // Alterna entre a visao desta conta (comportamento historico, inalterado) e
   // o Panorama Geral (agregado entre todas as contas do dono). Nao persiste
@@ -51,6 +55,7 @@ export function FinanceDashboard() {
   const [visao, setVisao] = useState<'conta' | 'panorama'>('conta');
 
   const activeAccountId = getActiveAccountId();
+  const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
   const membrosQ = useQuery({
     queryKey: queryKeys.membros(activeAccountId),
     queryFn: () => fetchMembros(activeAccountId ?? undefined),
@@ -58,6 +63,27 @@ export function FinanceDashboard() {
   });
   // Sem membros vinculados nao ha o que separar: o painel se comporta como antes.
   const temMembros = (membrosQ.data?.length ?? 0) > 0;
+
+  // O titular nao esta em conta_membros (a rota lista so os vinculados), entao
+  // ele entra aqui pelo proprio cadastro. Sem isso o dono da conta nao teria
+  // como se filtrar por nome.
+  const meIdStr = meQ.data ? String(meQ.data.id) : null;
+  const pessoas = [
+    ...(meQ.data ? [{ usuarioId: meQ.data.id, nome: firstName(meQ.data.nomeExibicao ?? meQ.data.nome) }] : []),
+    ...(membrosQ.data ?? [])
+      .filter((m) => m.usuario_id !== meQ.data?.id)
+      .map((m) => ({ usuarioId: m.usuario_id, nome: firstName(m.nome) })),
+  ];
+
+  // Abre com o proprio usuario marcado — mesma visao padrao de antes ("so
+  // eu"), agora expressa pelo nome dele em vez de um sentinela. So roda uma
+  // vez: se o usuario desmarcar a si mesmo, a escolha e respeitada.
+  const jaIniciouMembros = useRef(false);
+  useEffect(() => {
+    if (!meIdStr || jaIniciouMembros.current) return;
+    jaIniciouMembros.current = true;
+    setMembroIds(new Set([meIdStr]));
+  }, [meIdStr]);
 
   // Mesma query/chave usada em AppShell.tsx — cache compartilhado. Sem a
   // permissao, o membro nem ve a opcao Panorama Geral no toggle abaixo, em
@@ -68,6 +94,17 @@ export function FinanceDashboard() {
     staleTime: 5 * 60_000,
   });
   const canViewPanorama = ownPermissions?.accessGeneralOverview ?? true;
+
+  // Deriva o parametro que o backend entende a partir dos ids marcados: todas
+  // as pessoas marcadas = familia inteira (null, chave de cache estavel);
+  // qualquer outro conjunto = lista exata. Nunca vira undefined a partir de
+  // uma escolha do usuario — undefined so existe enquanto meQ nao resolveu.
+  const membroId: number | number[] | null | undefined =
+    membroIds.size === 0
+      ? undefined
+      : pessoas.length > 0 && pessoas.every((p) => membroIds.has(String(p.usuarioId)))
+        ? null
+        : [...membroIds].map(Number);
 
   const query = { ...periodToQuery(period), membroId };
   const panoramaQ = useQuery({
@@ -104,14 +141,13 @@ export function FinanceDashboard() {
   const contratos = contratosQ.data ?? [];
 
   const parcelasQ = useQuery({
-    queryKey: queryKeys.parcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3),
-    queryFn: () => fetchParcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3),
+    queryKey: queryKeys.parcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3, membroId),
+    queryFn: () => fetchParcelasFuturas(mesReferencia.mes, mesReferencia.ano, 3, membroId),
     staleTime: 60_000,
   });
   const parcelasFuturas = parcelasQ.data ?? [];
 
-  const overviewQ = useBudgetOverviewRange(query);
-  const accountTypeLabel = overviewQ.data?.accountType === 'empresa' ? 'empresa' : 'pessoal';
+  const accountTypeLabel = localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal';
 
   const receitas = data?.receitas ?? 0;
   const despesas = data?.despesas ?? 0;
@@ -192,11 +228,6 @@ export function FinanceDashboard() {
   // mesma pessoa mantem a cor nos donuts e nas barras de categoria.
   const summary = summaryQ.data;
   const memberColors = useMemo(() => buildMemberColors(summary?.membros ?? []), [summary]);
-  const memberNames = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const m of summary?.membros ?? []) map.set(m.usuario_id, firstName(m.nome));
-    return map;
-  }, [summary]);
 
   const porMembro = useMemo(() => {
     if (!summary) return [];
@@ -226,27 +257,6 @@ export function FinanceDashboard() {
     () => porMembro.filter((m) => m.despesa > 0).map((m) => ({ name: m.nome, value: m.despesa, color: m.color })),
     [porMembro],
   );
-
-  // Divisao por membro dentro de cada categoria, para as barras. So no modo
-  // familia: filtrado num membro, tudo ali ja e dele.
-  const categoriaPorMembro = useMemo(() => {
-    if (!summary || membroId !== null) return undefined;
-    const porCategoria = new Map<string, { usuarioId: number; valor: number; nome: string; color: string }[]>();
-    for (const linha of summary.despesas_por_autor_categoria) {
-      const valor = Number(linha.total);
-      if (valor <= 0) continue;
-      const lista = porCategoria.get(linha.categoria_nome) ?? [];
-      lista.push({
-        usuarioId: linha.usuario_id,
-        valor,
-        nome: memberNames.get(linha.usuario_id) ?? '—',
-        color: memberColor(memberColors, linha.usuario_id),
-      });
-      porCategoria.set(linha.categoria_nome, lista);
-    }
-    for (const lista of porCategoria.values()) lista.sort((a, b) => b.valor - a.valor);
-    return porCategoria;
-  }, [summary, membroId, memberColors, memberNames]);
 
   // Vencidas e a vencer nao passam pelo filtro de periodo: uma conta vencida em
   // agosto continua vencida quando se olha dezembro. O rotulo do bloco diz isso.
@@ -289,6 +299,45 @@ export function FinanceDashboard() {
 
   const periodoDescricao = describePeriod(period);
 
+  // Filtro sanduiche: grupo "Visao" simula selecao unica (marcar uma opcao
+  // substitui a outra, nunca acumula) porque muda a ESTRUTURA da tela, nao um
+  // dado — uso atipico do MultiFilterPanel, mas evita duplicar o componente
+  // so para essa alternancia. Grupo "Membros" e multi-selecao real.
+  const visaoOptions = [
+    { value: 'conta', label: 'Esta conta' },
+    ...(canViewPanorama ? [{ value: 'panorama', label: 'Panorama Geral' }] : []),
+  ];
+  const membroOptions = pessoas.map((p) => ({ value: String(p.usuarioId), label: p.nome }));
+
+  const filterGroups: FilterGroup[] = [
+    {
+      id: 'visao',
+      label: 'Visão',
+      options: visaoOptions,
+      selected: new Set([visao]),
+      onChange: (next) => {
+        const escolhido = [...next].find((v) => v !== visao);
+        if (escolhido) setVisao(escolhido as 'conta' | 'panorama');
+      },
+    },
+    // So faz sentido escolher membros na visao desta conta: no Panorama Geral
+    // nao ha esse escopo a filtrar.
+    ...(temMembros && visao === 'conta' ? [{
+      id: 'membros',
+      label: 'Membros',
+      options: membroOptions,
+      selected: membroIds,
+      onChange: setMembroIds,
+    }] : []),
+  ];
+
+  // Estado base = so o proprio usuario marcado (a visao com que o painel
+  // abre). Qualquer outro conjunto conta como filtro ativo.
+  const membrosEhEstadoBase = meIdStr !== null && membroIds.size === 1 && membroIds.has(meIdStr);
+  const hasActiveFilters = !membrosEhEstadoBase;
+
+  const handleClearFilters = () => setMembroIds(meIdStr ? new Set([meIdStr]) : new Set());
+
   return (
     <div className="grid gap-[18px]">
       {/* Header: o filtro fica alinhado à direita, na mesma linha da descrição
@@ -303,65 +352,11 @@ export function FinanceDashboard() {
               <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
             )}
           </p>
-          {/* Linha própria abaixo da descrição: alternância de visão sempre à
-              esquerda; filtro de membro + período à direita, na mesma linha. */}
+          {/* Linha própria abaixo da descrição: filtro sanduíche (Visão +
+              Membros) e período, na mesma linha. */}
           <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-            <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
-              {([
-                { id: 'conta', label: 'Esta conta' },
-                ...(canViewPanorama ? [{ id: 'panorama', label: 'Panorama Geral' }] as const : []),
-              ] as const).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setVisao(opt.id)}
-                  aria-pressed={visao === opt.id}
-                  className={[
-                    'rounded-full px-3 py-1 text-[11.5px] font-semibold transition',
-                    visao === opt.id
-                      ? 'bg-[#0891b2] text-white'
-                      : 'text-[#5f7885] hover:bg-[#f5f9fb] dark:text-slate-300 dark:hover:bg-slate-700',
-                  ].join(' ')}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {/* So aparece quando ha membros e a visao e desta conta: numa
-                  conta de uma pessoa, ou no Panorama Geral, nao ha esse escopo
-                  a alternar. */}
-              {temMembros && visao === 'conta' && (
-                <div className="flex items-center gap-1 rounded-full border border-[#e6eef3] bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
-                  {[
-                    { id: undefined, label: 'Eu' },
-                    { id: null, label: 'Família' },
-                    // Nomes vem de membrosQ (sempre disponivel), nao de
-                    // porMembro (que so existe no modo Familia) — o seletor
-                    // nao pode depender de ja estar no modo que ele oferece.
-                    // Inclui o proprio solicitante: clicar nele reproduz "Eu".
-                    ...(membrosQ.data ?? [])
-                      .map((m) => ({ id: m.usuario_id as number | null | undefined, label: firstName(m.nome) })),
-                  ].map((opt) => (
-                    <button
-                      key={opt.id ?? (opt.label === 'Família' ? 'familia' : 'eu')}
-                      type="button"
-                      onClick={() => setMembroId(opt.id)}
-                      aria-pressed={membroId === opt.id}
-                      className={[
-                        'rounded-full px-3 py-1 text-[11.5px] font-semibold transition',
-                        membroId === opt.id
-                          ? 'bg-[#0891b2] text-white'
-                          : 'text-[#5f7885] hover:bg-[#f5f9fb] dark:text-slate-300 dark:hover:bg-slate-700',
-                      ].join(' ')}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
-            </div>
+            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
+            <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
           </div>
         </div>
         {guide.isVisible && hasNoEntries && visao === 'conta' && (
@@ -479,9 +474,11 @@ export function FinanceDashboard() {
             quando faz sentido, sua relação com o período. */}
         <Card className="flex flex-col rounded-2xl p-5">
           <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">Saldo anterior</span>
-          <p className="mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(saldoAnterior)}</p>
+          <p className={`mt-[9px] text-[23px] font-bold tracking-[-0.02em] tabular-nums ${saldoAnterior >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
+            {formatCurrency(saldoAnterior)}
+          </p>
           <p className="mt-auto pt-[9px] text-[12px] text-[#7b93a1] dark:text-slate-400">
-            Saldo acumulado antes do início do período.
+            {saldoAnterior >= 0 ? 'Saldo acumulado antes do início do período.' : 'Déficit acumulado antes do início do período.'}
           </p>
         </Card>
 
@@ -605,9 +602,9 @@ export function FinanceDashboard() {
       )}
 
       {/* Análise do período */}
-      {/* Bloco por membro: só existe no modo Família — summaryQ (fonte de
-          porMembro) só roda com membroId === null, então nos modos "Eu" e
-          "membro específico" porMembro fica vazio e a seção some sozinha. */}
+      {/* Bloco por membro: só faz sentido com todas as pessoas marcadas —
+          summaryQ (fonte de porMembro) só roda com membroId === null, então
+          numa seleção parcial porMembro fica vazio e a seção some sozinha. */}
       {temMembros && porMembro.length > 0 && (
         <div>
           <div className="mb-[11px] flex items-center gap-3">
@@ -695,27 +692,10 @@ export function FinanceDashboard() {
                 <span className="max-w-[200px] text-[11.5px] text-[#5f7885] dark:text-slate-400">Nenhuma despesa foi paga com acréscimo nem com abatimento neste período.</span>
               </div>
             ) : (
-              <div className="mt-[18px] flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50">
-                      <TrendingDown size={14} className="text-red-600" />
-                    </span>
-                    Juros pagos
-                  </span>
-                  <span className="font-bold text-red-600">{formatCurrency(detalhe.juros)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50">
-                      <TrendingUp size={14} className="text-green-600" />
-                    </span>
-                    Descontos obtidos
-                  </span>
-                  <span className="font-bold text-green-600">{formatCurrency(detalhe.descontos)}</span>
-                </div>
+              <div className="mt-[14px] flex flex-1 flex-col">
+                <JurosDescontosChart juros={detalhe.juros} descontos={detalhe.descontos} />
                 {detalhe.juros > 0 && detalhe.descontos > 0 && (
-                  <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-1 border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500 dark:border-slate-700">
                     <span>Saldo financeiro</span>
                     <span className={detalhe.descontos >= detalhe.juros ? 'font-semibold text-green-600' : 'font-semibold text-red-600'}>
                       {detalhe.descontos >= detalhe.juros ? '+' : '-'}{formatCurrency(Math.abs(detalhe.descontos - detalhe.juros))}
@@ -915,22 +895,14 @@ export function FinanceDashboard() {
                 <span className="text-[12.5px] font-semibold text-[#0f2b38] dark:text-slate-100">Nenhuma parcela em aberto</span>
               </div>
             ) : (
-              <div className="mt-[18px] flex flex-1 flex-col gap-3">
-                {parcelasFuturas.map((p) => (
-                  <div key={`${p.ano}-${p.mes}`} className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
-                        <CreditCard size={13} className="text-amber-600" />
-                      </span>
-                      {MONTH_NAMES[p.mes]} {p.ano !== mesReferencia.ano ? p.ano : ''}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-white">{formatCurrency(p.total)}</span>
-                  </div>
-                ))}
-                <div className="mt-auto flex items-center border-t border-[#eef4f7] pt-[13px] dark:border-slate-700">
-                  <span className="text-[11.5px] text-[#7b93a1]">Total comprometido</span>
+              <div className="mt-[14px] flex flex-1 flex-col">
+                <ParcelasFuturasChart parcelas={parcelasFuturas} anoReferencia={mesReferencia.ano} />
+                <div className="mt-1 flex items-center border-t border-[#eef4f7] pt-3 dark:border-slate-700">
+                  <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">Total comprometido</span>
                   <div className="flex-1" />
-                  <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(parcelasFuturas.reduce((s, p) => s + p.total, 0))}</span>
+                  <span className="text-[13px] font-bold tabular-nums text-[#0f2b38] dark:text-white">
+                    {formatCurrency(parcelasFuturas.reduce((s, p) => s + p.pagas + p.emAberto, 0))}
+                  </span>
                 </div>
               </div>
             )}
@@ -973,9 +945,8 @@ export function FinanceDashboard() {
       </Card>
 
       <MonthCategoriesOverview
-        overview={overviewQ.data}
+        porCategoria={data?.porCategoria}
         periodLabel={periodoDescricao}
-        segmentosPorCategoria={categoriaPorMembro}
       />
 
       {/* Cascata do período */}

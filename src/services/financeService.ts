@@ -289,19 +289,32 @@ export interface DashboardAnualMes {
 export interface ParcelaFutura {
   mes: number;
   ano: number;
-  total: number;
+  pagas: number;
+  emAberto: number;
 }
 
-export async function fetchParcelasFuturas(mes: number, ano: number, meses = 3): Promise<ParcelaFutura[]> {
+export async function fetchParcelasFuturas(
+  mes: number,
+  ano: number,
+  meses = 3,
+  membroId?: number | number[] | null,
+): Promise<ParcelaFutura[]> {
   const q = new URLSearchParams({ mes: String(mes), ano: String(ano), meses: String(meses) });
+  // Mesmo contrato de fetchDashboardPanorama: ausente = so eu, null =
+  // familia inteira, lista = exatamente esses membros.
+  if (membroId === null) q.set('membro_id', 'familia');
+  else if (Array.isArray(membroId)) {
+    for (const id of membroId) q.append('membro_id', String(id));
+  } else if (membroId !== undefined) q.set('membro_id', String(membroId));
   appendProfile(q);
-  const rows = await apiRequest<Array<{ mes: string | number; ano: string | number; total: string | number }>>(
+  const rows = await apiRequest<Array<{ mes: string | number; ano: string | number; pagas: string | number; em_aberto: string | number }>>(
     `/despesas/parcelas-futuras?${q}`,
   );
   return rows.map((r) => ({
     mes: Number(r.mes),
     ano: Number(r.ano),
-    total: asNumber(r.total),
+    pagas: asNumber(r.pagas),
+    emAberto: asNumber(r.em_aberto),
   }));
 }
 
@@ -331,9 +344,12 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
   if (filtro.ateMes !== undefined) q.set('ate_mes', String(filtro.ateMes));
   if (filtro.ateAno !== undefined) q.set('ate_ano', String(filtro.ateAno));
   // Ausente = so o proprio usuario (padrao). null = familia inteira,
-  // escolhida explicitamente. Um id = so aquele membro.
+  // escolhida explicitamente. Um id = so aquele membro. Lista = combinacao
+  // especifica (membro_id repetido na query string).
   if (filtro.membroId === null) q.set('membro_id', 'familia');
-  else if (filtro.membroId !== undefined) q.set('membro_id', String(filtro.membroId));
+  else if (Array.isArray(filtro.membroId)) {
+    for (const id of filtro.membroId) q.append('membro_id', String(id));
+  } else if (filtro.membroId !== undefined) q.set('membro_id', String(filtro.membroId));
   appendProfile(q);
   const suffix = q.toString() ? `?${q}` : '';
   const raw = await apiRequest<{
@@ -341,7 +357,7 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     saldoAnterior: string | number; saldoFinal: string | number;
     totalLancamentos: string | number;
     primeiraData: string | null; ultimaData: string | null;
-    porCategoria: Array<{ categoria: string; total: string | number }>;
+    porCategoria: Array<{ categoria_id: number | string | null; categoria: string; parent_id: number | string | null; total: string | number }>;
     porFormaPagamento: Array<{ forma_pagamento: string; total: string | number }>;
     porOrigem: Array<{ origem: 'contrato' | 'avulsa'; total: string | number }>;
     porCartao: Array<{ cartao: string; total: string | number }>;
@@ -369,7 +385,12 @@ export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): P
     totalLancamentos: asNumber(raw.totalLancamentos),
     primeiraData: raw.primeiraData,
     ultimaData: raw.ultimaData,
-    porCategoria: raw.porCategoria.map((c) => ({ categoria: c.categoria, total: asNumber(c.total) })),
+    porCategoria: raw.porCategoria.map((c) => ({
+      categoriaId: c.categoria_id != null ? Number(c.categoria_id) : null,
+      categoria: c.categoria,
+      parentId: c.parent_id != null ? Number(c.parent_id) : null,
+      total: asNumber(c.total),
+    })),
     porFormaPagamento: raw.porFormaPagamento.map((f) => ({ forma_pagamento: f.forma_pagamento, total: asNumber(f.total) })),
     porOrigem: raw.porOrigem.map((o) => ({ origem: o.origem, total: asNumber(o.total) })),
     porCartao: (raw.porCartao ?? []).map((c) => ({ cartao: c.cartao, total: asNumber(c.total) })),

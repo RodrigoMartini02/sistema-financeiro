@@ -1,5 +1,16 @@
 import type { QueryClient } from '@tanstack/react-query';
 
+// undefined ("so eu"), null ("familia") e uma lista (combinacao especifica de
+// membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
+// ordenada e serializada em string para que a mesma combinacao, pedida em
+// qualquer ordem, produza sempre a mesma chave.
+function membroIdKeyPart(membroId: number | number[] | null | undefined): string | number {
+  if (membroId === undefined) return 'eu';
+  if (membroId === null) return 'familia';
+  if (Array.isArray(membroId)) return [...membroId].sort((a, b) => a - b).join(',');
+  return membroId;
+}
+
 export function invalidateFinanceQueries(qc: QueryClient, month: number, year: number) {
   qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
   qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
@@ -34,11 +45,13 @@ export const queryKeys = {
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
   // O membro faz parte da chave: sem isso o React Query serviria os numeros do
-  // escopo anterior ao trocar de membro no seletor. undefined ("so eu") e
-  // null ("familia") sao escopos diferentes e nao podem colapsar na mesma
-  // chave — por isso o sentinela distingue os dois em vez de usar `?? null`.
-  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, membroId?: number | null) =>
-    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroId === undefined ? 'eu' : membroId] as const,
+  // escopo anterior ao trocar de membro no seletor. undefined ("so eu"),
+  // null ("familia") e uma lista (combinacao especifica) sao escopos
+  // diferentes e nao podem colapsar na mesma chave — por isso o sentinela
+  // distingue os tres em vez de usar `?? null`, e a lista e ordenada antes de
+  // virar string para nao criar chaves distintas pra mesma combinacao.
+  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, membroId?: number | number[] | null) =>
+    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroIdKeyPart(membroId)] as const,
   accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, familia?: boolean) =>
     ['account-summary', deMes, deAno, ateMes, ateAno, familia ?? false] as const,
   accountsOverview: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
@@ -46,7 +59,8 @@ export const queryKeys = {
   // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
-  parcelasFuturas: (mes: number, ano: number, meses: number) => ['parcelas-futuras', mes, ano, meses] as const,
+  parcelasFuturas: (mes: number, ano: number, meses: number, membroId?: number | number[] | null) =>
+    ['parcelas-futuras', mes, ano, meses, membroIdKeyPart(membroId)] as const,
   expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
