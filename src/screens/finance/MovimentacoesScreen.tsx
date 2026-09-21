@@ -7,11 +7,16 @@ import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { fetchCardLimits } from '../../services/cardLimitsService';
+import { fetchCategorias } from '../../services/configService';
+import { fetchMembros } from '../../services/membrosService';
+import { fetchMe } from '../../services/usuariosService';
 import { queryKeys } from '../../services/queryKeys';
-import { Button } from '../../ui/button';
+import { getActiveAccountId } from '../../services/apiClient';
 import { ErrorState } from '../../ui/states';
-import { DespesasScreen, type FilteredSummary } from '../despesas/DespesasScreen';
-import { ReceitasScreen } from '../receitas/ReceitasScreen';
+import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
+import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
+import { groupSelectableCategories } from '../../utils/categorySuggestions';
+import type { Expense, Income } from '../../types/finance';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
@@ -19,119 +24,232 @@ import { MovementMetricCard } from './MovementMetricCard';
 import { CardLimitRow } from './CardLimitRow';
 import { formatCurrency } from './formatters';
 import { BudgetPanel } from './BudgetPanel';
+import {
+  LancamentosTable, OrdenarChip, getFormaLabel,
+  type TipoLancamento, type FiltroStatus, type FiltroDataPag, type Ordenar,
+} from './LancamentosTable';
 
-type MovementTab = 'receitas' | 'despesas' | 'planejamento';
+type MovementTab = 'lancamentos' | 'planejamento';
 type ViewMode = 'lista' | 'calendario';
 
 function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 dark:border-slate-600 dark:bg-slate-800">
-      <button
-        type="button"
-        onClick={() => onChange('lista')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          mode === 'lista' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
-      >
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={() => onChange('lista')} style={mode === 'lista' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}>
         <List size={13} /> Lista
       </button>
-      <button
-        type="button"
-        onClick={() => onChange('calendario')}
-        className={[
-          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition',
-          mode === 'calendario' ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-        ].join(' ')}
-      >
+      <button type="button" onClick={() => onChange('calendario')} style={mode === 'calendario' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}>
         <Calendar size={13} /> Calendário
       </button>
     </div>
   );
 }
 
-interface MovementTableToggleProps {
-  activeTab: MovementTab;
-  onChange: (tab: MovementTab) => void;
-}
-
-function MovementTableToggle({ activeTab, onChange }: MovementTableToggleProps) {
+function MovementSectionToggle({ activeTab, onChange }: { activeTab: MovementTab; onChange: (tab: MovementTab) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Conteúdo de movimentações">
+    <div className="flex items-center gap-1.5" role="tablist" aria-label="Conteúdo de movimentações">
       <button
         type="button"
         role="tab"
-        aria-selected={activeTab === 'receitas'}
-        onClick={() => onChange('receitas')}
-        className={[
-          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-          activeTab === 'receitas'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
-        ].join(' ')}
+        aria-selected={activeTab === 'lancamentos'}
+        onClick={() => onChange('lancamentos')}
+        style={activeTab === 'lancamentos' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}
       >
-        <TrendingUp size={15} /> Receitas
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={activeTab === 'despesas'}
-        onClick={() => onChange('despesas')}
-        className={[
-          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-          activeTab === 'despesas'
-            ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
-        ].join(' ')}
-      >
-        <TrendingDown size={15} /> Despesas
+        <List size={13} /> Lançamentos
       </button>
       <button
         type="button"
         role="tab"
         aria-selected={activeTab === 'planejamento'}
         onClick={() => onChange('planejamento')}
-        className={[
-          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition',
-          activeTab === 'planejamento'
-            ? 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300'
-            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600',
-        ].join(' ')}
+        style={activeTab === 'planejamento' ? neutralOutlineButtonStyle : neutralOutlineButtonOffStyle}
       >
-        <Target size={15} /> Planejamento
+        <Target size={13} /> Planejamento
       </button>
     </div>
   );
 }
+
+const ORDENAR_OPTIONS = [
+  { value: 'cadastro_desc', label: 'Mais recentes' },
+  { value: 'data_desc', label: 'Data (mais recente)' },
+  { value: 'data_asc', label: 'Data (mais antiga)' },
+  { value: 'valor_desc', label: 'Maior valor' },
+  { value: 'valor_asc', label: 'Menor valor' },
+  { value: 'descricao', label: 'Descrição (A-Z)' },
+];
 
 export function MovimentacoesScreen() {
   const { setQuickAction, setFillViewport } = useAppContext();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
-  const [activeTab, setActiveTab] = useState<MovementTab>('receitas');
+  const [activeTab, setActiveTab] = useState<MovementTab>('lancamentos');
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
   const isPlanning = activeTab === 'planejamento';
   const isCalendario = viewMode === 'calendario' && !isPlanning;
   const isLista = !isCalendario;
+  const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
   const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
   const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
 
-  // Altura total tambem na lista de despesas: cabecalho, filtros e cards de
-  // resumo ficam fixos e so o corpo da tabela rola. Receitas e Planejamento
-  // ficam de fora — nao foram readequadas para rolar por dentro e, sem isso,
-  // travar a altura cortaria conteudo em vez de organizar.
-  const preencherViewport = isCalendario || (isLista && activeTab === 'despesas');
+  // Altura total: cabecalho, filtros e cards de resumo ficam fixos e so o
+  // corpo da tabela rola. Planejamento fica de fora — nao foi readequado
+  // para rolar por dentro e, sem isso, travar a altura cortaria conteudo.
+  const preencherViewport = isCalendario || (isLista && activeTab === 'lancamentos');
 
   useEffect(() => {
     setFillViewport(preencherViewport);
     return () => setFillViewport(false);
   }, [preencherViewport, setFillViewport]);
-  const finance = useFinanceDashboard(month, year);
+
+  // Filtro de Membros elevado para o pai: antes era estado duplicado e
+  // independente em DespesasScreen e ReceitasScreen, com escopoFamilia
+  // podendo divergir entre as duas telas. Agora e uma unica fonte, que
+  // tambem controla a faixa de limite de cartoes e a tabela combinada.
+  const [filtroMembros, setFiltroMembros] = useState<Set<string>>(new Set());
+  const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
+  const activeAccountId = getActiveAccountId();
+  const membrosQ = useQuery({
+    queryKey: queryKeys.membros(activeAccountId),
+    queryFn: () => fetchMembros(activeAccountId ?? undefined),
+    staleTime: 5 * 60_000,
+  });
+  const categoriasQ = useQuery({
+    queryKey: queryKeys.categorias(activeAccountId),
+    queryFn: () => fetchCategorias(activeAccountId),
+    staleTime: 5 * 60_000,
+  });
+  const meIdStr = meQ.data ? String(meQ.data.id) : null;
+  useEffect(() => {
+    if (!meIdStr) return;
+    setFiltroMembros((prev) => (prev.size === 0 ? new Set([meIdStr]) : prev));
+  }, [meIdStr]);
+  const temMembros = (membrosQ.data?.length ?? 0) > 0;
+  const outrosMembros = (membrosQ.data ?? []).filter((m) => m.usuario_id !== meQ.data?.id);
+  const escopoFamilia = [...filtroMembros].some((id) => id !== meIdStr);
+  const nomesVisiveis = new Set(
+    [...filtroMembros]
+      .map((id) => (id === meIdStr ? meQ.data?.nome : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
+      .filter(Boolean) as string[],
+  );
+
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
-  const [despesasSummary, setDespesasSummary] = useState<FilteredSummary | null>(null);
+  // Filtro de Tipo: substitui as antigas abas Receitas/Despesas por um grupo
+  // de filtro multi-selecao dentro do mesmo painel — default ambos marcados.
+  const [filtroTipo, setFiltroTipo] = useState<Set<TipoLancamento>>(new Set(['receita', 'despesa']));
+  const [filtroStatus, setFiltroStatus] = useState<Set<FiltroStatus>>(new Set());
+  const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(new Set());
+  const [filtroFormaPag, setFiltroFormaPag] = useState<Set<string>>(new Set());
+  const [filtroCartao, setFiltroCartao] = useState<Set<string>>(new Set());
+  const [filtroDataPag, setFiltroDataPag] = useState<Set<FiltroDataPag>>(new Set());
+  const [ordenar, setOrdenar] = useState<Ordenar>('cadastro_desc');
+
+  const [tableData, setTableData] = useState<{ expenses: Expense[]; incomes: Income[]; formas: string[]; cartoes: [string, string][] }>({
+    expenses: [], incomes: [], formas: [], cartoes: [],
+  });
+  const [despesasSummary, setDespesasSummary] = useState<{ total: number; count: number; active: boolean } | null>(null);
+
+  const categoriaOptions = groupSelectableCategories(categoriasQ.data ?? [])
+    .flatMap((group) => group.parent
+      ? [
+          { value: group.parent.nome, label: group.parent.nome },
+          ...group.items.map((c) => ({ value: c.nome, label: c.nome, parentValue: group.parent!.nome })),
+        ]
+      : group.items.map((c) => ({ value: c.nome, label: c.nome })))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+
+  const membrosEhEstadoBase = meIdStr != null && filtroMembros.size === 1 && filtroMembros.has(meIdStr);
+  const hasFilterDespesa =
+    filtroStatus.size > 0 || filtroCategoria.size > 0 || filtroFormaPag.size > 0
+    || filtroCartao.size > 0 || filtroDataPag.size > 0;
+  const hasFilter = hasFilterDespesa || !membrosEhEstadoBase || filtroTipo.size !== 2;
+
+  const filterGroups: FilterGroup[] = [
+    {
+      id: 'tipo',
+      label: 'Tipo',
+      options: [
+        { value: 'receita', label: 'Receita' },
+        { value: 'despesa', label: 'Despesa' },
+      ],
+      selected: filtroTipo,
+      onChange: (next) => setFiltroTipo(next as Set<TipoLancamento>),
+    },
+    // Grupos de despesa so aparecem quando "Despesa" esta marcado no filtro
+    // de Tipo — nao fazem sentido isolados para receita.
+    ...(filtroTipo.has('despesa') ? [
+      {
+        id: 'status',
+        label: 'Status',
+        options: [
+          { value: 'pago', label: 'Pago' },
+          { value: 'em_dia', label: 'Em dia' },
+          { value: 'atrasada', label: 'Atrasada' },
+        ],
+        selected: filtroStatus,
+        onChange: (next: Set<string>) => setFiltroStatus(next as Set<FiltroStatus>),
+      },
+      {
+        id: 'categoria',
+        label: 'Categoria',
+        options: categoriaOptions,
+        selected: filtroCategoria,
+        onChange: setFiltroCategoria,
+      },
+      {
+        id: 'forma-pagamento',
+        label: 'Forma de pagamento',
+        options: tableData.formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
+        selected: filtroFormaPag,
+        onChange: setFiltroFormaPag,
+      },
+      ...(tableData.cartoes.length > 0 ? [{
+        id: 'cartao',
+        label: 'Cartão',
+        options: tableData.cartoes.map(([id, nome]) => ({ value: id, label: nome })),
+        selected: filtroCartao,
+        onChange: setFiltroCartao,
+      }] : []),
+      {
+        id: 'data-pagamento',
+        label: 'Data de pagamento',
+        options: [
+          { value: 'hoje', label: 'Pago hoje' },
+          { value: 'semana', label: 'Esta semana' },
+          { value: 'mes', label: 'Este mês' },
+        ],
+        selected: filtroDataPag,
+        onChange: (next: Set<string>) => setFiltroDataPag(next as Set<FiltroDataPag>),
+      },
+    ] : []),
+    // Membros sempre visivel e compartilhado — nao muda entre estados do
+    // filtro de Tipo.
+    ...(temMembros && meQ.data ? [{
+      id: 'membros',
+      label: 'Membros',
+      options: [
+        { value: meIdStr!, label: `${meQ.data.nome} (você)` },
+        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+      ],
+      selected: filtroMembros,
+      onChange: setFiltroMembros,
+    }] : []),
+  ];
+
+  const handleClearFilters = () => {
+    setFiltroTipo(new Set(['receita', 'despesa']));
+    setFiltroStatus(new Set());
+    setFiltroCategoria(new Set());
+    setFiltroFormaPag(new Set());
+    setFiltroCartao(new Set());
+    setFiltroDataPag(new Set());
+    if (meIdStr) setFiltroMembros(new Set([meIdStr]));
+  };
+
+  const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
 
   const dashboard = finance.dashboard.data;
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
@@ -145,7 +263,6 @@ export function MovimentacoesScreen() {
     setActiveTab(tab);
     if (tab === 'planejamento') setViewMode('lista');
   };
-  const movementTabs = <MovementTableToggle activeTab={activeTab} onChange={handleTabChange} />;
 
   return (
     <>
@@ -153,19 +270,12 @@ export function MovimentacoesScreen() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
-            {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
 
-            {!isPlanning && (
-              <div className="flex items-center gap-2 border-l border-slate-200 pl-2 dark:border-slate-700">
-                <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-              </div>
-            )}
-          </div>
-
-          {!isCalendario && !isPlanning && (
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
-                <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
+                <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
+                  <Plus size={15} /> Nova receita
+                </button>
                 {novaReceitaGuide.isVisible && (
                   <FirstAccessGuideCard
                     floating
@@ -180,7 +290,9 @@ export function MovimentacoesScreen() {
                 )}
               </div>
               <div className="relative">
-                <Button variant="danger" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-despesa')}>Nova despesa</Button>
+                <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
+                  <Plus size={15} /> Nova despesa
+                </button>
                 {novaDespesaGuide.isVisible && (
                   <FirstAccessGuideCard
                     floating
@@ -195,7 +307,15 @@ export function MovimentacoesScreen() {
                 )}
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
+            {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+            <MovementSectionToggle activeTab={activeTab} onChange={handleTabChange} />
+            <OrdenarChip options={ORDENAR_OPTIONS} value={ordenar} onChange={(v) => setOrdenar(v as Ordenar)} />
+            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter} onClear={handleClearFilters} />
+          </div>
         </div>
 
         {finance.dashboard.error && (
@@ -251,15 +371,28 @@ export function MovimentacoesScreen() {
         )}
 
         {isLista
-          ? (activeTab === 'receitas'
-              ? <ReceitasScreen month={month} year={year} toolbarStart={movementTabs} />
-              : activeTab === 'despesas'
-                // Despesas e a unica que ocupa a altura restante: a tabela rola
-                // por dentro. As demais seguem com a pagina rolavel.
-                ? <div className="flex min-h-0 flex-1 flex-col">
-                    <DespesasScreen month={month} year={year} toolbarStart={movementTabs} onFilteredSummaryChange={setDespesasSummary} />
-                  </div>
-                : <BudgetPanel month={month} year={year} toolbarStart={movementTabs} />)
+          ? (activeTab === 'lancamentos'
+              ? <div className="flex min-h-0 flex-1 flex-col">
+                  <LancamentosTable
+                    month={month}
+                    year={year}
+                    isEmpresa={isEmpresa}
+                    escopoFamilia={escopoFamilia}
+                    meIdStr={meIdStr}
+                    nomesVisiveis={nomesVisiveis}
+                    filtroTipo={filtroTipo}
+                    filtroStatus={filtroStatus}
+                    filtroCategoria={filtroCategoria}
+                    filtroFormaPag={filtroFormaPag}
+                    filtroCartao={filtroCartao}
+                    filtroDataPag={filtroDataPag}
+                    ordenar={ordenar}
+                    hasFilter={hasFilter}
+                    onDataLoaded={setTableData}
+                    onFilteredSummaryChange={setDespesasSummary}
+                  />
+                </div>
+              : <BudgetPanel month={month} year={year} />)
           : (
             <div className="min-h-0 flex-1">
               <CalendarView month={month} year={year} subView={subView} />
