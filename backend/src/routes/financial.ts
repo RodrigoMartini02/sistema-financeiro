@@ -158,7 +158,15 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
 
     const params = [escopo, userId, accountId, deChave, ateChave];
 
-    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, cartaoResult, emAbertoResult, estoqueBaixoResult] = await Promise.all([
+    // Ano de referencia dos graficos que mostram os 12 meses (juros x
+    // descontos): o ano do FIM do periodo filtrado. Sem periodo informado,
+    // cai no ano corrente. Esses graficos nao usam `periodoFiltro` — eles
+    // cobrem o ano inteiro de proposito — mas seguem o mesmo escopo de
+    // usuario e conta de todo o resto do painel.
+    const anoReferencia = ateAno ?? new Date().getFullYear();
+    const paramsAno = [escopo, userId, accountId, anoReferencia];
+
+    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, jurosDescontosMensalResult, cartaoResult, emAbertoResult, estoqueBaixoResult] = await Promise.all([
       pool.query(
         `SELECT
           COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
@@ -258,6 +266,22 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         FROM despesas
         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
         params,
+      ),
+      // Juros x descontos mes a mes do ano de referencia. Mesmo criterio de
+      // calculo da agregacao acima (diferenca entre o pago e o original),
+      // so que quebrado por mes e cobrindo o ano inteiro, nao o periodo.
+      pool.query(
+        `SELECT mes,
+          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) > 0 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS juros,
+          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS descontos
+         FROM despesas
+         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ano = $4::int
+           AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
+             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
+           )))
+         GROUP BY mes
+         ORDER BY mes`,
+        paramsAno,
       ),
       // Gasto por cartao. O join com cartoes so alcanca cartao do proprio
       // escopo, porque a despesa ja esta filtrada por usuario e conta.
@@ -403,6 +427,8 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
         granularidade,
         serie: serieResult.rows,
         despesasDetalhe,
+        anoReferencia,
+        jurosDescontosMensal: jurosDescontosMensalResult.rows,
       },
     });
   } catch (error) {

@@ -192,4 +192,8 @@ export interface DashboardPanoramaData {
   granularidade: 'mes' | 'ano';
   serie: DashboardPanoramaSeriePonto[];
   despesasDetalhe: DashboardPanoramaDespesasDetalhe;
+  /** Ano coberto pelos gráficos de 12 meses — o ano do fim do período filtrado. */
+  anoReferencia: number;
+  /** Juros e descontos mês a mês do `anoReferencia` (ano inteiro, não o período). */
+  jurosDescontosMensal: { mes: number; juros: number; descontos: number }[];
 }
