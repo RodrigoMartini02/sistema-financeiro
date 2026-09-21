@@ -131,7 +131,7 @@ export function MovimentacoesScreen() {
   const escopoFamilia = [...filtroMembros].some((id) => id !== meIdStr);
   const nomesVisiveis = new Set(
     [...filtroMembros]
-      .map((id) => (id === meIdStr ? meQ.data?.nome : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
+      .map((id) => (id === meIdStr ? (meQ.data?.nomeExibicao ?? meQ.data?.nome) : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
       .filter(Boolean) as string[],
   );
 
@@ -231,7 +231,7 @@ export function MovimentacoesScreen() {
       id: 'membros',
       label: 'Membros',
       options: [
-        { value: meIdStr!, label: `${meQ.data.nome} (você)` },
+        { value: meIdStr!, label: `${meQ.data.nomeExibicao ?? meQ.data.nome} (você)` },
         ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
       ],
       selected: filtroMembros,
