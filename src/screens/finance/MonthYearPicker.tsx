@@ -49,11 +49,11 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
   };
 
   return (
-    <div className="relative flex items-center rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900" ref={containerRef}>
+    <div className="relative flex items-center rounded-full border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900" ref={containerRef}>
       <button
         type="button"
         onClick={goPrev}
-        className="flex h-8 w-8 items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        className="flex h-8 w-8 items-center justify-center rounded-l-full text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
       >
         <ChevronLeft size={15} />
       </button>
@@ -69,7 +69,7 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
       <button
         type="button"
         onClick={goNext}
-        className="flex h-8 w-8 items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        className="flex h-8 w-8 items-center justify-center rounded-r-full text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
       >
         <ChevronRight size={15} />
       </button>

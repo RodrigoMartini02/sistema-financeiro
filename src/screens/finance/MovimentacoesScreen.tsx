@@ -271,56 +271,50 @@ export function MovimentacoesScreen() {
           <div className="flex flex-wrap items-center gap-2">
             <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
 
-            {!isCalendario && !isPlanning && (
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
-                    <Plus size={15} /> Nova receita
-                  </button>
-                  {novaReceitaGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(25rem,calc(100vw-2rem))]"
-                      icon={TrendingUp}
-                      description={firstAccessGuideMessages.receitasNova}
-                      onDismiss={novaReceitaGuide.dismiss}
-                      onSilenceAll={novaReceitaGuide.silenceAll}
-                    />
-                  )}
-                </div>
-                <div className="relative">
-                  <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
-                    <Plus size={15} /> Nova despesa
-                  </button>
-                  {novaDespesaGuide.isVisible && (
-                    <FirstAccessGuideCard
-                      floating
-                      placement="top"
-                      align="right"
-                      className="w-[min(25rem,calc(100vw-2rem))]"
-                      icon={TrendingDown}
-                      description={firstAccessGuideMessages.despesasNova}
-                      onDismiss={novaDespesaGuide.dismiss}
-                      onSilenceAll={novaDespesaGuide.silenceAll}
-                    />
-                  )}
-                </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
+                  <Plus size={15} /> Nova receita
+                </button>
+                {novaReceitaGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(25rem,calc(100vw-2rem))]"
+                    icon={TrendingUp}
+                    description={firstAccessGuideMessages.receitasNova}
+                    onDismiss={novaReceitaGuide.dismiss}
+                    onSilenceAll={novaReceitaGuide.silenceAll}
+                  />
+                )}
               </div>
-            )}
+              <div className="relative">
+                <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
+                  <Plus size={15} /> Nova despesa
+                </button>
+                {novaDespesaGuide.isVisible && (
+                  <FirstAccessGuideCard
+                    floating
+                    placement="top"
+                    align="right"
+                    className="w-[min(25rem,calc(100vw-2rem))]"
+                    icon={TrendingDown}
+                    description={firstAccessGuideMessages.despesasNova}
+                    onDismiss={novaDespesaGuide.dismiss}
+                    onSilenceAll={novaDespesaGuide.silenceAll}
+                  />
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
             {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
             <MovementSectionToggle activeTab={activeTab} onChange={handleTabChange} />
-            {!isCalendario && !isPlanning && (
-              <>
-                <OrdenarChip options={ORDENAR_OPTIONS} value={ordenar} onChange={(v) => setOrdenar(v as Ordenar)} />
-                <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter} onClear={handleClearFilters} />
-              </>
-            )}
+            <OrdenarChip options={ORDENAR_OPTIONS} value={ordenar} onChange={(v) => setOrdenar(v as Ordenar)} />
+            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter} onClear={handleClearFilters} />
           </div>
         </div>
 
