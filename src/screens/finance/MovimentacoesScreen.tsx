@@ -6,7 +6,6 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { fetchDashboardAnual } from '../../services/financeService';
 import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
@@ -130,24 +129,17 @@ export function MovimentacoesScreen() {
     return () => setFillViewport(false);
   }, [preencherViewport, setFillViewport]);
   const finance = useFinanceDashboard(month, year);
-  const annual = useQuery({
-    queryKey: queryKeys.dashboardAnual(year),
-    queryFn: () => fetchDashboardAnual(year),
-    staleTime: 60_000,
-  });
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
   const [despesasSummary, setDespesasSummary] = useState<FilteredSummary | null>(null);
 
   const dashboard = finance.dashboard.data;
-  const annualMonth = annual.data?.[month];
-  const receitasMes = annualMonth?.receitas ?? dashboard?.balance.receitas ?? 0;
-  const despesasMes = annualMonth?.despesas ?? dashboard?.balance.despesas ?? 0;
-  const despesas = despesasSummary?.active ? despesasSummary.total : despesasMes;
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
-  const saldoAtual = saldoAnterior + receitasMes;
-  const saldoProjetado = saldoAtual - despesasMes;
-  const comprometimento = saldoAtual > 0 ? (despesas / saldoAtual) * 100 : 0;
+  const receitasMes = dashboard?.balance.receitas ?? 0;
+  const despesasLancadasMes = dashboard?.balance.despesas ?? 0;
+  const despesasMes = despesasSummary?.active ? despesasSummary.total : despesasLancadasMes;
+  const resultadoMes = receitasMes - despesasMes;
+  const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
 
   const handleTabChange = (tab: MovementTab) => {
     setActiveTab(tab);
@@ -206,32 +198,40 @@ export function MovimentacoesScreen() {
           )}
         </div>
 
-        {(finance.dashboard.error ?? annual.error) && (
-          <ErrorState title="Não foi possível carregar as movimentações" description={(finance.dashboard.error ?? annual.error)?.message} />
+        {finance.dashboard.error && (
+          <ErrorState title="Não foi possível carregar as movimentações" description={finance.dashboard.error.message} />
         )}
 
         {!isCalendario && (
-          <div className="grid shrink-0 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid shrink-0 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <MovementMetricCard
+              label="Saldo anterior"
+              value={formatCurrency(saldoAnterior)}
+              tone={saldoAnterior >= 0 ? 'income' : 'expense'}
+            />
+            <MovementMetricCard
+              label="Receita do mês"
+              value={formatCurrency(receitasMes)}
+              tone="income"
+              note={`${finance.dashboard.data?.incomes.length ?? 0} lançamento(s)`}
+            />
+            <MovementMetricCard
+              label="Despesa do mês"
+              value={formatCurrency(despesasMes)}
+              tone="expense"
+              note={despesasSummary?.active ? `${despesasSummary.count} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
+            />
+            <MovementMetricCard
+              label="Resultado do mês"
+              value={formatCurrency(resultadoMes)}
+              tone={resultadoMes >= 0 ? 'income' : 'expense'}
+              note="Receita − despesa lançada no mês"
+            />
             <MovementMetricCard
               label="Saldo atual"
               value={formatCurrency(saldoAtual)}
-              tone="income"
-              note={`Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)}`}
-            />
-            <MovementMetricCard
-              label="Despesas"
-              value={formatCurrency(despesas)}
-              tone="expense"
-              progressPct={comprometimento}
-              note={despesasSummary?.active ? `${despesasSummary.count} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
-            />
-            <MovementMetricCard label="Saldo projetado" value={formatCurrency(saldoProjetado)} tone={saldoProjetado >= 0 ? 'income' : 'expense'} note="Se tudo for pago em dia" />
-            <MovementMetricCard
-              label="Comprometimento"
-              value={saldoAtual > 0 ? `${comprometimento.toFixed(0)}%` : '-'}
-              tone={comprometimento > 90 ? 'expense' : comprometimento > 70 ? 'warning' : 'income'}
-              progressPct={comprometimento}
-              note={comprometimento > 85 ? 'Acima do limite de 85%' : 'Dentro do limite saudável'}
+              tone={saldoAtual >= 0 ? 'income' : 'expense'}
+              note={`Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)} − Despesas pagas ${formatCurrency(dashboard?.balance.despesasPagas ?? 0)}`}
             />
           </div>
         )}

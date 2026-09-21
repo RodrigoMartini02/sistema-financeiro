@@ -11,12 +11,18 @@ router.get('/:ano/:mes/saldo', authenticate, async (req: Request, res: Response)
     const { conta_id } = req.query as Record<string, string | undefined>;
     const accountId = conta_id ? parseInt(conta_id) : null;
 
-    const { previousBalance, totalIncomes, totalExpenses, finalBalance } =
+    const { previousBalance, totalIncomes, totalExpenses, paidExpenses, finalBalance } =
       await calculateBalanceBreakdown(req.user!.id, year, month, accountId);
 
     res.json({
       success: true,
-      data: { saldo_anterior: previousBalance, receitas: totalIncomes, despesas: totalExpenses, saldo_final: finalBalance },
+      data: {
+        saldo_anterior: previousBalance,
+        receitas: totalIncomes,
+        despesas: totalExpenses,
+        despesas_pagas: paidExpenses,
+        saldo_final: finalBalance,
+      },
     });
   } catch (error) {
     console.error('Get saldo error:', error);
