@@ -60,7 +60,10 @@ export const queryKeys = {
   aiIntegrations: ['ai-integrations'] as const,
   assistantFlow: ['assistant-flow'] as const,
   assistantAbertura: ['assistant-abertura'] as const,
-  cardLimits: ['card-limits'] as const,
+  // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so
+  // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
+  cardLimits: (accountId?: number | null, escopo?: 'familia') =>
+    ['card-limits', accountId ?? 'ativa', escopo ?? 'eu'] as const,
   catalogoProdutos: ['catalogo-produtos'] as const,
   catalogoConta: ['catalogo-conta'] as const,
   movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
