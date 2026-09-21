@@ -948,6 +948,13 @@ function IncomeRow({
       </td>
       <td className={TD_CLASS}>
         <div className="flex justify-center gap-0.5">
+          {/* Espaçadores invisíveis para alinhar Editar/Cancelar/Excluir com
+              as mesmas posições ocupadas em ExpenseRow — Mover e Marcar como
+              pago não existem em receita, mas reservam a mesma largura de um
+              ActionBtn real (p-1.5 + ícone) para manter as colunas de ícone
+              alinhadas entre os dois tipos de linha. */}
+          <span className="invisible rounded-lg p-1.5" aria-hidden="true"><ArrowRight size={14} /></span>
+          <span className="invisible rounded-lg p-1.5" aria-hidden="true"><CircleCheck size={15} /></span>
           <ActionBtn onClick={onEdit} title="Editar" colorClass="text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
             <Pencil size={14} />
           </ActionBtn>
