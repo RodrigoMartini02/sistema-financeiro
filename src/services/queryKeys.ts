@@ -25,7 +25,6 @@ export const queryKeys = {
   socios: ['socios'] as const,
   avaliacoes: ['avaliacoes'] as const,
   incomeTypes: ['income-types'] as const,
-  mesStatus: (year: number, month: number) => ['mes-status', year, month] as const,
   clientes: ['clientes'] as const,
   contratos: (clienteId: number) => ['contratos', clienteId] as const,
   servicos: ['servicos'] as const,

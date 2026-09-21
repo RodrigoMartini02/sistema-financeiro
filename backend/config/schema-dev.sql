@@ -1046,7 +1046,6 @@ CREATE TABLE public.membro_permissoes (
     usuario_id integer NOT NULL,
     acesso_despesas boolean DEFAULT false NOT NULL,
     acesso_receitas boolean DEFAULT false NOT NULL,
-    acesso_fechamento_mes boolean DEFAULT false NOT NULL,
     acesso_planejamento boolean DEFAULT false NOT NULL,
     acesso_calendario boolean DEFAULT false NOT NULL,
     acesso_painel boolean DEFAULT false NOT NULL,
@@ -1086,44 +1085,6 @@ CREATE SEQUENCE public.membro_permissoes_id_seq
 --
 
 ALTER SEQUENCE public.membro_permissoes_id_seq OWNED BY public.membro_permissoes.id;
-
-
---
--- Name: meses; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.meses (
-    id integer NOT NULL,
-    usuario_id integer NOT NULL,
-    ano integer NOT NULL,
-    mes integer NOT NULL,
-    fechado boolean DEFAULT false,
-    saldo_anterior numeric(10,2) DEFAULT 0,
-    saldo_final numeric(10,2) DEFAULT 0,
-    data_fechamento timestamp without time zone,
-    conta_id integer,
-    CONSTRAINT meses_mes_check CHECK (((mes >= 0) AND (mes <= 11)))
-);
-
-
---
--- Name: meses_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.meses_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: meses_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.meses_id_seq OWNED BY public.meses.id;
 
 
 --
@@ -1939,11 +1900,6 @@ ALTER TABLE ONLY public.locations ALTER COLUMN id SET DEFAULT nextval('public.lo
 ALTER TABLE ONLY public.membro_permissoes ALTER COLUMN id SET DEFAULT nextval('public.membro_permissoes_id_seq'::regclass);
 
 
---
--- Name: meses id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meses ALTER COLUMN id SET DEFAULT nextval('public.meses_id_seq'::regclass);
 
 
 --
@@ -2408,14 +2364,6 @@ ALTER TABLE ONLY public.membro_permissoes
 
 ALTER TABLE ONLY public.membro_permissoes
     ADD CONSTRAINT membro_permissoes_usuario_id_key UNIQUE (usuario_id);
-
-
---
--- Name: meses meses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meses
-    ADD CONSTRAINT meses_pkey PRIMARY KEY (id);
 
 
 --
@@ -2939,19 +2887,6 @@ CREATE INDEX idx_ia_integracoes_principal ON public.ia_integracoes USING btree (
 CREATE INDEX idx_locations_state ON public.locations USING btree (state);
 
 
---
--- Name: idx_meses_conta; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_meses_conta ON public.meses USING btree (conta_id);
-
-
---
--- Name: idx_meses_usuario_ano_mes; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_meses_usuario_ano_mes ON public.meses USING btree (usuario_id, ano, mes);
-
 
 --
 -- Name: idx_modulos_contrato; Type: INDEX; Schema: public; Owner: -
@@ -3127,13 +3062,6 @@ CREATE INDEX idx_usuarios_status ON public.usuarios USING btree (status);
 --
 
 CREATE INDEX idx_usuarios_tipo ON public.usuarios USING btree (tipo);
-
-
---
--- Name: meses_usuario_ano_mes_conta_unique; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX meses_usuario_ano_mes_conta_unique ON public.meses USING btree (usuario_id, ano, mes, COALESCE(conta_id, 0));
 
 
 --
@@ -3557,22 +3485,6 @@ ALTER TABLE ONLY public.locations
 
 ALTER TABLE ONLY public.membro_permissoes
     ADD CONSTRAINT membro_permissoes_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
-
-
---
--- Name: meses meses_conta_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meses
-    ADD CONSTRAINT meses_conta_id_fkey FOREIGN KEY (conta_id) REFERENCES public.contas(id);
-
-
---
--- Name: meses meses_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meses
-    ADD CONSTRAINT meses_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE CASCADE;
 
 
 --

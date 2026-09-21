@@ -25,7 +25,6 @@ export const memberPermissions = pgTable('membro_permissoes', {
   // Financeiro
   accessExpenses: boolean('acesso_despesas').notNull().default(false),
   accessIncomes: boolean('acesso_receitas').notNull().default(false),
-  accessMonthClosing: boolean('acesso_fechamento_mes').notNull().default(false),
   accessBudget: boolean('acesso_planejamento').notNull().default(false),
   accessCalendar: boolean('acesso_calendario').notNull().default(false),
 

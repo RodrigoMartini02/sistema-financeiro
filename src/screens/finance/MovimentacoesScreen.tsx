@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Calendar, List, Lock, LockOpen, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Calendar, List, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { apiRequest, getActiveAccountId } from '../../services/apiClient';
 import { fetchDashboardAnual } from '../../services/financeService';
 import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
@@ -24,8 +23,6 @@ import { BudgetPanel } from './BudgetPanel';
 
 type MovementTab = 'receitas' | 'despesas' | 'planejamento';
 type ViewMode = 'lista' | 'calendario';
-
-const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
 function ViewModeToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewMode) => void }) {
   return (
@@ -121,7 +118,6 @@ export function MovimentacoesScreen() {
   const isLista = !isCalendario;
   const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
   const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
-  const fecharMesGuide = useFirstAccessGuide('despesas:fechar-mes-v1');
 
   // Altura total tambem na lista de despesas: cabecalho, filtros e cards de
   // resumo ficam fixos e so o corpo da tabela rola. Receitas e Planejamento
@@ -133,7 +129,6 @@ export function MovimentacoesScreen() {
     setFillViewport(preencherViewport);
     return () => setFillViewport(false);
   }, [preencherViewport, setFillViewport]);
-  const qc = useQueryClient();
   const finance = useFinanceDashboard(month, year);
   const annual = useQuery({
     queryKey: queryKeys.dashboardAnual(year),
@@ -142,69 +137,15 @@ export function MovimentacoesScreen() {
   });
   const cardLimits = useQuery({ queryKey: queryKeys.cardLimits, queryFn: fetchCardLimits, staleTime: 60_000 });
 
-  const mesStatusQuery = useQuery({
-    queryKey: queryKeys.mesStatus(year, month),
-    queryFn: async () => {
-      const accountId = getActiveAccountId();
-      const query = accountId ? `?conta_id=${accountId}` : '';
-      const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
-      return months.find((item) => item.ano === year && item.mes === month)?.fechado ?? false;
-    },
-  });
-  const mesFechado = mesStatusQuery.data === true;
-
-  const prevMonth = month === 0 ? 11 : month - 1;
-  const prevYear = month === 0 ? year - 1 : year;
-  const mesAnteriorStatusQuery = useQuery({
-    queryKey: queryKeys.mesStatus(prevYear, prevMonth),
-    queryFn: async () => {
-      const accountId = getActiveAccountId();
-      const query = accountId ? `?conta_id=${accountId}` : '';
-      const months = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${query}`);
-      return months.find((item) => item.ano === prevYear && item.mes === prevMonth)?.fechado ?? false;
-    },
-  });
-  const mesAnteriorFechado = mesAnteriorStatusQuery.data === true;
-
   const [despesasSummary, setDespesasSummary] = useState<FilteredSummary | null>(null);
 
-  const [mesActionError, setMesActionError] = useState('');
-
-  const fecharMut = useMutation({
-    mutationFn: async () => {
-      const accountId = getActiveAccountId();
-      await apiRequest<void>(`/meses/${year}/${month}/fechar`, {
-        method: 'POST',
-        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
-      });
-    },
-    onSuccess: () => {
-      setMesActionError('');
-      qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) });
-    },
-    onError: (error: Error) => setMesActionError(error.message),
-  });
-  const reabrirMut = useMutation({
-    mutationFn: async () => {
-      const accountId = getActiveAccountId();
-      await apiRequest<void>(`/meses/${year}/${month}/reabrir`, {
-        method: 'POST',
-        body: JSON.stringify(accountId ? { conta_id: accountId } : {}),
-      });
-    },
-    onSuccess: () => {
-      setMesActionError('');
-      qc.invalidateQueries({ queryKey: queryKeys.mesStatus(year, month) });
-    },
-    onError: (error: Error) => setMesActionError(error.message),
-  });
   const dashboard = finance.dashboard.data;
   const annualMonth = annual.data?.[month];
   const receitasMes = annualMonth?.receitas ?? dashboard?.balance.receitas ?? 0;
   const despesasMes = annualMonth?.despesas ?? dashboard?.balance.despesas ?? 0;
   const despesas = despesasSummary?.active ? despesasSummary.total : despesasMes;
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
-  const saldoAtual = mesAnteriorFechado ? saldoAnterior + receitasMes : receitasMes;
+  const saldoAtual = saldoAnterior + receitasMes;
   const saldoProjetado = saldoAtual - despesasMes;
   const comprometimento = saldoAtual > 0 ? (despesas / saldoAtual) * 100 : 0;
 
@@ -231,35 +172,6 @@ export function MovimentacoesScreen() {
 
           {!isCalendario && !isPlanning && (
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Button
-                  variant="secondary"
-                  icon={mesFechado ? <LockOpen size={15} /> : <Lock size={15} />}
-                  onClick={() => mesFechado ? reabrirMut.mutate() : fecharMut.mutate()}
-                  disabled={fecharMut.isPending || reabrirMut.isPending}
-                  className={mesFechado ? '!bg-slate-200 !text-slate-600 hover:!bg-slate-300 dark:!bg-slate-700 dark:!text-slate-300' : ''}
-                >
-                  {mesFechado ? 'Reabrir mês' : 'Fechar mês'}
-                </Button>
-                {fecharMesGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    align="right"
-                    className="w-[min(24rem,calc(100vw-2rem))]"
-                    icon={mesFechado ? LockOpen : Lock}
-                    description={firstAccessGuideMessages.despesasFecharMes}
-                    onDismiss={fecharMesGuide.dismiss}
-                    onSilenceAll={fecharMesGuide.silenceAll}
-                  />
-                )}
-                {mesActionError && (
-                  <p className="absolute left-0 top-full z-10 mt-1 whitespace-nowrap text-xs font-medium text-red-600 dark:text-red-400">
-                    {mesActionError}
-                  </p>
-                )}
-              </div>
-
               <div className="relative">
                 <Button className="!bg-emerald-600 hover:!bg-emerald-700 focus:!ring-emerald-200" icon={<Plus size={15} />} onClick={() => setQuickAction('nova-receita')}>Nova receita</Button>
                 {novaReceitaGuide.isVisible && (
@@ -304,9 +216,7 @@ export function MovimentacoesScreen() {
               label="Saldo atual"
               value={formatCurrency(saldoAtual)}
               tone="income"
-              note={mesAnteriorFechado
-                ? `Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)}`
-                : `${MONTH_NAMES_SHORT[prevMonth]}/${prevYear} ainda está aberto`}
+              note={`Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)}`}
             />
             <MovementMetricCard
               label="Despesas"

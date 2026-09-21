@@ -10,7 +10,6 @@ import {
 interface ExpenseCardProps {
   item: Expense;
   isEmpresa: boolean;
-  mesFechado: boolean;
   onPay: () => void;
   onMoveToNextMonth: () => void;
   onCancel: () => void;
@@ -20,7 +19,7 @@ interface ExpenseCardProps {
 }
 
 export function ExpenseCard({
-  item, isEmpresa, mesFechado, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit, onDelete,
+  item, isEmpresa, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit, onDelete,
 }: ExpenseCardProps) {
   const isCancelada = item.status === 'cancelada';
   const anexosCount = item.anexos?.length ?? 0;
@@ -34,17 +33,17 @@ export function ExpenseCard({
     },
     {
       key: 'pagar',
-      label: item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Marcar como pago',
+      label: item.pago ? 'Já pago' : 'Marcar como pago',
       icon: <CircleCheck size={15} />,
       onClick: onPay,
-      disabled: item.pago || mesFechado || isCancelada,
+      disabled: item.pago || isCancelada,
     },
     {
       key: 'mover',
       label: 'Mover para próximo mês',
       icon: <ArrowRight size={15} />,
       onClick: onMoveToNextMonth,
-      disabled: item.pago || mesFechado || isCancelada,
+      disabled: item.pago || isCancelada,
     },
     {
       key: 'cancelar',

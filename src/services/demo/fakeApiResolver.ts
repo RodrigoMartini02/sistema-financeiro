@@ -185,9 +185,6 @@ export function resolveFakeApiRequest(
     return undefined;
   }
 
-  // Reabrir mês fechado — apenas simula sucesso
-  if (matchEndpoint(endpoint, /^\/meses\/\d+\/\d+\/reabrir$/)) return undefined;
-
   // Sugestões de autocomplete — sem sugestões na demo
   if (matchEndpoint(endpoint, /^\/expenses\/suggestions$/)) {
     return { matches: [], forma_pagamento_sugerida: null, cartao_sugerido: null };
@@ -202,10 +199,8 @@ export function resolveFakeApiRequest(
   if (matchEndpoint(endpoint, /^\/clientes$/)) return [];
   if (matchEndpoint(endpoint, /^\/contratos$/)) return [];
   if (matchEndpoint(endpoint, /^\/contratos\/faturamento$/)) return [];
-  if (matchEndpoint(endpoint, /^\/meses$/)) return [];
 
-  // Ações sem efeito real na demo (fechamento de mês, faturamento) — apenas simula sucesso
-  if (matchEndpoint(endpoint, /^\/meses\/\d+\/\d+\/fechar$/)) return undefined;
+  // Ações sem efeito real na demo (faturamento) — apenas simula sucesso
   if (matchEndpoint(endpoint, /\/faturar$/)) return undefined;
 
   // Dashboard anual — agrega os lançamentos fake pelo mês de cada um (data_recebimento /

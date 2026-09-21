@@ -11,7 +11,7 @@ import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
-import { apiRequest, getActiveAccountId } from '../../services/apiClient';
+import { getActiveAccountId } from '../../services/apiClient';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
 import type { Attachment } from '../../types/finance';
 import { Button } from '../../ui/button';
@@ -292,17 +292,6 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
   const allItems = finance.dashboard.data?.expenses ?? [];
 
-  const mesStatusQuery = useQuery({
-    queryKey: queryKeys.mesStatus(year, month),
-    queryFn: async () => {
-      const accountId = getActiveAccountId();
-      const q = accountId ? `?conta_id=${accountId}` : '';
-      const all = await apiRequest<{ ano: number; mes: number; fechado: boolean }[]>(`/meses${q}`);
-      return all.find((m) => m.ano === year && m.mes === month)?.fechado ?? false;
-    },
-  });
-  const mesFechado = mesStatusQuery.data === true;
-
   const pagarMut = useMutation({
     mutationFn: ({ id, dataPagamento, valorPago }: { id: number; dataPagamento: string; valorPago: number }) =>
       pagarDespesa(id, dataPagamento, valorPago),
@@ -525,15 +514,15 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
   const unpaidFiltered = filtered.filter((i) => !i.pago);
   const allSelected = unpaidFiltered.length > 0 && unpaidFiltered.every((i) => selecionadas.has(i.id));
-  const hasMovableItem = filtered.some((item) => !item.pago && !mesFechado && item.status !== 'cancelada');
+  const hasMovableItem = filtered.some((item) => !item.pago && item.status !== 'cancelada');
   const filterGuide = useFirstAccessGuide('despesas:filtros-v1', {
     enabled: !finance.dashboard.isLoading && allItems.length > 0,
   });
   const loteGuide = useFirstAccessGuide('despesas:lote-v1', {
-    enabled: selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0,
+    enabled: selecionadas.size === 0 && unpaidFiltered.length > 0,
   });
   const pagarSelecionadasGuide = useFirstAccessGuide('despesas:pagar-selecionadas-v1', {
-    enabled: selecionadas.size > 0 && !mesFechado,
+    enabled: selecionadas.size > 0,
   });
   const moverMesGuide = useFirstAccessGuide('despesas:mover-mes-v1', {
     enabled: hasMovableItem,
@@ -580,7 +569,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               {toolbarStart}
               <div className="relative shrink-0">
-                {selecionadas.size > 0 && !mesFechado ? (
+                {selecionadas.size > 0 ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <CheckSquare size={14} className="text-[#0a9db5]" />
                     <span className="text-xs font-semibold text-[#0a9db5]">
@@ -602,7 +591,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     </button>
                   </div>
                 ) : null}
-                {pagarSelecionadasGuide.isVisible && selecionadas.size > 0 && !mesFechado && (
+                {pagarSelecionadasGuide.isVisible && selecionadas.size > 0 && (
                   <FirstAccessGuideCard
                     floating
                     placement="bottom"
@@ -662,7 +651,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
             )
           ) : (
             <div className="relative flex min-h-0 flex-1 flex-col">
-              {loteGuide.isVisible && selecionadas.size === 0 && !mesFechado && unpaidFiltered.length > 0 && (
+              {loteGuide.isVisible && selecionadas.size === 0 && unpaidFiltered.length > 0 && (
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
@@ -692,7 +681,6 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                     key={item.id}
                     item={item}
                     isEmpresa={isEmpresa}
-                    mesFechado={mesFechado}
                     onPay={() => setPaymentModal({ open: true, item })}
                     onMoveToNextMonth={() => handleMoverProximoMes(item)}
                     onCancel={() => handleCancelarDespesa(item)}
@@ -738,7 +726,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleSelectAll}
-                        disabled={mesFechado || unpaidFiltered.length === 0}
+                        disabled={unpaidFiltered.length === 0}
                         title="Selecionar todas não pagas"
                         className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                       />
@@ -779,7 +767,6 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                             type="checkbox"
                             checked={selecionadas.has(item.id)}
                             onChange={() => toggleItem(item.id)}
-                            disabled={mesFechado}
                             className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                           />
                         )}
@@ -894,16 +881,16 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                           </ActionBtn>
                           <ActionBtn
                             onClick={() => setPaymentModal({ open: true, item })}
-                            disabled={item.pago || mesFechado || item.status === 'cancelada'}
-                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Marcar como pago'}
+                            disabled={item.pago || item.status === 'cancelada'}
+                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : 'Marcar como pago'}
                             colorClass="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                           >
                             <CircleCheck size={15} />
                           </ActionBtn>
                           <ActionBtn
                             onClick={() => handleMoverProximoMes(item)}
-                            disabled={item.pago || mesFechado || item.status === 'cancelada'}
-                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : mesFechado ? 'Mês fechado' : 'Mover para próximo mês'}
+                            disabled={item.pago || item.status === 'cancelada'}
+                            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : 'Mover para próximo mês'}
                             colorClass="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30"
                           >
                             <ArrowRight size={14} />
