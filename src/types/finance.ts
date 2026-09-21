@@ -16,6 +16,8 @@ export interface MonthBalance {
   saldoAnterior: number;
   receitas: number;
   despesas: number;
+  /** Só as despesas do mês já pagas — base do card Saldo Atual. */
+  despesasPagas: number;
   saldoFinal: number;
 }
 

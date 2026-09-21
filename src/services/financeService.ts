@@ -35,6 +35,7 @@ interface RawBalance {
   saldo_anterior?: string | number;
   receitas?: string | number;
   despesas?: string | number;
+  despesas_pagas?: string | number;
   saldo_final?: string | number;
 }
 
@@ -121,6 +122,7 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
     saldoAnterior: asNumber(b.saldo_anterior),
     receitas: asNumber(b.receitas),
     despesas: asNumber(b.despesas),
+    despesasPagas: asNumber(b.despesas_pagas),
     saldoFinal: asNumber(b.saldo_final),
   };
 }
