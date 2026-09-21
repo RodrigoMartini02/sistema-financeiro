@@ -135,9 +135,10 @@ export interface DashboardPanoramaFiltro {
   ateAno?: number;
   /**
    * `undefined` (padrão) = só o próprio usuário. `null` = família inteira,
-   * escolhida explicitamente. Um id = apenas aquele membro.
+   * escolhida explicitamente. Um id = apenas aquele membro. Uma lista de ids
+   * = combinação específica de membros (filtro sanduíche do Painel).
    */
-  membroId?: number | null;
+  membroId?: number | number[] | null;
 }
 
 export interface DashboardPanoramaSeriePonto {
@@ -181,7 +182,7 @@ export interface DashboardPanoramaData {
   totalLancamentos: number;
   primeiraData: string | null;
   ultimaData: string | null;
-  porCategoria: { categoria: string; total: number }[];
+  porCategoria: { categoriaId: number | null; categoria: string; parentId: number | null; total: number }[];
   porFormaPagamento: { forma_pagamento: string; total: number }[];
   porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
   porCartao: { cartao: string; total: number }[];
