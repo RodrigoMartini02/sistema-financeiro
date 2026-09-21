@@ -231,7 +231,7 @@ export function MovimentacoesScreen() {
               label="Saldo atual"
               value={formatCurrency(saldoAtual)}
               tone={saldoAtual >= 0 ? 'income' : 'expense'}
-              note={`Saldo anterior ${formatCurrency(saldoAnterior)} + Receitas ${formatCurrency(receitasMes)} − Despesas pagas ${formatCurrency(dashboard?.balance.despesasPagas ?? 0)}`}
+              note="Saldo anterior + Receitas − Despesas pagas"
             />
           </div>
         )}
