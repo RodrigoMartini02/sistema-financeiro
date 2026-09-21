@@ -72,7 +72,7 @@ const FLUXO = [
   {
     icon: CalendarClock,
     title: 'Organize por mês',
-    description: 'Cada lançamento entra no período certo, com fechamento e reabertura quando precisar.',
+    description: 'Cada lançamento entra no período certo, com saldo recalculado automaticamente.',
   },
   {
     icon: BookOpen,

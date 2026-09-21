@@ -42,7 +42,7 @@ const VALORES = [
 
 const DIFERENCIAIS = [
   { title: 'Perfis independentes', description: 'Separe finanças pessoais de empresariais em perfis completamente isolados dentro da mesma conta.' },
-  { title: 'Saldo calculado automaticamente', description: 'Abra e feche meses com saldo real. O sistema calcula tudo com base nos lançamentos registrados.' },
+  { title: 'Saldo calculado automaticamente', description: 'O saldo de cada mês é sempre recalculado com base no histórico de lançamentos registrados, sem nenhuma ação manual.' },
   { title: 'Parcelas e recorrências', description: 'Lance uma vez e o FINGERENCE distribui automaticamente as parcelas ou replica recorrências pelos meses seguintes.' },
   { title: 'Sem acesso bancário', description: 'Total privacidade. Você registra o que quer, quando quer. Nenhuma conexão com bancos ou apps financeiros.' },
 ];
@@ -50,7 +50,7 @@ const DIFERENCIAIS = [
 const FAQ = [
   { q: 'O FINGERENCE é gratuito?', a: 'Sim. Você pode começar gratuitamente sem cartão de crédito. Planos pagos oferecem funcionalidades avançadas.' },
   { q: 'Posso separar finanças pessoais das empresariais?', a: 'Sim. Crie perfis independentes para uso pessoal e cada empresa ou CNPJ. Os dados são completamente isolados.' },
-  { q: 'Como funciona o controle por mês?', a: 'Você abre um mês, registra receitas e despesas ao longo do período e fecha ao final. O saldo final serve de base para o mês seguinte.' },
+  { q: 'Como funciona o controle por mês?', a: 'Você registra receitas e despesas ao longo do mês e o sistema calcula automaticamente o saldo, que serve de base para o mês seguinte.' },
   { q: 'O FINGERENCE acessa minha conta bancária?', a: 'Não. O FINGERENCE não acessa sua conta bancária. Você registra os lançamentos manualmente, mantendo total controle e privacidade.' },
   { q: 'Meus dados financeiros ficam seguros?', a: 'Sim. Seus dados são armazenados com criptografia TLS/HTTPS, senhas com hash bcrypt e sessões autenticadas via JWT.' },
   { q: 'Posso usar em vários dispositivos?', a: 'Sim. O FINGERENCE funciona no navegador de qualquer dispositivo: computador, celular ou tablet.' },
