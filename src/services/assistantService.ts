@@ -1,5 +1,4 @@
 import { apiRequest } from './apiClient';
-import type { FinancialAssistantRequest, FinancialAssistantResponse } from '../types/financialAssistant';
 import type {
   FinancialCopilotConversation,
   FinancialCopilotRequest,
@@ -7,15 +6,6 @@ import type {
   FinancialCopilotStoredMessage,
 } from '../types/financialCopilot';
 import { getActiveAccountId } from './apiClient';
-
-export async function createFinancialDraft(
-  payload: FinancialAssistantRequest,
-): Promise<FinancialAssistantResponse> {
-  return apiRequest<FinancialAssistantResponse>('/assistant/financial-draft', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
 
 function profileQuery(): string {
   const accountId = getActiveAccountId();

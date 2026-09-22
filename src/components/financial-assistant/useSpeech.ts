@@ -28,7 +28,6 @@ function pickPortugueseVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoi
 }
 
 export interface SpeechController {
-  supported: boolean;
   speaking: boolean;
   speak: (text: string) => void;
   stop: () => void;
@@ -75,5 +74,5 @@ export function useSpeech(): SpeechController {
     window.speechSynthesis.speak(utterance);
   }, [supported]);
 
-  return { supported, speaking, speak, stop };
+  return { speaking, speak, stop };
 }

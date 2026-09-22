@@ -1,8 +1,4 @@
-import type { Attachment } from './finance';
-
 export type FinancialDraftKind = 'income' | 'expense';
-
-export type FinancialDraftMissingField = 'description' | 'amount';
 
 export interface FinancialAssistantDraft {
   kind: FinancialDraftKind;
@@ -28,17 +24,4 @@ export interface FinancialAssistantDraft {
    * lancamento da conta ativa, e a troca acontece na hora de gravar.
    */
   contaId?: number | null;
-}
-
-export interface FinancialAssistantResponse {
-  reply: string;
-  draft: FinancialAssistantDraft;
-  missingFields: FinancialDraftMissingField[];
-  usedDefaultDate: boolean;
-}
-
-export interface FinancialAssistantRequest {
-  message: string;
-  attachments?: Attachment[];
-  context?: Partial<FinancialAssistantDraft>;
 }
