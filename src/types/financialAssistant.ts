@@ -24,4 +24,19 @@ export interface FinancialAssistantDraft {
    * lancamento da conta ativa, e a troca acontece na hora de gravar.
    */
   contaId?: number | null;
+  /**
+   * Campos de receita exclusivos de conta PJ. So aparecem no card quando a
+   * conta do lancamento e empresa — em conta PF permanecem null/undefined,
+   * igual ao IncomeForm.tsx do desktop.
+   */
+  cliente?: string | null;
+  tipoReceita?: string | null;
+  representanteId?: number | null;
+  produtoId?: string | null;
+  quantidadeVendida?: number | null;
+  contratoId?: number | null;
+  tipoHora?: 'presencial' | 'remoto' | null;
+  quantidadeHoras?: number | null;
+  /** Receita, PF e PJ: gera lancamentos replicados em meses futuros. */
+  replicarAte?: { mes: number; ano: number } | null;
 }
