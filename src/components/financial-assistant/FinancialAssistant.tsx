@@ -4,7 +4,7 @@ import {
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Attachment, Expense, Income } from '../../types/finance';
+import { MONTH_NAMES, type Attachment, type Expense, type Income } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import type {
   FinancialCopilotCard,
@@ -22,6 +22,10 @@ import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/f
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
+import { fetchClientes, fetchContratosAtivos } from '../../services/clientesService';
+import { fetchIncomeTypes } from '../../services/incomeTypesService';
+import { fetchRepresentantes } from '../../services/representantesService';
+import { fetchProdutos } from '../../services/catalogoService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { Card } from '../../ui/card';
@@ -374,6 +378,39 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     ? contaDoLancamento.tipo === 'empresa'
     : localStorage.getItem('contaAtivaTipo') === 'empresa';
 
+  // Campos de receita exclusivos de conta PJ: mesmas queries do IncomeForm.tsx
+  // do desktop, so habilitadas quando ha o que mostrar.
+  const clientesQuery = useQuery({
+    queryKey: queryKeys.clientes,
+    queryFn: () => fetchClientes(),
+    enabled: open && contaEhEmpresa,
+    staleTime: 60_000,
+  });
+  const incomeTypesQuery = useQuery({
+    queryKey: queryKeys.incomeTypes,
+    queryFn: () => fetchIncomeTypes(),
+    enabled: open && contaEhEmpresa,
+    staleTime: 60_000,
+  });
+  const representantesQuery = useQuery({
+    queryKey: queryKeys.representantes,
+    queryFn: () => fetchRepresentantes(),
+    enabled: open && contaEhEmpresa,
+    staleTime: 60_000,
+  });
+  const produtosQuery = useQuery({
+    queryKey: queryKeys.catalogoProdutos,
+    queryFn: () => fetchProdutos(),
+    enabled: open && contaEhEmpresa,
+    staleTime: 60_000,
+  });
+  const contratosAtivosQuery = useQuery({
+    queryKey: queryKeys.contratosAtivos,
+    queryFn: () => fetchContratosAtivos(),
+    enabled: open && contaEhEmpresa,
+    staleTime: 60_000,
+  });
+
   const conversationsQuery = useQuery({
     queryKey: queryKeys.copilotConversations,
     queryFn: fetchFinancialCopilotConversations,
@@ -399,6 +436,46 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const cardsForDraft = (cardsQuery.data ?? []).filter((card) => (
     card.ativo && (!card.tipo || card.tipo === 'ambos' || card.tipo === draft?.paymentMethod)
   ));
+
+  // ── Campos de receita PJ: mesmas regras do IncomeForm.tsx do desktop ──
+  const clientes = clientesQuery.data ?? [];
+  const tiposReceita = (incomeTypesQuery.data ?? []).filter((tipo) => tipo.ativo);
+  const representantes = representantesQuery.data ?? [];
+  // Mesmo criterio do desktop: so produtos ativos e da conta do lancamento
+  // (ou sem conta vinculada) — vender de uma conta o produto de outra
+  // misturaria os estoques.
+  const produtosDisponiveis = (produtosQuery.data ?? []).filter((produto) => (
+    produto.ativo && (produto.contaId === null || produto.contaId === contaAtivaId)
+  ));
+  const contratosAtivos = contratosAtivosQuery.data ?? [];
+
+  const representanteSelecionado = draft?.representanteId
+    ? representantes.find((representante) => representante.id === draft.representanteId)
+    : null;
+  const comissaoMatch = representanteSelecionado?.comissoes?.find((comissao) => comissao.tipo_receita === draft?.tipoReceita);
+  const valorComissaoCalculado = comissaoMatch && draft?.amount
+    ? (draft.amount * Number(comissaoMatch.percentual)) / 100
+    : null;
+
+  const produtoSelecionado = draft?.produtoId
+    ? produtosDisponiveis.find((produto) => produto.id === draft.produtoId)
+    : null;
+  const estoqueDisponivel = produtoSelecionado ? Number(produtoSelecionado.quantidadeEstoque) : null;
+
+  const contratoSelecionado = draft?.contratoId
+    ? contratosAtivos.find((contrato) => contrato.id === draft.contratoId)
+    : null;
+  const valorHoraSelecionado = draft?.tipoHora === 'presencial'
+    ? (contratoSelecionado?.horas_presenciais_valor ?? null)
+    : draft?.tipoHora === 'remoto'
+      ? (contratoSelecionado?.horas_remotas_valor ?? null)
+      : null;
+  const saldoHorasAtual = draft?.tipoHora === 'presencial'
+    ? (contratoSelecionado?.horas_presenciais_saldo_atual ?? null)
+    : draft?.tipoHora === 'remoto'
+      ? (contratoSelecionado?.horas_remotas_saldo_atual ?? null)
+      : null;
+
   const duplicateWarning = findDuplicate(
     draft,
     dashboardQuery.data?.incomes ?? [],
@@ -467,6 +544,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const updateDraft = (patch: Partial<FinancialAssistantDraft>) => {
     setDraft((current) => current ? { ...current, ...patch } : current);
   };
+
+  // Produto vendido sugere o valor (quantidade x preco do produto), mas nao
+  // trava: o campo continua editavel por cima. Mesma regra do IncomeForm.tsx.
+  useEffect(() => {
+    if (!produtoSelecionado || !draft?.quantidadeVendida) return;
+    const valorCalculado = Number(draft.quantidadeVendida) * Number(produtoSelecionado.valor);
+    if (valorCalculado > 0) updateDraft({ amount: valorCalculado });
+  }, [produtoSelecionado, draft?.quantidadeVendida]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Horas a faturar sugerem o valor (quantidade x valor/hora do contrato),
+  // mesma regra de nao travar o campo.
+  useEffect(() => {
+    if (!valorHoraSelecionado || !draft?.quantidadeHoras) return;
+    const valorCalculado = Number(draft.quantidadeHoras) * valorHoraSelecionado;
+    if (valorCalculado > 0) updateDraft({ amount: valorCalculado });
+  }, [valorHoraSelecionado, draft?.quantidadeHoras]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectIntent = (nextIntent: FinancialCopilotIntentHint) => {
     setIntentHint(nextIntent);
@@ -722,6 +815,19 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           valor: draft.amount,
           data: date,
           anexos: draftAttachments,
+          // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
+          // aparecem, entao permanecem null/undefined aqui.
+          cliente: draft.cliente ?? undefined,
+          tipoReceita: draft.tipoReceita ?? undefined,
+          representanteId: draft.representanteId ?? null,
+          valorComissao: valorComissaoCalculado,
+          produtoId: draft.produtoId ?? null,
+          quantidadeVendida: draft.quantidadeVendida ?? null,
+          contratoId: draft.contratoId ?? null,
+          tipoHora: draft.tipoHora ?? null,
+          quantidadeHoras: draft.quantidadeHoras ?? null,
+          // PF e PJ: replica o lancamento para os meses futuros informados.
+          replicarAte: draft.replicarAte ?? null,
         });
       } else {
         const suggestedCategory = draft.category
@@ -1232,6 +1338,226 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             </>
                           )}
                         </>
+                      )}
+
+                      {/* Campos de receita exclusivos de conta PJ — mesmo
+                          criterio do IncomeForm.tsx do desktop (isEmpresa).
+                          Em conta PF nenhum destes blocos aparece. */}
+                      {draft.kind === 'income' && contaEhEmpresa && (
+                        <>
+                          {clientes.length > 0 && (
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cliente</span>
+                              <span className="relative flex-1">
+                                <select
+                                  value={draft.cliente ?? ''}
+                                  onChange={(event) => updateDraft({ cliente: event.target.value || null })}
+                                  className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                >
+                                  <option value="">Sem cliente</option>
+                                  {clientes.map((cliente) => <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>)}
+                                </select>
+                                <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                              </span>
+                            </label>
+                          )}
+
+                          {tiposReceita.length > 0 && (
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Tipo de receita</span>
+                              <span className="relative flex-1">
+                                <select
+                                  value={draft.tipoReceita ?? ''}
+                                  onChange={(event) => updateDraft({ tipoReceita: event.target.value || null })}
+                                  className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                >
+                                  <option value="">Sem tipo</option>
+                                  {tiposReceita.map((tipo) => <option key={tipo.id} value={tipo.nome}>{tipo.nome}</option>)}
+                                </select>
+                                <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                              </span>
+                            </label>
+                          )}
+
+                          {representantes.length > 0 && (
+                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Representante</span>
+                              <span className="relative flex-1">
+                                <select
+                                  value={draft.representanteId ?? ''}
+                                  onChange={(event) => updateDraft({ representanteId: event.target.value ? Number(event.target.value) : null })}
+                                  className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                >
+                                  <option value="">Nenhum</option>
+                                  {representantes.map((representante) => (
+                                    <option key={representante.id} value={representante.id}>{representante.nome}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                              </span>
+                            </label>
+                          )}
+
+                          {representanteSelecionado && valorComissaoCalculado !== null && (
+                            <p className="border-b border-slate-100 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                              {representanteSelecionado.nome} receberá <span className="font-semibold text-[#0e7490]">{formatCurrency(valorComissaoCalculado)}</span> de comissão ({comissaoMatch!.percentual}%).
+                            </p>
+                          )}
+
+                          {produtosDisponiveis.length > 0 && (
+                            <>
+                              <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Produto</span>
+                                <span className="relative flex-1">
+                                  <select
+                                    value={draft.produtoId ?? ''}
+                                    onChange={(event) => updateDraft({
+                                      produtoId: event.target.value || null,
+                                      quantidadeVendida: event.target.value ? draft.quantidadeVendida : null,
+                                    })}
+                                    className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                  >
+                                    <option value="">Lançamento avulso</option>
+                                    {produtosDisponiveis.map((produto) => (
+                                      <option key={produto.id} value={produto.id}>{produto.nome}</option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                                </span>
+                              </label>
+                              {draft.produtoId && (
+                                <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                  <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Quantidade</span>
+                                  <input
+                                    type="number"
+                                    min="0.001"
+                                    step="0.001"
+                                    value={draft.quantidadeVendida ?? ''}
+                                    onChange={(event) => updateDraft({ quantidadeVendida: event.target.value ? Number(event.target.value) : null })}
+                                    className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                  />
+                                </label>
+                              )}
+                              {produtoSelecionado && estoqueDisponivel != null && (
+                                <p className="border-b border-slate-100 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                  {draft.quantidadeVendida && Number(draft.quantidadeVendida) > estoqueDisponivel
+                                    ? <span className="text-red-600 dark:text-red-300">Estoque insuficiente: há {estoqueDisponivel} disponível.</span>
+                                    : `Baixa ${draft.quantidadeVendida || 0} do estoque · restam ${Math.max(0, estoqueDisponivel - Number(draft.quantidadeVendida || 0))}.`}
+                                </p>
+                              )}
+                            </>
+                          )}
+
+                          {contratosAtivos.length > 0 && (
+                            <>
+                              <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Contrato</span>
+                                <span className="relative flex-1">
+                                  <select
+                                    value={draft.contratoId ?? ''}
+                                    onChange={(event) => updateDraft({
+                                      contratoId: event.target.value ? Number(event.target.value) : null,
+                                      tipoHora: null,
+                                      quantidadeHoras: null,
+                                    })}
+                                    className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                  >
+                                    <option value="">Sem contrato</option>
+                                    {contratosAtivos.map((contrato) => (
+                                      <option key={contrato.id} value={contrato.id}>
+                                        {contrato.cliente_nome}{contrato.numero ? ` — ${contrato.numero}` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                                </span>
+                              </label>
+
+                              {contratoSelecionado && (
+                                <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                  <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Horas</span>
+                                  <span className="relative flex-1">
+                                    <select
+                                      value={draft.tipoHora ?? ''}
+                                      onChange={(event) => updateDraft({
+                                        tipoHora: (event.target.value || null) as FinancialAssistantDraft['tipoHora'],
+                                        quantidadeHoras: null,
+                                      })}
+                                      className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                                    >
+                                      <option value="">Não faturar horas</option>
+                                      {(contratoSelecionado.horas_presenciais_valor ?? 0) > 0 && (
+                                        <option value="presencial">Presencial</option>
+                                      )}
+                                      {(contratoSelecionado.horas_remotas_valor ?? 0) > 0 && (
+                                        <option value="remoto">Remoto</option>
+                                      )}
+                                    </select>
+                                    <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                                  </span>
+                                </label>
+                              )}
+
+                              {draft.tipoHora && (
+                                <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                  <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Quantidade</span>
+                                  <input
+                                    type="number"
+                                    min="0.5"
+                                    step="0.5"
+                                    value={draft.quantidadeHoras ?? ''}
+                                    onChange={(event) => updateDraft({ quantidadeHoras: event.target.value ? Number(event.target.value) : null })}
+                                    className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                  />
+                                  {valorHoraSelecionado != null && (
+                                    <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+                                      {formatCurrency(valorHoraSelecionado)}/h{saldoHorasAtual != null ? ` · saldo ${saldoHorasAtual}h` : ''}
+                                    </span>
+                                  )}
+                                </label>
+                              )}
+                            </>
+                          )}
+                        </>
+                      )}
+
+                      {/* Replicar ate: PF e PJ, mesmo criterio do desktop. */}
+                      {draft.kind === 'income' && (
+                        <label className="flex items-center gap-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={!!draft.replicarAte}
+                            onChange={(event) => updateDraft({
+                              replicarAte: event.target.checked ? { mes: month, ano: year } : null,
+                            })}
+                            className="h-[18px] w-[18px] accent-[#0891b2]"
+                          />
+                          <span className="text-sm font-semibold text-slate-900 dark:text-white">Replicar até...</span>
+                        </label>
+                      )}
+
+                      {draft.kind === 'income' && draft.replicarAte && (
+                        <div className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
+                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Até</span>
+                          <span className="relative flex-1">
+                            <select
+                              value={draft.replicarAte.mes}
+                              onChange={(event) => updateDraft({ replicarAte: { mes: Number(event.target.value), ano: draft.replicarAte!.ano } })}
+                              className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                            >
+                              {MONTH_NAMES.map((nomeMes, index) => <option key={nomeMes} value={index}>{nomeMes}</option>)}
+                            </select>
+                            <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                          </span>
+                          <input
+                            type="number"
+                            min={year}
+                            max={year + 3}
+                            value={draft.replicarAte.ano}
+                            onChange={(event) => updateDraft({ replicarAte: { mes: draft.replicarAte!.mes, ano: Number(event.target.value) } })}
+                            className="h-7 w-20 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                          />
+                        </div>
                       )}
                     </div>
 
