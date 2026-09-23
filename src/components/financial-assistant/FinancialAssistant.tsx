@@ -95,6 +95,52 @@ const ACCEPTED_FILE_TYPES = new Set([
   'application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'text/plain',
 ]);
 
+// Botao flutuante arrastavel (desktop): posicao em right/bottom, mesma
+// convencao do `bottom-5 right-5` original. Tamanho do botao (h-14 w-14) e
+// margem de borda entram no clamp para o icone nunca ficar fora da tela.
+const FAB_STORAGE_KEY = 'assistant:fabPosition';
+const FAB_SIZE = 56;
+const FAB_MARGIN = 20;
+const FAB_DEFAULT_POSITION: FabPosition = { right: FAB_MARGIN, bottom: FAB_MARGIN };
+/** Deslocamento minimo para contar como arraste em vez de clique. */
+const FAB_DRAG_THRESHOLD = 5;
+
+interface FabPosition {
+  right: number;
+  bottom: number;
+}
+
+function clampFabPosition(position: FabPosition): FabPosition {
+  const maxRight = Math.max(FAB_MARGIN, window.innerWidth - FAB_SIZE - FAB_MARGIN);
+  const maxBottom = Math.max(FAB_MARGIN, window.innerHeight - FAB_SIZE - FAB_MARGIN);
+  return {
+    right: Math.min(Math.max(position.right, FAB_MARGIN), maxRight),
+    bottom: Math.min(Math.max(position.bottom, FAB_MARGIN), maxBottom),
+  };
+}
+
+function readStoredFabPosition(): FabPosition {
+  if (typeof window === 'undefined') return FAB_DEFAULT_POSITION;
+  try {
+    const raw = window.localStorage.getItem(FAB_STORAGE_KEY);
+    if (!raw) return FAB_DEFAULT_POSITION;
+    const parsed = JSON.parse(raw) as Partial<FabPosition>;
+    if (typeof parsed.right !== 'number' || typeof parsed.bottom !== 'number') return FAB_DEFAULT_POSITION;
+    return clampFabPosition(parsed as FabPosition);
+  } catch {
+    return FAB_DEFAULT_POSITION;
+  }
+}
+
+function storeFabPosition(position: FabPosition): void {
+  try {
+    window.localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(position));
+  } catch {
+    // Storage indisponivel (modo privado, quota): a posicao so vale para
+    // esta sessao, sem quebrar o arraste.
+  }
+}
+
 /**
  * Abertura exibida enquanto a do fluxo nao chegou — e quando ela falha.
  *
@@ -304,6 +350,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const queryClient = useQueryClient();
   const isStandalone = mode === 'standalone';
   const [open, setOpen] = useState(isStandalone);
+  const [fabPosition, setFabPosition] = useState<FabPosition>(() => readStoredFabPosition());
+  const fabDragRef = useRef<{ startX: number; startY: number; startRight: number; startBottom: number; moved: boolean } | null>(null);
 
   // A abertura vem do fluxo editavel, mas o chat nao espera por ela: abre com
   // a padrao e troca quando a resposta chega. `placeholderData` evita que o
@@ -599,6 +647,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   }, [open]);
 
   useEffect(() => () => recognitionRef.current?.abort?.(), []);
+
+  // Janela redimensionada pode deixar uma posicao ja salva fora da tela
+  // (ex.: usuario arrastou numa tela grande, depois encolheu a janela).
+  useEffect(() => {
+    const reclampFab = () => setFabPosition((current) => clampFabPosition(current));
+    window.addEventListener('resize', reclampFab);
+    return () => window.removeEventListener('resize', reclampFab);
+  }, []);
 
   useEffect(() => {
     const textarea = composerRef.current;
@@ -966,13 +1022,68 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     window.setTimeout(() => composerRef.current?.focus(), 0);
   };
 
+  // So arrasta no desktop: em touch o icone continua fixo, sem competir com
+  // o scroll da pagina. Clique sem deslocamento significativo abre o chat
+  // normalmente — so conta como arraste acima do threshold.
+  const handleFabMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    event.preventDefault();
+    fabDragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startRight: fabPosition.right,
+      startBottom: fabPosition.bottom,
+      moved: false,
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const drag = fabDragRef.current;
+      if (!drag) return;
+      const deltaX = moveEvent.clientX - drag.startX;
+      const deltaY = moveEvent.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(deltaX, deltaY) > FAB_DRAG_THRESHOLD) drag.moved = true;
+      if (!drag.moved) return;
+      setFabPosition(clampFabPosition({
+        right: drag.startRight - deltaX,
+        bottom: drag.startBottom - deltaY,
+      }));
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      const drag = fabDragRef.current;
+      fabDragRef.current = null;
+      if (!drag) return;
+      if (drag.moved) {
+        setFabPosition((current) => {
+          const clamped = clampFabPosition(current);
+          storeFabPosition(clamped);
+          return clamped;
+        });
+      } else {
+        setOpen(true);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
   return (
     <>
       {!isStandalone && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+          // No desktop o proprio handler de arraste decide abrir ou nao
+          // (preventDefault no mousedown suprime o click nativo). Em touch o
+          // mousedown nao faz nada, entao o click continua abrindo direto.
+          onMouseDown={handleFabMouseDown}
+          onClick={() => {
+            if (window.matchMedia('(pointer: coarse)').matches) setOpen(true);
+          }}
+          style={{ right: fabPosition.right, bottom: fabPosition.bottom }}
+          className="fixed z-40 flex h-14 w-14 cursor-grab items-center justify-center overflow-hidden rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 active:cursor-grabbing dark:focus:ring-offset-slate-950"
           aria-label="Abrir o Juca, seu assistente financeiro"
           title="Juca"
         >
