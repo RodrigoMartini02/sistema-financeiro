@@ -54,6 +54,11 @@ interface ChatMessage {
   showWelcomeActions?: boolean;
   /** Botoes da pergunta em aberto; some assim que ela e respondida. */
   quickReplies?: FinancialCopilotQuickReply[];
+  /**
+   * Foto do rascunho no instante em que foi salvo. Fica presa nesta mensagem
+   * — nao e uma referencia ao draft ativo, que continua mudando depois.
+   */
+  registeredDraft?: FinancialAssistantDraft;
 }
 interface SpeechRecognitionResultLike {
   transcript: string;
@@ -118,9 +123,9 @@ function buildInitialMessage(saudacao: string): ChatMessage {
 }
 
 /**
- * Visual unico dos chips da conversa — abertura e respostas rapidas. Ficam
+ * Visual dos chips de resposta rapida (perguntas do fluxo de despesa). Ficam
  * empilhados, cada um com a largura do proprio texto, como menu de bot de
- * atendimento. Compartilhado para os dois grupos nunca divergirem.
+ * atendimento.
  */
 const ASSISTANT_CHIP_CLASS = 'flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-xs font-semibold text-[#0e7490] shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100 dark:border-cyan-900 dark:bg-cyan-950/50 dark:text-cyan-200 dark:hover:bg-cyan-900/60';
 
@@ -132,6 +137,17 @@ const INTENT_ICONS: Record<FinancialCopilotIntentHint, ReactNode> = {
   register_expense: <Plus size={15} />,
   register_income: <Plus size={15} />,
   ask: <MessageCircleMore size={15} />,
+};
+
+/**
+ * Cor por intencao dos chips de abertura (menu inicial) — despesa em
+ * vermelho, receita em verde, consultar em amarelo. Largura fixa (w-[172px])
+ * para os tres ficarem do mesmo tamanho, independente do texto.
+ */
+const WELCOME_CHIP_CLASS_BY_INTENT: Record<FinancialCopilotIntentHint, string> = {
+  register_expense: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:border-red-400 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 dark:hover:bg-red-900/60',
+  register_income: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60',
+  ask: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-900/60',
 };
 
 function formatDraftAmount(value: number | null): string {
@@ -482,6 +498,56 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     dashboardQuery.data?.expenses ?? [],
   );
   const messageGroups = groupMessagesByDay(messages);
+
+  // Recibo somente-leitura do que foi salvo. So os pares com valor aparecem —
+  // sem isso o recibo de uma despesa simples (sem cartao, sem parcelamento)
+  // ficaria com metade das linhas vazias.
+  const buildReceiptRows = (registered: FinancialAssistantDraft): Array<{ label: string; value: string }> => {
+    const rows: Array<{ label: string; value: string }> = [];
+    const push = (label: string, value: string | null | undefined) => {
+      if (value) rows.push({ label, value });
+    };
+    const todosCartoes = cardsQuery.data ?? [];
+
+    const contaNome = registered.contaId
+      ? (contas.find((conta) => conta.id === registered.contaId)?.nome_fantasia
+        ?? contas.find((conta) => conta.id === registered.contaId)?.razao_social
+        ?? contas.find((conta) => conta.id === registered.contaId)?.nome)
+      : null;
+    push('Conta', contaNome);
+    push('Descrição', registered.description);
+    push('Valor', formatDraftAmount(registered.amount));
+
+    if (registered.kind === 'income') {
+      push('Data', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
+      push('Cliente', registered.cliente);
+      push('Tipo de receita', registered.tipoReceita);
+      push('Representante', registered.representanteId
+        ? representantes.find((representante) => representante.id === registered.representanteId)?.nome
+        : null);
+      push('Produto', registered.produtoId
+        ? produtosDisponiveis.find((produto) => produto.id === registered.produtoId)?.nome
+        : null);
+      if (registered.quantidadeVendida) push('Quantidade', String(registered.quantidadeVendida));
+      if (registered.quantidadeHoras) push('Horas faturadas', String(registered.quantidadeHoras));
+      if (registered.replicarAte) push('Replicado até', `${MONTH_NAMES[registered.replicarAte.mes]}/${registered.replicarAte.ano}`);
+    } else {
+      push('Vencimento', registered.dueDate ? new Date(registered.dueDate + 'T00:00:00').toLocaleDateString('pt-BR') : null);
+      push('Data da compra', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
+      push('Categoria', registered.category);
+      push('Pagamento', registered.paymentMethod);
+      push('Cartão', registered.cardId
+        ? todosCartoes.find((card) => card.id === registered.cardId)?.nome
+        : null);
+      if (registered.billingType === 'parcelas') push('Parcelas', `${registered.installments ?? '?'}x`);
+      if (registered.billingType === 'mensal') push('Cobrança', 'Recorrente');
+      push('Pago', registered.paid ? 'Sim' : null);
+      if (registered.paid && registered.amountPaid) push('Valor pago', formatDraftAmount(registered.amountPaid));
+      push('Nota fiscal', registered.invoiceNumber);
+    }
+
+    return rows;
+  };
 
 
   useEffect(() => {
@@ -868,6 +934,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           : 'Prontinho, despesa lançada! Quer registrar outra?',
         createdAt: new Date().toISOString(),
         showWelcomeActions: true,
+        // Copia do draft no instante do salvamento: a mensagem guarda o que
+        // foi lancado, mesmo depois que o draft ativo mudar ou for limpo.
+        registeredDraft: { ...draft },
       }]);
       setDraft(null);
       setDraftAttachments([]);
@@ -904,8 +973,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           type="button"
           onClick={() => setOpen(true)}
           className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#0891b2] text-white shadow-lg shadow-cyan-950/25 transition hover:bg-[#0e7490] focus:outline-none focus:ring-2 focus:ring-[#0EC4D8] focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-          aria-label="Abrir o Nico, seu assistente financeiro"
-          title="Nico"
+          aria-label="Abrir o Juca, seu assistente financeiro"
+          title="Juca"
         >
           <img
             src="/icons/assistente-perfil.webp"
@@ -922,7 +991,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
               type="button"
               className="absolute inset-0 hidden bg-slate-950/25 backdrop-blur-[1px] sm:block"
               onClick={() => setOpen(false)}
-              aria-label="Fechar o Nico"
+              aria-label="Fechar o Juca"
             />
           )}
           <section
@@ -937,21 +1006,21 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
             // propria e fica ancorado no canto, sem disputa com o teclado.
             style={isStandalone && alturaVisivel ? { height: alturaVisivel } : undefined}
             role={isStandalone ? undefined : 'dialog'}
-            aria-label="Nico, assistente financeiro"
+            aria-label="Juca, assistente financeiro"
             aria-modal={isStandalone ? undefined : true}
           >
             <header className="flex shrink-0 items-center gap-3 border-b border-[#0A6571] bg-[#0D2E3C] px-4 py-3 text-white">
               <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-full border border-cyan-100/35 bg-[#07313A]">
                 <img
                   src="/icons/assistente-perfil.webp"
-                  alt="Avatar do Nico"
+                  alt="Avatar do Juca"
                   className="h-full w-full object-cover object-[center_35%]"
                 />
               </div>
               <div className="min-w-0 flex-1">
                 {/* Nome identifica, funcao explica: quem abre pela primeira
                     vez precisa dos dois. */}
-                <p className="text-base font-bold leading-tight">Nico</p>
+                <p className="text-base font-bold leading-tight">Juca</p>
                 <p className="text-[11.5px] text-cyan-100/70">Assistente financeiro</p>
               </div>
               <AssistantHeaderMenu
@@ -966,7 +1035,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-cyan-100/75 transition hover:bg-white/10 hover:text-white"
-                  aria-label="Fechar o Nico"
+                  aria-label="Fechar o Juca"
                   title="Fechar"
                 >
                   <X size={19} />
@@ -1056,6 +1125,27 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     </div>
                   </div>
 
+                  {/* Recibo do que foi salvo: mesma estrutura do card de
+                      edicao, mas travado e semi-transparente — so leitura,
+                      sem input nem botao de acao. */}
+                  {message.registeredDraft && (
+                    <Card className="mt-2 border-slate-200 p-0 opacity-60 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                          {message.registeredDraft.kind === 'income' ? 'Receita lançada' : 'Despesa lançada'}
+                        </p>
+                      </div>
+                      <div className="px-3.5">
+                        {buildReceiptRows(message.registeredDraft).map((row) => (
+                          <div key={row.label} className="flex items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-slate-800">
+                            <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{row.label}</span>
+                            <span className="flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Fora do balao, empilhados: sao acoes do usuario, nao
                       conteudo da fala do assistente. Mesmo formato para os
                       chips de abertura e para as respostas rapidas de cada
@@ -1067,7 +1157,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           key={opcao.intent}
                           type="button"
                           onClick={() => selectIntent(opcao.intent)}
-                          className={ASSISTANT_CHIP_CLASS}
+                          className={WELCOME_CHIP_CLASS_BY_INTENT[opcao.intent]}
                         >
                           {INTENT_ICONS[opcao.intent]}
                           {opcao.label}

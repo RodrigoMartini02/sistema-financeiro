@@ -1,7 +1,7 @@
 {
   "id": "/assistant.html",
-  "name": "Nico · FINGERENCE",
-  "short_name": "Nico",
+  "name": "Juca · FINGERENCE",
+  "short_name": "Juca",
   "description": "Assistente financeiro para consultar suas financas e preparar lancamentos para revisao.",
   "start_url": "/assistant.html?source=pwa",
   "scope": "/",
