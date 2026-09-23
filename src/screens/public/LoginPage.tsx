@@ -116,13 +116,16 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
     setError(''); setLoading(true);
     const fd = new FormData(e.currentTarget);
     try {
-      const { token, usuario } = await register(
-        fd.get('nome') as string, fd.get('documento') as string,
-        fd.get('email') as string, fd.get('senha') as string,
-        fd.get('nome_fantasia') as string | undefined,
-        (fd.get('telefone') as string) || undefined,
-        (fd.get('data_nascimento') as string) || undefined,
-      );
+      const { token, usuario } = await register({
+        nome: fd.get('nome') as string,
+        sobrenome: (fd.get('sobrenome') as string) || undefined,
+        documento: fd.get('documento') as string,
+        email: fd.get('email') as string,
+        senha: fd.get('senha') as string,
+        nomeFantasia: (fd.get('nome_fantasia') as string) || undefined,
+        telefone: (fd.get('telefone') as string) || undefined,
+        dataNascimento: (fd.get('data_nascimento') as string) || undefined,
+      });
       saveSession(token, usuario);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar');
@@ -242,6 +245,9 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         <div className="mt-4 grid gap-3">
           <form className="grid gap-3" onSubmit={handleRegister}>
             <Field label="Nome"><Input name="nome" required /></Field>
+            {!isRegisterCnpj && (
+              <Field label="Sobrenome"><Input name="sobrenome" /></Field>
+            )}
             <Field label="CPF ou CNPJ">
               <Input
                 name="documento"

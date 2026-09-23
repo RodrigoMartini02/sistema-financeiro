@@ -86,7 +86,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = podeVerTodos
       ? await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
+                  u.id AS usuario_id, u.nome, u.sobrenome, u.email, u.documento, u.status AS usuario_status,
                   u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
@@ -96,7 +96,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
         )
       : await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
-                  u.id AS usuario_id, u.nome, u.email, u.documento, u.status AS usuario_status,
+                  u.id AS usuario_id, u.nome, u.sobrenome, u.email, u.documento, u.status AS usuario_status,
                   u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
@@ -125,7 +125,7 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, senha, documento, conta_id } = req.body as Record<string, string | undefined>;
+      const { nome, sobrenome, email, senha, documento, conta_id } = req.body as Record<string, string | undefined>;
 
       const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
       if (!accountId) {
@@ -161,13 +161,14 @@ router.post(
           .insert(users)
           .values({
             name: nome!,
+            lastName: sobrenome?.trim() || null,
             email: normalizedEmail,
             document: cleanDoc,
             password: hashedPassword,
             type: 'membro',
             status: 'ativo',
           })
-          .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
+          .returning({ id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document, type: users.type, status: users.status });
 
         await transaction.insert(accountMembers).values({
           accountId,
@@ -190,7 +191,7 @@ router.post(
       res.status(201).json({
         success: true,
         message: 'Member created successfully',
-        data: { id: created!.id, nome: created!.name, email: created!.email, documento: created!.document, tipo: created!.type, status: created!.status },
+        data: { id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document, tipo: created!.type, status: created!.status },
       });
     } catch (error) {
       console.error('Create account member error:', error);
@@ -385,7 +386,7 @@ router.put(
     try {
       const memberUserId = parseInt(req.params['id']!);
       const {
-        nome, foto, nova_senha: novaSenha, conta_id: contaId,
+        nome, sobrenome, foto, nova_senha: novaSenha, conta_id: contaId,
         email, documento, telefone, data_nascimento: dataNascimento,
         pais, estado, cidade,
       } = req.body as Record<string, string | undefined>;
@@ -422,6 +423,7 @@ router.put(
         name: String(nome).trim(),
         updatedAt: new Date(),
       };
+      if (sobrenome !== undefined) updateData.lastName = sobrenome?.trim() || null;
       if (foto !== undefined) updateData.photo = foto as string | null;
       if (telefone !== undefined) updateData.telefone = telefone || null;
       if (dataNascimento !== undefined) updateData.dataNascimento = dataNascimento || null;
@@ -483,7 +485,7 @@ router.put(
         .set(updateData)
         .where(eq(users.id, memberUserId))
         .returning({
-          id: users.id, nome: users.name, foto: users.photo, email: users.email, documento: users.document,
+          id: users.id, nome: users.name, sobrenome: users.lastName, foto: users.photo, email: users.email, documento: users.document,
           telefone: users.telefone, data_nascimento: users.dataNascimento,
           pais: users.country, estado: users.state, cidade: users.city,
         });
@@ -592,7 +594,7 @@ router.get('/summary', authenticate, async (req: Request, res: Response): Promis
       // membro sem conta propria cai direto no nome do cadastro, que e o
       // unico que ele tem.
       pool.query(
-        `SELECT u.id AS usuario_id, COALESCE(ct.nome, u.nome) AS nome
+        `SELECT u.id AS usuario_id, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS nome
          FROM usuarios u
          LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true
          WHERE u.id = ANY($1)`,

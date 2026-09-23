@@ -6,6 +6,7 @@ export interface MembroListItem {
   vinculado_em?: string;
   usuario_id: number;
   nome: string;
+  sobrenome?: string | null;
   email: string;
   documento?: string | null;
   usuario_status: string;
@@ -19,6 +20,7 @@ export interface MembroListItem {
 
 export interface MembroCreateBody {
   nome: string;
+  sobrenome?: string;
   email: string;
   senha: string;
   documento?: string;
@@ -69,6 +71,7 @@ export async function fetchMembroPendencias(usuarioId: number, contaId?: number)
 
 export interface MembroUpdateBody {
   nome: string;
+  sobrenome?: string;
   foto?: string | null;
   /** Preenchido, vira a nova senha do membro; vazio/omitido, não muda. */
   novaSenha?: string;
@@ -89,6 +92,7 @@ export async function updateMembro(usuarioId: number, body: MembroUpdateBody, co
     method: 'PUT',
     body: JSON.stringify({
       nome: body.nome,
+      ...(body.sobrenome !== undefined ? { sobrenome: body.sobrenome } : {}),
       ...(body.foto !== undefined ? { foto: body.foto } : {}),
       ...(body.novaSenha ? { nova_senha: body.novaSenha } : {}),
       ...(body.email !== undefined ? { email: body.email } : {}),

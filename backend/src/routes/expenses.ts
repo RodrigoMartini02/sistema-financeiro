@@ -215,7 +215,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
               ct.nome AS cartao_nome, ct.tipo AS cartao_tipo,
-              COALESCE(conta_autor.nome, u.nome) AS autor_nome
+              COALESCE(conta_autor.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
        LEFT JOIN categorias p ON c.parent_id = p.id

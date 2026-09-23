@@ -1,7 +1,7 @@
 import { apiRequest } from './apiClient';
 
 export interface UsuarioMe {
-  id: number; nome: string; email: string;
+  id: number; nome: string; sobrenome?: string | null; email: string;
   documento?: string; tipo: string; status: string;
   pais?: string | null; estado?: string | null; cidade?: string | null;
   telefone?: string | null; data_nascimento?: string | null;
@@ -14,14 +14,14 @@ export interface UsuarioMe {
 }
 
 export interface UsuarioMePutBody {
-  nome: string; email?: string; documento?: string;
+  nome: string; sobrenome?: string; email?: string; documento?: string;
   pais?: string; estado?: string; cidade?: string;
   telefone?: string; data_nascimento?: string;
   senha_atual?: string; nova_senha?: string;
 }
 
 export interface UsuarioListItem {
-  id: number; nome: string; email: string;
+  id: number; nome: string; sobrenome?: string | null; email: string;
   documento?: string; tipo: string; status: string;
   pais?: string | null; estado?: string | null; cidade?: string | null;
   data_cadastro?: string; data_atualizacao?: string;
@@ -33,7 +33,7 @@ export interface UsuarioListResponse {
 }
 
 export interface UsuarioCreateBody {
-  nome: string; email: string; documento: string;
+  nome: string; sobrenome?: string; email: string; documento: string;
   senha: string; tipo?: string; status?: string;
   pais?: string; estado?: string; cidade?: string;
 }
