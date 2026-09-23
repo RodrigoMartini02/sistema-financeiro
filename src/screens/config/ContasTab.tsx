@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, ChevronDown, ChevronRight, ChevronUp, Tag, User, Pencil, AlertCircle, Plus, ShieldAlert, UserX } from 'lucide-react';
-import { fetchContas, saveConta, deleteConta, updateFotoConta, reactivateConta } from '../../services/configService';
+import { fetchContas, saveConta, deleteConta, reactivateConta } from '../../services/configService';
 import {
   fetchMembros, createMembro, deactivateMembro, updateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
@@ -200,14 +200,12 @@ function TransferirPendenciasDialog({
   );
 }
 
-// Conta é considerada incompleta quando falta email, ou (se empresa) razão
-// social/enquadramento, ou (se pessoa física) telefone/data de nascimento.
+// Conta é considerada incompleta quando, sendo empresa, falta razão social ou
+// enquadramento. Dados pessoais do titular (telefone, nascimento, e-mail)
+// vivem em `users`, fora do escopo desta checagem.
 function isContaIncompleta(c: Conta): boolean {
-  if (!c.email?.trim()) return true;
-  if (c.tipo === 'empresa') {
-    return !c.razao_social?.trim() || !c.enquadramento;
-  }
-  return !c.telefone?.trim() || !c.data_nascimento?.trim();
+  if (c.tipo !== 'empresa') return false;
+  return !c.razao_social?.trim() || !c.enquadramento;
 }
 
 // ─── Category preview data (mirrors backend presets) ─────────────────────────
@@ -368,18 +366,16 @@ function CategoryPreview({ enquadramento }: { enquadramento: string }) {
 // ─── Dialog ──────────────────────────────────────────────────────────────────
 
 function ContaDialog({
-  open, conta, isSaving, error, onClose, onSave, onDelete, onSaveFoto,
+  open, conta, isSaving, error, onClose, onSave, onDelete,
 }: {
   open: boolean; conta?: Conta;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; telefone?: string; data_nascimento?: string; email?: string; novaSenha?: string }) => void;
+  onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; novaSenha?: string }) => void;
   onDelete?: () => void;
-  onSaveFoto?: (dataUrl: string | null) => void;
 }) {
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(conta?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
-  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   // Documento é controlado para aplicar a máscara a cada tecla. O backend
   // limpa a pontuação ao salvar (accounts.ts), então enviar formatado é seguro.
   const [documento, setDocumento] = useState(() =>
@@ -430,9 +426,6 @@ function ContaDialog({
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
       atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
       enquadramento: tipo === 'empresa' && enquadramento ? enquadramento : undefined,
-      telefone: fd.get('telefone') as string || undefined,
-      email: fd.get('email') as string || undefined,
-      data_nascimento: tipo === 'pessoal' ? (fd.get('data_nascimento') as string || undefined) : undefined,
       ...(novaSenha ? { novaSenha } : {}),
     });
   };
@@ -444,46 +437,6 @@ function ContaDialog({
             mostra o preview de categorias), mas o modal não deve mudar de
             tamanho ao alternar o tipo. */}
         <div style={{ flex: 1, minHeight: 0, height: 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {onSaveFoto && (
-            <>
-              {/* O avatar é o controle de upload — sem botão separado. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setAvatarDialogOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
-                  }}
-                  aria-label="Enviar logo da conta"
-                  style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
-                >
-                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
-                    {conta?.foto
-                      ? <img src={conta.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
-                      : <User size={22} />}
-                  </span>
-                  <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
-                    <Pencil size={10} />
-                  </span>
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Logo da conta</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>
-                    Toque no avatar para enviar · PNG ou SVG, até 1 MB
-                  </span>
-                </div>
-              </div>
-              <AvatarUploadDialog
-                open={avatarDialogOpen}
-                onClose={() => setAvatarDialogOpen(false)}
-                onConfirm={(dataUrl) => { onSaveFoto(dataUrl); setAvatarDialogOpen(false); }}
-                isSaving={false}
-              />
-              <div style={cfgDividerStyle} />
-            </>
-          )}
 
           {!conta && (
             <div>
@@ -567,37 +520,20 @@ function ContaDialog({
           )}
 
           {tipo === 'pessoal' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <label style={labelStyle}>CPF</label>
-                <input
-                  name="documento"
-                  value={documento}
-                  onChange={(e) => setDocumento(formatCPF(e.target.value))}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                  maxLength={14}
-                  className={CFG_MONO_CLASS}
-                  style={fieldInputStyle}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Data de nascimento</label>
-                <input name="data_nascimento" type="date" defaultValue={conta?.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
-              </div>
+            <div>
+              <label style={labelStyle}>CPF</label>
+              <input
+                name="documento"
+                value={documento}
+                onChange={(e) => setDocumento(formatCPF(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+                className={CFG_MONO_CLASS}
+                style={fieldInputStyle}
+              />
             </div>
           )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={labelStyle}>Telefone</label>
-              <input name="telefone" defaultValue={conta?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>E-mail</label>
-              <input name="email" type="email" defaultValue={conta?.email ?? ''} placeholder="contato@email.com" style={fieldInputStyle} />
-            </div>
-          </div>
 
           {/* Senha do usuário logado (não da conta) — só ao editar, nunca ao
               criar uma conta nova. Campo único: preenchido vira a nova senha,
@@ -1093,14 +1029,6 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
     onError: (e) => setMutError(e.message),
   });
 
-  const fotoMut = useMutation({
-    mutationFn: ({ id, foto }: { id: number; foto: string | null }) => updateFotoConta(id, foto),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.contas });
-      qc.invalidateQueries({ queryKey: queryKeys.session });
-    },
-  });
-
   const deleteMut = useMutation({
     mutationFn: deleteConta,
     onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.contas }); setDialog({ open: false }); },
@@ -1181,9 +1109,6 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
                   }}
                 >
                   <span className={CFG_MONO_CLASS} style={cfgRowIndexStyle}>{String(i + 1).padStart(2, '0')}</span>
-                  {c.foto && (
-                    <img src={c.foto} alt="" style={{ flex: 'none', height: 26, width: 26, borderRadius: '50%', objectFit: 'cover' }} />
-                  )}
                   <span style={{ minWidth: 0, flex: 1, fontSize: 13, fontWeight: 600, color: CFG.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.nome}
                   </span>
@@ -1285,7 +1210,6 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
         error={mutError}
         onClose={() => setDialog({ open: false })}
         onSave={handleSave}
-        onSaveFoto={dialog.item ? (dataUrl) => fotoMut.mutate({ id: (dialog.item as Conta).id, foto: dataUrl }) : undefined}
         onDelete={dialog.item ? () => deleteMut.mutate((dialog.item as Conta).id) : undefined}
       />
     </div>

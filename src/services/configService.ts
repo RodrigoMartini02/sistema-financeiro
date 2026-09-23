@@ -61,7 +61,6 @@ export async function saveConta(values: {
   tipo: 'pessoal' | 'empresa'; nome: string; documento?: string;
   razao_social?: string; nome_fantasia?: string; atividade?: string;
   enquadramento?: string;
-  telefone?: string; data_nascimento?: string; email?: string;
 }, id?: number): Promise<Conta> {
   const r = await apiRequest<{ success: boolean; data: Conta }>(
     id ? `/contas/${id}` : '/contas',
@@ -77,10 +76,4 @@ export async function deleteConta(id: number): Promise<void> {
 export async function reactivateConta(id: number): Promise<Conta> {
   const r = await apiRequest<{ success: boolean; data: Conta }>(`/contas/${id}/reactivate`, { method: 'PUT' });
   return (r as any).data ?? r;
-}
-
-export async function updateFotoConta(id: number, foto: string | null): Promise<void> {
-  await apiRequest<{ success: boolean; message: string }>(`/contas/${id}/photo`, {
-    method: 'PUT', body: JSON.stringify({ foto }),
-  });
 }

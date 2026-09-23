@@ -193,7 +193,7 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
                           isActive ? 'bg-[#0EC4D8] text-[#04222b]' : 'bg-[rgba(14,196,216,0.14)] text-[rgba(14,196,216,0.8)]',
                         ].join(' ')}
                       >
-                        {c.foto ? <img src={c.foto} alt="" className="h-full w-full object-cover" /> : getInitials(c.nome)}
+                        {getInitials(c.nome)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className={[
