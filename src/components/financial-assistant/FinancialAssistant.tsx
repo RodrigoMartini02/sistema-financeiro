@@ -881,6 +881,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   const discardDraft = () => {
     if (isSaving) return;
+    // Mesmo fechamento do handleSave: sem isso a conversa ficava sem nenhuma
+    // acao visivel apos descartar, dando sensacao de travamento.
+    setMessages((current) => [...current, {
+      id: newMessageId(),
+      role: 'assistant',
+      content: 'Que pena, quer fazer outro lançamento? É só escolher uma das opções abaixo',
+      createdAt: new Date().toISOString(),
+      showWelcomeActions: true,
+    }]);
     setDraft(null);
     setDraftAttachments([]);
     setError(null);
