@@ -24,7 +24,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       const contaId = (membership.rows[0] as { conta_id: number }).conta_id;
       const result = await pool.query(
         `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
-                telefone, email, data_nascimento, foto, ativo, eh_padrao, data_criacao
+                ativo, eh_padrao, data_criacao
          FROM contas WHERE id = $1`,
         [contaId],
       );
@@ -34,7 +34,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 
     const result = await pool.query(
       `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
-              telefone, email, data_nascimento, foto, ativo, eh_padrao, data_criacao
+              ativo, eh_padrao, data_criacao
        FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY data_criacao, id`,
       [req.user!.id],
     );
@@ -48,7 +48,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/contas
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, telefone, email, data_nascimento } =
+    const { tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -75,9 +75,6 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
           type: 'pessoal',
           name: nome.trim(),
           document: documento ? documento.replace(/\D/g, '') : null,
-          telefone: telefone ?? null,
-          email: email ?? null,
-          dataNascimento: data_nascimento ?? null,
           active: true,
         })
         .returning();
@@ -106,8 +103,6 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         activity: atividade ?? null,
         initialContribution: aporte_inicial ?? null,
         enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
-        telefone: telefone ?? null,
-        email: email ?? null,
         active: true,
       })
       .returning();
@@ -125,7 +120,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const accountId = parseInt(req.params['id']!);
-    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, telefone, email, data_nascimento } =
+    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -161,8 +156,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
           activity: atividade ?? null,
           initialContribution: aporte_inicial ?? null,
           enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
-          telefone: telefone ?? null,
-          email: email ?? null,
         })
         .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
         .returning();
@@ -176,9 +169,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       .set({
         name: nome.trim(),
         document: documento ? documento.replace(/\D/g, '') : null,
-        telefone: telefone ?? null,
-        email: email ?? null,
-        dataNascimento: data_nascimento ?? null,
       })
       .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
       .returning();
@@ -187,35 +177,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   } catch (error) {
     console.error('Update account error:', error);
     res.status(500).json({ success: false, message: 'Failed to update account' });
-  }
-});
-
-// PUT /api/contas/:id/photo
-router.put('/:id/photo', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const accountId = parseInt(req.params['id']!);
-    const { foto } = req.body as { foto?: string };
-
-    const [account] = await db
-      .select({ id: accounts.id })
-      .from(accounts)
-      .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
-      .limit(1);
-
-    if (!account) {
-      res.status(404).json({ success: false, message: 'Account not found' });
-      return;
-    }
-
-    await db
-      .update(accounts)
-      .set({ photo: foto ?? null })
-      .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)));
-
-    res.json({ success: true, message: foto ? 'Photo updated' : 'Photo removed' });
-  } catch (error) {
-    console.error('Update account photo error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update account photo' });
   }
 });
 

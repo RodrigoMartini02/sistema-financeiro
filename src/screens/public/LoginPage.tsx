@@ -120,6 +120,8 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         fd.get('nome') as string, fd.get('documento') as string,
         fd.get('email') as string, fd.get('senha') as string,
         fd.get('nome_fantasia') as string | undefined,
+        (fd.get('telefone') as string) || undefined,
+        (fd.get('data_nascimento') as string) || undefined,
       );
       saveSession(token, usuario);
     } catch (err) {
@@ -253,6 +255,14 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
                 <Input name="nome_fantasia" required placeholder="Ex: ABC Stores" />
               </Field>
             )}
+            {!isRegisterCnpj && (
+              <Field label="Data de nascimento">
+                <Input name="data_nascimento" type="date" />
+              </Field>
+            )}
+            <Field label="Telefone">
+              <Input name="telefone" placeholder="(00) 00000-0000" />
+            </Field>
             <Field label="Email"><Input name="email" type="email" required /></Field>
             <Field label="Senha"><PasswordInput name="senha" required /></Field>
 

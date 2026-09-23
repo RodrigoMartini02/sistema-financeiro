@@ -6,12 +6,13 @@ import {
   boolean,
   decimal,
   timestamp,
-  date,
-  text,
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
+// Dados pessoais (foto, telefone, data de nascimento, e-mail de login) vivem
+// exclusivamente em `users` — a conta guarda so o que e da carteira/empresa
+// em si, nunca da pessoa.
 export const accounts = pgTable(
   'contas',
   {
@@ -33,10 +34,6 @@ export const accounts = pgTable(
     initialContribution: decimal('aporte_inicial', { precision: 12, scale: 2 }),
     enquadramento: varchar('enquadramento', { length: 10 })
       .$type<'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA'>(),
-    telefone: varchar('telefone', { length: 20 }),
-    email: varchar('email', { length: 150 }),
-    dataNascimento: date('data_nascimento'),
-    photo: text('foto'),
     createdAt: timestamp('data_criacao').defaultNow(),
   },
   (table) => ({

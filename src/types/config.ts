@@ -60,10 +60,6 @@ export interface Conta {
   nome_fantasia?: string | null;
   atividade?: string | null;
   enquadramento?: Enquadramento | null;
-  telefone?: string | null;
-  data_nascimento?: string | null;
-  email?: string | null;
-  foto?: string | null;
   eh_padrao: boolean;
   ativo: boolean;
   data_criacao?: string;

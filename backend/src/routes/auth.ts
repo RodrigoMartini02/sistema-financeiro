@@ -149,7 +149,7 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia } =
+      const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia, telefone, data_nascimento } =
         req.body as Record<string, string | undefined>;
 
       const cleanDoc = documento!.replace(/[^\d]+/g, '');
@@ -190,6 +190,8 @@ router.post(
             country: pais ?? null,
             state: estado ?? null,
             city: cidade ?? null,
+            telefone: telefone ?? null,
+            dataNascimento: data_nascimento ?? null,
           })
           .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
 
