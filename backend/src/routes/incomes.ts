@@ -37,7 +37,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
-      `SELECT r.*, rep.nome AS representante_nome, COALESCE(ct.nome, u.nome) AS autor_nome
+      `SELECT r.*, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
        FROM receitas r
        LEFT JOIN representantes rep ON rep.id = r.representante_id
        LEFT JOIN usuarios u ON u.id = r.usuario_id

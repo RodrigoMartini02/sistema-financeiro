@@ -118,6 +118,7 @@ router.post(
           usuario: {
             id: user.id,
             nome: user.name,
+            sobrenome: user.lastName,
             email: user.email,
             documento: user.document,
             tipo: user.type,
@@ -149,7 +150,7 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia, telefone, data_nascimento } =
+      const { nome, sobrenome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia, telefone, data_nascimento } =
         req.body as Record<string, string | undefined>;
 
       const cleanDoc = documento!.replace(/[^\d]+/g, '');
@@ -181,6 +182,7 @@ router.post(
           .insert(users)
           .values({
             name: nome!,
+            lastName: sobrenome?.trim() || null,
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
@@ -193,7 +195,7 @@ router.post(
             telefone: telefone ?? null,
             dataNascimento: data_nascimento ?? null,
           })
-          .returning({ id: users.id, name: users.name, email: users.email, document: users.document, type: users.type, status: users.status });
+          .returning({ id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document, type: users.type, status: users.status });
 
         // Create useful defaults for the initial account — 'empresa' when
         // registering with a CNPJ, 'pessoal' (CPF) otherwise. Esta é sempre a
@@ -238,6 +240,7 @@ router.post(
           usuario: {
             id: newUser!.id,
             nome: newUser!.name,
+            sobrenome: newUser!.lastName,
             email: newUser!.email,
             documento: newUser!.document,
             tipo: newUser!.type,
@@ -260,6 +263,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
       .select({
         id: users.id,
         name: users.name,
+        lastName: users.lastName,
         email: users.email,
         document: users.document,
         type: users.type,
@@ -283,6 +287,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
         usuario: {
           id: user.id,
           nome: user.name,
+          sobrenome: user.lastName,
           email: user.email,
           documento: user.document,
           tipo: user.type,
@@ -584,7 +589,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         token,
-        usuario: { id: user.id, nome: user.name, email: user.email, documento: user.document, tipo: user.type, foto: user.photo },
+        usuario: { id: user.id, nome: user.name, sobrenome: user.lastName, email: user.email, documento: user.document, tipo: user.type, foto: user.photo },
       },
     });
   } catch (error) {

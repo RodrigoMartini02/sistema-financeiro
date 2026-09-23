@@ -22,17 +22,29 @@ export async function verifySession(): Promise<AuthUser> {
   return payload.usuario;
 }
 
-export async function register(
-  nome: string, documento: string, email: string, senha: string, nomeFantasia?: string,
-  telefone?: string, dataNascimento?: string,
-): Promise<LoginPayload> {
+export interface RegisterInput {
+  nome: string;
+  sobrenome?: string;
+  documento: string;
+  email: string;
+  senha: string;
+  nomeFantasia?: string;
+  telefone?: string;
+  dataNascimento?: string;
+}
+
+export async function register(input: RegisterInput): Promise<LoginPayload> {
   return apiRequest<LoginPayload>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({
-      nome, documento, email, senha,
-      nome_fantasia: nomeFantasia || undefined,
-      telefone: telefone || undefined,
-      data_nascimento: dataNascimento || undefined,
+      nome: input.nome,
+      sobrenome: input.sobrenome || undefined,
+      documento: input.documento,
+      email: input.email,
+      senha: input.senha,
+      nome_fantasia: input.nomeFantasia || undefined,
+      telefone: input.telefone || undefined,
+      data_nascimento: input.dataNascimento || undefined,
     }),
   });
 }

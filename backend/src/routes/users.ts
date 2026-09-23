@@ -22,7 +22,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
     // /users/me ao trocar senha; se virasse o nome da conta, sobrescreveria
     // usuarios.nome sem o usuario pedir).
     const result = await pool.query(
-      `SELECT u.id, u.nome, u.email, u.documento, u.pais, u.estado, u.cidade,
+      `SELECT u.id, u.nome, u.sobrenome, u.email, u.documento, u.pais, u.estado, u.cidade,
               u.telefone, u.data_nascimento, u.tipo, u.status,
               u.plano_status, u.plano_tipo, u.plano_expiracao, u.data_cadastro,
               COALESCE(c.nome, u.nome) AS "nomeExibicao"
@@ -49,7 +49,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
 // PUT /api/users/me
 router.put('/me', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, pais, estado, cidade, telefone, data_nascimento, nova_senha } =
+    const { nome, sobrenome, email, documento, pais, estado, cidade, telefone, data_nascimento, nova_senha } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -122,6 +122,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
 
     const updateData: Partial<typeof users.$inferInsert> = {
       name: nome.trim(),
+      lastName: sobrenome?.trim() || null,
       email: newEmail,
       document: newDocument,
       country: pais ?? null,
@@ -138,7 +139,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       .set(updateData)
       .where(eq(users.id, req.user!.id))
       .returning({
-        id: users.id, nome: users.name, email: users.email, documento: users.document,
+        id: users.id, nome: users.name, sobrenome: users.lastName, email: users.email, documento: users.document,
         pais: users.country, estado: users.state, cidade: users.city,
         telefone: users.telefone, data_nascimento: users.dataNascimento,
       });
@@ -191,69 +192,6 @@ router.delete('/me/cancel', authenticate, async (req: Request, res: Response): P
   } catch (error) {
     console.error('Cancel account error:', error);
     res.status(500).json({ success: false, message: 'Failed to cancel account' });
-  }
-});
-
-// GET /api/users/current (legacy alias)
-router.get('/current', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const [user] = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        document: users.document,
-        type: users.type,
-        status: users.status,
-        photo: users.photo,
-        country: users.country,
-        state: users.state,
-        city: users.city,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.id, req.user!.id))
-      .limit(1);
-
-    if (!user) {
-      res.status(404).json({ success: false, message: 'User not found' });
-      return;
-    }
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error('Get current user error:', error);
-    res.status(500).json({ success: false, message: 'Failed to get user data' });
-  }
-});
-
-// PUT /api/users/current
-router.put('/current', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { nome, email, pais, estado, cidade, dados_financeiros_merge } = req.body as Record<string, unknown>;
-
-    if (dados_financeiros_merge) {
-      await pool.query(
-        `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
-        [JSON.stringify(dados_financeiros_merge), req.user!.id],
-      );
-      if (!nome && !email) {
-        res.json({ success: true, message: 'Data updated successfully' });
-        return;
-      }
-    }
-
-    const updateResult = await pool.query(
-      `UPDATE usuarios SET nome = $1, email = $2, pais = $3, estado = $4, cidade = $5, data_atualizacao = CURRENT_TIMESTAMP
-       WHERE id = $6
-       RETURNING id, nome, email, documento, tipo, status, pais, estado, cidade`,
-      [nome, email, pais ?? null, estado ?? null, cidade ?? null, req.user!.id],
-    );
-
-    res.json({ success: true, message: 'Data updated successfully', data: updateResult.rows[0] });
-  } catch (error) {
-    console.error('Update current user error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update data' });
   }
 });
 
@@ -328,7 +266,7 @@ router.get('/', authenticate, requireAdmin, async (req: Request, res: Response):
     const total = parseInt((countResult.rows[0] as { total: string }).total);
 
     const dataResult = await pool.query(
-      `SELECT id, nome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao
+      `SELECT id, nome, sobrenome, email, documento, tipo, status, pais, estado, cidade, data_cadastro, data_atualizacao
        FROM usuarios ${where}
        ORDER BY nome ASC
        LIMIT $${p + 1} OFFSET $${p + 2}`,
@@ -349,7 +287,7 @@ router.get('/', authenticate, requireAdmin, async (req: Request, res: Response):
 // POST /api/users (Admin only)
 router.post('/', authenticate, requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, email, documento, senha, tipo = 'titular', status = 'ativo', pais, estado, cidade } =
+    const { nome, sobrenome, email, documento, senha, tipo = 'titular', status = 'ativo', pais, estado, cidade } =
       req.body as Record<string, string | undefined>;
 
     if (!nome || !email || !documento || !senha) {
@@ -383,6 +321,7 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response)
       .insert(users)
       .values({
         name: nome,
+        lastName: sobrenome?.trim() || null,
         email,
         document: cleanDoc,
         password: hashedPassword,
@@ -392,7 +331,7 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response)
         state: estado ?? null,
         city: cidade ?? null,
       })
-      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt });
+      .returning({ id: users.id, nome: users.name, sobrenome: users.lastName, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt });
 
     res.status(201).json({ success: true, message: 'User created successfully', data: created });
   } catch (error) {
@@ -509,7 +448,7 @@ router.get('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
     }
 
     const [user] = await db
-      .select({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt, data_atualizacao: users.updatedAt })
+      .select({ id: users.id, nome: users.name, sobrenome: users.lastName, email: users.email, documento: users.document, tipo: users.type, status: users.status, pais: users.country, estado: users.state, cidade: users.city, data_cadastro: users.createdAt, data_atualizacao: users.updatedAt })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -541,7 +480,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       return;
     }
 
-    const { nome, email, senha, tipo, status: newStatus, pais, estado, cidade } = req.body as Record<string, string | undefined>;
+    const { nome, sobrenome, email, senha, tipo, status: newStatus, pais, estado, cidade } = req.body as Record<string, string | undefined>;
 
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       res.status(400).json({ success: false, message: 'Invalid email' });
@@ -563,6 +502,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
 
     const updateData: Partial<typeof users.$inferInsert> = { updatedAt: new Date() };
     if (nome) updateData.name = nome;
+    if (sobrenome !== undefined) updateData.lastName = sobrenome.trim() || null;
     if (email) updateData.email = email;
     if (senha) updateData.password = await bcrypt.hash(senha, 10);
     if (tipo) updateData.type = tipo as 'membro' | 'titular' | 'admin';
@@ -575,7 +515,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: Request, res: Respons
       .update(users)
       .set(updateData)
       .where(eq(users.id, userId))
-      .returning({ id: users.id, nome: users.name, email: users.email, documento: users.document, tipo: users.type, status: users.status, data_atualizacao: users.updatedAt });
+      .returning({ id: users.id, nome: users.name, sobrenome: users.lastName, email: users.email, documento: users.document, tipo: users.type, status: users.status, data_atualizacao: users.updatedAt });
 
     res.json({ success: true, message: 'User updated successfully', data: updated });
   } catch (error) {

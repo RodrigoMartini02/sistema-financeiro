@@ -50,6 +50,7 @@ function NovoMembroDialog({
     const doc = documento.trim();
     onSave({
       nome:      fd.get('nome') as string,
+      sobrenome: (fd.get('sobrenome') as string) || undefined,
       email:     fd.get('email') as string,
       senha:     fd.get('senha') as string,
       ...(doc ? { documento: doc } : {}),
@@ -60,19 +61,23 @@ function NovoMembroDialog({
     <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
-        <div style={{ flex: 1, minHeight: 0, height: 190, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, height: 280, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
-              <input name="nome" placeholder={`Nome do ${termo.singular}`} autoFocus required style={fieldInputStyle} />
+              <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
+              <input name="nome" placeholder={`Nome d${termo.artigo} ${termo.singular}`} autoFocus required style={fieldInputStyle} />
             </div>
             <div>
-              <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
-              <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
+              <label style={labelStyle}>Sobrenome</label>
+              <input name="sobrenome" placeholder="Sobrenome" style={fieldInputStyle} />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
+              <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
+            </div>
             <div>
               <label style={labelStyle}>CPF / CNPJ</label>
               <input
@@ -86,10 +91,11 @@ function NovoMembroDialog({
                 style={fieldInputStyle}
               />
             </div>
-            <div>
-              <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
-              <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
-            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
+            <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
           </div>
 
           <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: CFG.muted }}>
@@ -590,7 +596,7 @@ function EditarUsuarioDialog({
   isSaving: boolean; error?: string;
   onClose: () => void;
   onSave: (input: {
-    nome: string; novaSenha?: string; email?: string; documento?: string;
+    nome: string; sobrenome?: string; novaSenha?: string; email?: string; documento?: string;
     telefone?: string; data_nascimento?: string;
   }) => void;
   onSaveFoto: (dataUrl: string | null) => void;
@@ -611,6 +617,7 @@ function EditarUsuarioDialog({
     const novaSenha = String(fd.get('nova_senha') ?? '').trim();
     onSave({
       nome: String(fd.get('nome') ?? '').trim(),
+      sobrenome: (fd.get('sobrenome') as string) || undefined,
       email: (fd.get('email') as string) || undefined,
       documento: documento.trim() || undefined,
       telefone: (fd.get('telefone') as string) || undefined,
@@ -659,17 +666,29 @@ function EditarUsuarioDialog({
           />
           <div style={cfgDividerStyle} />
 
-          <div>
-            <label style={labelStyle}><span>Nome completo</span><span style={{ color: C.danger }}>*</span></label>
-            <input
-              key={membro?.usuario_id}
-              name="nome"
-              defaultValue={membro?.nome}
-              placeholder={isSelf ? 'Seu nome' : 'Nome completo'}
-              autoFocus
-              required
-              style={fieldInputStyle}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
+              <input
+                key={membro?.usuario_id}
+                name="nome"
+                defaultValue={membro?.nome}
+                placeholder={isSelf ? 'Seu nome' : 'Nome'}
+                autoFocus
+                required
+                style={fieldInputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Sobrenome</label>
+              <input
+                key={`sobrenome-${membro?.usuario_id}`}
+                name="sobrenome"
+                defaultValue={membro?.sobrenome ?? ''}
+                placeholder="Sobrenome"
+                style={fieldInputStyle}
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -818,12 +837,12 @@ function MembrosDaConta({
   // administrativa nova, nunca exige a senha atual do membro.
   const editarUsuarioMut = useMutation({
     mutationFn: async (input: {
-      nome: string; novaSenha?: string; email?: string; documento?: string;
+      nome: string; sobrenome?: string; novaSenha?: string; email?: string; documento?: string;
       telefone?: string; data_nascimento?: string;
     }): Promise<void> => {
       if (editandoSouEu) {
         await updateMe({
-          nome: input.nome, nova_senha: input.novaSenha, email: input.email,
+          nome: input.nome, sobrenome: input.sobrenome, nova_senha: input.novaSenha, email: input.email,
           documento: input.documento, telefone: input.telefone, data_nascimento: input.data_nascimento,
         });
       } else {
@@ -837,7 +856,7 @@ function MembrosDaConta({
     mutationFn: (foto: string | null) =>
       editandoSouEu
         ? updateFoto(foto)
-        : updateMembro(editandoMembro!.usuario_id, { nome: editandoMembro!.nome, foto }, conta.id).then(() => undefined),
+        : updateMembro(editandoMembro!.usuario_id, { nome: editandoMembro!.nome, sobrenome: editandoMembro!.sobrenome ?? undefined, foto }, conta.id).then(() => undefined),
     onSuccess: () => invalidate(),
     onError: (e: Error) => setMutError(e.message),
   });

@@ -53,16 +53,18 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
     if (activeIndex >= 0) itemRefs.current[activeIndex]?.focus();
   }, [activeIndex]);
 
+  const userFullName = [user?.nome, user?.sobrenome].filter(Boolean).join(' ').trim() || 'Usuário';
+
   if (isDemoMode) {
     return (
       <div className="flex h-[46px] items-center gap-2.5 rounded-xl px-3 pl-1.5 opacity-90">
         <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-          {getInitials(user?.nome ?? 'Usuário')}
+          {getInitials(userFullName)}
         </div>
         <div className="hidden min-w-0 flex-col items-start max-[480px]:hidden sm:flex">
           <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">Demonstração</span>
           <span className="truncate text-[10.5px] font-medium text-[rgba(14,196,216,0.55)]">
-            {user?.nome ?? 'Usuário'}
+            {userFullName}
           </span>
         </div>
         <ChevronDown size={14} className="text-[rgba(14,196,216,0.4)]" />
@@ -113,8 +115,8 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
     }
   };
 
-  const userInitial = getInitials(user?.nome ?? 'Usuário');
-  const userName = user?.nome ?? 'Usuário';
+  const userInitial = getInitials(userFullName);
+  const userName = userFullName;
 
   return (
     <>

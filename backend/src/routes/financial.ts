@@ -191,7 +191,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
       // quando ha mais de uma pessoa no filtro.
       pool.query(
         `SELECT c.id AS categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria, c.parent_id AS parent_id,
-           d.usuario_id AS usuario_id, u.nome AS autor_nome,
+           d.usuario_id AS usuario_id, TRIM(CONCAT(u.nome, ' ', u.sobrenome)) AS autor_nome,
            SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
          FROM despesas d
          LEFT JOIN categorias c ON d.categoria_id = c.id
@@ -200,7 +200,7 @@ router.get('/panorama', authenticate, requireActivePlan, async (req: Request, re
            AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
            )))
-         GROUP BY c.id, c.nome, c.parent_id, d.usuario_id, u.nome
+         GROUP BY c.id, c.nome, c.parent_id, d.usuario_id, u.nome, u.sobrenome
          ORDER BY total DESC`,
         params,
       ),
