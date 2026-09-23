@@ -28,7 +28,7 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const { contas: data, activeId, activeAccount, select: selectAccount } = useActiveAccount({ enabled: !isDemoMode });
+  const { contas: data, activeId, select: selectAccount } = useActiveAccount({ enabled: !isDemoMode });
 
   useEffect(() => {
     if (!open) return;
@@ -141,15 +141,15 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
           ].join(' ')}
         >
           <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-[#0EC4D8] text-[12px] font-bold text-[#04222b]">
-            {activeAccount?.foto ? (
-              <img src={activeAccount.foto} alt="" className="h-full w-full object-cover" />
+            {user?.foto ? (
+              <img src={user.foto} alt="" className="h-full w-full object-cover" />
             ) : (
-              activeAccount ? getInitials(activeAccount.nome) : userInitial
+              userInitial
             )}
           </div>
           <div className="hidden min-w-0 flex-col items-start max-[480px]:hidden sm:flex">
             <span className="max-w-[200px] truncate text-[12.5px] font-bold text-[#E8F4F5]">
-              {activeAccount?.nome ?? userName}
+              {userName}
             </span>
           </div>
           <ChevronDown
