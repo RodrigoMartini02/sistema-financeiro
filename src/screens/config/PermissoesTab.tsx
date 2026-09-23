@@ -79,7 +79,7 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
         <EmptyState
           icon={Users}
           title="Nenhum membro para configurar"
-          description={`Cadastre alguém em ${TERMOS[contaTipo].singular === 'colaborador' ? 'Colaboradores' : 'Membros'} para liberar telas do sistema.`}
+          description={`Cadastre alguém em ${TERMOS[contaTipo].plural} para liberar telas do sistema.`}
         />
       </div>
     );
@@ -94,7 +94,7 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)]" style={{ alignItems: 'start' }}>
 
         {/* Pessoas */}
-        <div role="listbox" aria-label="Membros" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div role="listbox" aria-label={TERMOS[contaTipo].plural} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {ativos.map((m) => (
             <PessoaBotao
               key={m.usuario_id}

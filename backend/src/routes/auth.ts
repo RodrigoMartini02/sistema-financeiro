@@ -10,6 +10,7 @@ import { validate, validateDocument, authRateLimiter } from '../middleware/valid
 import { recordAnalyticsEvent } from '../services/analytics';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureUserHasAccount } from '../services/accountBackfill';
+import { resolveMemberRole } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -93,8 +94,9 @@ router.post(
         return;
       }
 
+      const role = await resolveMemberRole(user.id);
       const token = jwt.sign(
-        { id: user.id, documento: user.document, tipo: user.type },
+        { id: user.id, documento: user.document, tipo: user.type, role },
         getJwtSecret(),
         { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as unknown as number },
       );
@@ -122,6 +124,7 @@ router.post(
             email: user.email,
             documento: user.document,
             tipo: user.type,
+            role,
             status: user.status,
             foto: user.photo,
           },
@@ -220,8 +223,9 @@ router.post(
         return createdUser;
       });
 
+      const registerRole = await resolveMemberRole(newUser!.id);
       const token = jwt.sign(
-        { id: newUser!.id, documento: newUser!.document, tipo: newUser!.type },
+        { id: newUser!.id, documento: newUser!.document, tipo: newUser!.type, role: registerRole },
         getJwtSecret(),
         { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as unknown as number },
       );
@@ -244,6 +248,7 @@ router.post(
             email: newUser!.email,
             documento: newUser!.document,
             tipo: newUser!.type,
+            role: registerRole,
             status: newUser!.status,
             foto: null,
           },
@@ -280,6 +285,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
     }
 
     await ensureUserHasAccount(user.id);
+    const role = await resolveMemberRole(user.id);
 
     res.json({
       success: true,
@@ -291,6 +297,7 @@ router.get('/verify', authenticate, async (req: Request, res: Response): Promise
           email: user.email,
           documento: user.document,
           tipo: user.type,
+          role,
           status: user.status,
           foto: user.photo,
         },
@@ -573,8 +580,9 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       await db.update(users).set({ googleId: googleUser.id }).where(eq(users.id, user.id));
     }
 
+    const googleRole = await resolveMemberRole(user.id);
     const token = jwt.sign(
-      { id: user.id, documento: user.document, tipo: user.type },
+      { id: user.id, documento: user.document, tipo: user.type, role: googleRole },
       getJwtSecret(),
       { expiresIn: (process.env['JWT_EXPIRES_IN'] ?? '7d') as unknown as number },
     );
@@ -589,7 +597,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         token,
-        usuario: { id: user.id, nome: user.name, sobrenome: user.lastName, email: user.email, documento: user.document, tipo: user.type, foto: user.photo },
+        usuario: { id: user.id, nome: user.name, sobrenome: user.lastName, email: user.email, documento: user.document, tipo: user.type, role: googleRole, foto: user.photo },
       },
     });
   } catch (error) {

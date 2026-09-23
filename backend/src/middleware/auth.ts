@@ -2,12 +2,20 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getPlanStatusForUser, isPlanAccessActive } from '../services/plan-lifecycle';
 
+// Papel dentro da conta a que o usuario esta vinculado — so informativo
+// (ex.: qual rotulo/tela mostrar). Nunca usado para decidir acesso a dado:
+// toda checagem de visibilidade/permissao continua consultando o banco
+// (familyVisibility.ts, permissions.ts), porque o token pode estar
+// desatualizado se o papel mudar depois de emitido.
+type MemberRole = 'member' | 'collaborator';
+
 interface TokenPayload {
   id: number;
   document: string;
   type: 'membro' | 'titular' | 'admin';
   tipo?: 'membro' | 'titular' | 'admin';
   documento?: string;
+  role?: MemberRole | null;
 }
 
 declare global {
@@ -17,6 +25,8 @@ declare global {
     }
   }
 }
+
+export type { MemberRole };
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -40,6 +50,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
       id: decoded.id,
       document: decoded.document ?? decoded.documento ?? '',
       type: decoded.type ?? decoded.tipo ?? 'membro',
+      role: decoded.role ?? null,
     };
     next();
   } catch (error) {

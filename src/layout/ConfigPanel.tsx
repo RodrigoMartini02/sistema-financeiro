@@ -160,7 +160,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
               quando o ativo deixa de existir para a conta. Sem isso, trocar de
               conta empresa para pessoal com o catalogo aberto continuaria
               renderizando uma tela que o menu ja escondeu. */}
-          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} meNome={me?.nome} />}
+          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} me={me} />}
           {current.id === 'assinatura' && <PlanosScreen embedded />}
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'cartoes' && <CartaoTab />}
