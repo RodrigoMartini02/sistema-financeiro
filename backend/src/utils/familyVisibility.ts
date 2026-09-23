@@ -224,3 +224,25 @@ export async function isActiveFamilyMember(userId: number): Promise<boolean> {
   );
   return vinculo.rows.length > 0;
 }
+
+/**
+ * Papel do usuario dentro da conta a que esta vinculado como membro ativo:
+ * "member" em conta pessoal (familia), "collaborator" em conta empresa.
+ * null quando nao e membro de ninguem (titular ou usuario independente).
+ *
+ * So para exibicao/rotulo (vai no JWT como conveniencia) — nunca usado para
+ * decidir acesso a dado, que continua sempre validado contra o banco em
+ * resolveByScope/canEditOthersEntries.
+ */
+export async function resolveMemberRole(userId: number): Promise<'member' | 'collaborator' | null> {
+  const result = await pool.query(
+    `SELECT c.tipo FROM conta_membros m
+     JOIN contas c ON c.id = m.conta_id
+     WHERE m.usuario_id = $1 AND m.status = 'ativo'
+     LIMIT 1`,
+    [userId],
+  );
+  const tipo = (result.rows[0] as { tipo: string } | undefined)?.tipo;
+  if (!tipo) return null;
+  return tipo === 'empresa' ? 'collaborator' : 'member';
+}

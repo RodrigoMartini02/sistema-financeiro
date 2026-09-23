@@ -22,15 +22,17 @@ import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { formatCPF, formatCNPJ, formatDocumento, formatDocumentoAuto } from '../../utils/document';
-import { updateMe, updateFoto } from '../../services/usuariosService';
+import { updateMe, updateFoto, type UsuarioMe } from '../../services/usuariosService';
 
 // Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
 // conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
 // "colaborador" (da equipe). Movido de MembrosTab.tsx, hoje absorvida aqui.
-export interface Termo { singular: string; artigo: string; }
+// Fonte única do rótulo — qualquer tela que precise dizer "Membros" ou
+// "Colaboradores" usa TERMOS[tipo].plural, nunca um literal hardcoded.
+export interface Termo { singular: string; plural: string; artigo: string; }
 export const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
-  pessoal: { singular: 'membro', artigo: 'o' },
-  empresa: { singular: 'colaborador', artigo: 'o' },
+  pessoal: { singular: 'membro', plural: 'Membros', artigo: 'o' },
+  empresa: { singular: 'colaborador', plural: 'Colaboradores', artigo: 'o' },
 };
 
 // ─── Membros da conta (movido de MembrosTab.tsx) ──────────────────────────────
@@ -372,13 +374,22 @@ function CategoryPreview({ enquadramento }: { enquadramento: string }) {
 // ─── Dialog ──────────────────────────────────────────────────────────────────
 
 function ContaDialog({
-  open, conta, isSaving, error, onClose, onSave, onDelete,
+  open, conta, me, isSaving, error, onClose, onSave, onDelete, onSaveMeFoto,
 }: {
   open: boolean; conta?: Conta;
+  /** So presente ao editar a Conta Padrão — dados pessoais do titular,
+   *  editados no mesmo formulário. */
+  me?: UsuarioMe;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (v: { tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string; nome_fantasia?: string; atividade?: string; enquadramento?: string; novaSenha?: string }) => void;
+  onSave: (v: {
+    tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string;
+    nome_fantasia?: string; atividade?: string; enquadramento?: string; novaSenha?: string;
+    meNome?: string; meSobrenome?: string; meEmail?: string; meDocumento?: string;
+    meTelefone?: string; meDataNascimento?: string;
+  }) => void;
   onDelete?: () => void;
+  onSaveMeFoto?: (dataUrl: string | null) => void;
 }) {
   const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(conta?.tipo ?? 'empresa');
   const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
@@ -387,7 +398,16 @@ function ContaDialog({
   const [documento, setDocumento] = useState(() =>
     formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'),
   );
+  // Documento PESSOAL do titular (CPF) — separado do documento da conta
+  // (que so existe em conta PJ). So relevante quando `me` está presente.
+  const [meDocumento, setMeDocumento] = useState(() => formatCPF(me?.documento ?? ''));
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
   const confirm = useConfirm();
+
+  useEffect(() => {
+    if (!open) return;
+    setMeDocumento(formatCPF(me?.documento ?? ''));
+  }, [open, me]);
 
   const isNew = !conta;
   const enquadramentoGuide = useFirstAccessGuide('contas:enquadramento-v1', {
@@ -432,6 +452,14 @@ function ContaDialog({
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
       atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
       enquadramento: tipo === 'empresa' && enquadramento ? enquadramento : undefined,
+      ...(me ? {
+        meNome: (fd.get('me_nome') as string || '').trim(),
+        meSobrenome: (fd.get('me_sobrenome') as string || '').trim() || undefined,
+        meEmail: (fd.get('me_email') as string || '').trim() || undefined,
+        meDocumento: meDocumento.trim() || undefined,
+        meTelefone: (fd.get('me_telefone') as string || '').trim() || undefined,
+        meDataNascimento: (fd.get('me_data_nascimento') as string || '').trim() || undefined,
+      } : {}),
       ...(novaSenha ? { novaSenha } : {}),
     });
   };
@@ -441,8 +469,95 @@ function ContaDialog({
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: PF e PJ têm campos diferentes (e a criação PJ ainda
             mostra o preview de categorias), mas o modal não deve mudar de
-            tamanho ao alternar o tipo. */}
-        <div style={{ flex: 1, minHeight: 0, height: 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            tamanho ao alternar o tipo. Cresce quando a seção de dados
+            pessoais do titular (`me`) está presente. */}
+        <div style={{ flex: 1, minHeight: 0, height: me ? 560 : 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {me && (
+            <>
+              {/* Meus dados: identidade do titular como pessoa, sempre em
+                  cima — a conta em si vem depois. Mesmo formulário, uma
+                  submissão só, duas chamadas internas (usuarios + contas). */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setAvatarDialogOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
+                  }}
+                  aria-label="Enviar foto de perfil"
+                  style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
+                >
+                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
+                    {me.foto
+                      ? <img src={me.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+                      : <User size={22} />}
+                  </span>
+                  <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
+                    <Pencil size={10} />
+                  </span>
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Meus dados</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>
+                    Toque no avatar para enviar sua foto · PNG ou SVG, até 1 MB
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
+                  <input name="me_nome" defaultValue={me.nome} placeholder="Seu nome" required style={fieldInputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Sobrenome</label>
+                  <input name="me_sobrenome" defaultValue={me.sobrenome ?? ''} placeholder="Sobrenome" style={fieldInputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>CPF</label>
+                  <input
+                    name="me_documento"
+                    value={meDocumento}
+                    onChange={(e) => setMeDocumento(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    maxLength={14}
+                    className={CFG_MONO_CLASS}
+                    style={fieldInputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Data de nascimento</label>
+                  <input name="me_data_nascimento" type="date" defaultValue={me.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>Telefone</label>
+                  <input name="me_telefone" defaultValue={me.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>E-mail</label>
+                  <input name="me_email" type="email" defaultValue={me.email} placeholder="voce@email.com" style={fieldInputStyle} />
+                </div>
+              </div>
+
+              <AvatarUploadDialog
+                open={avatarDialogOpen}
+                onClose={() => setAvatarDialogOpen(false)}
+                onConfirm={(dataUrl) => { onSaveMeFoto?.(dataUrl); setAvatarDialogOpen(false); }}
+                isSaving={false}
+              />
+
+              <div style={cfgDividerStyle} />
+            </>
+          )}
 
           {!conta && (
             <div>
@@ -1011,11 +1126,12 @@ interface ContasTabProps {
   /** Gestor/admin edita contas e gerencia membros; membro só edita a si mesmo. */
   isGestor: boolean;
   meId?: number;
-  /** Nome atual do usuário logado — exigido por PUT /usuarios/me ao trocar a própria senha. */
-  meNome?: string;
+  /** Dados pessoais do usuário logado (titular). Editar a Conta Padrão edita
+   *  também esses dados, num único formulário. */
+  me?: UsuarioMe;
 }
 
-export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
+export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Conta }>({ open: false });
   const [mutError, setMutError] = useState('');
@@ -1059,16 +1175,38 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.contas }),
   });
 
-  // Senha é do usuário logado (gestor), não da conta — vai por uma chamada
-  // separada (updateMe), fora do payload de saveConta.
-  const senhaMut = useMutation({
-    mutationFn: (novaSenha: string) => updateMe({ nome: meNome ?? '', nova_senha: novaSenha }),
+  // Dados pessoais do titular (nome/sobrenome/CPF/nascimento/telefone/email/
+  // senha) vivem em `usuarios`, nao em `contas` — vao por uma chamada
+  // separada (updateMe), fora do payload de saveConta. So dispara quando a
+  // conta editada e a Conta Padrao (a que nasceu no cadastro do proprio
+  // titular); editar uma conta PJ adicional nunca toca os dados da pessoa.
+  const meMut = useMutation({
+    mutationFn: (input: Parameters<typeof updateMe>[0]) => updateMe(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['usuario-me'] }),
     onError: (e: Error) => setMutError(e.message),
   });
 
-  const handleSave = ({ novaSenha, ...v }: Parameters<typeof saveConta>[0] & { novaSenha?: string }) => {
+  const meFotoMut = useMutation({
+    mutationFn: (foto: string | null) => updateFoto(foto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['usuario-me'] }),
+    onError: (e: Error) => setMutError(e.message),
+  });
+
+  const handleSave = (
+    { novaSenha, meNome, meSobrenome, meEmail, meDocumento, meTelefone, meDataNascimento, ...v }:
+      Parameters<typeof saveConta>[0] & {
+        novaSenha?: string; meNome?: string; meSobrenome?: string; meEmail?: string;
+        meDocumento?: string; meTelefone?: string; meDataNascimento?: string;
+      },
+  ) => {
     saveMut.mutate({ v, id: dialog.item?.id });
-    if (novaSenha) senhaMut.mutate(novaSenha);
+    if (meNome) {
+      meMut.mutate({
+        nome: meNome, sobrenome: meSobrenome, email: meEmail, documento: meDocumento,
+        telefone: meTelefone, data_nascimento: meDataNascimento,
+        ...(novaSenha ? { nova_senha: novaSenha } : {}),
+      });
+    }
   };
 
   return (
@@ -1225,11 +1363,13 @@ export function ContasTab({ isGestor, meId, meNome }: ContasTabProps) {
         key={dialog.item ? String(dialog.item.id) : 'new'}
         open={dialog.open}
         conta={dialog.item}
-        isSaving={saveMut.isPending}
+        me={dialog.item?.eh_padrao ? me : undefined}
+        isSaving={saveMut.isPending || meMut.isPending}
         error={mutError}
         onClose={() => setDialog({ open: false })}
         onSave={handleSave}
         onDelete={dialog.item ? () => deleteMut.mutate((dialog.item as Conta).id) : undefined}
+        onSaveMeFoto={dialog.item?.eh_padrao ? (foto) => meFotoMut.mutate(foto) : undefined}
       />
     </div>
   );

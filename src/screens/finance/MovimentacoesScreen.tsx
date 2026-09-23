@@ -12,6 +12,7 @@ import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
+import { TERMOS } from '../config/ContasTab';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
@@ -233,7 +234,7 @@ export function MovimentacoesScreen() {
     // filtro de Tipo.
     ...(temMembros && meQ.data ? [{
       id: 'membros',
-      label: 'Membros',
+      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: [
         { value: meIdStr!, label: `${meQ.data.nomeExibicao ?? meQ.data.nome} (você)` },
         ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),

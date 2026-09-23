@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
 import { fetchDashboardPanorama, getContratosFaturamento, fetchParcelasFuturas } from '../../services/financeService';
 import { getActiveAccountId } from '../../services/apiClient';
+import { TERMOS } from '../config/ContasTab';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
@@ -350,7 +351,7 @@ export function FinanceDashboard() {
     // nao ha esse escopo a filtrar.
     ...(temMembros && visao === 'conta' ? [{
       id: 'membros',
-      label: 'Membros',
+      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: membroOptions,
       selected: membroIds,
       onChange: setMembroIds,

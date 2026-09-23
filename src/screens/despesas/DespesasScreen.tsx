@@ -9,6 +9,7 @@ import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/fina
 import { fetchCategorias } from '../../services/configService';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
+import { TERMOS } from '../config/ContasTab';
 import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
@@ -492,7 +493,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     // escopo familia no servidor (derivado acima em `escopoFamilia`).
     ...(temMembros && meQ.data ? [{
       id: 'membros',
-      label: 'Membros',
+      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: [
         { value: String(meQ.data.id), label: meQ.data.nomeExibicao ?? meQ.data.nome },
         ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),

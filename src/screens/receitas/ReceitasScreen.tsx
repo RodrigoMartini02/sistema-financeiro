@@ -3,6 +3,7 @@ import { Paperclip, Plus, Ban, Tag, Clock, CheckCircle, AlertCircle, FileCheck, 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { apiRequest, getActiveAccountId } from '../../services/apiClient';
+import { TERMOS } from '../config/ContasTab';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
@@ -179,7 +180,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   const filterGroups: FilterGroup[] = [
     ...(temMembros && meQ.data ? [{
       id: 'membros',
-      label: 'Membros',
+      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: [
         { value: String(meQ.data.id), label: meQ.data.nomeExibicao ?? meQ.data.nome },
         ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
