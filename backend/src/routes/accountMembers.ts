@@ -125,7 +125,8 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, sobrenome, email, senha, documento, conta_id } = req.body as Record<string, string | undefined>;
+      const { nome, sobrenome, email, senha, documento, telefone, data_nascimento: dataNascimento, conta_id } =
+        req.body as Record<string, string | undefined>;
 
       const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
       if (!accountId) {
@@ -165,10 +166,15 @@ router.post(
             email: normalizedEmail,
             document: cleanDoc,
             password: hashedPassword,
+            telefone: telefone?.trim() || null,
+            dataNascimento: dataNascimento || null,
             type: 'membro',
             status: 'ativo',
           })
-          .returning({ id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document, type: users.type, status: users.status });
+          .returning({
+            id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document,
+            telefone: users.telefone, dataNascimento: users.dataNascimento, type: users.type, status: users.status,
+          });
 
         await transaction.insert(accountMembers).values({
           accountId,
@@ -191,7 +197,10 @@ router.post(
       res.status(201).json({
         success: true,
         message: 'Member created successfully',
-        data: { id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document, tipo: created!.type, status: created!.status },
+        data: {
+          id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document,
+          telefone: created!.telefone, data_nascimento: created!.dataNascimento, tipo: created!.type, status: created!.status,
+        },
       });
     } catch (error) {
       console.error('Create account member error:', error);

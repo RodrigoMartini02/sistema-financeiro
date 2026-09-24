@@ -46,42 +46,15 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 });
 
 // POST /api/contas
+// Cria sempre conta PJ — uma pessoa física adicional na conta é papel do
+// fluxo "Novo membro" (account-members), não de uma segunda conta própria.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
+    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
       res.status(400).json({ success: false, message: 'Name is required' });
-      return;
-    }
-
-    if (!tipo || tipo === 'pessoal') {
-      const [existing] = await db
-        .select({ id: accounts.id })
-        .from(accounts)
-        .where(and(eq(accounts.userId, req.user!.id), eq(accounts.type, 'pessoal'), eq(accounts.active, true)))
-        .limit(1);
-
-      if (existing) {
-        res.status(400).json({ success: false, message: 'Personal account already exists' });
-        return;
-      }
-
-      const [created] = await db
-        .insert(accounts)
-        .values({
-          userId: req.user!.id,
-          type: 'pessoal',
-          name: nome.trim(),
-          document: documento ? documento.replace(/\D/g, '') : null,
-          active: true,
-        })
-        .returning();
-
-      await ensureDefaultCategories(req.user!.id, 'pessoal');
-
-      res.status(201).json({ success: true, message: 'Personal account created', data: created });
       return;
     }
 
