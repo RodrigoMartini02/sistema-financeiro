@@ -55,6 +55,8 @@ function NovoMembroDialog({
       sobrenome: (fd.get('sobrenome') as string) || undefined,
       email:     fd.get('email') as string,
       senha:     fd.get('senha') as string,
+      telefone:  (fd.get('telefone') as string) || undefined,
+      data_nascimento: (fd.get('data_nascimento') as string) || undefined,
       ...(doc ? { documento: doc } : {}),
     });
   };
@@ -63,7 +65,7 @@ function NovoMembroDialog({
     <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
-        <div style={{ flex: 1, minHeight: 0, height: 280, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, height: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
@@ -92,6 +94,17 @@ function NovoMembroDialog({
                 className={CFG_MONO_CLASS}
                 style={fieldInputStyle}
               />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Telefone</label>
+              <input name="telefone" placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Data de nascimento</label>
+              <input name="data_nascimento" type="date" style={fieldInputStyle} />
             </div>
           </div>
 
@@ -391,7 +404,10 @@ function ContaDialog({
   onDelete?: () => void;
   onSaveMeFoto?: (dataUrl: string | null) => void;
 }) {
-  const [tipo, setTipo] = useState<'pessoal' | 'empresa'>(conta?.tipo ?? 'empresa');
+  // Sem toggle no create: só PJ pode ser criada por aqui (PF adicional não
+  // existe mais — o fluxo correto para "mais uma pessoa" é Novo membro).
+  // Editar uma conta PF pré-existente continua possível, herdando o tipo dela.
+  const tipo = conta?.tipo ?? 'empresa';
   const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
   // Documento é controlado para aplicar a máscara a cada tecla. O backend
   // limpa a pontuação ao salvar (accounts.ts), então enviar formatado é seguro.
@@ -420,13 +436,6 @@ function ContaDialog({
     setEnquadramento(conta?.enquadramento ?? '');
     setDocumento(formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'));
   }, [open, conta]);
-
-  // Trocar PF↔PJ no cadastro novo reformata o que já foi digitado (CPF tem 11
-  // dígitos, CNPJ 14 — o excedente é descartado pelo próprio formatador).
-  const handleTipoChange = (novoTipo: 'pessoal' | 'empresa') => {
-    setTipo(novoTipo);
-    setDocumento((atual) => formatDocumento(atual, novoTipo));
-  };
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -467,10 +476,10 @@ function ContaDialog({
   return (
     <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
-        {/* Altura fixa: PF e PJ têm campos diferentes (e a criação PJ ainda
-            mostra o preview de categorias), mas o modal não deve mudar de
-            tamanho ao alternar o tipo. Cresce quando a seção de dados
-            pessoais do titular (`me`) está presente. */}
+        {/* Altura fixa: editar conta PF pré-existente ainda usa os campos PF
+            (Nome da conta/CPF), e a criação PJ mostra o preview de
+            categorias — o overflow do container absorve a diferença. Cresce
+            quando a seção de dados pessoais do titular (`me`) está presente. */}
         <div style={{ flex: 1, minHeight: 0, height: me ? 560 : 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {me && (
@@ -557,18 +566,6 @@ function ContaDialog({
 
               <div style={cfgDividerStyle} />
             </>
-          )}
-
-          {!conta && (
-            <div>
-              <label style={labelStyle}>Tipo de conta</label>
-              <ConfigSwitch
-                alwaysOn
-                checked={tipo === 'pessoal'}
-                onChange={(pf) => handleTipoChange(pf ? 'pessoal' : 'empresa')}
-                label={tipo === 'pessoal' ? 'Pessoa Física' : 'Pessoa Jurídica'}
-              />
-            </div>
           )}
 
           {tipo === 'empresa' && (

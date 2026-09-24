@@ -24,6 +24,8 @@ export interface MembroCreateBody {
   email: string;
   senha: string;
   documento?: string;
+  telefone?: string;
+  data_nascimento?: string;
 }
 
 export interface PendingExpense {
