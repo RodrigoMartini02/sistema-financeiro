@@ -26,8 +26,6 @@ declare global {
   }
 }
 
-export type { MemberRole };
-
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
