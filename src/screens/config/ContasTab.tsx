@@ -62,10 +62,10 @@ function NovoMembroDialog({
   };
 
   return (
-    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="md" scrollBody={false}>
+    <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
-        <div style={{ flex: 1, minHeight: 0, height: 380, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, height: 400, overflowY: 'auto', overflowX: 'hidden', padding: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
@@ -481,7 +481,7 @@ function ContaDialog({
   };
 
   return (
-    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="lg" scrollBody={false}>
+    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: editar conta PF pré-existente ainda usa o campo CPF,
             e a criação PJ mostra o preview de categorias — o overflow do
@@ -749,9 +749,9 @@ function EditarUsuarioDialog({
   };
 
   return (
-    <Dialog open={open} title={isSelf ? 'Meus dados' : `Editar ${membro?.nome ?? ''}`} onClose={onClose} size="xs" scrollBody={false}>
+    <Dialog open={open} title={isSelf ? 'Meus dados' : `Editar ${membro?.nome ?? ''}`} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
           {/* O avatar é o controle de upload — sem botão separado, mesmo padrão de ContaDialog. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span
