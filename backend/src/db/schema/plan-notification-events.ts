@@ -19,7 +19,7 @@ export const planNotificationEvents = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     eventType: varchar('tipo_evento', { length: 50 })
       .notNull()
-      .$type<'plan_expired' | 'recurring_payment_rejected'>(),
+      .$type<'plan_expired' | 'recurring_payment_rejected' | 'trial_expired'>(),
     cycleReference: varchar('referencia_ciclo', { length: 120 }).notNull(),
     planType: varchar('plano_tipo', { length: 10 }),
     status: varchar('status', { length: 20 })
