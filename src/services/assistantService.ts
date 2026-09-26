@@ -32,6 +32,20 @@ export async function sendFinancialCopilotMessage(
   });
 }
 
+export interface UltimoLancamento {
+  descricao: string;
+  valor: number;
+}
+
+export interface UltimosLancamentos {
+  ultimaDespesa: UltimoLancamento | null;
+  ultimaReceita: UltimoLancamento | null;
+}
+
+export function fetchUltimosLancamentos(): Promise<UltimosLancamentos> {
+  return apiRequest<UltimosLancamentos>(`/assistant/ultimos-lancamentos${profileQuery()}`);
+}
+
 export function fetchFinancialCopilotConversations(): Promise<FinancialCopilotConversation[]> {
   return apiRequest<FinancialCopilotConversation[]>(`/assistant/conversations${profileQuery()}`);
 }

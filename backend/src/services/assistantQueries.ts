@@ -72,6 +72,17 @@ function expenseAll(scope: QueryScope) {
   return and(...conditions);
 }
 
+/** Receitas sem recorte de data — base da consulta de ultimo lancamento. */
+function incomeAll(scope: QueryScope) {
+  const conditions = [eq(incomes.userId, scope.userId)];
+  if (scope.account.type === 'pessoal') {
+    conditions.push(or(eq(incomes.accountId, scope.account.id), isNull(incomes.accountId))!);
+  } else {
+    conditions.push(eq(incomes.accountId, scope.account.id));
+  }
+  return and(...conditions);
+}
+
 // ── Bloco 1 — Saldo e visao geral ────────────────────────────────────
 
 export async function resumoPeriodo(scope: QueryScope, inicio: string, fim: string) {
@@ -203,6 +214,30 @@ export async function maioresGastos(scope: QueryScope, inicio: string, fim: stri
       categoria: row.categoryName ?? 'Sem categoria',
     })),
   };
+}
+
+/**
+ * Ultimo lancamento de cada tipo, por data de CADASTRO (nao de vencimento/
+ * recebimento) — usado na abertura do chat para lembrar o usuario do que ja
+ * foi lancado e evitar duplicidade. Sem recorte de periodo: e sempre o mais
+ * recente que existir, mesmo que tenha sido lancado meses atras.
+ */
+export async function ultimosLancamentos(scope: QueryScope) {
+  const [expenseRows, incomeRows] = await Promise.all([
+    db.select({ descricao: expenses.description, amount: expenses.originalAmount })
+      .from(expenses).where(expenseAll(scope)).orderBy(desc(expenses.createdAt)).limit(1),
+    db.select({ descricao: incomes.description, amount: incomes.amount })
+      .from(incomes).where(incomeAll(scope)).orderBy(desc(incomes.createdAt)).limit(1),
+  ]);
+
+  const ultimaDespesa = expenseRows[0]
+    ? { descricao: expenseRows[0].descricao, valor: asNumber(expenseRows[0].amount) }
+    : null;
+  const ultimaReceita = incomeRows[0]
+    ? { descricao: incomeRows[0].descricao, valor: asNumber(incomeRows[0].amount) }
+    : null;
+
+  return { ultimaDespesa, ultimaReceita };
 }
 
 export async function buscarLancamentos(

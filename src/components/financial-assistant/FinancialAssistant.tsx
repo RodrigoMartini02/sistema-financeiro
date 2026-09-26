@@ -16,7 +16,9 @@ import {
   deleteFinancialCopilotConversation,
   fetchFinancialCopilotConversation,
   fetchFinancialCopilotConversations,
+  fetchUltimosLancamentos,
   sendFinancialCopilotMessage,
+  type UltimosLancamentos,
 } from '../../services/assistantService';
 import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
@@ -166,6 +168,22 @@ function buildInitialMessage(saudacao: string): ChatMessage {
     createdAt: new Date().toISOString(),
     showWelcomeActions: true,
   };
+}
+
+// Texto do lembrete de ultimo lancamento, montado conforme o que existir —
+// nunca menciona um tipo que ainda nao tem nenhum lancamento.
+function buildUltimoLancamentoTexto(dados: UltimosLancamentos | undefined): string | null {
+  const despesa = dados?.ultimaDespesa;
+  const receita = dados?.ultimaReceita;
+  if (!despesa && !receita) return null;
+
+  const trechoDespesa = despesa ? `para despesa foi ${despesa.descricao} — ${formatCurrency(despesa.valor)}` : null;
+  const trechoReceita = receita ? `para receita foi ${receita.descricao} — ${formatCurrency(receita.valor)}` : null;
+
+  if (trechoDespesa && trechoReceita) {
+    return `Lembrando que seu último lançamento ${trechoDespesa}, e ${trechoReceita}.`;
+  }
+  return `Lembrando que seu último lançamento ${trechoDespesa ?? trechoReceita}.`;
 }
 
 /**
@@ -361,6 +379,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     queryFn: fetchAbertura,
     placeholderData: ABERTURA_PADRAO,
     staleTime: 5 * 60_000,
+  });
+
+  // Lembrete discreto do ultimo lancamento de cada tipo, para reduzir
+  // duplicidade por esquecimento. Muda a cada lancamento novo — staleTime
+  // curto, diferente da abertura (que e so configuracao de fluxo).
+  const { data: ultimosLancamentos } = useQuery({
+    queryKey: queryKeys.assistantUltimosLancamentos(getActiveAccountId()),
+    queryFn: fetchUltimosLancamentos,
+    staleTime: 30_000,
   });
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage(ABERTURA_PADRAO.saudacao)]);
@@ -1256,6 +1283,18 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </div>
                     </Card>
                   )}
+
+                  {/* Lembrete discreto do ultimo lancamento — so na
+                      saudacao inicial, nunca em reaberturas de sub-fluxo
+                      (essas tambem usam showWelcomeActions, mas nao sao a
+                      mensagem 'welcome'). Puramente informativo, sem
+                      destaque visual. */}
+                  {message.id === 'welcome' && (() => {
+                    const texto = buildUltimoLancamentoTexto(ultimosLancamentos);
+                    return texto ? (
+                      <p className="mt-1.5 text-xs italic text-slate-500 dark:text-slate-400">{texto}</p>
+                    ) : null;
+                  })()}
 
                   {/* Fora do balao, empilhados: sao acoes do usuario, nao
                       conteudo da fala do assistente. Mesmo formato para os
