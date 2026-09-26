@@ -9,7 +9,7 @@ interface DialogProps {
   description?: string;
   onClose: () => void;
   children: ReactNode;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+  size?: 'xs' | 'sm' | 'md' | 'card' | 'lg' | 'xl' | 'xxl';
   scrollBody?: boolean;
   /**
    * Altura fixa de 80% da viewport, em vez de apenas um teto. Usada em modais
@@ -24,6 +24,7 @@ const maxWSize: Record<NonNullable<DialogProps['size']>, string> = {
   xs: 'max-w-[340px]',
   sm: 'max-w-[440px]',
   md: 'max-w-lg',
+  card: 'max-w-[600px]',
   lg: 'max-w-[780px]',
   xl: 'max-w-[980px]',
   xxl: 'max-w-[1180px]',
