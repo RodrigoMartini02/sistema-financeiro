@@ -13,6 +13,7 @@ export * from './partners';
 export * from './aiSessions';
 export * from './copilot';
 export * from './plan-notification-events';
+export * from './expenseAlerts';
 export * from './assistantFlows';
 export * from '../../modules/futebol/db/schema';
 export * from '../../modules/catalogo/db/schema';
