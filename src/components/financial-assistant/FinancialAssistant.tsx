@@ -1786,10 +1786,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         type="button"
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex h-11 items-center justify-center gap-2 rounded-lg bg-emerald-700 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-11 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
                       >
-                        {isSaving ? <LoaderCircle size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-                        {isSaving ? 'Salvando...' : `Salvar ${formatDraftAmount(draft.amount)}`}
+                        {isSaving && <LoaderCircle size={18} className="animate-spin" />}
+                        {isSaving ? 'Salvando...' : 'Salvar'}
                       </button>
                       <button
                         type="button"
@@ -1798,7 +1798,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         disabled={isSaving}
                         className="flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
                       >
-                        <X size={16} /> Descartar
+                        Descartar
                       </button>
                     </div>
                   </Card>
