@@ -1,12 +1,14 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import {
-  BarChart3, Bell, Building2, LayoutDashboard,
-  Moon, Settings, Sun, TrendingDown, Wallet, Workflow, X,
+  AlertTriangle, BarChart3, Bell, Building2, LayoutDashboard,
+  Moon, Settings, Sun, Wallet, Workflow, X,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
-import { apiRequest, getActiveAccountId } from '../services/apiClient';
+import { getActiveAccountId } from '../services/apiClient';
 import { fetchOwnPermissions } from '../services/permissoesService';
+import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
+import { queryKeys } from '../services/queryKeys';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
@@ -58,27 +60,34 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementTy
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
 
+// "venceu ha N dias" / "vence hoje" a partir do snapshot de data_vencimento
+// gravado no alerta \u2014 nao recalcula contra a despesa atual, que pode ja ter
+// sido editada ou paga depois do alerta ser gerado.
+function alertaRotulo(item: NotificationItem): string {
+  if (item.alertType === 'vencendo_hoje') return 'Vence hoje';
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const vencimento = new Date(`${item.dueDate}T00:00:00`);
+  const dias = Math.round((hoje.getTime() - vencimento.getTime()) / 86_400_000);
+  return dias <= 0 ? 'Venceu' : `Venceu h\u00e1 ${dias} dia${dias === 1 ? '' : 's'}`;
+}
+
 function NotificationPanel({ onClose }: { onClose: () => void }) {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
+  const qc = useQueryClient();
+  const accountId = getActiveAccountId();
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['notif-despesas', month, year],
-    queryFn: async () => {
-      const params = new URLSearchParams({ mes: String(month), ano: String(year) });
-      const accountId = getActiveAccountId();
-      if (accountId) params.set('conta_id', String(accountId));
-      return apiRequest<Array<{
-        id: number; descricao: string; valor_original: number;
-        categoria_nome?: string; forma_pagamento?: string;
-      }>>('/despesas?' + params);
-    },
+    queryKey: queryKeys.notificacoes(accountId),
+    queryFn: () => fetchNotifications(accountId),
     staleTime: 60_000,
   });
 
-  const total = data.reduce((s, d) => s + Number(d.valor_original), 0);
-  const recentes = data.slice(0, 12);
+  const readMut = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.notificacoes(accountId) }),
+  });
+
+  const vencidas = data.filter((item) => item.alertType === 'vencida');
 
   return (
     <>
@@ -92,7 +101,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800">
           <div>
             <p className="text-base font-bold text-slate-950 dark:text-white">{'Notifica\u00e7\u00f5es'}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{'Resumo do m\u00eas selecionado'}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{'Contas vencendo ou vencidas'}</p>
           </div>
           <button
             onClick={onClose}
@@ -111,42 +120,53 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
           ) : data.length === 0 ? (
             <div className="rounded-2xl border border-cyan-100 bg-cyan-50 py-10 text-center text-sm text-slate-600 dark:border-cyan-900 dark:bg-cyan-950 dark:text-cyan-100">
               <Bell size={30} className="mx-auto mb-3 text-cyan-500" />
-              {'Sem despesas neste m\u00eas'}
+              {'Nenhuma conta vencendo ou vencida'}
             </div>
           ) : (
             <div className="grid gap-4">
-              <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 dark:border-rose-900/70 dark:bg-rose-950/40">
-                <div className="flex items-center justify-between gap-3">
+              {vencidas.length > 0 && (
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 dark:border-rose-900/70 dark:bg-rose-950/40">
                   <p className="text-sm font-semibold text-rose-700 dark:text-rose-200">
-                    {data.length} despesa{data.length !== 1 ? 's' : ''} {'no m\u00eas'}
+                    {vencidas.length} conta{vencidas.length !== 1 ? 's' : ''} vencida{vencidas.length !== 1 ? 's' : ''}
                   </p>
-                  <p className="text-sm font-bold text-rose-700 dark:text-rose-200">
-                    R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                {recentes.map((d) => (
-                  <div key={d.id} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-cyan-900 dark:hover:bg-cyan-950/30">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600 ring-1 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900">
-                      <TrendingDown size={14} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{d.descricao}</p>
-                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        {d.categoria_nome ?? 'Sem categoria'} {'\u00b7'} R$ {Number(d.valor_original).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {data.length > recentes.length && (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                  +{data.length - recentes.length} despesas registradas
                 </div>
               )}
+
+              <div className="grid gap-2">
+                {data.map((item) => {
+                  const naoLida = item.status === 'pending';
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => naoLida && readMut.mutate(item.id)}
+                      className={[
+                        'flex items-start gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition',
+                        naoLida
+                          ? 'border-cyan-200 bg-cyan-50/60 hover:bg-cyan-50 dark:border-cyan-900 dark:bg-cyan-950/20 dark:hover:bg-cyan-950/30'
+                          : 'border-slate-100 bg-white opacity-70 hover:border-cyan-200 hover:opacity-100 dark:border-slate-800 dark:bg-slate-900',
+                      ].join(' ')}
+                    >
+                      <div className={[
+                        'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1',
+                        item.alertType === 'vencida'
+                          ? 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900'
+                          : 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-900',
+                      ].join(' ')}
+                      >
+                        <AlertTriangle size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{item.description}</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          {alertaRotulo(item)} {'\u00b7'} R$ {Number(item.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      {naoLida && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -179,6 +199,14 @@ export function AppShell({
   });
   const canViewNotifications = ownPermissions?.accessNotifications ?? true;
   const canViewDashboard = ownPermissions?.accessDashboard ?? true;
+  const notifAccountId = getActiveAccountId();
+  const { data: notifications = [] } = useQuery({
+    queryKey: queryKeys.notificacoes(notifAccountId),
+    queryFn: () => fetchNotifications(notifAccountId),
+    enabled: !isDemoMode && canViewNotifications,
+    staleTime: 60_000,
+  });
+  const naoLidasCount = notifications.filter((item) => item.status === 'pending').length;
   // Fora do produto: o assistente deixou de conduzir a conversa por perguntas
   // e passou a ler a frase de uma vez, entao nao ha sequencia para desenhar.
   // A tela e o motor seguem no codigo, testados, para serem retomados — ver
@@ -382,6 +410,11 @@ export function AppShell({
                 >
                   <Bell size={16} />
                 </button>
+                {naoLidasCount > 0 && (
+                  <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {naoLidasCount > 9 ? '9+' : naoLidasCount}
+                  </span>
+                )}
               </div>
             )}
 
