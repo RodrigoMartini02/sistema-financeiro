@@ -78,6 +78,7 @@ export const queryKeys = {
   // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>
     ['card-limits', accountId ?? 'ativa', escopo ?? 'eu'] as const,
+  notificacoes: (accountId?: number | null) => ['notificacoes', accountId ?? 'ativa'] as const,
   catalogoProdutos: ['catalogo-produtos'] as const,
   catalogoConta: ['catalogo-conta'] as const,
   movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
