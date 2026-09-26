@@ -481,13 +481,13 @@ function ContaDialog({
   };
 
   return (
-    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="md" scrollBody={false}>
+    <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="lg" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: editar conta PF pré-existente ainda usa o campo CPF,
             e a criação PJ mostra o preview de categorias — o overflow do
             container absorve a diferença. Cresce quando a seção de dados
             pessoais do titular (`me`) está presente. */}
-        <div style={{ flex: 1, minHeight: 0, height: me ? 560 : 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, height: me ? 620 : 340, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {me && (
             <>
