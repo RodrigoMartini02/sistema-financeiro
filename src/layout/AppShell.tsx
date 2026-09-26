@@ -9,6 +9,7 @@ import { getActiveAccountId } from '../services/apiClient';
 import { fetchOwnPermissions } from '../services/permissoesService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
@@ -72,6 +73,42 @@ function alertaRotulo(item: NotificationItem): string {
   return dias <= 0 ? 'Venceu' : `Venceu h\u00e1 ${dias} dia${dias === 1 ? '' : 's'}`;
 }
 
+function PushToggleBanner() {
+  const { status, supported, loading, enable, disable } = usePushNotifications();
+
+  if (!supported || status === 'denied') return null;
+
+  if (status === 'granted') {
+    return (
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-cyan-50/60 px-5 py-3 text-xs dark:border-slate-800 dark:bg-cyan-950/20">
+        <span className="text-cyan-700 dark:text-cyan-200">{'Notifica\u00e7\u00f5es push ativadas'}</span>
+        <button
+          type="button"
+          onClick={() => void disable()}
+          disabled={loading}
+          className="font-semibold text-slate-500 underline-offset-2 hover:underline disabled:opacity-50 dark:text-slate-400"
+        >
+          {'Desativar'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+      <span className="text-slate-600 dark:text-slate-300">{'Receba avisos de vencimento no celular'}</span>
+      <button
+        type="button"
+        onClick={() => void enable()}
+        disabled={loading}
+        className="rounded-full bg-cyan-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-cyan-700 disabled:opacity-50"
+      >
+        {loading ? 'Ativando...' : 'Ativar'}
+      </button>
+    </div>
+  );
+}
+
 function NotificationPanel({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const accountId = getActiveAccountId();
@@ -111,6 +148,8 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
             <X size={17} />
           </button>
         </div>
+
+        <PushToggleBanner />
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {isLoading ? (
