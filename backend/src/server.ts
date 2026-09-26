@@ -91,6 +91,7 @@ import analyticsRoutes from './routes/analytics';
 import reportRoutes from './routes/reports';
 import internalJobsRoutes from './routes/internal-jobs';
 import notificationRoutes from './routes/notifications';
+import pushRoutes from './routes/push';
 import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
@@ -142,6 +143,7 @@ app.use('/api/contrato-anexos', authenticate, requireActivePlan, requireScreenAc
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
 app.use('/api/notificacoes', authenticate, requireActivePlan, requireScreenAccess('accessNotifications'), notificationRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api/assistant', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
 app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
 // accessBudget controla só a tela de Planejamento (editar/remover meta) — o

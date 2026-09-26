@@ -9,15 +9,37 @@ declare global {
   }
 }
 
+interface PushWindowClient {
+  url: string;
+  focus: () => Promise<PushWindowClient>;
+}
+
 type AssistantWorkerScope = {
   clients: {
     get: (id: string) => Promise<{ url: string } | undefined>;
+    matchAll: (options?: { type?: 'window' }) => Promise<PushWindowClient[]>;
+    openWindow: (url: string) => Promise<PushWindowClient | null>;
+  };
+  registration: {
+    showNotification: (title: string, options?: NotificationOptions) => Promise<void>;
   };
   skipWaiting: () => Promise<void>;
   addEventListener: (type: 'message', listener: (event: MessageEvent) => void) => void;
 };
 
+type PushWorkerScope = {
+  addEventListener: (
+    type: 'push' | 'notificationclick',
+    listener: (event: {
+      data?: { json: () => { title: string; body: string } };
+      notification: { close: () => void };
+      waitUntil: (promise: Promise<unknown>) => void;
+    }) => void,
+  ) => void;
+};
+
 const worker = self as unknown as AssistantWorkerScope;
+const pushWorker = self as unknown as PushWorkerScope;
 const ASSISTANT_PATH = '/assistant.html';
 const assistantShell = new NetworkFirst({ cacheName: 'fingerence-assistant-shell-v1' });
 const assistantAssets = new StaleWhileRevalidate({ cacheName: 'fingerence-assistant-assets-v1' });
@@ -31,6 +53,29 @@ worker.addEventListener('message', (event) => {
   if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
     void worker.skipWaiting();
   }
+});
+
+pushWorker.addEventListener('push', (event) => {
+  const payload = event.data?.json() ?? { title: 'FinGerence', body: 'Você tem uma nova notificação.' };
+  event.waitUntil(
+    worker.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/icons/pwa-192.png',
+      badge: '/icons/pwa-192.png',
+    }),
+  );
+});
+
+// Clique na notificação foca uma aba já aberta do app se existir, ou abre
+// uma nova — mesma UX de apps nativos.
+pushWorker.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    worker.clients.matchAll({ type: 'window' }).then((clients) => {
+      if (clients.length > 0) return clients[0]!.focus();
+      return worker.clients.openWindow('/app.html');
+    }),
+  );
 });
 
 registerRoute(
