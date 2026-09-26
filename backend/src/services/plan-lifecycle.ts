@@ -12,6 +12,7 @@ import {
 export const PLAN_NOTIFICATION_EVENT = {
   expired: 'plan_expired',
   recurringPaymentRejected: 'recurring_payment_rejected',
+  trialExpired: 'trial_expired',
 } as const;
 
 export interface PlanStatusResult extends EffectivePlanAccess {
@@ -47,6 +48,13 @@ function planCycleReference(planExpiration: Date | string): string {
 
 function recurringPaymentCycleReference(paymentId: string): string {
   return `recurring-payment:${paymentId}`;
+}
+
+// Trial nao tem data de expiracao propria (e calculado a partir de createdAt
+// + TRIAL_DURATION_DAYS) e um usuario so passa por ele uma vez na vida —
+// o id do usuario ja e suficiente para o dedupe.
+function trialCycleReference(userId: number): string {
+  return `trial-expiration:${userId}`;
 }
 
 function planLabel(planType: string | null): string {
@@ -121,7 +129,22 @@ async function expirePlanRecord(record: PlanRecord): Promise<{
       return { expired: false, notificationCreated: false };
     }
 
-    if (storedStatus !== PLAN_STATUS.active || !record.planExpiration) {
+    if (storedStatus === PLAN_STATUS.trial) {
+      const trialNotificationResult = await transaction
+        .insert(planNotificationEvents)
+        .values({
+          userId: record.id,
+          eventType: PLAN_NOTIFICATION_EVENT.trialExpired,
+          cycleReference: trialCycleReference(record.id),
+          planType: record.planType,
+        })
+        .onConflictDoNothing()
+        .returning({ id: planNotificationEvents.id });
+
+      return { expired: true, notificationCreated: trialNotificationResult.length > 0 };
+    }
+
+    if (!record.planExpiration) {
       return { expired: true, notificationCreated: false };
     }
 
@@ -212,7 +235,7 @@ export async function expireRecurringPlanAfterSubscriptionStopped(
   return Boolean(expiredUser);
 }
 
-async function sendExpirationEmail(params: {
+async function sendPlanExpiredEmail(params: {
   email: string;
   name: string;
   planType: string | null;
@@ -252,6 +275,43 @@ async function sendExpirationEmail(params: {
   }
 }
 
+// Template proprio, separado do de plano pago vencido: quem terminou o
+// teste gratuito nunca pagou, entao "regularizar" nao se aplica — o
+// call-to-action aqui e conhecer os planos, nao renovar um pagamento.
+async function sendTrialExpiredEmail(params: { email: string; name: string }): Promise<void> {
+  const serviceId = process.env['EMAILJS_SERVICE_ID'];
+  const templateId = process.env['EMAILJS_TEMPLATE_TRIAL_ID'];
+  const userId = process.env['EMAILJS_USER_ID'];
+
+  if (!serviceId || !templateId || !userId) {
+    throw new Error('Email service not configured');
+  }
+
+  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: frontendUrl(),
+    },
+    body: JSON.stringify({
+      service_id: serviceId,
+      template_id: templateId,
+      user_id: userId,
+      template_params: {
+        to_email: params.email,
+        to_name: params.name,
+        assunto: 'Seu período de teste terminou',
+        link_planos: `${frontendUrl()}/app.html?planos=1`,
+        sistema_nome: 'FINGERENCE',
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`EmailJS returned status ${response.status}`);
+  }
+}
+
 async function dispatchPendingPlanNotifications(): Promise<{
   sent: number;
   failed: number;
@@ -260,6 +320,7 @@ async function dispatchPendingPlanNotifications(): Promise<{
   const pendingEvents = await db
     .select({
       id: planNotificationEvents.id,
+      eventType: planNotificationEvents.eventType,
       attempts: planNotificationEvents.attempts,
       planType: planNotificationEvents.planType,
       userId: users.id,
@@ -315,7 +376,11 @@ async function dispatchPendingPlanNotifications(): Promise<{
     }
 
     try {
-      await sendExpirationEmail({ email: event.email, name: event.name, planType: event.planType });
+      if (event.eventType === PLAN_NOTIFICATION_EVENT.trialExpired) {
+        await sendTrialExpiredEmail({ email: event.email, name: event.name });
+      } else {
+        await sendPlanExpiredEmail({ email: event.email, name: event.name, planType: event.planType });
+      }
       await db
         .update(planNotificationEvents)
         .set({ status: 'sent', sentAt: new Date(), updatedAt: new Date() })
