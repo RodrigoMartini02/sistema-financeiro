@@ -31,6 +31,7 @@ export interface RegisterInput {
   nomeFantasia?: string;
   telefone?: string;
   dataNascimento?: string;
+  dataAbertura?: string;
 }
 
 export async function register(input: RegisterInput): Promise<LoginPayload> {
@@ -45,6 +46,7 @@ export async function register(input: RegisterInput): Promise<LoginPayload> {
       nome_fantasia: input.nomeFantasia || undefined,
       telefone: input.telefone || undefined,
       data_nascimento: input.dataNascimento || undefined,
+      data_abertura: input.dataAbertura || undefined,
     }),
   });
 }

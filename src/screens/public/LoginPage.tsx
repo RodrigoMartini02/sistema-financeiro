@@ -134,6 +134,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
         nomeFantasia: (fd.get('nome_fantasia') as string) || undefined,
         telefone: (fd.get('telefone') as string) || undefined,
         dataNascimento: (fd.get('data_nascimento') as string) || undefined,
+        dataAbertura: (fd.get('data_abertura') as string) || undefined,
       });
       saveSession(token, usuario);
     } catch (err) {
@@ -278,6 +279,11 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
             {isRegisterCnpj && (
               <Field label="Nome fantasia da empresa">
                 <Input name="nome_fantasia" required placeholder="Ex: ABC Stores" />
+              </Field>
+            )}
+            {isRegisterCnpj && (
+              <Field label="Data de abertura da empresa">
+                <Input name="data_abertura" type="date" />
               </Field>
             )}
             {!isRegisterCnpj && (
