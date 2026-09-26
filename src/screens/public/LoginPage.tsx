@@ -6,8 +6,9 @@ import {
 } from '../../services/authService';
 import { consumeAuthOrigin } from '../../services/session';
 import { Button } from '../../ui/button';
-import { Field, Input, PasswordInput } from '../../ui/form';
+import { Field, Input, PasswordInput, ToggleGroup } from '../../ui/form';
 import { TermosModal } from './TermosModal';
+import { formatDocumento } from '../../utils/document';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
 
@@ -62,8 +63,16 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
   const [verifiedCode, setVerifiedCode] = useState('');
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [modalTermos, setModalTermos] = useState<'termos' | 'privacidade' | null>(null);
+  const [registerTipo, setRegisterTipo] = useState<'pessoal' | 'empresa'>('pessoal');
   const [registerDocumento, setRegisterDocumento] = useState('');
-  const isRegisterCnpj = registerDocumento.replace(/\D/g, '').length > 11;
+  const isRegisterCnpj = registerTipo === 'empresa';
+
+  // Trocar PF↔PJ reformata o que já foi digitado (CPF tem 11 dígitos, CNPJ
+  // 14 — o excedente é descartado pelo próprio formatador).
+  const handleRegisterTipoChange = (novoTipo: 'pessoal' | 'empresa') => {
+    setRegisterTipo(novoTipo);
+    setRegisterDocumento((atual) => formatDocumento(atual, novoTipo));
+  };
 
   // Handle Google OAuth callback (code in URL)
   useEffect(() => {
@@ -244,16 +253,26 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
       {mode === 'register' && (
         <div className="mt-4 grid gap-3">
           <form className="grid gap-3" onSubmit={handleRegister}>
+            <ToggleGroup
+              value={registerTipo}
+              onChange={(v) => handleRegisterTipoChange(v as 'pessoal' | 'empresa')}
+              options={[
+                { value: 'pessoal', label: 'Pessoa Física' },
+                { value: 'empresa', label: 'Pessoa Jurídica' },
+              ]}
+            />
             <Field label="Nome"><Input name="nome" required /></Field>
             {!isRegisterCnpj && (
               <Field label="Sobrenome"><Input name="sobrenome" /></Field>
             )}
-            <Field label="CPF ou CNPJ">
+            <Field label={isRegisterCnpj ? 'CNPJ' : 'CPF'}>
               <Input
                 name="documento"
                 required
+                inputMode="numeric"
+                maxLength={18}
                 value={registerDocumento}
-                onChange={(e) => setRegisterDocumento(e.target.value)}
+                onChange={(e) => setRegisterDocumento(formatDocumento(e.target.value, registerTipo))}
               />
             </Field>
             {isRegisterCnpj && (
