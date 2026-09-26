@@ -57,10 +57,6 @@ function trialCycleReference(userId: number): string {
   return `trial-expiration:${userId}`;
 }
 
-function planLabel(planType: string | null): string {
-  return planType === 'anual' ? 'Premium' : 'Plus';
-}
-
 function frontendUrl(): string {
   return process.env['FRONTEND_URL'] ?? 'https://fin-gerence.com.br';
 }
@@ -235,11 +231,11 @@ export async function expireRecurringPlanAfterSubscriptionStopped(
   return Boolean(expiredUser);
 }
 
-async function sendPlanExpiredEmail(params: {
-  email: string;
-  name: string;
-  planType: string | null;
-}): Promise<void> {
+// Um so template para os dois motivos de bloqueio (plano pago vencido e
+// teste gratuito encerrado) — conta gratuita do EmailJS limita a 2
+// templates no total. Texto generico o bastante para servir aos dois casos,
+// sem mencionar "regularizar pagamento" (nao se aplica a quem nunca pagou).
+async function sendAccessSuspendedEmail(params: { email: string; name: string }): Promise<void> {
   const serviceId = process.env['EMAILJS_SERVICE_ID'];
   const templateId = process.env['EMAILJS_TEMPLATE_COBRANCA_ID'];
   const userId = process.env['EMAILJS_USER_ID'];
@@ -261,46 +257,7 @@ async function sendPlanExpiredEmail(params: {
       template_params: {
         to_email: params.email,
         to_name: params.name,
-        assunto: 'Seu plano venceu - regularize para continuar usando',
-        dias_restantes: 0,
-        tipo_plano: planLabel(params.planType),
-        link_renovacao: `${frontendUrl()}/app.html?planos=1`,
-        sistema_nome: 'FINGERENCE',
-      },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`EmailJS returned status ${response.status}`);
-  }
-}
-
-// Template proprio, separado do de plano pago vencido: quem terminou o
-// teste gratuito nunca pagou, entao "regularizar" nao se aplica — o
-// call-to-action aqui e conhecer os planos, nao renovar um pagamento.
-async function sendTrialExpiredEmail(params: { email: string; name: string }): Promise<void> {
-  const serviceId = process.env['EMAILJS_SERVICE_ID'];
-  const templateId = process.env['EMAILJS_TEMPLATE_TRIAL_ID'];
-  const userId = process.env['EMAILJS_USER_ID'];
-
-  if (!serviceId || !templateId || !userId) {
-    throw new Error('Email service not configured');
-  }
-
-  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Origin: frontendUrl(),
-    },
-    body: JSON.stringify({
-      service_id: serviceId,
-      template_id: templateId,
-      user_id: userId,
-      template_params: {
-        to_email: params.email,
-        to_name: params.name,
-        assunto: 'Seu período de teste terminou',
+        assunto: 'Seu acesso foi suspenso',
         link_planos: `${frontendUrl()}/app.html?planos=1`,
         sistema_nome: 'FINGERENCE',
       },
@@ -320,9 +277,7 @@ async function dispatchPendingPlanNotifications(): Promise<{
   const pendingEvents = await db
     .select({
       id: planNotificationEvents.id,
-      eventType: planNotificationEvents.eventType,
       attempts: planNotificationEvents.attempts,
-      planType: planNotificationEvents.planType,
       userId: users.id,
       name: users.name,
       email: users.email,
@@ -376,11 +331,7 @@ async function dispatchPendingPlanNotifications(): Promise<{
     }
 
     try {
-      if (event.eventType === PLAN_NOTIFICATION_EVENT.trialExpired) {
-        await sendTrialExpiredEmail({ email: event.email, name: event.name });
-      } else {
-        await sendPlanExpiredEmail({ email: event.email, name: event.name, planType: event.planType });
-      }
+      await sendAccessSuspendedEmail({ email: event.email, name: event.name });
       await db
         .update(planNotificationEvents)
         .set({ status: 'sent', sentAt: new Date(), updatedAt: new Date() })
