@@ -60,7 +60,7 @@ export async function fetchContas(incluirInativos = false): Promise<Conta[]> {
 export async function saveConta(values: {
   tipo: 'pessoal' | 'empresa'; nome: string; documento?: string;
   razao_social?: string; nome_fantasia?: string; atividade?: string;
-  enquadramento?: string;
+  enquadramento?: string; data_abertura?: string;
 }, id?: number): Promise<Conta> {
   const r = await apiRequest<{ success: boolean; data: Conta }>(
     id ? `/contas/${id}` : '/contas',

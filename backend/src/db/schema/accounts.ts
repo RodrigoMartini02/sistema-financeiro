@@ -6,6 +6,7 @@ import {
   boolean,
   decimal,
   timestamp,
+  date,
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
@@ -34,6 +35,7 @@ export const accounts = pgTable(
     initialContribution: decimal('aporte_inicial', { precision: 12, scale: 2 }),
     enquadramento: varchar('enquadramento', { length: 10 })
       .$type<'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA'>(),
+    openingDate: date('data_abertura'),
     createdAt: timestamp('data_criacao').defaultNow(),
   },
   (table) => ({

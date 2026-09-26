@@ -153,8 +153,10 @@ router.post(
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { nome, sobrenome, email, documento, senha, tipo, google_id, pais, estado, cidade, nome_fantasia, telefone, data_nascimento } =
-        req.body as Record<string, string | undefined>;
+      const {
+        nome, sobrenome, email, documento, senha, tipo, google_id, pais, estado, cidade,
+        nome_fantasia, telefone, data_nascimento, data_abertura,
+      } = req.body as Record<string, string | undefined>;
 
       const cleanDoc = documento!.replace(/[^\d]+/g, '');
       const isCnpj = cleanDoc.length === 14;
@@ -212,6 +214,7 @@ router.post(
             name: nome_fantasia!.trim(),
             document: cleanDoc,
             tradeName: nome_fantasia!.trim(),
+            openingDate: data_abertura ?? null,
             active: true,
             isDefault: true,
           });

@@ -397,7 +397,7 @@ function ContaDialog({
   onClose: () => void;
   onSave: (v: {
     tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string;
-    nome_fantasia?: string; atividade?: string; enquadramento?: string; novaSenha?: string;
+    nome_fantasia?: string; atividade?: string; enquadramento?: string; data_abertura?: string; novaSenha?: string;
     meNome?: string; meSobrenome?: string; meEmail?: string; meDocumento?: string;
     meTelefone?: string; meDataNascimento?: string;
   }) => void;
@@ -461,6 +461,7 @@ function ContaDialog({
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
       atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
       enquadramento: tipo === 'empresa' && enquadramento ? enquadramento : undefined,
+      data_abertura: tipo === 'empresa' ? ((fd.get('data_abertura') as string) || undefined) : undefined,
       ...(me ? {
         meNome: (fd.get('me_nome') as string || '').trim(),
         meSobrenome: (fd.get('me_sobrenome') as string || '').trim() || undefined,
@@ -631,6 +632,16 @@ function ContaDialog({
                     onSilenceAll={enquadramentoGuide.silenceAll}
                   />
                 )}
+              </div>
+
+              <div>
+                <label style={labelStyle}>Data de abertura</label>
+                <input
+                  name="data_abertura"
+                  type="date"
+                  defaultValue={conta?.data_abertura?.slice(0, 10) ?? ''}
+                  style={fieldInputStyle}
+                />
               </div>
 
               {isNew && enquadramento && <CategoryPreview enquadramento={enquadramento} />}

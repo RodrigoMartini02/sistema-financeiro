@@ -24,7 +24,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       const contaId = (membership.rows[0] as { conta_id: number }).conta_id;
       const result = await pool.query(
         `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
-                ativo, eh_padrao, data_criacao
+                data_abertura, ativo, eh_padrao, data_criacao
          FROM contas WHERE id = $1`,
         [contaId],
       );
@@ -34,7 +34,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 
     const result = await pool.query(
       `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
-              ativo, eh_padrao, data_criacao
+              data_abertura, ativo, eh_padrao, data_criacao
        FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY data_criacao, id`,
       [req.user!.id],
     );
@@ -50,7 +50,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // fluxo "Novo membro" (account-members), não de uma segunda conta própria.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
+    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, data_abertura } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -76,6 +76,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         activity: atividade ?? null,
         initialContribution: aporte_inicial ?? null,
         enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
+        openingDate: data_abertura ?? null,
         active: true,
       })
       .returning();
@@ -93,7 +94,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const accountId = parseInt(req.params['id']!);
-    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento } =
+    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, data_abertura } =
       req.body as Record<string, string | undefined>;
 
     if (!nome?.trim()) {
@@ -129,6 +130,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
           activity: atividade ?? null,
           initialContribution: aporte_inicial ?? null,
           enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
+          openingDate: data_abertura ?? null,
         })
         .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
         .returning();
