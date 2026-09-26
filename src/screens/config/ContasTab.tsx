@@ -453,9 +453,15 @@ function ContaDialog({
     const nomeFantasia = tipo === 'empresa' ? (fd.get('nome_fantasia') as string || '') : '';
     const razaoSocial = tipo === 'empresa' ? (fd.get('razao_social') as string || '') : '';
     const novaSenha = (fd.get('nova_senha') as string || '').trim();
+    // Conta pessoal nunca teve (nem pode ter) um nome proprio, diferente do
+    // titular: toda conta tipo='pessoal' e sempre a conta padrao dele. O
+    // nome exibido em listas/seletor e sempre derivado de Nome+Sobrenome,
+    // igual PJ ja deriva do Nome fantasia — nunca digitado a parte.
+    const nomePessoal = [fd.get('me_nome') as string, fd.get('me_sobrenome') as string]
+      .filter(Boolean).join(' ').trim();
     onSave({
       tipo,
-      nome: tipo === 'empresa' ? (nomeFantasia || razaoSocial || 'Empresa') : (fd.get('nome') as string),
+      nome: tipo === 'empresa' ? (nomeFantasia || razaoSocial || 'Empresa') : nomePessoal,
       documento: documento.trim() || undefined,
       razao_social: tipo === 'empresa' ? (razaoSocial || undefined) : undefined,
       nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
@@ -477,10 +483,10 @@ function ContaDialog({
   return (
     <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
-        {/* Altura fixa: editar conta PF pré-existente ainda usa os campos PF
-            (Nome da conta/CPF), e a criação PJ mostra o preview de
-            categorias — o overflow do container absorve a diferença. Cresce
-            quando a seção de dados pessoais do titular (`me`) está presente. */}
+        {/* Altura fixa: editar conta PF pré-existente ainda usa o campo CPF,
+            e a criação PJ mostra o preview de categorias — o overflow do
+            container absorve a diferença. Cresce quando a seção de dados
+            pessoais do titular (`me`) está presente. */}
         <div style={{ flex: 1, minHeight: 0, height: me ? 560 : 284, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {me && (
@@ -579,13 +585,6 @@ function ContaDialog({
                 <label style={labelStyle}><span>Nome fantasia</span><span style={{ color: C.danger }}>*</span></label>
                 <input name="nome_fantasia" defaultValue={conta?.nome_fantasia ?? conta?.nome ?? ''} placeholder="Ex: ABC Stores" autoFocus required style={fieldInputStyle} />
               </div>
-            </div>
-          )}
-
-          {tipo === 'pessoal' && (
-            <div>
-              <label style={labelStyle}><span>Nome da conta</span><span style={{ color: C.danger }}>*</span></label>
-              <input name="nome" defaultValue={conta?.nome} placeholder="Ex: Pessoal" autoFocus required style={fieldInputStyle} />
             </div>
           )}
 

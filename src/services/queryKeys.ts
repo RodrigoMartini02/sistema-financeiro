@@ -74,6 +74,7 @@ export const queryKeys = {
   aiIntegrations: ['ai-integrations'] as const,
   assistantFlow: ['assistant-flow'] as const,
   assistantAbertura: ['assistant-abertura'] as const,
+  assistantUltimosLancamentos: (accountId?: number | null) => ['assistant-ultimos-lancamentos', accountId ?? 'ativa'] as const,
   // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so
   // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>

@@ -14,6 +14,8 @@ import {
   type AssistantIntentHint,
 } from '../services/financialCopilot';
 import { parseSlotSessionState } from '../services/assistantSlotSession';
+import { resolveFinancialAccount } from '../services/budgetService';
+import { ultimosLancamentos } from '../services/assistantQueries';
 
 const router = Router();
 
@@ -131,6 +133,18 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
     }
     console.error('Financial copilot chat failed:', (error as Error).message);
     res.status(500).json({ success: false, message: 'Não foi possível responder agora.' });
+  }
+});
+
+router.get('/ultimos-lancamentos', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query as Record<string, unknown>;
+    const account = await resolveFinancialAccount(req.user!.id, asOptionalPositiveInteger(query['conta_id']) ?? null);
+    const resultado = await ultimosLancamentos({ userId: req.user!.id, account });
+    res.json({ success: true, data: resultado });
+  } catch (error) {
+    console.error('Ultimos lancamentos failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Não foi possível carregar os últimos lançamentos.' });
   }
 });
 

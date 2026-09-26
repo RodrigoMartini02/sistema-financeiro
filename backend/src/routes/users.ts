@@ -23,7 +23,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
     // usuarios.nome sem o usuario pedir).
     const result = await pool.query(
       `SELECT u.id, u.nome, u.sobrenome, u.email, u.documento, u.pais, u.estado, u.cidade,
-              u.telefone, u.data_nascimento, u.tipo, u.status,
+              u.telefone, u.data_nascimento, u.tipo, u.status, u.foto,
               u.plano_status, u.plano_tipo, u.plano_expiracao, u.data_cadastro,
               COALESCE(c.nome, u.nome) AS "nomeExibicao"
        FROM usuarios u
