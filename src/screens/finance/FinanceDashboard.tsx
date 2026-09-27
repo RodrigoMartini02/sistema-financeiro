@@ -172,7 +172,7 @@ export function FinanceDashboard() {
           {mostrarPessoas && (
             <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} termoPlural={termos.plural} />
           )}
-          <JurosDescontos valores={dados.jurosDescontos} ano={periodo.ate.slice(0, 4)} />
+          <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={periodo.ate.slice(0, 4)} />
           <MonthCategoriesOverview
             porCategoria={dados.categorias}
             periodLabel={descreverPeriodo(periodo)}
