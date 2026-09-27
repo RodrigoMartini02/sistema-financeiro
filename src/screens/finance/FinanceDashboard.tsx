@@ -365,19 +365,10 @@ export function FinanceDashboard() {
 
   return (
     <div className="grid gap-[18px]">
-      {/* Header: o filtro fica alinhado à direita, na mesma linha da descrição
-          do período e sem moldura própria — é o mesmo assunto, não um bloco à
-          parte. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-          <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          {/* Linha própria abaixo do título: período e filtro sanduíche
-              (Visão + Membros), ambos alinhados à direita. */}
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
-            <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
-            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="m-0 mr-auto text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
+        <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+        <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
         {guide.isVisible && hasNoEntries && visao === 'conta' && (
           <div className="relative">
             <FirstAccessGuideCard
