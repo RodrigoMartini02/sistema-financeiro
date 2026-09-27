@@ -10,6 +10,9 @@ export interface FilterGroupOption {
    *  do pai em vez de uma opção solta. Opções sem filhos e sem `parentValue`
    *  continuam soltas, como sempre foram. */
   parentValue?: string;
+  /** Opção visível mas não selecionável (ex.: sem permissão) — `hint` explica o motivo. */
+  disabled?: boolean;
+  hint?: string;
 }
 
 export interface FilterGroup {
@@ -182,14 +185,20 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
                         {loose.map((opt) => (
                           <label
                             key={opt.value}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
+                            title={opt.hint}
+                            className={[
+                              'flex items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-slate-700 dark:text-slate-200',
+                              opt.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700',
+                            ].join(' ')}
                           >
                             <input
                               type="checkbox"
                               checked={group.selected.has(opt.value)}
+                              disabled={opt.disabled}
                               onChange={() => toggleOption(group, opt.value)}
                             />
                             {opt.label}
+                            {opt.hint && <span className="ml-auto text-[10.5px] text-slate-400">{opt.hint}</span>}
                           </label>
                         ))}
                         {parents.map((parent) => {

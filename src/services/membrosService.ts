@@ -1,4 +1,5 @@
 import { apiRequest, getApiUrl } from './apiClient';
+import type { PainelPeriodo } from '../types/finance';
 
 export interface MembroListItem {
   membro_id: number;
@@ -35,20 +36,6 @@ export interface PendingExpense {
   recurring: boolean;
   finalAmount: string | null;
   dueDate: string;
-}
-
-export interface AccountSummary {
-  despesas_por_autor: { usuario_id: number; total: string }[];
-  receitas_por_autor: { usuario_id: number; total: string }[];
-  /** Despesa de cada membro dentro de cada categoria — alimenta as barras divididas. */
-  despesas_por_autor_categoria: {
-    usuario_id: number;
-    categoria_id: number | null;
-    categoria_nome: string;
-    total: string;
-  }[];
-  /** Nome de cada autor: os graficos rotulam por nome, nao por id. */
-  membros: { usuario_id: number; nome: string }[];
 }
 
 // contaId opcional: sem ele, o backend usa a Conta Padrão do gestor (mesmo
@@ -151,30 +138,6 @@ export async function deactivateMembro(usuarioId: number, transferirPara?: numbe
   return payload.data as DeactivateMembroResult;
 }
 
-export interface AccountSummaryPeriod {
-  deMes?: number;
-  deAno?: number;
-  ateMes?: number;
-  ateAno?: number;
-  /** Sem valor = só o próprio usuário. `'familia'` = compara todos os membros. */
-  escopo?: 'familia';
-}
-
-/**
- * O painel filtra por intervalo, entao o summary recebe de/ate. Os parametros
- * mes/ano continuam aceitos pelo backend para quem chamava por mes unico.
- */
-export async function fetchAccountSummary(period: AccountSummaryPeriod = {}): Promise<AccountSummary> {
-  const q = new URLSearchParams();
-  if (period.deMes !== undefined) q.set('de_mes', String(period.deMes));
-  if (period.deAno !== undefined) q.set('de_ano', String(period.deAno));
-  if (period.ateMes !== undefined) q.set('ate_mes', String(period.ateMes));
-  if (period.ateAno !== undefined) q.set('ate_ano', String(period.ateAno));
-  if (period.escopo) q.set('escopo', period.escopo);
-  const suffix = q.toString() ? `?${q}` : '';
-  return apiRequest<AccountSummary>(`/account-members/summary${suffix}`);
-}
-
 export interface AccountsOverviewConta {
   id: number;
   tipo: 'pessoal' | 'empresa';
@@ -189,13 +152,11 @@ export interface AccountsOverview {
   receitas_por_conta: { conta_id: number; total: string }[];
 }
 
-/** Panorama Geral: agrega receitas/despesas de todas as contas do dono (PF + PJs). */
-export async function fetchAccountsOverview(period: AccountSummaryPeriod = {}): Promise<AccountsOverview> {
-  const q = new URLSearchParams();
-  if (period.deMes !== undefined) q.set('de_mes', String(period.deMes));
-  if (period.deAno !== undefined) q.set('de_ano', String(period.deAno));
-  if (period.ateMes !== undefined) q.set('ate_mes', String(period.ateMes));
-  if (period.ateAno !== undefined) q.set('ate_ano', String(period.ateAno));
-  const suffix = q.toString() ? `?${q}` : '';
-  return apiRequest<AccountsOverview>(`/account-members/overview${suffix}`);
+/**
+ * Todas as contas do dono (PF + PJs) no mesmo período do Painel: despesa pelo
+ * vencimento, receita pelo recebimento.
+ */
+export async function fetchAccountsOverview(periodo: PainelPeriodo): Promise<AccountsOverview> {
+  const q = new URLSearchParams({ de: periodo.de, ate: periodo.ate });
+  return apiRequest<AccountsOverview>(`/account-members/overview?${q}`);
 }

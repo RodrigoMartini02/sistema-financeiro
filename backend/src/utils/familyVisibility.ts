@@ -1,17 +1,16 @@
 import { pool } from '../db/client';
+import { podeAcessarCarteiraDeOutros } from './carteiraAcesso';
 
 /**
  * Resolve quais usuários um solicitante pode enxergar numa conta.
  *
- * Regra: em conta PESSOAL, o titular e os membros vinculados PODEM
- * compartilhar a mesma carteira — desde que o solicitante tenha a permissão
- * `acesso_lancamentos_familia` E peça explicitamente a visão ampliada
- * (parâmetro `expandir`). Por padrão, mesmo com a permissão, cada um vê
- * apenas o que cadastrou — a permissão habilita o pedido, não liga a
+ * Regra, igual em conta pessoal e conta empresa: o dono e as pessoas
+ * vinculadas (membros da família ou colaboradores) PODEM compartilhar a mesma
+ * carteira. O dono sempre pode; quem não é dono precisa da permissão
+ * `acesso_lancamentos_familia`. Em ambos os casos a visão só amplia quando o
+ * solicitante pede explicitamente (parâmetro `expandir`) — por padrão cada um
+ * vê apenas o que cadastrou; a permissão habilita o pedido, não liga a
  * expansão sozinha.
- *
- * Conta EMPRESA nunca compartilha: colaboradores seguem isolados. Membros
- * da família só existem em conta pessoal.
  *
  * Retorna sempre uma lista que contém pelo menos o próprio solicitante — em
  * nenhum caminho de erro ela volta vazia ou aberta, para que uma falha aqui
@@ -44,36 +43,38 @@ async function resolveByScope(
   if (!accountId) return sozinho;
 
   const conta = await pool.query(
-    `SELECT tipo, usuario_id FROM contas WHERE id = $1`,
+    `SELECT usuario_id FROM contas WHERE id = $1`,
     [accountId],
   );
-  const row = conta.rows[0] as { tipo: string; usuario_id: number } | undefined;
-  if (!row || row.tipo !== 'pessoal') return sozinho;
+  const row = conta.rows[0] as { usuario_id: number } | undefined;
+  if (!row) return sozinho;
 
-  // O solicitante precisa pertencer à conta: ou é o dono, ou é membro ativo.
-  // Sem esta checagem, informar um conta_id alheio abriria a carteira de outro
-  // usuário.
+  // O solicitante precisa pertencer à conta: ou é o dono, ou tem vínculo
+  // ativo. Sem esta checagem, informar um conta_id alheio abriria a carteira
+  // de outro usuário. Quem não é dono depende da permissão liberada pelo dono.
   const dono = row.usuario_id;
-  if (requesterId !== dono) {
+  const ehDono = requesterId === dono;
+  let vinculoAtivo = false;
+  let permissaoLiberada = false;
+  if (!ehDono) {
     const vinculo = await pool.query(
       `SELECT 1 FROM conta_membros
         WHERE conta_id = $1 AND usuario_id = $2 AND status = 'ativo' LIMIT 1`,
       [accountId, requesterId],
     );
-    if (vinculo.rows.length === 0) return sozinho;
+    vinculoAtivo = vinculo.rows.length > 0;
+
+    if (vinculoAtivo) {
+      // O nome da coluna vem do tipo FamilyScope, nunca de entrada do usuario.
+      const perm = await pool.query(
+        `SELECT ${scope} AS liberado FROM membro_permissoes WHERE usuario_id = $1`,
+        [requesterId],
+      );
+      permissaoLiberada = (perm.rows[0] as { liberado: boolean } | undefined)?.liberado === true;
+    }
   }
 
-  // O dono da conta sempre enxerga a carteira inteira; o membro depende da
-  // permissão que o gestor liberou.
-  if (requesterId !== dono) {
-    // O nome da coluna vem do tipo FamilyScope, nunca de entrada do usuario.
-    const perm = await pool.query(
-      `SELECT ${scope} AS liberado FROM membro_permissoes WHERE usuario_id = $1`,
-      [requesterId],
-    );
-    const liberado = (perm.rows[0] as { liberado: boolean } | undefined)?.liberado;
-    if (!liberado) return sozinho;
-  }
+  if (!podeAcessarCarteiraDeOutros({ ehDono, vinculoAtivo, permissaoLiberada })) return sozinho;
 
   const membros = await pool.query(
     `SELECT usuario_id FROM conta_membros WHERE conta_id = $1 AND status = 'ativo'`,
@@ -152,32 +153,39 @@ export function resolveVisibleCardOwnerIds(
 
 /**
  * Diz se o solicitante pode alterar ou excluir um lançamento de outra pessoa
- * na mesma conta. O próprio autor sempre pode mexer no que é dele — isso é
- * verificado por quem chama, comparando o `usuario_id` do registro.
+ * na mesma conta (pessoal ou empresa). O próprio autor sempre pode mexer no
+ * que é dele — isso é verificado por quem chama, comparando o `usuario_id` do
+ * registro.
  */
 export async function canEditOthersEntries(requesterId: number, accountId: number | null): Promise<boolean> {
   if (!accountId) return false;
 
-  const conta = await pool.query(`SELECT tipo, usuario_id FROM contas WHERE id = $1`, [accountId]);
-  const row = conta.rows[0] as { tipo: string; usuario_id: number } | undefined;
-  if (!row || row.tipo !== 'pessoal') return false;
+  const conta = await pool.query(`SELECT usuario_id FROM contas WHERE id = $1`, [accountId]);
+  const row = conta.rows[0] as { usuario_id: number } | undefined;
+  if (!row) return false;
 
-  // Dono da conta edita o que quiser dentro dela.
-  if (requesterId === row.usuario_id) return true;
+  const ehDono = requesterId === row.usuario_id;
+  let vinculoAtivo = false;
+  let permissaoLiberada = false;
+  if (!ehDono) {
+    const vinculo = await pool.query(
+      `SELECT 1 FROM conta_membros
+        WHERE conta_id = $1 AND usuario_id = $2 AND status = 'ativo' LIMIT 1`,
+      [accountId, requesterId],
+    );
+    vinculoAtivo = vinculo.rows.length > 0;
 
-  const vinculo = await pool.query(
-    `SELECT 1 FROM conta_membros
-      WHERE conta_id = $1 AND usuario_id = $2 AND status = 'ativo' LIMIT 1`,
-    [accountId, requesterId],
-  );
-  if (vinculo.rows.length === 0) return false;
+    if (vinculoAtivo) {
+      const perm = await pool.query(
+        `SELECT editar_lancamentos_familia FROM membro_permissoes WHERE usuario_id = $1`,
+        [requesterId],
+      );
+      permissaoLiberada = (perm.rows[0] as { editar_lancamentos_familia: boolean } | undefined)
+        ?.editar_lancamentos_familia === true;
+    }
+  }
 
-  const perm = await pool.query(
-    `SELECT editar_lancamentos_familia FROM membro_permissoes WHERE usuario_id = $1`,
-    [requesterId],
-  );
-  return (perm.rows[0] as { editar_lancamentos_familia: boolean } | undefined)
-    ?.editar_lancamentos_familia === true;
+  return podeAcessarCarteiraDeOutros({ ehDono, vinculoAtivo, permissaoLiberada });
 }
 
 /**
@@ -204,7 +212,7 @@ export async function resolveOwnerForWrite(
   if (row.usuario_id === requesterId) return requesterId;
 
   // Registro de outra pessoa: so passa com a permissao de editar a carteira
-  // da familia, e apenas dentro da mesma conta pessoal.
+  // compartilhada, e apenas dentro da mesma conta.
   const pode = await canEditOthersEntries(requesterId, row.conta_id);
   return pode ? row.usuario_id : null;
 }

@@ -1,7 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
-  Attachment, DashboardPanoramaData, DashboardPanoramaFiltro, Expense, ExpenseFormValues, FinanceDashboardData,
-  Income, IncomeFormValues, MonthBalance,
+  Attachment, Expense, ExpenseFormValues, FinanceDashboardData,
+  Income, IncomeFormValues, MonthBalance, PainelData, PainelFiltro,
 } from '../types/finance';
 
 interface RawIncome {
@@ -278,161 +278,18 @@ export async function faturarContrato(contratoId: number, mes: number, ano: numb
   });
 }
 
-export interface DashboardAnualMes {
-  mes: number;
-  receitas: number;
-  despesas: number;
-  saldo_final: number;
-  receitas_previstas: number;
-}
 
-export interface ParcelaFutura {
-  mes: number;
-  ano: number;
-  pagas: number;
-  emAberto: number;
-}
-
-/** Parcelas de todos os 12 meses de `ano`, separadas entre pagas e em aberto. */
-export async function fetchParcelasFuturas(
-  ano: number,
-  membroId?: number | number[] | null,
-): Promise<ParcelaFutura[]> {
-  const q = new URLSearchParams({ ano: String(ano) });
-  // Mesmo contrato de fetchDashboardPanorama: ausente = so eu, null =
-  // familia inteira, lista = exatamente esses membros.
-  if (membroId === null) q.set('membro_id', 'familia');
-  else if (Array.isArray(membroId)) {
-    for (const id of membroId) q.append('membro_id', String(id));
-  } else if (membroId !== undefined) q.set('membro_id', String(membroId));
-  appendProfile(q);
-  const rows = await apiRequest<Array<{ mes: string | number; ano: string | number; pagas: string | number; em_aberto: string | number }>>(
-    `/despesas/parcelas-futuras?${q}`,
-  );
-  return rows.map((r) => ({
-    mes: Number(r.mes),
-    ano: Number(r.ano),
-    pagas: asNumber(r.pagas),
-    emAberto: asNumber(r.em_aberto),
-  }));
-}
-
-export async function fetchDashboardAnual(ano: number): Promise<DashboardAnualMes[]> {
-  const q = new URLSearchParams({ ano: String(ano) });
-  appendProfile(q);
-  const rows = await apiRequest<Array<{
-    mes: string | number;
-    receitas: string | number;
-    despesas: string | number;
-    saldo_final: string | number;
-    receitas_previstas: string | number;
-  }>>(`/financial/anual?${q}`);
-  return rows.map((r) => ({
-    mes: Number(r.mes),
-    receitas: asNumber(r.receitas),
-    despesas: asNumber(r.despesas),
-    saldo_final: asNumber(r.saldo_final),
-    receitas_previstas: asNumber(r.receitas_previstas),
-  }));
-}
-
-export async function fetchDashboardPanorama(filtro: DashboardPanoramaFiltro): Promise<DashboardPanoramaData> {
-  const q = new URLSearchParams();
-  if (filtro.deMes !== undefined) q.set('de_mes', String(filtro.deMes));
-  if (filtro.deAno !== undefined) q.set('de_ano', String(filtro.deAno));
-  if (filtro.ateMes !== undefined) q.set('ate_mes', String(filtro.ateMes));
-  if (filtro.ateAno !== undefined) q.set('ate_ano', String(filtro.ateAno));
-  // Ausente = so o proprio usuario (padrao). null = familia inteira,
-  // escolhida explicitamente. Um id = so aquele membro. Lista = combinacao
-  // especifica (membro_id repetido na query string).
+/**
+ * Painel financeiro de um período (datas ISO inclusivas). `membroId`:
+ * ausente = só o próprio usuário; null = todas as pessoas visíveis; lista =
+ * exatamente essas pessoas (membro_id repetido na query string).
+ */
+export async function fetchPainel(filtro: PainelFiltro): Promise<PainelData> {
+  const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
   if (filtro.membroId === null) q.set('membro_id', 'familia');
-  else if (Array.isArray(filtro.membroId)) {
+  else if (filtro.membroId) {
     for (const id of filtro.membroId) q.append('membro_id', String(id));
-  } else if (filtro.membroId !== undefined) q.set('membro_id', String(filtro.membroId));
+  }
   appendProfile(q);
-  const suffix = q.toString() ? `?${q}` : '';
-  const raw = await apiRequest<{
-    receitas: string | number; despesas: string | number;
-    saldoAnterior: string | number; saldoFinal: string | number;
-    totalLancamentos: string | number;
-    primeiraData: string | null; ultimaData: string | null;
-    porCategoria: Array<{
-      categoria_id: number | string | null; categoria: string; parent_id: number | string | null;
-      usuario_id: number | string | null; autor_nome: string | null; total: string | number;
-    }>;
-    porFormaPagamento: Array<{ forma_pagamento: string; total: string | number }>;
-    porOrigem: Array<{ origem: 'contrato' | 'avulsa'; total: string | number }>;
-    porCartao: Array<{ cartao: string; total: string | number }>;
-    emAberto: {
-      vencido_total: string | number; vencido_quantidade: string | number;
-      a_vencer_total: string | number; a_vencer_quantidade: string | number;
-    };
-    estoqueBaixo?: Array<{
-      id: string; nome: string;
-      quantidade_estoque: string | number; estoque_minimo: string | number;
-    }>;
-    granularidade: 'mes' | 'ano';
-    serie: Array<{ ano: string | number; mes: string | number | null; receitas: string | number; despesas: string | number }>;
-    despesasDetalhe: {
-      juros: string | number; descontos: string | number; fixas: string | number; variaveis: string | number;
-      parceladas: string | number; pagas: string | number; pendentes: string | number;
-    };
-    anoReferencia: string | number;
-    jurosDescontosMensal?: Array<{ mes: string | number; juros: string | number; descontos: string | number }>;
-  }>(`/financial/panorama${suffix}`);
-
-  return {
-    receitas: asNumber(raw.receitas),
-    despesas: asNumber(raw.despesas),
-    saldoAnterior: asNumber(raw.saldoAnterior),
-    saldoFinal: asNumber(raw.saldoFinal),
-    totalLancamentos: asNumber(raw.totalLancamentos),
-    primeiraData: raw.primeiraData,
-    ultimaData: raw.ultimaData,
-    porCategoria: raw.porCategoria.map((c) => ({
-      categoriaId: c.categoria_id != null ? Number(c.categoria_id) : null,
-      categoria: c.categoria,
-      parentId: c.parent_id != null ? Number(c.parent_id) : null,
-      usuarioId: c.usuario_id != null ? Number(c.usuario_id) : null,
-      autorNome: c.autor_nome,
-      total: asNumber(c.total),
-    })),
-    porFormaPagamento: raw.porFormaPagamento.map((f) => ({ forma_pagamento: f.forma_pagamento, total: asNumber(f.total) })),
-    porOrigem: raw.porOrigem.map((o) => ({ origem: o.origem, total: asNumber(o.total) })),
-    porCartao: (raw.porCartao ?? []).map((c) => ({ cartao: c.cartao, total: asNumber(c.total) })),
-    emAberto: {
-      vencidoTotal: asNumber(raw.emAberto?.vencido_total),
-      vencidoQuantidade: asNumber(raw.emAberto?.vencido_quantidade),
-      aVencerTotal: asNumber(raw.emAberto?.a_vencer_total),
-      aVencerQuantidade: asNumber(raw.emAberto?.a_vencer_quantidade),
-    },
-    estoqueBaixo: (raw.estoqueBaixo ?? []).map((p) => ({
-      id: p.id,
-      nome: p.nome,
-      quantidade_estoque: asNumber(p.quantidade_estoque),
-      estoque_minimo: asNumber(p.estoque_minimo),
-    })),
-    granularidade: raw.granularidade,
-    serie: raw.serie.map((s) => ({
-      ano: Number(s.ano),
-      mes: s.mes === null ? null : Number(s.mes),
-      receitas: asNumber(s.receitas),
-      despesas: asNumber(s.despesas),
-    })),
-    despesasDetalhe: {
-      juros: asNumber(raw.despesasDetalhe.juros),
-      descontos: asNumber(raw.despesasDetalhe.descontos),
-      fixas: asNumber(raw.despesasDetalhe.fixas),
-      variaveis: asNumber(raw.despesasDetalhe.variaveis),
-      parceladas: asNumber(raw.despesasDetalhe.parceladas),
-      pagas: asNumber(raw.despesasDetalhe.pagas),
-      pendentes: asNumber(raw.despesasDetalhe.pendentes),
-    },
-    anoReferencia: Number(raw.anoReferencia),
-    jurosDescontosMensal: (raw.jurosDescontosMensal ?? []).map((m) => ({
-      mes: Number(m.mes),
-      juros: asNumber(m.juros),
-      descontos: asNumber(m.descontos),
-    })),
-  };
+  return apiRequest<PainelData>(`/financial/painel?${q}`);
 }

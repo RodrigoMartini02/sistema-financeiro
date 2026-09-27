@@ -7,11 +7,11 @@ import {
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
-// Permissões de acesso a tela de um membro (usuario tipo 'membro' vinculado
-// via conta_membros) dentro da conta do titular. Cada coluna = acesso
-// completo (ver/criar/editar/excluir) a UMA tela/funcionalidade — não há
-// separação de leitura/escrita, nem acesso a lançamentos de outros membros
-// (o membro só mexe nos próprios dados, mesmo com a tela liberada).
+// Permissões de acesso a tela de um membro ou colaborador (vinculado via
+// conta_membros) dentro da conta do titular. Cada coluna = acesso completo
+// (ver/criar/editar/excluir) a UMA tela/funcionalidade — não há separação de
+// leitura/escrita. Lançamentos e cartões de outras pessoas da conta dependem
+// das flags da carteira compartilhada, abaixo.
 // Restritivo por padrão: toda coluna nasce false, e o titular libera
 // explicitamente pela tela de permissões. Uma linha por membro, criada
 // automaticamente na criação dele.
@@ -49,8 +49,8 @@ export const memberPermissions = pgTable('membro_permissoes', {
   accessContracts: boolean('acesso_contratos').notNull().default(false),
   accessProductCatalog: boolean('acesso_catalogo_produtos').notNull().default(false),
 
-  // Carteira compartilhada (somente conta pessoal). Sem estas, o membro ve e
-  // altera apenas o que ele proprio lancou — o comportamento historico.
+  // Carteira compartilhada (conta pessoal e conta empresa). Sem estas, o
+  // membro/colaborador ve e altera apenas o que ele proprio lancou.
   accessFamilyEntries: boolean('acesso_lancamentos_familia').notNull().default(false),
   editFamilyEntries: boolean('editar_lancamentos_familia').notNull().default(false),
   // Ver e usar o cartao de outro membro ao lancar. Separada das flags acima:

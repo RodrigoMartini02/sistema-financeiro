@@ -10,25 +10,6 @@ export interface BalanceBreakdown {
   finalBalance: number;
 }
 
-// Verifica se existe algum lançamento (receita ou despesa) anterior a um
-// (ano, mes), comparando pela mesma chave (ano * 12 + mes) usada em
-// calculateBalanceBreakdown e no endpoint /panorama.
-async function isInicioRealDoHistorico(userId: number, year: number, month: number, accountId: number | null): Promise<boolean> {
-  const { clause, params: extra } = accountWhere(accountId, 3);
-  const chave = year * 12 + month;
-
-  const result = await pool.query(
-    `SELECT EXISTS (
-      SELECT 1 FROM receitas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}
-      UNION ALL
-      SELECT 1 FROM despesas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}
-    ) AS existe`,
-    [userId, chave, ...extra],
-  );
-
-  return (result.rows[0] as { existe: boolean }).existe === false;
-}
-
 export async function fetchAporteInicial(userId: number, accountId: number | null): Promise<number> {
   if (!accountId) return 0;
   const result = await pool.query(
@@ -39,21 +20,16 @@ export async function fetchAporteInicial(userId: number, accountId: number | nul
   return raw ? parseFloat(raw) : 0;
 }
 
-// Saldo acumulado de tudo que aconteceu ANTES de (year, month): soma direta de
-// receitas menos despesas de todo o histórico anterior, numa única query —
-// não há mais snapshot gravado (tabela `meses`, removida), então este valor é
-// sempre recalculado a partir dos lançamentos reais. Mesma chave de
-// comparação (ano * 12 + mes) usada por isInicioRealDoHistorico.
-//
-// Exportada para o resumo anual (financial.ts): ele já agrega receitas/despesas
-// de todos os meses do ano numa única query própria — só precisa deste valor
-// como ponto de partida (saldo antes de janeiro) para acumular mês a mês em
-// memória, sem repetir esta consulta 12 vezes.
+// Saldo acumulado de tudo que aconteceu ANTES de (year, month): aporte inicial
+// da conta + receitas − despesas de todo o histórico anterior. Não há snapshot
+// gravado (tabela `meses`, removida), então este valor é sempre recalculado a
+// partir dos lançamentos reais — e por isso o aporte entra sempre, uma única
+// vez: ele é o dinheiro que já existia antes do primeiro lançamento.
 export async function calculatePreviousBalance(userId: number, year: number, month: number, accountId: number | null): Promise<number> {
   const { clause, params: extra } = accountWhere(accountId, 3);
   const chave = year * 12 + month;
 
-  const [incomes, expenses_] = await Promise.all([
+  const [incomes, expenses_, aporteInicial] = await Promise.all([
     pool.query(
       `SELECT COALESCE(SUM(valor), 0) AS total FROM receitas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}`,
       [userId, chave, ...extra],
@@ -62,21 +38,13 @@ export async function calculatePreviousBalance(userId: number, year: number, mon
       `SELECT COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total FROM despesas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}`,
       [userId, chave, ...extra],
     ),
+    fetchAporteInicial(userId, accountId),
   ]);
 
   const totalIncomes = parseFloat((incomes.rows[0] as { total: string }).total);
   const totalExpenses = parseFloat((expenses_.rows[0] as { total: string }).total);
-  const historico = totalIncomes - totalExpenses;
 
-  // Aporte inicial só entra se (year, month) for de fato o início real do
-  // histórico (nenhum lançamento antes dele) — evita somar o aporte de novo
-  // em qualquer mês que já tenha lançamentos anteriores. Checado sempre,
-  // independente do valor de `historico`: um mês no meio do histórico pode
-  // coincidentemente ter receitas = despesas anteriores, sem ser o início.
-  const isInicio = await isInicioRealDoHistorico(userId, year, month, accountId);
-  if (isInicio) return await fetchAporteInicial(userId, accountId);
-
-  return historico;
+  return aporteInicial + totalIncomes - totalExpenses;
 }
 
 // Saldo detalhado de um mês específico: o que veio de antes (calculado em

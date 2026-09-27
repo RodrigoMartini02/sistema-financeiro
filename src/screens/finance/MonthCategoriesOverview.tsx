@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Target } from 'lucide-react';
-import type { DashboardPanoramaData } from '../../types/finance';
-import { Card } from '../../ui/card';
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import type { PainelCategoria } from '../../types/finance';
 import { formatCurrency } from './formatters';
-import { firstName, memberColor } from './memberColors';
+import { firstName } from './memberColors';
+import { useCoresGrafico } from './painel/coresGrafico';
+import { CabecalhoCard, CardPainel, Legenda, RodapeCard, Secao } from './painel/PainelLayout';
 
 /** Categorias-raiz mostradas antes de "ver todas" — subs não contam aqui, só aparecem ao expandir a raiz. */
 const CATEGORIAS_VISIVEIS = 5;
@@ -35,21 +36,19 @@ interface CategoriaTreeNode {
   children: CategoriaAgregada[];
 }
 
-const COR_CATEGORIA = '#0891b2';
-const COR_SUBCATEGORIA = '#7dd3d8';
-
 interface MonthCategoriesOverviewProps {
-  porCategoria: DashboardPanoramaData['porCategoria'] | undefined;
+  porCategoria: PainelCategoria[] | undefined;
   periodLabel: string;
-  /** Cor de cada membro, por usuario_id — mesma paleta dos donuts do painel. */
-  memberColors: Map<number, string>;
+  /** Cor de cada pessoa, por usuario_id — a mesma de "Quem trouxe e quem gastou". */
+  coresPorPessoa: Map<number, string>;
   /** Divide as barras por membro só quando há mais de uma pessoa no filtro. */
   segmentarPorMembro: boolean;
 }
 
 export function MonthCategoriesOverview({
-  porCategoria, periodLabel, memberColors, segmentarPorMembro,
+  porCategoria, periodLabel, coresPorPessoa, segmentarPorMembro,
 }: MonthCategoriesOverviewProps) {
+  const cores = useCoresGrafico();
   const [expandido, setExpandido] = useState(false);
   // Raizes iniciam colapsadas — mesma abordagem de CategoriasTab (o default
   // "fechado" não depende de um efeito para popular ids).
@@ -71,7 +70,7 @@ export function MonthCategoriesOverview({
       usuarioId,
       nome: firstName(nome ?? ''),
       valor,
-      color: memberColor(memberColors, usuarioId),
+      color: coresPorPessoa.get(usuarioId) ?? cores.neutro,
     });
   };
 
@@ -156,39 +155,21 @@ export function MonthCategoriesOverview({
   };
 
   return (
-    <Card className="overflow-hidden rounded-2xl p-0">
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#e6eef3] px-[22px] py-5 dark:border-slate-700">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-[#b9e6ef] bg-[#e6f7fa] text-[#0891b2] dark:border-cyan-900 dark:bg-cyan-950/40 dark:text-cyan-300">
-          <Target size={18} />
-        </span>
-        <div>
-          <h2 className="text-[15.5px] font-bold tracking-[-0.01em] text-[#0f2b38] dark:text-white">Categorias <span className="font-semibold text-[#6c8593] dark:text-slate-400">— {periodLabel}</span></h2>
-          <p className="mt-0.5 text-xs text-[#7b93a1] dark:text-slate-400">Quanto cada categoria consumiu no período, considerando o filtro atual.</p>
-        </div>
-      </div>
+    <Secao titulo="Categorias" detalhe="detalhamento">
+      <CardPainel>
+        <CabecalhoCard
+          titulo="Onde mais gastou"
+          detalhe={`${formatCurrency(total)} em ${tree.length} categoria${tree.length === 1 ? '' : 's'} · ${periodLabel}`}
+        />
+        {/* Com mais de uma pessoa filtrada a cor passa a identificar a pessoa,
+            então a legenda vira a das pessoas. */}
+        <Legenda
+          itens={segmentarPorMembro
+            ? membrosNaLegenda.map((seg) => ({ cor: seg.color, nome: seg.nome }))
+            : [{ cor: cores.destaque, nome: 'Categoria' }, { cor: cores.destaqueSuave, nome: 'Subcategoria' }]}
+        />
 
-      <div className="px-5 py-5">
-        <div className="mb-3 flex items-center justify-between text-[11px] text-[#5f7885] dark:text-slate-400">
-          <span>{formatCurrency(total)} em {tree.length} categoria{tree.length === 1 ? '' : 's'}</span>
-          {/* Com mais de um membro filtrado a cor passa a identificar a
-              pessoa, entao a legenda vira a dos membros. */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            {segmentarPorMembro ? (
-              membrosNaLegenda.map((seg) => (
-                <span key={seg.usuarioId} className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-4 rounded-sm" style={{ background: seg.color }} />{seg.nome}
-                </span>
-              ))
-            ) : (
-              <>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-4 rounded-sm" style={{ background: COR_CATEGORIA }} />categoria</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-4 rounded-sm" style={{ background: COR_SUBCATEGORIA }} />subcategoria</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="grid">
+        <div className="flex flex-col">
           {treeVisivel.map((node) => {
             const hasChildren = node.children.length > 0;
             const isNodeExpanded = expandedRoots.includes(node.root.categoriaId ?? -1);
@@ -203,28 +184,24 @@ export function MonthCategoriesOverview({
               expandControl?: React.ReactNode,
             ) => {
               const barWidth = Math.min(100, (valor / max) * 100);
-              const alturaBarra = isChild ? 'h-3' : 'h-6';
+              const alturaBarra = isChild ? 'h-1.5' : 'h-2';
               return (
                 <div
                   key={item.categoriaId ?? item.categoria}
-                  className={`flex items-center gap-3.5 border-t border-[#eef4f7] first:border-t-0 dark:border-slate-700 ${isChild ? 'pl-6 py-[7px]' : 'py-[11px]'}`}
+                  className={`flex items-center gap-3 border-t border-slate-100 first:border-t-0 dark:border-slate-700 ${isChild ? 'py-1.5 pl-7' : 'py-2.5'}`}
                 >
-                  {!isChild && (
-                    <span className="flex w-4 shrink-0 items-center justify-center">
-                      {expandControl}
-                    </span>
-                  )}
+                  {!isChild && <span className="flex w-4 shrink-0 items-center justify-center">{expandControl}</span>}
                   <span
-                    className={`w-28 shrink-0 truncate text-[#0f2b38] dark:text-slate-100 ${isChild ? 'text-[11.5px] font-normal' : 'text-[12.5px] font-semibold'}`}
+                    className={`w-32 shrink-0 truncate ${isChild ? 'text-xs text-slate-600 dark:text-slate-300' : 'text-[12.5px] font-medium text-slate-900 dark:text-white'}`}
                     title={item.categoria}
                   >
                     {item.categoria}
                   </span>
-                  <div className={`relative flex-1 rounded-md bg-[#f5f9fb] dark:bg-slate-800 ${alturaBarra}`}>
+                  <div className={`flex-1 rounded-full bg-slate-100 dark:bg-slate-700 ${alturaBarra}`}>
                     {segmentarPorMembro && segmentos.length > 0 ? (
                       // Segmentos lado a lado ocupando a largura da barra:
                       // cada um e a fatia de um membro naquela categoria.
-                      <div className={`flex overflow-hidden rounded-md ${alturaBarra}`} style={{ width: `${barWidth}%` }}>
+                      <div className={`flex gap-0.5 overflow-hidden rounded-full ${alturaBarra}`} style={{ width: `${barWidth}%` }}>
                         {segmentos.map((seg) => (
                           <div
                             key={seg.usuarioId}
@@ -235,15 +212,13 @@ export function MonthCategoriesOverview({
                       </div>
                     ) : (
                       <div
-                        className={`rounded-md ${alturaBarra}`}
-                        style={{ width: `${barWidth}%`, background: isChild ? COR_SUBCATEGORIA : COR_CATEGORIA }}
+                        className={`rounded-full ${alturaBarra}`}
+                        style={{ width: `${barWidth}%`, background: isChild ? cores.destaqueSuave : cores.destaque }}
                       />
                     )}
                   </div>
-                  {/* Subcategoria usa a mesma fonte/peso da propria descricao:
-                      o destaque em negrito e da categoria-pai. */}
                   <span
-                    className={`w-24 shrink-0 text-right tabular-nums ${isChild ? 'text-[11.5px] font-normal text-[#0f2b38] dark:text-slate-100' : 'text-[12.5px] font-bold text-[#0f2b38] dark:text-white'}`}
+                    className={`w-24 shrink-0 text-right tabular-nums ${isChild ? 'text-xs text-slate-600 dark:text-slate-300' : 'text-[12.5px] font-semibold text-slate-900 dark:text-white'}`}
                   >
                     {formatCurrency(valor)}
                   </span>
@@ -258,9 +233,9 @@ export function MonthCategoriesOverview({
                     onClick={() => toggleRoot(node.root.categoriaId)}
                     aria-expanded={isNodeExpanded}
                     aria-label={isNodeExpanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
-                    className="flex h-4 w-4 items-center justify-center rounded text-[#7b93a1] transition hover:text-[#0891b2] dark:text-slate-400"
+                    className="flex h-4 w-4 items-center justify-center rounded text-slate-400 transition hover:text-cyan-600 dark:hover:text-cyan-400"
                   >
-                    <ChevronRight size={13} strokeWidth={2.2} style={{ transform: isNodeExpanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }} />
+                    <ChevronRight size={13} strokeWidth={2.2} className={`transition-transform duration-150 ${isNodeExpanded ? 'rotate-90' : ''}`} />
                   </button>
                 ) : null)}
                 {hasChildren && isNodeExpanded && node.children.map((child) => renderRow(child, child.total, child.segmentos, true))}
@@ -274,7 +249,7 @@ export function MonthCategoriesOverview({
             type="button"
             onClick={() => setExpandido((atual) => !atual)}
             aria-expanded={expandido}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#eef4f7] py-2 text-[11.5px] font-semibold text-[#0891b2] transition hover:bg-[#f5f9fb] dark:border-slate-700 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-1 self-start text-[12.5px] font-semibold text-cyan-600 transition hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
           >
             {expandido
               ? <>Ver menos <ChevronUp size={13} /></>
@@ -282,12 +257,12 @@ export function MonthCategoriesOverview({
           </button>
         )}
 
-        <p className="mt-3.5 border-t border-[#eef4f7] pt-3.5 text-[11.5px] text-[#5f7885] dark:border-slate-700 dark:text-slate-400">
+        <RodapeCard>
           {segmentarPorMembro
-            ? 'Ordenadas por valor gasto no período; cada cor na barra é a fatia de um membro.'
-            : 'Ordenadas por valor gasto no período, considerando o filtro de membros ativo.'}
-        </p>
-      </div>
-    </Card>
+            ? 'Ordenadas por valor gasto no período; cada cor na barra é a fatia de uma pessoa.'
+            : 'Ordenadas por valor gasto no período, considerando o filtro de pessoas ativo.'}
+        </RodapeCard>
+      </CardPainel>
+    </Secao>
   );
 }

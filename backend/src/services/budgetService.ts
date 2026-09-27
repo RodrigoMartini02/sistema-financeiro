@@ -40,7 +40,7 @@ export class BudgetInputError extends Error {}
 
 // Período aceito por getBudgetOverview: ou um mês único (uso do BudgetPanel, tela de
 // cadastro de metas), ou um intervalo deChave/ateChave em formato ano*12+mes, com
-// null representando "sem limite" nesse extremo (mesmo padrão de /financial/panorama).
+// null representando "sem limite" nesse extremo.
 interface SingleMonthPeriod {
   month: number;
   year: number;
@@ -148,7 +148,7 @@ export async function resolveFinancialAccount(userId: number, requestedAccountId
 }
 
 // deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de
-// COALESCE($n, ±infinito) usada em /financial/panorama, aqui expressa via sql template
+// COALESCE($n, ±infinito), aqui expressa via sql template
 // porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
 function expenseAccountCondition(userIds: number[], account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
@@ -276,7 +276,7 @@ export async function getBudgetOverview(input: {
   // Número de meses do período consultado — usado para escalar a meta mensal cadastrada
   // (que é um valor único e recorrente por categoria, sem coluna de mês/ano própria).
   // No modo "todo o período" (deChave e ateChave nulos), usa o histórico real de
-  // lançamentos do usuário até hoje, replicando o cálculo de /financial/panorama.
+  // lançamentos do usuário até hoje.
   let mesesNoIntervalo: number;
   if (resolved.deChave !== null && resolved.ateChave !== null) {
     mesesNoIntervalo = resolved.ateChave - resolved.deChave + 1;

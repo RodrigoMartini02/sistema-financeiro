@@ -61,11 +61,10 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
   });
 
   const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
-  // Comercial trata de clientes e contratos: só em conta empresa. Carteira da
-  // família é o inverso — membros familiares só existem em conta pessoal.
+  // Comercial trata de clientes e contratos: só em conta empresa. A carteira
+  // compartilhada vale nos dois tipos de conta.
   const visibleGroups = PERMISSION_GROUPS.filter((g) => {
     if (g.id === 'comercial') return contaTipo === 'empresa';
-    if (g.id === 'familia') return contaTipo === 'pessoal';
     return true;
   });
 

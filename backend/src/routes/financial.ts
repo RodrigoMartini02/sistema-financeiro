@@ -1,444 +1,97 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../db/client';
+import { eq } from 'drizzle-orm';
+import { db } from '../db/client';
+import { accounts } from '../db/schema';
 import { authenticate, requireActivePlan } from '../middleware/auth';
+import { hasScreenAccess, requireScreenAccess } from '../middleware/permissions';
 import { resolveDashboardScope } from '../utils/dashboardScope';
-import { calculatePreviousBalance, fetchAporteInicial } from '../services/balanceService';
+import { ACCOUNT_ACCESS_DENIED, canWriteToAccount } from '../utils/accountAccess';
+import { getTodayIsoInTimezone } from '../utils/date';
+import { validarPeriodo } from '../services/painelCalculos';
+import { montarPainel, type TipoConta } from '../services/painelService';
 
 const router = Router();
 
-// GET /api/financial/anual?ano=2026
-router.get('/anual', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { ano: anoQ, conta_id } = req.query as Record<string, string | undefined>;
-    const ano = parseInt(anoQ ?? '');
-    if (!ano || ano < 2000 || ano > 2100) {
-      res.status(400).json({ success: false, message: 'Parâmetro ano inválido' });
-      return;
-    }
+const MEMBRO_INVALIDO = Symbol('membro_invalido');
 
-    const userId = req.user!.id;
-    const accountId = conta_id ? parseInt(conta_id) : null;
-
-    const [result, saldoAntesDeJaneiro] = await Promise.all([
-      pool.query(
-        `SELECT
-          gs.mes,
-          COALESCE(r.total, 0)::float AS receitas,
-          COALESCE(d.total, 0)::float AS despesas,
-          COALESCE(p.total, 0)::float AS receitas_previstas
-        FROM generate_series(0, 11) AS gs(mes)
-        LEFT JOIN (
-          SELECT mes, SUM(valor) AS total
-          FROM receitas
-          WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-            )))
-          GROUP BY mes
-        ) r ON r.mes = gs.mes
-        LEFT JOIN (
-          SELECT mes, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) AS total
-          FROM despesas
-          WHERE ano = $1 AND usuario_id = $2 AND status = 'ativa'
-            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-            )))
-          GROUP BY mes
-        ) d ON d.mes = gs.mes
-        LEFT JOIN (
-          SELECT mes, SUM(valor) AS total
-          FROM receitas
-          WHERE ano = $1 AND usuario_id = $2 AND status IN ('prevista', 'faturada')
-            AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-              SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-            )))
-          GROUP BY mes
-        ) p ON p.mes = gs.mes
-        ORDER BY gs.mes`,
-        [ano, userId, accountId],
-      ),
-      // Ponto de partida do acumulado: saldo de tudo que aconteceu antes de
-      // janeiro deste ano. Sem tabela `meses` para ler o saldo mês a mês, o
-      // saldo_final de cada mês é acumulado aqui em memória a partir deste
-      // valor — uma única query extra, em vez de recalcular do zero 12 vezes.
-      calculatePreviousBalance(userId, ano, 0, accountId),
-    ]);
-
-    let acumulado = saldoAntesDeJaneiro;
-    const data = result.rows.map((row) => {
-      const receitas = row.receitas as number;
-      const despesas = row.despesas as number;
-      acumulado += receitas - despesas;
-      return { ...row, saldo_final: acumulado };
-    });
-
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('Dashboard anual error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load annual data' });
+/**
+ * Contrato de `membro_id`: ausente = só o solicitante; `familia` = todas as
+ * pessoas visíveis; um id = aquela pessoa; ids repetidos = exatamente esses.
+ * Quem valida se o solicitante pode ver cada pessoa é resolveDashboardScope.
+ */
+function lerMembroId(valor: unknown): number | number[] | null | undefined | typeof MEMBRO_INVALIDO {
+  if (valor === undefined) {
+    return undefined;
   }
-});
+  if (valor === 'familia') {
+    return null;
+  }
+  if (Array.isArray(valor)) {
+    const ids = valor.map((item) => Number(item));
+    return ids.every(Number.isInteger) ? ids : MEMBRO_INVALIDO;
+  }
+  const id = Number(valor);
+  return Number.isInteger(id) ? id : MEMBRO_INVALIDO;
+}
 
-// GET /api/financial/panorama?de_mes=&de_ano=&ate_mes=&ate_ano=&conta_id=
-// Todos os parâmetros de período são opcionais — ausência de todos = todo o histórico do usuário.
-router.get('/panorama', authenticate, requireActivePlan, async (req: Request, res: Response): Promise<void> => {
+// GET /api/financial/painel?de=AAAA-MM-DD&ate=AAAA-MM-DD[&membro_id=...][&conta_id=...]
+router.get('/painel', authenticate, requireActivePlan, requireScreenAccess('accessDashboard'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { de_mes, de_ano, ate_mes, ate_ano, conta_id } = req.query as Record<string, string | undefined>;
-    const membroIdRaw = req.query['membro_id'];
-
-    const deMes = de_mes !== undefined ? parseInt(de_mes) : null;
-    const deAno = de_ano !== undefined ? parseInt(de_ano) : null;
-    const ateMes = ate_mes !== undefined ? parseInt(ate_mes) : null;
-    const ateAno = ate_ano !== undefined ? parseInt(ate_ano) : null;
-
-    const deInformado = deAno !== null;
-    const ateInformado = ateAno !== null;
-
-    if (deInformado && (Number.isNaN(deAno) || deAno! < 2000 || deAno! > 2100 || (deMes !== null && (Number.isNaN(deMes) || deMes < 0 || deMes > 11)))) {
-      res.status(400).json({ success: false, message: 'Parâmetro de período inicial inválido' });
-      return;
-    }
-    if (ateInformado && (Number.isNaN(ateAno) || ateAno! < 2000 || ateAno! > 2100 || (ateMes !== null && (Number.isNaN(ateMes) || ateMes < 0 || ateMes > 11)))) {
-      res.status(400).json({ success: false, message: 'Parâmetro de período final inválido' });
+    const validacao = validarPeriodo(req.query['de'], req.query['ate']);
+    if (!validacao.valido) {
+      res.status(400).json({ success: false, message: validacao.mensagem });
       return;
     }
 
-    // Data-limite absoluta de cada extremo, para comparar (ano, mes) como um único valor ordenável.
-    const deChave = deInformado ? deAno! * 12 + (deMes ?? 0) : null;
-    const ateChave = ateInformado ? ateAno! * 12 + (ateMes ?? 11) : null;
+    const membroId = lerMembroId(req.query['membro_id']);
+    if (membroId === MEMBRO_INVALIDO) {
+      res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
+      return;
+    }
 
-    if (deChave !== null && ateChave !== null && deChave > ateChave) {
-      res.status(400).json({ success: false, message: 'Período inicial não pode ser depois do período final' });
+    const contaIdBruto = req.query['conta_id'];
+    const accountId = contaIdBruto !== undefined ? Number(contaIdBruto) : null;
+    if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) {
+      res.status(400).json({ success: false, message: 'Parâmetro de conta inválido' });
       return;
     }
 
     const userId = req.user!.id;
-    const accountId = conta_id ? parseInt(conta_id) : null;
-
-    // Escopo do painel: por padrao (sem membro_id), so o proprio usuario.
-    // membro_id=familia pede a familia inteira; membro_id=<id> pede um membro
-    // especifico; membro_id repetido (?membro_id=1&membro_id=2) pede uma
-    // combinacao especifica (filtro sanduiche do Painel). O membro pedido vem
-    // do cliente e so passa se a carteira permitir enxerga-lo.
-    let membroId: number | number[] | null | undefined;
-    if (membroIdRaw === undefined) {
-      membroId = undefined;
-    } else if (membroIdRaw === 'familia') {
-      membroId = null;
-    } else if (Array.isArray(membroIdRaw)) {
-      const ids = membroIdRaw.map((v) => parseInt(String(v)));
-      if (ids.some((id) => Number.isNaN(id))) {
-        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
-        return;
-      }
-      membroId = ids;
-    } else {
-      membroId = parseInt(String(membroIdRaw));
-      if (Number.isNaN(membroId)) {
-        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
-        return;
-      }
+    // conta_id vem do navegador: só passa se o solicitante for dono da conta ou
+    // tiver vínculo ativo com ela (mesma checagem usada na gravação).
+    if (accountId !== null && !(await canWriteToAccount(accountId, userId))) {
+      res.status(404).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
     }
+
     const escopo = await resolveDashboardScope(userId, accountId, membroId);
     if (escopo === null) {
       res.status(400).json({ success: false, message: 'Membro não disponível' });
       return;
     }
 
-    // $1 passou a ser uma LISTA de usuarios (= ANY). O $2 continua sendo um id
-    // unico: ele so aparece dentro do contaFiltro, para resgatar registros com
-    // conta_id nulo, que pertencem a conta pessoal do dono. Nesse resgate o
-    // dono da conta e sempre quem esta olhando, nao o autor do lancamento.
-    const contaFiltro = `($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-      SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-    )))`;
-
-    // Intervalo comparado como (ano * 12 + mes), cobrindo o mês inteiro em cada extremo.
-    const periodoFiltro = `(ano * 12 + mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)`;
-
-    const params = [escopo, userId, accountId, deChave, ateChave];
-
-    // Ano de referencia dos graficos que mostram os 12 meses (juros x
-    // descontos): o ano do FIM do periodo filtrado. Sem periodo informado,
-    // cai no ano corrente. Esses graficos nao usam `periodoFiltro` — eles
-    // cobrem o ano inteiro de proposito — mas seguem o mesmo escopo de
-    // usuario e conta de todo o resto do painel.
-    const anoReferencia = ateAno ?? new Date().getFullYear();
-    const paramsAno = [escopo, userId, accountId, anoReferencia];
-
-    const [totaisResult, categoriaResult, formaResult, origemResult, anteriorResult, despesasDetalheResult, jurosDescontosMensalResult, cartaoResult, emAbertoResult, estoqueBaixoResult] = await Promise.all([
-      pool.query(
-        `SELECT
-          COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
-          COALESCE(SUM(CASE WHEN origem = 'despesa' THEN valor ELSE 0 END), 0)::float AS despesas,
-          COUNT(*) FILTER (WHERE origem = 'receita')::int AS total_receitas,
-          COUNT(*) FILTER (WHERE origem = 'despesa')::int AS total_despesas,
-          MIN(data)::text AS primeira_data,
-          MAX(data)::text AS ultima_data
-        FROM (
-          SELECT valor, data_recebimento AS data, 'receita' AS origem
-          FROM receitas
-          WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-          UNION ALL
-          SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, data_vencimento AS data, 'despesa' AS origem
-          FROM despesas
-          WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-        ) t`,
-        params,
-      ),
-      // Uma linha por (categoria, autor): a tela soma para ter o total da
-      // categoria e usa a quebra por autor para colorir a barra por membro
-      // quando ha mais de uma pessoa no filtro.
-      pool.query(
-        `SELECT c.id AS categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria, c.parent_id AS parent_id,
-           d.usuario_id AS usuario_id, TRIM(CONCAT(u.nome, ' ', u.sobrenome)) AS autor_nome,
-           SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
-         FROM despesas d
-         LEFT JOIN categorias c ON d.categoria_id = c.id
-         LEFT JOIN usuarios u ON u.id = d.usuario_id
-         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa' AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
-           AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
-             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-           )))
-         GROUP BY c.id, c.nome, c.parent_id, d.usuario_id, u.nome, u.sobrenome
-         ORDER BY total DESC`,
-        params,
-      ),
-      pool.query(
-        `SELECT COALESCE(forma_pagamento, 'dinheiro') AS forma_pagamento, SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END)::float AS total
-         FROM despesas
-         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-         GROUP BY forma_pagamento
-         ORDER BY total DESC`,
-        params,
-      ),
-      pool.query(
-        `SELECT CASE WHEN contrato_id IS NOT NULL THEN 'contrato' ELSE 'avulsa' END AS origem, SUM(valor)::float AS total
-         FROM receitas
-         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-         GROUP BY (contrato_id IS NOT NULL)`,
-        params,
-      ),
-      // No modo "todo o período" (deChave null) o filtro já cobre desde sempre — não
-      // há "antes" a consultar, então o saldo anterior é resolvido depois só com o
-      // aporte inicial da conta, sem query aqui. Quando deChave existe, a query usa
-      // índices de parâmetro próprios ($1 = userId, $3 = accountId) — não reaproveita
-      // o `contaFiltro` do escopo externo, que assume $2 = userId vindo de `params`;
-      // aqui $2 é `deChave`, não userId.
-      deChave === null
-        ? Promise.resolve({ rows: [{ saldo_anterior: 0, eh_inicio_historico: true }] })
-        : pool.query(
-            `SELECT COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE -valor END), 0)::float AS saldo_anterior,
-              NOT EXISTS (
-                SELECT 1 FROM receitas WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
-                  )))
-                UNION ALL
-                SELECT 1 FROM despesas WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                  AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                    SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
-                  )))
-              ) AS eh_inicio_historico
-             FROM (
-               SELECT valor, 'receita' AS origem
-               FROM receitas
-               WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                 AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
-                 )))
-               UNION ALL
-               SELECT CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
-               FROM despesas
-               WHERE usuario_id = ANY($1) AND status = 'ativa' AND (ano * 12 + mes) < $2::int
-                 AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-                   SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $4
-                 )))
-             ) t`,
-            [escopo, deChave, accountId, userId],
-          ),
-      pool.query(
-        `SELECT
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) > 0 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS juros,
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS descontos,
-          COALESCE(SUM(CASE WHEN recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS fixas,
-          COALESCE(SUM(CASE WHEN NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS variaveis,
-          -- Parcela contratada e compromisso, nao gasto flexivel: sai de dentro
-          -- de "variaveis" para a tela poder mostrar o que de fato da para cortar.
-          COALESCE(SUM(CASE WHEN parcelado AND NOT recorrente THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END) ELSE 0 END), 0)::float AS parceladas,
-          COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE 0 END), 0)::float AS pagas,
-          COALESCE(SUM(CASE WHEN NOT pago THEN valor_original ELSE 0 END), 0)::float AS pendentes
-        FROM despesas
-        WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}`,
-        params,
-      ),
-      // Juros x descontos mes a mes do ano de referencia. Mesmo criterio de
-      // calculo da agregacao acima (diferenca entre o pago e o original),
-      // so que quebrado por mes e cobrindo o ano inteiro, nao o periodo.
-      pool.query(
-        `SELECT mes,
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) > 0 THEN (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS juros,
-          COALESCE(SUM(CASE WHEN valor_original IS NOT NULL AND (CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) < 0 THEN ABS(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END - valor_original) ELSE 0 END), 0)::float AS descontos
-         FROM despesas
-         WHERE usuario_id = ANY($1) AND status = 'ativa' AND ano = $4::int
-           AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-           )))
-         GROUP BY mes
-         ORDER BY mes`,
-        paramsAno,
-      ),
-      // Gasto por cartao. O join com cartoes so alcanca cartao do proprio
-      // escopo, porque a despesa ja esta filtrada por usuario e conta.
-      pool.query(
-        `SELECT c.nome AS cartao, SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END)::float AS total
-         FROM despesas d
-         JOIN cartoes c ON c.id = d.cartao_id
-         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa'
-           AND (d.ano * 12 + d.mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)
-           AND ($3::int IS NULL OR d.conta_id = $3 OR (d.conta_id IS NULL AND EXISTS (
-             SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = $2
-           )))
-         GROUP BY c.nome
-         ORDER BY total DESC`,
-        params,
-      ),
-      // Vencidas e a vencer sao ABSOLUTAS: nao passam pelo filtro de periodo.
-      // Uma conta vencida em agosto continua vencida quando se olha dezembro —
-      // filtra-la por periodo a esconderia de quem mais precisa ve-la.
-      pool.query(
-        `SELECT
-          COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE THEN valor_original ELSE 0 END), 0)::float AS vencido_total,
-          COUNT(*) FILTER (WHERE data_vencimento < CURRENT_DATE)::int AS vencido_quantidade,
-          COALESCE(SUM(CASE WHEN data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 THEN valor_original ELSE 0 END), 0)::float AS a_vencer_total,
-          COUNT(*) FILTER (WHERE data_vencimento BETWEEN CURRENT_DATE AND CURRENT_DATE + 30)::int AS a_vencer_quantidade
-         FROM despesas
-         WHERE usuario_id = ANY($1) AND status = 'ativa' AND pago = false AND ${contaFiltro}`,
-        [escopo, userId, accountId],
-      ),
-      // Estoque baixo: so produtos ativos COM minimo definido (minimo nulo
-      // significa produto sem controle de alerta). Absoluto como as vencidas:
-      // estoque no fim nao depende do periodo que a tela esta olhando.
-      //
-      // O schema `catalogo` pode nao existir no ambiente (migration 0026/0037
-      // ainda nao aplicada); o painel inteiro nao pode cair por causa disso.
-      pool.query(
-        `SELECT id, nome, quantidade_estoque::float AS quantidade_estoque, estoque_minimo::float AS estoque_minimo
-         FROM catalogo.produtos
-         WHERE usuario_id = $1
-           AND ativo = true
-           AND estoque_minimo IS NOT NULL
-           AND quantidade_estoque <= estoque_minimo
-           AND ($2::int IS NULL OR conta_id = $2 OR conta_id IS NULL)
-         ORDER BY quantidade_estoque ASC, nome ASC
-         LIMIT 20`,
-        [userId, accountId],
-      ).catch((error: unknown) => {
-        const semTabela = typeof error === 'object' && error !== null && 'code' in error && error.code === '42P01';
-        if (semTabela) return { rows: [] };
-        throw error;
-      }),
+    const [conta, podeVerPlanejado] = await Promise.all([
+      accountId !== null
+        ? db.select({ tipo: accounts.type }).from(accounts).where(eq(accounts.id, accountId)).limit(1)
+        : Promise.resolve([]),
+      hasScreenAccess(userId, 'accessBudget'),
     ]);
+    const tipoConta: TipoConta = conta[0]?.tipo === 'empresa' ? 'empresa' : 'pessoal';
 
-    const totaisPrevia = totaisResult.rows[0] as { primeira_data: string | null };
-
-    // Granularidade da série: mês se o intervalo tiver até 24 meses, ano caso contrário.
-    // No modo "todo o período" (sem de/ate), o intervalo real é calculado a partir da
-    // primeira data com lançamento até hoje, em vez de assumir 'ano' incondicionalmente.
-    let totalMesesNoIntervalo: number | null;
-    if (deChave !== null && ateChave !== null) {
-      totalMesesNoIntervalo = ateChave - deChave + 1;
-    } else if (totaisPrevia.primeira_data) {
-      const primeira = new Date(totaisPrevia.primeira_data);
-      const primeiraChave = primeira.getFullYear() * 12 + primeira.getMonth();
-      const hojeChave = new Date().getFullYear() * 12 + new Date().getMonth();
-      totalMesesNoIntervalo = hojeChave - primeiraChave + 1;
-    } else {
-      totalMesesNoIntervalo = null;
-    }
-    const granularidade: 'mes' | 'ano' = totalMesesNoIntervalo !== null && totalMesesNoIntervalo <= 24 ? 'mes' : 'ano';
-
-    const serieResult = granularidade === 'mes'
-      ? await pool.query(
-          `SELECT
-            ano, mes,
-            COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
-            COALESCE(SUM(CASE WHEN origem = 'despesa' THEN valor ELSE 0 END), 0)::float AS despesas
-          FROM (
-            SELECT ano, mes, valor, 'receita' AS origem
-            FROM receitas
-            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-            UNION ALL
-            SELECT ano, mes, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
-            FROM despesas
-            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-          ) t
-          GROUP BY ano, mes
-          ORDER BY ano, mes`,
-          params,
-        )
-      : await pool.query(
-          `SELECT
-            ano, NULL::int AS mes,
-            COALESCE(SUM(CASE WHEN origem = 'receita' THEN valor ELSE 0 END), 0)::float AS receitas,
-            COALESCE(SUM(CASE WHEN origem = 'despesa' THEN valor ELSE 0 END), 0)::float AS despesas
-          FROM (
-            SELECT ano, valor, 'receita' AS origem
-            FROM receitas
-            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-            UNION ALL
-            SELECT ano, CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END AS valor, 'despesa' AS origem
-            FROM despesas
-            WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodoFiltro} AND ${contaFiltro}
-          ) t
-          GROUP BY ano
-          ORDER BY ano`,
-          params,
-        );
-
-    const totais = totaisResult.rows[0] as {
-      receitas: number; despesas: number; total_receitas: number; total_despesas: number;
-      primeira_data: string | null; ultima_data: string | null;
-    };
-    const despesasDetalhe = despesasDetalheResult.rows[0] as {
-      juros: number; descontos: number; fixas: number; variaveis: number;
-      parceladas: number; pagas: number; pendentes: number;
-    };
-
-    // Aplica o aporte inicial da conta (saldo de abertura) uma única vez, quando o
-    // período filtrado começa no início real do histórico da conta — nunca em
-    // "buracos" no meio do histórico, para não contar o aporte mais de uma vez.
-    const anterior = anteriorResult.rows[0] as { saldo_anterior: number; eh_inicio_historico: boolean };
-    const saldoAnterior = anterior.eh_inicio_historico
-      ? anterior.saldo_anterior + await fetchAporteInicial(userId, accountId)
-      : anterior.saldo_anterior;
-
-    res.json({
-      success: true,
-      data: {
-        receitas: totais.receitas,
-        despesas: totais.despesas,
-        saldoAnterior,
-        saldoFinal: saldoAnterior + totais.receitas - totais.despesas,
-        totalLancamentos: totais.total_receitas + totais.total_despesas,
-        primeiraData: totais.primeira_data,
-        ultimaData: totais.ultima_data,
-        porCategoria: categoriaResult.rows,
-        porFormaPagamento: formaResult.rows,
-        porOrigem: origemResult.rows,
-        porCartao: cartaoResult.rows,
-        emAberto: emAbertoResult.rows[0],
-        estoqueBaixo: estoqueBaixoResult.rows,
-        granularidade,
-        serie: serieResult.rows,
-        despesasDetalhe,
-        anoReferencia,
-        jurosDescontosMensal: jurosDescontosMensalResult.rows,
-      },
+    const painel = await montarPainel({
+      solicitanteId: userId,
+      escopo,
+      accountId,
+      tipoConta,
+      periodo: validacao.periodo,
+      hoje: getTodayIsoInTimezone(),
+      podeVerPlanejado,
     });
+
+    res.json({ success: true, data: painel });
   } catch (error) {
-    console.error('Dashboard panorama error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load panorama data' });
+    console.error('Painel error:', { userId: req.user?.id, error });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar o painel' });
   }
 });
 

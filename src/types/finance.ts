@@ -128,80 +128,74 @@ export interface FinanceDashboardData {
   balance: MonthBalance;
 }
 
-export interface DashboardPanoramaFiltro {
-  deMes?: number;
-  deAno?: number;
-  ateMes?: number;
-  ateAno?: number;
+/** Período do Painel: datas ISO 'AAAA-MM-DD', inclusivas. */
+export interface PainelPeriodo {
+  de: string;
+  ate: string;
+}
+
+export interface PainelFiltro extends PainelPeriodo {
   /**
-   * `undefined` (padrão) = só o próprio usuário. `null` = família inteira,
-   * escolhida explicitamente. Um id = apenas aquele membro. Uma lista de ids
-   * = combinação específica de membros (filtro sanduíche do Painel).
+   * `undefined` (padrão) = só o próprio usuário. `null` = todas as pessoas
+   * visíveis. Uma lista de ids = exatamente essas pessoas.
    */
-  membroId?: number | number[] | null;
+  membroId?: number[] | null;
 }
 
-export interface DashboardPanoramaSeriePonto {
-  ano: number;
-  mes: number | null;
+export type PainelGranularidade = 'semana' | 'mes' | 'ano';
+
+/** Um trecho da série (semana, mês ou ano), recortado ao período: datas ISO inclusivas. */
+export interface PainelPontoSerie {
+  inicio: string;
+  fim: string;
   receitas: number;
   despesas: number;
+  credito: number;
+  pago: number;
 }
 
-export interface DashboardPanoramaDespesasDetalhe {
-  juros: number;
-  descontos: number;
-  fixas: number;
-  variaveis: number;
-  /** Subconjunto de `variaveis`: parcela contratada e compromisso, nao gasto livre. */
-  parceladas: number;
-  pagas: number;
-  pendentes: number;
+export interface PainelCategoria {
+  categoriaId: number | null;
+  categoria: string;
+  parentId: number | null;
+  usuarioId: number;
+  autorNome: string | null;
+  total: number;
 }
 
-/** Vencidas e a vencer sao absolutas — nao passam pelo filtro de periodo. */
-export interface DashboardPanoramaEmAberto {
-  vencidoTotal: number;
-  vencidoQuantidade: number;
-  aVencerTotal: number;
-  aVencerQuantidade: number;
-}
-
-export interface DashboardPanoramaEstoqueBaixo {
-  id: string;
-  nome: string;
-  quantidade_estoque: number;
-  estoque_minimo: number;
-}
-
-export interface DashboardPanoramaData {
-  receitas: number;
-  despesas: number;
-  saldoAnterior: number;
-  saldoFinal: number;
+export interface PainelData {
+  periodo: PainelPeriodo;
+  periodoAnterior: PainelPeriodo;
+  tipoConta: 'pessoal' | 'empresa';
   totalLancamentos: number;
-  primeiraData: string | null;
-  ultimaData: string | null;
-  /** Uma linha por (categoria, autor) — a tela agrega e usa a quebra por autor nas barras. */
-  porCategoria: {
-    categoriaId: number | null;
-    categoria: string;
-    parentId: number | null;
-    usuarioId: number | null;
-    autorNome: string | null;
-    total: number;
-  }[];
-  porFormaPagamento: { forma_pagamento: string; total: number }[];
-  porOrigem: { origem: 'contrato' | 'avulsa'; total: number }[];
-  porCartao: { cartao: string; total: number }[];
-  emAberto: DashboardPanoramaEmAberto;
-  /** Produtos ativos cujo saldo atingiu o mínimo configurado. */
-  estoqueBaixo?: DashboardPanoramaEstoqueBaixo[];
-  granularidade: 'mes' | 'ano';
-  serie: DashboardPanoramaSeriePonto[];
-  despesasDetalhe: DashboardPanoramaDespesasDetalhe;
-  /** Ano coberto pelos gráficos de 12 meses — o ano do fim do período filtrado. */
-  anoReferencia: number;
-  /** Juros e descontos mês a mês do `anoReferencia` (ano inteiro, não o período). */
-  jurosDescontosMensal: { mes: number; juros: number; descontos: number }[];
+  resumo: {
+    entrou: number;
+    saiu: number;
+    pago: number;
+    aPagar: number;
+    entrouAnterior: number;
+    saiuAnterior: number;
+    saldoAnterior: number;
+    saldoFinal: number;
+  };
+  serie: { granularidade: PainelGranularidade; pontos: PainelPontoSerie[] };
+  formasPagamento: { forma: string; valor: number; quantidade: number; juros: number }[];
+  cartoes: { id: number; nome: string; gasto: number; limite: number | null; usado: number | null }[];
+  aVistaParcelado: { aVista: number; parcelado: number };
+  tipoGasto: { fixo: number; parcela: number; livre: number };
+  emDia: { cadastrado: number; pagoEmDia: number; pagoComAtraso: number; emAberto: number; quitadoDeAnteriores: number };
+  contasEmAberto: {
+    atraso: { valor: number; quantidade: number };
+    proximos30Dias: { valor: number; quantidade: number };
+    comprometido: { ano: number; mes: number; parcelas: number; outras: number }[];
+  };
+  /** null quando o bloco não se aplica: conta empresa ou membro sem Planejamento. */
+  planejado: { categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number }[] | null;
+  porPessoa: { usuarioId: number; nome: string; receitas: number; despesas: number }[];
+  jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
+  categorias: PainelCategoria[];
+  empresa: {
+    receitasPorOrigem: { contratos: number; avulsas: number };
+    estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
+  } | null;
 }
