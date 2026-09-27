@@ -355,7 +355,7 @@ router.post(
   '/forgot-password',
   [body('email').isEmail().withMessage('Invalid email'), validate],
   async (req: Request, res: Response): Promise<void> => {
-    const GENERIC_MSG = 'If this email is registered, you will receive a recovery code shortly.';
+    const GENERIC_MSG = 'Se este e-mail estiver cadastrado, você receberá um código de recuperação em breve.';
     try {
       const { email } = req.body as { email: string };
       const normalizedEmail = email.toLowerCase();
@@ -410,7 +410,7 @@ router.post(
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
-    const INVALID_MSG = 'Invalid or expired code';
+    const INVALID_MSG = 'Código inválido ou expirado';
     try {
       const { email, codigo } = req.body as { email: string; codigo: string };
 
