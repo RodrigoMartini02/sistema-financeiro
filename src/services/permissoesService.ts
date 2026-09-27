@@ -58,9 +58,9 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     id: 'familia',
-    label: 'Carteira da família',
+    label: 'Carteira compartilhada',
     items: [
-      { flag: 'accessFamilyEntries', label: 'Ver lançamentos dos outros membros' },
+      { flag: 'accessFamilyEntries', label: 'Ver lançamentos das outras pessoas da conta' },
       { flag: 'editFamilyEntries', label: 'Editar e excluir lançamentos dos outros' },
       { flag: 'accessFamilyCards', label: 'Ver e usar os cartões dos outros' },
     ],

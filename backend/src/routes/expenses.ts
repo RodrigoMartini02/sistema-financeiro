@@ -6,7 +6,6 @@ import { validate } from '../middleware/validation';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
-import { resolveDashboardScope } from '../utils/dashboardScope';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 
 const router = Router();
@@ -797,83 +796,6 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
   } catch (error) {
     console.error('Move expense error:', error);
     res.status(500).json({ success: false, message: 'Failed to move expense' });
-  }
-});
-
-// GET /api/despesas/parcelas-futuras?ano=Y&membro_id=...
-// Devolve as parcelas de TODOS os 12 meses do ano informado, separando o que
-// ja foi pago do que segue em aberto — o grafico do painel mostra o ano
-// inteiro, nao uma janela relativa ao mes corrente.
-router.get('/parcelas-futuras', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { ano: anoQ, conta_id } = req.query as Record<string, string | undefined>;
-    const membroIdRaw = req.query['membro_id'];
-    const ano = parseInt(anoQ ?? '');
-
-    if (isNaN(ano) || ano < 2000 || ano > 2100) {
-      res.status(400).json({ success: false, message: 'Parâmetro ano inválido' });
-      return;
-    }
-
-    const userId = req.user!.id;
-    const accountId = conta_id ? parseInt(conta_id) : null;
-
-    // Mesmo contrato de membro_id do painel (/financial/panorama): ausente =
-    // so o proprio usuario; 'familia' = todos os visiveis; um id ou uma lista
-    // de ids = exatamente esses membros. resolveDashboardScope e quem valida
-    // que cada id pedido esta no conjunto visivel ao solicitante.
-    let membroId: number | number[] | null | undefined;
-    if (membroIdRaw === undefined) {
-      membroId = undefined;
-    } else if (membroIdRaw === 'familia') {
-      membroId = null;
-    } else if (Array.isArray(membroIdRaw)) {
-      const ids = membroIdRaw.map((v) => parseInt(String(v)));
-      if (ids.some((id) => Number.isNaN(id))) {
-        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
-        return;
-      }
-      membroId = ids;
-    } else {
-      membroId = parseInt(String(membroIdRaw));
-      if (Number.isNaN(membroId)) {
-        res.status(400).json({ success: false, message: 'Parâmetro de membro inválido' });
-        return;
-      }
-    }
-
-    const visiveis = await resolveDashboardScope(userId, accountId, membroId);
-    if (visiveis === null) {
-      res.status(400).json({ success: false, message: 'Membro não disponível' });
-      return;
-    }
-
-    // Cada parcela ja grava o proprio valor individual — soma direta, sem
-    // dividir de novo por numero_parcelas (mesmo ajuste de months.ts).
-    // Pagas e em aberto somadas separadamente na mesma query: antes o filtro
-    // pago = false so trazia em aberto, e uma parcela "futura" (mes ainda nao
-    // chegado) so pode estar paga se tiver sido antecipada — caso raro mas
-    // real, que o grafico precisa mostrar como serie propria.
-    const result = await pool.query(
-      `SELECT mes, ano,
-        COALESCE(SUM(valor_original::float) FILTER (WHERE pago), 0) AS pagas,
-        COALESCE(SUM(valor_original::float) FILTER (WHERE NOT pago), 0) AS em_aberto
-       FROM despesas
-       WHERE usuario_id = ANY($1)
-         AND parcelado = true
-         AND ano = $2::int
-         AND ($3::int IS NULL OR conta_id = $3 OR (conta_id IS NULL AND EXISTS (
-           SELECT 1 FROM contas pf WHERE pf.id = $3 AND pf.tipo = 'pessoal' AND pf.usuario_id = ANY($1)
-         )))
-       GROUP BY mes, ano
-       ORDER BY ano, mes`,
-      [visiveis, ano, accountId],
-    );
-
-    res.json({ success: true, data: result.rows });
-  } catch (error) {
-    console.error('Parcelas futuras error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load future installments' });
   }
 });
 

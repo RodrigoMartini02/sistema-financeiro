@@ -6,13 +6,15 @@ interface DonutChartProps {
   centerLabel: string;
   centerValue: string;
   capitalizeLabels?: boolean;
+  /** Desliga a lista ao lado quando quem usa monta a própria legenda (ex.: tabela de formas de pagamento). */
+  mostrarLegenda?: boolean;
 }
 
 const SIZE = 132;
 const INNER_RADIUS = 46;
 const OUTER_RADIUS = 66;
 
-export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = false }: DonutChartProps) {
+export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = false, mostrarLegenda = true }: DonutChartProps) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const segments = data.map((d) => ({ ...d, fraction: total > 0 ? d.value / total : 0 }));
 
@@ -47,18 +49,20 @@ export function DonutChart({ data, centerLabel, centerValue, capitalizeLabels = 
           <span className="max-w-full truncate text-[12px] font-bold tabular-nums text-[#0f2b38]">{centerValue}</span>
         </div>
       </div>
-      <ul className="min-w-0 flex-1 space-y-2.5 text-xs">
-        {segments.map((s) => (
-          <li key={s.name} className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-1.5" title={s.name}>
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
-              <span className={`truncate text-slate-700 dark:text-slate-300 ${capitalizeLabels ? 'capitalize' : ''}`}>{s.name}</span>
-              <span className="shrink-0 text-[11px] text-slate-400">{(s.fraction * 100).toFixed(0)}%</span>
-            </span>
-            <span className="shrink-0 font-semibold text-slate-900 dark:text-white">{formatCurrency(s.value)}</span>
-          </li>
-        ))}
-      </ul>
+      {mostrarLegenda && (
+        <ul className="min-w-0 flex-1 space-y-2.5 text-xs">
+          {segments.map((s) => (
+            <li key={s.name} className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5" title={s.name}>
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />
+                <span className={`truncate text-slate-700 dark:text-slate-300 ${capitalizeLabels ? 'capitalize' : ''}`}>{s.name}</span>
+                <span className="shrink-0 text-[11px] text-slate-400">{(s.fraction * 100).toFixed(0)}%</span>
+              </span>
+              <span className="shrink-0 font-semibold text-slate-900 dark:text-white">{formatCurrency(s.value)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -49,6 +49,16 @@ export async function getCardLimits(userId: number, accountId: number | null, ex
   // porque as despesas dele nao entrariam na soma — por isso o mesmo
   // `expandir` decide tanto os donos de cartao quanto os donos de despesa.
   const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, expandir);
+  return getCardLimitsForOwners(donosVisiveis, accountId);
+}
+
+/**
+ * Mesmo cálculo de getCardLimits, para uma lista de donos já resolvida por quem
+ * chama. O Painel usa esta variante porque lá o limite segue a visibilidade de
+ * LANÇAMENTOS (quem vê os lançamentos de outros vê também o limite dos cartões
+ * deles), e não a permissão de usar cartões de outros ao lançar.
+ */
+export async function getCardLimitsForOwners(donosVisiveis: number[], accountId: number | null): Promise<CardLimit[]> {
   const params: unknown[] = [donosVisiveis];
   let accountClause = '';
   let expenseAccountClause = '';

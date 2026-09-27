@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, ChevronUp, Target } from 'lucide-react';
-import type { DashboardPanoramaData } from '../../types/finance';
+import type { PainelCategoria } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { formatCurrency } from './formatters';
 import { firstName, memberColor } from './memberColors';
@@ -39,7 +39,7 @@ const COR_CATEGORIA = '#0891b2';
 const COR_SUBCATEGORIA = '#7dd3d8';
 
 interface MonthCategoriesOverviewProps {
-  porCategoria: DashboardPanoramaData['porCategoria'] | undefined;
+  porCategoria: PainelCategoria[] | undefined;
   periodLabel: string;
   /** Cor de cada membro, por usuario_id — mesma paleta dos donuts do painel. */
   memberColors: Map<number, string>;

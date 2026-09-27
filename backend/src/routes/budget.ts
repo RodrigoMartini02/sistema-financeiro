@@ -22,8 +22,7 @@ function parseOptionalInt(value: unknown): number | undefined {
 }
 
 // Aceita ou mes/ano (mês único, usado pela tela de cadastro de metas) ou
-// de_mes/de_ano/ate_mes/ate_ano (intervalo, usado pelo painel financeiro) —
-// mesmo padrão de parâmetros opcionais de /financial/panorama.
+// de_mes/de_ano/ate_mes/ate_ano (intervalo; o Painel usa as metas por intervalo).
 //
 // Sem requireScreenAccess de propósito: este resumo também alimenta o
 // gráfico de categorias do Dashboard, que deve aparecer para qualquer membro

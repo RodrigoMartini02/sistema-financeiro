@@ -7,7 +7,7 @@ import { users, accounts, accountMembers, expenses, memberPermissions } from '..
 import { authenticate, requireTitular } from '../middleware/auth';
 import { validate, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
-import { resolveVisibleUserIds } from '../utils/familyVisibility';
+import { validarPeriodo } from '../services/painelCalculos';
 
 const router = Router();
 
@@ -507,132 +507,19 @@ router.put(
   },
 );
 
-// GET /api/account-members/summary — visão agregada da conta (soma de
-// despesas/receitas de todos os autores vinculados, gestor incluído).
-// Gestor sempre acessa; membro só se tiver acesso_relatorios liberado (a
-// visão agregada por autor é um tipo de relatório/consolidação da conta).
-router.get('/summary', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano, escopo } = req.query as Record<string, string | undefined>;
-
-    const memberAccountId = await resolveMemberAccountId(req.user!.id);
-    const isMember = memberAccountId !== null;
-
-    if (isMember) {
-      const [permissions] = await db
-        .select({ accessReports: memberPermissions.accessReports })
-        .from(memberPermissions)
-        .where(eq(memberPermissions.userId, req.user!.id))
-        .limit(1);
-
-      if (!permissions?.accessReports) {
-        res.status(403).json({ success: false, message: 'Access denied' });
-        return;
-      }
-    }
-
-    const accountId = isMember ? memberAccountId : await resolveGestorAccountId(req.user!.id);
-    if (!accountId) {
-      res.status(404).json({ success: false, message: 'Account not found' });
-      return;
-    }
-
-    // Este resumo alimenta a comparacao "por membro da familia" do painel —
-    // so faz sentido, e so deve trazer dados de outros, quando o solicitante
-    // pediu explicitamente o escopo ampliado E tem a permissao de familia.
-    const authorIds = await resolveVisibleUserIds(req.user!.id, accountId, escopo === 'familia');
-
-    const accountOwner = await pool.query(`SELECT usuario_id FROM contas WHERE id = $1`, [accountId]);
-    const ownerId = (accountOwner.rows[0] as { usuario_id: number } | undefined)?.usuario_id;
-
-    // O painel filtra por INTERVALO (de/ate), nao por mes unico. Os parametros
-    // mes/ano continuam aceitos para nao quebrar quem ja chamava assim.
-    const deChave = de_ano !== undefined ? parseInt(de_ano) * 12 + (de_mes !== undefined ? parseInt(de_mes) : 0) : null;
-    const ateChave = ate_ano !== undefined ? parseInt(ate_ano) * 12 + (ate_mes !== undefined ? parseInt(ate_mes) : 11) : null;
-    const mesUnico = mes !== undefined && ano !== undefined
-      ? parseInt(ano) * 12 + parseInt(mes)
-      : null;
-
-    const de = mesUnico ?? deChave;
-    const ate = mesUnico ?? ateChave;
-
-    const periodFilter = `(ano * 12 + mes) BETWEEN COALESCE($2::int, -2147483648) AND COALESCE($3::int, 2147483647)`;
-
-    // A soma tambem passa a respeitar a conta: antes filtrava so por autor, e
-    // um lancamento do mesmo usuario em outra conta entrava no total.
-    const contaFiltro = `($4::int IS NULL OR conta_id = $4 OR (conta_id IS NULL AND EXISTS (
-      SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $5
-    )))`;
-    const ownerForFallback = ownerId ?? req.user!.id;
-    const baseParams = [authorIds, de, ate, accountId, ownerForFallback];
-
-    const [expensesResult, incomesResult, categoryResult, namesResult] = await Promise.all([
-      // Mesma formula do painel: despesa paga vale o que foi pago, e lancamento
-      // cancelado nao entra. Sem isso, os blocos por membro divergiam dos totais
-      // da tela ao lado.
-      pool.query(
-        `SELECT usuario_id, COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total
-         FROM despesas WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodFilter} AND ${contaFiltro}
-         GROUP BY usuario_id`,
-        baseParams,
-      ),
-      pool.query(
-        `SELECT usuario_id, COALESCE(SUM(valor), 0) AS total
-         FROM receitas WHERE usuario_id = ANY($1) AND status = 'ativa' AND ${periodFilter} AND ${contaFiltro}
-         GROUP BY usuario_id`,
-        baseParams,
-      ),
-      // Despesa por membro E categoria: alimenta as barras divididas.
-      pool.query(
-        `SELECT d.usuario_id, d.categoria_id, COALESCE(c.nome, 'Sem categoria') AS categoria_nome,
-                COALESCE(SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END), 0) AS total
-         FROM despesas d
-         LEFT JOIN categorias c ON c.id = d.categoria_id
-         WHERE d.usuario_id = ANY($1) AND d.status = 'ativa'
-           AND (d.ano * 12 + d.mes) BETWEEN COALESCE($2::int, -2147483648) AND COALESCE($3::int, 2147483647)
-           AND ($4::int IS NULL OR d.conta_id = $4 OR (d.conta_id IS NULL AND EXISTS (
-             SELECT 1 FROM contas pf WHERE pf.id = $4 AND pf.tipo = 'pessoal' AND pf.usuario_id = $5
-           )))
-         GROUP BY d.usuario_id, d.categoria_id, c.nome`,
-        baseParams,
-      ),
-      // Os graficos rotulam por nome; o id sozinho nao serve para o usuario.
-      // COALESCE com a conta padrao: o dono pode ter corrigido o nome na
-      // conta (contas.nome) sem isso refletir no cadastro de login
-      // (usuarios.nome, que pode ter vindo em caixa alta de um import). Um
-      // membro sem conta propria cai direto no nome do cadastro, que e o
-      // unico que ele tem.
-      pool.query(
-        `SELECT u.id AS usuario_id, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS nome
-         FROM usuarios u
-         LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true
-         WHERE u.id = ANY($1)`,
-        [authorIds],
-      ),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        despesas_por_autor: expensesResult.rows,
-        receitas_por_autor: incomesResult.rows,
-        despesas_por_autor_categoria: categoryResult.rows,
-        membros: namesResult.rows,
-      },
-    });
-  } catch (error) {
-    console.error('Account summary error:', error);
-    res.status(500).json({ success: false, message: 'Failed to load account summary' });
-  }
-});
-
 // GET /api/account-members/overview — panorama agregado entre TODAS as
 // contas do dono (PF + PJs). Dono sempre acessa todas as suas contas; membro
 // so acessa se accessGeneralOverview estiver liberado, e mesmo assim ve
 // apenas a(s) conta(s) as quais esta vinculado — nunca outras contas do dono.
 router.get('/overview', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { mes, ano, de_mes, de_ano, ate_mes, ate_ano } = req.query as Record<string, string | undefined>;
+    // Mesmo período do Painel (bloco "Todas as suas contas"): datas exatas,
+    // despesa pelo vencimento e receita pelo recebimento.
+    const validacao = validarPeriodo(req.query['de'], req.query['ate']);
+    if (!validacao.valido) {
+      res.status(400).json({ success: false, message: validacao.mensagem });
+      return;
+    }
 
     const memberAccountId = await resolveMemberAccountId(req.user!.id);
     const isMember = memberAccountId !== null;
@@ -694,16 +581,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
       : { rows: [] as { usuario_id: number }[] };
     const autoresFallback = [ownerId, ...membrosDaContaPadrao.rows.map((r) => r.usuario_id)];
 
-    const mesUnico = mes !== undefined && ano !== undefined
-      ? parseInt(ano) * 12 + parseInt(mes)
-      : null;
-    const deChave = de_ano !== undefined ? parseInt(de_ano) * 12 + (de_mes !== undefined ? parseInt(de_mes) : 0) : null;
-    const ateChave = ate_ano !== undefined ? parseInt(ate_ano) * 12 + (ate_mes !== undefined ? parseInt(ate_mes) : 11) : null;
-    const de = mesUnico ?? deChave;
-    const ate = mesUnico ?? ateChave;
-
-    const periodFilter = `(ano * 12 + mes) BETWEEN COALESCE($4::int, -2147483648) AND COALESCE($5::int, 2147483647)`;
-    const baseParams = [accountIds, contaPadraoId, autoresFallback, de, ate];
+    const baseParams = [accountIds, contaPadraoId, autoresFallback, validacao.periodo.de, validacao.periodo.ate];
 
     const [contasResult, expensesResult, incomesResult] = await Promise.all([
       pool.query(
@@ -718,7 +596,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
         `SELECT COALESCE(d.conta_id, $2) AS conta_id,
                 COALESCE(SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END), 0) AS total
          FROM despesas d
-         WHERE d.status = 'ativa' AND ${periodFilter}
+         WHERE d.status = 'ativa' AND d.data_vencimento BETWEEN $4::date AND $5::date
            AND (
              d.conta_id = ANY($1)
              OR (d.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND d.usuario_id = ANY($3))
@@ -729,7 +607,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
       pool.query(
         `SELECT COALESCE(r.conta_id, $2) AS conta_id, COALESCE(SUM(r.valor), 0) AS total
          FROM receitas r
-         WHERE r.status = 'ativa' AND ${periodFilter}
+         WHERE r.status = 'ativa' AND r.data_recebimento BETWEEN $4::date AND $5::date
            AND (
              r.conta_id = ANY($1)
              OR (r.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND r.usuario_id = ANY($3))

@@ -203,27 +203,6 @@ export function resolveFakeApiRequest(
   // Ações sem efeito real na demo (faturamento) — apenas simula sucesso
   if (matchEndpoint(endpoint, /\/faturar$/)) return undefined;
 
-  // Dashboard anual — agrega os lançamentos fake pelo mês de cada um (data_recebimento /
-  // data_vencimento), refletindo corretamente onde o visitante lançar cada item.
-  if (matchEndpoint(endpoint, /^\/financial\/anual$/)) {
-    return Array.from({ length: 12 }, (_, mes) => {
-      const receitasMes = db.receitas.filter((item) => new Date(item.data_recebimento).getMonth() === mes);
-      const despesasMes = db.despesas.filter((item) => new Date(item.data_vencimento).getMonth() === mes);
-      const totalReceitas = receitasMes.reduce((sum, item) => sum + item.valor, 0);
-      const totalDespesas = despesasMes.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
-      return {
-        mes,
-        receitas: totalReceitas,
-        despesas: totalDespesas,
-        saldo_final: totalReceitas - totalDespesas,
-        receitas_previstas: 0,
-      };
-    });
-  }
-
-  // Parcelas futuras — sem dado relevante na demo
-  if (matchEndpoint(endpoint, /^\/despesas\/parcelas-futuras$/)) return [];
-
   return undefined;
 }
 

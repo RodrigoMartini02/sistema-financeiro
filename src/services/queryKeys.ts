@@ -13,7 +13,7 @@ function membroIdKeyPart(membroId: number | number[] | null | undefined): string
 
 export function invalidateFinanceQueries(qc: QueryClient, month: number, year: number) {
   qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
-  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'dashboard-anual' });
+  qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'painel' });
 }
 
 export const queryKeys = {
@@ -43,24 +43,18 @@ export const queryKeys = {
   contratoAnexos: (contratoId: number) => ['contrato-anexos', contratoId] as const,
   contratosAtivos: ['contratos-ativos'] as const,
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
-  dashboardAnual: (year: number) => ['dashboard-anual', year] as const,
-  // O membro faz parte da chave: sem isso o React Query serviria os numeros do
-  // escopo anterior ao trocar de membro no seletor. undefined ("so eu"),
-  // null ("familia") e uma lista (combinacao especifica) sao escopos
-  // diferentes e nao podem colapsar na mesma chave — por isso o sentinela
-  // distingue os tres em vez de usar `?? null`, e a lista e ordenada antes de
+  // A conta e as pessoas fazem parte da chave: sem isso o React Query serviria
+  // os numeros do escopo anterior ao trocar de conta ou de membro no filtro.
+  // undefined ("so eu"), null (todas as pessoas) e uma lista (combinacao
+  // especifica) sao escopos diferentes e nao podem colapsar na mesma chave —
+  // por isso o sentinela distingue os tres, e a lista e ordenada antes de
   // virar string para nao criar chaves distintas pra mesma combinacao.
-  dashboardPanorama: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, membroId?: number | number[] | null) =>
-    ['dashboard-panorama', deMes, deAno, ateMes, ateAno, membroIdKeyPart(membroId)] as const,
-  accountSummary: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number, familia?: boolean) =>
-    ['account-summary', deMes, deAno, ateMes, ateAno, familia ?? false] as const,
-  accountsOverview: (deMes?: number, deAno?: number, ateMes?: number, ateAno?: number) =>
-    ['accounts-overview', deMes, deAno, ateMes, ateAno] as const,
+  painel: (accountId: number | null, de: string, ate: string, membroId?: number[] | null) =>
+    ['painel', accountId ?? 'ativa', de, ate, membroIdKeyPart(membroId)] as const,
+  accountsOverview: (de: string, ate: string) => ['accounts-overview', de, ate] as const,
   // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
-  parcelasFuturas: (ano: number, membroId?: number | number[] | null) =>
-    ['parcelas-futuras', ano, membroIdKeyPart(membroId)] as const,
   expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
   expenseSuggestions: (descricao: string, categoriaId?: number) =>
     ['expense-suggestions', descricao, categoriaId] as const,
