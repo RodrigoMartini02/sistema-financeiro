@@ -21,11 +21,17 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
     // original permanece intocado (ContasTab.tsx reenvia esse valor no PUT
     // /users/me ao trocar senha; se virasse o nome da conta, sobrescreveria
     // usuarios.nome sem o usuario pedir).
+    //
+    // O fallback precisa ser IDENTICO ao autor_nome de expenses.ts/incomes.ts
+    // (nome + sobrenome, nao so nome): telas como DespesasScreen comparam
+    // nomeExibicao contra autor_nome por igualdade de string para filtrar por
+    // membro, e uma divergencia aqui faz o proprio lancamento do usuario
+    // desaparecer da lista para ele mesmo.
     const result = await pool.query(
       `SELECT u.id, u.nome, u.sobrenome, u.email, u.documento, u.pais, u.estado, u.cidade,
               u.telefone, u.data_nascimento, u.tipo, u.status, u.foto,
               u.plano_status, u.plano_tipo, u.plano_expiracao, u.data_cadastro,
-              COALESCE(c.nome, u.nome) AS "nomeExibicao"
+              COALESCE(c.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS "nomeExibicao"
        FROM usuarios u
        LEFT JOIN contas c ON c.usuario_id = u.id AND c.eh_padrao = true
        WHERE u.id = $1
