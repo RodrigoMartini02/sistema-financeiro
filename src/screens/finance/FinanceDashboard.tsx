@@ -162,7 +162,6 @@ export function FinanceDashboard() {
     : txComprometimento > 70
       ? 'text-[#b54708] dark:text-amber-300'
       : 'text-[#067647] dark:text-emerald-300';
-  const pctGasto = receitas > 0 ? Math.min(100, (despesas / receitas) * 100) : 0;
   const hasNoEntries = !panoramaQ.isLoading && !!data && data.totalLancamentos === 0;
 
   // Média por período da série, contando só os que tiveram movimento: incluir
@@ -365,19 +364,10 @@ export function FinanceDashboard() {
 
   return (
     <div className="grid gap-[18px]">
-      {/* Header: o filtro fica alinhado à direita, na mesma linha da descrição
-          do período e sem moldura própria — é o mesmo assunto, não um bloco à
-          parte. */}
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-          <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          {/* Linha própria abaixo do título: período e filtro sanduíche
-              (Visão + Membros), ambos alinhados à direita. */}
-          <div className="mt-1 flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
-            <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
-            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="m-0 mr-auto text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
+        <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
+        <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasActiveFilters} onClear={handleClearFilters} />
         {guide.isVisible && hasNoEntries && visao === 'conta' && (
           <div className="relative">
             <FirstAccessGuideCard
@@ -547,32 +537,6 @@ export function FinanceDashboard() {
           )}
         </Card>
       </div>
-
-      <Card className="flex flex-col gap-4 rounded-2xl p-[18px_22px] sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 text-xs">
-            <span className="h-[7px] w-[7px] rounded-full bg-[#10b981]" />
-            <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Receitas</span>
-            <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(receitas)}</span>
-          </div>
-          <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
-            <div className="h-2 rounded bg-[#10b981]" style={{ width: `${Math.min(100, (receitas / healthBase) * 100)}%` }} />
-          </div>
-        </div>
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 text-xs">
-            <span className="h-[7px] w-[7px] rounded-full bg-[#ef4444]" />
-            <span className="font-semibold text-[#0f2b38] dark:text-slate-100">Despesas</span>
-            <span className="ml-auto font-bold tabular-nums text-[#0f2b38] dark:text-white">{formatCurrency(despesas)}</span>
-          </div>
-          <div className="mt-[7px] h-2 rounded bg-[#f1f6f9] dark:bg-slate-700">
-            <div className="h-2 rounded bg-[#ef4444]" style={{ width: `${Math.min(100, (despesas / healthBase) * 100)}%` }} />
-          </div>
-        </div>
-        <span className="shrink-0 pb-px text-[11.5px] text-[#5f7885] dark:text-slate-400">
-          Você gastou <b className="text-[#0f2b38] dark:text-slate-100">{pctGasto.toFixed(1)}%</b> do que entrou
-        </span>
-      </Card>
 
       {/* Contratos panel — carteira do mês de referência do período */}
       {contratos.length > 0 && (
