@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { getActiveAccountId } from '../services/apiClient';
+import { processarReceitasFixas } from '../services/financeService';
 import { fetchOwnPermissions } from '../services/permissoesService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
@@ -230,6 +231,23 @@ export function AppShell({
 }: AppShellProps) {
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
+  const qc = useQueryClient();
+
+  // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
+  // mês que já passaram do dia e ainda não foram lançadas. Sem permissão de
+  // receitas a chamada é recusada e nada acontece.
+  const receitasFixas = useMutation({
+    mutationFn: processarReceitasFixas,
+    onSuccess: ({ launched }) => {
+      if (launched === 0) return;
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'painel' });
+    },
+  });
+  useEffect(() => {
+    if (!isDemoMode) receitasFixas.mutate();
+  }, [isDemoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: ownPermissions } = useQuery({
     queryKey: ['own-permissions'],
     queryFn: fetchOwnPermissions,

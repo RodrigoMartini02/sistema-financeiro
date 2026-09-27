@@ -174,6 +174,14 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
   return saved;
 }
 
+/**
+ * Checagem ao abrir o sistema: lança as receitas fixas do mês que a rotina
+ * diária ainda não lançou (só as configuradas por quem está usando).
+ */
+export async function processarReceitasFixas(): Promise<{ launched: number; pushSent: number }> {
+  return apiRequest<{ launched: number; pushSent: number }>('/incomes/fixas/processar', { method: 'POST' });
+}
+
 export async function deleteIncome(id: number) {
   return apiRequest<void>(`/receitas/${id}`, { method: 'DELETE' });
 }

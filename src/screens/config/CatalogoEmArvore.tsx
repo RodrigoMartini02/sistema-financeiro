@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ChevronRight, Tag, FolderTree } from 'lucide-react';
 import type { CategoriaFormValues, OpcaoCatalogo } from '../../types/config';
@@ -48,10 +48,22 @@ export interface GuiasCatalogo {
   desativar: Guia;
 }
 
+/**
+ * Campos extras do modal (controlados) e selo na linha, para catálogos que
+ * guardam mais que o nome — as classificações de receita (fixa). Sem extensão
+ * o catálogo é só nome, como nas categorias.
+ */
+export interface ExtensaoCatalogo<T, E> {
+  /** Valor inicial dos campos ao abrir o modal; `item` ausente = item novo. */
+  estadoInicial: (item?: T) => E;
+  campos: (props: { item?: T; valor: E; alterar: (proximo: E) => void }) => ReactNode;
+  selo?: (item: T) => ReactNode;
+}
+
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
-function ItemDialog<T extends ItemCatalogo>({
-  open, item, initialParentId, isSaving, error, textos, guiaDesativar, onClose, onSave, onToggle,
+function ItemDialog<T extends ItemCatalogo, E>({
+  open, item, initialParentId, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
 }: {
   open: boolean;
   item?: T;
@@ -60,10 +72,17 @@ function ItemDialog<T extends ItemCatalogo>({
   error?: string;
   textos: TextosCatalogo;
   guiaDesativar?: Guia;
+  extensao?: ExtensaoCatalogo<T, E>;
   onClose: () => void;
-  onSave: (v: CategoriaFormValues) => void;
+  onSave: (v: CategoriaFormValues, extras?: E) => void;
   onToggle?: () => void;
 }) {
+  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item));
+  // Reabrir o modal (ou trocar de item) recomeça dos valores do item.
+  useEffect(() => {
+    if (open) setExtras(extensao?.estadoInicial(item));
+  }, [open, item?.id, initialParentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const desativarGuide = useFirstAccessGuide(guiaDesativar?.chave ?? 'catalogo:sem-guia', {
     enabled: !!guiaDesativar && open && !!item && item.ativo,
     layer: GUIDE_LAYER_MODAL,
@@ -87,7 +106,7 @@ function ItemDialog<T extends ItemCatalogo>({
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get('nome') ?? '').trim();
-    onSave(item ? { nome } : { nome, parent_id: initialParentId ?? null });
+    onSave(item ? { nome } : { nome, parent_id: initialParentId ?? null }, extras);
   };
 
   const title = item
@@ -112,6 +131,8 @@ function ItemDialog<T extends ItemCatalogo>({
               style={fieldInputStyle}
             />
           </div>
+
+          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras })}
 
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
@@ -154,9 +175,10 @@ function ItemDialog<T extends ItemCatalogo>({
 // ─── Linha ───────────────────────────────────────────────────────────────────
 
 function ItemRow<T extends ItemCatalogo>({
-  item, index, parentIndex, quantidadeSubs, expanded, destaque, tituloPadrao, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
+  item, index, parentIndex, quantidadeSubs, expanded, destaque, tituloPadrao, selo, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
 }: {
   item: T;
+  selo?: (item: T) => ReactNode;
   /** Índice hierárquico já formatado: "01" na raiz, "1.1" na subcategoria. */
   index: string;
   parentIndex?: string;
@@ -212,6 +234,7 @@ function ItemRow<T extends ItemCatalogo>({
             {hasSubs && !isChild && (
               <span style={cfgBadgeStyle}>{quantidadeSubs} sub</span>
             )}
+            {selo?.(item)}
           </span>
           <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
             {dataCriado ?? '—'}
@@ -274,22 +297,23 @@ function ItemRow<T extends ItemCatalogo>({
 
 // ─── Tela ────────────────────────────────────────────────────────────────────
 
-interface CatalogoEmArvoreProps<T extends ItemCatalogo> {
+interface CatalogoEmArvoreProps<T extends ItemCatalogo, E> {
   queryKey: readonly unknown[];
   /** Prefixo invalidado ao salvar: todas as variantes por conta, não só a ativa. */
   invalidarPrefixo: readonly unknown[];
   carregar: () => Promise<T[]>;
-  salvar: (values: CategoriaFormValues, id?: number) => Promise<unknown>;
+  salvar: (values: CategoriaFormValues, id?: number, extras?: E) => Promise<unknown>;
   alternar: (id: number) => Promise<void>;
   /** Cor da borda ao passar o mouse na linha. */
   destaque: string;
   textos: TextosCatalogo;
   guias?: GuiasCatalogo;
+  extensao?: ExtensaoCatalogo<T, E>;
 }
 
-export function CatalogoEmArvore<T extends ItemCatalogo>({
-  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias,
-}: CatalogoEmArvoreProps<T>) {
+export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
+  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias, extensao,
+}: CatalogoEmArvoreProps<T, E>) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: T; parentId?: number }>({ open: false });
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false);
@@ -314,7 +338,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo>({
   const totalSubs = tree.reduce((n, r) => n + r.subs.length, 0);
 
   const saveMut = useMutation({
-    mutationFn: async ({ v, id }: { v: CategoriaFormValues; id?: number }) => salvar(v, id),
+    mutationFn: async ({ v, id, extras }: { v: CategoriaFormValues; id?: number; extras?: E }) => salvar(v, id, extras),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: invalidarPrefixo });
       setDialog({ open: false });
@@ -380,6 +404,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo>({
                 expanded={isExpanded}
                 destaque={destaque}
                 tituloPadrao={textos.tituloPadrao}
+                selo={extensao?.selo}
                 onToggleExpand={() => toggleExpand(root.id)}
                 onEdit={(item) => setDialog({ open: true, item })}
                 onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
@@ -396,6 +421,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo>({
                   quantidadeSubs={0}
                   destaque={destaque}
                   tituloPadrao={textos.tituloPadrao}
+                  selo={extensao?.selo}
                   onEdit={(item) => setDialog({ open: true, item })}
                 />
               ))}
@@ -420,8 +446,9 @@ export function CatalogoEmArvore<T extends ItemCatalogo>({
         error={saveMut.error?.message}
         textos={textos}
         guiaDesativar={guias?.desativar}
+        extensao={extensao}
         onClose={() => setDialog({ open: false })}
-        onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
+        onSave={(v, extras) => saveMut.mutate({ v, id: dialog.item?.id, extras })}
         onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
       />
     </div>

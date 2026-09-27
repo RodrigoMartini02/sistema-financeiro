@@ -13,7 +13,7 @@ import {
 
 import { users } from './users';
 import { accounts } from './accounts';
-import { incomeClassifications } from './incomeClassifications';
+import { incomeClassificationFixes, incomeClassifications } from './incomeClassifications';
 
 export const incomes = pgTable(
   'receitas',
@@ -41,6 +41,10 @@ export const incomes = pgTable(
     commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
     client: varchar('cliente', { length: 100 }),
     classificationId: integer('classificacao_id').references(() => incomeClassifications.id, { onDelete: 'set null' }),
+    // Preenchidos só na prevista lançada automaticamente pela classificação
+    // fixa: o par é único (não lança o mesmo mês duas vezes).
+    fixedClassificationId: integer('classificacao_fixa_id').references(() => incomeClassificationFixes.id, { onDelete: 'set null' }),
+    fixedCompetence: date('fixa_competencia'),
     representativeId: integer('representante_id'),
     attachments: jsonb('anexos'),
     createdAt: timestamp('data_criacao').defaultNow(),

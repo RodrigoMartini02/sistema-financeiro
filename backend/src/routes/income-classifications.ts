@@ -1,9 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { and, asc, eq, ne, sql } from 'drizzle-orm';
-import { db } from '../db/client';
-import { incomeClassifications, incomes, type IncomeClassification } from '../db/schema';
+import { db, pool } from '../db/client';
+import {
+  incomeClassificationFixes,
+  incomeClassifications,
+  incomes,
+  type IncomeClassification,
+  type IncomeClassificationFix,
+} from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { getTodayIsoInTimezone } from '../utils/date';
 import {
   belongsToCatalog,
   findCatalogClassification,
@@ -19,7 +26,18 @@ import {
 const router = Router();
 const NOME_MAXIMO = 100;
 
-function toResponse(row: IncomeClassification) {
+const CONTRACT_BLOCKS_AUTO_LAUNCH = 'Classification used by an active contract: the contract already launches these incomes';
+
+function fixToResponse(fix: IncomeClassificationFix | undefined) {
+  if (!fix) return null;
+  return {
+    valor: Number(fix.amount),
+    dia_recebimento: fix.dayOfMonth,
+    lancar_automatico: fix.autoLaunch,
+  };
+}
+
+function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, inActiveContract = false) {
   return {
     id: row.id,
     nome: row.name,
@@ -29,7 +47,34 @@ function toResponse(row: IncomeClassification) {
     ativo: row.active,
     data_criacao: row.createdAt,
     data_atualizacao: row.updatedAt,
+    // Configuração de fixa desta conta (a padrão é compartilhada entre contas).
+    fixa: fixToResponse(fix),
+    em_contrato_ativo: inActiveContract,
   };
+}
+
+/** Classificações apontadas por contrato ativo da conta: não ligam o automático. */
+async function classificationsInActiveContracts(accountId: number): Promise<Set<number>> {
+  // contratos não tem schema Drizzle; mesma forma de acesso de routes/contracts.ts.
+  const result = await pool.query(
+    `SELECT classificacao_mensalidade_id, classificacao_implantacao_id
+       FROM contratos WHERE conta_id = $1 AND status = 'ativo'`,
+    [accountId],
+  );
+  const ids = new Set<number>();
+  for (const row of result.rows as Array<{ classificacao_mensalidade_id: number | null; classificacao_implantacao_id: number | null }>) {
+    if (row.classificacao_mensalidade_id) ids.add(row.classificacao_mensalidade_id);
+    if (row.classificacao_implantacao_id) ids.add(row.classificacao_implantacao_id);
+  }
+  return ids;
+}
+
+async function fixesByClassification(accountId: number): Promise<Map<number, IncomeClassificationFix>> {
+  const fixes = await db
+    .select()
+    .from(incomeClassificationFixes)
+    .where(eq(incomeClassificationFixes.accountId, accountId));
+  return new Map(fixes.map((fix) => [fix.classificationId, fix]));
 }
 
 function readAccountId(value: unknown): number | null {
@@ -68,13 +113,13 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const catalog = await catalogFromRequest(req, res, req.query['conta_id']);
     if (!catalog) return;
 
-    const rows = await db
-      .select()
-      .from(incomeClassifications)
-      .where(belongsToCatalog(catalog))
-      .orderBy(asc(incomeClassifications.name));
+    const [rows, fixes, inContracts] = await Promise.all([
+      db.select().from(incomeClassifications).where(belongsToCatalog(catalog)).orderBy(asc(incomeClassifications.name)),
+      fixesByClassification(catalog.accountId),
+      classificationsInActiveContracts(catalog.accountId),
+    ]);
 
-    res.json({ success: true, data: rows.map(toResponse) });
+    res.json({ success: true, data: rows.map((row) => toResponse(row, fixes.get(row.id), inContracts.has(row.id))) });
   } catch (error) {
     console.error('List income classifications error:', error);
     res.status(500).json({ success: false, message: 'Failed to list income classifications' });
@@ -159,6 +204,79 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   } catch (error) {
     console.error('Update income classification error:', error);
     res.status(500).json({ success: false, message: 'Failed to update income classification' });
+  }
+});
+
+// PUT /api/income-classifications/:id/fixa?conta_id=
+// Liga, altera ou desliga a classificação fixa NESTA conta. Quem configurou
+// (autor das previstas automáticas) só muda ao desligar e ligar de novo.
+router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const catalog = await catalogFromRequest(req, res, req.query['conta_id']);
+    if (!catalog) return;
+
+    const id = Number(req.params['id']);
+    const existing = Number.isInteger(id) ? await findCatalogClassification(catalog, id) : null;
+    if (!existing) {
+      res.status(404).json({ success: false, message: 'Income classification not found' });
+      return;
+    }
+
+    const { fixa, valor, dia_recebimento, lancar_automatico } = req.body as Record<string, unknown>;
+    const configWhere = and(
+      eq(incomeClassificationFixes.classificationId, id),
+      eq(incomeClassificationFixes.accountId, catalog.accountId),
+    );
+
+    if (fixa !== true) {
+      await db.delete(incomeClassificationFixes).where(configWhere);
+      res.json({ success: true, message: 'Fixed classification removed', data: toResponse(existing) });
+      return;
+    }
+
+    const amount = Math.round(Number(valor) * 100) / 100;
+    const day = Number(dia_recebimento);
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(day) || day < 1 || day > 31 || typeof lancar_automatico !== 'boolean') {
+      res.status(400).json({ success: false, message: 'Fixed classification needs amount > 0, day 1-31 and auto launch true/false' });
+      return;
+    }
+
+    const inContracts = await classificationsInActiveContracts(catalog.accountId);
+    if (lancar_automatico && inContracts.has(id)) {
+      res.status(400).json({ success: false, message: CONTRACT_BLOCKS_AUTO_LAUNCH });
+      return;
+    }
+
+    const [current] = await db.select().from(incomeClassificationFixes).where(configWhere).limit(1);
+    // O automático conta a partir do dia em que foi ligado; manter ligado
+    // preserva a data, desligar zera.
+    const autoSince = !lancar_automatico
+      ? null
+      : current?.autoLaunch && current.autoSince ? current.autoSince : getTodayIsoInTimezone();
+
+    const [saved] = current
+      ? await db
+        .update(incomeClassificationFixes)
+        .set({ amount: amount.toFixed(2), dayOfMonth: day, autoLaunch: lancar_automatico, autoSince, updatedAt: new Date() })
+        .where(eq(incomeClassificationFixes.id, current.id))
+        .returning()
+      : await db
+        .insert(incomeClassificationFixes)
+        .values({
+          classificationId: id,
+          accountId: catalog.accountId,
+          userId: req.user!.id,
+          amount: amount.toFixed(2),
+          dayOfMonth: day,
+          autoLaunch: lancar_automatico,
+          autoSince,
+        })
+        .returning();
+
+    res.json({ success: true, message: 'Fixed classification saved', data: toResponse(existing, saved, inContracts.has(id)) });
+  } catch (error) {
+    console.error('Save fixed income classification error:', error);
+    res.status(500).json({ success: false, message: 'Failed to save fixed classification' });
   }
 });
 

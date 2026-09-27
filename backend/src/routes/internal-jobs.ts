@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'crypto';
 import { Router, Request, Response } from 'express';
 import { processPlanLifecycle } from '../services/plan-lifecycle';
 import { processExpenseAlerts } from '../services/expenseAlerts';
+import { processFixedIncomes } from '../services/fixedIncomes';
 
 const router = Router();
 
@@ -39,9 +40,12 @@ router.post('/expense-alerts', async (req: Request, res: Response): Promise<void
     return;
   }
 
+  // A mesma rotina diária lança as receitas fixas do dia (e manda o push):
+  // sem agendamento nem segredo novos no Render.
   try {
     const result = await processExpenseAlerts();
-    res.json({ success: true, data: result });
+    const fixedIncomes = await processFixedIncomes();
+    res.json({ success: true, data: { ...result, fixedIncomes } });
   } catch (error) {
     console.error('[internal jobs] Expense alerts failed:', (error as Error).message);
     res.status(500).json({ success: false, message: 'Failed to process expense alerts.' });

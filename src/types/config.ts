@@ -27,6 +27,13 @@ export interface OpcaoCatalogo {
   ativo: boolean;
 }
 
+/** Classificação fixa nesta conta: valor e dia do recebimento, com ou sem lançamento automático. */
+export interface ClassificacaoFixa {
+  valor: number;
+  dia_recebimento: number;
+  lancar_automatico: boolean;
+}
+
 /** Classificação de receita: catálogo em árvore no mesmo molde das categorias de despesa. */
 export interface ClassificacaoReceita {
   id: number;
@@ -38,6 +45,10 @@ export interface ClassificacaoReceita {
   conta_id: number | null;
   ativo: boolean;
   data_criacao: string;
+  /** Configuração de fixa da conta consultada; null quando não é fixa. */
+  fixa: ClassificacaoFixa | null;
+  /** Usada por contrato ativo da conta: o contrato já lança, então não liga o automático. */
+  em_contrato_ativo: boolean;
   subcategorias?: ClassificacaoReceita[];
 }
 

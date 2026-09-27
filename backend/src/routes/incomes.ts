@@ -10,6 +10,7 @@ import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess
 import { createCommissionExpense } from '../services/commissionService';
 import { EstoqueError, registrarMovimentacaoEstoqueNaTransacao } from '../services/estoque';
 import { isClassificationAllowed, parseClassificationId } from '../services/incomeClassificationCatalog';
+import { processFixedIncomes } from '../services/fixedIncomes';
 
 const router = Router();
 
@@ -82,6 +83,19 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
   } catch (error) {
     console.error('Get income suggestions error:', error);
     res.status(500).json({ success: false, message: 'Failed to get income suggestions' });
+  }
+});
+
+// POST /api/incomes/fixas/processar — checagem ao abrir o sistema: lança as
+// receitas fixas do mês que a rotina diária ainda não lançou, só das
+// configurações de quem pediu.
+router.post('/fixas/processar', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await processFixedIncomes({ userId: req.user!.id });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Process fixed incomes error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process fixed incomes' });
   }
 });
 

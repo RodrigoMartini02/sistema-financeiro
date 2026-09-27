@@ -168,6 +168,20 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   });
   const classificacoes = classificacoesQ.data ?? [];
 
+  // Classificação fixa escolhida pelo usuário preenche o valor (se vazio) e o
+  // dia configurado, no mês da data do lançamento. Data travada pelo
+  // calendário (presetDate) fica como está.
+  const aplicarClassificacaoFixa = (id: number | undefined) => {
+    const fixa = classificacoes.find((c) => c.id === id)?.fixa;
+    if (!fixa) return;
+    if (!form.getValues('valor')) form.setValue('valor', fixa.valor);
+    if (isNew && presetDate) return;
+    const [ano, mes] = (form.getValues('data') || defaultDate).split('-').map(Number);
+    const ultimoDia = new Date(ano!, mes!, 0).getDate();
+    const dia = Math.min(fixa.dia_recebimento, ultimoDia);
+    form.setValue('data', `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`);
+  };
+
   const clientesQ = useQuery({
     queryKey: queryKeys.clientes,
     queryFn: fetchClientes,
@@ -426,6 +440,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     if (e.key === 'Tab' && classificacaoSugestao && !classificacaoIdWatch) {
       e.preventDefault();
       form.setValue('classificacaoId', classificacaoSugestao.id);
+      aplicarClassificacaoFixa(classificacaoSugestao.id);
       setClassificacaoSugestao(null);
       return;
     }
@@ -560,7 +575,11 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
               {classificacaoSugestao && !classificacaoIdWatch && (
                 <button
                   type="button"
-                  onClick={() => { form.setValue('classificacaoId', classificacaoSugestao.id); setClassificacaoSugestao(null); }}
+                  onClick={() => {
+                    form.setValue('classificacaoId', classificacaoSugestao.id);
+                    aplicarClassificacaoFixa(classificacaoSugestao.id);
+                    setClassificacaoSugestao(null);
+                  }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                 >
                   <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
@@ -691,7 +710,10 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                 <CategoryFloatingSelect
                   categories={classificacoes}
                   value={field.value ?? undefined}
-                  onChange={(id) => { field.onChange(id ?? null); if (id) setClassificacaoSugestao(null); }}
+                  onChange={(id) => {
+                    field.onChange(id ?? null);
+                    if (id) { setClassificacaoSugestao(null); aplicarClassificacaoFixa(id); }
+                  }}
                   onCreateNew={(nome) => setShowClassificacaoForm(nome)}
                   scrollContainerRef={scrollContainerRef}
                   rotulo="classificação"

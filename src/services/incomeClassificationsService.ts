@@ -1,5 +1,5 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
-import type { ClassificacaoReceita, ClassificacaoReceitaFormValues } from '../types/config';
+import type { ClassificacaoFixa, ClassificacaoReceita, ClassificacaoReceitaFormValues } from '../types/config';
 
 // Toda chamada leva a conta: o catálogo é o da conta (padrão do tipo dela +
 // criadas nela) e o servidor valida que ela pertence a quem pede.
@@ -30,6 +30,18 @@ export async function saveClassificacaoReceita(
       parent_id: values.parent_id ?? null,
       conta_id: accountId ?? getActiveAccountId(),
     }),
+  });
+}
+
+/** Liga/altera a fixa desta conta; `null` desliga. */
+export async function saveClassificacaoReceitaFixa(
+  id: number,
+  fixa: ClassificacaoFixa | null,
+  accountId?: number | null,
+): Promise<ClassificacaoReceita> {
+  return apiRequest<ClassificacaoReceita>(`/income-classifications/${id}/fixa${contaQuery(accountId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(fixa ? { fixa: true, ...fixa } : { fixa: false }),
   });
 }
 
