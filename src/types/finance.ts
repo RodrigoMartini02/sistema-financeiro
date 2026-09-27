@@ -152,6 +152,9 @@ export interface PainelPontoSerie {
   despesas: number;
   credito: number;
   pago: number;
+  /** Juros e descontos das despesas que vencem no trecho. */
+  juros: number;
+  descontos: number;
 }
 
 export interface PainelCategoria {

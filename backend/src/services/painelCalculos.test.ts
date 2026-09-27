@@ -4,6 +4,7 @@ import {
   agregarContasEmAberto,
   agregarEmDia,
   agregarFormasPagamento,
+  agregarJurosDescontos,
   agregarTipoGasto,
   baldesDaSerie,
   classificarPagamento,
@@ -166,8 +167,8 @@ test('série: despesa pelo vencimento, pago pela data de pagamento', () => {
     { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' },
   );
   assert.deepEqual(serie, [
-    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, credito: 100, pago: 0 },
-    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, credito: 0, pago: 100 },
+    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, credito: 100, pago: 0, juros: 0, descontos: 0 },
+    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, credito: 0, pago: 100, juros: 0, descontos: 0 },
   ]);
 });
 
@@ -179,6 +180,21 @@ test('série semanal: o último dia da semana cai na semana certa', () => {
   );
   assert.equal(serie[0]!.despesas, 100);
   assert.equal(serie[1]!.despesas, 40);
+});
+
+test('série: juros e descontos no trecho do vencimento, somando o total do período', () => {
+  const despesas = [
+    despesa({ dataVencimento: '2026-09-03', pago: true, dataPagamento: '2026-09-20', valorPago: 112 }),
+    despesa({ dataVencimento: '2026-09-16', pago: true, dataPagamento: '2026-09-16', valorPago: 95 }),
+    despesa({ dataVencimento: '2026-09-17', valorPago: 130 }),
+  ];
+  const serie = montarSerie(despesas, [], { de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' });
+  assert.equal(serie[0]!.juros, 12);
+  assert.equal(serie[2]!.juros, 0);
+  assert.equal(serie[2]!.descontos, 5);
+  const total = agregarJurosDescontos(despesas);
+  assert.equal(serie.reduce((soma, ponto) => soma + ponto.juros, 0), total.juros);
+  assert.equal(serie.reduce((soma, ponto) => soma + ponto.descontos, 0), total.descontos);
 });
 
 test('indicadores sem base devolvem null em vez de dividir por zero', () => {

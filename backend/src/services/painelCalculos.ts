@@ -317,15 +317,19 @@ export interface PontoSerie extends BaldeSerie {
   despesas: number;
   credito: number;
   pago: number;
+  juros: number;
+  descontos: number;
 }
 
 /**
  * Série dos gráficos do período. `despesas` e `credito` seguem o vencimento
  * (regra do painel); `pago` segue a data em que o pagamento aconteceu — é o
  * que permite comparar o cadastrado com o que de fato foi quitado no trecho.
+ * `juros` e `descontos` seguem o vencimento, como o total "No período" do
+ * bloco de juros: as barras somam exatamente esse total.
  */
 export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[], janela: JanelaSerie): PontoSerie[] {
-  const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, credito: 0, pago: 0 }));
+  const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, credito: 0, pago: 0, juros: 0, descontos: 0 }));
   const pontoDe = (iso: string) => pontos.find((ponto) => iso >= ponto.inicio && iso <= ponto.fim);
 
   for (const receita of receitas) {
@@ -338,6 +342,8 @@ export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[]
     if (pontoVencimento) {
       pontoVencimento.despesas += valorEfetivo(despesa);
       if (despesa.formaPagamento === FORMA_CREDITO) pontoVencimento.credito += valorEfetivo(despesa);
+      pontoVencimento.juros += jurosDaDespesa(despesa);
+      pontoVencimento.descontos += descontoDaDespesa(despesa);
     }
 
     if (despesa.pago) {
