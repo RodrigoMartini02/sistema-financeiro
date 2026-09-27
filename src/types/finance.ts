@@ -142,10 +142,12 @@ export interface PainelFiltro extends PainelPeriodo {
   membroId?: number[] | null;
 }
 
+export type PainelGranularidade = 'semana' | 'mes' | 'ano';
+
+/** Um trecho da série (semana, mês ou ano), recortado ao período: datas ISO inclusivas. */
 export interface PainelPontoSerie {
-  ano: number;
-  /** 0-11; null quando a série é anual. */
-  mes: number | null;
+  inicio: string;
+  fim: string;
   receitas: number;
   despesas: number;
   credito: number;
@@ -176,7 +178,7 @@ export interface PainelData {
     saldoAnterior: number;
     saldoFinal: number;
   };
-  serie: { granularidade: 'mes' | 'ano'; pontos: PainelPontoSerie[] };
+  serie: { granularidade: PainelGranularidade; pontos: PainelPontoSerie[] };
   formasPagamento: { forma: string; valor: number; quantidade: number; juros: number }[];
   cartoes: { id: number; nome: string; gasto: number; limite: number | null; usado: number | null }[];
   aVistaParcelado: { aVista: number; parcelado: number };

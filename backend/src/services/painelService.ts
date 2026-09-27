@@ -96,10 +96,6 @@ function menorData(...datas: string[]): string {
   return datas.reduce((menor, data) => (data < menor ? data : menor));
 }
 
-function maiorData(...datas: string[]): string {
-  return datas.reduce((maior, data) => (data > maior ? data : maior));
-}
-
 /**
  * Filtro de conta único do painel, mesma regra de utils/accountFilter.ts:
  * o registro é da conta informada, ou não tem conta e o autor é dono dela
@@ -370,10 +366,9 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const anterior = periodoAnterior(periodo);
   const janelaSerie = janelaDaSerie(periodo);
   const inicioDoAno = `${periodo.ate.slice(0, 4)}-01-01`;
-  const janelaBusca: Periodo = {
-    de: menorData(periodo.de, anterior.de, janelaSerie.de, inicioDoAno),
-    ate: maiorData(periodo.ate, janelaSerie.ate),
-  };
+  // A série cobre o próprio período; buscar a partir do período anterior (↑) e
+  // do início do ano (juros no ano) cobre tudo numa consulta só.
+  const janelaBusca: Periodo = { de: menorData(anterior.de, inicioDoAno), ate: periodo.ate };
   const compromissos = janelaComprometido(hoje);
 
   const [despesas, receitas, naoPagas, saldoAnterior] = await Promise.all([

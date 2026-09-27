@@ -33,10 +33,13 @@ export interface ReceitaPainel {
   contratoId: number | null;
 }
 
-export type Granularidade = 'mes' | 'ano';
+export type Granularidade = 'semana' | 'mes' | 'ano';
 
-// Acima disso a série mensal vira anual: barras demais deixam de ser legíveis.
+// Até ~2 meses a série vai por semana; até 24 meses, por mês; acima, por ano —
+// barras demais deixam de ser legíveis.
+const DIAS_MAXIMOS_SERIE_SEMANAL = 62;
 const MESES_MAXIMOS_SERIE_MENSAL = 24;
+const DIAS_POR_SEMANA = 7;
 
 /** Limite do intervalo aceito pelo painel, para uma requisição não varrer décadas. */
 export const PERIODO_MAXIMO_DIAS = 3660;
@@ -150,46 +153,45 @@ export interface JanelaSerie extends Periodo {
 }
 
 /**
- * Janela dos gráficos mês a mês: período dentro de um único mês mostra os 12
- * meses até ele (contexto); período que atravessa meses mostra os próprios
- * meses do período, por ano quando passa de 24.
+ * Janela dos gráficos de série: sempre o próprio período filtrado, com a
+ * granularidade ajustada ao tamanho dele — os gráficos contam a mesma
+ * história dos cards, só que detalhada.
  */
 export function janelaDaSerie(periodo: Periodo): JanelaSerie {
-  if (primeiroDiaDoMes(periodo.de) === primeiroDiaDoMes(periodo.ate)) {
-    return { de: somarMeses(periodo.ate, -11), ate: ultimoDiaDoMes(periodo.ate), granularidade: 'mes' };
+  if (diasNoPeriodo(periodo) <= DIAS_MAXIMOS_SERIE_SEMANAL) {
+    return { ...periodo, granularidade: 'semana' };
   }
   const granularidade: Granularidade = mesesTocados(periodo) > MESES_MAXIMOS_SERIE_MENSAL ? 'ano' : 'mes';
-  return { de: periodo.de, ate: periodo.ate, granularidade };
+  return { ...periodo, granularidade };
 }
 
 export function janelaComprometido(hoje: string): Periodo {
   return { de: hoje, ate: ultimoDiaDoMes(somarMeses(hoje, MESES_COMPROMETIDO - 1)) };
 }
 
-/** Mês a mês (ou ano a ano) da janela, na ordem, para a série sair completa mesmo com meses vazios. */
-export function baldesDaSerie(janela: JanelaSerie): Array<{ ano: number; mes: number | null }> {
-  const inicio = paraData(janela.de);
-  const fim = paraData(janela.ate);
-  const baldes: Array<{ ano: number; mes: number | null }> = [];
-  if (janela.granularidade === 'ano') {
-    for (let ano = inicio.getUTCFullYear(); ano <= fim.getUTCFullYear(); ano++) {
-      baldes.push({ ano, mes: null });
-    }
-    return baldes;
-  }
-  for (let cursor = primeiroDiaDoMes(janela.de); cursor <= janela.ate; cursor = somarMeses(cursor, 1)) {
-    const data = paraData(cursor);
-    baldes.push({ ano: data.getUTCFullYear(), mes: data.getUTCMonth() });
+export interface BaldeSerie {
+  inicio: string;
+  fim: string;
+}
+
+/**
+ * Intervalos da série, na ordem e recortados ao período, para ela sair
+ * completa mesmo com trechos vazios: semanas de 7 dias a partir da data
+ * inicial (a última pode ser menor), ou meses/anos com as pontas recortadas.
+ */
+export function baldesDaSerie(janela: JanelaSerie): BaldeSerie[] {
+  const baldes: BaldeSerie[] = [];
+  for (let inicio = janela.de; inicio <= janela.ate;) {
+    const fimNatural = janela.granularidade === 'semana'
+      ? somarDias(inicio, DIAS_POR_SEMANA - 1)
+      : janela.granularidade === 'mes'
+        ? ultimoDiaDoMes(inicio)
+        : `${inicio.slice(0, 4)}-12-31`;
+    const fim = fimNatural < janela.ate ? fimNatural : janela.ate;
+    baldes.push({ inicio, fim });
+    inicio = somarDias(fim, 1);
   }
   return baldes;
-}
-
-function chaveDoBalde(iso: string, granularidade: Granularidade): string {
-  return granularidade === 'ano' ? iso.slice(0, 4) : iso.slice(0, 7);
-}
-
-function chaveDeBalde(balde: { ano: number; mes: number | null }): string {
-  return balde.mes === null ? String(balde.ano) : `${balde.ano}-${String(balde.mes + 1).padStart(2, '0')}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,9 +312,7 @@ export function resumirPeriodo(despesas: DespesaPainel[], receitas: ReceitaPaine
   };
 }
 
-export interface PontoSerie {
-  ano: number;
-  mes: number | null;
+export interface PontoSerie extends BaldeSerie {
   receitas: number;
   despesas: number;
   credito: number;
@@ -320,41 +320,33 @@ export interface PontoSerie {
 }
 
 /**
- * Série dos gráficos mês a mês. `despesas` e `credito` seguem o vencimento
+ * Série dos gráficos do período. `despesas` e `credito` seguem o vencimento
  * (regra do painel); `pago` segue a data em que o pagamento aconteceu — é o
- * que permite comparar o cadastrado com o que de fato foi quitado no mês.
+ * que permite comparar o cadastrado com o que de fato foi quitado no trecho.
  */
 export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[], janela: JanelaSerie): PontoSerie[] {
-  const pontos = new Map(baldesDaSerie(janela).map((balde) => [
-    chaveDeBalde(balde),
-    { ...balde, receitas: 0, despesas: 0, credito: 0, pago: 0 },
-  ]));
+  const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, credito: 0, pago: 0 }));
+  const pontoDe = (iso: string) => pontos.find((ponto) => iso >= ponto.inicio && iso <= ponto.fim);
 
   for (const receita of receitas) {
-    if (!dentroDoPeriodo(receita.dataRecebimento, janela)) continue;
-    const ponto = pontos.get(chaveDoBalde(receita.dataRecebimento, janela.granularidade));
+    const ponto = pontoDe(receita.dataRecebimento);
     if (ponto) ponto.receitas += receita.valor;
   }
 
   for (const despesa of despesas) {
-    if (dentroDoPeriodo(despesa.dataVencimento, janela)) {
-      const ponto = pontos.get(chaveDoBalde(despesa.dataVencimento, janela.granularidade));
-      if (ponto) {
-        ponto.despesas += valorEfetivo(despesa);
-        if (despesa.formaPagamento === FORMA_CREDITO) ponto.credito += valorEfetivo(despesa);
-      }
+    const pontoVencimento = pontoDe(despesa.dataVencimento);
+    if (pontoVencimento) {
+      pontoVencimento.despesas += valorEfetivo(despesa);
+      if (despesa.formaPagamento === FORMA_CREDITO) pontoVencimento.credito += valorEfetivo(despesa);
     }
 
     if (despesa.pago) {
-      const dataQuitacao = despesa.dataPagamento ?? despesa.dataVencimento;
-      if (dentroDoPeriodo(dataQuitacao, janela)) {
-        const ponto = pontos.get(chaveDoBalde(dataQuitacao, janela.granularidade));
-        if (ponto) ponto.pago += valorEfetivo(despesa);
-      }
+      const pontoQuitacao = pontoDe(despesa.dataPagamento ?? despesa.dataVencimento);
+      if (pontoQuitacao) pontoQuitacao.pago += valorEfetivo(despesa);
     }
   }
 
-  return [...pontos.values()];
+  return pontos;
 }
 
 export interface FormaPagamentoAgregada {
@@ -443,12 +435,10 @@ export function agregarContasEmAberto(naoPagas: DespesaPainel[], hoje: string): 
   const resultado: ContasEmAberto = {
     atraso: { valor: 0, quantidade: 0 },
     proximos30Dias: { valor: 0, quantidade: 0 },
-    comprometido: baldesDaSerie({ ...janela, granularidade: 'mes' }).map((balde) => ({
-      ano: balde.ano,
-      mes: balde.mes!,
-      parcelas: 0,
-      outras: 0,
-    })),
+    comprometido: Array.from({ length: MESES_COMPROMETIDO }, (_, deslocamento) => {
+      const inicioDoMes = paraData(somarMeses(hoje, deslocamento));
+      return { ano: inicioDoMes.getUTCFullYear(), mes: inicioDoMes.getUTCMonth(), parcelas: 0, outras: 0 };
+    }),
   };
 
   for (const despesa of naoPagas) {

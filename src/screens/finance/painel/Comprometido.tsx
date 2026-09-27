@@ -1,9 +1,9 @@
 import { Card } from '../../../ui/card';
 import type { PainelData } from '../../../types/finance';
-import { BarrasMensaisChart } from '../charts/BarrasMensaisChart';
+import { BarrasSerieChart } from '../charts/BarrasSerieChart';
 import { formatCurrency } from '../formatters';
 import { CabecalhoCard, RodapeCard, Secao, Vazio } from './PainelLayout';
-import { rotuloDoPonto } from './painelFormat';
+import { rotuloDoMes } from './painelFormat';
 
 interface ComprometidoProps {
   meses: PainelData['contasEmAberto']['comprometido'];
@@ -11,7 +11,7 @@ interface ComprometidoProps {
 
 export function Comprometido({ meses }: ComprometidoProps) {
   const pontos = meses.map((mes) => ({
-    rotulo: rotuloDoPonto(mes.ano, mes.mes),
+    rotulo: rotuloDoMes(mes.ano, mes.mes),
     parcelas: mes.parcelas,
     outras: mes.outras,
   }));
@@ -26,7 +26,7 @@ export function Comprometido({ meses }: ComprometidoProps) {
           <Vazio>Nada lançado para os próximos meses.</Vazio>
         ) : (
           <>
-            <BarrasMensaisChart
+            <BarrasSerieChart
               pontos={pontos}
               altura={200}
               series={[

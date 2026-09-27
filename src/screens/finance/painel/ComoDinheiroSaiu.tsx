@@ -1,11 +1,11 @@
 import { Card } from '../../../ui/card';
-import type { PainelData, PainelPeriodo } from '../../../types/finance';
-import { BarrasMensaisChart } from '../charts/BarrasMensaisChart';
+import type { PainelData } from '../../../types/finance';
+import { BarrasSerieChart } from '../charts/BarrasSerieChart';
 import { DonutChart } from '../charts/DonutChart';
 import { formatCurrency } from '../formatters';
 import { PALETA } from '../memberColors';
 import { CabecalhoCard, RodapeCard, Secao, Vazio } from './PainelLayout';
-import { FORMA_CREDITO, formatarPercentual, rotuloDoMesFinal, rotuloDoPonto, rotuloForma } from './painelFormat';
+import { FORMA_CREDITO, formatarPercentual, rotuloDoTrecho, rotuloForma, unidadeDaSerie } from './painelFormat';
 
 const COR_A_VISTA = '#10b981';
 const COR_PARCELADO = '#6366f1';
@@ -17,7 +17,6 @@ const FATIA_DOMINANTE = 0.5;
 
 interface ComoDinheiroSaiuProps {
   dados: PainelData;
-  periodo: PainelPeriodo;
 }
 
 function FormasPagamento({ formas, total, ocupaLinhaInteira }: { formas: PainelData['formasPagamento']; total: number; ocupaLinhaInteira: boolean }) {
@@ -153,13 +152,12 @@ function PizzaSimples({ titulo, detalhe, fatias, centro, total, frase }: {
   );
 }
 
-export function ComoDinheiroSaiu({ dados, periodo }: ComoDinheiroSaiuProps) {
+export function ComoDinheiroSaiu({ dados }: ComoDinheiroSaiuProps) {
   const total = dados.resumo.saiu;
   const { aVista, parcelado } = dados.aVistaParcelado;
   const { fixo, parcela, livre } = dados.tipoGasto;
-  const periodoDentroDeUmMes = periodo.de.slice(0, 7) === periodo.ate.slice(0, 7);
   const usoCredito = dados.serie.pontos.map((ponto) => ({
-    rotulo: rotuloDoPonto(ponto.ano, ponto.mes),
+    rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, dados.serie.granularidade),
     credito: ponto.despesas > 0 ? (ponto.credito / ponto.despesas) * 100 : 0,
   }));
   const temCredito = dados.serie.pontos.some((ponto) => ponto.credito > 0);
@@ -207,11 +205,10 @@ export function ComoDinheiroSaiu({ dados, periodo }: ComoDinheiroSaiuProps) {
         <Card className="flex flex-col gap-4 rounded-2xl p-[18px_22px]">
           <CabecalhoCard
             titulo="Uso do crédito"
-            detalhe={periodoDentroDeUmMes ? '% do gasto no crédito · últimos 12 meses' : '% do gasto no crédito'}
+            detalhe={`% do gasto no crédito · por ${unidadeDaSerie(dados.serie.granularidade).singular}`}
           />
-          <BarrasMensaisChart
+          <BarrasSerieChart
             pontos={usoCredito}
-            destaque={periodoDentroDeUmMes ? rotuloDoMesFinal(periodo) : undefined}
             series={[{ chave: 'credito', rotulo: 'No crédito', cor: '#0891b2', tipo: 'barra' }]}
             formatarValor={formatarPercentual}
             formatarEixo={formatarPercentual}

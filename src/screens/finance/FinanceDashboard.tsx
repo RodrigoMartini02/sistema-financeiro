@@ -25,7 +25,7 @@ import { ExtrasContaEmpresa } from './painel/ExtrasContaEmpresa';
 import { JurosDescontos } from './painel/JurosDescontos';
 import { Planejado } from './painel/Planejado';
 import { QuemTrouxeQuemGastou } from './painel/QuemTrouxeQuemGastou';
-import { ReceitaDespesaMensal } from './painel/ReceitaDespesaMensal';
+import { ReceitaDespesa } from './painel/ReceitaDespesa';
 import { TodasAsContas } from './painel/TodasAsContas';
 import { Vazio } from './painel/PainelLayout';
 
@@ -161,9 +161,9 @@ export function FinanceDashboard() {
         <>
           <CardsResumo resumo={dados.resumo} anteriorEhMes={anteriorEhMes} />
           {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={periodo} />}
-          <ReceitaDespesaMensal serie={dados.serie} periodo={periodo} />
-          <ComoDinheiroSaiu dados={dados} periodo={periodo} />
-          <EmDiaComContas dados={dados} periodo={periodo} />
+          <ReceitaDespesa serie={dados.serie} />
+          <ComoDinheiroSaiu dados={dados} />
+          <EmDiaComContas dados={dados} />
           {dados.planejado && <Planejado itens={dados.planejado} />}
           <Comprometido meses={dados.contasEmAberto.comprometido} />
           {mostrarPessoas && (

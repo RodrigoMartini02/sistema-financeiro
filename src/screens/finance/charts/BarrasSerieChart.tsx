@@ -1,7 +1,7 @@
-import { Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartTooltip } from './ChartTooltip';
 
-export interface SerieBarrasMensais {
+export interface SerieBarras {
   chave: string;
   rotulo: string;
   cor: string;
@@ -10,12 +10,10 @@ export interface SerieBarrasMensais {
   pilha?: string;
 }
 
-interface BarrasMensaisChartProps {
-  /** Um ponto por mês (ou ano): `rotulo` no eixo X e um valor por `chave` de série. */
+interface BarrasSerieChartProps {
+  /** Um ponto por trecho (semana, mês ou ano): `rotulo` no eixo X e um valor por `chave` de série. */
   pontos: Array<{ rotulo: string } & Record<string, number | string>>;
-  series: SerieBarrasMensais[];
-  /** Rótulo do ponto a destacar (ex.: o mês selecionado no filtro). */
-  destaque?: string;
+  series: SerieBarras[];
   formatarValor?: (valor: number) => string;
   formatarEixo?: (valor: number) => string;
   altura?: number;
@@ -27,13 +25,13 @@ function formatarEixoMoeda(valor: number): string {
 }
 
 /**
- * Gráfico mês a mês do Painel: barras (lado a lado ou empilhadas) e linhas
+ * Gráfico de série do Painel: barras (lado a lado ou empilhadas) e linhas
  * sobre o mesmo eixo. Um componente só para receita × despesa, cadastrado ×
  * pago, uso do crédito e compromissos futuros.
  */
-export function BarrasMensaisChart({
-  pontos, series, destaque, formatarValor, formatarEixo = formatarEixoMoeda, altura = 240,
-}: BarrasMensaisChartProps) {
+export function BarrasSerieChart({
+  pontos, series, formatarValor, formatarEixo = formatarEixoMoeda, altura = 240,
+}: BarrasSerieChartProps) {
   const labels = Object.fromEntries(series.map((serie) => [serie.chave, serie.rotulo]));
 
   return (
@@ -42,7 +40,6 @@ export function BarrasMensaisChart({
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={pontos} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2}>
             <CartesianGrid vertical={false} stroke="#eef4f7" />
-            {destaque && <ReferenceArea x1={destaque} x2={destaque} fill="#0891b2" fillOpacity={0.06} />}
             <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#7b93a1' }} />
             <YAxis tickLine={false} axisLine={false} width={56} tick={{ fontSize: 11, fill: '#7b93a1' }} tickFormatter={formatarEixo} />
             <Tooltip cursor={{ fill: '#0891b2', fillOpacity: 0.04 }} content={<ChartTooltip labels={labels} formatarValor={formatarValor} />} />

@@ -1,4 +1,4 @@
-import { MONTH_NAMES, type PainelPeriodo } from '../../../types/finance';
+import { MONTH_NAMES, type PainelGranularidade } from '../../../types/finance';
 
 const ROTULO_FORMA: Record<string, string> = {
   credito: 'Crédito',
@@ -16,16 +16,28 @@ export function rotuloForma(forma: string): string {
   return ROTULO_FORMA[forma] ?? forma.charAt(0).toUpperCase() + forma.slice(1).replace(/_/g, ' ');
 }
 
-/** 'set/26' para um mês, '2026' para um ano. */
-export function rotuloDoPonto(ano: number, mes: number | null): string {
-  if (mes === null) return String(ano);
+/** 'set/26' — mês 0-11. */
+export function rotuloDoMes(ano: number, mes: number): string {
   return `${MONTH_NAMES[mes]!.slice(0, 3).toLowerCase()}/${String(ano).slice(2)}`;
 }
 
-/** Rótulo do mês do fim do período no mesmo formato da série — ponto destacado nos gráficos. */
-export function rotuloDoMesFinal(periodo: PainelPeriodo): string {
-  const [ano, mes] = periodo.ate.split('-').map(Number);
-  return rotuloDoPonto(ano!, mes! - 1);
+/**
+ * Rótulo de um trecho da série: semana '01–07/09' (ou '29/09–05/10' quando
+ * cruza o mês), mês 'set/26', ano '2026'.
+ */
+export function rotuloDoTrecho(inicio: string, fim: string, granularidade: PainelGranularidade): string {
+  const [ano, mes, dia] = inicio.split('-');
+  if (granularidade === 'ano') return ano!;
+  if (granularidade === 'mes') return rotuloDoMes(Number(ano), Number(mes) - 1);
+  const [, mesFim, diaFim] = fim.split('-');
+  return mes === mesFim ? `${dia}–${diaFim}/${mesFim}` : `${dia}/${mes}–${diaFim}/${mesFim}`;
+}
+
+/** Unidade da série para os textos: "semana"/"semanas", "mês"/"meses", "ano"/"anos". */
+export function unidadeDaSerie(granularidade: PainelGranularidade): { singular: string; plural: string } {
+  if (granularidade === 'semana') return { singular: 'semana', plural: 'semanas' };
+  if (granularidade === 'mes') return { singular: 'mês', plural: 'meses' };
+  return { singular: 'ano', plural: 'anos' };
 }
 
 export function formatarPercentual(valor: number): string {

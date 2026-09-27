@@ -1,13 +1,12 @@
 import { Card } from '../../../ui/card';
-import type { PainelData, PainelPeriodo } from '../../../types/finance';
-import { BarrasMensaisChart } from '../charts/BarrasMensaisChart';
+import type { PainelData } from '../../../types/finance';
+import { BarrasSerieChart } from '../charts/BarrasSerieChart';
 import { formatCurrency } from '../formatters';
 import { CabecalhoCard, Secao } from './PainelLayout';
-import { contas, rotuloDoMesFinal, rotuloDoPonto } from './painelFormat';
+import { contas, rotuloDoTrecho, unidadeDaSerie } from './painelFormat';
 
 interface EmDiaComContasProps {
   dados: PainelData;
-  periodo: PainelPeriodo;
 }
 
 function Numero({ rotulo, valor, detalhe, tom }: { rotulo: string; valor: number; detalhe?: string; tom?: string }) {
@@ -20,11 +19,10 @@ function Numero({ rotulo, valor, detalhe, tom }: { rotulo: string; valor: number
   );
 }
 
-export function EmDiaComContas({ dados, periodo }: EmDiaComContasProps) {
+export function EmDiaComContas({ dados }: EmDiaComContasProps) {
   const { emDia, contasEmAberto } = dados;
-  const periodoDentroDeUmMes = periodo.de.slice(0, 7) === periodo.ate.slice(0, 7);
   const pontos = dados.serie.pontos.map((ponto) => ({
-    rotulo: rotuloDoPonto(ponto.ano, ponto.mes),
+    rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, dados.serie.granularidade),
     cadastrado: ponto.despesas,
     pago: ponto.pago,
   }));
@@ -67,14 +65,13 @@ export function EmDiaComContas({ dados, periodo }: EmDiaComContasProps) {
         <Card className="flex flex-col gap-4 rounded-2xl p-[18px_22px] lg:col-span-3">
           <CabecalhoCard
             titulo="Cadastrado × pago"
-            detalhe={periodoDentroDeUmMes ? 'últimos 12 meses' : 'por mês do período'}
+            detalhe={`por ${unidadeDaSerie(dados.serie.granularidade).singular} do período`}
           />
-          <BarrasMensaisChart
+          <BarrasSerieChart
             pontos={pontos}
-            destaque={periodoDentroDeUmMes ? rotuloDoMesFinal(periodo) : undefined}
             series={[
-              { chave: 'cadastrado', rotulo: 'Cadastrado (vence no mês)', cor: '#c7d2fe', tipo: 'barra' },
-              { chave: 'pago', rotulo: 'Pago no mês', cor: '#6366f1', tipo: 'barra' },
+              { chave: 'cadastrado', rotulo: 'Cadastrado (pelo vencimento)', cor: '#c7d2fe', tipo: 'barra' },
+              { chave: 'pago', rotulo: 'Pago (pela data de pagamento)', cor: '#6366f1', tipo: 'barra' },
             ]}
           />
           <p className="m-0 text-[11.5px] text-[#5f7885] dark:text-slate-400">

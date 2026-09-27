@@ -5,6 +5,7 @@ import {
   agregarEmDia,
   agregarFormasPagamento,
   agregarTipoGasto,
+  baldesDaSerie,
   classificarPagamento,
   dataIsoValida,
   fatorMetaProporcional,
@@ -62,13 +63,36 @@ test('recorte de dias compara com o mesmo número de dias logo antes', () => {
   assert.deepEqual(periodoAnterior({ de: '2026-09-10', ate: '2026-09-19' }), { de: '2026-08-31', ate: '2026-09-09' });
 });
 
-test('período dentro de um mês usa os 12 meses até ele na série', () => {
-  assert.deepEqual(janelaDaSerie({ de: '2026-09-01', ate: '2026-09-30' }), { de: '2025-10-01', ate: '2026-09-30', granularidade: 'mes' });
+test('a série cobre o próprio período, por semana até 62 dias', () => {
+  assert.deepEqual(janelaDaSerie({ de: '2026-09-01', ate: '2026-09-30' }), { de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' });
+  assert.equal(janelaDaSerie({ de: '2026-08-01', ate: '2026-10-01' }).granularidade, 'semana');
+  assert.equal(janelaDaSerie({ de: '2026-08-01', ate: '2026-10-02' }).granularidade, 'mes');
 });
 
 test('período que atravessa mais de 24 meses vira série anual', () => {
   assert.equal(janelaDaSerie({ de: '2023-01-01', ate: '2026-09-30' }).granularidade, 'ano');
   assert.equal(janelaDaSerie({ de: '2026-01-01', ate: '2026-09-30' }).granularidade, 'mes');
+});
+
+test('semanas de 7 dias a partir da data inicial, a última recortada ao período', () => {
+  const semanasDeSetembro = baldesDaSerie({ de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' });
+  assert.equal(semanasDeSetembro.length, 5);
+  assert.deepEqual(semanasDeSetembro[4], { inicio: '2026-09-29', fim: '2026-09-30' });
+  const semanasDeOutubro = baldesDaSerie({ de: '2026-10-01', ate: '2026-10-31', granularidade: 'semana' });
+  assert.deepEqual(semanasDeOutubro[4], { inicio: '2026-10-29', fim: '2026-10-31' });
+  assert.deepEqual(baldesDaSerie({ de: '2026-09-25', ate: '2026-10-10', granularidade: 'semana' }), [
+    { inicio: '2026-09-25', fim: '2026-10-01' },
+    { inicio: '2026-10-02', fim: '2026-10-08' },
+    { inicio: '2026-10-09', fim: '2026-10-10' },
+  ]);
+});
+
+test('meses com as pontas recortadas ao período', () => {
+  assert.deepEqual(baldesDaSerie({ de: '2026-08-15', ate: '2026-10-10', granularidade: 'mes' }), [
+    { inicio: '2026-08-15', fim: '2026-08-31' },
+    { inicio: '2026-09-01', fim: '2026-09-30' },
+    { inicio: '2026-10-01', fim: '2026-10-10' },
+  ]);
 });
 
 test('último dia do mês respeita fevereiro', () => {
@@ -142,9 +166,19 @@ test('série: despesa pelo vencimento, pago pela data de pagamento', () => {
     { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' },
   );
   assert.deepEqual(serie, [
-    { ano: 2026, mes: 7, receitas: 0, despesas: 100, credito: 100, pago: 0 },
-    { ano: 2026, mes: 8, receitas: 1000, despesas: 0, credito: 0, pago: 100 },
+    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, credito: 100, pago: 0 },
+    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, credito: 0, pago: 100 },
   ]);
+});
+
+test('série semanal: o último dia da semana cai na semana certa', () => {
+  const serie = montarSerie(
+    [despesa({ dataVencimento: '2026-09-07' }), despesa({ dataVencimento: '2026-09-08', valorOriginal: 40 })],
+    [],
+    { de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' },
+  );
+  assert.equal(serie[0]!.despesas, 100);
+  assert.equal(serie[1]!.despesas, 40);
 });
 
 test('indicadores sem base devolvem null em vez de dividir por zero', () => {
