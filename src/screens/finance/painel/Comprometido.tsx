@@ -1,15 +1,14 @@
-import { Card } from '../../../ui/card';
 import type { PainelData } from '../../../types/finance';
 import { BarrasSerieChart } from '../charts/BarrasSerieChart';
 import { formatCurrency } from '../formatters';
-import { CabecalhoCard, RodapeCard, Secao, Vazio } from './PainelLayout';
+import { useCoresGrafico } from './coresGrafico';
+import { CabecalhoCard, CardPainel, Legenda, RodapeCard, Secao, Vazio } from './PainelLayout';
 import { rotuloDoMes } from './painelFormat';
 
-interface ComprometidoProps {
-  meses: PainelData['contasEmAberto']['comprometido'];
-}
+const DESTAQUE = 'font-semibold text-slate-900 dark:text-white';
 
-export function Comprometido({ meses }: ComprometidoProps) {
+export function Comprometido({ meses }: { meses: PainelData['contasEmAberto']['comprometido'] }) {
+  const cores = useCoresGrafico();
   const pontos = meses.map((mes) => ({
     rotulo: rotuloDoMes(mes.ano, mes.mes),
     parcelas: mes.parcelas,
@@ -20,27 +19,31 @@ export function Comprometido({ meses }: ComprometidoProps) {
 
   return (
     <Secao titulo="O que já está comprometido?" detalhe="a partir de hoje">
-      <Card className="flex flex-col gap-4 rounded-2xl p-[18px_22px]">
+      <CardPainel>
         <CabecalhoCard titulo="Contas a vencer nos próximos 6 meses" detalhe="ainda não pagas" />
         {totalParcelas + totalOutras === 0 ? (
           <Vazio>Nada lançado para os próximos meses.</Vazio>
         ) : (
           <>
+            <Legenda itens={[
+              { cor: cores.categorias[0]!, nome: 'Parcelas' },
+              { cor: cores.categorias[1]!, nome: 'Demais contas' },
+            ]} />
             <BarrasSerieChart
               pontos={pontos}
-              altura={200}
+              altura={190}
               series={[
-                { chave: 'parcelas', rotulo: 'Parcelas', cor: '#6366f1', tipo: 'barra', pilha: 'comprometido' },
-                { chave: 'outras', rotulo: 'Demais contas', cor: '#a5b4fc', tipo: 'barra', pilha: 'comprometido' },
+                { chave: 'parcelas', rotulo: 'Parcelas', cor: cores.categorias[0]!, tipo: 'barra', pilha: 'comprometido' },
+                { chave: 'outras', rotulo: 'Demais contas', cor: cores.categorias[1]!, tipo: 'barra', pilha: 'comprometido' },
               ]}
             />
             <RodapeCard>
-              Parcelas <b className="text-[#0f2b38] dark:text-slate-100">{formatCurrency(totalParcelas)}</b>
-              {' · '}Demais contas já lançadas <b className="text-[#0f2b38] dark:text-slate-100">{formatCurrency(totalOutras)}</b>
+              Parcelas <b className={DESTAQUE}>{formatCurrency(totalParcelas)}</b>
+              {' · '}Demais contas já lançadas <b className={DESTAQUE}>{formatCurrency(totalOutras)}</b>
             </RodapeCard>
           </>
         )}
-      </Card>
+      </CardPainel>
     </Secao>
   );
 }

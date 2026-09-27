@@ -16,9 +16,10 @@ import type { PainelPeriodo } from '../../types/finance';
 import { TERMOS } from '../config/ContasTab';
 import { DashboardPeriodFilter, descreverPeriodo, periodoDoMesAtual } from './DashboardPeriodFilter';
 import { MonthCategoriesOverview } from './MonthCategoriesOverview';
-import { buildMemberColors, firstName } from './memberColors';
+import { firstName } from './memberColors';
 import { CardsResumo } from './painel/CardsResumo';
 import { ComoDinheiroSaiu } from './painel/ComoDinheiroSaiu';
+import { coresPorPessoa as montarCoresPorPessoa, useCoresGrafico } from './painel/coresGrafico';
 import { Comprometido } from './painel/Comprometido';
 import { EmDiaComContas } from './painel/EmDiaComContas';
 import { ExtrasContaEmpresa } from './painel/ExtrasContaEmpresa';
@@ -88,9 +89,11 @@ export function FinanceDashboard() {
   });
   const dados = painelQ.data;
 
-  const memberColors = useMemo(
-    () => buildMemberColors(pessoas.map((pessoa) => ({ usuario_id: pessoa.usuarioId }))),
-    [pessoas],
+  // Cada pessoa mantém a mesma cor em Quem trouxe e em Categorias.
+  const cores = useCoresGrafico();
+  const coresPorPessoa = useMemo(
+    () => montarCoresPorPessoa(pessoas.map((pessoa) => pessoa.usuarioId), cores),
+    [pessoas, cores],
   );
 
   const tipoConta = dados?.tipoConta ?? (localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal');
@@ -133,7 +136,7 @@ export function FinanceDashboard() {
   return (
     <div className="grid gap-[18px]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="m-0 mr-auto text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
+        <h1 className="m-0 mr-auto text-2xl font-bold text-slate-950 dark:text-white">Painel financeiro</h1>
         <DashboardPeriodFilter value={periodo} onChange={setPeriodo} />
         <MultiFilterPanel groups={grupos} hasActiveFilters={filtrosAtivos} onClear={limparFiltros} />
         {guiaMes.isVisible && semLancamentos && (
@@ -167,13 +170,13 @@ export function FinanceDashboard() {
           {dados.planejado && <Planejado itens={dados.planejado} />}
           <Comprometido meses={dados.contasEmAberto.comprometido} />
           {mostrarPessoas && (
-            <QuemTrouxeQuemGastou pessoas={dados.porPessoa} memberColors={memberColors} termoPlural={termos.plural} />
+            <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} termoPlural={termos.plural} />
           )}
           <JurosDescontos valores={dados.jurosDescontos} ano={periodo.ate.slice(0, 4)} />
           <MonthCategoriesOverview
             porCategoria={dados.categorias}
             periodLabel={descreverPeriodo(periodo)}
-            memberColors={memberColors}
+            coresPorPessoa={coresPorPessoa}
             segmentarPorMembro={membroIds.size > 1}
           />
         </>

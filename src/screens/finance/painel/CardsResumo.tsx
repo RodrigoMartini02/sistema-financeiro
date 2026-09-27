@@ -1,48 +1,34 @@
 import { AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
-import { Card } from '../../../ui/card';
 import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
+import { MovementMetricCard } from '../MovementMetricCard';
 
 // Mesmas faixas da barra e do guia de primeiro acesso: até 70% saudável, até
 // 90% em alerta, acima disso crítico.
 const FAIXA_ALERTA = 70;
 const FAIXA_CRITICA = 90;
 
-const TOM_POSITIVO = 'text-[#067647] dark:text-emerald-300';
-const TOM_NEGATIVO = 'text-[#b42318] dark:text-rose-300';
-const TOM_ALERTA = 'text-[#b54708] dark:text-amber-300';
-
 function variacao(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;
   return ((atual - anterior) / Math.abs(anterior)) * 100;
 }
 
-/** "↑ 12% vs mês anterior" — `subirEBom` decide a cor (receita subir é bom; despesa subir, não). */
-function Variacao({ atual, anterior, subirEBom, rotuloAnterior }: { atual: number; anterior: number; subirEBom: boolean; rotuloAnterior: string }) {
+/** "↑ 4% vs mês anterior" — `subirEBom` decide a cor: receita subir é bom; despesa subir, não. */
+function NotaVariacao({ atual, anterior, subirEBom, rotuloAnterior }: { atual: number; anterior: number; subirEBom: boolean; rotuloAnterior: string }) {
   const percentual = variacao(atual, anterior);
-  if (percentual === null) {
-    return <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">Sem base para comparar com o {rotuloAnterior}.</span>;
-  }
+  if (percentual === null) return <>Sem base para comparar com o {rotuloAnterior}</>;
   const subiu = percentual >= 0;
   const Icone = subiu ? ArrowUpRight : ArrowDownRight;
-  const tom = subiu === subirEBom ? TOM_POSITIVO : TOM_NEGATIVO;
+  const tom = subiu === subirEBom ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
   return (
-    <span className="inline-flex items-center gap-1 text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-      <Icone size={13} className={tom} />
-      <b className={`font-semibold tabular-nums ${tom}`}>{Math.abs(percentual).toFixed(0)}%</b> vs {rotuloAnterior}
+    <span className="inline-flex items-center gap-0.5">
+      <Icone size={12} className={tom} aria-hidden="true" />
+      <b className={`font-semibold ${tom}`}>{Math.abs(percentual).toFixed(0)}%</b>&nbsp;vs {rotuloAnterior}
     </span>
   );
-}
-
-function Rotulo({ children }: { children: string }) {
-  return <span className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[#5f7885] dark:text-slate-400">{children}</span>;
-}
-
-function Valor({ valor, tom }: { valor: number; tom: string }) {
-  return <p className={`text-[23px] font-bold tracking-[-0.02em] tabular-nums ${tom}`}>{formatCurrency(valor)}</p>;
 }
 
 interface CardsResumoProps {
@@ -52,59 +38,59 @@ interface CardsResumoProps {
 }
 
 export function CardsResumo({ resumo, anteriorEhMes }: CardsResumoProps) {
-  const comprometimentoGuide = useFirstAccessGuide('painel:comprometimento-v1');
+  const guiaComprometimento = useFirstAccessGuide('painel:comprometimento-v1');
   const rotuloAnterior = anteriorEhMes ? 'mês anterior' : 'período anterior';
   const resultado = resumo.entrou - resumo.saiu;
   const resultadoSobreRenda = resumo.entrou > 0 ? (Math.abs(resultado) / resumo.entrou) * 100 : null;
   const comprometimento = resumo.entrou > 0 ? (resumo.saiu / resumo.entrou) * 100 : null;
-  const tomComprometimento = comprometimento === null || comprometimento <= FAIXA_ALERTA
-    ? TOM_POSITIVO
-    : comprometimento <= FAIXA_CRITICA ? TOM_ALERTA : TOM_NEGATIVO;
+  const situacao = comprometimento === null || comprometimento <= FAIXA_ALERTA
+    ? { tom: 'income' as const, rotulo: 'saudável', classe: 'text-emerald-600 dark:text-emerald-400' }
+    : comprometimento <= FAIXA_CRITICA
+      ? { tom: 'warning' as const, rotulo: 'atenção', classe: 'text-amber-600 dark:text-amber-400' }
+      : { tom: 'expense' as const, rotulo: 'crítico', classe: 'text-rose-600 dark:text-rose-400' };
 
   return (
-    <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-5">
-      <Card className="flex flex-col gap-2 rounded-2xl p-5">
-        <Rotulo>Entrou</Rotulo>
-        <Valor valor={resumo.entrou} tom={TOM_POSITIVO} />
-        <Variacao atual={resumo.entrou} anterior={resumo.entrouAnterior} subirEBom rotuloAnterior={rotuloAnterior} />
-      </Card>
-
-      <Card className="flex flex-col gap-2 rounded-2xl p-5">
-        <Rotulo>Saiu</Rotulo>
-        <Valor valor={resumo.saiu} tom={TOM_NEGATIVO} />
-        <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-          {formatCurrency(resumo.pago)} pago · {formatCurrency(resumo.aPagar)} a pagar
-        </span>
-        <Variacao atual={resumo.saiu} anterior={resumo.saiuAnterior} subirEBom={false} rotuloAnterior={rotuloAnterior} />
-      </Card>
-
-      <Card className="flex flex-col gap-2 rounded-2xl p-5">
-        <Rotulo>Resultado</Rotulo>
-        {/* O sinal faz parte do dado: um déficit sem o menos vira superávit
-            para quem lê rápido, e a cor sozinha não carrega isso. */}
-        <Valor valor={resultado} tom={resultado >= 0 ? TOM_POSITIVO : TOM_NEGATIVO} />
-        <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-          {resultadoSobreRenda === null
-            ? 'Sem receita no período.'
-            : `${resultado >= 0 ? 'Sobrou' : 'Faltou'} ${resultadoSobreRenda.toFixed(0)}% da renda.`}
-        </span>
-      </Card>
-
-      <Card className="relative flex flex-col gap-2 rounded-2xl p-5">
-        <Rotulo>Comprometimento</Rotulo>
-        <p className={`text-[23px] font-bold tracking-[-0.02em] tabular-nums ${tomComprometimento}`}>
-          {comprometimento === null ? '—' : `${comprometimento.toFixed(0)}%`}
-        </p>
-        <div className="relative mt-1 flex h-1.5 gap-0.5" aria-hidden="true">
-          <div className="rounded-l bg-[#b7e4c7]" style={{ flex: FAIXA_ALERTA }} />
-          <div className="bg-[#f0e0b0]" style={{ flex: FAIXA_CRITICA - FAIXA_ALERTA }} />
-          <div className="rounded-r bg-[#fbd5d1]" style={{ flex: 100 - FAIXA_CRITICA }} />
-          {comprometimento !== null && (
-            <span className="absolute -top-1 h-3.5 w-[3px] rounded bg-[#0f2b38] dark:bg-white" style={{ left: `${Math.min(100, comprometimento)}%` }} />
+    <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
+      <MovementMetricCard
+        label="Entrou"
+        value={formatCurrency(resumo.entrou)}
+        tone="income"
+        progressPct={100}
+        note={<NotaVariacao atual={resumo.entrou} anterior={resumo.entrouAnterior} subirEBom rotuloAnterior={rotuloAnterior} />}
+      />
+      <MovementMetricCard
+        label="Saiu"
+        value={formatCurrency(resumo.saiu)}
+        tone="expense"
+        progressPct={resumo.saiu > 0 ? (resumo.pago / resumo.saiu) * 100 : 0}
+        note={<>{formatCurrency(resumo.pago)} pago · {formatCurrency(resumo.aPagar)} a pagar</>}
+      />
+      <MovementMetricCard
+        label="Resultado"
+        value={`${resultado >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(resultado))}`}
+        tone={resultado >= 0 ? 'income' : 'expense'}
+        progressPct={resultadoSobreRenda ?? 0}
+        note={resultadoSobreRenda === null
+          ? 'Sem receita no período'
+          : `${resultado >= 0 ? 'Sobrou' : 'Faltou'} ${resultadoSobreRenda.toFixed(0)}% da renda`}
+      />
+      <div className="relative">
+        <MovementMetricCard
+          label="Comprometimento"
+          value={comprometimento === null ? '—' : `${comprometimento.toFixed(0)}%`}
+          tone={situacao.tom}
+          faixas={comprometimento === null ? undefined : { valor: comprometimento, limites: [FAIXA_ALERTA, FAIXA_CRITICA] }}
+          note={comprometimento === null ? 'Sem receita no período' : (
+            <>
+              <span className={`inline-flex items-center gap-0.5 font-semibold ${situacao.classe}`}>
+                {situacao.tom !== 'income' && <AlertTriangle size={11} aria-hidden="true" />}
+                {situacao.rotulo}
+              </span>
+              {' '}· da renda consumida
+            </>
           )}
-        </div>
-        <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">da renda consumida pelas despesas</span>
-        {comprometimentoGuide.isVisible && (
+        />
+        {guiaComprometimento.isVisible && (
           <FirstAccessGuideCard
             floating
             placement="top"
@@ -112,19 +98,17 @@ export function CardsResumo({ resumo, anteriorEhMes }: CardsResumoProps) {
             className="w-[min(25rem,calc(100vw-2rem))]"
             icon={AlertTriangle}
             description={firstAccessGuideMessages.painelComprometimento}
-            onDismiss={comprometimentoGuide.dismiss}
-            onSilenceAll={comprometimentoGuide.silenceAll}
+            onDismiss={guiaComprometimento.dismiss}
+            onSilenceAll={guiaComprometimento.silenceAll}
           />
         )}
-      </Card>
-
-      <Card className="flex flex-col gap-2 rounded-2xl p-5">
-        <Rotulo>Saldo acumulado</Rotulo>
-        <Valor valor={resumo.saldoFinal} tom={resumo.saldoFinal >= 0 ? TOM_POSITIVO : TOM_NEGATIVO} />
-        <span className="text-[11.5px] text-[#7b93a1] dark:text-slate-400">
-          Anterior {formatCurrency(resumo.saldoAnterior)}
-        </span>
-      </Card>
+      </div>
+      <MovementMetricCard
+        label="Saldo acumulado"
+        value={formatCurrency(resumo.saldoFinal)}
+        tone={resumo.saldoFinal >= 0 ? 'slate' : 'expense'}
+        note={`Anterior ${formatCurrency(resumo.saldoAnterior)}`}
+      />
     </div>
   );
 }

@@ -73,15 +73,16 @@ export function DashboardPeriodFilter({ value, onChange }: Props) {
     onChange({ de: deIso, ate: ateIso });
   };
 
+  // Mesma pílula da busca do ListToolbar: altura 30, borda slate-200, 12.5px.
   const inputCls = (temErro: boolean) =>
-    `w-[82px] rounded border-b bg-transparent px-1 py-0.5 text-[12px] tabular-nums text-[#0f2b38] focus:border-[#0891b2] focus:outline-none dark:text-slate-200 ${
-      temErro ? 'border-red-300' : 'border-[#dcebf1] dark:border-slate-700'
+    `h-[30px] w-[104px] rounded-full border bg-white px-3 text-[12.5px] tabular-nums text-slate-800 outline-none transition focus:border-cyan-600 dark:bg-slate-800 dark:text-slate-100 ${
+      temErro ? 'border-rose-300 dark:border-rose-700' : 'border-slate-200 dark:border-slate-700'
     }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <Calendar size={12} className="shrink-0 text-[#a8bac4]" />
-      <span className="text-[12px] text-[#7b93a1]">De</span>
+    <div className="flex flex-wrap items-center gap-2">
+      <Calendar size={13} className="shrink-0 text-slate-400" aria-hidden="true" />
+      <span className="text-xs text-slate-500 dark:text-slate-400">De</span>
       <input
         type="text"
         inputMode="numeric"
@@ -92,7 +93,7 @@ export function DashboardPeriodFilter({ value, onChange }: Props) {
         onKeyDown={(e) => e.key === 'Enter' && apply()}
         className={inputCls(Boolean(de) && !deIso)}
       />
-      <span className="text-[12px] text-[#7b93a1]">até</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">até</span>
       <input
         type="text"
         inputMode="numeric"
@@ -107,7 +108,7 @@ export function DashboardPeriodFilter({ value, onChange }: Props) {
         type="button"
         onClick={apply}
         disabled={invalido}
-        className="rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold text-[#0891b2] transition hover:bg-[#e0f2f7] disabled:cursor-not-allowed disabled:text-[#a8bac4] disabled:hover:bg-transparent"
+        className="h-[30px] rounded-full px-3 text-[12.5px] font-semibold text-cyan-600 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent dark:text-cyan-400 dark:hover:bg-cyan-950/40 dark:disabled:text-slate-500"
       >
         Aplicar
       </button>

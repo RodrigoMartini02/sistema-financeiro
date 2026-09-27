@@ -1,7 +1,6 @@
-import { Card } from '../../../ui/card';
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
-import { CabecalhoCard, RodapeCard, Secao } from './PainelLayout';
+import { CabecalhoCard, CardPainel, RodapeCard, Secao } from './PainelLayout';
 
 interface JurosDescontosProps {
   valores: PainelData['jurosDescontos'];
@@ -12,13 +11,14 @@ interface JurosDescontosProps {
 function Linha({ rotulo, juros, descontos }: { rotulo: string; juros: number; descontos: number }) {
   const saldo = descontos - juros;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[12px] text-[#5f7885] dark:text-slate-400">
-      <span className="w-28 font-semibold text-[#0f2b38] dark:text-slate-100">{rotulo}</span>
-      <span>Juros pagos <b className="tabular-nums text-[#b42318] dark:text-rose-300">{formatCurrency(juros)}</b></span>
-      <span>Descontos obtidos <b className="tabular-nums text-[#067647] dark:text-emerald-300">{formatCurrency(descontos)}</b></span>
+    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[12.5px] tabular-nums text-slate-500 dark:text-slate-400">
+      <span className="min-w-[7.5rem] font-semibold text-slate-900 dark:text-white">{rotulo}</span>
+      <span>Juros pagos <b className="font-semibold text-rose-600 dark:text-rose-400">{formatCurrency(juros)}</b></span>
+      <span>Descontos obtidos <b className="font-semibold text-emerald-600 dark:text-emerald-400">{formatCurrency(descontos)}</b></span>
       <span className="ml-auto">
-        Saldo <b className={`tabular-nums ${saldo >= 0 ? 'text-[#067647] dark:text-emerald-300' : 'text-[#b42318] dark:text-rose-300'}`}>
-          {saldo >= 0 ? '+' : '−'}{formatCurrency(Math.abs(saldo))}
+        Saldo{' '}
+        <b className={`font-semibold ${saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+          {saldo >= 0 ? '+' : '−'} {formatCurrency(Math.abs(saldo))}
         </b>
       </span>
     </div>
@@ -28,14 +28,14 @@ function Linha({ rotulo, juros, descontos }: { rotulo: string; juros: number; de
 export function JurosDescontos({ valores, ano }: JurosDescontosProps) {
   return (
     <Secao titulo="Quanto perdi com atraso?">
-      <Card className="flex flex-col gap-3 rounded-2xl p-[18px_22px]">
+      <CardPainel>
         <CabecalhoCard titulo="Juros × descontos" detalhe="diferença entre o valor pago e o original" />
         <Linha rotulo="No período" juros={valores.periodo.juros} descontos={valores.periodo.descontos} />
         <Linha rotulo={`Em ${ano} até agora`} juros={valores.ano.juros} descontos={valores.ano.descontos} />
         {valores.ano.juros > 0 && (
           <RodapeCard>Juros vêm de contas pagas depois do vencimento: pagar em dia evita esse custo.</RodapeCard>
         )}
-      </Card>
+      </CardPainel>
     </Secao>
   );
 }

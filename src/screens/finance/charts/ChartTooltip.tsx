@@ -1,4 +1,5 @@
 import { formatCurrency } from '../formatters';
+import { useCoresGrafico } from '../painel/coresGrafico';
 
 interface TooltipEntry {
   name?: string;
@@ -22,6 +23,7 @@ interface ChartTooltipProps {
 
 /** Tooltip compartilhado dos gráficos do Painel. */
 export function ChartTooltip({ active, payload, label, labels, formatarValor = formatCurrency }: ChartTooltipProps) {
+  const cores = useCoresGrafico();
   if (!active || !payload?.length) return null;
 
   // Séries sem valor no ponto não devem virar linha vazia no tooltip.
@@ -29,33 +31,20 @@ export function ChartTooltip({ active, payload, label, labels, formatarValor = f
   if (entries.length === 0) return null;
 
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: '1px solid #e9eef3',
-        background: '#fff',
-        boxShadow: '0 8px 24px -8px rgba(15, 43, 56, 0.25)',
-        padding: '7px 9px',
-        minWidth: 132,
-      }}
-    >
-      {label && (
-        <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 700, color: '#0f2b38' }}>{label}</p>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <div className="min-w-[140px] rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      {label && <p className="m-0 mb-1.5 text-xs font-semibold text-slate-900 dark:text-white">{label}</p>}
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {entries.map((entry) => {
           const key = String(entry.dataKey ?? entry.name ?? '');
           return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-              <span style={{ width: 7, height: 7, flexShrink: 0, borderRadius: '50%', background: entry.color ?? '#94a3b8' }} />
-              <span style={{ flex: 1, color: '#5f7885' }}>{labels?.[key] ?? entry.name ?? key}</span>
-              <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: '#0f2b38' }}>
-                {formatarValor(entry.value ?? 0)}
-              </span>
-            </div>
+            <li key={key} className="flex items-center gap-1.5 text-xs">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: entry.color ?? cores.neutro }} />
+              <span className="flex-1 text-slate-500 dark:text-slate-400">{labels?.[key] ?? entry.name ?? key}</span>
+              <span className="font-semibold tabular-nums text-slate-900 dark:text-white">{formatarValor(entry.value ?? 0)}</span>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </div>
   );
 }
