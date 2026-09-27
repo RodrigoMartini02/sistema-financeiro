@@ -1,11 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Percent, Check } from 'lucide-react';
+import { Plus, X, Percent } from 'lucide-react';
 import {
   fetchRepresentantes, saveRepresentante, deleteRepresentante,
   type Representante, type RepresentanteFormValues, type Comissao,
 } from '../../services/representantesService';
-import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
+import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
+import { getActiveAccountId } from '../../services/apiClient';
+import { opcoesDeClassificacao, type OpcaoClassificacao } from '../../utils/classificacaoOpcoes';
 import { queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
@@ -23,100 +25,35 @@ import { useConfirm } from '../../context/ConfirmContext';
 
 function ComissaoRow({
   comissao,
-  tiposReceita,
+  classificacoes,
   onChange,
   onRemove,
-  onCreateType,
   tipoGuide,
 }: {
   comissao: Comissao;
-  tiposReceita: string[];
+  classificacoes: OpcaoClassificacao[];
   onChange: (c: Comissao) => void;
   onRemove: () => void;
-  onCreateType: (name: string) => Promise<string>;
   tipoGuide?: { description: string; onDismiss: () => void };
 }) {
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleCreate = async () => {
-    const name = newName.trim();
-    if (!name) return;
-    setSaving(true);
-    try {
-      const created = await onCreateType(name);
-      onChange({ ...comissao, tipo_receita: created });
-      setCreating(false);
-      setNewName('');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const cancelCreate = () => { setCreating(false); setNewName(''); };
-
-  if (creating) {
-    return (
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <input
-          ref={inputRef}
-          autoFocus
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); handleCreate(); }
-            if (e.key === 'Escape') cancelCreate();
-          }}
-          placeholder="Nome do tipo de receita"
-          style={{ ...fieldInputStyle, flex: 1, borderColor: C.primary }}
-        />
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={saving || !newName.trim()}
-          style={{ ...cfgIconButtonStyle, borderColor: C.primary, background: C.primary, color: '#fff', opacity: saving || !newName.trim() ? 0.5 : 1 }}
-          title="Criar tipo"
-        >
-          <Check size={13} />
-        </button>
-        <button
-          type="button"
-          onClick={cancelCreate}
-          style={cfgIconButtonStyle}
-          title="Cancelar"
-        >
-          <X size={13} />
-        </button>
-      </div>
-    );
-  }
-
   const tipoAtual = comissao.tipo ?? 'mensal';
+  // Regra antiga apontando para classificação desativada continua visível.
+  const selecionadaForaDaLista = comissao.classificacao_id !== null
+    && !classificacoes.some((c) => c.id === comissao.classificacao_id);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, alignItems: 'center' }}>
-      <div style={{ display: 'flex', gap: 6, minWidth: 0 }}>
-        <select
-          value={comissao.tipo_receita}
-          onChange={(e) => onChange({ ...comissao, tipo_receita: e.target.value })}
-          style={{ ...fieldInputStyle, flex: 1 }}
-        >
-          {tiposReceita.length === 0 && (
-            <option value={comissao.tipo_receita}>{comissao.tipo_receita || '—'}</option>
-          )}
-          {tiposReceita.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          title="Criar novo tipo de receita"
-          style={cfgIconButtonStyle}
-        >
-          <Plus size={13} />
-        </button>
-      </div>
+      <select
+        value={comissao.classificacao_id ?? ''}
+        onChange={(e) => onChange({ ...comissao, classificacao_id: e.target.value ? Number(e.target.value) : null })}
+        style={{ ...fieldInputStyle, minWidth: 0 }}
+      >
+        {comissao.classificacao_id === null && <option value="">—</option>}
+        {selecionadaForaDaLista && (
+          <option value={comissao.classificacao_id!}>{comissao.classificacao_nome ?? '—'}</option>
+        )}
+        {classificacoes.map((c) => <option key={c.id} value={c.id}>{c.rotulo}</option>)}
+      </select>
 
       {/* Frequência: segmented control, mesma escala dos demais campos. */}
       <div style={{ position: 'relative' }}>
@@ -176,16 +113,15 @@ function ComissaoRow({
 }
 
 function RepresentanteDialog({
-  open, rep, tiposReceita, isSaving, error, onClose, onSave, onDelete,
+  open, rep, classificacoes, isSaving, error, onClose, onSave, onDelete,
 }: {
-  open: boolean; rep?: Representante; tiposReceita: string[]; isSaving: boolean; error?: string;
+  open: boolean; rep?: Representante; classificacoes: OpcaoClassificacao[]; isSaving: boolean; error?: string;
   onClose: () => void; onSave: (v: RepresentanteFormValues) => void;
   onDelete?: () => void;
 }) {
-  const qc = useQueryClient();
-  const defaultTipo = tiposReceita[0] ?? '';
+  const classificacaoPadrao = classificacoes[0]?.id ?? null;
   const [comissoes, setComissoes] = useState<Comissao[]>(
-    rep?.comissoes?.length ? rep.comissoes : [{ tipo_receita: defaultTipo, percentual: 5, tipo: 'mensal' }]
+    rep?.comissoes?.length ? rep.comissoes : [{ classificacao_id: classificacaoPadrao, percentual: 5, tipo: 'mensal' }]
   );
   const confirm = useConfirm();
   const comissoesGuide = useFirstAccessGuide('representantes:comissoes-v1', {
@@ -196,16 +132,6 @@ function RepresentanteDialog({
     enabled: open && comissoes.length > 0,
     layer: GUIDE_LAYER_MODAL,
   });
-
-  const createTypeMut = useMutation({
-    mutationFn: (nome: string) => saveIncomeType(nome),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.incomeTypes }),
-  });
-
-  const handleCreateType = async (nome: string): Promise<string> => {
-    const created = await createTypeMut.mutateAsync(nome);
-    return created.nome;
-  };
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -225,12 +151,12 @@ function RepresentanteDialog({
       nome: fd.get('nome') as string,
       email: (fd.get('email') as string) || undefined,
       telefone: (fd.get('telefone') as string) || undefined,
-      comissoes: comissoes.filter((c) => c.tipo_receita && c.percentual > 0),
+      comissoes: comissoes.filter((c) => c.classificacao_id !== null && c.percentual > 0),
     });
   };
 
   const addComissao = () =>
-    setComissoes((prev) => [...prev, { tipo_receita: defaultTipo, percentual: 5, tipo: 'mensal' }]);
+    setComissoes((prev) => [...prev, { classificacao_id: classificacaoPadrao, percentual: 5, tipo: 'mensal' }]);
 
   const updateComissao = (i: number, c: Comissao) =>
     setComissoes((prev) => prev.map((x, idx) => (idx === i ? c : x)));
@@ -263,17 +189,17 @@ function RepresentanteDialog({
           <div style={cfgDividerStyle} />
 
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={labelStyle}>Comissões por tipo de receita</label>
+            <label style={labelStyle}>Comissões por classificação</label>
 
-            {tiposReceita.length === 0 && (
+            {classificacoes.length === 0 && (
               <p style={{ borderRadius: 10, border: `1px solid ${CFG.warnBorder}`, background: CFG.warnBg, padding: '7px 9px', fontSize: 11.5, color: CFG.warnText, margin: 0 }}>
-                Nenhum tipo de receita cadastrado. Use o botão <strong>+</strong> ao lado do seletor para criar um.
+                Nenhuma classificação de receita ativa. Cadastre em <strong>Classificação de receitas</strong>.
               </p>
             )}
 
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, padding: '0 2px' }}>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Tipo de receita</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Classificação</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Frequência</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Percentual</span>
                 <span />
@@ -282,10 +208,9 @@ function RepresentanteDialog({
                 <ComissaoRow
                   key={i}
                   comissao={c}
-                  tiposReceita={tiposReceita}
+                  classificacoes={classificacoes}
                   onChange={(updated) => updateComissao(i, updated)}
                   onRemove={() => removeComissao(i)}
-                  onCreateType={handleCreateType}
                   tipoGuide={i === 0 && tipoComissaoGuide.isVisible
                     ? { description: firstAccessGuideMessages.representantesTipoComissao, onDismiss: tipoComissaoGuide.dismiss }
                     : undefined}
@@ -350,10 +275,14 @@ export function RepresentantesTab() {
     queryKey: [...queryKeys.representantes, mostrarDesativados],
     queryFn: () => fetchRepresentantes(mostrarDesativados),
   });
-  const incomeTypesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes });
+  const accountId = getActiveAccountId();
+  const classificacoesQ = useQuery({
+    queryKey: queryKeys.classificacoesReceita(accountId),
+    queryFn: () => fetchClassificacoesReceita(accountId),
+  });
   const todos = reps.data ?? [];
   const data = todos.filter((r) => (mostrarDesativados ? !r.ativo : r.ativo));
-  const tiposReceita = (incomeTypesQ.data ?? []).filter((t) => t.ativo).map((t) => t.nome);
+  const classificacoes = opcoesDeClassificacao(classificacoesQ.data ?? []);
 
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: RepresentanteFormValues; id?: number }) => saveRepresentante(v, id),
@@ -421,7 +350,7 @@ export function RepresentantesTab() {
       <RepresentanteDialog
         open={dialog.open}
         rep={dialog.item}
-        tiposReceita={tiposReceita}
+        classificacoes={classificacoes}
         isSaving={saveMut.isPending}
         error={saveMut.error?.message}
         onClose={() => setDialog({ open: false })}

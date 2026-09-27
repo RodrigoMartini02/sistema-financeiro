@@ -34,7 +34,8 @@ export interface Income {
   contratoId?: number | null;
   observacoes?: string | null;
   cliente?: string | null;
-  tipoReceita?: string | null;
+  classificacaoId?: number | null;
+  classificacaoNome?: string | null;
   representanteId?: number | null;
   representanteNome?: string | null;
   valorComissao?: number | null;
@@ -48,7 +49,7 @@ export interface IncomeFormValues {
   /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
   contaId?: number | null;
   cliente?: string;
-  tipoReceita?: string;
+  classificacaoId?: number | null;
   observacoes?: string;
   representanteId?: number | null;
   valorComissao?: number | null;

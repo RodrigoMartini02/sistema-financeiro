@@ -29,7 +29,7 @@ export interface DespesaReportRow {
 
 export interface ReceitaReportRow {
   descricao: string;
-  tipoReceita: string | null;
+  classificacao: string | null;
   dataRecebimento: string;
   status: string | null;
   cliente: string | null;
@@ -120,7 +120,7 @@ export async function generateReportPdf({ periodoLabel, filtrosLabel, despesas, 
       { text: 'Data', style: 'tableHeader' },
       { text: 'Descrição', style: 'tableHeader' },
       { text: 'Cliente/Repr.', style: 'tableHeader' },
-      { text: 'Tipo', style: 'tableHeader' },
+      { text: 'Classificação', style: 'tableHeader' },
       { text: 'Status', style: 'tableHeader' },
       { text: 'Comissão', style: 'tableHeader', alignment: 'right' },
       { text: 'Valor', style: 'tableHeader', alignment: 'right' },
@@ -129,7 +129,7 @@ export async function generateReportPdf({ periodoLabel, filtrosLabel, despesas, 
       formatDate(row.dataRecebimento),
       row.descricao,
       receitaClienteLabel(row),
-      row.tipoReceita ?? '-',
+      row.classificacao ?? 'Sem classificação',
       receitaStatusLabel(row, todayIso),
       { text: formatCurrency(row.valorComissao), alignment: 'right' },
       { text: formatCurrency(row.valor), alignment: 'right' },

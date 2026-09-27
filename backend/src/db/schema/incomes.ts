@@ -13,6 +13,7 @@ import {
 
 import { users } from './users';
 import { accounts } from './accounts';
+import { incomeClassifications } from './incomeClassifications';
 
 export const incomes = pgTable(
   'receitas',
@@ -39,7 +40,7 @@ export const incomes = pgTable(
     soldQuantity: decimal('quantidade_vendida', { precision: 12, scale: 3 }),
     commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
     client: varchar('cliente', { length: 100 }),
-    incomeType: varchar('tipo_receita', { length: 30 }),
+    classificationId: integer('classificacao_id').references(() => incomeClassifications.id, { onDelete: 'set null' }),
     representativeId: integer('representante_id'),
     attachments: jsonb('anexos'),
     createdAt: timestamp('data_criacao').defaultNow(),

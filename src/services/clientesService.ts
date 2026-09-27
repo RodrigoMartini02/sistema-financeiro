@@ -39,6 +39,10 @@ export interface Contrato {
   horas_remotas_saldo_atual?: number | null;
   valor_mensal?: number | null;
   conta_id?: number | null;
+  /** Classificação das mensalidades que o contrato gera (padrão Contratos › Mensalidade). */
+  classificacao_mensalidade_id?: number | null;
+  /** Classificação da receita de implantação; trava depois de gerada. */
+  classificacao_implantacao_id?: number | null;
 }
 
 

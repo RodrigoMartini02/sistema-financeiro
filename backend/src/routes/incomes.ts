@@ -9,8 +9,11 @@ import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisi
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { createCommissionExpense } from '../services/commissionService';
 import { EstoqueError, registrarMovimentacaoEstoqueNaTransacao } from '../services/estoque';
+import { isClassificationAllowed, parseClassificationId } from '../services/incomeClassificationCatalog';
 
 const router = Router();
+
+const CLASSIFICATION_NOT_AVAILABLE = 'Classification not available for this account';
 
 function buildWhereClause(
   userId: number,
@@ -37,8 +40,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
-      `SELECT r.*, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
+      `SELECT r.*, cr.nome AS classificacao_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
        FROM receitas r
+       LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
        LEFT JOIN representantes rep ON rep.id = r.representante_id
        LEFT JOIN usuarios u ON u.id = r.usuario_id
        LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true
@@ -62,12 +66,13 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
 
     const matches = normalizedDescricao
       ? await pool.query(
-          `SELECT descricao, valor, cliente, tipo_receita,
-                  COUNT(*) OVER (PARTITION BY LOWER(descricao)) AS frequencia,
-                  data_recebimento
-           FROM receitas
-           WHERE usuario_id = $1 AND descricao ILIKE $2 AND status != 'cancelada'
-           ORDER BY frequencia DESC, data_recebimento DESC
+          `SELECT r.descricao, r.valor, r.cliente, r.classificacao_id, cr.nome AS classificacao_nome,
+                  COUNT(*) OVER (PARTITION BY LOWER(r.descricao)) AS frequencia,
+                  r.data_recebimento
+           FROM receitas r
+           LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
+           WHERE r.usuario_id = $1 AND r.descricao ILIKE $2 AND r.status != 'cancelada'
+           ORDER BY frequencia DESC, r.data_recebimento DESC
            LIMIT 4`,
           [userId, `%${normalizedDescricao}%`],
         )
@@ -94,13 +99,19 @@ router.post(
     try {
       const {
         descricao, valor, data_recebimento, observacoes, anexos, conta_id,
-        cliente, tipo_receita, representante_id, valor_comissao,
+        cliente, classificacao_id, representante_id, valor_comissao,
         contrato_id, tipo_hora, quantidade_horas,
         produto_id, quantidade_vendida,
       } = req.body as Record<string, unknown>;
 
       if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
         res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+        return;
+      }
+
+      const classificationId = parseClassificationId(classificacao_id) ?? null;
+      if (Number.isNaN(classificationId) || !(await isClassificationAllowed(req.user!.id, conta_id ? parseInt(String(conta_id)) : null, classificationId))) {
+        res.status(400).json({ success: false, message: CLASSIFICATION_NOT_AVAILABLE });
         return;
       }
 
@@ -134,7 +145,7 @@ router.post(
         await client.query('BEGIN');
 
         result = await client.query(
-          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id, valor_comissao, contrato_id, produto_id, quantidade_vendida)
+          `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, observacoes, anexos, conta_id, cliente, classificacao_id, representante_id, valor_comissao, contrato_id, produto_id, quantidade_vendida)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING *`,
           [
@@ -148,7 +159,7 @@ router.post(
             attachmentsJson,
             comissaoContaId,
             cliente ?? null,
-            tipo_receita ?? null,
+            classificationId,
             representanteIdInt,
             valor_comissao != null ? parseFloat(String(valor_comissao)) : null,
             contratoIdInt,
@@ -228,11 +239,22 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, tipo_receita, representante_id } =
+    const { descricao, valor, data_recebimento, observacoes, anexos, conta_id, cliente, classificacao_id, representante_id } =
       req.body as Record<string, unknown>;
 
     if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
+      return;
+    }
+
+    // Sem conta no corpo, a receita fica na conta que já tinha (COALESCE do
+    // UPDATE) — a classificação é validada contra essa mesma conta.
+    const contaDaReceita = conta_id
+      ? parseInt(String(conta_id))
+      : ((await pool.query('SELECT conta_id FROM receitas WHERE id = $1', [incomeId])).rows[0] as { conta_id: number | null } | undefined)?.conta_id ?? null;
+    const classificationId = parseClassificationId(classificacao_id) ?? null;
+    if (Number.isNaN(classificationId) || !(await isClassificationAllowed(req.user!.id, contaDaReceita, classificationId))) {
+      res.status(400).json({ success: false, message: CLASSIFICATION_NOT_AVAILABLE });
       return;
     }
 
@@ -245,7 +267,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       `UPDATE receitas
        SET descricao = $1, valor = $2, data_recebimento = $3, observacoes = $4, anexos = $5,
            conta_id = COALESCE($6, conta_id),
-           cliente = $7, tipo_receita = $8, representante_id = $9,
+           cliente = $7, classificacao_id = $8, representante_id = $9,
            mes = $12, ano = $13
        WHERE id = $10 AND usuario_id = $11
        RETURNING *`,
@@ -257,7 +279,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         attachmentsJson,
         conta_id ? parseInt(String(conta_id)) : null,
         cliente ?? null,
-        tipo_receita ?? null,
+        classificationId,
         representante_id ? parseInt(String(representante_id)) : null,
         incomeId,
         donoWrite,

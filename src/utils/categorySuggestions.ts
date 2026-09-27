@@ -1,4 +1,4 @@
-import type { Categoria } from '../types/config';
+import type { Categoria, OpcaoCatalogo } from '../types/config';
 import type { Expense } from '../types/finance';
 
 export interface CategorySuggestionResult {
@@ -44,10 +44,10 @@ export function hasActiveSubcategory(category: Categoria, categories: Categoria[
   return categories.some((c) => c.parent_id === category.id && c.ativo);
 }
 
-export interface SelectableCategoryGroup {
+export interface SelectableCategoryGroup<T extends OpcaoCatalogo = Categoria> {
   /** null quando a categoria não tem pai nem filhos ativos — item solto, sem agrupamento. */
-  parent: Categoria | null;
-  items: Categoria[];
+  parent: T | null;
+  items: T[];
 }
 
 /**
@@ -55,10 +55,10 @@ export interface SelectableCategoryGroup {
  * Uma raiz com subcategoria ativa vira só o cabeçalho do grupo (não aparece em
  * `items`, que é onde a lista de seleção de fato itera) — só suas subs entram.
  */
-export function groupSelectableCategories(categories: Categoria[]): SelectableCategoryGroup[] {
-  const active = activeCategories(categories);
+export function groupSelectableCategories<T extends OpcaoCatalogo>(categories: T[]): SelectableCategoryGroup<T>[] {
+  const active = categories.filter((category) => category.ativo);
   const roots = active.filter((c) => !c.parent_id);
-  const groups: SelectableCategoryGroup[] = [];
+  const groups: SelectableCategoryGroup<T>[] = [];
 
   for (const root of roots) {
     const children = active.filter((c) => c.parent_id === root.id);

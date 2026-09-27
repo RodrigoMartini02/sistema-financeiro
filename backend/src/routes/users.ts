@@ -6,6 +6,7 @@ import { users, categories, cards as cardsTable, expenses, incomes } from '../db
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { accountWhere } from '../utils/accountFilter';
 import { isActiveFamilyMember } from '../utils/familyVisibility';
 
@@ -626,6 +627,7 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
     // duplicando visualmente o catalogo da conta do gestor.
     if (!(await isActiveFamilyMember(userId))) {
       await ensureDefaultCategories(userId, 'pessoal');
+      await ensureDefaultIncomeClassifications(userId, 'pessoal');
     }
 
     res.json({ success: true, message: 'System reset: data, categories, cards and notifications cleared.' });

@@ -30,7 +30,7 @@ interface DespesaRow {
 
 interface ReceitaRow {
   descricao: string;
-  tipo_receita: string | null;
+  classificacao_nome: string | null;
   data_recebimento: string;
   status: string | null;
   valor: string | null;
@@ -94,9 +94,10 @@ async function fetchReceitas(
   const params: unknown[] = [userId, dataInicio, dataFim, ...accountParams];
 
   const result = await pool.query<ReceitaRow>(
-    `SELECT r.descricao, r.tipo_receita, r.data_recebimento, r.status,
+    `SELECT r.descricao, cr.nome AS classificacao_nome, r.data_recebimento, r.status,
             r.valor, r.valor_comissao, r.cliente, rep.nome AS representante_nome
      FROM receitas r
+     LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
      LEFT JOIN representantes rep ON rep.id = r.representante_id
      ${where}
      ORDER BY r.data_recebimento ASC`,
@@ -154,7 +155,7 @@ router.get(
 
       const receitaRows: ReceitaReportRow[] = receitas.map((r) => ({
         descricao: r.descricao,
-        tipoReceita: r.tipo_receita,
+        classificacao: r.classificacao_nome,
         dataRecebimento: r.data_recebimento,
         status: r.status,
         cliente: r.cliente,

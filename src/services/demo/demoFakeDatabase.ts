@@ -11,7 +11,8 @@ export interface RawIncomeDemo {
   contrato_id: number | null;
   observacoes: string | null;
   cliente: string | null;
-  tipo_receita: string | null;
+  classificacao_id: number | null;
+  classificacao_nome: string | null;
   representante_id: number | null;
   representante_nome: string | null;
   valor_comissao: number | null;
@@ -105,7 +106,7 @@ function createSeed() {
   const receitas: RawIncomeDemo[] = [
     {
       id: generateId(), descricao: 'Salário', valor: 4500, data_recebimento: todayIso(-3), mes, ano,
-      status: 'ativa', contrato_id: null, observacoes: null, cliente: null, tipo_receita: null,
+      status: 'ativa', contrato_id: null, observacoes: null, cliente: null, classificacao_id: null, classificacao_nome: null,
       representante_id: null, representante_nome: null, valor_comissao: null, anexos: null,
     },
   ];

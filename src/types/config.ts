@@ -19,6 +19,30 @@ export interface CategoriaFormValues {
   parent_id?: number | null;
 }
 
+/** O mínimo que um item de catálogo em árvore precisa para virar opção de seleção. */
+export interface OpcaoCatalogo {
+  id: number;
+  nome: string;
+  parent_id?: number | null;
+  ativo: boolean;
+}
+
+/** Classificação de receita: catálogo em árvore no mesmo molde das categorias de despesa. */
+export interface ClassificacaoReceita {
+  id: number;
+  nome: string;
+  parent_id: number | null;
+  /** Preenchido nas padrão do sistema (globais por tipo de conta). */
+  tipo: 'pessoal' | 'empresa' | null;
+  /** Preenchido nas criadas pelo usuário (exclusivas da conta). */
+  conta_id: number | null;
+  ativo: boolean;
+  data_criacao: string;
+  subcategorias?: ClassificacaoReceita[];
+}
+
+export type ClassificacaoReceitaFormValues = CategoriaFormValues;
+
 export type CartaoTipo = 'credito' | 'debito' | 'ambos';
 
 export interface Cartao {

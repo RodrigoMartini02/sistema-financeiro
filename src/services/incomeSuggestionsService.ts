@@ -4,7 +4,8 @@ export interface IncomeSuggestionMatch {
   descricao: string;
   valor: number;
   cliente: string | null;
-  tipoReceita: string | null;
+  classificacaoId: number | null;
+  classificacaoNome: string | null;
 }
 
 export interface IncomeSuggestions {
@@ -15,7 +16,8 @@ interface RawMatch {
   descricao: string;
   valor?: string | number | null;
   cliente?: string | null;
-  tipo_receita?: string | null;
+  classificacao_id?: number | null;
+  classificacao_nome?: string | null;
 }
 
 interface RawSuggestions {
@@ -38,7 +40,8 @@ export async function fetchIncomeSuggestions(descricao: string): Promise<IncomeS
       descricao: match.descricao,
       valor: asNumber(match.valor),
       cliente: match.cliente ?? null,
-      tipoReceita: match.tipo_receita ?? null,
+      classificacaoId: match.classificacao_id ?? null,
+      classificacaoNome: match.classificacao_nome ?? null,
     })),
   };
 }

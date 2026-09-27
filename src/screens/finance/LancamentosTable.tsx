@@ -20,7 +20,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from '../despesas/ExpenseCard';
-import { IncomeCard, tipoBadge } from '../receitas/IncomeCard';
+import { IncomeCard, classificacaoBadge } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
 
 export type TipoLancamento = 'receita' | 'despesa';
@@ -896,8 +896,8 @@ function IncomeRow({
         <p className="truncate text-xs text-slate-600 dark:text-slate-300">{item.descricao}</p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
-      {/* Categoria — não se aplica a receita */}
-      <td className={TD_CLASS}>{DASH}</td>
+      {/* Categoria — na receita, a classificação dela */}
+      <td className={TD_CLASS}>{classificacaoBadge(item.classificacaoNome) ?? DASH}</td>
       {/* Pagamento — mostra cliente/representante quando é conta empresa, senão traço */}
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {isEmpresa && (item.representanteNome || item.cliente) ? (item.representanteNome ?? item.cliente) : DASH}
@@ -905,8 +905,8 @@ function IncomeRow({
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.autorNome)}
       </td>
-      {/* Tipo — usa o tipo de receita como equivalente informativo */}
-      <td className={TD_CLASS}>{tipoBadge(item.tipoReceita) ?? DASH}</td>
+      {/* Tipo — não se aplica a receita */}
+      <td className={TD_CLASS}>{DASH}</td>
       {/* Data compra — não se aplica a receita */}
       <td className={TD_CLASS}>{DASH}</td>
       {/* Vencimento não existe em receita — usa a data de recebimento como equivalente */}
