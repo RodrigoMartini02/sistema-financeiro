@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 import type { Expense, ExpenseFormValues } from '../../types/finance';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle } from '../../ui/dialogFormTokens';
@@ -38,7 +39,12 @@ interface Props {
   expense?: Expense; isSaving: boolean; error?: string;
   presetDate?: string;
   onClose: () => void;
-  onSave: (items: ExpenseFormValues[]) => Promise<void>;
+  /**
+   * `onItemSaved` é chamado pelo consumidor a cada despesa gravada com sucesso
+   * dentro do laço sequencial (`for...await`) — alimenta o contador do modal
+   * de progresso com o andamento real, não uma simulação.
+   */
+  onSave: (items: ExpenseFormValues[], onItemSaved?: () => void) => Promise<void>;
 }
 
 /**
@@ -80,6 +86,7 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
   const [batch, setBatch] = useState<ItemLote[]>([]);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
+  const [progresso, setProgresso] = useState({ salvas: 0, total: 0 });
 
   // Contador de ids do lote. Ref e não state: só precisa ser único, e mudá-lo
   // não deve provocar render.
@@ -169,8 +176,9 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
     const items = coletarItens();
     if (items.length === 0) return;
     setIsSavingAll(true);
+    setProgresso({ salvas: 0, total: items.length });
     try {
-      await onSave(items);
+      await onSave(items, () => setProgresso((p) => ({ ...p, salvas: p.salvas + 1 })));
       setBatch([]);
       setResumosLote({});
       formsLoteRef.current.clear();
@@ -366,24 +374,42 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
                     : { background: '#e6edf1', color: '#a3b6c0', boxShadow: 'none' }),
                 }}
               >
-                {isSaving || isSavingAll
-                  ? 'Salvando...'
-                  : isEditing
-                    ? 'Salvar alterações'
-                    : hasBatch
-                      ? (() => {
-                          // Conta o lote mais a despesa em preenchimento, se
-                          // válida. Antes o plural era fixo e mostrava
-                          // "Salvar 1 despesas".
-                          const n = batch.length + (podeSalvar ? 1 : 0);
-                          return `Salvar ${n} despesa${n !== 1 ? 's' : ''}`;
-                        })()
-                      : 'Registrar despesa'}
+                {isEditing
+                  ? 'Salvar alterações'
+                  : hasBatch
+                    ? (() => {
+                        // Conta o lote mais a despesa em preenchimento, se
+                        // válida. Antes o plural era fixo e mostrava
+                        // "Salvar 1 despesas".
+                        const n = batch.length + (podeSalvar ? 1 : 0);
+                        return `Salvar ${n} despesa${n !== 1 ? 's' : ''}`;
+                      })()
+                    : 'Registrar despesa'}
               </button>
             </div>
           </div>
         </div>
       </form>
+
+      {/* Overlay de progresso: só sobe durante o submit. O contador é real —
+          soma a cada mutação concluída no laço sequencial do consumidor
+          (onItemSaved), não uma simulação de tempo. */}
+      {(isSavingAll || isSaving) && (
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 20,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10,
+            background: 'rgba(255,255,255,0.92)', borderRadius: 18,
+          }}
+        >
+          <Loader2 size={22} className="animate-spin" style={{ color: C.primary }} />
+          <span style={{ fontSize: '13px', fontWeight: 600, color: C.textMuted }}>
+            {progresso.total > 1
+              ? `Salvando despesas... ${progresso.salvas} de ${progresso.total}`
+              : 'Salvando despesa...'}
+          </span>
+        </div>
+      )}
     </Dialog>
   );
 }
