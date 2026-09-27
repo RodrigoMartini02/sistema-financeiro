@@ -217,8 +217,11 @@ export function CalendarView({ month, year, subView }: Props) {
         isSaving={finance.saveExpense.isPending}
         error={finance.saveExpense.error?.message}
         onClose={() => setDialog(null)}
-        onSave={async (items) => {
-          for (const item of items) await finance.saveExpense.mutateAsync({ values: item, id: dialog?.id });
+        onSave={async (items, onItemSaved) => {
+          for (const item of items) {
+            await finance.saveExpense.mutateAsync({ values: item, id: dialog?.id });
+            onItemSaved?.();
+          }
           setDialog(null);
         }}
       />

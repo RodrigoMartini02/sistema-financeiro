@@ -444,9 +444,10 @@ export function LancamentosTable({
     });
   }
 
-  const handleSaveExpense = async (values: ExpenseFormValues[]) => {
+  const handleSaveExpense = async (values: ExpenseFormValues[], onItemSaved?: () => void) => {
     for (const v of values) {
       await finance.saveExpense.mutateAsync({ values: v, id: values.length === 1 ? expenseDialog.item?.id : undefined });
+      onItemSaved?.();
     }
     setExpenseDialog({ open: false });
   };

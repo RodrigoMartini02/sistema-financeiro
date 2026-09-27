@@ -545,9 +545,10 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     });
   }
 
-  const handleSave = async (values: ExpenseFormValues[]) => {
+  const handleSave = async (values: ExpenseFormValues[], onItemSaved?: () => void) => {
     for (const v of values) {
       await finance.saveExpense.mutateAsync({ values: v, id: values.length === 1 ? dialog.item?.id : undefined });
+      onItemSaved?.();
     }
     setDialog({ open: false });
   };

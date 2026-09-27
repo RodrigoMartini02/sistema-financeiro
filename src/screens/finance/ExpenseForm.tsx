@@ -417,11 +417,14 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
   }, [dataVencimentoManual, isCredito, selectedCard, dataCompra, repeticao, diaRecorrencia]);
 
   const statusDerivado = useMemo(() => {
-    if (isCredito) return { label: 'Entra na fatura', color: C.primaryDark, bg: C.primarySoft, border: C.primarySoftBorder };
+    if (isCredito) {
+      if (pagoWatch) return { label: 'Pago', color: C.success, bg: C.successBg, border: C.successBorder };
+      return { label: 'Entra na fatura', color: C.primaryDark, bg: C.primarySoft, border: C.primarySoftBorder };
+    }
     const isFuture = vencimentoDerivado.data > todayIso();
     if (isFuture) return { label: 'Agendado', color: C.warn, bg: C.warnBg, border: C.warnBorder };
     return { label: 'Pago', color: C.success, bg: C.successBg, border: C.successBorder };
-  }, [isCredito, vencimentoDerivado.data]);
+  }, [isCredito, pagoWatch, vencimentoDerivado.data]);
 
   const valorPagoPreenchido = valorPagoWatch != null;
   const efetivoFinal = pagoWatch ? (valorPagoPreenchido ? (valorPagoWatch ?? valorDigitado) : valorDigitado) : valorDigitado;
@@ -754,7 +757,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
                   <div
                     key={c.id}
                     onClick={() => { form.setValue('cartao_id', c.id as any); setMethodTouched(true); }}
-                    style={chipStyle(c.id === (cartaoId ?? selectedCard?.id))}
+                    style={chipStyle(c.id === cartaoId)}
                   >
                     {c.nome}
                   </div>
@@ -819,18 +822,16 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
               )}
             </div>
 
-            {!isCredito && (
-              <div style={{ minWidth: 0 }}>
-                <label style={labelStyle}>Valor pago</label>
-                <Controller
-                  control={form.control}
-                  name="valor_pago"
-                  render={({ field }) => (
-                    <MoneyFieldSmall value={field.value} onChange={field.onChange} disabled={!pagoWatch} />
-                  )}
-                />
-              </div>
-            )}
+            <div style={{ minWidth: 0 }}>
+              <label style={labelStyle}>Valor pago</label>
+              <Controller
+                control={form.control}
+                name="valor_pago"
+                render={({ field }) => (
+                  <MoneyFieldSmall value={field.value} onChange={field.onChange} disabled={!pagoWatch} />
+                )}
+              />
+            </div>
 
             <div style={{ minWidth: 0 }}>
               <label style={labelStyle}>Data da compra</label>
@@ -859,19 +860,19 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: -4 }}>
             <span style={{ fontSize: 12, lineHeight: 1.45, color: C.textFaint }}>
               {isCredito
-                ? 'A data do pagamento vem da fatura do cartão — altere só se combinou outra.'
+                ? (pagoWatch
+                    ? 'Marcada como paga antes da fatura fechar — o limite do cartão é liberado agora.'
+                    : 'A data do pagamento vem da fatura do cartão — altere só se combinou outra.')
                 : 'Deixe a data do pagamento em branco para o sistema calcular.'}
             </span>
-            {!isCredito && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12.5px', fontWeight: 500, color: C.textMuted, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  {...form.register('pago')}
-                  style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
-                />
-                Assinale se a despesa já foi paga
-              </label>
-            )}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12.5px', fontWeight: 500, color: C.textMuted, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                {...form.register('pago')}
+                style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }}
+              />
+              Assinale se a despesa já foi paga
+            </label>
           </div>
 
           {/* Sinalizações de valor: juros embutido, multa e desconto. */}
