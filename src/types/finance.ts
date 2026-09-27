@@ -167,6 +167,14 @@ export interface PainelCategoria {
   total: number;
 }
 
+/** Soma por classificação principal; subcategorias como detalhe. null = "Sem classificação". */
+export interface PainelFatiaClassificacao {
+  classificacaoId: number | null;
+  nome: string;
+  valor: number;
+  subcategorias: { classificacaoId: number; nome: string; valor: number }[];
+}
+
 export interface PainelData {
   periodo: PainelPeriodo;
   periodoAnterior: PainelPeriodo;
@@ -198,8 +206,19 @@ export interface PainelData {
   porPessoa: { usuarioId: number; nome: string; receitas: number; despesas: number }[];
   jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
   categorias: PainelCategoria[];
+  /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
+  receitas: {
+    porClassificacao: PainelFatiaClassificacao[];
+    aReceber: { total: number; porClassificacao: PainelFatiaClassificacao[] };
+    rendaPrevista: number;
+    comprometimentoPrevisto: number | null;
+    fixa: number;
+    variavel: number;
+    fixasConsomem: number | null;
+    temFixa: boolean;
+    periodoEncerrado: boolean;
+  };
   empresa: {
-    receitasPorOrigem: { contratos: number; avulsas: number };
     estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
   } | null;
 }

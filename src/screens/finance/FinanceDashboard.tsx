@@ -19,6 +19,7 @@ import { MonthCategoriesOverview } from './MonthCategoriesOverview';
 import { firstName } from './memberColors';
 import { CardsResumo } from './painel/CardsResumo';
 import { ComoDinheiroSaiu } from './painel/ComoDinheiroSaiu';
+import { DeOndeVeioDinheiro } from './painel/DeOndeVeioDinheiro';
 import { coresPorPessoa as montarCoresPorPessoa, useCoresGrafico } from './painel/coresGrafico';
 import { Comprometido } from './painel/Comprometido';
 import { EmDiaComContas } from './painel/EmDiaComContas';
@@ -165,6 +166,7 @@ export function FinanceDashboard() {
           <CardsResumo resumo={dados.resumo} anteriorEhMes={anteriorEhMes} />
           {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={periodo} />}
           <ReceitaDespesa serie={dados.serie} />
+          <DeOndeVeioDinheiro dados={dados} />
           <ComoDinheiroSaiu dados={dados} />
           <EmDiaComContas dados={dados} />
           {dados.planejado && <Planejado itens={dados.planejado} />}

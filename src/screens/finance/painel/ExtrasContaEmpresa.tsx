@@ -5,10 +5,8 @@ import { Card } from '../../../ui/card';
 import { queryKeys } from '../../../services/queryKeys';
 import { getContratosFaturamento } from '../../../services/financeService';
 import { MONTH_NAMES, type PainelData, type PainelPeriodo } from '../../../types/finance';
-import { DonutChart } from '../charts/DonutChart';
 import { formatCurrency } from '../formatters';
-import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, RodapeCard } from './PainelLayout';
+import { CabecalhoCard, CardPainel } from './PainelLayout';
 
 interface ExtrasContaEmpresaProps {
   empresa: NonNullable<PainelData['empresa']>;
@@ -83,39 +81,12 @@ function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
   );
 }
 
-function ReceitasPorOrigem({ origem }: { origem: NonNullable<PainelData['empresa']>['receitasPorOrigem'] }) {
-  const cores = useCoresGrafico();
-  const total = origem.contratos + origem.avulsas;
-  if (total === 0) return null;
-  const fatias = [
-    { name: 'Contratos', value: origem.contratos, color: cores.categorias[0]! },
-    { name: 'Avulsas', value: origem.avulsas, color: cores.categorias[1]! },
-  ].filter((fatia) => fatia.value > 0);
-
-  return (
-    <CardPainel>
-      <CabecalhoCard titulo="Receitas por origem" detalhe="de onde veio" />
-      <DonutChart data={fatias} centerLabel="Entrou" centerValue={formatCurrency(total)} />
-      <RodapeCard>
-        {origem.contratos === 0
-          ? 'Toda a receita veio de entradas avulsas, sem receita recorrente de contratos.'
-          : origem.avulsas === 0
-            ? 'Toda a receita veio de contratos recorrentes.'
-            : 'A receita combina contratos recorrentes e entradas avulsas.'}
-      </RodapeCard>
-    </CardPainel>
-  );
-}
-
 /** Blocos que só existem em conta empresa, mantidos até a rodada própria da conta empresa. */
 export function ExtrasContaEmpresa({ empresa, periodo }: ExtrasContaEmpresaProps) {
   return (
     <>
       {empresa.estoqueBaixo.length > 0 && <EstoqueBaixo produtos={empresa.estoqueBaixo} />}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <CarteiraDeContratos periodo={periodo} />
-        <ReceitasPorOrigem origem={empresa.receitasPorOrigem} />
-      </div>
+      <CarteiraDeContratos periodo={periodo} />
     </>
   );
 }

@@ -48,3 +48,24 @@ export function contas(quantidade: number): string {
   if (quantidade === 0) return 'nenhuma conta';
   return `${quantidade} conta${quantidade === 1 ? '' : 's'}`;
 }
+
+// Faixas do comprometimento da renda (barra e guia de primeiro acesso): até
+// 70% saudável, até 90% em alerta, acima disso crítico.
+export const FAIXAS_COMPROMETIMENTO: [number, number] = [70, 90];
+
+export interface SituacaoComprometimento {
+  tom: 'income' | 'warning' | 'expense';
+  rotulo: string;
+  classe: string;
+}
+
+export function situacaoComprometimento(percentual: number | null): SituacaoComprometimento {
+  const [alerta, critico] = FAIXAS_COMPROMETIMENTO;
+  if (percentual === null || percentual <= alerta) {
+    return { tom: 'income', rotulo: 'saudável', classe: 'text-emerald-600 dark:text-emerald-400' };
+  }
+  if (percentual <= critico) {
+    return { tom: 'warning', rotulo: 'atenção', classe: 'text-amber-600 dark:text-amber-400' };
+  }
+  return { tom: 'expense', rotulo: 'crítico', classe: 'text-rose-600 dark:text-rose-400' };
+}

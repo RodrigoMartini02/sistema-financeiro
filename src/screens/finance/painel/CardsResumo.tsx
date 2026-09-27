@@ -5,11 +5,7 @@ import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
 import { MovementMetricCard } from '../MovementMetricCard';
-
-// Mesmas faixas da barra e do guia de primeiro acesso: até 70% saudável, até
-// 90% em alerta, acima disso crítico.
-const FAIXA_ALERTA = 70;
-const FAIXA_CRITICA = 90;
+import { FAIXAS_COMPROMETIMENTO, situacaoComprometimento } from './painelFormat';
 
 function variacao(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;
@@ -43,11 +39,7 @@ export function CardsResumo({ resumo, anteriorEhMes }: CardsResumoProps) {
   const resultado = resumo.entrou - resumo.saiu;
   const resultadoSobreRenda = resumo.entrou > 0 ? (Math.abs(resultado) / resumo.entrou) * 100 : null;
   const comprometimento = resumo.entrou > 0 ? (resumo.saiu / resumo.entrou) * 100 : null;
-  const situacao = comprometimento === null || comprometimento <= FAIXA_ALERTA
-    ? { tom: 'income' as const, rotulo: 'saudável', classe: 'text-emerald-600 dark:text-emerald-400' }
-    : comprometimento <= FAIXA_CRITICA
-      ? { tom: 'warning' as const, rotulo: 'atenção', classe: 'text-amber-600 dark:text-amber-400' }
-      : { tom: 'expense' as const, rotulo: 'crítico', classe: 'text-rose-600 dark:text-rose-400' };
+  const situacao = situacaoComprometimento(comprometimento);
 
   return (
     <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
@@ -79,7 +71,7 @@ export function CardsResumo({ resumo, anteriorEhMes }: CardsResumoProps) {
           label="Comprometimento"
           value={comprometimento === null ? '—' : `${comprometimento.toFixed(0)}%`}
           tone={situacao.tom}
-          faixas={comprometimento === null ? undefined : { valor: comprometimento, limites: [FAIXA_ALERTA, FAIXA_CRITICA] }}
+          faixas={comprometimento === null ? undefined : { valor: comprometimento, limites: FAIXAS_COMPROMETIMENTO }}
           note={comprometimento === null ? 'Sem receita no período' : (
             <>
               <span className={`inline-flex items-center gap-0.5 font-semibold ${situacao.classe}`}>
