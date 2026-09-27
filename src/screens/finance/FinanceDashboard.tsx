@@ -11,7 +11,7 @@ import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { formatCurrency, formatDate } from './formatters';
+import { formatCurrency } from './formatters';
 import { AnnualTrendChart } from './charts/AnnualTrendChart';
 import { DonutChart } from './charts/DonutChart';
 import { MonthWaterfallChart } from './charts/MonthWaterfallChart';
@@ -149,8 +149,6 @@ export function FinanceDashboard() {
     staleTime: 60_000,
   });
   const parcelasFuturas = parcelasQ.data ?? [];
-
-  const accountTypeLabel = localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal';
 
   const receitas = data?.receitas ?? 0;
   const despesas = data?.despesas ?? 0;
@@ -373,13 +371,7 @@ export function FinanceDashboard() {
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
           <h1 className="m-0 text-[24px] font-bold tracking-[-0.02em] text-[#0f2b38] dark:text-white">Painel financeiro</h1>
-          <p className="m-0 text-[12px] text-[#7b93a1] dark:text-slate-400">
-            {periodoDescricao} · conta {accountTypeLabel} · {data?.totalLancamentos ?? 0} lançamento{(data?.totalLancamentos ?? 0) === 1 ? '' : 's'} no período
-            {data?.primeiraData && data?.ultimaData && (
-              <> · dados de {formatDate(data.primeiraData)} até {formatDate(data.ultimaData)}</>
-            )}
-          </p>
-          {/* Linha própria abaixo da descrição: período e filtro sanduíche
+          {/* Linha própria abaixo do título: período e filtro sanduíche
               (Visão + Membros), ambos alinhados à direita. */}
           <div className="mt-1 flex flex-wrap items-center justify-end gap-x-3 gap-y-1.5">
             <DashboardPeriodFilter value={period} onChange={setPeriod} primeiraData={data?.primeiraData ?? null} />
