@@ -390,7 +390,13 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
   // sem id de autor). Nenhum marcado = nenhum nome visivel = nada exibido.
   const nomesVisiveis = new Set(
     [...filtroMembros]
-      .map((id) => (id === meIdStr ? (meQ.data?.nomeExibicao ?? meQ.data?.nome) : outrosMembros.find((m) => String(m.usuario_id) === id)?.nome))
+      .map((id) => {
+        if (id === meIdStr) return meQ.data?.nomeExibicao ?? meQ.data?.nome;
+        const membro = outrosMembros.find((m) => String(m.usuario_id) === id);
+        // Nome completo (nome + sobrenome) para bater com autorNome, que
+        // sempre vem completo do backend — so o primeiro nome nunca casaria.
+        return membro ? `${membro.nome} ${membro.sobrenome ?? ''}`.trim() : undefined;
+      })
       .filter(Boolean) as string[],
   );
 
@@ -496,7 +502,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: [
         { value: String(meQ.data.id), label: meQ.data.nomeExibicao ?? meQ.data.nome },
-        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: m.nome })),
+        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: `${m.nome} ${m.sobrenome ?? ''}`.trim() })),
       ],
       selected: filtroMembros,
       onChange: setFiltroMembros,
