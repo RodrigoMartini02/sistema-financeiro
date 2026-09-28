@@ -8,11 +8,11 @@ O painel principal (`FinanceDashboard`), porém, não separa nada por pessoa. El
 
 Peças relevantes já existentes no projeto, verificadas por leitura direta:
 
-- **`src/screens/finance/charts/DonutChart.tsx`** — componente de rosca que **já faz exatamente o que esta task pede**: valor no furo central (`centerLabel` + `centerValue`) e legenda lateral com nome, percentual e valor por item. Props: `data: Array<{name, value, color}>`, `centerLabel`, `centerValue`, `capitalizeLabels`. Não precisa ser alterado, apenas consumido.
-- **`recharts`** já está no `package.json`; nenhuma dependência nova é necessária.
-- **Barras empilhadas já são usadas** no projeto: `src/screens/finance/charts/MonthWaterfallChart.tsx` usa `stackId` no `<Bar>`.
-- **`src/screens/finance/charts/ChartTooltip.tsx`** — tooltip compartilhado entre os gráficos.
-- Outros gráficos como referência de padrão: `AnnualTrendChart.tsx`, `MonthlyComparisonBarChart.tsx`.
+- **`src/screens/finance/painel/graficos/Pizza.tsx`** — pizza do painel: todas as fatias, legenda enxuta (cor + nome) e o detalhe (valor, % e extras) só da fatia sob o mouse; o total fica no cabeçalho do card. Props: `fatias: FatiaPizza[]` (`nome`, `valor`, `cor?`, `detalhes?`), `vazio`, `tamanhoMinimo`, `ordenar?`, `legendaAoLado?`. Não precisa ser alterada, apenas consumida.
+- Os gráficos do painel são SVG próprios em `src/screens/finance/painel/graficos/` (sem biblioteca de gráficos); nenhuma dependência nova é necessária.
+- **Barras empilhadas já são usadas** no projeto: `src/screens/finance/painel/graficos/Barras.tsx` com `empilhar` (ex.: Formas de pagamento por mês, Contas a vencer).
+- **`src/screens/finance/painel/graficos/Detalhe.tsx`** — detalhe no hover compartilhado entre os gráficos (`useDetalhe`, `ConteudoDetalhe`).
+- Outros gráficos como referência de padrão: `BarrasHorizontais.tsx`, `Medidor.tsx` e os blocos em `src/screens/finance/painel/`.
 - **`GET /api/account-members/summary`** ([accountMembers.ts:317](../backend/src/routes/accountMembers.ts#L317)) — já existe e soma despesas (`SUM(valor_original)`) e receitas (`SUM(valor)`) agrupadas por `usuario_id`. Resolve os autores a partir do dono da conta mais os membros ativos ([linhas 342-352](../backend/src/routes/accountMembers.ts#L342-L352)). **Nunca foi consumido por nenhuma tela.**
 - **`fetchAccountSummary(mes?, ano?)`** ([membrosService.ts:86](../src/services/membrosService.ts#L86)) — já existe e chama esse endpoint. A interface `AccountSummary` já está tipada. Também nunca foi consumida.
 - **`fetchMembros()`** no mesmo service — lista os membros da conta, com `usuario_id` e `nome`.
@@ -75,7 +75,7 @@ Quando a conta for **pessoal e tiver membros vinculados** (`conta_membros` com `
 
 ### Fora do escopo inicial
 
-- Alterar o `DonutChart`, que já atende ao que foi pedido
+- Alterar a `Pizza`, que já atende ao que foi pedido
 - Criar membros da família ou alterar a tela de Configurações
 - Gráficos por membro em outras telas (Movimentações, Relatórios)
 - Filtro ou detalhamento por membro na tabela de despesas — a coluna "Quem lançou" já existe
@@ -87,11 +87,11 @@ Quando a conta for **pessoal e tiver membros vinculados** (`conta_membros` com `
 
 - Consumir `fetchAccountSummary` e `fetchMembros`, que já existem e nunca foram usados
 - Usar React Query com query keys centralizadas. **`queryKeys.ts` não tem chave para membros nem para o summary** — será preciso adicionar
-- Reaproveitar `DonutChart` sem alterá-lo
-- O componente de barras empilhadas deve seguir o padrão dos gráficos existentes em `src/screens/finance/charts/` (uso de `recharts`, `ResponsiveContainer`, `ChartTooltip`)
+- Reaproveitar a `Pizza` sem alterá-la
+- O gráfico de barras empilhadas deve usar `Barras` (`src/screens/finance/painel/graficos/Barras.tsx`) com `empilhar`, e o detalhe no hover de `Detalhe.tsx`
 - A paleta por membro precisa ser determinística: o mesmo membro deve receber a mesma cor entre renders e entre os três gráficos
 - Tratar os estados de loading, erro e vazio, como os demais gráficos do painel
-- Preservar acessibilidade: o `DonutChart` já usa `role="img"` com `aria-label`
+- Preservar acessibilidade: a `Pizza` já traz o valor de cada fatia na legenda para leitores de tela
 - Nomenclatura de código novo em inglês; nomes em português existentes são legado
 
 ## Requisitos de Backend
@@ -149,10 +149,10 @@ Não aplicável — sem infraestrutura de E2E no projeto.
 ### Frontend
 
 - `src/screens/finance/FinanceDashboard.tsx` — nova seção
-- `src/screens/finance/charts/` — novo componente de barras empilhadas
+- `src/screens/finance/painel/` — bloco novo usando `Barras` com `empilhar`
 - `src/services/membrosService.ts` — tipos e, possivelmente, nova função
 - `src/services/queryKeys.ts` — chaves novas
-- `src/screens/finance/charts/DonutChart.tsx` — apenas consumido, não alterado
+- `src/screens/finance/painel/graficos/Pizza.tsx` — apenas consumida, não alterada
 
 ### Backend
 
@@ -190,11 +190,11 @@ Sem alteração identificada.
 - Use este arquivo como especificação de entrada. **As quatro decisões de produto já estão fechadas** — não reabrir onde, o quê, quantas categorias nem quando exibir
 - Leia o `CLAUDE.md` da raiz e do projeto (fluxo obrigatório `/planejar` → aprovação → `/implementar` → `/finalizar`)
 - Sobre o `AGENT.md`: existe apenas na raiz e em `sistema financas/` (idênticos). **Não existem** `frontend/AGENT.md` nem `backend/AGENT.md`. O conteúdo descreve um sistema multi-prefeitura com RLS que não corresponde a este projeto — usar apenas as partes genéricas e ignorar a seção de multi-tenant
-- Inspecione `DonutChart.tsx`, `MonthWaterfallChart.tsx`, `FinanceDashboard.tsx`, `accountMembers.ts` e `membrosService.ts` antes de escrever o plano
+- Inspecione `painel/graficos/Pizza.tsx`, `painel/graficos/Barras.tsx`, `FinanceDashboard.tsx`, `accountMembers.ts` e `membrosService.ts` antes de escrever o plano
 - Classifique como `frontend + backend`, sem migration
 - Resolva as perguntas em aberto com o usuário antes de fechar o plano, em especial a do filtro de período — ela afeta a assinatura do endpoint
 - Não implemente código durante o planejamento
-- Não instale dependências: `recharts` já está disponível
+- Não instale dependências: os gráficos são SVG próprios em `painel/graficos/`
 - Gere o plano em `.plans/` (convenção real deste projeto), com etapas pequenas e revisáveis
 
 ## Observação sobre o estado dos dados
