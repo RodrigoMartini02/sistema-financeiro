@@ -202,6 +202,7 @@ export function FinanceDashboard() {
             <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={dados.periodo.ate.slice(0, 4)} />
             <OndeMaisGastou
               porCategoria={dados.categorias}
+              porOutros={dados.categoriasPorOutros}
               coresPorPessoa={coresPorPessoa}
               segmentarPorMembro={membroIds.size > 1}
             />

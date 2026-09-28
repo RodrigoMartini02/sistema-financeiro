@@ -1,6 +1,7 @@
-import { MONTH_NAMES, type PainelFatia, type PainelGranularidade } from '../../../types/finance';
+import { MONTH_NAMES, type PainelData, type PainelFatia, type PainelGranularidade } from '../../../types/finance';
 import type { FatiaPizza } from './graficos/Pizza';
 import { formatCurrency } from '../formatters';
+import { firstName } from '../memberColors';
 
 const ROTULO_FORMA: Record<string, string> = {
   credito: 'Crédito',
@@ -92,3 +93,22 @@ export function paraFatias(fatias: PainelFatia[]): FatiaPizza[] {
 /** Menor diâmetro das pizzas; acima dele, o disco ocupa o espaço livre do card. */
 export const TAMANHO_PIZZA_GRANDE = 240;
 export const TAMANHO_PIZZA_MENOR = 170;
+
+/**
+ * Compras cadastradas por outra pessoa no cartão de quem paga, dentro das
+ * categorias informadas (a principal e as subs): "Mirian · R$ 424,49".
+ */
+export function observacoesPorOutros(
+  porOutros: PainelData['categoriasPorOutros'],
+  categorias: (number | null)[],
+): string[] {
+  const alvo = new Set(categorias);
+  const porAutor = new Map<string, number>();
+  for (const linha of porOutros) {
+    if (!alvo.has(linha.categoriaId)) continue;
+    porAutor.set(linha.autorNome, (porAutor.get(linha.autorNome) ?? 0) + linha.total);
+  }
+  return [...porAutor]
+    .sort((a, b) => b[1] - a[1])
+    .map(([nome, total]) => `${firstName(nome)} · ${formatCurrency(total)}`);
+}

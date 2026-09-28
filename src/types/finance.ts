@@ -236,6 +236,8 @@ export interface PainelData {
   };
   /** Para onde foi: despesas do período pela categoria principal. */
   despesasPorCategoria: PainelFatia[];
+  /** Compras cadastradas por outra pessoa no cartão de quem paga, por categoria e quem cadastrou. */
+  categoriasPorOutros: { categoriaId: number | null; autorId: number; autorNome: string; total: number }[];
   empresa: {
     estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
   } | null;

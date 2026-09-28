@@ -9,6 +9,7 @@ import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import {
   agregarAVistaParcelado,
   agregarCategorias,
+  agregarCategoriasPorOutros,
   agregarContasEmAberto,
   agregarEmDia,
   agregarFormasPagamento,
@@ -101,6 +102,8 @@ export interface PainelResposta {
   receitas: ReceitasPainelResumo;
   /** Para onde foi: despesas do período pela categoria principal. */
   despesasPorCategoria: FatiaPainel[];
+  /** Compras cadastradas por outra pessoa no cartão de quem paga, por categoria e quem cadastrou. */
+  categoriasPorOutros: Array<{ categoriaId: number | null; autorId: number; autorNome: string; total: number }>;
   empresa: {
     estoqueBaixo: Array<{ id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }>;
   } | null;
@@ -501,6 +504,10 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   ]);
   const tipoGasto = agregarTipoGasto(despesasPeriodo);
 
+  // Quem cadastrou pode estar fora do filtro de pessoas (usou o cartão de quem está no filtro).
+  const porOutros = agregarCategoriasPorOutros(despesasPeriodo);
+  const nomesAutores = await buscarNomesPessoas([...new Set(porOutros.map((linha) => linha.autorId))].filter((id) => !nomesPessoas.has(id)));
+
   return {
     periodo,
     periodoAnterior: anterior,
@@ -556,6 +563,10 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       categoriasPorId,
       SEM_CATEGORIA,
     ),
+    categoriasPorOutros: porOutros.map((linha) => ({
+      ...linha,
+      autorNome: nomesPessoas.get(linha.autorId) ?? nomesAutores.get(linha.autorId) ?? '',
+    })),
     empresa: entrada.tipoConta === 'empresa' ? { estoqueBaixo } : null,
   };
 }

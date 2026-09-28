@@ -11,6 +11,8 @@ export interface FatiaPizza {
   cor?: string;
   /** Linhas extras do detalhe (subcategorias, compras, limite...). */
   detalhes?: [string, ReactNode][];
+  /** Notas pequenas no fim do detalhe. */
+  observacoes?: string[];
 }
 
 interface PizzaProps {
@@ -73,7 +75,7 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
       return;
     }
     detalhe.mostrar(evento, (
-      <ConteudoDetalhe nome={item.nome} cor={corDe(item)} valor={item.valor} parte={(item.valor / total) * 100} linhas={item.detalhes} />
+      <ConteudoDetalhe nome={item.nome} cor={corDe(item)} valor={item.valor} parte={(item.valor / total) * 100} linhas={item.detalhes} observacoes={item.observacoes} />
     ));
   };
 
