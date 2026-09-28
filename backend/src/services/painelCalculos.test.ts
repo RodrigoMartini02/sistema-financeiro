@@ -253,7 +253,7 @@ test('projeção das fixas: período encerrado não projeta nada', () => {
   assert.deepEqual(projetarFixas(fixas, [], { de: '2026-08-01', ate: '2026-08-31' }, '2026-09-27'), []);
 });
 
-test('agrupamento por classificação principal, com subcategorias e sem classificação', () => {
+test('agrupamento por classificação principal, com subcategorias e sem categoria', () => {
   const classificacoes = new Map([
     [1, { id: 1, nome: 'Salário', parentId: null }],
     [2, { id: 2, nome: '13º', parentId: 1 }],
@@ -264,11 +264,11 @@ test('agrupamento por classificação principal, com subcategorias e sem classif
     { id: 2, valor: 2250 },
     { id: 3, valor: 800 },
     { id: null, valor: 100 },
-  ], classificacoes, 'Sem classificação');
+  ], classificacoes, 'Sem categoria');
   assert.deepEqual(fatias, [
     { id: 1, nome: 'Salário', valor: 6750, subcategorias: [{ id: 2, nome: '13º', valor: 2250 }] },
     { id: 3, nome: 'Freelance', valor: 800, subcategorias: [] },
-    { id: null, nome: 'Sem classificação', valor: 100, subcategorias: [] },
+    { id: null, nome: 'Sem categoria', valor: 100, subcategorias: [] },
   ]);
 });
 

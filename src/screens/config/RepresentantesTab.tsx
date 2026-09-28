@@ -189,17 +189,17 @@ function RepresentanteDialog({
           <div style={cfgDividerStyle} />
 
           <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={labelStyle}>Comissões por classificação</label>
+            <label style={labelStyle}>Comissões por categoria</label>
 
             {classificacoes.length === 0 && (
               <p style={{ borderRadius: 10, border: `1px solid ${CFG.warnBorder}`, background: CFG.warnBg, padding: '7px 9px', fontSize: 11.5, color: CFG.warnText, margin: 0 }}>
-                Nenhuma classificação de receita ativa. Cadastre em <strong>Classificação de receitas</strong>.
+                Nenhuma categoria de receita ativa. Cadastre em <strong>Categorias Receitas</strong>.
               </p>
             )}
 
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 110px 32px', gap: 8, padding: '0 2px' }}>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Classificação</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Categoria</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Frequência</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: CFG.muted }}>Percentual</span>
                 <span />

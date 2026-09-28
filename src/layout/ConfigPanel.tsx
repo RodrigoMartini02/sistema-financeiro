@@ -35,8 +35,8 @@ type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
 const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: ConfigGroupLabel }[] = [
   { id: 'contas',         label: 'Contas',         icon: Layers,     group: 'Geral' },
   { id: 'assinatura',     label: 'Assinatura',     icon: Crown,      group: 'Geral' },
-  { id: 'categorias',     label: 'Categorias',     icon: Tag,        group: 'Finanças' },
-  { id: 'classificacoes-receita', label: 'Classificação de receitas', icon: HandCoins, group: 'Finanças' },
+  { id: 'categorias',     label: 'Categorias Despesas', icon: Tag,        group: 'Finanças' },
+  { id: 'classificacoes-receita', label: 'Categorias Receitas', icon: HandCoins, group: 'Finanças' },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },

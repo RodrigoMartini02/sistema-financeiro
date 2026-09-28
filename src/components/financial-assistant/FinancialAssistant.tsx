@@ -601,7 +601,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     if (registered.kind === 'income') {
       push('Data', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
       push('Cliente', registered.cliente);
-      push('Classificação', registered.classificacaoId
+      push('Categoria', registered.classificacaoId
         ? classificacoes.find((classificacao) => classificacao.id === registered.classificacaoId)?.rotulo
         : null);
       push('Representante', registered.representanteId
@@ -1597,14 +1597,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
                       {draft.kind === 'income' && classificacoes.length > 0 && (
                         <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
-                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Classificação</span>
+                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Categoria</span>
                           <span className="relative flex-1">
                             <select
                               value={draft.classificacaoId ?? ''}
                               onChange={(event) => updateDraft({ classificacaoId: event.target.value ? Number(event.target.value) : null })}
                               className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                             >
-                              <option value="">Sem classificação</option>
+                              <option value="">Sem categoria</option>
                               {classificacoes.map((classificacao) => (
                                 <option key={classificacao.id} value={classificacao.id}>{classificacao.rotulo}</option>
                               ))}

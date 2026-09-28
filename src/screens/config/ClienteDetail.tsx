@@ -154,13 +154,13 @@ function ContratoForm({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 28 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={chipGroupLabelStyle}>Classificação da mensalidade</span>
+            <span style={chipGroupLabelStyle}>Categoria da mensalidade</span>
             <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
               {rotuloClassificacao(form.classificacao_mensalidade_id, 'Contratos › Mensalidade')}
             </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={chipGroupLabelStyle}>Classificação da implantação</span>
+            <span style={chipGroupLabelStyle}>Categoria da implantação</span>
             <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
               {rotuloClassificacao(form.classificacao_implantacao_id, 'Contratos › Implantação')}
             </p>
@@ -253,7 +253,7 @@ function ContratoForm({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={labelStyle}>Classificação da mensalidade</label>
+            <label style={labelStyle}>Categoria da mensalidade</label>
             <select
               value={form.classificacao_mensalidade_id}
               onChange={(e) => set('classificacao_mensalidade_id', e.target.value)}
@@ -265,7 +265,7 @@ function ContratoForm({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={labelStyle}>Classificação da implantação</label>
+            <label style={labelStyle}>Categoria da implantação</label>
             <select
               value={form.classificacao_implantacao_id}
               onChange={(e) => set('classificacao_implantacao_id', e.target.value)}

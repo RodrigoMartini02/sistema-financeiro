@@ -1,4 +1,5 @@
 import type { ClassificacaoReceita } from '../types/config';
+import { compararNomesCatalogo } from './categorySuggestions';
 
 export interface OpcaoClassificacao {
   id: number;
@@ -8,7 +9,8 @@ export interface OpcaoClassificacao {
 
 /**
  * Classificações ativas como lista plana para selects simples (comissão,
- * contrato): a subcategoria leva o nome da raiz para não ficar ambígua.
+ * contrato): a subcategoria leva o nome da raiz para não ficar ambígua. Ordena
+ * pela raiz e depois pela subcategoria, com "Outros" por último em cada nível.
  */
 export function opcoesDeClassificacao(itens: ClassificacaoReceita[]): OpcaoClassificacao[] {
   const ativos = itens.filter((item) => item.ativo);
@@ -16,7 +18,8 @@ export function opcoesDeClassificacao(itens: ClassificacaoReceita[]): OpcaoClass
   return ativos
     .map((item) => {
       const pai = item.parent_id ? nomePorId.get(item.parent_id) : undefined;
-      return { id: item.id, rotulo: pai ? `${pai} › ${item.nome}` : item.nome };
+      return { id: item.id, raiz: pai ?? item.nome, sub: pai ? item.nome : '', rotulo: pai ? `${pai} › ${item.nome}` : item.nome };
     })
-    .sort((a, b) => a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
+    .sort((a, b) => compararNomesCatalogo(a.raiz, b.raiz) || (a.sub && b.sub ? compararNomesCatalogo(a.sub, b.sub) : a.sub.localeCompare(b.sub)))
+    .map(({ id, rotulo }) => ({ id, rotulo }));
 }

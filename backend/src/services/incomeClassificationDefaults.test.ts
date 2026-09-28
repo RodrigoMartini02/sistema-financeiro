@@ -43,7 +43,7 @@ test('classificação de implantação trava depois de gerada a implantação', 
 
 test('PF: salário é subcategoria de "Emprego" e "Vendas" virou "Comissões"; PJ mantém "Vendas"', () => {
   const pessoal = getDefaultIncomeClassifications('pessoal');
-  assert.deepEqual(pessoal.find((item) => item.nome === 'Emprego')?.subcategorias, ['Salário', '13º', 'Férias']);
+  assert.deepEqual(pessoal.find((item) => item.nome === 'Emprego')?.subcategorias, ['Salário', '13º', 'Férias', 'Vale refeição']);
   assert.ok(pessoal.some((item) => item.nome === 'Comissões'));
   assert.ok(!todosOsNomes('pessoal').includes('Vendas'));
   assert.ok(todosOsNomes('empresa').includes('Vendas'));

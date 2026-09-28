@@ -618,7 +618,7 @@ export interface FatiaPainel {
 /**
  * Soma pelo item principal: o que foi lançado numa subcategoria entra na raiz e
  * aparece também como detalhe dela. Item desconhecido (ou nulo) vai para
- * `rotuloSemRaiz` ("Sem classificação", "Sem categoria").
+ * `rotuloSemRaiz` ("Sem categoria").
  */
 export function agruparPorRaiz(
   itens: Array<{ id: number | null; valor: number }>,
@@ -652,7 +652,6 @@ export function agruparPorRaiz(
     .sort((a, b) => b.valor - a.valor);
 }
 
-export const SEM_CLASSIFICACAO = 'Sem classificação';
 export const SEM_CATEGORIA = 'Sem categoria';
 
 export interface ReceitasPainelResumo {
@@ -693,8 +692,8 @@ export function resumirReceitasPainel(entrada: {
   const fixa = somar(renda.filter((item) => item.id !== null && idsFixos.has(item.id)), (item) => item.valor);
 
   return {
-    porClassificacao: agruparPorRaiz(entrou, classificacoes, SEM_CLASSIFICACAO),
-    aReceber: { total: totalAReceber, porClassificacao: agruparPorRaiz(aReceber, classificacoes, SEM_CLASSIFICACAO) },
+    porClassificacao: agruparPorRaiz(entrou, classificacoes, SEM_CATEGORIA),
+    aReceber: { total: totalAReceber, porClassificacao: agruparPorRaiz(aReceber, classificacoes, SEM_CATEGORIA) },
     rendaPrevista,
     comprometimentoPrevisto: percentual(entrada.saiu, rendaPrevista),
     fixa,
