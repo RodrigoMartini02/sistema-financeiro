@@ -1,9 +1,10 @@
-import type { PainelCategoria } from '../../../types/finance';
+import type { PainelCategoria, PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
 import { useCoresGrafico } from './coresGrafico';
 import { BarrasHorizontais, type LinhaHorizontal } from './graficos/BarrasHorizontais';
+import { observacoesPorOutros } from './painelFormat';
 
 /** Categorias principais mostradas antes de "ver todas" (as subcategorias abrem sob cada uma). */
 const CATEGORIAS_VISIVEIS = 5;
@@ -26,6 +27,8 @@ interface CategoriaAgregada {
 
 interface OndeMaisGastouProps {
   porCategoria: PainelCategoria[];
+  /** Compras cadastradas por outra pessoa no cartão de quem paga (vão como nota pequena no detalhe). */
+  porOutros: PainelData['categoriasPorOutros'];
   /** Cor de cada pessoa, por usuario_id — a mesma de "Quem trouxe e quem gastou". */
   coresPorPessoa: Map<number, string>;
   /** Divide as barras por pessoa só quando há mais de uma pessoa no filtro. */
@@ -33,7 +36,7 @@ interface OndeMaisGastouProps {
 }
 
 /** Categorias da maior para a menor, com as subcategorias e, com várias pessoas, a parte de cada uma. */
-export function OndeMaisGastou({ porCategoria, coresPorPessoa, segmentarPorMembro }: OndeMaisGastouProps) {
+export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmentarPorMembro }: OndeMaisGastouProps) {
   const cores = useCoresGrafico();
   const linhasComGasto = porCategoria.filter((linha) => linha.total > 0);
   if (linhasComGasto.length === 0) return null;
@@ -83,9 +86,13 @@ export function OndeMaisGastou({ porCategoria, coresPorPessoa, segmentarPorMembr
         valor,
         parte: (valor / total) * 100,
         segmentos: segmentosDe(segmentos),
+        observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...filhos.map((filho) => filho.categoriaId)]),
         subs: filhos
           .sort((a, b) => b.total - a.total)
-          .map((filho) => ({ id: filho.chave, nome: filho.categoria, valor: filho.total, parte: (filho.total / total) * 100, segmentos: segmentosDe(filho.segmentos) })),
+          .map((filho) => ({
+            id: filho.chave, nome: filho.categoria, valor: filho.total, parte: (filho.total / total) * 100,
+            segmentos: segmentosDe(filho.segmentos), observacoes: observacoesPorOutros(porOutros, [filho.categoriaId]),
+          })),
       };
     })
     .sort((a, b) => b.valor - a.valor);

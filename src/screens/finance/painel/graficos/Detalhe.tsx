@@ -62,13 +62,15 @@ export function useDetalhe() {
 }
 
 /** Conteúdo padrão: nome com a cor, valor, % do todo e linhas extras. */
-export function ConteudoDetalhe({ nome, cor, valor, parte, linhas = [] }: {
+export function ConteudoDetalhe({ nome, cor, valor, parte, linhas = [], observacoes = [] }: {
   nome: string;
   cor?: string;
   valor?: number;
   parte?: number | null;
   /** [rótulo, valor, cor opcional do marcador]. */
   linhas?: [string, ReactNode, string?][];
+  /** Notas discretas no fim, em fonte pequena (ex.: "Mirian · R$ 424,49" — quem cadastrou no cartão de quem paga). */
+  observacoes?: string[];
 }) {
   return (
     <>
@@ -78,7 +80,7 @@ export function ConteudoDetalhe({ nome, cor, valor, parte, linhas = [] }: {
       </p>
       {valor !== undefined && (
         <p className="m-0 mt-1.5 flex items-baseline justify-between gap-3.5 tabular-nums">
-          <span className="text-base font-semibold text-slate-900 dark:text-white">{formatCurrency(valor)}</span>
+          <span className="text-[13px] font-semibold text-slate-900 dark:text-white">{formatCurrency(valor)}</span>
           {parte != null && (
             <span className="rounded-full bg-cyan-50 px-1.5 text-xs font-medium text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300">
               {formatarPercentual(parte)}
@@ -98,6 +100,11 @@ export function ConteudoDetalhe({ nome, cor, valor, parte, linhas = [] }: {
             </div>
           ))}
         </dl>
+      )}
+      {observacoes.length > 0 && (
+        <div className="mt-1.5 grid gap-px text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
+          {observacoes.map((texto) => <span key={texto}>{texto}</span>)}
+        </div>
       )}
     </>
   );

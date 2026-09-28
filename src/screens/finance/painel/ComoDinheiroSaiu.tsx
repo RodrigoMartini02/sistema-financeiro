@@ -6,7 +6,7 @@ import { corDaPaleta, useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
 import { Pizza } from './graficos/Pizza';
 import {
-  TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, paraFatias, rotuloDoTrecho, rotuloForma, trechoFuturo, unidadeDaSerie,
+  TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, observacoesPorOutros, paraFatias, rotuloDoTrecho, rotuloForma, trechoFuturo, unidadeDaSerie,
 } from './painelFormat';
 
 const compras = (quantidade: number) => `${quantidade} compra${quantidade === 1 ? '' : 's'}`;
@@ -27,7 +27,14 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <CardPainel>
           <CabecalhoCard titulo="Despesas por categoria" valor={formatCurrency(total)} />
-          <Pizza fatias={paraFatias(dados.despesasPorCategoria)} tamanhoMinimo={TAMANHO_PIZZA_GRANDE} vazio="Sem despesas no período." />
+          <Pizza
+            fatias={paraFatias(dados.despesasPorCategoria).map((fatia, indice) => {
+              const origem = dados.despesasPorCategoria[indice]!;
+              return { ...fatia, observacoes: observacoesPorOutros(dados.categoriasPorOutros, [origem.id, ...origem.subcategorias.map((sub) => sub.id)]) };
+            })}
+            tamanhoMinimo={TAMANHO_PIZZA_GRANDE}
+            vazio="Sem despesas no período."
+          />
         </CardPainel>
 
         <div className="grid gap-4 sm:grid-cols-2">

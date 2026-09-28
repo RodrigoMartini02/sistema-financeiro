@@ -6,6 +6,7 @@ import {
   agregarFormasPagamento,
   agregarGastoPorCartao,
   agregarGastoPorCartaoEPessoa,
+  agregarCategoriasPorOutros,
   agregarJurosDescontos,
   agregarTipoGasto,
   agruparPorRaiz,
@@ -330,4 +331,18 @@ test('cartões: gasto por pessoa em cada cartão fecha com o total do cartão', 
   for (const [cartao, total] of agregarGastoPorCartao(despesas)) {
     assert.equal([...porPessoa.get(cartao)!.values()].reduce((soma, valor) => soma + valor, 0), total);
   }
+});
+
+test('categorias: só as compras cadastradas por outra pessoa no cartão de quem paga, por categoria e autor', () => {
+  const despesas = [
+    despesa({ usuarioId: 1, autorId: 1, categoriaId: 10, valorOriginal: 100 }),
+    despesa({ usuarioId: 1, autorId: 15, categoriaId: 10, valorOriginal: 40 }),
+    despesa({ usuarioId: 1, autorId: 15, categoriaId: 10, valorOriginal: 10, pago: true, valorPago: 12 }),
+    despesa({ usuarioId: 1, autorId: 15, categoriaId: null, valorOriginal: 5 }),
+    despesa({ usuarioId: 15, autorId: 15, categoriaId: 10, valorOriginal: 30 }),
+  ];
+  assert.deepEqual(agregarCategoriasPorOutros(despesas), [
+    { categoriaId: 10, autorId: 15, total: 52 },
+    { categoriaId: null, autorId: 15, total: 5 },
+  ]);
 });

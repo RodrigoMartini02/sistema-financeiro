@@ -520,6 +520,22 @@ export function agregarCategorias(despesas: DespesaPainel[]): Array<{ categoriaI
 }
 
 /**
+ * Compras cadastradas por outra pessoa no cartão de quem paga, por categoria e
+ * por quem cadastrou. Só entram despesas em que quem cadastrou não é quem paga.
+ */
+export function agregarCategoriasPorOutros(despesas: DespesaPainel[]): Array<{ categoriaId: number | null; autorId: number; total: number }> {
+  const porChave = new Map<string, { categoriaId: number | null; autorId: number; total: number }>();
+  for (const despesa of despesas) {
+    if (despesa.autorId === despesa.usuarioId) continue;
+    const chave = `${despesa.categoriaId ?? 'sem'}:${despesa.autorId}`;
+    const atual = porChave.get(chave) ?? { categoriaId: despesa.categoriaId, autorId: despesa.autorId, total: 0 };
+    atual.total += valorEfetivo(despesa);
+    porChave.set(chave, atual);
+  }
+  return [...porChave.values()].sort((a, b) => b.total - a.total);
+}
+
+/**
  * Gasto por categoria com rollup de um nível: o que foi lançado numa
  * subcategoria soma também no pai, que é onde a meta costuma estar.
  */

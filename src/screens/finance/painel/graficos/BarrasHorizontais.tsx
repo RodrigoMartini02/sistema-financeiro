@@ -15,6 +15,8 @@ export interface LinhaHorizontal {
   /** Divisão da barra por pessoa. */
   segmentos?: { nome: string; valor: number; cor: string }[];
   subs?: LinhaHorizontal[];
+  /** Notas pequenas no fim do detalhe. */
+  observacoes?: string[];
 }
 
 interface BarrasHorizontaisProps {
@@ -101,7 +103,7 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
     }
     for (const segmento of linha.segmentos ?? []) extras.push([segmento.nome, formatCurrency(segmento.valor), segmento.cor]);
     detalhe.mostrar(evento, (
-      <ConteudoDetalhe nome={linha.nome} cor={corDa(linha, sub)} valor={linha.valor} parte={modo === 'parte' ? linha.parte : null} linhas={extras} />
+      <ConteudoDetalhe nome={linha.nome} cor={corDa(linha, sub)} valor={linha.valor} parte={modo === 'parte' ? linha.parte : null} linhas={extras} observacoes={linha.observacoes} />
     ));
   };
 
