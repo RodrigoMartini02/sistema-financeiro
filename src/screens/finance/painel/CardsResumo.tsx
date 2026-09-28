@@ -1,11 +1,15 @@
+import type { ReactNode } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
-import { MovementMetricCard } from '../MovementMetricCard';
-import { FAIXAS_COMPROMETIMENTO, situacaoComprometimento } from './painelFormat';
+import { CardPainel, NumeroAnimado, Rotulo } from './base';
+import { corDaSituacao, useCoresGrafico } from './coresGrafico';
+import { Barras } from './graficos/Barras';
+import { Medidor } from './graficos/Medidor';
+import { formatarComSinal, formatarPercentual, rotuloDoTrecho, situacaoComprometimento, trechoFuturo } from './painelFormat';
 
 function variacao(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;
@@ -22,85 +26,131 @@ function NotaVariacao({ atual, anterior, subirEBom, rotuloAnterior }: { atual: n
   return (
     <span className="inline-flex items-center gap-0.5">
       <Icone size={12} className={tom} aria-hidden="true" />
-      <b className={`font-semibold ${tom}`}>{Math.abs(percentual).toFixed(0)}%</b>&nbsp;vs {rotuloAnterior}
+      <span className={`font-medium ${tom}`}>{formatarPercentual(Math.abs(percentual))}</span>&nbsp;vs {rotuloAnterior}
     </span>
+  );
+}
+
+function Indicador({ rotulo, valor, nota, tom = 'text-slate-900 dark:text-white' }: { rotulo: string; valor: ReactNode; nota: ReactNode; tom?: string }) {
+  return (
+    <CardPainel className="gap-2.5">
+      <Rotulo>{rotulo}</Rotulo>
+      <span className={`text-[22px] font-medium tabular-nums tracking-tight ${tom}`}>{valor}</span>
+      <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">{nota}</span>
+    </CardPainel>
   );
 }
 
 interface CardsResumoProps {
   resumo: PainelData['resumo'];
+  serie: PainelData['serie'];
+  /** "2026", "setembro de 2026", "10/09/2026 a 19/09/2026". */
+  descricaoPeriodo: string;
   /** true quando o período anterior é um mês inteiro — muda só o texto da comparação. */
   anteriorEhMes: boolean;
 }
 
-export function CardsResumo({ resumo, anteriorEhMes }: CardsResumoProps) {
+/** Topo do painel: o resultado do período em destaque e os quatro indicadores ao lado. */
+export function CardsResumo({ resumo, serie, descricaoPeriodo, anteriorEhMes }: CardsResumoProps) {
+  const cores = useCoresGrafico();
   const guiaComprometimento = useFirstAccessGuide('painel:comprometimento-v1');
   const rotuloAnterior = anteriorEhMes ? 'mês anterior' : 'período anterior';
   const resultado = resumo.entrou - resumo.saiu;
-  const resultadoSobreRenda = resumo.entrou > 0 ? (Math.abs(resultado) / resumo.entrou) * 100 : null;
+  const sobreRenda = resumo.entrou > 0 ? (Math.abs(resultado) / resumo.entrou) * 100 : null;
   const comprometimento = resumo.entrou > 0 ? (resumo.saiu / resumo.entrou) * 100 : null;
   const situacao = situacaoComprometimento(comprometimento);
+  const movimento = resumo.entrou + resumo.saiu;
 
   return (
-    <div className="grid grid-cols-2 gap-2 xl:grid-cols-5">
-      <MovementMetricCard
-        label="Entrou"
-        value={formatCurrency(resumo.entrou)}
-        tone="income"
-        progressPct={100}
-        note={<NotaVariacao atual={resumo.entrou} anterior={resumo.entrouAnterior} subirEBom rotuloAnterior={rotuloAnterior} />}
-      />
-      <MovementMetricCard
-        label="Saiu"
-        value={formatCurrency(resumo.saiu)}
-        tone="expense"
-        progressPct={resumo.saiu > 0 ? (resumo.pago / resumo.saiu) * 100 : 0}
-        note={<>{formatCurrency(resumo.pago)} pago · {formatCurrency(resumo.aPagar)} a pagar</>}
-      />
-      <MovementMetricCard
-        label="Resultado"
-        value={`${resultado >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(resultado))}`}
-        tone={resultado >= 0 ? 'income' : 'expense'}
-        progressPct={resultadoSobreRenda ?? 0}
-        note={resultadoSobreRenda === null
-          ? 'Sem receita no período'
-          : `${resultado >= 0 ? 'Sobrou' : 'Faltou'} ${resultadoSobreRenda.toFixed(0)}% da renda`}
-      />
-      <div className="relative">
-        <MovementMetricCard
-          label="Comprometimento"
-          value={comprometimento === null ? '—' : `${comprometimento.toFixed(0)}%`}
-          tone={situacao.tom}
-          faixas={comprometimento === null ? undefined : { valor: comprometimento, limites: FAIXAS_COMPROMETIMENTO }}
-          note={comprometimento === null ? 'Sem receita no período' : (
-            <>
-              <span className={`inline-flex items-center gap-0.5 font-semibold ${situacao.classe}`}>
-                {situacao.tom !== 'income' && <AlertTriangle size={11} aria-hidden="true" />}
-                {situacao.rotulo}
-              </span>
-              {' '}· da renda consumida
-            </>
-          )}
+    <section className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]" aria-label="Resumo do período">
+      <CardPainel escuro className="gap-4 px-6 py-[22px]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Rotulo className="!text-[#93b8c4]">Resultado · {descricaoPeriodo}</Rotulo>
+          <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-medium">
+            {sobreRenda === null ? 'Sem receita no período' : `${resultado >= 0 ? 'Sobrou' : 'Faltou'} ${formatarPercentual(sobreRenda)} da renda`}
+          </span>
+        </div>
+        <span className="text-[clamp(30px,4.2vw,44px)] font-semibold leading-none tracking-tight tabular-nums">
+          <NumeroAnimado valor={resultado} formatar={formatarComSinal} />
+        </span>
+        <div className="grid gap-2">
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
+            <span className="h-full transition-[width] duration-700" style={{ width: `${movimento > 0 ? (resumo.entrou / movimento) * 100 : 0}%`, background: cores.receita }} />
+            <span className="h-full transition-[width] duration-700" style={{ width: `${movimento > 0 ? (resumo.saiu / movimento) * 100 : 0}%`, background: cores.despesa }} />
+          </div>
+          <div className="flex justify-between gap-3 text-[12.5px] tabular-nums text-[#93b8c4]">
+            <span>Entrou <span className="font-medium text-white">{formatCurrency(resumo.entrou)}</span></span>
+            <span>Saiu <span className="font-medium text-white">{formatCurrency(resumo.saiu)}</span></span>
+          </div>
+        </div>
+        <Barras
+          altura={84}
+          semEixo
+          sinal
+          formatar={formatarComSinal}
+          series={[{ chave: 'resultado', rotulo: 'Resultado', cor: (valor) => (valor >= 0 ? '#34d399' : '#fb7185') }]}
+          pontos={serie.pontos.map((ponto) => ({
+            rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, serie.granularidade),
+            futuro: trechoFuturo(ponto.inicio),
+            valores: { resultado: ponto.receitas - ponto.despesas },
+          }))}
         />
-        {guiaComprometimento.isVisible && (
-          <FirstAccessGuideCard
-            floating
-            placement="top"
-            align="right"
-            className="w-[min(25rem,calc(100vw-2rem))]"
-            icon={AlertTriangle}
-            description={firstAccessGuideMessages.painelComprometimento}
-            onDismiss={guiaComprometimento.dismiss}
-            onSilenceAll={guiaComprometimento.silenceAll}
-          />
-        )}
+      </CardPainel>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Indicador
+          rotulo="Entrou"
+          valor={<NumeroAnimado valor={resumo.entrou} formatar={formatCurrency} />}
+          nota={<NotaVariacao atual={resumo.entrou} anterior={resumo.entrouAnterior} subirEBom rotuloAnterior={rotuloAnterior} />}
+        />
+        <Indicador
+          rotulo="Saiu"
+          valor={<NumeroAnimado valor={resumo.saiu} formatar={formatCurrency} />}
+          nota={<NotaVariacao atual={resumo.saiu} anterior={resumo.saiuAnterior} subirEBom={false} rotuloAnterior={rotuloAnterior} />}
+        />
+        <Indicador
+          rotulo="Saldo acumulado"
+          tom={resumo.saldoFinal >= 0 ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}
+          valor={<NumeroAnimado valor={resumo.saldoFinal} formatar={formatCurrency} />}
+          nota={<span className="tabular-nums">Anterior {formatCurrency(resumo.saldoAnterior)}</span>}
+        />
+        <div className="relative">
+          <CardPainel className="h-full gap-2.5">
+            <Rotulo>Comprometimento</Rotulo>
+            {comprometimento === null ? (
+              <>
+                <span className="text-[22px] font-medium text-slate-900 dark:text-white">—</span>
+                <span className="text-[12.5px] text-slate-500 dark:text-slate-400">Sem receita no período</span>
+              </>
+            ) : (
+              <div className="flex items-center gap-3.5">
+                <Medidor percentual={comprometimento} cor={corDaSituacao(situacao.tom, cores)} />
+                <div className="grid gap-1">
+                  <span className="text-[22px] font-medium tabular-nums text-slate-900 dark:text-white">
+                    <NumeroAnimado valor={comprometimento} formatar={formatarPercentual} />
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-[12.5px] font-medium ${situacao.classe}`}>
+                    {situacao.tom !== 'income' && <AlertTriangle size={11} aria-hidden="true" />}
+                    {situacao.rotulo}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardPainel>
+          {guiaComprometimento.isVisible && (
+            <FirstAccessGuideCard
+              floating
+              placement="top"
+              align="right"
+              className="w-[min(25rem,calc(100vw-2rem))]"
+              icon={AlertTriangle}
+              description={firstAccessGuideMessages.painelComprometimento}
+              onDismiss={guiaComprometimento.dismiss}
+              onSilenceAll={guiaComprometimento.silenceAll}
+            />
+          )}
+        </div>
       </div>
-      <MovementMetricCard
-        label="Saldo acumulado"
-        value={formatCurrency(resumo.saldoFinal)}
-        tone={resumo.saldoFinal >= 0 ? 'slate' : 'expense'}
-        note={`Anterior ${formatCurrency(resumo.saldoAnterior)}`}
-      />
-    </div>
+    </section>
   );
 }

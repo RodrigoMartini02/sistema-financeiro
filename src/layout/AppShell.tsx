@@ -460,19 +460,22 @@ export function AppShell({
             </button>
 
             {!isDemoMode && canViewNotifications && (
-              <div className="relative">
-                <button
-                  onClick={() => setNotifOpen((o) => !o)}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
-                >
+              <button
+                onClick={() => setNotifOpen((o) => !o)}
+                aria-label={naoLidasCount > 0 ? `Notificações (${naoLidasCount} não lidas)` : 'Notificações'}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
+              >
+                {/* Contador preso ao canto do sino, e não ao botão: no desktop o
+                    botão é pequeno e o contador cobria o ícone inteiro. */}
+                <span className="relative inline-flex">
                   <Bell size={16} />
-                </button>
-                {naoLidasCount > 0 && (
-                  <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
-                    {naoLidasCount > 9 ? '9+' : naoLidasCount}
-                  </span>
-                )}
-              </div>
+                  {naoLidasCount > 0 && (
+                    <span className="pointer-events-none absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-[#0D2E3C]">
+                      {naoLidasCount > 9 ? '9+' : naoLidasCount}
+                    </span>
+                  )}
+                </span>
+              </button>
             )}
 
             <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />

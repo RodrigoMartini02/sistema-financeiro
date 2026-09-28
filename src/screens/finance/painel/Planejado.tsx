@@ -1,51 +1,43 @@
-import { AlertTriangle } from 'lucide-react';
-import { Badge } from '../../../ui/badge';
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
-import { CabecalhoCard, CardPainel, Secao, Vazio } from './PainelLayout';
+import { CardPainel, Legenda, Secao, Vazio } from './base';
+import { useCoresGrafico } from './coresGrafico';
+import { BarrasHorizontais, type LinhaHorizontal } from './graficos/BarrasHorizontais';
 
-// Mesmos limites do Planejamento: a partir de 80% da meta pede atenção; acima de 100%, estourou.
-const FAIXA_ATENCAO = 0.8;
+type ItemPlanejado = NonNullable<PainelData['planejado']>[number];
 
-function Situacao({ proporcao }: { proporcao: number }) {
-  if (proporcao > 1) {
-    return <Badge tone="expense"><AlertTriangle size={11} className="mr-1" aria-hidden="true" />acima da meta</Badge>;
-  }
-  if (proporcao >= FAIXA_ATENCAO) {
-    return <Badge tone="warning">atenção</Badge>;
-  }
-  return null;
-}
+const paraLinha = (item: ItemPlanejado): LinhaHorizontal => ({
+  id: String(item.categoriaId),
+  nome: item.categoria,
+  valor: item.gasto,
+  meta: item.meta,
+});
 
+/** Metas por categoria; as subcategorias com meta abrem sob a categoria principal. */
 export function Planejado({ itens }: { itens: NonNullable<PainelData['planejado']> }) {
+  const cores = useCoresGrafico();
+  const ids = new Set(itens.map((item) => item.categoriaId));
+  const ehRaiz = (item: ItemPlanejado) => item.parentId === null || !ids.has(item.parentId);
+  const linhas = itens
+    .filter(ehRaiz)
+    .map((raiz) => ({
+      ...paraLinha(raiz),
+      subs: itens.filter((item) => item.parentId === raiz.categoriaId).sort((a, b) => b.gasto - a.gasto).map(paraLinha),
+    }))
+    .sort((a, b) => b.valor - a.valor);
+
   return (
     <Secao titulo="Estou dentro do planejado?">
       <CardPainel>
-        <CabecalhoCard titulo="Metas por categoria" />
-        {itens.length === 0 ? (
-          <Vazio>Nenhuma meta cadastrada. Defina metas no Planejamento.</Vazio>
-        ) : (
-          <ul className="m-0 grid list-none gap-x-6 gap-y-4 p-0 md:grid-cols-2">
-            {itens.map((item) => {
-              const proporcao = item.meta > 0 ? item.gasto / item.meta : 0;
-              const corBarra = proporcao > 1 ? 'bg-rose-500' : proporcao >= FAIXA_ATENCAO ? 'bg-amber-500' : 'bg-emerald-600';
-              return (
-                <li key={item.categoriaId} className="flex flex-col gap-1.5">
-                  <span className="flex flex-wrap items-center gap-2 text-[12.5px]">
-                    <span className="font-medium text-slate-900 dark:text-white">{item.categoria}</span>
-                    <Situacao proporcao={proporcao} />
-                    <span className="ml-auto tabular-nums text-slate-500 dark:text-slate-400">
-                      <b className="font-semibold text-slate-900 dark:text-white">{formatCurrency(item.gasto)}</b> de {formatCurrency(item.meta)}
-                    </span>
-                  </span>
-                  <span className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700" aria-hidden="true">
-                    <span className={`block h-1.5 rounded-full ${corBarra}`} style={{ width: `${Math.min(100, proporcao * 100)}%` }} />
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+          <h3 className="m-0 text-sm font-medium text-slate-900 dark:text-white">Metas por categoria</h3>
+          <Legenda itens={[
+            { cor: cores.destaque, nome: 'Dentro da meta' },
+            { cor: cores.negativo, nome: 'Acima da meta' },
+          ]} />
+        </div>
+        {linhas.length === 0
+          ? <Vazio>Nenhuma meta cadastrada. Defina metas no Planejamento.</Vazio>
+          : <BarrasHorizontais linhas={linhas} modo="meta" />}
       </CardPainel>
     </Secao>
   );

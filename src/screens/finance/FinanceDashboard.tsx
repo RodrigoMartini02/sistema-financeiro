@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { MotionConfig, motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
@@ -14,8 +15,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import type { PainelPeriodo } from '../../types/finance';
 import { TERMOS } from '../config/ContasTab';
-import { DashboardPeriodFilter, descreverPeriodo, periodoDoMesAtual } from './DashboardPeriodFilter';
-import { MonthCategoriesOverview } from './MonthCategoriesOverview';
+import { DashboardPeriodFilter, descreverPeriodo, periodoDoAnoAtual } from './DashboardPeriodFilter';
 import { firstName } from './memberColors';
 import { CardsResumo } from './painel/CardsResumo';
 import { ComoDinheiroSaiu } from './painel/ComoDinheiroSaiu';
@@ -29,7 +29,8 @@ import { Planejado } from './painel/Planejado';
 import { QuemTrouxeQuemGastou } from './painel/QuemTrouxeQuemGastou';
 import { ReceitaDespesa } from './painel/ReceitaDespesa';
 import { TodasAsContas } from './painel/TodasAsContas';
-import { Vazio } from './painel/PainelLayout';
+import { ENTRADA_PAINEL, EsqueletoPainel } from './painel/base';
+import { OndeMaisGastou } from './painel/OndeMaisGastou';
 
 const GRUPO_MEMBROS = 'membros';
 const GRUPO_CONTAS = 'contas';
@@ -37,8 +38,8 @@ const OPCAO_TODAS_CONTAS = 'todas';
 
 export function FinanceDashboard() {
   // Calculado ao montar a tela, não ao carregar o módulo: com o app aberto na
-  // virada do mês, reabrir o painel já traz o mês novo.
-  const [periodo, setPeriodo] = useState<PainelPeriodo>(() => periodoDoMesAtual());
+  // virada do ano, reabrir o painel já traz o ano novo.
+  const [periodo, setPeriodo] = useState<PainelPeriodo>(() => periodoDoAnoAtual());
   const [todasAsContas, setTodasAsContas] = useState(false);
   // Pessoas marcadas no filtro, por usuario_id. Vazio só até meQ resolver; o
   // efeito abaixo marca o próprio usuário assim que o id chega.
@@ -87,6 +88,9 @@ export function FinanceDashboard() {
     queryFn: () => fetchPainel({ ...periodo, membroId }),
     enabled: meId !== null,
     staleTime: 30_000,
+    // Ao trocar período ou pessoas, os gráficos ficam na tela e passam para os
+    // valores novos (sem piscar). Trocar de conta não reaproveita os dados.
+    placeholderData: (anterior, consultaAnterior) => (consultaAnterior?.queryKey[1] === (accountId ?? 'ativa') ? anterior : undefined),
   });
   const dados = painelQ.data;
 
@@ -121,10 +125,13 @@ export function FinanceDashboard() {
       onChange: (proximo) => setTodasAsContas(proximo.has(OPCAO_TODAS_CONTAS)),
     },
   ];
-  const filtrosAtivos = !somenteEu || todasAsContas;
+  const padrao = periodoDoAnoAtual();
+  const periodoEhPadrao = periodo.de === padrao.de && periodo.ate === padrao.ate;
+  const filtrosAtivos = !somenteEu || todasAsContas || !periodoEhPadrao;
   const limparFiltros = () => {
     setMembroIds(meId ? new Set([meId]) : new Set());
     setTodasAsContas(false);
+    setPeriodo(periodoDoAnoAtual());
   };
 
   const semLancamentos = !!dados && dados.totalLancamentos === 0;
@@ -135,11 +142,23 @@ export function FinanceDashboard() {
   const mostrarPessoas = tipoConta === 'pessoal' && (todasAsPessoas || (membroId?.length ?? 0) > 1);
 
   return (
-    <div className="grid gap-[18px]">
+    <div className="grid gap-7">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="m-0 mr-auto text-2xl font-bold text-slate-950 dark:text-white">Painel financeiro</h1>
-        <DashboardPeriodFilter value={periodo} onChange={setPeriodo} />
-        <MultiFilterPanel groups={grupos} hasActiveFilters={filtrosAtivos} onClear={limparFiltros} />
+        <h1 className="m-0 mr-auto text-2xl font-semibold text-slate-950 dark:text-white">Painel financeiro</h1>
+        <span className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3.5 text-[13px] font-medium tabular-nums text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+          {descreverPeriodo(periodo)}
+        </span>
+        <MultiFilterPanel
+          groups={grupos}
+          hasActiveFilters={filtrosAtivos}
+          onClear={limparFiltros}
+          topo={(
+            <div className="flex flex-col gap-1.5">
+              <span className="px-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Período</span>
+              <DashboardPeriodFilter value={periodo} onChange={setPeriodo} />
+            </div>
+          )}
+        />
         {guiaMes.isVisible && semLancamentos && (
           <div className="relative">
             <FirstAccessGuideCard
@@ -159,29 +178,35 @@ export function FinanceDashboard() {
       {todasAsContas && podeVerTodasAsContas && <TodasAsContas periodo={periodo} />}
 
       {painelQ.error && <ErrorState title="Não foi possível carregar o painel" description={painelQ.error.message} />}
-      {painelQ.isLoading && <Vazio>Carregando o painel...</Vazio>}
+      {painelQ.isLoading && <EsqueletoPainel />}
 
       {dados && (
-        <>
-          <CardsResumo resumo={dados.resumo} anteriorEhMes={anteriorEhMes} />
-          {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={periodo} />}
-          <ReceitaDespesa serie={dados.serie} />
-          <DeOndeVeioDinheiro dados={dados} />
-          <ComoDinheiroSaiu dados={dados} />
-          <EmDiaComContas dados={dados} />
-          {dados.planejado && <Planejado itens={dados.planejado} />}
-          <Comprometido meses={dados.contasEmAberto.comprometido} />
-          {mostrarPessoas && (
-            <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} />
-          )}
-          <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={periodo.ate.slice(0, 4)} />
-          <MonthCategoriesOverview
-            porCategoria={dados.categorias}
-            periodLabel={descreverPeriodo(periodo)}
-            coresPorPessoa={coresPorPessoa}
-            segmentarPorMembro={membroIds.size > 1}
-          />
-        </>
+        <MotionConfig reducedMotion="user">
+          <motion.div className="grid gap-7" variants={ENTRADA_PAINEL} initial="oculto" animate="visivel">
+            <CardsResumo
+              resumo={dados.resumo}
+              serie={dados.serie}
+              descricaoPeriodo={descreverPeriodo(dados.periodo)}
+              anteriorEhMes={anteriorEhMes}
+            />
+            {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={dados.periodo} />}
+            <ReceitaDespesa serie={dados.serie} />
+            <DeOndeVeioDinheiro dados={dados} />
+            <ComoDinheiroSaiu dados={dados} />
+            <EmDiaComContas dados={dados} />
+            {dados.planejado && <Planejado itens={dados.planejado} />}
+            <Comprometido meses={dados.contasEmAberto.comprometido} />
+            {mostrarPessoas && (
+              <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} />
+            )}
+            <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={dados.periodo.ate.slice(0, 4)} />
+            <OndeMaisGastou
+              porCategoria={dados.categorias}
+              coresPorPessoa={coresPorPessoa}
+              segmentarPorMembro={membroIds.size > 1}
+            />
+          </motion.div>
+        </MotionConfig>
       )}
     </div>
   );

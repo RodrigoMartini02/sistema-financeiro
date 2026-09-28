@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { Z_DROPDOWN } from './zIndex';
 
@@ -27,6 +27,8 @@ interface MultiFilterPanelProps {
   groups: FilterGroup[];
   hasActiveFilters: boolean;
   onClear: () => void;
+  /** Conteúdo acima dos grupos (ex.: período do Painel), sob o mesmo "Limpar". */
+  topo?: ReactNode;
 }
 
 // Checkbox nativo não tem prop declarativa para o estado indeterminado — só
@@ -46,7 +48,7 @@ function ParentCheckbox({ checked, indeterminate, onChange }: { checked: boolean
 // aplica essa combinacao no array de dados, este componente so cuida da UI
 // de selecionar. Generico o suficiente para ser reaproveitado por outras
 // telas de listagem alem de Despesas.
-export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFilterPanelProps) {
+export function MultiFilterPanel({ groups, hasActiveFilters, onClear, topo }: MultiFilterPanelProps) {
   const [open, setOpen] = useState(false);
   // Todos os grupos comecam colapsados — cada um expande/colapsa
   // independentemente, sem exclusividade entre eles (nao e accordion).
@@ -148,6 +150,10 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear }: MultiFil
               </button>
             )}
           </div>
+
+          {topo && (
+            <div className="mb-2 border-b border-slate-100 pb-3 dark:border-slate-700">{topo}</div>
+          )}
 
           <div className="flex flex-col gap-1">
             {groups.map((group) => {

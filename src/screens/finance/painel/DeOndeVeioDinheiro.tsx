@@ -1,68 +1,75 @@
-import type { PainelData, PainelFatia } from '../../../types/finance';
+import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
-import { MovementMetricCard } from '../MovementMetricCard';
-import { Secao } from './PainelLayout';
-import { FAIXAS_COMPROMETIMENTO, formatarPercentual, situacaoComprometimento } from './painelFormat';
-import { PizzaPainel, type FatiaPizza } from './PizzasPainel';
+import { CabecalhoCard, CardPainel, Secao } from './base';
+import { corDaSituacao, useCoresGrafico } from './coresGrafico';
+import { Pizza } from './graficos/Pizza';
+import { TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, paraFatias, situacaoComprometimento } from './painelFormat';
 
-/** Fatia pela classificação/categoria principal; as subcategorias vão para o detalhe. */
-const paraFatias = (fatias: PainelFatia[]): FatiaPizza[] =>
-  fatias.map((fatia) => ({
-    nome: fatia.nome,
-    valor: fatia.valor,
-    detalhes: fatia.subcategorias.map((sub) => `${sub.nome}: ${formatCurrency(sub.valor)}`),
-  }));
-
-/** De onde veio e para onde foi: receitas e despesas por categoria, o que vai entrar e quanto dele já tem destino. */
+/** De onde veio o dinheiro: receitas por classificação em destaque e, ao lado, o que se relaciona com elas. */
 export function DeOndeVeioDinheiro({ dados }: { dados: PainelData }) {
+  const cores = useCoresGrafico();
   const { receitas } = dados;
+  const saiu = dados.resumo.saiu;
+  const renda = receitas.rendaPrevista;
   const comprometimento = receitas.comprometimentoPrevisto;
   const situacao = situacaoComprometimento(comprometimento);
 
   return (
-    <Secao titulo="De onde veio e para onde foi">
-      <div className="grid gap-3 md:grid-cols-2">
-        <PizzaPainel
-          titulo="Receitas por classificação"
-          fatias={paraFatias(receitas.porClassificacao)}
-          total={dados.resumo.entrou}
-          rotuloCentro="Entrou"
-          textoVazio="Sem receitas no período."
-        />
-        <PizzaPainel
-          titulo="Despesas por categoria"
-          fatias={paraFatias(dados.despesasPorCategoria)}
-          total={dados.resumo.saiu}
-          rotuloCentro="Saiu"
-          textoVazio="Sem despesas no período."
-        />
-      </div>
+    <Secao titulo="De onde veio o dinheiro">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CardPainel>
+          <CabecalhoCard titulo="Receitas por classificação" valor={formatCurrency(dados.resumo.entrou)} />
+          <Pizza fatias={paraFatias(receitas.porClassificacao)} tamanhoMinimo={TAMANHO_PIZZA_GRANDE} vazio="Sem receitas no período." />
+        </CardPainel>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <PizzaPainel
-          titulo="Projeções"
-          fatias={paraFatias(receitas.aReceber.porClassificacao)}
-          total={receitas.aReceber.total}
-          rotuloCentro="A receber"
-          textoVazio={receitas.periodoEncerrado ? 'Período encerrado.' : 'Nada a receber.'}
-        />
-        {/* Mesmo card do topo, sobre a renda prevista (o que entrou + o que vai entrar). */}
-        <div className="self-start">
-          <MovementMetricCard
-            label="Comprometimento previsto"
-            value={comprometimento === null ? '—' : formatarPercentual(comprometimento)}
-            tone={situacao.tom}
-            faixas={comprometimento === null ? undefined : { valor: comprometimento, limites: FAIXAS_COMPROMETIMENTO }}
-            note={comprometimento === null ? 'Sem renda prevista' : situacao.rotulo}
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CardPainel>
+            <CabecalhoCard titulo="Projeções" valor={formatCurrency(receitas.aReceber.total)} />
+            <Pizza
+              fatias={paraFatias(receitas.aReceber.porClassificacao)}
+              tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+              vazio={receitas.periodoEncerrado ? 'Período encerrado.' : 'Nada a receber.'}
+            />
+          </CardPainel>
+          <CardPainel>
+            <CabecalhoCard titulo="Renda fixa e extra" valor={formatCurrency(renda)} />
+            <Pizza
+              ordenar={false}
+              fatias={[
+                { nome: 'Renda fixa', valor: receitas.fixa },
+                { nome: 'Renda extra', valor: receitas.variavel },
+              ]}
+              tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+              vazio="Sem renda no período."
+            />
+          </CardPainel>
+          <CardPainel className="sm:col-span-2">
+            <CabecalhoCard
+              titulo="Comprometimento previsto"
+              valor={comprometimento === null ? '—' : formatarPercentual(comprometimento)}
+              tomValor={situacao.classe}
+            />
+            <Pizza
+              ordenar={false}
+              legendaAoLado
+              tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+              vazio="Sem renda prevista."
+              fatias={renda > 0 ? [
+                {
+                  nome: 'Já tem destino',
+                  valor: Math.min(saiu, renda),
+                  cor: corDaSituacao(situacao.tom, cores),
+                  detalhes: [
+                    ['Situação', situacao.rotulo],
+                    ['Renda prevista', formatCurrency(renda)],
+                    ...(saiu > renda ? [['Acima da renda', formatCurrency(saiu - renda)] as [string, string]] : []),
+                  ],
+                },
+                { nome: 'Livre', valor: Math.max(0, renda - saiu), cor: cores.futuro },
+              ] : []}
+            />
+          </CardPainel>
         </div>
-        <PizzaPainel
-          titulo="Fixa × variável"
-          fatias={[{ nome: 'Fixa', valor: receitas.fixa }, { nome: 'Variável', valor: receitas.variavel }]}
-          total={receitas.rendaPrevista}
-          rotuloCentro="Renda"
-          textoVazio="Sem renda no período."
-        />
       </div>
     </Secao>
   );

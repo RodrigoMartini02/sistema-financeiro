@@ -5,7 +5,8 @@ import { fetchAccountsOverview, type AccountsOverviewConta } from '../../../serv
 import type { PainelPeriodo } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
 import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, Legenda, Secao, Vazio } from './PainelLayout';
+import { CabecalhoCard, CardPainel, Legenda, Secao, Vazio } from './base';
+import { formatarComSinal } from './painelFormat';
 
 const TOM_RECEITA = 'text-emerald-600 dark:text-emerald-400';
 const TOM_DESPESA = 'text-rose-600 dark:text-rose-400';
@@ -46,7 +47,7 @@ export function TodasAsContas({ periodo }: { periodo: PainelPeriodo }) {
   return (
     <Secao titulo="Todas as suas contas">
       <CardPainel>
-        <CabecalhoCard titulo="Entrou × saiu por conta" detalhe="pessoal e empresas juntas" />
+        <CabecalhoCard titulo="Entrou e saiu por conta" valor={visaoQ.data ? formatarComSinal(resultadoTotal) : undefined} tomValor={resultadoTotal >= 0 ? TOM_RECEITA : TOM_DESPESA} />
         {visaoQ.isLoading && <Vazio>Carregando...</Vazio>}
         {visaoQ.error && <ErrorState title="Não foi possível carregar as contas" description={visaoQ.error.message} />}
         {visaoQ.data && (
@@ -55,7 +56,7 @@ export function TodasAsContas({ periodo }: { periodo: PainelPeriodo }) {
             <ul className="m-0 flex list-none flex-col gap-3 p-0">
               {contas.map((conta) => (
                 <li key={conta.id} className="grid gap-1.5 md:grid-cols-[minmax(0,12rem)_1fr_7rem] md:items-center md:gap-4">
-                  <span className="truncate text-[12.5px] font-semibold text-slate-900 dark:text-white">
+                  <span className="truncate text-[12.5px] font-medium text-slate-900 dark:text-white">
                     {conta.nome} <span className="font-normal text-slate-400">· {conta.tipo === 'empresa' ? 'empresa' : 'pessoal'}</span>
                   </span>
                   <span className="flex flex-col gap-1 text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
@@ -68,18 +69,18 @@ export function TodasAsContas({ periodo }: { periodo: PainelPeriodo }) {
                       <span className="w-24 text-right">{formatCurrency(conta.saiu)}</span>
                     </span>
                   </span>
-                  <b className={`text-right text-[13px] font-bold tabular-nums ${conta.resultado >= 0 ? TOM_RECEITA : TOM_DESPESA}`}>
+                  <b className={`text-right text-[13px] font-medium tabular-nums ${conta.resultado >= 0 ? TOM_RECEITA : TOM_DESPESA}`}>
                     {formatCurrency(conta.resultado)}
                   </b>
                 </li>
               ))}
             </ul>
             <p className="m-0 flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-xs tabular-nums text-slate-500 dark:border-slate-700 dark:text-slate-400">
-              <span className="font-semibold text-slate-900 dark:text-white">Total</span>
-              <span>Entrou <b className={`font-semibold ${TOM_RECEITA}`}>{formatCurrency(total.entrou)}</b></span>
-              <span>Saiu <b className={`font-semibold ${TOM_DESPESA}`}>{formatCurrency(total.saiu)}</b></span>
+              <span className="font-medium text-slate-900 dark:text-white">Total</span>
+              <span>Entrou <b className={`font-medium ${TOM_RECEITA}`}>{formatCurrency(total.entrou)}</b></span>
+              <span>Saiu <b className={`font-medium ${TOM_DESPESA}`}>{formatCurrency(total.saiu)}</b></span>
               <span className="ml-auto">
-                Resultado <b className={`font-semibold ${resultadoTotal >= 0 ? TOM_RECEITA : TOM_DESPESA}`}>{formatCurrency(resultadoTotal)}</b>
+                Resultado <b className={`font-medium ${resultadoTotal >= 0 ? TOM_RECEITA : TOM_DESPESA}`}>{formatCurrency(resultadoTotal)}</b>
               </span>
             </p>
           </>

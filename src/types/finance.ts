@@ -151,7 +151,8 @@ export interface PainelPontoSerie {
   fim: string;
   receitas: number;
   despesas: number;
-  credito: number;
+  /** Despesas do trecho por forma de pagamento (mesma chave de `formasPagamento`). */
+  formas: Record<string, number>;
   pago: number;
   /** Juros e descontos das despesas que vencem no trecho. */
   juros: number;

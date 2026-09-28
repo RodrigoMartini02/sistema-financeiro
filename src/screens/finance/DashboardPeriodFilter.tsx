@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { MONTH_NAMES, type PainelPeriodo } from '../../types/finance';
 
@@ -9,12 +9,10 @@ interface Props {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Primeiro e último dia do mês atual — período com que o Painel abre. */
-export function periodoDoMesAtual(hoje: Date = new Date()): PainelPeriodo {
+/** 01/01 a 31/12 do ano atual — período com que o Painel abre (e para onde o Limpar volta). */
+export function periodoDoAnoAtual(hoje: Date = new Date()): PainelPeriodo {
   const ano = hoje.getFullYear();
-  const mes = hoje.getMonth();
-  const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-  return { de: `${ano}-${pad(mes + 1)}-01`, ate: `${ano}-${pad(mes + 1)}-${pad(ultimoDia)}` };
+  return { de: `${ano}-01-01`, ate: `${ano}-12-31` };
 }
 
 function isoParaBr(iso: string): string {
@@ -22,9 +20,12 @@ function isoParaBr(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-/** "setembro de 2026" para um mês inteiro; "10/09/2026 a 19/09/2026" para qualquer outro recorte. */
+/** "2026" para o ano inteiro; "setembro de 2026" para um mês inteiro; "10/09/2026 a 19/09/2026" para qualquer outro recorte. */
 export function descreverPeriodo(periodo: PainelPeriodo): string {
   const [ano, mes] = periodo.de.split('-').map(Number);
+  if (periodo.de === `${ano}-01-01` && periodo.ate === `${ano}-12-31`) {
+    return String(ano);
+  }
   const ultimoDia = new Date(ano!, mes!, 0).getDate();
   const ehMesInteiro = periodo.de.endsWith('-01')
     && periodo.ate === `${ano}-${pad(mes!)}-${pad(ultimoDia)}`;
@@ -63,6 +64,11 @@ function brParaIso(masked: string): string | null {
 export function DashboardPeriodFilter({ value, onChange }: Props) {
   const [de, setDe] = useState(isoParaBr(value.de));
   const [ate, setAte] = useState(isoParaBr(value.ate));
+  // Período trocado de fora (ex.: Limpar filtros) volta a aparecer nos campos.
+  useEffect(() => {
+    setDe(isoParaBr(value.de));
+    setAte(isoParaBr(value.ate));
+  }, [value.de, value.ate]);
 
   const deIso = brParaIso(de);
   const ateIso = brParaIso(ate);

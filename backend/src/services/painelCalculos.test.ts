@@ -170,9 +170,27 @@ test('série: despesa pelo vencimento, pago pela data de pagamento', () => {
     { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' },
   );
   assert.deepEqual(serie, [
-    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, credito: 100, pago: 0, juros: 0, descontos: 0 },
-    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, credito: 0, pago: 100, juros: 0, descontos: 0 },
+    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, formas: { credito: 100 }, pago: 0, juros: 0, descontos: 0 },
+    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, formas: {}, pago: 100, juros: 0, descontos: 0 },
   ]);
+});
+
+test('série: formas de pagamento por trecho somam as despesas do trecho e o total de cada forma', () => {
+  const despesas = [
+    despesa({ dataVencimento: '2026-08-05', formaPagamento: 'credito', valorOriginal: 100 }),
+    despesa({ dataVencimento: '2026-08-20', formaPagamento: 'pix', valorOriginal: 40 }),
+    despesa({ dataVencimento: '2026-09-02', formaPagamento: 'credito', valorOriginal: 60, pago: true, valorPago: 63 }),
+    despesa({ dataVencimento: '2026-09-10', formaPagamento: '', valorOriginal: 25 }),
+  ];
+  const serie = montarSerie(despesas, [], { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' });
+  for (const ponto of serie) {
+    const somaFormas = Object.values(ponto.formas).reduce((soma, valor) => soma + valor, 0);
+    assert.equal(somaFormas, ponto.despesas);
+  }
+  for (const forma of agregarFormasPagamento(despesas)) {
+    assert.equal(serie.reduce((soma, ponto) => soma + (ponto.formas[forma.forma] ?? 0), 0), forma.valor);
+  }
+  assert.deepEqual(serie[1]!.formas, { credito: 63, nao_informada: 25 });
 });
 
 test('série semanal: o último dia da semana cai na semana certa', () => {

@@ -1,39 +1,43 @@
 import { useAppContext } from '../../../context/AppContext';
 
 /**
- * Cores dos gráficos do Painel, por tema. Todas validadas com o validador de
- * paleta do dataviz (daltonismo, faixa de luminosidade, contraste com o fundo
- * do card: branco no claro, slate-800 no escuro). Trocar um valor aqui exige
- * validar de novo — não ajustar no olho.
+ * Cores dos gráficos do Painel, por tema. As 4 primeiras de `categorias` foram
+ * validadas com o validador de paleta do dataviz (daltonismo, luminosidade,
+ * contraste com o fundo do card); as 8 seguintes ampliam a paleta para
+ * gráficos com muitas fatias (categorias, formas de pagamento).
  *
- * `categorias` tem ordem fixa (a cor segue a entidade, nunca a posição):
- * formas de pagamento, cartões, tipo de gasto, à vista × parcelado e pessoas
- * usam as cores nesta ordem.
+ * `categorias` tem ordem fixa: a cor segue a posição do item na lista já
+ * ordenada. Acima de 12 itens, `corDaPaleta` usa um tom mais claro da mesma
+ * cor em vez de repetir uma cor igual.
  */
 export interface CoresGrafico {
   receita: string;
   despesa: string;
-  resultado: string;
   categorias: readonly string[];
+  /** Série "Venceu" em Contas pagas em cada mês. */
   cadastrado: string;
   pago: string;
   destaque: string;
-  /** Mesmo tom do destaque, mais suave: subcategorias no ranking de categorias. */
+  /** Mesmo tom do destaque, mais suave: subcategorias nas barras de categorias e metas. */
   destaqueSuave: string;
-  /** Fundo do card: anel em volta dos pontos da linha, separando-os das barras. */
+  /** Fundo do card: base do tom mais claro acima de 12 cores. */
   superficie: string;
   grade: string;
   eixo: string;
   eixoZero: string;
   /** Marca sem identidade própria (ex.: pessoa fora da lista de cores). */
   neutro: string;
+  /** Trecho que ainda vai vencer e fatia "Livre". */
+  futuro: string;
+  positivo: string;
+  alerta: string;
+  negativo: string;
 }
 
 const CLARO: CoresGrafico = {
-  receita: '#047857',
+  receita: '#10b981',
   despesa: '#fb7185',
-  resultado: '#6366f1',
-  categorias: ['#0891b2', '#f59e0b', '#6366f1', '#10b981'],
+  categorias: ['#0891b2', '#f59e0b', '#6366f1', '#10b981', '#e11d48', '#8b5cf6', '#0ea5e9', '#84cc16', '#f97316', '#14b8a6', '#db2777', '#64748b'],
   cadastrado: '#6366f1',
   pago: '#0891b2',
   destaque: '#0891b2',
@@ -43,13 +47,16 @@ const CLARO: CoresGrafico = {
   eixo: '#94a3b8',
   eixoZero: '#e2e8f0',
   neutro: '#94a3b8',
+  futuro: '#cbd5e1',
+  positivo: '#059669',
+  alerta: '#d97706',
+  negativo: '#e11d48',
 };
 
 const ESCURO: CoresGrafico = {
-  receita: '#059669',
-  despesa: '#f43f5e',
-  resultado: '#6366f1',
-  categorias: ['#0891b2', '#d97706', '#6366f1', '#059669'],
+  receita: '#10b981',
+  despesa: '#fb7185',
+  categorias: ['#0891b2', '#d97706', '#6366f1', '#059669', '#fb7185', '#a78bfa', '#38bdf8', '#a3e635', '#fb923c', '#2dd4bf', '#f472b6', '#94a3b8'],
   cadastrado: '#6366f1',
   pago: '#0891b2',
   destaque: '#22d3ee',
@@ -59,6 +66,10 @@ const ESCURO: CoresGrafico = {
   eixo: '#94a3b8',
   eixoZero: '#475569',
   neutro: '#64748b',
+  futuro: '#475569',
+  positivo: '#34d399',
+  alerta: '#fbbf24',
+  negativo: '#fb7185',
 };
 
 export function useCoresGrafico(): CoresGrafico {
@@ -66,33 +77,23 @@ export function useCoresGrafico(): CoresGrafico {
   return theme === 'dark' ? ESCURO : CLARO;
 }
 
-export interface FatiaGrafico {
-  nome: string;
-  valor: number;
-  cor: string;
+/** Cor do item na posição `indice`; do 13º em diante, a mesma paleta num tom mais claro. */
+export function corDaPaleta(indice: number, cores: CoresGrafico): string {
+  const total = cores.categorias.length;
+  const base = cores.categorias[indice % total]!;
+  return indice < total ? base : `color-mix(in srgb, ${base} 50%, ${cores.superficie})`;
 }
 
 /**
- * Fatias de pizza com cor por posição, na ordem fixa da paleta. A paleta tem 4
- * cores e nunca é repetida em ciclo: acima de 4 itens, os menores viram uma
- * fatia "Outras" na 4ª cor.
- */
-export function fatiasComOutras<T extends { nome: string; valor: number }>(itens: T[], cores: CoresGrafico): Array<T & { cor: string } | FatiaGrafico> {
-  const limite = cores.categorias.length;
-  if (itens.length <= limite) {
-    return itens.map((item, indice) => ({ ...item, cor: cores.categorias[indice]! }));
-  }
-  const principais = itens.slice(0, limite - 1).map((item, indice) => ({ ...item, cor: cores.categorias[indice]! }));
-  const resto = itens.slice(limite - 1).reduce((soma, item) => soma + item.valor, 0);
-  return [...principais, { nome: 'Outras', valor: resto, cor: cores.categorias[limite - 1]! }];
-}
-
-/**
- * Cor de cada pessoa (usuario_id) na ordem fixa da paleta — a mesma nas pizzas
- * de pessoas e nas barras de Categorias. Acima de 4 pessoas, as demais dividem
- * a 4ª cor em vez de repetir a paleta em ciclo.
+ * Cor de cada pessoa (usuario_id) na ordem da paleta — a mesma nas pizzas de
+ * pessoas e nas barras de Categorias.
  */
 export function coresPorPessoa(usuarioIds: number[], cores: CoresGrafico): Map<number, string> {
-  const limite = cores.categorias.length;
-  return new Map(usuarioIds.map((id, indice) => [id, cores.categorias[Math.min(indice, limite - 1)]!]));
+  return new Map(usuarioIds.map((id, indice) => [id, corDaPaleta(indice, cores)]));
+}
+
+/** Cor da situação do comprometimento (saudável, atenção, crítico). */
+export function corDaSituacao(tom: 'income' | 'warning' | 'expense', cores: CoresGrafico): string {
+  if (tom === 'income') return cores.positivo;
+  return tom === 'warning' ? cores.alerta : cores.negativo;
 }
