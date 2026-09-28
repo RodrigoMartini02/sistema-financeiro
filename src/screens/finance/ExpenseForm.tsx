@@ -73,6 +73,12 @@ export interface ExpenseFormHandle {
   getValues: () => ExpenseFormValues | null;
   /** Dispara a validação zod e devolve se passou. */
   validate: () => Promise<boolean>;
+  /**
+   * Crédito com cartão cadastrado exige escolher o cartão: sem ele a despesa
+   * some da fatura, do limite e do gráfico de cartões. Marca o erro no campo
+   * e devolve false.
+   */
+  conferirCartao: () => boolean;
   /** Limpa o formulário preservando data/cartão/forma, como após salvar. */
   reset: () => void;
   /** Foca a descrição — usado depois de adicionar ao lote. */
@@ -553,6 +559,12 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
       return toFormValues(data, anexos);
     },
     validate: () => form.trigger(),
+    conferirCartao: () => {
+      const { formaPagamento: forma, cartao_id: cartao } = form.getValues();
+      if (forma !== 'credito' || cartao || activeCards.length === 0) return true;
+      form.setError('cartao_id', { type: 'manual', message: 'Escolha o cartão de crédito' });
+      return false;
+    },
     reset: () => resetForm(form.getValues()),
     focus: () => form.setFocus('descricao'),
   }));
@@ -758,7 +770,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
                 {activeCards.map((c) => (
                   <div
                     key={c.id}
-                    onClick={() => { form.setValue('cartao_id', c.id as any); setMethodTouched(true); }}
+                    onClick={() => { form.setValue('cartao_id', c.id as any); form.clearErrors('cartao_id'); setMethodTouched(true); }}
                     style={chipStyle(c.id === cartaoId)}
                   >
                     {c.nome}
@@ -767,6 +779,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
               </div>
             ) : (
               <span style={{ fontSize: '12.5px', color: C.textMuted }}>Nenhum cartão cadastrado</span>
+            )}
+            {isCredito && form.formState.errors.cartao_id?.message && (
+              <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{form.formState.errors.cartao_id.message}</div>
             )}
           </div>
         )}

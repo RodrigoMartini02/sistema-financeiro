@@ -173,6 +173,14 @@ export function ExpenseDialog({ open, expense, isSaving, error, presetDate, onCl
   };
 
   const doSave = async () => {
+    // Só os formulários que vão ser gravados: o do topo vazio não conta.
+    const aGravar = [
+      ...batch.map((item) => formsLoteRef.current.get(item.id)),
+      formTopoRef.current?.getValues() ? formTopoRef.current : null,
+    ].filter((handle): handle is ExpenseFormHandle => !!handle);
+    // Confere todos (sem parar no primeiro) para marcar o erro em cada um.
+    if (!aGravar.map((handle) => handle.conferirCartao()).every(Boolean)) return;
+
     const items = coletarItens();
     if (items.length === 0) return;
     setIsSavingAll(true);

@@ -23,6 +23,8 @@ function buildWhereClause(
   return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds);
 }
 
+const CARD_NOT_AVAILABLE = 'Card not available for this entry: choose one of your cards or a card shared with you';
+
 /**
  * Aceita o cartao apenas se ele pertencer ao solicitante ou a alguem cujos
  * cartoes ele pode usar na carteira compartilhada.
@@ -385,6 +387,11 @@ router.post(
       const totalInstallments = total_parcelas ?? null;
       const currentInstallment = parcela_atual ?? (parcelado ? 1 : null);
       const cardIdFinal = await validateCardId(cartao_id, req.user!.id, contaIdFinal);
+      // Cartão informado e não liberado: avisa, em vez de gravar a despesa sem ele.
+      if (cartao_id && cardIdFinal === null) {
+        res.status(400).json({ success: false, message: CARD_NOT_AVAILABLE });
+        return;
+      }
       const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
       if (cardCompatibilityError) {
         res.status(400).json({ success: false, message: cardCompatibilityError });
@@ -480,7 +487,18 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const cardIdFinal = await validateCardId(cartao_id, req.user!.id, contaIdFinal);
+    const cardIdLiberado = await validateCardId(cartao_id, req.user!.id, contaIdFinal);
+    // Manter o cartão que a despesa já tinha não é usar um cartão novo: vale
+    // mesmo que hoje ele não esteja liberado para quem edita.
+    const cartaoAtual = cartao_id && cardIdLiberado === null
+      ? (await pool.query('SELECT cartao_id FROM despesas WHERE id = $1', [expenseId])).rows[0] as { cartao_id: number | null } | undefined
+      : undefined;
+    const cardIdFinal = cardIdLiberado
+      ?? (cartaoAtual?.cartao_id != null && Number(cartaoAtual.cartao_id) === Number(cartao_id) ? Number(cartao_id) : null);
+    if (cartao_id && cardIdFinal === null) {
+      res.status(400).json({ success: false, message: CARD_NOT_AVAILABLE });
+      return;
+    }
     const cardCompatibilityError = await validateCardTypeCompatibility(cardIdFinal, forma_pagamento, req.user!.id);
     if (cardCompatibilityError) {
       res.status(400).json({ success: false, message: cardCompatibilityError });
