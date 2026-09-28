@@ -8,6 +8,7 @@ import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import type { Expense, ExpenseFormValues, Income, IncomeFormValues, Attachment } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
+import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { ExpenseDialog } from './ExpenseDialog';
 import { IncomeDialog } from './IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
@@ -790,12 +791,10 @@ function ExpenseRow({
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
-        {item.categoriaPai && <span className={SECONDARY_CLASS}>{item.categoriaPai} › </span>}
-        <span className="truncate">{item.categoria}</span>
+        <NomeComDetalhe principal={item.categoriaPai ?? item.categoria} detalhe={item.categoriaPai ? item.categoria : null} />
       </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
-        {getFormaLabel(item.formaPagamento)}
-        {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>}
+        <NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.pagadorNome ?? item.autorNome)}

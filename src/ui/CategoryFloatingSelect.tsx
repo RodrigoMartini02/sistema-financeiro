@@ -13,6 +13,8 @@ const C = {
   primaryDark: sharedC.primaryDark,
   text: sharedC.text,
   textSoft: '#33566a',
+  // Mesmo cinza da subcategoria nas tabelas (slate-400).
+  sub: '#94a3b8',
   placeholder: sharedC.placeholder,
 };
 
@@ -33,6 +35,8 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [rect, setRect] = useState<MenuRect | null>(null);
+  // Grupos (categoria com subs) começam fechados; guarda os ids dos abertos.
+  const [gruposAbertos, setGruposAbertos] = useState<number[]>([]);
   const fieldRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -51,10 +55,16 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
     if (!fieldRect) return;
     setRect({ top: fieldRect.bottom + 6, left: fieldRect.left, width: fieldRect.width });
     setQuery('');
+    // Subcategoria já escolhida: o grupo dela abre junto, para mostrar onde está.
+    const grupoDaEscolhida = groups.find((group) => group.parent && group.items.some((c) => c.id === value))?.parent?.id;
+    setGruposAbertos(grupoDaEscolhida ? [grupoDaEscolhida] : []);
     setOpen(true);
   };
 
   const closeMenu = () => setOpen(false);
+
+  const alternarGrupo = (id: number) =>
+    setGruposAbertos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   useEffect(() => {
     if (open) searchRef.current?.focus();
@@ -187,29 +197,47 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                   ))}
                 </>
               )}
-              {groupsFiltered.map((group) => (
-                <div key={group.parent?.id ?? group.items[0].id}>
-                  {group.parent && (
-                    <p style={{ margin: '6px 0 2px 9px', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.text }}>
-                      {group.parent.nome}
-                    </p>
-                  )}
-                  {group.items.map((category) => (
-                    <div
-                      key={category.id}
-                      onClick={() => pick(category.id)}
-                      className="hover:bg-slate-100"
-                      style={{
-                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
-                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
-                        color: value === category.id ? C.primaryDark : C.textSoft,
-                      }}
-                    >
-                      {category.nome}
-                    </div>
-                  ))}
-                </div>
-              ))}
+              {groupsFiltered.map((group) => {
+                // Com busca, todo grupo que sobrou aparece aberto: senão a busca esconderia o que achou.
+                const aberto = !group.parent || !!normalizedQuery || gruposAbertos.includes(group.parent.id);
+                return (
+                  <div key={group.parent?.id ?? group.items[0].id}>
+                    {/* O grupo não se escolhe (só as subs): a linha dele só abre e fecha. */}
+                    {group.parent && (
+                      <div
+                        role="button"
+                        aria-expanded={aberto}
+                        onClick={() => alternarGrupo(group.parent!.id)}
+                        className="hover:bg-slate-100"
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, height: 30, padding: '0 9px',
+                          borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400, color: C.textSoft,
+                        }}
+                      >
+                        {group.parent.nome}
+                        <ChevronDown
+                          size={13}
+                          style={{ flexShrink: 0, color: '#8ba3b0', transform: aberto ? 'none' : 'rotate(-90deg)', transition: 'transform .13s ease' }}
+                        />
+                      </div>
+                    )}
+                    {aberto && group.items.map((category) => (
+                      <div
+                        key={category.id}
+                        onClick={() => pick(category.id)}
+                        className="hover:bg-slate-100"
+                        style={{
+                          display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
+                          borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
+                          color: value === category.id ? C.primaryDark : group.parent ? C.sub : C.textSoft,
+                        }}
+                      >
+                        {category.nome}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
               {groupsFiltered.length === 0 && !showCreateOption && (
                 <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
               )}
