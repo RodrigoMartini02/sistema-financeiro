@@ -1,21 +1,27 @@
 import type { PainelData } from '../../../types/finance';
-import { BarrasSerieChart } from '../charts/BarrasSerieChart';
 import { formatCurrency } from '../formatters';
+import { CardPainel, Legenda, Secao } from './base';
 import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, Legenda, RodapeCard, Secao } from './PainelLayout';
-import { contas, rotuloDoTrecho, unidadeDaSerie } from './painelFormat';
+import { Barras } from './graficos/Barras';
+import { contas, rotuloDoTrecho, trechoFuturo, unidadeDaSerie } from './painelFormat';
 
 const TOM_NEUTRO = 'text-slate-900 dark:text-white';
 const TOM_RECEITA = 'text-emerald-600 dark:text-emerald-400';
 const TOM_ALERTA = 'text-amber-600 dark:text-amber-400';
 const TOM_DESPESA = 'text-rose-600 dark:text-rose-400';
 
-function Numero({ rotulo, valor, detalhe, tom = TOM_NEUTRO }: { rotulo: string; valor: number; detalhe?: string; tom?: string }) {
+/** Número do card; a explicação dele fica no hover. */
+function Numero({ rotulo, valor, complemento, explicacao, tom = TOM_NEUTRO }: {
+  rotulo: string;
+  valor: number;
+  complemento?: string;
+  explicacao?: string;
+  tom?: string;
+}) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs text-slate-500 dark:text-slate-400">{rotulo}</dt>
-      <dd className={`m-0 text-base font-bold tracking-tight tabular-nums ${tom}`}>{formatCurrency(valor)}</dd>
-      {detalhe && <dd className="m-0 text-[11.5px] text-slate-400">{detalhe}</dd>}
+    <div className="grid gap-0.5" title={explicacao}>
+      <dt className="text-[12.5px] text-slate-500 dark:text-slate-400">{rotulo}{complemento && ` · ${complemento}`}</dt>
+      <dd className={`m-0 text-[17px] font-medium tabular-nums ${tom}`}>{formatCurrency(valor)}</dd>
     </div>
   );
 }
@@ -23,58 +29,56 @@ function Numero({ rotulo, valor, detalhe, tom = TOM_NEUTRO }: { rotulo: string; 
 export function EmDiaComContas({ dados }: { dados: PainelData }) {
   const cores = useCoresGrafico();
   const { emDia, contasEmAberto } = dados;
-  const pontos = dados.serie.pontos.map((ponto) => ({
-    rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, dados.serie.granularidade),
-    cadastrado: ponto.despesas,
-    pago: ponto.pago,
-  }));
 
   return (
     <Secao titulo="Em dia com as contas?">
-      <div className="grid gap-3 lg:grid-cols-5">
-        <CardPainel className="lg:col-span-2">
-          <CabecalhoCard titulo="Contas do período" detalhe="pelo vencimento" />
-          <dl className="m-0 grid grid-cols-2 gap-3.5">
-            <Numero rotulo="Cadastrado" valor={emDia.cadastrado} />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <CardPainel>
+          <h3 className="m-0 text-sm font-medium text-slate-900 dark:text-white">Contas do período</h3>
+          <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-4">
+            <Numero rotulo="Venceu no período" valor={emDia.cadastrado} />
             <Numero rotulo="Pago em dia" valor={emDia.pagoEmDia} tom={TOM_RECEITA} />
             <Numero rotulo="Pago com atraso" valor={emDia.pagoComAtraso} tom={emDia.pagoComAtraso > 0 ? TOM_ALERTA : TOM_NEUTRO} />
             <Numero rotulo="Ainda em aberto" valor={emDia.emAberto} />
-            <Numero rotulo="Atraso quitado no período" valor={emDia.quitadoDeAnteriores} detalhe="vencia antes, foi pago agora" />
+            <Numero rotulo="Contas antigas pagas agora" valor={emDia.quitadoDeAnteriores} explicacao="Vencia antes do período e foi pago agora" />
           </dl>
-          <div className="flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-slate-700">
-            <CabecalhoCard titulo="Situação de hoje" detalhe="independe do período" />
-            <dl className="m-0 grid grid-cols-2 gap-3.5">
+          <div className="grid gap-3 border-t border-slate-100 pt-3.5 dark:border-slate-700">
+            <h3 className="m-0 text-sm font-medium text-slate-900 dark:text-white">Situação de hoje</h3>
+            <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-4">
               <Numero
                 rotulo="Em atraso"
+                complemento={contas(contasEmAberto.atraso.quantidade)}
                 valor={contasEmAberto.atraso.valor}
-                detalhe={`${contas(contasEmAberto.atraso.quantidade)}, de qualquer período`}
+                explicacao="De qualquer período"
                 tom={contasEmAberto.atraso.valor > 0 ? TOM_DESPESA : TOM_NEUTRO}
               />
               <Numero
                 rotulo="Próximos 30 dias"
+                complemento={contas(contasEmAberto.proximos30Dias.quantidade)}
                 valor={contasEmAberto.proximos30Dias.valor}
-                detalhe={contas(contasEmAberto.proximos30Dias.quantidade)}
                 tom={contasEmAberto.proximos30Dias.valor > 0 ? TOM_ALERTA : TOM_NEUTRO}
               />
             </dl>
           </div>
         </CardPainel>
 
-        <CardPainel className="lg:col-span-3">
-          <CabecalhoCard titulo="Cadastrado × pago" detalhe={`por ${unidadeDaSerie(dados.serie.granularidade).singular} do período`} />
-          <Legenda itens={[
-            { cor: cores.cadastrado, nome: 'Cadastrado (pelo vencimento)' },
-            { cor: cores.pago, nome: 'Pago (pela data de pagamento)' },
-          ]} />
-          <BarrasSerieChart
-            pontos={pontos}
-            altura={200}
+        <CardPainel>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+            <h3 className="m-0 text-sm font-medium text-slate-900 dark:text-white">Contas pagas em cada {unidadeDaSerie(dados.serie.granularidade).singular}</h3>
+            <Legenda itens={[{ cor: cores.cadastrado, nome: 'Venceu' }, { cor: cores.pago, nome: 'Já pago' }]} />
+          </div>
+          <Barras
+            altura={230}
             series={[
-              { chave: 'cadastrado', rotulo: 'Cadastrado', cor: cores.cadastrado, tipo: 'barra' },
-              { chave: 'pago', rotulo: 'Pago', cor: cores.pago, tipo: 'barra' },
+              { chave: 'cadastrado', rotulo: 'Venceu', cor: cores.cadastrado },
+              { chave: 'pago', rotulo: 'Já pago', cor: cores.pago },
             ]}
+            pontos={dados.serie.pontos.map((ponto) => ({
+              rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, dados.serie.granularidade),
+              futuro: trechoFuturo(ponto.inicio),
+              valores: { cadastrado: ponto.despesas, pago: ponto.pago },
+            }))}
           />
-          <RodapeCard>Pago abaixo do cadastrado: sobrou conta em aberto. Pago acima: você está quitando atraso.</RodapeCard>
         </CardPainel>
       </div>
     </Secao>

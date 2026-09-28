@@ -9,6 +9,7 @@ import { authenticate } from '../middleware/auth';
 import { validate, validateDocument, authRateLimiter } from '../middleware/validation';
 import { recordAnalyticsEvent } from '../services/analytics';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { ensureUserHasAccount } from '../services/accountBackfill';
 import { resolveMemberRole } from '../utils/familyVisibility';
 
@@ -208,6 +209,7 @@ router.post(
         // cobrança do plano em `usuarios`).
         if (isCnpj) {
           await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
+          await ensureDefaultIncomeClassifications(createdUser!.id, 'empresa', transaction);
           await transaction.insert(accounts).values({
             userId: createdUser!.id,
             type: 'empresa',
@@ -220,6 +222,7 @@ router.post(
           });
         } else {
           await ensureDefaultCategories(createdUser!.id, 'pessoal', transaction);
+          await ensureDefaultIncomeClassifications(createdUser!.id, 'pessoal', transaction);
           await transaction.insert(accounts).values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true, isDefault: true });
         }
 

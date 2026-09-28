@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot, Briefcase, CreditCard, Layers,
+  Bot, Briefcase, CreditCard, HandCoins, Layers,
   Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
@@ -10,6 +10,7 @@ import { fetchMe } from '../services/usuariosService';
 import { PlanosScreen } from '../screens/planos/PlanosScreen';
 import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
+import { ClassificacoesReceitaTab } from '../screens/config/ClassificacoesReceitaTab';
 import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
@@ -21,7 +22,7 @@ import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
   | 'contas' | 'assinatura'
-  | 'categorias' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'permissoes'
+  | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
 
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
@@ -35,6 +36,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'contas',         label: 'Contas',         icon: Layers,     group: 'Geral' },
   { id: 'assinatura',     label: 'Assinatura',     icon: Crown,      group: 'Geral' },
   { id: 'categorias',     label: 'Categorias',     icon: Tag,        group: 'Finanças' },
+  { id: 'classificacoes-receita', label: 'Classificação de receitas', icon: HandCoins, group: 'Finanças' },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
@@ -163,6 +165,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} me={me} />}
           {current.id === 'assinatura' && <PlanosScreen embedded />}
           {current.id === 'categorias' && <CategoriasTab />}
+          {current.id === 'classificacoes-receita' && <ClassificacoesReceitaTab />}
           {current.id === 'cartoes' && <CartaoTab />}
           {current.id === 'servicos' && <ServicosTab />}
           {current.id === 'catalogo' && <CatalogoTab />}

@@ -22,7 +22,7 @@ interface RawDespesa {
 
 interface RawReceita {
   id: number; descricao: string; valor: string | number;
-  tipo_receita?: string | null; data_recebimento: string;
+  classificacao_nome?: string | null; data_recebimento: string;
   mes: number; ano: number; status?: string | null;
 }
 
@@ -278,7 +278,7 @@ export function RelatoriosScreen() {
       .map((d) => ({ id: d.id, tipo: 'despesa' as const, descricao: d.descricao, valor: Number(d.valor_original), data: d.data_vencimento, categoria: d.categoria_nome ?? 'Sem categoria', forma: d.forma_pagamento ?? 'dinheiro', pago: d.pago }));
 
     const recRows: Row[] = (tipoFiltro !== 'despesas' ? receitas : [])
-      .map((r) => ({ id: r.id, tipo: 'receita' as const, descricao: r.descricao, valor: Number(r.valor), data: r.data_recebimento, categoria: r.tipo_receita ?? 'Outros', forma: 'receita', pago: true }));
+      .map((r) => ({ id: r.id, tipo: 'receita' as const, descricao: r.descricao, valor: Number(r.valor), data: r.data_recebimento, categoria: r.classificacao_nome ?? 'Sem classificação', forma: 'receita', pago: true }));
 
     return [...despRows, ...recRows].sort((a, b) => {
       let cmp = 0;

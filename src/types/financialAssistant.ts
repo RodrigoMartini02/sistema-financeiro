@@ -30,13 +30,14 @@ export interface FinancialAssistantDraft {
    * igual ao IncomeForm.tsx do desktop.
    */
   cliente?: string | null;
-  tipoReceita?: string | null;
   representanteId?: number | null;
   produtoId?: string | null;
   quantidadeVendida?: number | null;
   contratoId?: number | null;
   tipoHora?: 'presencial' | 'remoto' | null;
   quantidadeHoras?: number | null;
+  /** Receita, PF e PJ: classificacao do catalogo da conta do lancamento. */
+  classificacaoId?: number | null;
   /** Receita, PF e PJ: gera lancamentos replicados em meses futuros. */
   replicarAte?: { mes: number; ano: number } | null;
 }

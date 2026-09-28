@@ -25,7 +25,8 @@ import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/confi
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
 import { fetchClientes, fetchContratosAtivos } from '../../services/clientesService';
-import { fetchIncomeTypes } from '../../services/incomeTypesService';
+import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
+import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
 import { queryKeys } from '../../services/queryKeys';
@@ -477,10 +478,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     enabled: open && contaEhEmpresa,
     staleTime: 60_000,
   });
-  const incomeTypesQuery = useQuery({
-    queryKey: queryKeys.incomeTypes,
-    queryFn: () => fetchIncomeTypes(),
-    enabled: open && contaEhEmpresa,
+  // Classificacao vale para receita de conta pessoal e empresa: catalogo da
+  // conta do lancamento, como no IncomeForm.tsx do desktop.
+  const classificacoesQuery = useQuery({
+    queryKey: queryKeys.classificacoesReceita(contaAtivaId),
+    queryFn: () => fetchClassificacoesReceita(contaAtivaId),
+    enabled: open,
     staleTime: 60_000,
   });
   const representantesQuery = useQuery({
@@ -530,7 +533,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   // ── Campos de receita PJ: mesmas regras do IncomeForm.tsx do desktop ──
   const clientes = clientesQuery.data ?? [];
-  const tiposReceita = (incomeTypesQuery.data ?? []).filter((tipo) => tipo.ativo);
+  const classificacoes = opcoesDeClassificacao(classificacoesQuery.data ?? []);
   const representantes = representantesQuery.data ?? [];
   // Mesmo criterio do desktop: so produtos ativos e da conta do lancamento
   // (ou sem conta vinculada) — vender de uma conta o produto de outra
@@ -543,7 +546,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const representanteSelecionado = draft?.representanteId
     ? representantes.find((representante) => representante.id === draft.representanteId)
     : null;
-  const comissaoMatch = representanteSelecionado?.comissoes?.find((comissao) => comissao.tipo_receita === draft?.tipoReceita);
+  const comissaoMatch = draft?.classificacaoId
+    ? representanteSelecionado?.comissoes?.find((comissao) => comissao.classificacao_id === draft.classificacaoId)
+    : undefined;
   const valorComissaoCalculado = comissaoMatch && draft?.amount
     ? (draft.amount * Number(comissaoMatch.percentual)) / 100
     : null;
@@ -596,7 +601,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     if (registered.kind === 'income') {
       push('Data', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
       push('Cliente', registered.cliente);
-      push('Tipo de receita', registered.tipoReceita);
+      push('Classificação', registered.classificacaoId
+        ? classificacoes.find((classificacao) => classificacao.id === registered.classificacaoId)?.rotulo
+        : null);
       push('Representante', registered.representanteId
         ? representantes.find((representante) => representante.id === registered.representanteId)?.nome
         : null);
@@ -967,7 +974,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
           // aparecem, entao permanecem null/undefined aqui.
           cliente: draft.cliente ?? undefined,
-          tipoReceita: draft.tipoReceita ?? undefined,
+          classificacaoId: draft.classificacaoId ?? null,
           representanteId: draft.representanteId ?? null,
           valorComissao: valorComissaoCalculado,
           produtoId: draft.produtoId ?? null,
@@ -1589,6 +1596,25 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         </>
                       )}
 
+                      {draft.kind === 'income' && classificacoes.length > 0 && (
+                        <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                          <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Classificação</span>
+                          <span className="relative flex-1">
+                            <select
+                              value={draft.classificacaoId ?? ''}
+                              onChange={(event) => updateDraft({ classificacaoId: event.target.value ? Number(event.target.value) : null })}
+                              className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
+                            >
+                              <option value="">Sem classificação</option>
+                              {classificacoes.map((classificacao) => (
+                                <option key={classificacao.id} value={classificacao.id}>{classificacao.rotulo}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
+                          </span>
+                        </label>
+                      )}
+
                       {/* Campos de receita exclusivos de conta PJ — mesmo
                           criterio do IncomeForm.tsx do desktop (isEmpresa).
                           Em conta PF nenhum destes blocos aparece. */}
@@ -1605,23 +1631,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 >
                                   <option value="">Sem cliente</option>
                                   {clientes.map((cliente) => <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>)}
-                                </select>
-                                <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
-                              </span>
-                            </label>
-                          )}
-
-                          {tiposReceita.length > 0 && (
-                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
-                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Tipo de receita</span>
-                              <span className="relative flex-1">
-                                <select
-                                  value={draft.tipoReceita ?? ''}
-                                  onChange={(event) => updateDraft({ tipoReceita: event.target.value || null })}
-                                  className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
-                                >
-                                  <option value="">Sem tipo</option>
-                                  {tiposReceita.map((tipo) => <option key={tipo.id} value={tipo.nome}>{tipo.nome}</option>)}
                                 </select>
                                 <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                               </span>

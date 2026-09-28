@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { getActiveAccountId } from '../services/apiClient';
+import { processarReceitasFixas } from '../services/financeService';
 import { fetchOwnPermissions } from '../services/permissoesService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
@@ -230,6 +231,23 @@ export function AppShell({
 }: AppShellProps) {
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
+  const qc = useQueryClient();
+
+  // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
+  // mês que já passaram do dia e ainda não foram lançadas. Sem permissão de
+  // receitas a chamada é recusada e nada acontece.
+  const receitasFixas = useMutation({
+    mutationFn: processarReceitasFixas,
+    onSuccess: ({ launched }) => {
+      if (launched === 0) return;
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'painel' });
+    },
+  });
+  useEffect(() => {
+    if (!isDemoMode) receitasFixas.mutate();
+  }, [isDemoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: ownPermissions } = useQuery({
     queryKey: ['own-permissions'],
     queryFn: fetchOwnPermissions,
@@ -442,19 +460,22 @@ export function AppShell({
             </button>
 
             {!isDemoMode && canViewNotifications && (
-              <div className="relative">
-                <button
-                  onClick={() => setNotifOpen((o) => !o)}
-                  className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
-                >
+              <button
+                onClick={() => setNotifOpen((o) => !o)}
+                aria-label={naoLidasCount > 0 ? `Notificações (${naoLidasCount} não lidas)` : 'Notificações'}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
+              >
+                {/* Contador preso ao canto do sino, e não ao botão: no desktop o
+                    botão é pequeno e o contador cobria o ícone inteiro. */}
+                <span className="relative inline-flex">
                   <Bell size={16} />
-                </button>
-                {naoLidasCount > 0 && (
-                  <span className="pointer-events-none absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
-                    {naoLidasCount > 9 ? '9+' : naoLidasCount}
-                  </span>
-                )}
-              </div>
+                  {naoLidasCount > 0 && (
+                    <span className="pointer-events-none absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-[#0D2E3C]">
+                      {naoLidasCount > 9 ? '9+' : naoLidasCount}
+                    </span>
+                  )}
+                </span>
+              </button>
             )}
 
             <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />

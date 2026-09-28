@@ -1,7 +1,7 @@
 import { and, asc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
-import { accounts, cards, categories, expenses, incomes, users } from '../db/schema';
+import { accounts, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes, users } from '../db/schema';
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
@@ -14,7 +14,6 @@ import {
   agregarFormasPagamento,
   agregarGastoPorCartao,
   agregarJurosDescontos,
-  agregarOrigemReceitas,
   agregarPorPessoa,
   agregarTipoGasto,
   despesasDoPeriodo,
@@ -24,16 +23,25 @@ import {
   janelaDaSerie,
   montarSerie,
   periodoAnterior,
+  primeiroDiaDoMes,
+  projetarFixas,
   receitasDoPeriodo,
   resumirPeriodo,
+  resumirReceitasPainel,
+  agruparPorRaiz,
+  SEM_CATEGORIA,
+  type ItemArvorePainel,
+  type FatiaPainel,
   type ContasEmAberto,
   type DespesaPainel,
   type EmDiaAgregado,
   type FormaPagamentoAgregada,
   type Granularidade,
+  type FixaPainel,
   type Periodo,
   type PontoSerie,
   type ReceitaPainel,
+  type ReceitasPainelResumo,
   type TipoGasto,
 } from './painelCalculos';
 
@@ -77,13 +85,18 @@ export interface PainelResposta {
   porPessoa: Array<{ usuarioId: number; nome: string; receitas: number; despesas: number }>;
   jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
   categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; usuarioId: number; autorNome: string | null; total: number }>;
+  /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
+  receitas: ReceitasPainelResumo;
+  /** Para onde foi: despesas do período pela categoria principal. */
+  despesasPorCategoria: FatiaPainel[];
   empresa: {
-    receitasPorOrigem: { contratos: number; avulsas: number };
     estoqueBaixo: Array<{ id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }>;
   } | null;
 }
 
 const STATUS_ATIVO = 'ativa';
+/** Receita lançada e ainda não recebida (contratos passam por faturada). */
+const STATUS_A_RECEBER = ['prevista', 'faturada'];
 const LIMITE_ESTOQUE_BAIXO = 20;
 const CODIGO_TABELA_INEXISTENTE = '42P01';
 
@@ -172,10 +185,10 @@ function condicoesBaseDespesa(entrada: PainelEntrada): Array<SQL | undefined> {
   ];
 }
 
-function condicoesBaseReceita(entrada: PainelEntrada): Array<SQL | undefined> {
+function condicoesBaseReceita(entrada: PainelEntrada, status: string[] = [STATUS_ATIVO]): Array<SQL | undefined> {
   return [
     inArray(incomes.userId, entrada.escopo),
-    eq(incomes.status, STATUS_ATIVO),
+    inArray(incomes.status, status),
     filtroConta(incomes.accountId, incomes.userId, entrada.accountId),
   ];
 }
@@ -202,18 +215,58 @@ async function buscarDespesasNaoPagas(entrada: PainelEntrada, ate: string): Prom
   return linhas.map(paraDespesaPainel);
 }
 
-async function buscarReceitas(entrada: PainelEntrada, janela: Periodo): Promise<ReceitaPainel[]> {
+async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: string[] = [STATUS_ATIVO]): Promise<ReceitaPainel[]> {
   const linhas = await db.select({
     usuarioId: incomes.userId,
     dataRecebimento: incomes.receiptDate,
     valor: incomes.amount,
-    contratoId: incomes.contractId,
+    classificacaoId: incomes.classificationId,
   }).from(incomes).where(and(
-    ...condicoesBaseReceita(entrada),
+    ...condicoesBaseReceita(entrada, status),
     gte(incomes.receiptDate, janela.de),
     lte(incomes.receiptDate, janela.ate),
   ));
   return linhas.map((linha) => ({ ...linha, valor: numero(linha.valor) }));
+}
+
+/**
+ * Classificações fixas da conta do painel, configuradas por pessoas do escopo
+ * (o filtro de pessoas vale também para a projeção). Sem conta, não há fixa:
+ * a configuração é sempre de uma conta.
+ */
+async function buscarFixas(entrada: PainelEntrada): Promise<FixaPainel[]> {
+  if (!entrada.accountId) {
+    return [];
+  }
+  const linhas = await db.select({
+    classificacaoId: incomeClassificationFixes.classificationId,
+    valor: incomeClassificationFixes.amount,
+    diaRecebimento: incomeClassificationFixes.dayOfMonth,
+  }).from(incomeClassificationFixes)
+    .innerJoin(incomeClassifications, eq(incomeClassifications.id, incomeClassificationFixes.classificationId))
+    .where(and(
+      eq(incomeClassificationFixes.accountId, entrada.accountId),
+      inArray(incomeClassificationFixes.userId, entrada.escopo),
+      eq(incomeClassifications.active, true),
+    ));
+  return linhas.map((linha) => ({ ...linha, valor: numero(linha.valor) }));
+}
+
+/** Nomes das classificações usadas e das raízes delas (para agrupar a sub no pai). */
+async function buscarClassificacoes(ids: number[]): Promise<Map<number, ItemArvorePainel>> {
+  const porId = new Map<number, ItemArvorePainel>();
+  const buscar = async (lista: number[]) => {
+    if (lista.length === 0) return;
+    const linhas = await db.select({ id: incomeClassifications.id, nome: incomeClassifications.name, parentId: incomeClassifications.parentId })
+      .from(incomeClassifications).where(inArray(incomeClassifications.id, lista));
+    for (const linha of linhas) porId.set(linha.id, linha);
+  };
+  await buscar(ids);
+  const pais = [...porId.values()]
+    .map((classificacao) => classificacao.parentId)
+    .filter((id): id is number => id !== null && !porId.has(id));
+  await buscar([...new Set(pais)]);
+  return porId;
 }
 
 /** Saldo inicial da conta + tudo que entrou − tudo que saiu antes do início do período. */
@@ -246,13 +299,21 @@ async function buscarNomesPessoas(ids: number[]): Promise<Map<number, string>> {
   return new Map(linhas.map((linha) => [linha.id, `${linha.nome} ${linha.sobrenome ?? ''}`.trim()]));
 }
 
-async function buscarCategorias(ids: number[]): Promise<Map<number, { nome: string; parentId: number | null }>> {
-  if (ids.length === 0) {
-    return new Map();
-  }
-  const linhas = await db.select({ id: categories.id, nome: categories.name, parentId: categories.parentId })
-    .from(categories).where(inArray(categories.id, ids));
-  return new Map(linhas.map((linha) => [linha.id, { nome: linha.nome, parentId: linha.parentId }]));
+/** Categorias usadas e as raízes delas (a pizza agrupa a subcategoria no pai). */
+async function buscarCategorias(ids: number[]): Promise<Map<number, ItemArvorePainel>> {
+  const porId = new Map<number, ItemArvorePainel>();
+  const buscar = async (lista: number[]) => {
+    if (lista.length === 0) return;
+    const linhas = await db.select({ id: categories.id, nome: categories.name, parentId: categories.parentId })
+      .from(categories).where(inArray(categories.id, lista));
+    for (const linha of linhas) porId.set(linha.id, linha);
+  };
+  await buscar(ids);
+  const pais = [...porId.values()]
+    .map((categoria) => categoria.parentId)
+    .filter((id): id is number => id !== null && !porId.has(id));
+  await buscar([...new Set(pais)]);
+  return porId;
 }
 
 async function montarCartoes(entrada: PainelEntrada, despesasPeriodo: DespesaPainel[]): Promise<PainelResposta['cartoes']> {
@@ -371,11 +432,15 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const janelaBusca: Periodo = { de: menorData(anterior.de, inicioDoAno), ate: periodo.ate };
   const compromissos = janelaComprometido(hoje);
 
-  const [despesas, receitas, naoPagas, saldoAnterior] = await Promise.all([
+  // Previstas desde o início do mês do período: a projeção das fixas precisa
+  // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
+  const [despesas, receitas, naoPagas, saldoAnterior, previstas, fixas] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
     calcularSaldoAnterior(entrada),
+    buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, STATUS_A_RECEBER),
+    buscarFixas(entrada),
   ]);
 
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
@@ -384,17 +449,24 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const resumoAnterior = resumirPeriodo(despesasDoPeriodo(despesas, anterior), receitasDoPeriodo(receitas, anterior));
   const categoriasAgregadas = agregarCategorias(despesasPeriodo);
   const porPessoa = agregarPorPessoa(despesasPeriodo, receitasPeriodo);
+  const previstasPeriodo = receitasDoPeriodo(previstas, periodo);
+  const projecoes = projetarFixas(fixas, [...receitas, ...previstas], periodo, hoje);
+  const idsClassificacoes = [...new Set([...receitasPeriodo, ...previstasPeriodo, ...projecoes]
+    .map((item) => item.classificacaoId)
+    .filter((id): id is number => id !== null))];
 
   const idsCategorias = categoriasAgregadas
     .map((linha) => linha.categoriaId)
     .filter((id): id is number => id !== null);
-  const [nomesPessoas, categoriasPorId, cartoes, planejado, estoqueBaixo] = await Promise.all([
+  const [nomesPessoas, categoriasPorId, cartoes, planejado, estoqueBaixo, classificacoes] = await Promise.all([
     buscarNomesPessoas(entrada.escopo),
     buscarCategorias(idsCategorias),
     montarCartoes(entrada, despesasPeriodo),
     montarPlanejado(entrada, despesasPeriodo),
     entrada.tipoConta === 'empresa' ? buscarEstoqueBaixo(entrada) : Promise.resolve([]),
+    buscarClassificacoes(idsClassificacoes),
   ]);
+  const tipoGasto = agregarTipoGasto(despesasPeriodo);
 
   return {
     periodo,
@@ -412,7 +484,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     formasPagamento: agregarFormasPagamento(despesasPeriodo),
     cartoes,
     aVistaParcelado: agregarAVistaParcelado(despesasPeriodo),
-    tipoGasto: agregarTipoGasto(despesasPeriodo),
+    tipoGasto,
     emDia: agregarEmDia(despesas, periodo),
     contasEmAberto: agregarContasEmAberto(naoPagas, hoje),
     planejado,
@@ -436,8 +508,21 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
         total: linha.total,
       };
     }),
-    empresa: entrada.tipoConta === 'empresa'
-      ? { receitasPorOrigem: agregarOrigemReceitas(receitasPeriodo), estoqueBaixo }
-      : null,
+    receitas: resumirReceitasPainel({
+      recebidas: receitasPeriodo,
+      previstas: previstasPeriodo,
+      projecoes,
+      classificacoes,
+      idsFixos: new Set(fixas.map((fixa) => fixa.classificacaoId)),
+      saiu: resumoAtual.saiu,
+      periodo,
+      hoje,
+    }),
+    despesasPorCategoria: agruparPorRaiz(
+      categoriasAgregadas.map((linha) => ({ id: linha.categoriaId, valor: linha.total })),
+      categoriasPorId,
+      SEM_CATEGORIA,
+    ),
+    empresa: entrada.tipoConta === 'empresa' ? { estoqueBaixo } : null,
   };
 }

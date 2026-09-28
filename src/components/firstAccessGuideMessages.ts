@@ -52,7 +52,7 @@ export const firstAccessGuideMessages = {
 
   // Representantes
   representantesNovo: 'Clique em Novo representante para cadastrar algu\u00e9m que recebe comiss\u00e3o sobre receitas.',
-  representantesComissoes: 'Configure um percentual de comiss\u00e3o por tipo de receita: ele \u00e9 aplicado automaticamente ao lan\u00e7ar receitas desse tipo.',
+  representantesComissoes: 'Configure um percentual de comiss\u00e3o por classifica\u00e7\u00e3o de receita: ele \u00e9 aplicado automaticamente ao lan\u00e7ar receitas dessa classifica\u00e7\u00e3o.',
   representantesTipoComissao: 'Mensal repete a comiss\u00e3o todo m\u00eas enquanto a receita existir; \u00danica \u00e9 paga apenas uma vez.',
 
   // S\u00f3cios

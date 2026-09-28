@@ -5,10 +5,8 @@ import { Card } from '../../../ui/card';
 import { queryKeys } from '../../../services/queryKeys';
 import { getContratosFaturamento } from '../../../services/financeService';
 import { MONTH_NAMES, type PainelData, type PainelPeriodo } from '../../../types/finance';
-import { DonutChart } from '../charts/DonutChart';
 import { formatCurrency } from '../formatters';
-import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, RodapeCard } from './PainelLayout';
+import { CabecalhoCard, CardPainel } from './base';
 
 interface ExtrasContaEmpresaProps {
   empresa: NonNullable<PainelData['empresa']>;
@@ -23,7 +21,7 @@ function EstoqueBaixo({ produtos }: { produtos: NonNullable<PainelData['empresa'
           <PackageSearch size={18} aria-hidden="true" />
         </span>
         <p className="m-0 text-xs text-slate-500 dark:text-slate-400">
-          <b className="block text-base font-bold text-amber-700 dark:text-amber-300">
+          <b className="block text-base font-medium text-amber-700 dark:text-amber-300">
             {produtos.length} produto{produtos.length === 1 ? '' : 's'}
           </b>
           {produtos.length === 1 ? 'atingiu' : 'atingiram'} o estoque mínimo configurado.
@@ -63,8 +61,8 @@ function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
   return (
     <CardPainel>
       <CabecalhoCard
-        titulo={<>Carteira de contratos <span className="font-normal text-slate-500 dark:text-slate-400">· {MONTH_NAMES[mes! - 1]}</span></>}
-        detalhe={`${formatCurrency(total)}/mês · ${contratos.length} contrato(s)`}
+        titulo={<>Carteira de contratos <span className="font-normal text-slate-500 dark:text-slate-400">· {MONTH_NAMES[mes! - 1]} · {contratos.length} contrato{contratos.length === 1 ? '' : 's'}</span></>}
+        valor={`${formatCurrency(total)}/mês`}
       />
       <span className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700" aria-hidden="true">
         <span className="h-full bg-emerald-500" style={{ width: `${percentual(recebido)}%` }} />
@@ -73,7 +71,7 @@ function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
       <span className="flex flex-wrap gap-2">
         {recebido > 0 && <Badge tone="income">Recebido {formatCurrency(recebido)}</Badge>}
         {faturado > 0 && (
-          <span className="inline-flex items-center rounded-full bg-cyan-100 px-2 py-0.5 text-xs font-semibold text-cyan-700">
+          <span className="inline-flex items-center rounded-full bg-cyan-100 px-2 py-0.5 text-xs font-medium text-cyan-700">
             Faturado {formatCurrency(faturado)}
           </span>
         )}
@@ -83,39 +81,12 @@ function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
   );
 }
 
-function ReceitasPorOrigem({ origem }: { origem: NonNullable<PainelData['empresa']>['receitasPorOrigem'] }) {
-  const cores = useCoresGrafico();
-  const total = origem.contratos + origem.avulsas;
-  if (total === 0) return null;
-  const fatias = [
-    { name: 'Contratos', value: origem.contratos, color: cores.categorias[0]! },
-    { name: 'Avulsas', value: origem.avulsas, color: cores.categorias[1]! },
-  ].filter((fatia) => fatia.value > 0);
-
-  return (
-    <CardPainel>
-      <CabecalhoCard titulo="Receitas por origem" detalhe="de onde veio" />
-      <DonutChart data={fatias} centerLabel="Entrou" centerValue={formatCurrency(total)} />
-      <RodapeCard>
-        {origem.contratos === 0
-          ? 'Toda a receita veio de entradas avulsas, sem receita recorrente de contratos.'
-          : origem.avulsas === 0
-            ? 'Toda a receita veio de contratos recorrentes.'
-            : 'A receita combina contratos recorrentes e entradas avulsas.'}
-      </RodapeCard>
-    </CardPainel>
-  );
-}
-
 /** Blocos que só existem em conta empresa, mantidos até a rodada própria da conta empresa. */
 export function ExtrasContaEmpresa({ empresa, periodo }: ExtrasContaEmpresaProps) {
   return (
     <>
       {empresa.estoqueBaixo.length > 0 && <EstoqueBaixo produtos={empresa.estoqueBaixo} />}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <CarteiraDeContratos periodo={periodo} />
-        <ReceitasPorOrigem origem={empresa.receitasPorOrigem} />
-      </div>
+      <CarteiraDeContratos periodo={periodo} />
     </>
   );
 }

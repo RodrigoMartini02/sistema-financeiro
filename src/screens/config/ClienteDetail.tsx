@@ -12,6 +12,9 @@ import {
 } from '../../services/clientesService';
 import { fetchServicos, saveServico, type Servico } from '../../services/servicosService';
 import { fetchRepresentantes, type Representante } from '../../services/representantesService';
+import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
+import { getActiveAccountId } from '../../services/apiClient';
+import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
@@ -60,9 +63,23 @@ function ContratoForm({
     observacoes:             initial?.observacoes ?? '',
     descricao:               initial?.descricao ?? '',
     representante_id:        String(initial?.representante_id ?? ''),
+    classificacao_mensalidade_id: String(initial?.classificacao_mensalidade_id ?? ''),
+    classificacao_implantacao_id: String(initial?.classificacao_implantacao_id ?? ''),
   });
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Catálogo da conta do contrato. Vazio no formulário = o servidor usa as
+  // padrão Contratos › Mensalidade e Contratos › Implantação.
+  const contaDoContrato = initial?.conta_id ?? getActiveAccountId();
+  const classificacoesQ = useQuery({
+    queryKey: queryKeys.classificacoesReceita(contaDoContrato),
+    queryFn: () => fetchClassificacoesReceita(contaDoContrato),
+    staleTime: 60_000,
+  });
+  const classificacoes = opcoesDeClassificacao(classificacoesQ.data ?? []);
+  const rotuloClassificacao = (id: string, padrao: string) =>
+    classificacoes.find((c) => String(c.id) === id)?.rotulo ?? padrao;
   const reajusteGuide = useFirstAccessGuide('clientes:reajuste-v1', {
     enabled: !readOnly,
     layer: GUIDE_LAYER_MODAL,
@@ -92,6 +109,8 @@ function ContratoForm({
       horas_remotas_valor:       initial?.horas_remotas_valor ?? 0,
       horas_remotas_saldo_ini:   initial?.horas_remotas_saldo_ini ?? 0,
       valor_mensal:              initial?.valor_mensal ?? 0,
+      classificacao_mensalidade_id: form.classificacao_mensalidade_id ? parseInt(form.classificacao_mensalidade_id) : null,
+      classificacao_implantacao_id: form.classificacao_implantacao_id ? parseInt(form.classificacao_implantacao_id) : null,
     } as Parameters<typeof saveContrato>[0]);
   };
 
@@ -131,6 +150,21 @@ function ContratoForm({
               <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{repNome || 'Nenhum'}</p>
             </div>
           )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 28 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={chipGroupLabelStyle}>Classificação da mensalidade</span>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
+              {rotuloClassificacao(form.classificacao_mensalidade_id, 'Contratos › Mensalidade')}
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={chipGroupLabelStyle}>Classificação da implantação</span>
+            <p style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
+              {rotuloClassificacao(form.classificacao_implantacao_id, 'Contratos › Implantação')}
+            </p>
+          </div>
         </div>
 
         {form.observacoes && (
@@ -216,6 +250,30 @@ function ContratoForm({
                 onSilenceAll={representanteGuide.silenceAll}
               />
             )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={labelStyle}>Classificação da mensalidade</label>
+            <select
+              value={form.classificacao_mensalidade_id}
+              onChange={(e) => set('classificacao_mensalidade_id', e.target.value)}
+              style={fieldInputStyle}
+            >
+              <option value="">Padrão · Contratos › Mensalidade</option>
+              {classificacoes.map((c) => <option key={c.id} value={String(c.id)}>{c.rotulo}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={labelStyle}>Classificação da implantação</label>
+            <select
+              value={form.classificacao_implantacao_id}
+              onChange={(e) => set('classificacao_implantacao_id', e.target.value)}
+              style={fieldInputStyle}
+            >
+              <option value="">Padrão · Contratos › Implantação</option>
+              {classificacoes.map((c) => <option key={c.id} value={String(c.id)}>{c.rotulo}</option>)}
+            </select>
           </div>
         </div>
 

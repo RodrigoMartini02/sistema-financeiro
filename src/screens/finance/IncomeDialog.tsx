@@ -281,6 +281,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
               autoFocus
               guideEnabled
               onResumoChange={setResumoTopo}
+              scrollContainerRef={bodyRef}
             />
           </div>
 
@@ -320,6 +321,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                     titulo={`Receita ${indice + 1}`}
                     onRemover={() => removerDoLote(item.id)}
                     onResumoChange={registrarResumoLote(item.id)}
+                    scrollContainerRef={bodyRef}
                   />
                 </div>
               ))}

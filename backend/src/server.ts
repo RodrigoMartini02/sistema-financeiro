@@ -81,7 +81,7 @@ import paypalRoutes from './routes/paypal';
 import ratingRoutes from './routes/ratings';
 import representativeRoutes from './routes/representatives';
 import partnerRoutes from './routes/partners';
-import incomeTypeRoutes from './routes/income-types';
+import incomeClassificationRoutes from './routes/income-classifications';
 import clientRoutes from './routes/clients';
 import contractRoutes from './routes/contracts';
 import serviceRoutes from './routes/services';
@@ -133,8 +133,8 @@ app.use('/api/representatives', authenticate, requireActivePlan, requireScreenAc
 app.use('/api/representantes', authenticate, requireActivePlan, requireScreenAccess('accessRepresentatives'), representativeRoutes); // PT alias
 app.use('/api/partners', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);
 app.use('/api/socios', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);          // PT alias
-app.use('/api/income-types', authenticate, requireActivePlan, incomeTypeRoutes);
-app.use('/api/tipos-receita', authenticate, requireActivePlan, incomeTypeRoutes); // PT alias
+app.use('/api/income-classifications', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), incomeClassificationRoutes);
+app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), incomeClassificationRoutes); // PT alias
 app.use('/api/clientes', authenticate, requireActivePlan, requireScreenAccess('accessClients'), clientRoutes);
 app.use('/api/contratos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractRoutes);
 app.use('/api/servicos', authenticate, requireActivePlan, requireScreenAccess('accessServices'), serviceRoutes);

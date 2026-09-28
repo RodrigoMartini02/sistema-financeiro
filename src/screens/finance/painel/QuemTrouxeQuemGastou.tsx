@@ -1,19 +1,19 @@
 import type { PainelData } from '../../../types/finance';
-import { DonutChart } from '../charts/DonutChart';
 import { formatCurrency } from '../formatters';
 import { firstName } from '../memberColors';
+import { CabecalhoCard, CardPainel, Secao } from './base';
 import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, Secao, Vazio } from './PainelLayout';
+import { Barras } from './graficos/Barras';
+import { Pizza } from './graficos/Pizza';
+import { TAMANHO_PIZZA_MENOR, formatarComSinal } from './painelFormat';
 
 interface QuemTrouxeQuemGastouProps {
   pessoas: PainelData['porPessoa'];
   /** Cor de cada pessoa (usuario_id) — a mesma usada nas barras de Categorias. */
   coresPorPessoa: Map<number, string>;
-  /** Rótulo do grupo de pessoas na conta: "Membros" ou "Colaboradores". */
-  termoPlural: string;
 }
 
-export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa, termoPlural }: QuemTrouxeQuemGastouProps) {
+export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa }: QuemTrouxeQuemGastouProps) {
   const cores = useCoresGrafico();
   const comCor = pessoas.map((pessoa) => ({
     ...pessoa,
@@ -23,39 +23,49 @@ export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa, termoPlural }: Q
   }));
   const totalReceitas = comCor.reduce((soma, pessoa) => soma + pessoa.receitas, 0);
   const totalDespesas = comCor.reduce((soma, pessoa) => soma + pessoa.despesas, 0);
-  const fatias = (valor: (pessoa: typeof comCor[number]) => number) => comCor
-    .filter((pessoa) => valor(pessoa) > 0)
-    .map((pessoa) => ({ name: pessoa.nomeCurto, value: valor(pessoa), color: pessoa.cor }));
 
   return (
-    <Secao titulo="Quem trouxe e quem gastou" detalhe={termoPlural.toLowerCase()}>
-      <div className="grid gap-3 xl:grid-cols-3">
+    <Secao titulo="Quem trouxe e quem gastou">
+      <div className="grid gap-4 lg:grid-cols-3">
         <CardPainel>
-          <CabecalhoCard titulo="De onde veio a receita" detalhe="quem trouxe" />
-          {totalReceitas === 0
-            ? <Vazio>Sem receitas no período.</Vazio>
-            : <DonutChart data={fatias((pessoa) => pessoa.receitas)} centerLabel="Entrou" centerValue={formatCurrency(totalReceitas)} />}
+          <CabecalhoCard titulo="Receitas por pessoa" valor={formatCurrency(totalReceitas)} />
+          <Pizza
+            tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+            vazio="Sem receitas no período."
+            fatias={comCor.map((pessoa) => ({ nome: pessoa.nomeCurto, valor: pessoa.receitas, cor: pessoa.cor }))}
+          />
         </CardPainel>
-
         <CardPainel>
-          <CabecalhoCard titulo="Despesas por pessoa" detalhe="quem gastou" />
-          {totalDespesas === 0
-            ? <Vazio>Sem despesas no período.</Vazio>
-            : <DonutChart data={fatias((pessoa) => pessoa.despesas)} centerLabel="Saiu" centerValue={formatCurrency(totalDespesas)} />}
+          <CabecalhoCard titulo="Despesas por pessoa" valor={formatCurrency(totalDespesas)} />
+          <Pizza
+            tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+            vazio="Sem despesas no período."
+            fatias={comCor.map((pessoa) => ({ nome: pessoa.nomeCurto, valor: pessoa.despesas, cor: pessoa.cor }))}
+          />
         </CardPainel>
-
         <CardPainel>
-          <CabecalhoCard titulo="Comparativo" detalhe="entrada, saída e saldo" />
-          <ul className="m-0 flex list-none flex-col p-0">
+          <CabecalhoCard titulo="Saldo por pessoa" />
+          <Barras
+            altura={150}
+            sinal
+            formatar={formatarComSinal}
+            series={[{ chave: 'saldo', rotulo: 'Saldo', cor: (valor) => (valor >= 0 ? cores.positivo : cores.negativo) }]}
+            pontos={comCor.map((pessoa) => ({ rotulo: pessoa.nomeCurto, valores: { saldo: pessoa.saldo, entrou: pessoa.receitas, saiu: pessoa.despesas } }))}
+            linhasExtras={(ponto) => [['Entrou', formatCurrency(ponto.valores.entrou!)], ['Saiu', formatCurrency(ponto.valores.saiu!)]]}
+          />
+          <ul className="m-0 grid list-none gap-1 p-0">
             {comCor.map((pessoa) => (
-              <li key={pessoa.usuarioId} className="flex items-center gap-2.5 border-t border-slate-100 py-2.5 text-[12.5px] tabular-nums first:border-t-0 dark:border-slate-700">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: pessoa.cor }} />
-                <span className="min-w-0 truncate font-semibold text-slate-900 dark:text-white">{pessoa.nomeCurto}</span>
-                <span className="ml-auto text-emerald-600 dark:text-emerald-400">{formatCurrency(pessoa.receitas)}</span>
-                <span className="text-rose-600 dark:text-rose-400">{formatCurrency(pessoa.despesas)}</span>
-                <b className={`min-w-[5.5rem] text-right font-semibold ${pessoa.saldo >= 0 ? 'text-slate-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {formatCurrency(pessoa.saldo)}
-                </b>
+              <li key={pessoa.usuarioId} className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <span className="h-2 w-2 rounded-sm" style={{ background: pessoa.cor }} aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-slate-700 dark:text-slate-200">{pessoa.nomeCurto}</span>
+                  <span className="block text-[11.5px] tabular-nums text-slate-500 dark:text-slate-400">
+                    Entrou {formatCurrency(pessoa.receitas)} · Saiu {formatCurrency(pessoa.despesas)}
+                  </span>
+                </span>
+                <span className={`text-sm tabular-nums ${pessoa.saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {formatarComSinal(pessoa.saldo)}
+                </span>
               </li>
             ))}
           </ul>

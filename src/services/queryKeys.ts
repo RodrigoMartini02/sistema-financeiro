@@ -28,6 +28,7 @@ export const queryKeys = {
   // (['categorias', 'ativa']) — os call sites que nao lidam com troca de
   // conta continuam funcionando sem qualquer ajuste alem de virar chamada.
   categorias: (accountId?: number | null) => ['categorias', accountId ?? 'ativa'] as const,
+  classificacoesReceita: (accountId?: number | null) => ['classificacoes-receita', accountId ?? 'ativa'] as const,
   // escopo na chave: 'familia' e o default ('so eu') pedem dados diferentes
   // do servidor e nao podem compartilhar cache.
   cartoes: (accountId?: number | null, escopo?: 'familia') => ['cartoes', accountId ?? 'ativa', escopo ?? 'eu'] as const,
@@ -35,7 +36,6 @@ export const queryKeys = {
   representantes: ['representantes'] as const,
   socios: ['socios'] as const,
   avaliacoes: ['avaliacoes'] as const,
-  incomeTypes: ['income-types'] as const,
   clientes: ['clientes'] as const,
   contratos: (clienteId: number) => ['contratos', clienteId] as const,
   servicos: ['servicos'] as const,

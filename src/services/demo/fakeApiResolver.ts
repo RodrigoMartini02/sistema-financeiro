@@ -47,7 +47,8 @@ export function resolveFakeApiRequest(
       contrato_id: null,
       observacoes: (body.observacoes as string | null) ?? null,
       cliente: (body.cliente as string | null) ?? null,
-      tipo_receita: (body.tipo_receita as string | null) ?? null,
+      classificacao_id: null,
+      classificacao_nome: null,
       representante_id: null,
       representante_nome: null,
       valor_comissao: null,
@@ -195,7 +196,7 @@ export function resolveFakeApiRequest(
 
   // Listas auxiliares sem dado relevante na demo — devolver vazio
   if (matchEndpoint(endpoint, /^\/representantes$/)) return { success: true, data: [] };
-  if (matchEndpoint(endpoint, /^\/income-types$/)) return { success: true, data: [] };
+  if (matchEndpoint(endpoint, /^\/income-classifications$/)) return [];
   if (matchEndpoint(endpoint, /^\/clientes$/)) return [];
   if (matchEndpoint(endpoint, /^\/contratos$/)) return [];
   if (matchEndpoint(endpoint, /^\/contratos\/faturamento$/)) return [];

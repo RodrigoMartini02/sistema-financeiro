@@ -9,7 +9,8 @@ interface RawIncome {
   data_recebimento: string; mes: number; ano: number;
   status?: string | null;
   contrato_id?: number | null;
-  observacoes?: string | null; cliente?: string | null; tipo_receita?: string | null;
+  observacoes?: string | null; cliente?: string | null;
+  classificacao_id?: number | null; classificacao_nome?: string | null;
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
   anexos?: Attachment[] | null;
@@ -55,7 +56,9 @@ function incomeFromApi(r: RawIncome): Income {
     data: r.data_recebimento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada' | 'prevista' | 'faturada') ?? 'ativa',
     contratoId: r.contrato_id ?? null,
-    observacoes: r.observacoes, cliente: r.cliente, tipoReceita: r.tipo_receita,
+    observacoes: r.observacoes, cliente: r.cliente,
+    classificacaoId: r.classificacao_id ?? null,
+    classificacaoNome: r.classificacao_nome ?? null,
     representanteId: r.representante_id ?? null,
     representanteNome: r.representante_nome ?? null,
     autorNome: r.autor_nome ?? null,
@@ -133,7 +136,7 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
     descricao: values.descricao, valor: values.valor,
     data_recebimento: values.data, mes: month, ano: year,
     observacoes: values.observacoes || null, cliente: values.cliente || null,
-    tipo_receita: values.tipoReceita || null, conta_id: accountId,
+    classificacao_id: values.classificacaoId ?? null, conta_id: accountId,
     representante_id: values.representanteId ?? null,
     valor_comissao: values.valorComissao ?? null,
     anexos: values.anexos && values.anexos.length > 0 ? values.anexos : null,
@@ -169,6 +172,19 @@ export async function saveIncome(month: number, year: number, values: IncomeForm
   }
 
   return saved;
+}
+
+/**
+ * Checagem ao abrir o sistema: lança as receitas fixas do mês que a rotina
+ * diária ainda não lançou (só as configuradas por quem está usando).
+ */
+export async function processarReceitasFixas(): Promise<{ launched: number; pushSent: number }> {
+  return apiRequest<{ launched: number; pushSent: number }>('/incomes/fixas/processar', { method: 'POST' });
+}
+
+/** Receita prevista/faturada passa a recebida (mesma ação da lista de receitas). */
+export async function receberReceita(id: number): Promise<void> {
+  return apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' });
 }
 
 export async function deleteIncome(id: number) {

@@ -4,6 +4,7 @@ import { db, pool } from '../db/client';
 import { accounts } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 
 const router = Router();
 
@@ -82,6 +83,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       .returning();
 
     await ensureDefaultCategories(req.user!.id, 'empresa');
+    await ensureDefaultIncomeClassifications(req.user!.id, 'empresa');
 
     res.status(201).json({ success: true, message: 'Company created successfully', data: created });
   } catch (error) {

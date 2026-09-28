@@ -6,6 +6,9 @@ import {
   agregarFormasPagamento,
   agregarJurosDescontos,
   agregarTipoGasto,
+  agruparPorRaiz,
+  projetarFixas,
+  resumirReceitasPainel,
   baldesDaSerie,
   classificarPagamento,
   dataIsoValida,
@@ -41,7 +44,7 @@ function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
 }
 
 function receita(parcial: Partial<ReceitaPainel>): ReceitaPainel {
-  return { usuarioId: 1, dataRecebimento: '2026-09-05', valor: 1000, contratoId: null, ...parcial };
+  return { usuarioId: 1, dataRecebimento: '2026-09-05', valor: 1000, classificacaoId: null, ...parcial };
 }
 
 test('valida datas ISO reais e rejeita datas inexistentes', () => {
@@ -167,9 +170,27 @@ test('série: despesa pelo vencimento, pago pela data de pagamento', () => {
     { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' },
   );
   assert.deepEqual(serie, [
-    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, credito: 100, pago: 0, juros: 0, descontos: 0 },
-    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, credito: 0, pago: 100, juros: 0, descontos: 0 },
+    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, formas: { credito: 100 }, pago: 0, juros: 0, descontos: 0 },
+    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, formas: {}, pago: 100, juros: 0, descontos: 0 },
   ]);
+});
+
+test('série: formas de pagamento por trecho somam as despesas do trecho e o total de cada forma', () => {
+  const despesas = [
+    despesa({ dataVencimento: '2026-08-05', formaPagamento: 'credito', valorOriginal: 100 }),
+    despesa({ dataVencimento: '2026-08-20', formaPagamento: 'pix', valorOriginal: 40 }),
+    despesa({ dataVencimento: '2026-09-02', formaPagamento: 'credito', valorOriginal: 60, pago: true, valorPago: 63 }),
+    despesa({ dataVencimento: '2026-09-10', formaPagamento: '', valorOriginal: 25 }),
+  ];
+  const serie = montarSerie(despesas, [], { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' });
+  for (const ponto of serie) {
+    const somaFormas = Object.values(ponto.formas).reduce((soma, valor) => soma + valor, 0);
+    assert.equal(somaFormas, ponto.despesas);
+  }
+  for (const forma of agregarFormasPagamento(despesas)) {
+    assert.equal(serie.reduce((soma, ponto) => soma + (ponto.formas[forma.forma] ?? 0), 0), forma.valor);
+  }
+  assert.deepEqual(serie[1]!.formas, { credito: 63, nao_informada: 25 });
 });
 
 test('série semanal: o último dia da semana cai na semana certa', () => {
@@ -208,4 +229,85 @@ test('indicadores sem base devolvem null em vez de dividir por zero', () => {
 test('meta proporcional: mês inteiro vale 1, metade do mês vale metade', () => {
   assert.equal(fatorMetaProporcional({ de: '2026-09-01', ate: '2026-09-30' }), 1);
   assert.equal(fatorMetaProporcional({ de: '2026-09-01', ate: '2026-09-15' }), 0.5);
+});
+
+test('projeção das fixas: só de hoje em diante e sem mês já lançado', () => {
+  const fixas = [{ classificacaoId: 10, valor: 4500, diaRecebimento: 5 }, { classificacaoId: 20, valor: 800, diaRecebimento: 31 }];
+  const periodo = { de: '2026-09-01', ate: '2026-11-30' };
+  const lancadas = [receita({ classificacaoId: 10, dataRecebimento: '2026-10-04' })];
+  const ocorrencias = projetarFixas(fixas, lancadas, periodo, '2026-09-27');
+  assert.deepEqual(ocorrencias, [
+    { classificacaoId: 10, valor: 4500, data: '2026-11-05' },
+    { classificacaoId: 20, valor: 800, data: '2026-09-30' },
+    { classificacaoId: 20, valor: 800, data: '2026-10-31' },
+    { classificacaoId: 20, valor: 800, data: '2026-11-30' },
+  ]);
+});
+
+test('projeção das fixas: período encerrado não projeta nada', () => {
+  const fixas = [{ classificacaoId: 10, valor: 4500, diaRecebimento: 5 }];
+  assert.deepEqual(projetarFixas(fixas, [], { de: '2026-08-01', ate: '2026-08-31' }, '2026-09-27'), []);
+});
+
+test('agrupamento por classificação principal, com subcategorias e sem classificação', () => {
+  const classificacoes = new Map([
+    [1, { id: 1, nome: 'Salário', parentId: null }],
+    [2, { id: 2, nome: '13º', parentId: 1 }],
+    [3, { id: 3, nome: 'Freelance', parentId: null }],
+  ]);
+  const fatias = agruparPorRaiz([
+    { id: 1, valor: 4500 },
+    { id: 2, valor: 2250 },
+    { id: 3, valor: 800 },
+    { id: null, valor: 100 },
+  ], classificacoes, 'Sem classificação');
+  assert.deepEqual(fatias, [
+    { id: 1, nome: 'Salário', valor: 6750, subcategorias: [{ id: 2, nome: '13º', valor: 2250 }] },
+    { id: 3, nome: 'Freelance', valor: 800, subcategorias: [] },
+    { id: null, nome: 'Sem classificação', valor: 100, subcategorias: [] },
+  ]);
+});
+
+test('agrupamento de despesas pela categoria principal, com "Sem categoria"', () => {
+  const categorias = new Map([
+    [10, { id: 10, nome: 'Moradia', parentId: null }],
+    [11, { id: 11, nome: 'Aluguel', parentId: 10 }],
+    [12, { id: 12, nome: 'Luz', parentId: 10 }],
+  ]);
+  const fatias = agruparPorRaiz([{ id: 11, valor: 1500 }, { id: 12, valor: 200 }, { id: null, valor: 50 }], categorias, 'Sem categoria');
+  assert.equal(fatias[0]!.nome, 'Moradia');
+  assert.equal(fatias[0]!.valor, 1700);
+  assert.deepEqual(fatias[0]!.subcategorias.map((sub) => sub.nome), ['Aluguel', 'Luz']);
+  assert.equal(fatias[1]!.nome, 'Sem categoria');
+});
+
+test('resumo de receitas: renda prevista, comprometimento e fixa × variável', () => {
+  const classificacoes = new Map([[1, { id: 1, nome: 'Salário', parentId: null }], [3, { id: 3, nome: 'Freelance', parentId: null }]]);
+  const resumo = resumirReceitasPainel({
+    recebidas: [receita({ classificacaoId: 3, valor: 1000 })],
+    previstas: [],
+    projecoes: [{ classificacaoId: 1, valor: 4000, data: '2026-09-30' }],
+    classificacoes,
+    idsFixos: new Set([1]),
+    saiu: 2500,
+    periodo: { de: '2026-09-01', ate: '2026-09-30' },
+    hoje: '2026-09-27',
+  });
+  assert.equal(resumo.rendaPrevista, 5000);
+  assert.equal(resumo.aReceber.total, 4000);
+  assert.equal(resumo.comprometimentoPrevisto, 50);
+  assert.equal(resumo.fixa, 4000);
+  assert.equal(resumo.variavel, 1000);
+  assert.equal(resumo.periodoEncerrado, false);
+});
+
+test('resumo de receitas sem renda nem fixa devolve comprometimento nulo', () => {
+  const resumo = resumirReceitasPainel({
+    recebidas: [], previstas: [], projecoes: [], classificacoes: new Map(), idsFixos: new Set(),
+    saiu: 300,
+    periodo: { de: '2026-08-01', ate: '2026-08-31' }, hoje: '2026-09-27',
+  });
+  assert.equal(resumo.comprometimentoPrevisto, null);
+  assert.equal(resumo.temFixa, false);
+  assert.equal(resumo.periodoEncerrado, true);
 });

@@ -11,17 +11,22 @@ import {
   panelStyle, chipStyle, MoneyField,
 } from '../../ui/dialogFormTokens';
 import { fetchRepresentantes } from '../../services/representantesService';
-import { fetchIncomeTypes, saveIncomeType } from '../../services/incomeTypesService';
+import { fetchClassificacoesReceita, saveClassificacaoReceita } from '../../services/incomeClassificationsService';
 import { fetchContratosAtivos, fetchClientes, saveCliente } from '../../services/clientesService';
 import { fetchProdutos } from '../../services/catalogoService';
 import { fetchIncomeSuggestions, type IncomeSuggestionMatch } from '../../services/incomeSuggestionsService';
-import { suggestIncomeTypeForDescription } from '../../utils/incomeTypeSuggestions';
+import { suggestIncomeClassificationForDescription } from '../../utils/incomeClassificationSuggestions';
+import { CategoryFloatingSelect } from '../../ui/CategoryFloatingSelect';
+import type { ClassificacaoReceita } from '../../types/config';
 import { queryKeys } from '../../services/queryKeys';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { formatCurrency } from './formatters';
+import { formatCurrency, formatDate } from './formatters';
+import { fetchFinanceDashboard, receberReceita } from '../../services/financeService';
+import { invalidateFinanceQueries } from '../../services/queryKeys';
+import { useConfirm } from '../../context/ConfirmContext';
 
 
 /** Resumo enxuto para o rodape do lote, sem trafegar o objeto a cada tecla. */
@@ -72,6 +77,8 @@ interface IncomeFormProps {
   onRemover?: () => void;
   /** Cabecalho discreto ("Receita 1"). Ausente no formulario do topo. */
   titulo?: string;
+  /** Container rolavel do modal, para o seletor de classificacao se posicionar. */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -88,14 +95,14 @@ const schema = z.object({
   valor:           z.coerce.number().positive('Valor deve ser maior que zero'),
   data:            z.string().min(10, 'Informe a data'),
   cliente:         z.string().optional(),
-  tipoReceita:     z.string().optional(),
+  classificacaoId: z.number().nullable().optional(),
   representanteId: z.coerce.number().nullable().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
 export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function IncomeForm({
   valoresIniciais, income, month, year, presetDate, contaId, isEmpresa, isNew,
-  open, autoFocus, guideEnabled, onResumoChange, onRemover, titulo,
+  open, autoFocus, guideEnabled, onResumoChange, onRemover, titulo, scrollContainerRef,
 }, ref) {
   const qc = useQueryClient();
   const defaultDate = presetDate ?? `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
@@ -105,7 +112,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   // Refs em vez de id fixo: com N formularios do lote abertos, um id
   // repetido faria getElementById pegar o input do primeiro deles.
   const novoClienteRef = useRef<HTMLInputElement | null>(null);
-  const novoTipoRef = useRef<HTMLInputElement | null>(null);
+  const novaClassificacaoRef = useRef<HTMLInputElement | null>(null);
   const [anexos, setAnexos] = useState<Attachment[]>([]);
   const [replicar, setReplicar] = useState(false);
   const [replicarMes, setReplicarMes] = useState(month);
@@ -122,9 +129,9 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   const [clienteTocado, setClienteTocado] = useState(false);
   const [representanteTocado, setRepresentanteTocado] = useState(false);
 
-  const [showTipoForm, setShowTipoForm] = useState<string | null>(null);
+  const [showClassificacaoForm, setShowClassificacaoForm] = useState<string | null>(null);
   const [showClienteForm, setShowClienteForm] = useState<string | null>(null);
-  const [tipoSugestao, setTipoSugestao] = useState<{ nome: string } | null>(null);
+  const [classificacaoSugestao, setClassificacaoSugestao] = useState<ClassificacaoReceita | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<{ income: Income } | null>(null);
 
   const repsQ = useQuery({
@@ -155,8 +162,59 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     (p) => p.ativo && (p.contaId === null || p.contaId === contaId),
   );
 
-  const typesQ = useQuery({ queryKey: queryKeys.incomeTypes, queryFn: fetchIncomeTypes, staleTime: 60_000 });
-  const tiposReceita = (typesQ.data ?? []).filter((t) => t.ativo);
+  // Previstas do mes (so no formulario do topo de uma receita nova): anotacao
+  // informativa para nao lancar de novo o que o automatico ou um contrato ja
+  // lancaram. Mesma chave das telas de lancamentos, entao vem do cache.
+  const anotarPrevistas = isNew && !titulo;
+  const mesQ = useQuery({
+    queryKey: queryKeys.dashboard(month, year),
+    queryFn: () => fetchFinanceDashboard(month, year),
+    enabled: open && anotarPrevistas,
+    staleTime: 60_000,
+  });
+  const previstasDoMes = anotarPrevistas
+    ? (mesQ.data?.incomes ?? []).filter((item) => item.status === 'prevista' || item.status === 'faturada')
+    : [];
+  const confirm = useConfirm();
+  const receberMut = useMutation({
+    mutationFn: receberReceita,
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
+    },
+  });
+  const confirmarPrevista = async (item: Income) => {
+    const ok = await confirm({
+      title: 'Confirmar recebimento',
+      message: `Confirmar recebimento de "${item.descricao}"?`,
+      confirmLabel: 'Confirmar',
+      variant: 'default',
+    });
+    if (ok) receberMut.mutate(item.id);
+  };
+
+  // Catalogo da conta do lancamento (padrao do tipo dela + criadas nela).
+  const classificacoesQ = useQuery({
+    queryKey: queryKeys.classificacoesReceita(contaId),
+    queryFn: () => fetchClassificacoesReceita(contaId),
+    enabled: open,
+    staleTime: 60_000,
+  });
+  const classificacoes = classificacoesQ.data ?? [];
+
+  // Classificação fixa escolhida pelo usuário preenche o valor (se vazio) e o
+  // dia configurado, no mês da data do lançamento. Data travada pelo
+  // calendário (presetDate) fica como está.
+  const aplicarClassificacaoFixa = (id: number | undefined) => {
+    const fixa = classificacoes.find((c) => c.id === id)?.fixa;
+    if (!fixa) return;
+    if (!form.getValues('valor')) form.setValue('valor', fixa.valor);
+    if (isNew && presetDate) return;
+    const [ano, mes] = (form.getValues('data') || defaultDate).split('-').map(Number);
+    const ultimoDia = new Date(ano!, mes!, 0).getDate();
+    const dia = Math.min(fixa.dia_recebimento, ultimoDia);
+    form.setValue('data', `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`);
+  };
 
   const clientesQ = useQuery({
     queryKey: queryKeys.clientes,
@@ -178,12 +236,12 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     layer: GUIDE_LAYER_MODAL,
   });
 
-  const criarTipoMut = useMutation({
-    mutationFn: (nome: string) => saveIncomeType(nome),
-    onSuccess: (tipo) => {
-      qc.invalidateQueries({ queryKey: queryKeys.incomeTypes });
-      form.setValue('tipoReceita', tipo.nome);
-      setShowTipoForm(null);
+  const criarClassificacaoMut = useMutation({
+    mutationFn: (nome: string) => saveClassificacaoReceita({ nome }, undefined, contaId),
+    onSuccess: (classificacao) => {
+      qc.invalidateQueries({ queryKey: ['classificacoes-receita'] });
+      form.setValue('classificacaoId', classificacao.id);
+      setShowClassificacaoForm(null);
     },
   });
 
@@ -201,7 +259,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       descricao: '', valor: '' as unknown as number, data: defaultDate,
-      cliente: '', tipoReceita: '', representanteId: null,
+      cliente: '', classificacaoId: null, representanteId: null,
     },
   });
 
@@ -256,8 +314,8 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       setHorasFaturar(false); setContratoId(null); setTipoHora(null); setQuantidadeHoras('');
       setProdutoId(null); setQuantidadeVendida('');
       setClienteTocado(false); setRepresentanteTocado(false);
-      setShowTipoForm(null); setShowClienteForm(null);
-      setTipoSugestao(null); setDuplicataInfo(null);
+      setShowClassificacaoForm(null); setShowClienteForm(null);
+      setClassificacaoSugestao(null); setDuplicataInfo(null);
       return;
     }
 
@@ -269,7 +327,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       valor:           income?.valor ?? valoresIniciais?.valor ?? ('' as unknown as number),
       data:            income?.data ?? valoresIniciais?.data ?? defaultDate,
       cliente:         income?.cliente ?? valoresIniciais?.cliente ?? '',
-      tipoReceita:     income?.tipoReceita ?? valoresIniciais?.tipoReceita ?? '',
+      classificacaoId: income?.classificacaoId ?? valoresIniciais?.classificacaoId ?? null,
       representanteId: income?.representanteId ?? valoresIniciais?.representanteId ?? null,
     });
   }, [income, open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -277,18 +335,20 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   const descricaoWatch          = useWatch({ control: form.control, name: 'descricao' });
   const valorWatch               = useWatch({ control: form.control, name: 'valor' });
   const clienteWatch             = useWatch({ control: form.control, name: 'cliente' });
-  const tipoReceitaWatch         = useWatch({ control: form.control, name: 'tipoReceita' });
+  const classificacaoIdWatch     = useWatch({ control: form.control, name: 'classificacaoId' });
   const representanteIdWatch     = useWatch({ control: form.control, name: 'representanteId' });
 
   const repSelecionado = representanteIdWatch
     ? representantes.find((r) => r.id === Number(representanteIdWatch))
     : null;
-  const comissaoMatch = repSelecionado?.comissoes?.find((c) => c.tipo_receita === tipoReceitaWatch);
+  const comissaoMatch = classificacaoIdWatch
+    ? repSelecionado?.comissoes?.find((c) => c.classificacao_id === classificacaoIdWatch)
+    : undefined;
   const valorComissao =
     comissaoMatch && valorWatch > 0
       ? (valorWatch * Number(comissaoMatch.percentual)) / 100
       : null;
-  const semComissaoConfigurada = !!repSelecionado && !!tipoReceitaWatch && !comissaoMatch;
+  const semComissaoConfigurada = !!repSelecionado && !!classificacaoIdWatch && !comissaoMatch;
 
   // Recentes: histórico local do dashboard já carregado, sem round-trip extra.
   const cachedIncomes = useMemo(() => {
@@ -296,18 +356,19 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     return allCached.flatMap(([, data]) => data?.incomes ?? []);
   }, [qc, month, year]);
 
-  // ── Sugestão de tipo de receita por histórico de descrição parecida (conta PJ apenas) ──
+  // ── Sugestão de classificação por histórico de descrição parecida ──
   useEffect(() => {
-    if (!isEmpresa || (descricaoWatch?.length ?? 0) < 3 || tipoReceitaWatch) {
-      setTipoSugestao(null);
+    if ((descricaoWatch?.length ?? 0) < 3 || classificacaoIdWatch) {
+      setClassificacaoSugestao(null);
       return;
     }
     const timer = setTimeout(() => {
-      const suggestion = suggestIncomeTypeForDescription(descricaoWatch, cachedIncomes, income?.id);
-      setTipoSugestao(suggestion);
+      setClassificacaoSugestao(
+        suggestIncomeClassificationForDescription(descricaoWatch, cachedIncomes, classificacoes, income?.id),
+      );
     }, 250);
     return () => clearTimeout(timer);
-  }, [descricaoWatch, tipoReceitaWatch, cachedIncomes, income?.id]);
+  }, [descricaoWatch, classificacaoIdWatch, cachedIncomes, classificacoes, income?.id]);
 
   // ── Autocomplete de descrição por histórico real (backend) ──
   const [debouncedDescricao, setDebouncedDescricao] = useState('');
@@ -333,7 +394,12 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
     form.setValue('descricao', match.descricao);
     if (!valorWatch) form.setValue('valor', match.valor);
     if (match.cliente && !clienteWatch) { form.setValue('cliente', match.cliente); setClienteTocado(true); }
-    if (match.tipoReceita && !tipoReceitaWatch) form.setValue('tipoReceita', match.tipoReceita);
+    // A receita antiga pode ser de outra conta: so aplica se a classificacao
+    // existe (ativa) no catalogo desta.
+    if (match.classificacaoId && !classificacaoIdWatch
+      && classificacoes.some((c) => c.id === match.classificacaoId && c.ativo)) {
+      form.setValue('classificacaoId', match.classificacaoId);
+    }
     setAcHidden(true);
     setAcIndex(-1);
   };
@@ -370,7 +436,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       valor:             data.valor,
       data:              data.data,
       cliente:           data.cliente,
-      tipoReceita:       data.tipoReceita,
+      classificacaoId:   data.classificacaoId ?? null,
       representanteId:   data.representanteId,
       valorComissao:     valorComissao ?? null,
       anexos,
@@ -405,10 +471,11 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       applySuggestionMatch(acMatches[acIndex]!);
       return;
     }
-    if (e.key === 'Tab' && tipoSugestao && !tipoReceitaWatch) {
+    if (e.key === 'Tab' && classificacaoSugestao && !classificacaoIdWatch) {
       e.preventDefault();
-      form.setValue('tipoReceita', tipoSugestao.nome);
-      setTipoSugestao(null);
+      form.setValue('classificacaoId', classificacaoSugestao.id);
+      aplicarClassificacaoFixa(classificacaoSugestao.id);
+      setClassificacaoSugestao(null);
       return;
     }
   };
@@ -432,7 +499,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       const dataAtual = form.getValues('data');
       form.reset({
         descricao: '', valor: '' as unknown as number, data: dataAtual,
-        cliente: '', tipoReceita: '', representanteId: null,
+        cliente: '', classificacaoId: null, representanteId: null,
       });
       setAnexos([]);
       setProdutoId(null);
@@ -473,42 +540,50 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
         </div>
       )}
 
-          {/* ── Descrição + Anexos ─────────────────────────────────── */}
+          {/* ── Previstas do mês (informativo) ─────────────────────── */}
+          {previstasDoMes.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11.5, color: C.textMuted }}>
+              <span>Já previstas neste mês:</span>
+              {previstasDoMes.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.descricao} · {formatDate(item.data)} · {formatCurrency(item.valor)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => confirmarPrevista(item)}
+                    disabled={receberMut.isPending}
+                    style={{ flex: 'none', border: 'none', background: 'transparent', padding: 0, fontSize: 11.5, fontWeight: 600, color: C.primaryDark, cursor: 'pointer' }}
+                  >
+                    Confirmar recebimento
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Descrição | Classificação + Anexo ──────────────────── */}
           <div>
+            <div
+              className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+              style={{ columnGap: 12, alignItems: 'start' }}
+            >
             <div style={{ minWidth: 0, position: 'relative' }}>
               <label style={labelStyle}>
                 <span>Descrição</span><span style={{ color: C.danger }}>*</span>
               </label>
-              {/* Anexar fica ao lado do campo, na mesma altura dele. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  {...form.register('descricao', { onChange: () => setAcHidden(false) })}
-                  ref={(el) => {
-                    form.register('descricao').ref(el);
-                    descricaoInputRef.current = el;
-                  }}
-                  placeholder="Ex: Salário mensal"
-                  // Num item do lote roubaria o foco de quem esta digitando.
-                  autoFocus={autoFocus}
-                  autoComplete="off"
-                  style={fieldInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => attachmentRef.current?.openPicker()}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  style={{
-                    display: 'flex', flex: 'none', height: 32, width: 32,
-                    alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 10, border: `1px solid ${C.borderInput}`,
-                    background: '#fff', cursor: 'pointer',
-                    color: anexos.length > 0 ? C.primary : C.textMuted,
-                  }}
-                >
-                  <Paperclip size={14} />
-                </button>
-              </div>
+              <input
+                {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+                ref={(el) => {
+                  form.register('descricao').ref(el);
+                  descricaoInputRef.current = el;
+                }}
+                placeholder="Ex: Salário mensal"
+                // Num item do lote roubaria o foco de quem esta digitando.
+                autoFocus={autoFocus}
+                autoComplete="off"
+                style={fieldInputStyle}
+              />
               {acOpen && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
@@ -539,18 +614,98 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                   </div>
                 </>
               )}
-              {tipoSugestao && !tipoReceitaWatch && (
+              {classificacaoSugestao && !classificacaoIdWatch && (
                 <button
                   type="button"
-                  onClick={() => { form.setValue('tipoReceita', tipoSugestao.nome); setTipoSugestao(null); }}
+                  onClick={() => {
+                    form.setValue('classificacaoId', classificacaoSugestao.id);
+                    aplicarClassificacaoFixa(classificacaoSugestao.id);
+                    setClassificacaoSugestao(null);
+                  }}
                   style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
                 >
                   <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
-                    {tipoSugestao.nome}
+                    {classificacaoSugestao.nome}
                   </span>
-                  <span style={{ color: C.textMuted }}>sugerido · Tab aceita</span>
+                  <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
                 </button>
               )}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <label style={labelStyle}>Classificação</label>
+              {/* Anexar fica ao lado da classificação, na mesma altura dela. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Controller
+                    control={form.control}
+                    name="classificacaoId"
+                    render={({ field }) => (
+                      <CategoryFloatingSelect
+                        categories={classificacoes}
+                        value={field.value ?? undefined}
+                        onChange={(id) => {
+                          field.onChange(id ?? null);
+                          if (id) { setClassificacaoSugestao(null); aplicarClassificacaoFixa(id); }
+                        }}
+                        onCreateNew={(nome) => setShowClassificacaoForm(nome)}
+                        scrollContainerRef={scrollContainerRef}
+                        rotulo="classificação"
+                        raizSelecionavel
+                      />
+                    )}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => attachmentRef.current?.openPicker()}
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  style={{
+                    display: 'flex', flex: 'none', height: 32, width: 32,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 10, border: `1px solid ${C.borderInput}`,
+                    background: '#fff', cursor: 'pointer',
+                    color: anexos.length > 0 ? C.primary : C.textMuted,
+                  }}
+                >
+                  <Paperclip size={14} />
+                </button>
+              </div>
+              {showClassificacaoForm !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                  <input
+                    type="text"
+                    defaultValue={showClassificacaoForm}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClassificacaoMut.mutate(v); }
+                      if (e.key === 'Escape') { e.preventDefault(); setShowClassificacaoForm(null); }
+                    }}
+                    ref={novaClassificacaoRef}
+                    placeholder="Nome da classificação"
+                    style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={criarClassificacaoMut.isPending}
+                    onClick={() => {
+                      const v = novaClassificacaoRef.current?.value.trim();
+                      if (v) criarClassificacaoMut.mutate(v);
+                    }}
+                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {criarClassificacaoMut.isPending ? '...' : 'Criar'}
+                  </button>
+                  <button type="button" onClick={() => setShowClassificacaoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {criarClassificacaoMut.error && (
+                <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{criarClassificacaoMut.error.message}</div>
+              )}
+            </div>
             </div>
 
             {/* Anexos ocupam a largura toda. O componente monta sempre — o ref
@@ -598,8 +753,8 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
             </div>
 
             {/* Conta pessoal nao tem cliente. Mesmo criterio dos demais
-                campos de PJ deste modal (tipo de receita, representante,
-                produtos), que ja eram condicionais. */}
+                campos de PJ deste modal (representante, produtos), que ja
+                eram condicionais. */}
             {isEmpresa && (
               <div style={{ marginTop: 2, position: 'relative' }}>
                 <label style={labelStyle}>Cliente / fonte</label>
@@ -662,70 +817,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
             )}
           </div>
 
-          {/* ── Tipo de receita (conta PJ apenas) ────────────────── */}
-          {isEmpresa && (tiposReceita.length > 0 || showTipoForm !== null) && (
-            <>
-            <div style={{ height: 1, background: '#eef2f6' }} />
-            <div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                <label style={labelStyle}>Tipo de receita</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {tiposReceita.map((t) => (
-                    <div
-                      key={t.id}
-                      onClick={() => form.setValue('tipoReceita', tipoReceitaWatch === t.nome ? '' : t.nome)}
-                      style={chipStyle(tipoReceitaWatch === t.nome)}
-                    >
-                      {t.nome}
-                    </div>
-                  ))}
-                  <div
-                    onClick={() => setShowTipoForm('')}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                      height: 42, padding: '0 10px', borderRadius: 10, fontSize: 12.5, fontWeight: 600,
-                      border: `1.5px dashed ${C.chipOffBorder}`, color: C.textMuted, background: '#fff',
-                    }}
-                  >
-                    <span>+</span> novo
-                  </div>
-                </div>
-                {showTipoForm !== null && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
-                    <input
-                      type="text"
-                      defaultValue={showTipoForm}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarTipoMut.mutate(v); }
-                        if (e.key === 'Escape') { e.preventDefault(); setShowTipoForm(null); }
-                      }}
-                      ref={novoTipoRef}
-                      placeholder="Nome do tipo de receita"
-                      style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-                    />
-                    <button
-                      type="button"
-                      disabled={criarTipoMut.isPending}
-                      onClick={() => {
-                        const el = novoTipoRef.current;
-                        const v = el?.value.trim();
-                        if (v) criarTipoMut.mutate(v);
-                      }}
-                      style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                    >
-                      {criarTipoMut.isPending ? '...' : 'Criar'}
-                    </button>
-                    <button type="button" onClick={() => setShowTipoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            </>
-          )}
-
           {/* ── Representante (conta PJ apenas) ──────────────────── */}
           {isEmpresa && representantes.length > 0 && (
             <>
@@ -781,7 +872,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                 {semComissaoConfigurada && (
                   <div style={{ ...panelStyle, background: C.warnBg, borderColor: C.warnBorder }}>
                     <span style={{ fontSize: 12.5, color: C.warn }}>
-                      Nenhuma comissão configurada para este tipo de receita.
+                      Nenhuma comissão configurada para esta classificação.
                     </span>
                   </div>
                 )}

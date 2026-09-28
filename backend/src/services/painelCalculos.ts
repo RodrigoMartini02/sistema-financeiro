@@ -7,6 +7,8 @@
 // `date`), e a comparação entre elas é lexicográfica. Toda aritmética de data
 // usa UTC para não depender do fuso do servidor.
 
+import { dataDoLancamento } from './fixedIncomeSchedule';
+
 export interface Periodo {
   de: string;
   ate: string;
@@ -30,7 +32,7 @@ export interface ReceitaPainel {
   usuarioId: number;
   dataRecebimento: string;
   valor: number;
-  contratoId: number | null;
+  classificacaoId: number | null;
 }
 
 export type Granularidade = 'semana' | 'mes' | 'ano';
@@ -50,7 +52,6 @@ const MESES_COMPROMETIDO = 6;
 const DIAS_PROXIMOS_VENCIMENTOS = 30;
 
 const FORMA_NAO_INFORMADA = 'nao_informada';
-export const FORMA_CREDITO = 'credito';
 
 // ---------------------------------------------------------------------------
 // Datas
@@ -315,21 +316,22 @@ export function resumirPeriodo(despesas: DespesaPainel[], receitas: ReceitaPaine
 export interface PontoSerie extends BaldeSerie {
   receitas: number;
   despesas: number;
-  credito: number;
+  /** Despesas do trecho por forma de pagamento (mesma chave de `agregarFormasPagamento`). */
+  formas: Record<string, number>;
   pago: number;
   juros: number;
   descontos: number;
 }
 
 /**
- * Série dos gráficos do período. `despesas` e `credito` seguem o vencimento
+ * Série dos gráficos do período. `despesas` e `formas` seguem o vencimento
  * (regra do painel); `pago` segue a data em que o pagamento aconteceu — é o
  * que permite comparar o cadastrado com o que de fato foi quitado no trecho.
  * `juros` e `descontos` seguem o vencimento, como o total "No período" do
  * bloco de juros: as barras somam exatamente esse total.
  */
 export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[], janela: JanelaSerie): PontoSerie[] {
-  const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, credito: 0, pago: 0, juros: 0, descontos: 0 }));
+  const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, formas: {}, pago: 0, juros: 0, descontos: 0 }));
   const pontoDe = (iso: string) => pontos.find((ponto) => iso >= ponto.inicio && iso <= ponto.fim);
 
   for (const receita of receitas) {
@@ -341,7 +343,8 @@ export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[]
     const pontoVencimento = pontoDe(despesa.dataVencimento);
     if (pontoVencimento) {
       pontoVencimento.despesas += valorEfetivo(despesa);
-      if (despesa.formaPagamento === FORMA_CREDITO) pontoVencimento.credito += valorEfetivo(despesa);
+      const forma = despesa.formaPagamento || FORMA_NAO_INFORMADA;
+      pontoVencimento.formas[forma] = (pontoVencimento.formas[forma] ?? 0) + valorEfetivo(despesa);
       pontoVencimento.juros += jurosDaDespesa(despesa);
       pontoVencimento.descontos += descontoDaDespesa(despesa);
     }
@@ -501,13 +504,6 @@ export function agregarCategorias(despesas: DespesaPainel[]): Array<{ categoriaI
   return [...porChave.values()].sort((a, b) => b.total - a.total);
 }
 
-export function agregarOrigemReceitas(receitas: ReceitaPainel[]): { contratos: number; avulsas: number } {
-  return {
-    contratos: somar(receitas.filter((receita) => receita.contratoId !== null), (receita) => receita.valor),
-    avulsas: somar(receitas.filter((receita) => receita.contratoId === null), (receita) => receita.valor),
-  };
-}
-
 /**
  * Gasto por categoria com rollup de um nível: o que foi lançado numa
  * subcategoria soma também no pai, que é onde a meta costuma estar.
@@ -522,4 +518,157 @@ export function gastoPorCategoriaComRollup(despesas: DespesaPainel[], paiDe: Map
     if (pai != null) gasto.set(pai, (gasto.get(pai) ?? 0) + valor);
   }
   return gasto;
+}
+
+// ---------------------------------------------------------------------------
+// Receitas: de onde veio o dinheiro
+
+/** Classificação fixa da conta do painel (valor e dia configurados). */
+export interface FixaPainel {
+  classificacaoId: number;
+  valor: number;
+  diaRecebimento: number;
+}
+
+/** Item de catálogo em árvore (classificação de receita ou categoria de despesa). */
+export interface ItemArvorePainel {
+  id: number;
+  nome: string;
+  parentId: number | null;
+}
+
+export interface OcorrenciaFixa {
+  classificacaoId: number;
+  valor: number;
+  data: string;
+}
+
+function meses(de: string, ate: string): string[] {
+  const lista: string[] = [];
+  for (let mes = primeiroDiaDoMes(de); mes <= ate; mes = somarMeses(mes, 1)) lista.push(mes);
+  return lista;
+}
+
+/**
+ * O que as classificações fixas ainda devem trazer no período: uma ocorrência
+ * por mês, no dia configurado, só de hoje em diante. Mês que já tem receita
+ * (recebida ou prevista) daquela classificação não projeta — seja a lançada
+ * pelo automático, seja a lançada à mão —, para não contar duas vezes.
+ */
+export function projetarFixas(fixas: FixaPainel[], lancadas: ReceitaPainel[], periodo: Periodo, hoje: string): OcorrenciaFixa[] {
+  const inicio = periodo.de > hoje ? periodo.de : hoje;
+  if (inicio > periodo.ate) return [];
+
+  const mesesComReceita = new Set(lancadas
+    .filter((receita) => receita.classificacaoId !== null)
+    .map((receita) => `${receita.classificacaoId}|${receita.dataRecebimento.slice(0, 7)}`));
+
+  const ocorrencias: OcorrenciaFixa[] = [];
+  for (const fixa of fixas) {
+    for (const mes of meses(inicio, periodo.ate)) {
+      const data = dataDoLancamento(mes, fixa.diaRecebimento);
+      if (data < inicio || data > periodo.ate) continue;
+      if (mesesComReceita.has(`${fixa.classificacaoId}|${mes.slice(0, 7)}`)) continue;
+      ocorrencias.push({ classificacaoId: fixa.classificacaoId, valor: fixa.valor, data });
+    }
+  }
+  return ocorrencias;
+}
+
+/** Soma por item principal de um catálogo em árvore; subcategorias como detalhe. */
+export interface FatiaPainel {
+  /** null = sem classificação/categoria. */
+  id: number | null;
+  nome: string;
+  valor: number;
+  subcategorias: Array<{ id: number; nome: string; valor: number }>;
+}
+
+/**
+ * Soma pelo item principal: o que foi lançado numa subcategoria entra na raiz e
+ * aparece também como detalhe dela. Item desconhecido (ou nulo) vai para
+ * `rotuloSemRaiz` ("Sem classificação", "Sem categoria").
+ */
+export function agruparPorRaiz(
+  itens: Array<{ id: number | null; valor: number }>,
+  arvore: Map<number, ItemArvorePainel>,
+  rotuloSemRaiz: string,
+): FatiaPainel[] {
+  const raizes = new Map<number | null, FatiaPainel & { subs: Map<number, { id: number; nome: string; valor: number }> }>();
+
+  for (const item of itens) {
+    const atual = item.id !== null ? arvore.get(item.id) : undefined;
+    const pai = atual?.parentId != null ? arvore.get(atual.parentId) : undefined;
+    const raiz = pai ?? atual;
+    const chave = raiz?.id ?? null;
+
+    let fatia = raizes.get(chave);
+    if (!fatia) {
+      fatia = { id: chave, nome: raiz?.nome ?? rotuloSemRaiz, valor: 0, subcategorias: [], subs: new Map() };
+      raizes.set(chave, fatia);
+    }
+    fatia.valor += item.valor;
+
+    if (pai && atual) {
+      const sub = fatia.subs.get(atual.id) ?? { id: atual.id, nome: atual.nome, valor: 0 };
+      sub.valor += item.valor;
+      fatia.subs.set(atual.id, sub);
+    }
+  }
+
+  return [...raizes.values()]
+    .map(({ subs, ...fatia }) => ({ ...fatia, subcategorias: [...subs.values()].sort((a, b) => b.valor - a.valor) }))
+    .sort((a, b) => b.valor - a.valor);
+}
+
+export const SEM_CLASSIFICACAO = 'Sem classificação';
+export const SEM_CATEGORIA = 'Sem categoria';
+
+export interface ReceitasPainelResumo {
+  /** Recebido no período. */
+  porClassificacao: FatiaPainel[];
+  aReceber: { total: number; porClassificacao: FatiaPainel[] };
+  /** Recebido + a receber. */
+  rendaPrevista: number;
+  /** % das despesas do período sobre a renda prevista; null sem renda prevista. */
+  comprometimentoPrevisto: number | null;
+  fixa: number;
+  variavel: number;
+  temFixa: boolean;
+  periodoEncerrado: boolean;
+}
+
+export function resumirReceitasPainel(entrada: {
+  recebidas: ReceitaPainel[];
+  previstas: ReceitaPainel[];
+  projecoes: OcorrenciaFixa[];
+  classificacoes: Map<number, ItemArvorePainel>;
+  /** Classificações configuradas como fixas na conta. */
+  idsFixos: Set<number>;
+  saiu: number;
+  periodo: Periodo;
+  hoje: string;
+}): ReceitasPainelResumo {
+  const { recebidas, previstas, projecoes, classificacoes, idsFixos } = entrada;
+  const aReceber = [
+    ...previstas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor })),
+    ...projecoes.map((ocorrencia) => ({ id: ocorrencia.classificacaoId as number | null, valor: ocorrencia.valor })),
+  ];
+  const entrou = recebidas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor }));
+  const renda = [...entrou, ...aReceber];
+
+  const totalAReceber = somar(aReceber, (item) => item.valor);
+  const rendaPrevista = somar(renda, (item) => item.valor);
+  const fixa = somar(renda.filter((item) => item.id !== null && idsFixos.has(item.id)), (item) => item.valor);
+
+  return {
+    porClassificacao: agruparPorRaiz(entrou, classificacoes, SEM_CLASSIFICACAO),
+    aReceber: { total: totalAReceber, porClassificacao: agruparPorRaiz(aReceber, classificacoes, SEM_CLASSIFICACAO) },
+    rendaPrevista,
+    comprometimentoPrevisto: percentual(entrada.saiu, rendaPrevista),
+    fixa,
+    variavel: rendaPrevista - fixa,
+    temFixa: idsFixos.size > 0,
+    periodoEncerrado: entrada.periodo.ate < entrada.hoje,
+  };
 }

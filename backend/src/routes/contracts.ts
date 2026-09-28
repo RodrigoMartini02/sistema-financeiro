@@ -4,8 +4,53 @@ import { authenticate } from '../middleware/auth';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { accountWhere as accountWhereBase } from '../utils/accountFilter';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import {
+  findCatalogClassification,
+  findDefaultClassificationId,
+  parseClassificationId,
+  resolveIncomeClassificationCatalog,
+} from '../services/incomeClassificationCatalog';
+import {
+  CONTRACT_INCOME_CLASSIFICATION,
+  canChangeContractSetupClassification,
+} from '../services/incomeClassificationDefaults';
 
 const router = Router();
+
+const CLASSIFICATION_NOT_AVAILABLE = 'Classification not available for this account';
+const SETUP_CLASSIFICATION_LOCKED = 'Setup classification cannot change after the setup income was generated';
+
+interface ContractClassifications {
+  mensalidade: number | null;
+  implantacao: number | null;
+}
+
+/**
+ * Classificações das receitas que o contrato gera: as enviadas pelo client,
+ * validadas no catálogo da conta do contrato, ou as padrão Contratos ›
+ * Mensalidade e › Implantação quando não vierem. Null quando alguma enviada não
+ * pertence à conta.
+ */
+async function resolveContractClassifications(
+  requesterId: number,
+  accountId: number | null,
+  values: { mensalidade: unknown; implantacao: unknown },
+): Promise<ContractClassifications | null> {
+  const catalog = await resolveIncomeClassificationCatalog(requesterId, accountId);
+  if (!catalog) return null;
+
+  const resolve = async (value: unknown, defaultName: string): Promise<number | null | false> => {
+    const parsed = parseClassificationId(value);
+    if (parsed === undefined || parsed === null) return findDefaultClassificationId(catalog, defaultName);
+    if (Number.isNaN(parsed)) return false;
+    return (await findCatalogClassification(catalog, parsed)) ? parsed : false;
+  };
+
+  const mensalidade = await resolve(values.mensalidade, CONTRACT_INCOME_CLASSIFICATION.mensalidade);
+  const implantacao = await resolve(values.implantacao, CONTRACT_INCOME_CLASSIFICATION.implantacao);
+  if (mensalidade === false || implantacao === false) return null;
+  return { mensalidade, implantacao };
+}
 
 function accountWhere(accountId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
   return accountWhereBase(accountId, paramIndex, 'ct');
@@ -27,6 +72,7 @@ async function gerarPrevistas(
   startDate: string,
   endDate: string,
   accountId: number | null,
+  classificationId: number | null,
 ): Promise<number> {
   const valorResult = await pool.query(
     `SELECT COALESCE(SUM(valor_mensal), 0) AS total
@@ -64,17 +110,17 @@ async function gerarPrevistas(
   if (monthRows.length === 0) return 0;
 
   const valueGroups = monthRows.map((_, i) => {
-    const b = i * 8;
-    return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, 'prevista', $${b + 7}, $${b + 8})`;
+    const b = i * 9;
+    return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5}, $${b + 6}, 'prevista', $${b + 7}, $${b + 8}, $${b + 9})`;
   });
 
   const params: unknown[] = [];
   for (const row of monthRows) {
-    params.push(userId, `Mensalidade - ${clientName}`, monthlyAmount, row.dueDate, row.monthIndex, row.year, contractId, accountId);
+    params.push(userId, `Mensalidade - ${clientName}`, monthlyAmount, row.dueDate, row.monthIndex, row.year, contractId, accountId, classificationId);
   }
 
   await pool.query(
-    `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id)
+    `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id, classificacao_id)
      VALUES ${valueGroups.join(', ')}`,
     params,
   );
@@ -208,6 +254,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
       valor_mensal,
+      classificacao_mensalidade_id, classificacao_implantacao_id,
     } = req.body as Record<string, unknown>;
 
     if (!vencimento) {
@@ -223,6 +270,16 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       return;
     }
 
+    const classificacoes = await resolveContractClassifications(
+      req.user!.id,
+      conta_id ? parseInt(String(conta_id)) : null,
+      { mensalidade: classificacao_mensalidade_id, implantacao: classificacao_implantacao_id },
+    );
+    if (!classificacoes) {
+      res.status(400).json({ success: false, message: CLASSIFICATION_NOT_AVAILABLE });
+      return;
+    }
+
     const hpIni = parseFloat(String(horas_presenciais_saldo_ini ?? 0)) || 0;
     const hrIni = parseFloat(String(horas_remotas_saldo_ini ?? 0)) || 0;
 
@@ -233,8 +290,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
           representante_id, conta_id, implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
-          valor_mensal)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16,$17,$18,$18,$19) RETURNING *`,
+          valor_mensal, classificacao_mensalidade_id, classificacao_implantacao_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16,$17,$18,$18,$19,$20,$21) RETURNING *`,
       [
         req.user!.id,
         parseInt(String(cliente_id)),
@@ -255,6 +312,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
         parseFloat(String(horas_remotas_valor ?? 0)) || 0,
         hrIni,
         parseFloat(String(valor_mensal ?? 0)) || 0,
+        classificacoes.mensalidade,
+        classificacoes.implantacao,
       ],
     );
     res.status(201).json({ success: true, message: 'Contract created', data: result.rows[0] });
@@ -275,7 +334,43 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       horas_presenciais_valor, horas_presenciais_saldo_ini,
       horas_remotas_valor, horas_remotas_saldo_ini,
       valor_mensal,
+      classificacao_mensalidade_id, classificacao_implantacao_id,
     } = req.body as Record<string, unknown>;
+
+    const atualResult = await pool.query(
+      `SELECT conta_id, classificacao_mensalidade_id, classificacao_implantacao_id
+       FROM contratos WHERE id = $1 AND usuario_id = $2`,
+      [req.params['id'], req.user!.id],
+    );
+    const atual = atualResult.rows[0] as {
+      conta_id: number | null;
+      classificacao_mensalidade_id: number | null;
+      classificacao_implantacao_id: number | null;
+    } | undefined;
+    if (!atual) {
+      res.status(404).json({ success: false, message: 'Contract not found' });
+      return;
+    }
+
+    // Campo ausente no corpo mantém a classificação que o contrato já tinha.
+    const classificacoes = await resolveContractClassifications(req.user!.id, atual.conta_id, {
+      mensalidade: classificacao_mensalidade_id === undefined ? atual.classificacao_mensalidade_id : classificacao_mensalidade_id,
+      implantacao: classificacao_implantacao_id === undefined ? atual.classificacao_implantacao_id : classificacao_implantacao_id,
+    });
+    if (!classificacoes) {
+      res.status(400).json({ success: false, message: CLASSIFICATION_NOT_AVAILABLE });
+      return;
+    }
+    if (classificacoes.implantacao !== atual.classificacao_implantacao_id) {
+      const implantacaoGerada = await pool.query(
+        'SELECT 1 FROM receitas WHERE contrato_id = $1 AND classificacao_id = $2 LIMIT 1',
+        [req.params['id'], atual.classificacao_implantacao_id],
+      );
+      if (!canChangeContractSetupClassification(implantacaoGerada.rows.length > 0, atual.classificacao_implantacao_id, classificacoes.implantacao)) {
+        res.status(400).json({ success: false, message: SETUP_CLASSIFICATION_LOCKED });
+        return;
+      }
+    }
 
     const hpIni = parseFloat(String(horas_presenciais_saldo_ini ?? 0)) || 0;
     const hrIni = parseFloat(String(horas_remotas_saldo_ini ?? 0)) || 0;
@@ -296,7 +391,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
              WHEN horas_remotas_saldo_atual = 0 OR horas_remotas_saldo_atual IS NULL THEN $15
              ELSE horas_remotas_saldo_atual
            END,
-           valor_mensal = $16
+           valor_mensal = $16,
+           classificacao_mensalidade_id = $19, classificacao_implantacao_id = $20
        WHERE id = $17 AND usuario_id = $18 RETURNING *`,
       [
         numero ?? null,                                               // $1
@@ -317,6 +413,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         parseFloat(String(valor_mensal ?? 0)) || 0,                  // $16
         req.params['id'],                                             // $17
         req.user!.id,                                                 // $18
+        classificacoes.mensalidade,                                   // $19
+        classificacoes.implantacao,                                   // $20
       ],
     );
     if (result.rows.length === 0) {
@@ -353,6 +451,7 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
       data_inicio_faturamento: string | null;
       cliente_nome: string;
       conta_id: number | null;
+      classificacao_mensalidade_id: number | null;
     };
 
     if (!contract.data_inicio_faturamento) {
@@ -370,6 +469,7 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
       contract.data_inicio_faturamento,
       contract.vencimento,
       contract.conta_id,
+      contract.classificacao_mensalidade_id,
     );
 
     res.json({ success: true, message: `${count} predicted revenues generated`, data: { count } });
@@ -454,8 +554,8 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
           implantacao_parcelas, implantacao_valor_parcela,
           horas_presenciais_valor, horas_presenciais_saldo_ini, horas_presenciais_saldo_atual,
           horas_remotas_valor, horas_remotas_saldo_ini, horas_remotas_saldo_atual,
-          valor_mensal)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18) RETURNING *`,
+          valor_mensal, classificacao_mensalidade_id, classificacao_implantacao_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18, $19, $20) RETURNING *`,
       [
         req.user!.id,                                                                              // $1
         currentContract['cliente_id'],                                                             // $2
@@ -475,6 +575,8 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         parseFloat(String(currentContract['horas_remotas_valor'] ?? 0)) || 0,                    // $16
         hrIni,                                                                                     // $17 (saldo_ini + saldo_atual via duplicate param)
         parseFloat(String(currentContract['valor_mensal'] ?? 0)) || 0,                           // $18
+        currentContract['classificacao_mensalidade_id'] ?? null,                                  // $19
+        currentContract['classificacao_implantacao_id'] ?? null,                                  // $20
       ],
     );
 
@@ -506,6 +608,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
         String(nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento']),
         String(novo_vencimento),
         currentContract['conta_id'] as number | null,
+        (currentContract['classificacao_mensalidade_id'] as number | null) ?? null,
       );
     }
 
@@ -548,6 +651,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
       valor_mensal: string | number;
       cliente_nome: string;
       conta_id: number | null;
+      classificacao_mensalidade_id: number | null;
     };
 
     // Check if a receita already exists for this contract + month
@@ -596,8 +700,8 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
 
       const inserted = await pool.query(
         `INSERT INTO receitas
-           (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id)
-         VALUES ($1, $2, $3, $4, $5, $6, 'faturada', $7, $8)
+           (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, conta_id, classificacao_id)
+         VALUES ($1, $2, $3, $4, $5, $6, 'faturada', $7, $8, $9)
          RETURNING *`,
         [
           req.user!.id,
@@ -608,6 +712,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
           anoNum,
           contratoId,
           contrato.conta_id,
+          contrato.classificacao_mensalidade_id,
         ],
       );
       resultRow = inserted.rows[0] as Record<string, unknown>;
@@ -644,6 +749,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
       data_inicio_faturamento: string | null;
       cliente_nome: string;
       conta_id: number | null;
+      classificacao_implantacao_id: number | null;
     };
 
     const parcelas = ct.implantacao_parcelas ?? 1;
@@ -655,10 +761,27 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
       return;
     }
 
+    // Contrato sem classificação de implantação (a padrão foi excluída, por
+    // exemplo) volta a apontar para a padrão antes de gerar: é por ela que a
+    // duplicata é reconhecida.
+    let classificacaoImplantacao = ct.classificacao_implantacao_id;
+    if (classificacaoImplantacao === null) {
+      const classificacoes = await resolveContractClassifications(req.user!.id, ct.conta_id, { mensalidade: null, implantacao: null });
+      classificacaoImplantacao = classificacoes?.implantacao ?? null;
+      if (classificacaoImplantacao === null) {
+        res.status(400).json({ success: false, message: 'Contract has no setup classification' });
+        return;
+      }
+      await pool.query(
+        'UPDATE contratos SET classificacao_implantacao_id = $1 WHERE id = $2 AND usuario_id = $3',
+        [classificacaoImplantacao, contractId, req.user!.id],
+      );
+    }
+
     // Evitar duplicata
     const existing = await pool.query(
-      `SELECT id FROM receitas WHERE contrato_id = $1 AND tipo_receita = 'Implantação' AND usuario_id = $2 LIMIT 1`,
-      [contractId, req.user!.id],
+      `SELECT id FROM receitas WHERE contrato_id = $1 AND classificacao_id = $2 AND usuario_id = $3 LIMIT 1`,
+      [contractId, classificacaoImplantacao, req.user!.id],
     );
     if (existing.rows.length > 0) {
       res.json({ success: true, message: 'Receita de implantação já existe', data: existing.rows[0] });
@@ -670,8 +793,8 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
     const mes = parseInt(mesStr!) - 1;
 
     const result = await pool.query(
-      `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, tipo_receita, conta_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, 'Implantação', $8)
+      `INSERT INTO receitas (usuario_id, descricao, valor, data_recebimento, mes, ano, status, contrato_id, classificacao_id, conta_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, $8, $9)
        RETURNING *`,
       [
         req.user!.id,
@@ -681,6 +804,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
         mes,
         parseInt(String(ano)),
         contractId,
+        classificacaoImplantacao,
         ct.conta_id,
       ],
     );

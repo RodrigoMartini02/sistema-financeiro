@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
-import type { Categoria } from '../types/config';
+import type { OpcaoCatalogo } from '../types/config';
 import { groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
 import { C as sharedC } from './dialogFormTokens';
 
@@ -18,18 +18,27 @@ const C = {
   placeholder: sharedC.placeholder,
 };
 
-interface Props {
-  categories: Categoria[];
+interface Props<T extends OpcaoCatalogo> {
+  categories: T[];
   value?: number;
   onChange: (id: number | undefined) => void;
   onCreateNew: (nome: string) => void;
   featuredIds?: number[];
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  /** Nome do item nos textos do campo ("categoria", "classificação"). */
+  rotulo?: string;
+  /**
+   * Raiz com subcategoria também é selecionável (receitas: "Salário" e, dentro
+   * dele, "13º"). Nas despesas a raiz com sub é só cabeçalho do grupo.
+   */
+  raizSelecionavel?: boolean;
 }
 
 interface MenuRect { top: number; left: number; width: number; }
 
-export function CategoryFloatingSelect({ categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef }: Props) {
+export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
+  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef, rotulo = 'categoria', raizSelecionavel = false,
+}: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [rect, setRect] = useState<MenuRect | null>(null);
@@ -43,7 +52,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
   const groups = groupSelectableCategories(categories)
     .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) }))
     .sort((a, b) => (a.parent?.nome ?? a.items[0].nome).localeCompare(b.parent?.nome ?? b.items[0].nome, 'pt-BR'));
-  const selectable = groups.flatMap((group) => group.items);
+  const selectable = groups.flatMap((group) => (raizSelecionavel && group.parent ? [group.parent, ...group.items] : group.items));
   const selected = selectable.find((c) => c.id === value);
 
   const openMenu = () => {
@@ -85,7 +94,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
   }, [open, scrollContainerRef]);
 
   const normalizedQuery = normalizeCategoryText(query);
-  const featured = featuredIds.map((id) => selectable.find((c) => c.id === id)).filter((c): c is Categoria => Boolean(c));
+  const featured = featuredIds.map((id) => selectable.find((c) => c.id === id)).filter((c): c is T => Boolean(c));
 
   // Buscar pelo nome do pai também deve trazer as subs dele — senão digitar
   // "Alimentação" (que não é mais selecionável sozinha) não encontraria nada.
@@ -126,7 +135,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
             {selected.nome}
           </span>
         ) : (
-          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar categoria</span>
+          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar {rotulo}</span>
         )}
         <ChevronDown size={13} style={{ flexShrink: 0, color: '#8ba3b0' }} />
       </button>
@@ -149,7 +158,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar categoria..."
+                placeholder={`Buscar ${rotulo}...`}
                 style={{
                   flex: 1, height: 38, borderRadius: 9, border: `1.5px solid ${C.border}`,
                   background: '#fff', padding: '0 11px', fontSize: '13.5px', color: C.text, outline: 'none',
@@ -159,7 +168,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
                 <button
                   type="button"
                   onClick={() => pick(selected.id)}
-                  title="Remover categoria"
+                  title={`Remover ${rotulo}`}
                   style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
                 >
                   <X size={14} />
@@ -190,11 +199,24 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
               )}
               {groupsFiltered.map((group) => (
                 <div key={group.parent?.id ?? group.items[0].id}>
-                  {group.parent && (
+                  {group.parent && (raizSelecionavel ? (
+                    <div
+                      onClick={() => pick(group.parent!.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px',
+                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
+                        fontWeight: value === group.parent.id ? 700 : 600,
+                        color: value === group.parent.id ? C.primaryDark : C.text,
+                        background: value === group.parent.id ? C.primarySoft : 'transparent',
+                      }}
+                    >
+                      {group.parent.nome}
+                    </div>
+                  ) : (
                     <p style={{ margin: '6px 0 2px 9px', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.text }}>
                       {group.parent.nome}
                     </p>
-                  )}
+                  ))}
                   {group.items.map((category) => (
                     <div
                       key={category.id}
@@ -213,7 +235,7 @@ export function CategoryFloatingSelect({ categories, value, onChange, onCreateNe
                 </div>
               ))}
               {groupsFiltered.length === 0 && !showCreateOption && (
-                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
+                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma {rotulo} encontrada</p>
               )}
               {showCreateOption && (
                 <div

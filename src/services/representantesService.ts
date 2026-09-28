@@ -3,7 +3,9 @@ import { apiRequest, getActiveAccountId } from './apiClient';
 export type CommissionTipo = 'mensal' | 'unica';
 
 export interface Comissao {
-  tipo_receita: string;
+  classificacao_id: number | null;
+  /** Vem do servidor; ausente nas linhas novas do formulário. */
+  classificacao_nome?: string | null;
   percentual: number;
   tipo?: CommissionTipo;
 }

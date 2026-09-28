@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accounts, expenses, incomes } from '../db/schema';
 import { ensureDefaultCategories } from './defaultCategories';
+import { ensureDefaultIncomeClassifications } from './incomeClassificationCatalog';
 import { isActiveFamilyMember } from '../utils/familyVisibility';
 
 export interface AccountBackfillResult {
@@ -38,6 +39,7 @@ export async function ensureUserHasAccount(userId: number): Promise<AccountBackf
     const accountId = created!.id;
 
     await ensureDefaultCategories(userId, 'pessoal', transaction);
+    await ensureDefaultIncomeClassifications(userId, 'pessoal', transaction);
 
     const [r1, r2] = await Promise.all([
       transaction.update(incomes).set({ accountId }).where(and(eq(incomes.userId, userId), isNull(incomes.accountId))),

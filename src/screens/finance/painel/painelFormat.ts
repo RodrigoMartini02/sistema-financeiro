@@ -1,4 +1,6 @@
-import { MONTH_NAMES, type PainelGranularidade } from '../../../types/finance';
+import { MONTH_NAMES, type PainelFatia, type PainelGranularidade } from '../../../types/finance';
+import type { FatiaPizza } from './graficos/Pizza';
+import { formatCurrency } from '../formatters';
 
 const ROTULO_FORMA: Record<string, string> = {
   credito: 'Crédito',
@@ -9,8 +11,6 @@ const ROTULO_FORMA: Record<string, string> = {
   transferencia: 'Transferência',
   nao_informada: 'Não informada',
 };
-
-export const FORMA_CREDITO = 'credito';
 
 export function rotuloForma(forma: string): string {
   return ROTULO_FORMA[forma] ?? forma.charAt(0).toUpperCase() + forma.slice(1).replace(/_/g, ' ');
@@ -48,3 +48,48 @@ export function contas(quantidade: number): string {
   if (quantidade === 0) return 'nenhuma conta';
   return `${quantidade} conta${quantidade === 1 ? '' : 's'}`;
 }
+
+// Faixas do comprometimento da renda (barra e guia de primeiro acesso): até
+// 70% saudável, até 90% em alerta, acima disso crítico.
+export const FAIXAS_COMPROMETIMENTO: [number, number] = [70, 90];
+
+export interface SituacaoComprometimento {
+  tom: 'income' | 'warning' | 'expense';
+  rotulo: string;
+  classe: string;
+}
+
+export function situacaoComprometimento(percentual: number | null): SituacaoComprometimento {
+  const [alerta, critico] = FAIXAS_COMPROMETIMENTO;
+  if (percentual === null || percentual <= alerta) {
+    return { tom: 'income', rotulo: 'saudável', classe: 'text-emerald-600 dark:text-emerald-400' };
+  }
+  if (percentual <= critico) {
+    return { tom: 'warning', rotulo: 'atenção', classe: 'text-amber-600 dark:text-amber-400' };
+  }
+  return { tom: 'expense', rotulo: 'crítico', classe: 'text-rose-600 dark:text-rose-400' };
+}
+
+/** "+ R$ 10,00" / "− R$ 10,00". */
+export function formatarComSinal(valor: number): string {
+  return `${valor >= 0 ? '+' : '−'} ${formatCurrency(Math.abs(valor))}`;
+}
+
+/** Trecho da série que começa depois de hoje: ainda vai vencer. */
+export function trechoFuturo(inicio: string, hoje: Date = new Date()): boolean {
+  const pad = (numero: number) => String(numero).padStart(2, '0');
+  return inicio > `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}-${pad(hoje.getDate())}`;
+}
+
+/** Fatia pela classificação/categoria principal; as subcategorias vão para o detalhe. */
+export function paraFatias(fatias: PainelFatia[]): FatiaPizza[] {
+  return fatias.map((fatia) => ({
+    nome: fatia.nome,
+    valor: fatia.valor,
+    detalhes: fatia.subcategorias.map((sub) => [sub.nome, formatCurrency(sub.valor)]),
+  }));
+}
+
+/** Menor diâmetro das pizzas; acima dele, o disco ocupa o espaço livre do card. */
+export const TAMANHO_PIZZA_GRANDE = 240;
+export const TAMANHO_PIZZA_MENOR = 170;

@@ -3,21 +3,12 @@ import type { Income } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
 
-const TIPO_COLORS: Record<string, string> = {
-  salario:       'bg-green-100 text-green-700',
-  freelance:     'bg-blue-100 text-blue-700',
-  investimento:  'bg-purple-100 text-purple-700',
-  aluguel:       'bg-amber-100 text-amber-700',
-  comissao:      'bg-orange-100 text-orange-700',
-  outros:        'bg-slate-100 text-slate-600',
-};
-
-export function tipoBadge(tipo?: string | null) {
-  if (!tipo) return null;
-  const cls = TIPO_COLORS[tipo.toLowerCase()] ?? 'bg-slate-100 text-slate-600';
+/** Selo com o nome da classificação da receita; nada quando ela não tem. */
+export function classificacaoBadge(nome?: string | null) {
+  if (!nome) return null;
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${cls}`}>
-      {tipo}
+    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+      {nome}
     </span>
   );
 }
@@ -83,7 +74,7 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
               <AlertCircle size={9} /> Em atraso
             </span>
           )}
-          {tipoBadge(item.tipoReceita)}
+          {classificacaoBadge(item.classificacaoNome)}
           {isEmpresa && item.valorComissao && item.valorComissao > 0 && (
             <span className="text-[11px] font-semibold text-amber-600">comissão {formatCurrency(item.valorComissao)}</span>
           )}

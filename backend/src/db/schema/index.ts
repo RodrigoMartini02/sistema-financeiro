@@ -3,6 +3,7 @@ export * from './accounts';
 export * from './accountMembers';
 export * from './memberPermissions';
 export * from './categories';
+export * from './incomeClassifications';
 export * from './cards';
 export * from './incomes';
 export * from './expenses';

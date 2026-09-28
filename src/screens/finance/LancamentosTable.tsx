@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Paperclip, Ban, CircleCheck, ArrowRight, ChevronDown, CheckSquare, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/financeService';
+import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import type { Expense, ExpenseFormValues, Income, IncomeFormValues, Attachment } from '../../types/finance';
@@ -20,7 +20,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from '../despesas/ExpenseCard';
-import { IncomeCard, tipoBadge } from '../receitas/IncomeCard';
+import { IncomeCard, classificacaoBadge } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
 
 export type TipoLancamento = 'receita' | 'despesa';
@@ -254,7 +254,7 @@ export function LancamentosTable({
   });
 
   const receberReceitaMut = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
+    mutationFn: receberReceita,
     onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 
@@ -896,8 +896,8 @@ function IncomeRow({
         <p className="truncate text-xs text-slate-600 dark:text-slate-300">{item.descricao}</p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
-      {/* Categoria — não se aplica a receita */}
-      <td className={TD_CLASS}>{DASH}</td>
+      {/* Categoria — na receita, a classificação dela */}
+      <td className={TD_CLASS}>{classificacaoBadge(item.classificacaoNome) ?? DASH}</td>
       {/* Pagamento — mostra cliente/representante quando é conta empresa, senão traço */}
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {isEmpresa && (item.representanteNome || item.cliente) ? (item.representanteNome ?? item.cliente) : DASH}
@@ -905,8 +905,8 @@ function IncomeRow({
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.autorNome)}
       </td>
-      {/* Tipo — usa o tipo de receita como equivalente informativo */}
-      <td className={TD_CLASS}>{tipoBadge(item.tipoReceita) ?? DASH}</td>
+      {/* Tipo — não se aplica a receita */}
+      <td className={TD_CLASS}>{DASH}</td>
       {/* Data compra — não se aplica a receita */}
       <td className={TD_CLASS}>{DASH}</td>
       {/* Vencimento não existe em receita — usa a data de recebimento como equivalente */}

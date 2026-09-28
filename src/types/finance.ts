@@ -34,7 +34,8 @@ export interface Income {
   contratoId?: number | null;
   observacoes?: string | null;
   cliente?: string | null;
-  tipoReceita?: string | null;
+  classificacaoId?: number | null;
+  classificacaoNome?: string | null;
   representanteId?: number | null;
   representanteNome?: string | null;
   valorComissao?: number | null;
@@ -48,7 +49,7 @@ export interface IncomeFormValues {
   /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
   contaId?: number | null;
   cliente?: string;
-  tipoReceita?: string;
+  classificacaoId?: number | null;
   observacoes?: string;
   representanteId?: number | null;
   valorComissao?: number | null;
@@ -150,7 +151,8 @@ export interface PainelPontoSerie {
   fim: string;
   receitas: number;
   despesas: number;
-  credito: number;
+  /** Despesas do trecho por forma de pagamento (mesma chave de `formasPagamento`). */
+  formas: Record<string, number>;
   pago: number;
   /** Juros e descontos das despesas que vencem no trecho. */
   juros: number;
@@ -164,6 +166,14 @@ export interface PainelCategoria {
   usuarioId: number;
   autorNome: string | null;
   total: number;
+}
+
+/** Soma pelo item principal (classificação ou categoria); subcategorias como detalhe. id null = sem classificação/categoria. */
+export interface PainelFatia {
+  id: number | null;
+  nome: string;
+  valor: number;
+  subcategorias: { id: number; nome: string; valor: number }[];
 }
 
 export interface PainelData {
@@ -197,8 +207,20 @@ export interface PainelData {
   porPessoa: { usuarioId: number; nome: string; receitas: number; despesas: number }[];
   jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
   categorias: PainelCategoria[];
+  /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
+  receitas: {
+    porClassificacao: PainelFatia[];
+    aReceber: { total: number; porClassificacao: PainelFatia[] };
+    rendaPrevista: number;
+    comprometimentoPrevisto: number | null;
+    fixa: number;
+    variavel: number;
+    temFixa: boolean;
+    periodoEncerrado: boolean;
+  };
+  /** Para onde foi: despesas do período pela categoria principal. */
+  despesasPorCategoria: PainelFatia[];
   empresa: {
-    receitasPorOrigem: { contratos: number; avulsas: number };
     estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
   } | null;
 }

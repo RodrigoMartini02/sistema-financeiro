@@ -8,7 +8,7 @@ import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import type { Income, IncomeFormValues } from '../../types/finance';
-import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
+import { getContratosFaturamento, faturarContrato, receberReceita as confirmarRecebimento, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
@@ -23,7 +23,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import type { Attachment } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
-import { IncomeCard, tipoBadge } from './IncomeCard';
+import { IncomeCard, classificacaoBadge } from './IncomeCard';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -93,7 +93,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   });
 
   const receberReceita = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
+    mutationFn: confirmarRecebimento,
     onSuccess: () => {
       invalidateFinanceQueries(qc, month, year);
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
@@ -147,7 +147,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   });
 
   const receberContratoMut = useMutation({
-    mutationFn: (receitaId: number) => apiRequest<void>(`/receitas/${receitaId}/receber`, { method: 'PUT' }),
+    mutationFn: confirmarRecebimento,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
       invalidateFinanceQueries(qc, month, year);
@@ -331,7 +331,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     {isEmpresa && (
                       <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
                     )}
-                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Tipo</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Classificação</th>
                     <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Usuário</th>
                     {isEmpresa && (
                       <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>
@@ -387,7 +387,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                         </td>
                       )}
                       <td className="px-4 py-1.5">
-                        {tipoBadge(item.tipoReceita) ?? <span className="text-slate-300 text-xs">—</span>}
+                        {classificacaoBadge(item.classificacaoNome) ?? <span className="text-slate-300 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-1.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                         {item.autorNome ?? '—'}
