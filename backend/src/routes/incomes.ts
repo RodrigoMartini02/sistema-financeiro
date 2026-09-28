@@ -41,9 +41,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
-      `SELECT r.*, cr.nome AS classificacao_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
+      `SELECT r.*, cr.nome AS classificacao_nome, crp.nome AS classificacao_pai_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
        FROM receitas r
        LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
+       LEFT JOIN classificacoes_receita crp ON crp.id = cr.parent_id
        LEFT JOIN representantes rep ON rep.id = r.representante_id
        LEFT JOIN usuarios u ON u.id = r.usuario_id
        LEFT JOIN contas ct ON ct.usuario_id = u.id AND ct.eh_padrao = true

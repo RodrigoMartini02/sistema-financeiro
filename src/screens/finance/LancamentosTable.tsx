@@ -20,7 +20,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
 import { ExpenseCard } from '../despesas/ExpenseCard';
-import { IncomeCard, classificacaoBadge } from '../receitas/IncomeCard';
+import { IncomeCard, categoriaReceita } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
 
 export type TipoLancamento = 'receita' | 'despesa';
@@ -597,15 +597,15 @@ export function LancamentosTable({
               <div className="hidden min-h-0 flex-1 overflow-auto md:block">
                 <table className="w-full text-sm table-fixed">
                   <colgroup>
-                    <col style={{ width: '34px' }} />
-                    <col style={{ width: '190px' }} />
+                    <col style={{ width: '28px' }} />
+                    <col style={{ width: '150px' }} />
                     <col style={{ width: '116px' }} />
                     <col style={{ width: '104px' }} />
                     <col style={{ width: '80px' }} />
-                    <col style={{ width: '72px' }} />
+                    <col style={{ width: '58px' }} />
                     <col style={{ width: '86px' }} />
                     <col style={{ width: '86px' }} />
-                    <col style={{ width: '110px' }} />
+                    <col style={{ width: '92px' }} />
                     <col style={{ width: '74px' }} />
                     <col style={{ width: '104px' }} />
                     {isEmpresa && <col style={{ width: '64px' }} />}
@@ -784,7 +784,7 @@ function ExpenseRow({
         )}
       </td>
       <td className={TD_CLASS}>
-        <p className={['truncate text-xs', item.pago ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'].join(' ')}>
+        <p className={['truncate text-xs', item.pago ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'].join(' ')} title={item.descricao}>
           {item.descricao}
         </p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
@@ -894,20 +894,20 @@ function IncomeRow({
   const isCancelada = item.status === 'cancelada';
 
   return (
+    // Fundo verde leve em toda receita, para separar das despesas; a situação
+    // (prevista, em atraso) fica só na cor do texto do Status.
     <tr className={[
-      'transition-colors',
-      isCancelada ? 'opacity-50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50',
-      isPrevista ? 'border-l-2 border-blue-300 bg-blue-50/30 dark:bg-blue-950/20' : '',
-      isAtrasada ? 'border-l-2 border-red-300 bg-red-50/30 dark:bg-red-950/20' : '',
+      'transition-colors bg-emerald-50/60 dark:bg-emerald-950/20',
+      isCancelada ? 'opacity-50' : 'hover:bg-emerald-100/60 dark:hover:bg-emerald-950/40',
     ].join(' ')}>
       {/* Seleção — pagamento em lote é exclusivo de despesa */}
       <td className="px-2 py-1.5 text-center">{DASH}</td>
       <td className={TD_CLASS}>
-        <p className="truncate text-xs text-slate-600 dark:text-slate-300">{item.descricao}</p>
+        <p className="truncate text-xs text-slate-600 dark:text-slate-300" title={item.descricao}>{item.descricao}</p>
         {item.observacoes && <p className={['truncate', SECONDARY_CLASS].join(' ')}>{item.observacoes}</p>}
       </td>
-      {/* Categoria — na receita, a classificação dela */}
-      <td className={TD_CLASS}>{classificacaoBadge(item.classificacaoNome) ?? DASH}</td>
+      {/* Categoria — mesmo formato da despesa: "Grupo › Categoria" */}
+      <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>{categoriaReceita(item) ?? DASH}</td>
       {/* Pagamento — mostra cliente/representante quando é conta empresa, senão traço */}
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {isEmpresa && (item.representanteNome || item.cliente) ? (item.representanteNome ?? item.cliente) : DASH}
