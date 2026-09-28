@@ -27,7 +27,7 @@ export interface FlowIssue {
  * texto livre e nao e checado.
  */
 const VALORES_ACEITOS: Record<string, string[]> = {
-  paymentMethod: ['pix', 'dinheiro', 'debito', 'credito', 'boleto'],
+  paymentMethod: ['pix', 'dinheiro', 'debito', 'credito'],
   billingType: ['nao', 'parcelas', 'mensal'],
   paid: ['sim', 'nao'],
 };

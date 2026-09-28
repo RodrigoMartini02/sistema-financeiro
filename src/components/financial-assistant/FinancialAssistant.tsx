@@ -1469,7 +1469,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="pix">Pix</option>
-                                <option value="boleto">Boleto</option>
                                 <option value="dinheiro">Dinheiro</option>
                                 <option value="debito">Débito</option>
                                 <option value="credito">Crédito</option>

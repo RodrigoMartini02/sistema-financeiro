@@ -426,3 +426,9 @@ test('inferKind mantem o comportamento de sempre para quem so quer o tipo', () =
   assert.equal(inferKind('recebi 1200 do freela'), 'income');
   assert.equal(inferKind('mercado 50'), 'expense');
 });
+
+test('boleto nao e forma de pagamento: a forma fica em aberto e o boleto segue na descricao', () => {
+  const draft = seedDraftFromMessage('expense', 'paguei 120 no boleto da escola', catalog);
+  assert.equal(draft.amount, 120);
+  assert.equal(draft.paymentMethod, null);
+});

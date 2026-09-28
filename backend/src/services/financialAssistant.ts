@@ -22,7 +22,7 @@ const SUPPORTED_ATTACHMENT_TYPES = new Set([
 ]);
 
 type DraftKind = 'income' | 'expense';
-type PaymentMethod = 'pix' | 'dinheiro' | 'debito' | 'credito' | 'boleto';
+type PaymentMethod = 'pix' | 'dinheiro' | 'debito' | 'credito';
 
 export interface AssistantAttachmentInput {
   nome: string;
@@ -390,7 +390,6 @@ function inferPaymentMethod(text: string, financial?: FinancialInfo | null, pix?
   const lower = text.toLowerCase();
   if (pix || /\b(pics|pixs)\b/.test(lower)) return 'pix';
   if (pix || /\bpix\b/.test(lower)) return 'pix';
-  if (financial?.tipo === 'boleto' || /\bboleto\b/.test(lower)) return 'boleto';
   if (/\b(cr[eé]dito|cart[aã]o de cr[eé]dito)\b/.test(lower)) return 'credito';
   if (/\b(d[eé]bito|cart[aã]o de d[eé]bito)\b/.test(lower)) return 'debito';
   if (/\b(dinheiro|esp[eé]cie)\b/.test(lower)) return 'dinheiro';

@@ -12,7 +12,7 @@ import { getTodayIsoInTimezone } from '../utils/date';
 // cascata e os defaults de fim de fluxo.
 
 export type SlotDraftKind = 'income' | 'expense';
-export type SlotPaymentMethod = 'pix' | 'dinheiro' | 'debito' | 'credito' | 'boleto';
+export type SlotPaymentMethod = 'pix' | 'dinheiro' | 'debito' | 'credito';
 export type SlotBillingType = 'nao' | 'parcelas' | 'mensal';
 
 export type SlotId =
