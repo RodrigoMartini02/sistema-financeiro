@@ -172,7 +172,7 @@ export function FinanceDashboard() {
           {dados.planejado && <Planejado itens={dados.planejado} />}
           <Comprometido meses={dados.contasEmAberto.comprometido} />
           {mostrarPessoas && (
-            <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} termoPlural={termos.plural} />
+            <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} />
           )}
           <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={periodo.ate.slice(0, 4)} />
           <MonthCategoriesOverview

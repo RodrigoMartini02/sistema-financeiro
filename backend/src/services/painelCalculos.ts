@@ -529,7 +529,8 @@ export interface FixaPainel {
   diaRecebimento: number;
 }
 
-export interface ClassificacaoPainel {
+/** Item de catálogo em árvore (classificação de receita ou categoria de despesa). */
+export interface ItemArvorePainel {
   id: number;
   nome: string;
   parentId: number | null;
@@ -573,44 +574,44 @@ export function projetarFixas(fixas: FixaPainel[], lancadas: ReceitaPainel[], pe
   return ocorrencias;
 }
 
-export interface FatiaClassificacao {
-  /** null = "Sem classificação". */
-  classificacaoId: number | null;
+/** Soma por item principal de um catálogo em árvore; subcategorias como detalhe. */
+export interface FatiaPainel {
+  /** null = sem classificação/categoria. */
+  id: number | null;
   nome: string;
   valor: number;
-  subcategorias: Array<{ classificacaoId: number; nome: string; valor: number }>;
+  subcategorias: Array<{ id: number; nome: string; valor: number }>;
 }
 
-const SEM_CLASSIFICACAO = 'Sem classificação';
-
 /**
- * Soma por classificação principal: o que foi lançado numa subcategoria entra
- * na raiz e aparece também como detalhe dela. Classificação desconhecida (ou
- * nula) vai para "Sem classificação".
+ * Soma pelo item principal: o que foi lançado numa subcategoria entra na raiz e
+ * aparece também como detalhe dela. Item desconhecido (ou nulo) vai para
+ * `rotuloSemRaiz` ("Sem classificação", "Sem categoria").
  */
-export function agruparPorClassificacao(
-  itens: Array<{ classificacaoId: number | null; valor: number }>,
-  classificacoes: Map<number, ClassificacaoPainel>,
-): FatiaClassificacao[] {
-  const raizes = new Map<number | null, FatiaClassificacao & { subs: Map<number, { classificacaoId: number; nome: string; valor: number }> }>();
+export function agruparPorRaiz(
+  itens: Array<{ id: number | null; valor: number }>,
+  arvore: Map<number, ItemArvorePainel>,
+  rotuloSemRaiz: string,
+): FatiaPainel[] {
+  const raizes = new Map<number | null, FatiaPainel & { subs: Map<number, { id: number; nome: string; valor: number }> }>();
 
   for (const item of itens) {
-    const classificacao = item.classificacaoId !== null ? classificacoes.get(item.classificacaoId) : undefined;
-    const pai = classificacao?.parentId != null ? classificacoes.get(classificacao.parentId) : undefined;
-    const raiz = pai ?? classificacao;
+    const atual = item.id !== null ? arvore.get(item.id) : undefined;
+    const pai = atual?.parentId != null ? arvore.get(atual.parentId) : undefined;
+    const raiz = pai ?? atual;
     const chave = raiz?.id ?? null;
 
     let fatia = raizes.get(chave);
     if (!fatia) {
-      fatia = { classificacaoId: chave, nome: raiz?.nome ?? SEM_CLASSIFICACAO, valor: 0, subcategorias: [], subs: new Map() };
+      fatia = { id: chave, nome: raiz?.nome ?? rotuloSemRaiz, valor: 0, subcategorias: [], subs: new Map() };
       raizes.set(chave, fatia);
     }
     fatia.valor += item.valor;
 
-    if (pai && classificacao) {
-      const sub = fatia.subs.get(classificacao.id) ?? { classificacaoId: classificacao.id, nome: classificacao.nome, valor: 0 };
+    if (pai && atual) {
+      const sub = fatia.subs.get(atual.id) ?? { id: atual.id, nome: atual.nome, valor: 0 };
       sub.valor += item.valor;
-      fatia.subs.set(classificacao.id, sub);
+      fatia.subs.set(atual.id, sub);
     }
   }
 
@@ -619,18 +620,19 @@ export function agruparPorClassificacao(
     .sort((a, b) => b.valor - a.valor);
 }
 
+export const SEM_CLASSIFICACAO = 'Sem classificação';
+export const SEM_CATEGORIA = 'Sem categoria';
+
 export interface ReceitasPainelResumo {
   /** Recebido no período. */
-  porClassificacao: FatiaClassificacao[];
-  aReceber: { total: number; porClassificacao: FatiaClassificacao[] };
+  porClassificacao: FatiaPainel[];
+  aReceber: { total: number; porClassificacao: FatiaPainel[] };
   /** Recebido + a receber. */
   rendaPrevista: number;
   /** % das despesas do período sobre a renda prevista; null sem renda prevista. */
   comprometimentoPrevisto: number | null;
   fixa: number;
   variavel: number;
-  /** % de despesas fixas + parcelas sobre a renda fixa; null sem renda fixa. */
-  fixasConsomem: number | null;
   temFixa: boolean;
   periodoEncerrado: boolean;
 }
@@ -639,35 +641,32 @@ export function resumirReceitasPainel(entrada: {
   recebidas: ReceitaPainel[];
   previstas: ReceitaPainel[];
   projecoes: OcorrenciaFixa[];
-  classificacoes: Map<number, ClassificacaoPainel>;
+  classificacoes: Map<number, ItemArvorePainel>;
   /** Classificações configuradas como fixas na conta. */
   idsFixos: Set<number>;
   saiu: number;
-  tipoGasto: Record<TipoGasto, number>;
   periodo: Periodo;
   hoje: string;
 }): ReceitasPainelResumo {
   const { recebidas, previstas, projecoes, classificacoes, idsFixos } = entrada;
   const aReceber = [
-    ...previstas.map((receita) => ({ classificacaoId: receita.classificacaoId, valor: receita.valor })),
-    ...projecoes.map((ocorrencia) => ({ classificacaoId: ocorrencia.classificacaoId as number | null, valor: ocorrencia.valor })),
+    ...previstas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor })),
+    ...projecoes.map((ocorrencia) => ({ id: ocorrencia.classificacaoId as number | null, valor: ocorrencia.valor })),
   ];
-  const entrou = recebidas.map((receita) => ({ classificacaoId: receita.classificacaoId, valor: receita.valor }));
+  const entrou = recebidas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor }));
   const renda = [...entrou, ...aReceber];
 
   const totalAReceber = somar(aReceber, (item) => item.valor);
   const rendaPrevista = somar(renda, (item) => item.valor);
-  const ehFixa = (item: { classificacaoId: number | null }) => item.classificacaoId !== null && idsFixos.has(item.classificacaoId);
-  const fixa = somar(renda.filter(ehFixa), (item) => item.valor);
+  const fixa = somar(renda.filter((item) => item.id !== null && idsFixos.has(item.id)), (item) => item.valor);
 
   return {
-    porClassificacao: agruparPorClassificacao(entrou, classificacoes),
-    aReceber: { total: totalAReceber, porClassificacao: agruparPorClassificacao(aReceber, classificacoes) },
+    porClassificacao: agruparPorRaiz(entrou, classificacoes, SEM_CLASSIFICACAO),
+    aReceber: { total: totalAReceber, porClassificacao: agruparPorRaiz(aReceber, classificacoes, SEM_CLASSIFICACAO) },
     rendaPrevista,
     comprometimentoPrevisto: percentual(entrada.saiu, rendaPrevista),
     fixa,
     variavel: rendaPrevista - fixa,
-    fixasConsomem: percentual(entrada.tipoGasto.fixo + entrada.tipoGasto.parcela, fixa),
     temFixa: idsFixos.size > 0,
     periodoEncerrado: entrada.periodo.ate < entrada.hoje,
   };

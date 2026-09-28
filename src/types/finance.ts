@@ -167,12 +167,12 @@ export interface PainelCategoria {
   total: number;
 }
 
-/** Soma por classificação principal; subcategorias como detalhe. null = "Sem classificação". */
-export interface PainelFatiaClassificacao {
-  classificacaoId: number | null;
+/** Soma pelo item principal (classificação ou categoria); subcategorias como detalhe. id null = sem classificação/categoria. */
+export interface PainelFatia {
+  id: number | null;
   nome: string;
   valor: number;
-  subcategorias: { classificacaoId: number; nome: string; valor: number }[];
+  subcategorias: { id: number; nome: string; valor: number }[];
 }
 
 export interface PainelData {
@@ -208,16 +208,17 @@ export interface PainelData {
   categorias: PainelCategoria[];
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: {
-    porClassificacao: PainelFatiaClassificacao[];
-    aReceber: { total: number; porClassificacao: PainelFatiaClassificacao[] };
+    porClassificacao: PainelFatia[];
+    aReceber: { total: number; porClassificacao: PainelFatia[] };
     rendaPrevista: number;
     comprometimentoPrevisto: number | null;
     fixa: number;
     variavel: number;
-    fixasConsomem: number | null;
     temFixa: boolean;
     periodoEncerrado: boolean;
   };
+  /** Para onde foi: despesas do período pela categoria principal. */
+  despesasPorCategoria: PainelFatia[];
   empresa: {
     estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
   } | null;

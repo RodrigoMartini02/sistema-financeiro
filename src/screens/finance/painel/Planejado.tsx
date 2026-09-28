@@ -18,15 +18,10 @@ function Situacao({ proporcao }: { proporcao: number }) {
 }
 
 export function Planejado({ itens }: { itens: NonNullable<PainelData['planejado']> }) {
-  const estouradas = itens.filter((item) => item.meta > 0 && item.gasto > item.meta).length;
-
   return (
     <Secao titulo="Estou dentro do planejado?">
       <CardPainel>
-        <CabecalhoCard
-          titulo="Metas por categoria"
-          detalhe={`${estouradas > 0 ? `${estouradas} acima da meta · ` : ''}meta proporcional ao período`}
-        />
+        <CabecalhoCard titulo="Metas por categoria" />
         {itens.length === 0 ? (
           <Vazio>Nenhuma meta cadastrada. Defina metas no Planejamento.</Vazio>
         ) : (

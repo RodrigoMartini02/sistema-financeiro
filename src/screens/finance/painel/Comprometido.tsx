@@ -1,11 +1,8 @@
 import type { PainelData } from '../../../types/finance';
 import { BarrasSerieChart } from '../charts/BarrasSerieChart';
-import { formatCurrency } from '../formatters';
 import { useCoresGrafico } from './coresGrafico';
-import { CabecalhoCard, CardPainel, Legenda, RodapeCard, Secao, Vazio } from './PainelLayout';
+import { CabecalhoCard, CardPainel, Legenda, Secao, Vazio } from './PainelLayout';
 import { rotuloDoMes } from './painelFormat';
-
-const DESTAQUE = 'font-semibold text-slate-900 dark:text-white';
 
 export function Comprometido({ meses }: { meses: PainelData['contasEmAberto']['comprometido'] }) {
   const cores = useCoresGrafico();
@@ -18,9 +15,9 @@ export function Comprometido({ meses }: { meses: PainelData['contasEmAberto']['c
   const totalOutras = meses.reduce((soma, mes) => soma + mes.outras, 0);
 
   return (
-    <Secao titulo="O que já está comprometido?" detalhe="a partir de hoje">
+    <Secao titulo="O que já está comprometido?">
       <CardPainel>
-        <CabecalhoCard titulo="Contas a vencer nos próximos 6 meses" detalhe="ainda não pagas" />
+        <CabecalhoCard titulo="Contas a vencer nos próximos 6 meses" />
         {totalParcelas + totalOutras === 0 ? (
           <Vazio>Nada lançado para os próximos meses.</Vazio>
         ) : (
@@ -37,10 +34,6 @@ export function Comprometido({ meses }: { meses: PainelData['contasEmAberto']['c
                 { chave: 'outras', rotulo: 'Demais contas', cor: cores.categorias[1]!, tipo: 'barra', pilha: 'comprometido' },
               ]}
             />
-            <RodapeCard>
-              Parcelas <b className={DESTAQUE}>{formatCurrency(totalParcelas)}</b>
-              {' · '}Demais contas já lançadas <b className={DESTAQUE}>{formatCurrency(totalOutras)}</b>
-            </RodapeCard>
           </>
         )}
       </CardPainel>

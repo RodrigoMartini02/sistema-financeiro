@@ -6,7 +6,7 @@ import {
   agregarFormasPagamento,
   agregarJurosDescontos,
   agregarTipoGasto,
-  agruparPorClassificacao,
+  agruparPorRaiz,
   projetarFixas,
   resumirReceitasPainel,
   baldesDaSerie,
@@ -237,17 +237,30 @@ test('agrupamento por classificação principal, com subcategorias e sem classif
     [2, { id: 2, nome: '13º', parentId: 1 }],
     [3, { id: 3, nome: 'Freelance', parentId: null }],
   ]);
-  const fatias = agruparPorClassificacao([
-    { classificacaoId: 1, valor: 4500 },
-    { classificacaoId: 2, valor: 2250 },
-    { classificacaoId: 3, valor: 800 },
-    { classificacaoId: null, valor: 100 },
-  ], classificacoes);
+  const fatias = agruparPorRaiz([
+    { id: 1, valor: 4500 },
+    { id: 2, valor: 2250 },
+    { id: 3, valor: 800 },
+    { id: null, valor: 100 },
+  ], classificacoes, 'Sem classificação');
   assert.deepEqual(fatias, [
-    { classificacaoId: 1, nome: 'Salário', valor: 6750, subcategorias: [{ classificacaoId: 2, nome: '13º', valor: 2250 }] },
-    { classificacaoId: 3, nome: 'Freelance', valor: 800, subcategorias: [] },
-    { classificacaoId: null, nome: 'Sem classificação', valor: 100, subcategorias: [] },
+    { id: 1, nome: 'Salário', valor: 6750, subcategorias: [{ id: 2, nome: '13º', valor: 2250 }] },
+    { id: 3, nome: 'Freelance', valor: 800, subcategorias: [] },
+    { id: null, nome: 'Sem classificação', valor: 100, subcategorias: [] },
   ]);
+});
+
+test('agrupamento de despesas pela categoria principal, com "Sem categoria"', () => {
+  const categorias = new Map([
+    [10, { id: 10, nome: 'Moradia', parentId: null }],
+    [11, { id: 11, nome: 'Aluguel', parentId: 10 }],
+    [12, { id: 12, nome: 'Luz', parentId: 10 }],
+  ]);
+  const fatias = agruparPorRaiz([{ id: 11, valor: 1500 }, { id: 12, valor: 200 }, { id: null, valor: 50 }], categorias, 'Sem categoria');
+  assert.equal(fatias[0]!.nome, 'Moradia');
+  assert.equal(fatias[0]!.valor, 1700);
+  assert.deepEqual(fatias[0]!.subcategorias.map((sub) => sub.nome), ['Aluguel', 'Luz']);
+  assert.equal(fatias[1]!.nome, 'Sem categoria');
 });
 
 test('resumo de receitas: renda prevista, comprometimento e fixa × variável', () => {
@@ -259,7 +272,6 @@ test('resumo de receitas: renda prevista, comprometimento e fixa × variável', 
     classificacoes,
     idsFixos: new Set([1]),
     saiu: 2500,
-    tipoGasto: { fixo: 1500, parcela: 500, livre: 500 },
     periodo: { de: '2026-09-01', ate: '2026-09-30' },
     hoje: '2026-09-27',
   });
@@ -268,18 +280,16 @@ test('resumo de receitas: renda prevista, comprometimento e fixa × variável', 
   assert.equal(resumo.comprometimentoPrevisto, 50);
   assert.equal(resumo.fixa, 4000);
   assert.equal(resumo.variavel, 1000);
-  assert.equal(resumo.fixasConsomem, 50);
   assert.equal(resumo.periodoEncerrado, false);
 });
 
-test('resumo de receitas sem renda nem fixa devolve percentuais nulos', () => {
+test('resumo de receitas sem renda nem fixa devolve comprometimento nulo', () => {
   const resumo = resumirReceitasPainel({
     recebidas: [], previstas: [], projecoes: [], classificacoes: new Map(), idsFixos: new Set(),
-    saiu: 300, tipoGasto: { fixo: 300, parcela: 0, livre: 0 },
+    saiu: 300,
     periodo: { de: '2026-08-01', ate: '2026-08-31' }, hoje: '2026-09-27',
   });
   assert.equal(resumo.comprometimentoPrevisto, null);
-  assert.equal(resumo.fixasConsomem, null);
   assert.equal(resumo.temFixa, false);
   assert.equal(resumo.periodoEncerrado, true);
 });

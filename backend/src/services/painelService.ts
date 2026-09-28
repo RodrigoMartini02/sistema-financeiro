@@ -28,7 +28,10 @@ import {
   receitasDoPeriodo,
   resumirPeriodo,
   resumirReceitasPainel,
-  type ClassificacaoPainel,
+  agruparPorRaiz,
+  SEM_CATEGORIA,
+  type ItemArvorePainel,
+  type FatiaPainel,
   type ContasEmAberto,
   type DespesaPainel,
   type EmDiaAgregado,
@@ -84,6 +87,8 @@ export interface PainelResposta {
   categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; usuarioId: number; autorNome: string | null; total: number }>;
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: ReceitasPainelResumo;
+  /** Para onde foi: despesas do período pela categoria principal. */
+  despesasPorCategoria: FatiaPainel[];
   empresa: {
     estoqueBaixo: Array<{ id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }>;
   } | null;
@@ -248,8 +253,8 @@ async function buscarFixas(entrada: PainelEntrada): Promise<FixaPainel[]> {
 }
 
 /** Nomes das classificações usadas e das raízes delas (para agrupar a sub no pai). */
-async function buscarClassificacoes(ids: number[]): Promise<Map<number, ClassificacaoPainel>> {
-  const porId = new Map<number, ClassificacaoPainel>();
+async function buscarClassificacoes(ids: number[]): Promise<Map<number, ItemArvorePainel>> {
+  const porId = new Map<number, ItemArvorePainel>();
   const buscar = async (lista: number[]) => {
     if (lista.length === 0) return;
     const linhas = await db.select({ id: incomeClassifications.id, nome: incomeClassifications.name, parentId: incomeClassifications.parentId })
@@ -294,13 +299,21 @@ async function buscarNomesPessoas(ids: number[]): Promise<Map<number, string>> {
   return new Map(linhas.map((linha) => [linha.id, `${linha.nome} ${linha.sobrenome ?? ''}`.trim()]));
 }
 
-async function buscarCategorias(ids: number[]): Promise<Map<number, { nome: string; parentId: number | null }>> {
-  if (ids.length === 0) {
-    return new Map();
-  }
-  const linhas = await db.select({ id: categories.id, nome: categories.name, parentId: categories.parentId })
-    .from(categories).where(inArray(categories.id, ids));
-  return new Map(linhas.map((linha) => [linha.id, { nome: linha.nome, parentId: linha.parentId }]));
+/** Categorias usadas e as raízes delas (a pizza agrupa a subcategoria no pai). */
+async function buscarCategorias(ids: number[]): Promise<Map<number, ItemArvorePainel>> {
+  const porId = new Map<number, ItemArvorePainel>();
+  const buscar = async (lista: number[]) => {
+    if (lista.length === 0) return;
+    const linhas = await db.select({ id: categories.id, nome: categories.name, parentId: categories.parentId })
+      .from(categories).where(inArray(categories.id, lista));
+    for (const linha of linhas) porId.set(linha.id, linha);
+  };
+  await buscar(ids);
+  const pais = [...porId.values()]
+    .map((categoria) => categoria.parentId)
+    .filter((id): id is number => id !== null && !porId.has(id));
+  await buscar([...new Set(pais)]);
+  return porId;
 }
 
 async function montarCartoes(entrada: PainelEntrada, despesasPeriodo: DespesaPainel[]): Promise<PainelResposta['cartoes']> {
@@ -502,10 +515,14 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       classificacoes,
       idsFixos: new Set(fixas.map((fixa) => fixa.classificacaoId)),
       saiu: resumoAtual.saiu,
-      tipoGasto,
       periodo,
       hoje,
     }),
+    despesasPorCategoria: agruparPorRaiz(
+      categoriasAgregadas.map((linha) => ({ id: linha.categoriaId, valor: linha.total })),
+      categoriasPorId,
+      SEM_CATEGORIA,
+    ),
     empresa: entrada.tipoConta === 'empresa' ? { estoqueBaixo } : null,
   };
 }
