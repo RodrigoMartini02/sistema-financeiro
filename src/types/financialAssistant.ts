@@ -7,7 +7,7 @@ export interface FinancialAssistantDraft {
   date: string | null;
   dueDate: string | null;
   category: string | null;
-  paymentMethod: 'pix' | 'dinheiro' | 'debito' | 'credito' | 'boleto';
+  paymentMethod: 'pix' | 'dinheiro' | 'debito' | 'credito';
   paid: boolean;
   confidence: 'low' | 'medium' | 'high';
   // Campos do modal de despesa preenchidos pelo fluxo guiado. Opcionais porque

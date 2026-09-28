@@ -114,7 +114,7 @@ function extractAmountBeforePaymentMethod(text: string): number | null {
   // (?![\dx]) impede casar o "1" de "10x": em "3000 em 10x no credito" o
   // numero colado ao x e a parcela, nao o valor da compra.
   const match = text.match(
-    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\dx])\s*(?:reais?)?\s+(?:(?:hoje|ontem|amanh[aã])\s+)?(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro|boleto)\b/i,
+    /(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\dx])\s*(?:reais?)?\s+(?:(?:hoje|ontem|amanh[aã])\s+)?(?:no|na|em|com|via|por)\s+(?:cart[aã]o\s+de\s+)?(?:pix|pics|pixs|cr[ée]dito|d[ée]bito|dinheiro)\b/i,
   );
   if (!match?.[1]) return null;
 
@@ -164,7 +164,6 @@ function matchPaymentMethod(text: string): SlotPaymentMethod | null {
   if (/\bcredito\b|\bcartao de credito\b/.test(text)) return 'credito';
   if (/\bdebito\b|\bcartao de debito\b/.test(text)) return 'debito';
   if (/\bdinheiro\b|\bespecie\b|\bcash\b/.test(text)) return 'dinheiro';
-  if (/\bboleto\b/.test(text)) return 'boleto';
   return null;
 }
 
@@ -377,8 +376,8 @@ function cleanDescription(candidate: string | null): string | null {
   if (!candidate) return null;
 
   const cleaned = candidate
-    .replace(/\b(?:no|na|em|com|via|por)\s+(?:cartao\s+de\s+)?(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro|especie|espécie|boleto)\b/gi, ' ')
-    .replace(/\b(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro|boleto)\b/gi, ' ')
+    .replace(/\b(?:no|na|em|com|via|por)\s+(?:cartao\s+de\s+)?(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro|especie|espécie)\b/gi, ' ')
+    .replace(/\b(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro)\b/gi, ' ')
     .replace(/\b(?:paguei|pagei|gastei|comprei|compras|passei|recebi|ganhei|custou|foi)\b/gi, ' ')
     .replace(/\bR\$\s*[\d.,]+/gi, ' ')
     .replace(/\b\d{1,3}\s*(?:x|vezes|parcelas)\b/gi, ' ')

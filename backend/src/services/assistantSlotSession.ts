@@ -110,7 +110,7 @@ function asIsoDate(value: unknown): string | null {
 }
 
 function asPaymentMethod(value: unknown): SlotDraft['paymentMethod'] {
-  const methods = ['pix', 'dinheiro', 'debito', 'credito', 'boleto'] as const;
+  const methods = ['pix', 'dinheiro', 'debito', 'credito'] as const;
   return methods.includes(value as (typeof methods)[number]) ? value as SlotDraft['paymentMethod'] : null;
 }
 

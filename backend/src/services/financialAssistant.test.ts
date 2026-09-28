@@ -46,3 +46,10 @@ test('does not treat a due date as a financial amount', () => {
   assert.equal(interpretation.amount, null);
   assert.equal(interpretation.description, null);
 });
+
+test('boleto indica despesa, mas nao vira forma de pagamento', () => {
+  const interpretation = interpretFinancialAssistantText('paguei o boleto da escola de 350 reais');
+
+  assert.equal(interpretation.kind, 'expense');
+  assert.notEqual(interpretation.paymentMethod, 'boleto');
+});

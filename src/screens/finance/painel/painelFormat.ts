@@ -7,7 +7,6 @@ const ROTULO_FORMA: Record<string, string> = {
   debito: 'Débito',
   pix: 'Pix',
   dinheiro: 'Dinheiro',
-  boleto: 'Boleto',
   transferencia: 'Transferência',
   nao_informada: 'Não informada',
 };

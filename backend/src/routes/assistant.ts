@@ -45,7 +45,7 @@ function asContext(value: unknown): AssistantDraftContext | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const context = value as Record<string, unknown>;
   const kind = context.kind === 'income' || context.kind === 'expense' ? context.kind : undefined;
-  const paymentMethod = ['pix', 'dinheiro', 'debito', 'credito', 'boleto'].includes(String(context.paymentMethod))
+  const paymentMethod = ['pix', 'dinheiro', 'debito', 'credito'].includes(String(context.paymentMethod))
     ? String(context.paymentMethod) as AssistantDraftContext['paymentMethod']
     : undefined;
 
