@@ -651,7 +651,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                         onCreateNew={(nome) => setShowClassificacaoForm(nome)}
                         scrollContainerRef={scrollContainerRef}
                         rotulo="classificação"
-                        raizSelecionavel
                       />
                     )}
                   />

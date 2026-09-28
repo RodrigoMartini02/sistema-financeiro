@@ -54,20 +54,24 @@ export interface GuiasCatalogo {
  * o catálogo é só nome, como nas categorias.
  */
 export interface ExtensaoCatalogo<T, E> {
-  /** Valor inicial dos campos ao abrir o modal; `item` ausente = item novo. */
-  estadoInicial: (item?: T) => E;
-  campos: (props: { item?: T; valor: E; alterar: (proximo: E) => void }) => ReactNode;
+  /**
+   * Valor inicial dos campos ao abrir o modal; `item` ausente = item novo.
+   * `temSubcategorias`: o item tem subcategorias ativas (é só o nome do grupo).
+   */
+  estadoInicial: (item?: T, temSubcategorias?: boolean) => E;
+  campos: (props: { item?: T; valor: E; alterar: (proximo: E) => void; temSubcategorias: boolean }) => ReactNode;
   selo?: (item: T) => ReactNode;
 }
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
 function ItemDialog<T extends ItemCatalogo, E>({
-  open, item, initialParentId, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
+  open, item, initialParentId, temSubcategorias, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
 }: {
   open: boolean;
   item?: T;
   initialParentId?: number;
+  temSubcategorias: boolean;
   isSaving: boolean;
   error?: string;
   textos: TextosCatalogo;
@@ -77,11 +81,11 @@ function ItemDialog<T extends ItemCatalogo, E>({
   onSave: (v: CategoriaFormValues, extras?: E) => void;
   onToggle?: () => void;
 }) {
-  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item));
+  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item, temSubcategorias));
   // Reabrir o modal (ou trocar de item) recomeça dos valores do item.
   useEffect(() => {
-    if (open) setExtras(extensao?.estadoInicial(item));
-  }, [open, item?.id, initialParentId]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open) setExtras(extensao?.estadoInicial(item, temSubcategorias));
+  }, [open, item?.id, initialParentId, temSubcategorias]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const desativarGuide = useFirstAccessGuide(guiaDesativar?.chave ?? 'catalogo:sem-guia', {
     enabled: !!guiaDesativar && open && !!item && item.ativo,
@@ -132,7 +136,7 @@ function ItemDialog<T extends ItemCatalogo, E>({
             />
           </div>
 
-          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras })}
+          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras, temSubcategorias })}
 
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
@@ -445,6 +449,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
         open={dialog.open}
         item={dialog.item}
         initialParentId={dialog.parentId}
+        temSubcategorias={!!dialog.item && todos.some((c) => c.parent_id === dialog.item!.id && c.ativo)}
         isSaving={saveMut.isPending}
         error={saveMut.error?.message}
         textos={textos}

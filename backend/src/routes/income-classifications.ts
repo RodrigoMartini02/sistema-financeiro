@@ -27,6 +27,7 @@ const router = Router();
 const NOME_MAXIMO = 100;
 
 const CONTRACT_BLOCKS_AUTO_LAUNCH = 'Classification used by an active contract: the contract already launches these incomes';
+const GROUP_CANNOT_BE_FIXED = 'Classification with active subclassifications is only a group name: set one of its subclassifications as fixed';
 
 function fixToResponse(fix: IncomeClassificationFix | undefined) {
   if (!fix) return null;
@@ -238,6 +239,18 @@ router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promi
     const day = Number(dia_recebimento);
     if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(day) || day < 1 || day > 31 || typeof lancar_automatico !== 'boolean') {
       res.status(400).json({ success: false, message: 'Fixed classification needs amount > 0, day 1-31 and auto launch true/false' });
+      return;
+    }
+
+    // Principal com subclassificação ativa é só o nome do grupo: não se escolhe
+    // ao lançar, então também não pode ser fixa (a receita automática cairia nela).
+    const [subAtiva] = await db
+      .select({ id: incomeClassifications.id })
+      .from(incomeClassifications)
+      .where(and(eq(incomeClassifications.parentId, id), eq(incomeClassifications.active, true), belongsToCatalog(catalog)))
+      .limit(1);
+    if (subAtiva) {
+      res.status(400).json({ success: false, message: GROUP_CANNOT_BE_FIXED });
       return;
     }
 

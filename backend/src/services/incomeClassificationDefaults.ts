@@ -5,14 +5,18 @@ export interface DefaultIncomeClassification {
   subcategorias: readonly string[];
 }
 
-/** Uma palavra por classificação; as subcategorias padrão ficam na raiz a que pertencem. */
+/**
+ * Uma palavra por classificação; as subcategorias padrão ficam na raiz a que pertencem.
+ * Raiz com subcategorias é só o nome do grupo (não se escolhe ao lançar), por isso o
+ * salário do mês é uma subcategoria de "Emprego", ao lado de 13º e Férias.
+ */
 const PERSONAL_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassification[] = [
-  { nome: 'Salário', subcategorias: ['13º', 'Férias'] },
+  { nome: 'Emprego', subcategorias: ['Salário', '13º', 'Férias'] },
   { nome: 'Benefícios', subcategorias: ['Aposentadoria', 'Pensão', 'Auxílio'] },
   { nome: 'Freelance', subcategorias: [] },
   { nome: 'Aluguéis', subcategorias: [] },
   { nome: 'Investimentos', subcategorias: ['Juros', 'Dividendos'] },
-  { nome: 'Vendas', subcategorias: [] },
+  { nome: 'Comissões', subcategorias: [] },
   { nome: 'Reembolsos', subcategorias: [] },
   { nome: 'Outros', subcategorias: [] },
 ];

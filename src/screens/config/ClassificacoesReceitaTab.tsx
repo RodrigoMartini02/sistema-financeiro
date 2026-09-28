@@ -36,11 +36,18 @@ interface CamposFixa {
 }
 
 const EXTENSAO: ExtensaoCatalogo<ClassificacaoReceita, CamposFixa> = {
-  estadoInicial: (item) => (item?.fixa
+  // Classificação com subclassificações é só o nome do grupo: não se escolhe ao
+  // lançar, então também não é fixa (salvar desliga uma fixa antiga, se houver).
+  estadoInicial: (item, temSubcategorias) => (item?.fixa && !temSubcategorias
     ? { fixa: true, valor: item.fixa.valor, dia: item.fixa.dia_recebimento, automatico: item.fixa.lancar_automatico }
     : { fixa: false, valor: undefined, dia: DIA_PADRAO, automatico: false }),
 
-  campos: ({ item, valor, alterar }) => (
+  campos: ({ item, valor, alterar, temSubcategorias }) => (temSubcategorias ? (
+    <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>
+      Esta classificação tem subclassificações, então funciona só como nome do grupo. Para uma receita fixa, marque a
+      subclassificação (ex.: Salário, dentro de Emprego).
+    </p>
+  ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <ToggleRow
         label="Receita fixa"
@@ -81,7 +88,7 @@ const EXTENSAO: ExtensaoCatalogo<ClassificacaoReceita, CamposFixa> = {
         </>
       )}
     </div>
-  ),
+  )),
 
   selo: (item) => item.fixa && (
     <span style={cfgBadgeStyle} title="Classificação fixa nesta conta">
