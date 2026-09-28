@@ -11,6 +11,7 @@ import { fetchOwnPermissions } from '../services/permissoesService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useTelaDesktop } from '../hooks/useTelaDesktop';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
@@ -232,6 +233,8 @@ export function AppShell({
   const { theme, toggleTheme } = useAppContext();
   const [notifOpen, setNotifOpen] = useState(false);
   const qc = useQueryClient();
+  // O assistente só é usado no celular: no desktop ele nem monta.
+  const telaDesktop = useTelaDesktop();
 
   // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
   // mês que já passaram do dia e ainda não foram lançadas. Sem permissão de
@@ -492,7 +495,7 @@ export function AppShell({
           {children}
         </main>
       </div>
-      {!isDemoMode && <FinancialAssistant />}
+      {!isDemoMode && !telaDesktop && <FinancialAssistant />}
       {!isDemoMode && (
         <ConfigPanel
           open={configPanel.open}

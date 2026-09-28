@@ -101,7 +101,10 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
       extras.push(['Meta', formatCurrency(linha.meta)]);
       extras.push([linha.valor > linha.meta ? 'Passou' : 'Falta', formatCurrency(Math.abs(linha.meta - linha.valor))]);
     }
-    for (const segmento of linha.segmentos ?? []) extras.push([segmento.nome, formatCurrency(segmento.valor), segmento.cor]);
+    // Com uma pessoa só, a parte dela é o próprio valor da linha: não repete.
+    if ((linha.segmentos?.length ?? 0) > 1) {
+      for (const segmento of linha.segmentos!) extras.push([segmento.nome, formatCurrency(segmento.valor), segmento.cor]);
+    }
     detalhe.mostrar(evento, (
       <ConteudoDetalhe nome={linha.nome} cor={corDa(linha, sub)} valor={linha.valor} parte={modo === 'parte' ? linha.parte : null} linhas={extras} observacoes={linha.observacoes} />
     ));

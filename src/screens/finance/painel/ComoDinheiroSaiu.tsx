@@ -30,7 +30,7 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
           <Pizza
             fatias={paraFatias(dados.despesasPorCategoria).map((fatia, indice) => {
               const origem = dados.despesasPorCategoria[indice]!;
-              return { ...fatia, observacoes: observacoesPorOutros(dados.categoriasPorOutros, [origem.id, ...origem.subcategorias.map((sub) => sub.id)]) };
+              return { ...fatia, observacoes: observacoesPorOutros(dados.categoriasPorOutros, [origem.id, ...origem.subcategorias.map((sub) => sub.id)], fatia.valor) };
             })}
             tamanhoMinimo={TAMANHO_PIZZA_GRANDE}
             vazio="Sem despesas no período."

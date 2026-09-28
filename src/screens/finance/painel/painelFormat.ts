@@ -96,11 +96,14 @@ export const TAMANHO_PIZZA_MENOR = 170;
 
 /**
  * Compras cadastradas por outra pessoa no cartão de quem paga, dentro das
- * categorias informadas (a principal e as subs): "Mirian · R$ 424,49".
+ * categorias informadas (a principal e as subs): "Mirian · R$ 424,49". Quando
+ * uma pessoa só cadastrou todo o `total` da linha, o valor já está no detalhe:
+ * a nota fica só "cadastrado por Mirian".
  */
 export function observacoesPorOutros(
   porOutros: PainelData['categoriasPorOutros'],
   categorias: (number | null)[],
+  total: number,
 ): string[] {
   const alvo = new Set(categorias);
   const porAutor = new Map<string, number>();
@@ -108,7 +111,9 @@ export function observacoesPorOutros(
     if (!alvo.has(linha.categoriaId)) continue;
     porAutor.set(linha.autorNome, (porAutor.get(linha.autorNome) ?? 0) + linha.total);
   }
-  return [...porAutor]
-    .sort((a, b) => b[1] - a[1])
-    .map(([nome, total]) => `${firstName(nome)} · ${formatCurrency(total)}`);
+  const autores = [...porAutor].sort((a, b) => b[1] - a[1]);
+  if (autores.length === 1 && Math.abs(autores[0]![1] - total) < 0.01) {
+    return [`cadastrado por ${firstName(autores[0]![0])}`];
+  }
+  return autores.map(([nome, valor]) => `${firstName(nome)} · ${formatCurrency(valor)}`);
 }

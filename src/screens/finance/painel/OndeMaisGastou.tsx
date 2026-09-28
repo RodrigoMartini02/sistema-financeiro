@@ -86,12 +86,12 @@ export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmen
         valor,
         parte: (valor / total) * 100,
         segmentos: segmentosDe(segmentos),
-        observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...filhos.map((filho) => filho.categoriaId)]),
+        observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...filhos.map((filho) => filho.categoriaId)], valor),
         subs: filhos
           .sort((a, b) => b.total - a.total)
           .map((filho) => ({
             id: filho.chave, nome: filho.categoria, valor: filho.total, parte: (filho.total / total) * 100,
-            segmentos: segmentosDe(filho.segmentos), observacoes: observacoesPorOutros(porOutros, [filho.categoriaId]),
+            segmentos: segmentosDe(filho.segmentos), observacoes: observacoesPorOutros(porOutros, [filho.categoriaId], filho.total),
           })),
       };
     })
