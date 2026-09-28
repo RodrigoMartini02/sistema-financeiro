@@ -77,7 +77,7 @@ export function ExpenseCard({
             {item.categoriaPai && <span className="text-[11px] text-slate-400 dark:text-slate-500">{item.categoriaPai} › </span>}
             {item.categoria}
           </span>
-          <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
+          <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}${item.cartaoDonoNome ? ` (${getFirstName(item.cartaoDonoNome)})` : ''}` : ''}</span>
           {item.autorNome && <span>· {getFirstName(item.autorNome)}</span>}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">

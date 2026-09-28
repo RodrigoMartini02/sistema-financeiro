@@ -788,7 +788,7 @@ function ExpenseRow({
       </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {getFormaLabel(item.formaPagamento)}
-        {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>}
+        {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}{item.cartaoDonoNome && ` (${getFirstName(item.cartaoDonoNome)})`}</span>}
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.autorNome)}

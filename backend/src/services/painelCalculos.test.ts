@@ -4,6 +4,8 @@ import {
   agregarContasEmAberto,
   agregarEmDia,
   agregarFormasPagamento,
+  agregarGastoPorCartao,
+  agregarGastoPorCartaoEPessoa,
   agregarJurosDescontos,
   agregarTipoGasto,
   agruparPorRaiz,
@@ -310,4 +312,20 @@ test('resumo de receitas sem renda nem fixa devolve comprometimento nulo', () =>
   assert.equal(resumo.comprometimentoPrevisto, null);
   assert.equal(resumo.temFixa, false);
   assert.equal(resumo.periodoEncerrado, true);
+});
+
+test('cartões: gasto por pessoa em cada cartão fecha com o total do cartão', () => {
+  const despesas = [
+    despesa({ usuarioId: 1, cartaoId: 6, valorOriginal: 100 }),
+    despesa({ usuarioId: 15, cartaoId: 6, valorOriginal: 40 }),
+    despesa({ usuarioId: 15, cartaoId: 6, valorOriginal: 10, pago: true, valorPago: 12 }),
+    despesa({ usuarioId: 15, cartaoId: 197, valorOriginal: 30 }),
+    despesa({ usuarioId: 1, cartaoId: null, valorOriginal: 500 }),
+  ];
+  const porPessoa = agregarGastoPorCartaoEPessoa(despesas);
+  assert.deepEqual([...porPessoa.get(6)!], [[1, 100], [15, 52]]);
+  assert.deepEqual([...porPessoa.get(197)!], [[15, 30]]);
+  for (const [cartao, total] of agregarGastoPorCartao(despesas)) {
+    assert.equal([...porPessoa.get(cartao)!.values()].reduce((soma, valor) => soma + valor, 0), total);
+  }
 });

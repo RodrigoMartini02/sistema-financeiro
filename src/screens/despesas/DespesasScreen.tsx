@@ -825,7 +825,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
                         {getFormaLabel(item.formaPagamento)}
                         {item.cartaoNome && (
-                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>
+                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}{item.cartaoDonoNome && ` (${getFirstName(item.cartaoDonoNome)})`}</span>
                         )}
                       </td>
 

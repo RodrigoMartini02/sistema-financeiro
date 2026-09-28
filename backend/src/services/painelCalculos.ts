@@ -387,6 +387,18 @@ export function agregarGastoPorCartao(despesas: DespesaPainel[]): Map<number, nu
   return porCartao;
 }
 
+/** Gasto de cada pessoa (quem lançou) em cada cartão: cartão → pessoa → valor. */
+export function agregarGastoPorCartaoEPessoa(despesas: DespesaPainel[]): Map<number, Map<number, number>> {
+  const porCartao = new Map<number, Map<number, number>>();
+  for (const despesa of despesas) {
+    if (despesa.cartaoId === null) continue;
+    const porPessoa = porCartao.get(despesa.cartaoId) ?? new Map<number, number>();
+    porPessoa.set(despesa.usuarioId, (porPessoa.get(despesa.usuarioId) ?? 0) + valorEfetivo(despesa));
+    porCartao.set(despesa.cartaoId, porPessoa);
+  }
+  return porCartao;
+}
+
 export function agregarAVistaParcelado(despesas: DespesaPainel[]): { aVista: number; parcelado: number } {
   return {
     aVista: somar(despesas.filter((despesa) => !despesa.parcelado), valorEfetivo),

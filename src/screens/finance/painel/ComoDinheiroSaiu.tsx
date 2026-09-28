@@ -1,5 +1,6 @@
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
+import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
 import { corDaPaleta, useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
@@ -53,13 +54,20 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
               <Pizza
                 tamanhoMinimo={TAMANHO_PIZZA_MENOR}
                 vazio="Sem gastos no cartão."
-                fatias={dados.cartoes.map((cartao) => ({
-                  nome: cartao.nome,
-                  valor: cartao.gasto,
-                  detalhes: cartao.limite !== null && cartao.limite > 0 && cartao.usado !== null
-                    ? [['Limite em uso', formatarPercentual((cartao.usado / cartao.limite) * 100)], ['Limite', formatCurrency(cartao.limite)]]
-                    : undefined,
-                }))}
+                fatias={dados.cartoes.map((cartao) => {
+                  // Quem usou aparece quando mais de uma pessoa gastou no cartão ou quando quem gastou não é o dono.
+                  const usoCruzado = cartao.porPessoa.length > 1 || cartao.porPessoa.some((pessoa) => pessoa.usuarioId !== cartao.donoId);
+                  return {
+                    nome: cartao.dono ? `${cartao.nome} (${firstName(cartao.dono)})` : cartao.nome,
+                    valor: cartao.gasto,
+                    detalhes: [
+                      ...(usoCruzado ? cartao.porPessoa.map((pessoa) => [firstName(pessoa.nome), formatCurrency(pessoa.gasto)] as [string, string]) : []),
+                      ...(cartao.limite !== null && cartao.limite > 0 && cartao.usado !== null
+                        ? [['Limite em uso', formatarPercentual((cartao.usado / cartao.limite) * 100)], ['Limite', formatCurrency(cartao.limite)]] as [string, string][]
+                        : []),
+                    ],
+                  };
+                })}
               />
             </CardPainel>
           )}
