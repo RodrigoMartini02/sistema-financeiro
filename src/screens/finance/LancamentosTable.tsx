@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Paperclip, Ban, CircleCheck, ArrowRight, ChevronDown, CheckSquare, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
-import { pagarDespesa, moverDespesa, cancelarDespesa } from '../../services/financeService';
+import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import type { Expense, ExpenseFormValues, Income, IncomeFormValues, Attachment } from '../../types/finance';
@@ -254,7 +254,7 @@ export function LancamentosTable({
   });
 
   const receberReceitaMut = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
+    mutationFn: receberReceita,
     onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 

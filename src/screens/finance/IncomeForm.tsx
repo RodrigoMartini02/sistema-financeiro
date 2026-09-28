@@ -23,7 +23,10 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { formatCurrency } from './formatters';
+import { formatCurrency, formatDate } from './formatters';
+import { fetchFinanceDashboard, receberReceita } from '../../services/financeService';
+import { invalidateFinanceQueries } from '../../services/queryKeys';
+import { useConfirm } from '../../context/ConfirmContext';
 
 
 /** Resumo enxuto para o rodape do lote, sem trafegar o objeto a cada tecla. */
@@ -158,6 +161,37 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   const produtosDisponiveis = (produtosQ.data ?? []).filter(
     (p) => p.ativo && (p.contaId === null || p.contaId === contaId),
   );
+
+  // Previstas do mes (so no formulario do topo de uma receita nova): anotacao
+  // informativa para nao lancar de novo o que o automatico ou um contrato ja
+  // lancaram. Mesma chave das telas de lancamentos, entao vem do cache.
+  const anotarPrevistas = isNew && !titulo;
+  const mesQ = useQuery({
+    queryKey: queryKeys.dashboard(month, year),
+    queryFn: () => fetchFinanceDashboard(month, year),
+    enabled: open && anotarPrevistas,
+    staleTime: 60_000,
+  });
+  const previstasDoMes = anotarPrevistas
+    ? (mesQ.data?.incomes ?? []).filter((item) => item.status === 'prevista' || item.status === 'faturada')
+    : [];
+  const confirm = useConfirm();
+  const receberMut = useMutation({
+    mutationFn: receberReceita,
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
+    },
+  });
+  const confirmarPrevista = async (item: Income) => {
+    const ok = await confirm({
+      title: 'Confirmar recebimento',
+      message: `Confirmar recebimento de "${item.descricao}"?`,
+      confirmLabel: 'Confirmar',
+      variant: 'default',
+    });
+    if (ok) receberMut.mutate(item.id);
+  };
 
   // Catalogo da conta do lancamento (padrao do tipo dela + criadas nela).
   const classificacoesQ = useQuery({
@@ -506,42 +540,50 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
         </div>
       )}
 
-          {/* ── Descrição + Anexos ─────────────────────────────────── */}
+          {/* ── Previstas do mês (informativo) ─────────────────────── */}
+          {previstasDoMes.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11.5, color: C.textMuted }}>
+              <span>Já previstas neste mês:</span>
+              {previstasDoMes.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.descricao} · {formatDate(item.data)} · {formatCurrency(item.valor)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => confirmarPrevista(item)}
+                    disabled={receberMut.isPending}
+                    style={{ flex: 'none', border: 'none', background: 'transparent', padding: 0, fontSize: 11.5, fontWeight: 600, color: C.primaryDark, cursor: 'pointer' }}
+                  >
+                    Confirmar recebimento
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Descrição | Classificação + Anexo ──────────────────── */}
           <div>
+            <div
+              className="grid grid-cols-1 gap-y-3 sm:grid-cols-[1.35fr_1fr] sm:gap-y-0"
+              style={{ columnGap: 12, alignItems: 'start' }}
+            >
             <div style={{ minWidth: 0, position: 'relative' }}>
               <label style={labelStyle}>
                 <span>Descrição</span><span style={{ color: C.danger }}>*</span>
               </label>
-              {/* Anexar fica ao lado do campo, na mesma altura dele. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  {...form.register('descricao', { onChange: () => setAcHidden(false) })}
-                  ref={(el) => {
-                    form.register('descricao').ref(el);
-                    descricaoInputRef.current = el;
-                  }}
-                  placeholder="Ex: Salário mensal"
-                  // Num item do lote roubaria o foco de quem esta digitando.
-                  autoFocus={autoFocus}
-                  autoComplete="off"
-                  style={fieldInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => attachmentRef.current?.openPicker()}
-                  title="Anexar arquivo"
-                  aria-label="Anexar arquivo"
-                  style={{
-                    display: 'flex', flex: 'none', height: 32, width: 32,
-                    alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 10, border: `1px solid ${C.borderInput}`,
-                    background: '#fff', cursor: 'pointer',
-                    color: anexos.length > 0 ? C.primary : C.textMuted,
-                  }}
-                >
-                  <Paperclip size={14} />
-                </button>
-              </div>
+              <input
+                {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+                ref={(el) => {
+                  form.register('descricao').ref(el);
+                  descricaoInputRef.current = el;
+                }}
+                placeholder="Ex: Salário mensal"
+                // Num item do lote roubaria o foco de quem esta digitando.
+                autoFocus={autoFocus}
+                autoComplete="off"
+                style={fieldInputStyle}
+              />
               {acOpen && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
@@ -588,6 +630,82 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                   <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
                 </button>
               )}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <label style={labelStyle}>Classificação</label>
+              {/* Anexar fica ao lado da classificação, na mesma altura dela. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Controller
+                    control={form.control}
+                    name="classificacaoId"
+                    render={({ field }) => (
+                      <CategoryFloatingSelect
+                        categories={classificacoes}
+                        value={field.value ?? undefined}
+                        onChange={(id) => {
+                          field.onChange(id ?? null);
+                          if (id) { setClassificacaoSugestao(null); aplicarClassificacaoFixa(id); }
+                        }}
+                        onCreateNew={(nome) => setShowClassificacaoForm(nome)}
+                        scrollContainerRef={scrollContainerRef}
+                        rotulo="classificação"
+                        raizSelecionavel
+                      />
+                    )}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => attachmentRef.current?.openPicker()}
+                  title="Anexar arquivo"
+                  aria-label="Anexar arquivo"
+                  style={{
+                    display: 'flex', flex: 'none', height: 32, width: 32,
+                    alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 10, border: `1px solid ${C.borderInput}`,
+                    background: '#fff', cursor: 'pointer',
+                    color: anexos.length > 0 ? C.primary : C.textMuted,
+                  }}
+                >
+                  <Paperclip size={14} />
+                </button>
+              </div>
+              {showClassificacaoForm !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
+                  <input
+                    type="text"
+                    defaultValue={showClassificacaoForm}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClassificacaoMut.mutate(v); }
+                      if (e.key === 'Escape') { e.preventDefault(); setShowClassificacaoForm(null); }
+                    }}
+                    ref={novaClassificacaoRef}
+                    placeholder="Nome da classificação"
+                    style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={criarClassificacaoMut.isPending}
+                    onClick={() => {
+                      const v = novaClassificacaoRef.current?.value.trim();
+                      if (v) criarClassificacaoMut.mutate(v);
+                    }}
+                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {criarClassificacaoMut.isPending ? '...' : 'Criar'}
+                  </button>
+                  <button type="button" onClick={() => setShowClassificacaoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+              {criarClassificacaoMut.error && (
+                <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{criarClassificacaoMut.error.message}</div>
+              )}
+            </div>
             </div>
 
             {/* Anexos ocupam a largura toda. O componente monta sempre — o ref
@@ -696,63 +814,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                   </div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* ── Classificação (conta pessoal e empresa) ──────────── */}
-          <div style={{ height: 1, background: '#eef2f6' }} />
-          <div>
-            <label style={labelStyle}>Classificação</label>
-            <Controller
-              control={form.control}
-              name="classificacaoId"
-              render={({ field }) => (
-                <CategoryFloatingSelect
-                  categories={classificacoes}
-                  value={field.value ?? undefined}
-                  onChange={(id) => {
-                    field.onChange(id ?? null);
-                    if (id) { setClassificacaoSugestao(null); aplicarClassificacaoFixa(id); }
-                  }}
-                  onCreateNew={(nome) => setShowClassificacaoForm(nome)}
-                  scrollContainerRef={scrollContainerRef}
-                  rotulo="classificação"
-                  raizSelecionavel
-                />
-              )}
-            />
-            {showClassificacaoForm !== null && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
-                <input
-                  type="text"
-                  defaultValue={showClassificacaoForm}
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClassificacaoMut.mutate(v); }
-                    if (e.key === 'Escape') { e.preventDefault(); setShowClassificacaoForm(null); }
-                  }}
-                  ref={novaClassificacaoRef}
-                  placeholder="Nome da classificação"
-                  style={{ flex: 1, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-                />
-                <button
-                  type="button"
-                  disabled={criarClassificacaoMut.isPending}
-                  onClick={() => {
-                    const v = novaClassificacaoRef.current?.value.trim();
-                    if (v) criarClassificacaoMut.mutate(v);
-                  }}
-                  style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  {criarClassificacaoMut.isPending ? '...' : 'Criar'}
-                </button>
-                <button type="button" onClick={() => setShowClassificacaoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                  <X size={14} />
-                </button>
-              </div>
-            )}
-            {criarClassificacaoMut.error && (
-              <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{criarClassificacaoMut.error.message}</div>
             )}
           </div>
 

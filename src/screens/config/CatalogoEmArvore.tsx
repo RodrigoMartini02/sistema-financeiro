@@ -116,7 +116,7 @@ function ItemDialog<T extends ItemCatalogo, E>({
       : `Nova ${textos.singular}`;
 
   return (
-    <Dialog open={open} title={title} onClose={onClose} size="xs" scrollBody={false}>
+    <Dialog open={open} title={title} onClose={onClose} size="md" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
@@ -263,14 +263,17 @@ function ItemRow<T extends ItemCatalogo>({
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
             aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
+            // Área de clique maior que a seta: abrir as subcategorias é a ação
+            // mais usada da linha depois de editar.
+            className="transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
             style={{
-              flex: 'none', display: 'grid', placeItems: 'center', width: 16, height: 16,
+              flex: 'none', display: 'grid', placeItems: 'center', width: 28, height: 28,
               border: 'none', background: 'transparent', borderRadius: 8,
               color: CFG.faint, cursor: 'pointer',
             }}
           >
             <ChevronRight
-              size={13}
+              size={16}
               strokeWidth={2.2}
               style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }}
             />

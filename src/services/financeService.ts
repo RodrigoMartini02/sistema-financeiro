@@ -182,6 +182,11 @@ export async function processarReceitasFixas(): Promise<{ launched: number; push
   return apiRequest<{ launched: number; pushSent: number }>('/incomes/fixas/processar', { method: 'POST' });
 }
 
+/** Receita prevista/faturada passa a recebida (mesma ação da lista de receitas). */
+export async function receberReceita(id: number): Promise<void> {
+  return apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' });
+}
+
 export async function deleteIncome(id: number) {
   return apiRequest<void>(`/receitas/${id}`, { method: 'DELETE' });
 }

@@ -8,7 +8,7 @@ import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import type { Income, IncomeFormValues } from '../../types/finance';
-import { getContratosFaturamento, faturarContrato, type ContratoFaturamento } from '../../services/financeService';
+import { getContratosFaturamento, faturarContrato, receberReceita as confirmarRecebimento, type ContratoFaturamento } from '../../services/financeService';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { ErrorState } from '../../ui/states';
@@ -93,7 +93,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   });
 
   const receberReceita = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' }),
+    mutationFn: confirmarRecebimento,
     onSuccess: () => {
       invalidateFinanceQueries(qc, month, year);
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
@@ -147,7 +147,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
   });
 
   const receberContratoMut = useMutation({
-    mutationFn: (receitaId: number) => apiRequest<void>(`/receitas/${receitaId}/receber`, { method: 'PUT' }),
+    mutationFn: confirmarRecebimento,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.contratosStatusFaturamento(month, year) });
       invalidateFinanceQueries(qc, month, year);
