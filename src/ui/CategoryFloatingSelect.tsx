@@ -27,17 +27,12 @@ interface Props<T extends OpcaoCatalogo> {
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
   /** Nome do item nos textos do campo ("categoria", "classificação"). */
   rotulo?: string;
-  /**
-   * Raiz com subcategoria também é selecionável (receitas: "Salário" e, dentro
-   * dele, "13º"). Nas despesas a raiz com sub é só cabeçalho do grupo.
-   */
-  raizSelecionavel?: boolean;
 }
 
 interface MenuRect { top: number; left: number; width: number; }
 
 export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
-  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef, rotulo = 'categoria', raizSelecionavel = false,
+  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef, rotulo = 'categoria',
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -52,7 +47,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
   const groups = groupSelectableCategories(categories)
     .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) }))
     .sort((a, b) => (a.parent?.nome ?? a.items[0].nome).localeCompare(b.parent?.nome ?? b.items[0].nome, 'pt-BR'));
-  const selectable = groups.flatMap((group) => (raizSelecionavel && group.parent ? [group.parent, ...group.items] : group.items));
+  const selectable = groups.flatMap((group) => group.items);
   const selected = selectable.find((c) => c.id === value);
 
   const openMenu = () => {
@@ -131,7 +126,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
         }}
       >
         {selected ? (
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: C.primaryDark, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
+          <span style={{ fontSize: 13, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selected.nome}
           </span>
         ) : (
@@ -186,8 +181,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                       onClick={() => pick(category.id)}
                       style={{
                         display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
-                        cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-                        fontWeight: value === category.id ? 600 : 500,
+                        cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
                         color: value === category.id ? C.primaryDark : C.textSoft,
                         background: value === category.id ? C.primarySoft : 'transparent',
                       }}
@@ -199,32 +193,18 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
               )}
               {groupsFiltered.map((group) => (
                 <div key={group.parent?.id ?? group.items[0].id}>
-                  {group.parent && (raizSelecionavel ? (
-                    <div
-                      onClick={() => pick(group.parent!.id)}
-                      style={{
-                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px',
-                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-                        fontWeight: value === group.parent.id ? 700 : 600,
-                        color: value === group.parent.id ? C.primaryDark : C.text,
-                        background: value === group.parent.id ? C.primarySoft : 'transparent',
-                      }}
-                    >
-                      {group.parent.nome}
-                    </div>
-                  ) : (
+                  {group.parent && (
                     <p style={{ margin: '6px 0 2px 9px', fontSize: 10.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.text }}>
                       {group.parent.nome}
                     </p>
-                  ))}
+                  )}
                   {group.items.map((category) => (
                     <div
                       key={category.id}
                       onClick={() => pick(category.id)}
                       style={{
                         display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
-                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap',
-                        fontWeight: value === category.id ? 600 : 500,
+                        borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
                         color: value === category.id ? C.primaryDark : C.textSoft,
                         background: value === category.id ? C.primarySoft : 'transparent',
                       }}

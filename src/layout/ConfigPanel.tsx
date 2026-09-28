@@ -116,7 +116,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   return (
     <Drawer open={open} title="Configurações" subtitle={current.label} onClose={onClose} variant="centered" scrollBody={false}>
       <div className={[CONFIG_SCOPE_CLASS, 'flex h-full min-h-[420px] flex-col gap-4 sm:flex-row sm:gap-6'].join(' ')}>
-        <nav className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto pb-2 sm:w-[188px] sm:flex-col sm:gap-0 sm:overflow-y-auto sm:overflow-x-visible sm:border-r sm:pb-0 sm:pr-4"
+        <nav className="scrollbar-thin flex shrink-0 gap-1 overflow-x-auto pb-2 sm:w-[228px] sm:flex-col sm:gap-0 sm:overflow-y-auto sm:overflow-x-visible sm:border-r sm:pb-0 sm:pr-4"
           style={{ borderColor: CFG.borderSoft }}
         >
           {groupedItems.map(({ group, items }) => (

@@ -40,3 +40,11 @@ test('classificação de implantação trava depois de gerada a implantação', 
   assert.equal(canChangeContractSetupClassification(true, 1, 1), true);
   assert.equal(canChangeContractSetupClassification(true, 1, 2), false);
 });
+
+test('PF: salário é subcategoria de "Emprego" e "Vendas" virou "Comissões"; PJ mantém "Vendas"', () => {
+  const pessoal = getDefaultIncomeClassifications('pessoal');
+  assert.deepEqual(pessoal.find((item) => item.nome === 'Emprego')?.subcategorias, ['Salário', '13º', 'Férias']);
+  assert.ok(pessoal.some((item) => item.nome === 'Comissões'));
+  assert.ok(!todosOsNomes('pessoal').includes('Vendas'));
+  assert.ok(todosOsNomes('empresa').includes('Vendas'));
+});

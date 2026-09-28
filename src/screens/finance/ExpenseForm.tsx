@@ -593,31 +593,13 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
           <label style={labelStyle}>
             <span>Descrição</span><span style={{ color: C.danger }}>*</span>
           </label>
-          {/* Anexar fica ao lado do campo, na mesma altura dele. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input
-              {...form.register('descricao', { onChange: () => setAcHidden(false) })}
-              placeholder="Ex: Conta de luz"
-              autoFocus={autoFocus}
-              autoComplete="off"
-              style={fieldInputStyle}
-            />
-            <button
-              type="button"
-              onClick={() => attachmentRef.current?.openPicker()}
-              title="Anexar comprovante"
-              aria-label="Anexar comprovante"
-              style={{
-                display: 'flex', flex: 'none', height: 32, width: 32,
-                alignItems: 'center', justifyContent: 'center',
-                borderRadius: 10, border: `1px solid ${C.borderInput}`,
-                background: '#fff', cursor: 'pointer',
-                color: anexos.length > 0 ? C.primary : C.textMuted,
-              }}
-            >
-              <Paperclip size={14} />
-            </button>
-          </div>
+          <input
+            {...form.register('descricao', { onChange: () => setAcHidden(false) })}
+            placeholder="Ex: Conta de luz"
+            autoFocus={autoFocus}
+            autoComplete="off"
+            style={fieldInputStyle}
+          />
           {acOpen && (
             <>
               <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setAcHidden(true)} />
@@ -664,20 +646,40 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
 
         <div style={{ minWidth: 0 }}>
           <label style={labelStyle}>Categoria</label>
-          <Controller
-            control={form.control}
-            name="categoria_id"
-            render={({ field }) => (
-              <CategoryFloatingSelect
-                categories={cats}
-                value={field.value ? Number(field.value) : undefined}
-                onChange={(id) => { field.onChange(id ?? undefined); if (id) setCategoriaSugestao(null); }}
-                onCreateNew={(nome) => setShowCatForm(nome)}
-                featuredIds={featuredCategoryIds}
-                scrollContainerRef={scrollContainerRef}
+          {/* Anexar fica ao lado da categoria, na mesma altura dela (igual à receita). */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Controller
+                control={form.control}
+                name="categoria_id"
+                render={({ field }) => (
+                  <CategoryFloatingSelect
+                    categories={cats}
+                    value={field.value ? Number(field.value) : undefined}
+                    onChange={(id) => { field.onChange(id ?? undefined); if (id) setCategoriaSugestao(null); }}
+                    onCreateNew={(nome) => setShowCatForm(nome)}
+                    featuredIds={featuredCategoryIds}
+                    scrollContainerRef={scrollContainerRef}
+                  />
+                )}
               />
-            )}
-          />
+            </div>
+            <button
+              type="button"
+              onClick={() => attachmentRef.current?.openPicker()}
+              title="Anexar comprovante"
+              aria-label="Anexar comprovante"
+              style={{
+                display: 'flex', flex: 'none', height: 32, width: 32,
+                alignItems: 'center', justifyContent: 'center',
+                borderRadius: 10, border: `1px solid ${C.borderInput}`,
+                background: '#fff', cursor: 'pointer',
+                color: anexos.length > 0 ? C.primary : C.textMuted,
+              }}
+            >
+              <Paperclip size={14} />
+            </button>
+          </div>
           {form.formState.errors.categoria_id?.message && (
             <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{form.formState.errors.categoria_id.message}</div>
           )}
@@ -712,7 +714,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
         </div>
       </div>
 
-      {/* Anexos ocupam a largura toda: na coluna da descrição caberiam
+      {/* Anexos ocupam a largura toda: na coluna da categoria caberiam
           poucos chips. O componente monta sempre — o ref abre o seletor. */}
       <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
 
