@@ -13,6 +13,7 @@ import {
   agregarEmDia,
   agregarFormasPagamento,
   agregarGastoPorCartao,
+  agregarGastoPorCartaoEPessoa,
   agregarJurosDescontos,
   agregarPorPessoa,
   agregarTipoGasto,
@@ -76,7 +77,18 @@ export interface PainelResposta {
   };
   serie: { granularidade: Granularidade; pontos: PontoSerie[] };
   formasPagamento: FormaPagamentoAgregada[];
-  cartoes: Array<{ id: number; nome: string; gasto: number; limite: number | null; usado: number | null }>;
+  cartoes: Array<{
+    id: number;
+    nome: string;
+    gasto: number;
+    limite: number | null;
+    usado: number | null;
+    donoId: number;
+    /** Nome do dono quando o cartão não é de quem vê o painel; null quando é dele. */
+    dono: string | null;
+    /** Quanto cada pessoa (quem lançou) gastou no cartão no período, do maior para o menor. */
+    porPessoa: Array<{ usuarioId: number; nome: string; gasto: number }>;
+  }>;
   aVistaParcelado: { aVista: number; parcelado: number };
   tipoGasto: Record<TipoGasto, number>;
   emDia: EmDiaAgregado;
@@ -133,8 +145,17 @@ function filtroConta(colunaConta: AnyPgColumn, colunaUsuario: AnyPgColumn, accou
   );
 }
 
+/**
+ * Quem paga a despesa: o dono do cartão quando há cartão (crédito ou débito);
+ * sem cartão, quem cadastrou. É por ele que a despesa entra no filtro de
+ * pessoas e nas somas por pessoa — a compra no cartão de outra pessoa sai da
+ * renda do dono do cartão. Calculado na consulta, nada é gravado.
+ */
+const pagadorDespesa = sql<number>`COALESCE((SELECT ${cards.userId} FROM ${cards} WHERE ${cards.id} = ${expenses.cardId}), ${expenses.userId})`;
+
 const colunasDespesa = {
-  usuarioId: expenses.userId,
+  usuarioId: pagadorDespesa,
+  autorId: expenses.userId,
   categoriaId: expenses.categoryId,
   cartaoId: expenses.cardId,
   formaPagamento: expenses.paymentMethod,
@@ -149,6 +170,7 @@ const colunasDespesa = {
 
 type LinhaDespesa = {
   usuarioId: number;
+  autorId: number;
   categoriaId: number | null;
   cartaoId: number | null;
   formaPagamento: string | null;
@@ -163,7 +185,8 @@ type LinhaDespesa = {
 
 function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
   return {
-    usuarioId: linha.usuarioId,
+    usuarioId: Number(linha.usuarioId),
+    autorId: linha.autorId,
     categoriaId: linha.categoriaId,
     cartaoId: linha.cartaoId,
     formaPagamento: linha.formaPagamento,
@@ -179,7 +202,7 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
 
 function condicoesBaseDespesa(entrada: PainelEntrada): Array<SQL | undefined> {
   return [
-    inArray(expenses.userId, entrada.escopo),
+    inArray(pagadorDespesa, entrada.escopo),
     eq(expenses.status, STATUS_ATIVO),
     filtroConta(expenses.accountId, expenses.userId, entrada.accountId),
   ];
@@ -322,18 +345,28 @@ async function montarCartoes(entrada: PainelEntrada, despesasPeriodo: DespesaPai
   if (idsCartoes.length === 0) {
     return [];
   }
-  const [nomes, limites] = await Promise.all([
-    db.select({ id: cards.id, nome: cards.name }).from(cards).where(inArray(cards.id, idsCartoes)),
+  const gastoPorPessoa = agregarGastoPorCartaoEPessoa(despesasPeriodo);
+  const [linhas, limites] = await Promise.all([
+    db.select({ id: cards.id, nome: cards.name, donoId: cards.userId }).from(cards).where(inArray(cards.id, idsCartoes)),
     getCardLimitsForOwners(entrada.escopo, entrada.accountId),
   ]);
+  // O dono do cartão pode estar fora do filtro de pessoas (ex.: membro usando o cartão do titular).
+  const idsPessoas = new Set<number>(linhas.map((cartao) => cartao.donoId));
+  for (const porPessoa of gastoPorPessoa.values()) for (const usuarioId of porPessoa.keys()) idsPessoas.add(usuarioId);
+  const nomes = await buscarNomesPessoas([...idsPessoas]);
   const limitePorCartao = new Map(limites.map((limite) => [limite.id, limite]));
-  return nomes
+  return linhas
     .map((cartao) => ({
       id: cartao.id,
       nome: cartao.nome,
       gasto: gastoPorCartao.get(cartao.id) ?? 0,
       limite: limitePorCartao.get(cartao.id)?.limite ?? null,
       usado: limitePorCartao.get(cartao.id)?.usado ?? null,
+      donoId: cartao.donoId,
+      dono: cartao.donoId === entrada.solicitanteId ? null : nomes.get(cartao.donoId) ?? null,
+      porPessoa: [...(gastoPorPessoa.get(cartao.id) ?? new Map<number, number>())]
+        .map(([usuarioId, gasto]) => ({ usuarioId, nome: nomes.get(usuarioId) ?? '', gasto }))
+        .sort((a, b) => b.gasto - a.gasto),
     }))
     .sort((a, b) => b.gasto - a.gasto);
 }

@@ -76,6 +76,11 @@ export interface Expense {
   formaPagamento: string;
   cartaoId?: number | null;
   cartaoNome?: string | null;
+  /** Quem cadastrou a despesa. */
+  autorId?: number | null;
+  /** Quem paga: o dono do cartão quando há cartão; sem cartão, quem cadastrou. */
+  pagadorId?: number | null;
+  pagadorNome?: string | null;
   dataVencimento: string;
   dataCompra?: string | null;
   /** Quando o lancamento foi cadastrado. Ordena a tabela: mais recente no topo. */
@@ -193,7 +198,18 @@ export interface PainelData {
   };
   serie: { granularidade: PainelGranularidade; pontos: PainelPontoSerie[] };
   formasPagamento: { forma: string; valor: number; quantidade: number; juros: number }[];
-  cartoes: { id: number; nome: string; gasto: number; limite: number | null; usado: number | null }[];
+  cartoes: {
+    id: number;
+    nome: string;
+    gasto: number;
+    limite: number | null;
+    usado: number | null;
+    donoId: number;
+    /** Nome do dono quando o cartão não é de quem vê o painel; null quando é dele. */
+    dono: string | null;
+    /** Quanto cada pessoa (quem lançou) gastou no cartão no período. */
+    porPessoa: { usuarioId: number; nome: string; gasto: number }[];
+  }[];
   aVistaParcelado: { aVista: number; parcelado: number };
   tipoGasto: { fixo: number; parcela: number; livre: number };
   emDia: { cadastrado: number; pagoEmDia: number; pagoComAtraso: number; emAberto: number; quitadoDeAnteriores: number };

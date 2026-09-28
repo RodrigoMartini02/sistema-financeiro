@@ -19,8 +19,9 @@ function buildWhereClause(
   accountId: string | undefined,
   tableAlias: string = 'd',
   visibleUserIds?: number[],
+  cardOwnerColumn?: string,
 ): Promise<{ where: string; params: unknown[] }> {
-  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds);
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds, cardOwnerColumn);
 }
 
 const CARD_NOT_AVAILABLE = 'Card not available for this entry: choose one of your cards or a card shared with you';
@@ -209,20 +210,24 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     // cliente pede explicitamente (escopo=familia) E o solicitante tem a
     // permissao correspondente.
     const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
-    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis);
+    // Com o dono do cartão: quem paga a fatura vê também o que outros lançaram no cartão dele.
+    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id');
 
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
-              ct.nome AS cartao_nome, ct.tipo AS cartao_tipo,
-              COALESCE(conta_autor.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
+              ct.nome AS cartao_nome, ct.tipo AS cartao_tipo, ct.usuario_id AS cartao_dono_id,
+              COALESCE(conta_autor.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome,
+              COALESCE(conta_dono_cartao.nome, TRIM(CONCAT(dono_cartao.nome, ' ', dono_cartao.sobrenome))) AS cartao_dono_nome
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
        LEFT JOIN categorias p ON c.parent_id = p.id
        LEFT JOIN cartoes ct ON d.cartao_id = ct.id
        LEFT JOIN usuarios u ON u.id = d.usuario_id
        LEFT JOIN contas conta_autor ON conta_autor.usuario_id = u.id AND conta_autor.eh_padrao = true
+       LEFT JOIN usuarios dono_cartao ON dono_cartao.id = ct.usuario_id
+       LEFT JOIN contas conta_dono_cartao ON conta_dono_cartao.usuario_id = dono_cartao.id AND conta_dono_cartao.eh_padrao = true
        ${where}
        ORDER BY d.data_vencimento ASC`,
       params,

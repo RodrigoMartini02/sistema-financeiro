@@ -21,6 +21,7 @@ interface RawExpense {
   id: number; descricao: string;
   categoria_nome?: string | null; categoria_pai_nome?: string | null; forma_pagamento?: string | null;
   categoria_id?: number | null; cartao_id?: number | null; cartao_nome?: string | null;
+  usuario_id?: number; cartao_dono_id?: number | null; cartao_dono_nome?: string | null;
   data_vencimento: string; data_compra?: string | null; data_pagamento?: string | null;
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
@@ -85,6 +86,10 @@ function expenseFromApi(r: RawExpense): Expense {
     formaPagamento: r.forma_pagamento ?? 'dinheiro',
     cartaoId: r.cartao_id ?? null,
     cartaoNome: r.cartao_nome ?? null,
+    autorId: r.usuario_id ?? null,
+    // Compra no cartão de outra pessoa sai da renda do dono do cartão.
+    pagadorId: r.cartao_dono_id ?? r.usuario_id ?? null,
+    pagadorNome: r.cartao_dono_id != null ? r.cartao_dono_nome ?? null : r.autor_nome ?? null,
     dataVencimento: r.data_vencimento, dataCompra: r.data_compra,
     dataCriacao: r.data_criacao ?? null,
     autorNome: r.autor_nome ?? null,

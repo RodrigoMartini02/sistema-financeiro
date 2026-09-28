@@ -78,7 +78,10 @@ export function ExpenseCard({
             {item.categoria}
           </span>
           <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
-          {item.autorNome && <span>· {getFirstName(item.autorNome)}</span>}
+          {(item.pagadorNome ?? item.autorNome) && <span>· {getFirstName(item.pagadorNome ?? item.autorNome)}</span>}
+          {item.pagadorId != null && item.autorId != null && item.pagadorId !== item.autorId && (
+            <span>(cadastrado por {getFirstName(item.autorNome)})</span>
+          )}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusBadge item={item} />
