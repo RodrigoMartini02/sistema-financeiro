@@ -37,10 +37,10 @@ export async function buildOwnerAndAccountWhere(
   let where: string;
   const doCartao = (condicao: string) => (cardOwnerColumn ? ` OR ${cardOwnerColumn} ${condicao}` : '');
   if (visibleUserIds && visibleUserIds.length > 1) {
-    where = `WHERE (${tableAlias}.usuario_id = ANY(${p})${doCartao(`= ANY(${p})`)})`;
+    where = `WHERE (${tableAlias}.usuario_id = ANY($${p})${doCartao(`= ANY($${p})`)})`;
     params.push(visibleUserIds);
   } else {
-    where = `WHERE (${tableAlias}.usuario_id = ${p}${doCartao(`= ${p}`)})`;
+    where = `WHERE (${tableAlias}.usuario_id = $${p}${doCartao(`= $${p}`)})`;
     params.push(targetUserId);
   }
 
