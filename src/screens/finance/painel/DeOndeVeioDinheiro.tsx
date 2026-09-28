@@ -18,7 +18,7 @@ export function DeOndeVeioDinheiro({ dados }: { dados: PainelData }) {
     <Secao titulo="De onde veio o dinheiro">
       <div className="grid gap-4 lg:grid-cols-2">
         <CardPainel>
-          <CabecalhoCard titulo="Receitas por classificação" valor={formatCurrency(dados.resumo.entrou)} />
+          <CabecalhoCard titulo="Receitas por categoria" valor={formatCurrency(dados.resumo.entrou)} />
           <Pizza fatias={paraFatias(receitas.porClassificacao)} tamanhoMinimo={TAMANHO_PIZZA_GRANDE} vazio="Sem receitas no período." />
         </CardPainel>
 

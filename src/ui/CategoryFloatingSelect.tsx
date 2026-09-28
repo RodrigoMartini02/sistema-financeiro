@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import type { OpcaoCatalogo } from '../types/config';
-import { groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
+import { compararNomesCatalogo, groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
 import { C as sharedC } from './dialogFormTokens';
 
 // Mantém os mesmos valores hex já usados neste componente (alguns divergem
@@ -11,8 +11,6 @@ const C = {
   border: '#dbe6ec',
   primary: sharedC.primary,
   primaryDark: sharedC.primaryDark,
-  primarySoft: sharedC.primarySoft,
-  primarySoftBorder: sharedC.primarySoftBorder,
   text: sharedC.text,
   textSoft: '#33566a',
   placeholder: sharedC.placeholder,
@@ -25,14 +23,12 @@ interface Props<T extends OpcaoCatalogo> {
   onCreateNew: (nome: string) => void;
   featuredIds?: number[];
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
-  /** Nome do item nos textos do campo ("categoria", "classificação"). */
-  rotulo?: string;
 }
 
 interface MenuRect { top: number; left: number; width: number; }
 
 export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
-  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef, rotulo = 'categoria',
+  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -43,10 +39,10 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
 
   // Só o que é diretamente selecionável entra aqui: categoria com sub ativa
   // vira cabeçalho de grupo (group.parent), nunca uma opção clicável — só as
-  // subs (group.items) são selecionáveis nesse caso.
+  // subs (group.items) são selecionáveis nesse caso. A→Z com "Outros" no fim.
   const groups = groupSelectableCategories(categories)
-    .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) }))
-    .sort((a, b) => (a.parent?.nome ?? a.items[0].nome).localeCompare(b.parent?.nome ?? b.items[0].nome, 'pt-BR'));
+    .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => compararNomesCatalogo(a.nome, b.nome)) }))
+    .sort((a, b) => compararNomesCatalogo(a.parent?.nome ?? a.items[0].nome, b.parent?.nome ?? b.items[0].nome));
   const selectable = groups.flatMap((group) => group.items);
   const selected = selectable.find((c) => c.id === value);
 
@@ -130,7 +126,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
             {selected.nome}
           </span>
         ) : (
-          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar {rotulo}</span>
+          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar categoria</span>
         )}
         <ChevronDown size={13} style={{ flexShrink: 0, color: '#8ba3b0' }} />
       </button>
@@ -153,7 +149,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={`Buscar ${rotulo}...`}
+                placeholder="Buscar categoria..."
                 style={{
                   flex: 1, height: 38, borderRadius: 9, border: `1.5px solid ${C.border}`,
                   background: '#fff', padding: '0 11px', fontSize: '13.5px', color: C.text, outline: 'none',
@@ -163,7 +159,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                 <button
                   type="button"
                   onClick={() => pick(selected.id)}
-                  title={`Remover ${rotulo}`}
+                  title="Remover categoria"
                   style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
                 >
                   <X size={14} />
@@ -179,11 +175,11 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                     <div
                       key={`featured-${category.id}`}
                       onClick={() => pick(category.id)}
+                      className="hover:bg-slate-100"
                       style={{
                         display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
                         cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
                         color: value === category.id ? C.primaryDark : C.textSoft,
-                        background: value === category.id ? C.primarySoft : 'transparent',
                       }}
                     >
                       {category.nome}
@@ -202,11 +198,11 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                     <div
                       key={category.id}
                       onClick={() => pick(category.id)}
+                      className="hover:bg-slate-100"
                       style={{
                         display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
                         borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
                         color: value === category.id ? C.primaryDark : C.textSoft,
-                        background: value === category.id ? C.primarySoft : 'transparent',
                       }}
                     >
                       {category.nome}
@@ -215,7 +211,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
                 </div>
               ))}
               {groupsFiltered.length === 0 && !showCreateOption && (
-                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma {rotulo} encontrada</p>
+                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
               )}
               {showCreateOption && (
                 <div

@@ -331,7 +331,7 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                     {isEmpresa && (
                       <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Cliente / Representante</th>
                     )}
-                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Classificação</th>
+                    <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Categoria</th>
                     <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Usuário</th>
                     {isEmpresa && (
                       <th className="px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-right">Comissão</th>

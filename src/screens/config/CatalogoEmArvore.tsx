@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, ChevronRight, Tag, FolderTree } from 'lucide-react';
+import { Plus, ChevronDown, Tag, FolderTree } from 'lucide-react';
 import type { CategoriaFormValues, OpcaoCatalogo } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
 import {
@@ -15,6 +15,7 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { compararNomesCatalogo } from '../../utils/categorySuggestions';
 
 // Catálogo em árvore das configurações (raiz + um nível de subcategoria,
 // desativar em vez de excluir). Usado pelas categorias de despesa e pelas
@@ -178,6 +179,11 @@ function ItemDialog<T extends ItemCatalogo, E>({
 
 // ─── Linha ───────────────────────────────────────────────────────────────────
 
+// Larguras fixas das ações à direita: linha sem "Adicionar" ou sem o botão de
+// subcategorias reserva o mesmo espaço, para a data ficar alinhada na lista.
+const LARGURA_ADICIONAR = 'w-[80px]';
+const LARGURA_SUBCATEGORIAS = 'w-[76px] sm:w-[140px]';
+
 function ItemRow<T extends ItemCatalogo>({
   item, index, parentIndex, quantidadeSubs, expanded, destaque, tituloPadrao, selo, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
 }: {
@@ -206,7 +212,7 @@ function ItemRow<T extends ItemCatalogo>({
       <div
         style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-          minHeight: isChild ? 34 : 38, padding: '0 12px', borderRadius: 12,
+          minHeight: isChild ? 38 : 44, padding: '0 12px', borderRadius: 12,
           border: `1px solid ${CFG.border}`,
           background: isChild ? CFG.surfaceAlt : CFG.surface,
           boxShadow: CFG.shadowRow,
@@ -235,9 +241,6 @@ function ItemRow<T extends ItemCatalogo>({
             {item.tipo != null && (
               <span style={cfgBadgeStyle} title={tituloPadrao}>P</span>
             )}
-            {hasSubs && !isChild && (
-              <span style={cfgBadgeStyle}>{quantidadeSubs} sub</span>
-            )}
             {selo?.(item)}
           </span>
           <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
@@ -246,45 +249,47 @@ function ItemRow<T extends ItemCatalogo>({
         </button>
 
         {/* Só a raiz cria subcategoria; stopPropagation evita abrir o modal dela. */}
-        {!isChild && item.ativo && onCreateSubcategory && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onCreateSubcategory(item); }}
-            style={{
-              flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
-              border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
-              fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
-            }}
-          >
-            <Plus size={11} strokeWidth={2.8} />
-            <span className="hidden sm:inline">Subcategoria</span>
-            <span className="sm:hidden">Sub</span>
-          </button>
-        )}
+        <span className={`flex flex-none justify-end ${LARGURA_ADICIONAR}`}>
+          {!isChild && item.ativo && onCreateSubcategory && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onCreateSubcategory(item); }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
+                fontSize: 11.5, fontWeight: 600, color: CFG.primaryDark,
+              }}
+            >
+              <Plus size={11} strokeWidth={2.8} />
+              Adicionar
+            </button>
+          )}
+        </span>
 
-        {hasSubs && !isChild ? (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
-            aria-label={expanded ? 'Recolher subcategorias' : 'Expandir subcategorias'}
-            // Área de clique maior que a seta: abrir as subcategorias é a ação
-            // mais usada da linha depois de editar.
-            className="transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
-            style={{
-              flex: 'none', display: 'grid', placeItems: 'center', width: 28, height: 28,
-              border: 'none', background: 'transparent', borderRadius: 8,
-              color: CFG.faint, cursor: 'pointer',
-            }}
-          >
-            <ChevronRight
-              size={16}
-              strokeWidth={2.2}
-              style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform .13s ease' }}
-            />
-          </button>
-        ) : (
-          <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: '#94a3b8' }} />
-        )}
+        {/* Botão com texto (não só uma seta) para abrir as subcategorias: área de clique grande. */}
+        <span className={`flex flex-none justify-end ${LARGURA_SUBCATEGORIAS}`}>
+          {hasSubs && !isChild && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
+              aria-expanded={expanded}
+              className="transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, height: 28, padding: '0 8px',
+                border: `1px solid ${CFG.border}`, borderRadius: 8, background: 'transparent',
+                cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 11.5, fontWeight: 600, color: CFG.textSoft,
+              }}
+            >
+              <span className="hidden sm:inline">{quantidadeSubs} {quantidadeSubs === 1 ? 'subcategoria' : 'subcategorias'}</span>
+              <span className="sm:hidden">{quantidadeSubs} sub</span>
+              <ChevronDown
+                size={13}
+                strokeWidth={2.2}
+                style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .13s ease' }}
+              />
+            </button>
+          )}
+        </span>
       </div>
 
       {subcategoryGuide && (
@@ -339,9 +344,12 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
   // aparece se ela própria bate com o filtro, e suas subcategorias são
   // filtradas pelo mesmo critério.
   const visiveis = todos.filter((c) => (mostrarDesativadas ? !c.ativo : c.ativo));
+  // Ordem A→Z com "Outros" no fim, em cada nível.
+  const porNome = (a: T, b: T) => compararNomesCatalogo(a.nome, b.nome);
   const tree = visiveis
     .filter((c) => !c.parent_id)
-    .map((root) => ({ root, subs: visiveis.filter((c) => c.parent_id === root.id) }));
+    .sort(porNome)
+    .map((root) => ({ root, subs: visiveis.filter((c) => c.parent_id === root.id).sort(porNome) }));
   const totalSubs = tree.reduce((n, r) => n + r.subs.length, 0);
 
   const saveMut = useMutation({

@@ -31,6 +31,14 @@ export function normalizeCategoryText(value: string): string {
     .trim();
 }
 
+/** Ordem das listas de categorias: A→Z (pt-BR), com "Outros" sempre por último no seu nível. */
+export function compararNomesCatalogo(a: string, b: string): number {
+  const aOutros = normalizeCategoryText(a) === 'outros';
+  const bOutros = normalizeCategoryText(b) === 'outros';
+  if (aOutros !== bOutros) return aOutros ? 1 : -1;
+  return a.localeCompare(b, 'pt-BR');
+}
+
 function tokenize(value: string): string[] {
   return normalizeCategoryText(value).split(/[^a-z0-9]+/).filter(Boolean);
 }

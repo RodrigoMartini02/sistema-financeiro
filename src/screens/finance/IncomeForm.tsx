@@ -5,7 +5,7 @@ import { useForm, Controller, useWatch, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { Paperclip, X, Clock, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { MONTH_NAMES, type Attachment, type Income, type IncomeFormValues, type FinanceDashboardData } from '../../types/finance';
-import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
+import { AttachmentSection, type AttachmentSectionHandle } from '../../ui/AttachmentSection';
 import {
   C, labelStyle, fieldInputStyle, smallInputStyle,
   panelStyle, chipStyle, MoneyField,
@@ -622,18 +622,15 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                     aplicarClassificacaoFixa(classificacaoSugestao.id);
                     setClassificacaoSugestao(null);
                   }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+                  style={{ display: 'block', marginTop: 6, fontSize: '12.5px', color: C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0, textAlign: 'left' }}
                 >
-                  <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
-                    {classificacaoSugestao.nome}
-                  </span>
-                  <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
+                  Sugerida: <span style={{ color: C.primaryDark }}>{classificacaoSugestao.nome}</span> · Tab aceita
                 </button>
               )}
             </div>
 
             <div style={{ minWidth: 0 }}>
-              <label style={labelStyle}>Classificação</label>
+              <label style={labelStyle}>Categoria</label>
               {/* Anexar fica ao lado da classificação, na mesma altura dela. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -650,7 +647,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                         }}
                         onCreateNew={(nome) => setShowClassificacaoForm(nome)}
                         scrollContainerRef={scrollContainerRef}
-                        rotulo="classificação"
                       />
                     )}
                   />
@@ -682,7 +678,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                       if (e.key === 'Escape') { e.preventDefault(); setShowClassificacaoForm(null); }
                     }}
                     ref={novaClassificacaoRef}
-                    placeholder="Nome da classificação"
+                    placeholder="Nome da categoria"
                     style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
                   />
                   <button
@@ -871,7 +867,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                 {semComissaoConfigurada && (
                   <div style={{ ...panelStyle, background: C.warnBg, borderColor: C.warnBorder }}>
                     <span style={{ fontSize: 12.5, color: C.warn }}>
-                      Nenhuma comissão configurada para esta classificação.
+                      Nenhuma comissão configurada para esta categoria.
                     </span>
                   </div>
                 )}

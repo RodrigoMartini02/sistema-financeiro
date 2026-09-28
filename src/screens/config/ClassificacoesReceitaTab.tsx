@@ -16,12 +16,12 @@ import { CatalogoEmArvore, type ExtensaoCatalogo, type TextosCatalogo } from './
 const DESTAQUE_RECEITA = '#059669'; // classificações representam receitas
 
 const TEXTOS: TextosCatalogo = {
-  singular: 'classificação',
-  plural: 'classificações',
+  singular: 'categoria',
+  plural: 'categorias',
   exemploNome: 'Ex: Salário',
-  descricaoVazio: 'Crie classificações para organizar receitas e relatórios.',
-  ondeSomeAoDesativar: 'nas opções de classificação ao lançar receitas',
-  tituloPadrao: 'Classificação padrão do sistema',
+  descricaoVazio: 'Crie categorias para organizar receitas e relatórios.',
+  ondeSomeAoDesativar: 'nas opções de categoria ao lançar receitas',
+  tituloPadrao: 'Categoria padrão do sistema',
 };
 
 const DIA_PADRAO = 5;
@@ -44,8 +44,8 @@ const EXTENSAO: ExtensaoCatalogo<ClassificacaoReceita, CamposFixa> = {
 
   campos: ({ item, valor, alterar, temSubcategorias }) => (temSubcategorias ? (
     <p style={{ margin: 0, fontSize: 11.5, color: C.textMuted }}>
-      Esta classificação tem subclassificações, então funciona só como nome do grupo. Para uma receita fixa, marque a
-      subclassificação (ex.: Salário, dentro de Emprego).
+      Esta categoria tem subcategorias, então funciona só como nome do grupo. Para uma receita fixa, marque a
+      subcategoria (ex.: Salário, dentro de Emprego).
     </p>
   ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -91,7 +91,7 @@ const EXTENSAO: ExtensaoCatalogo<ClassificacaoReceita, CamposFixa> = {
   )),
 
   selo: (item) => item.fixa && (
-    <span style={cfgBadgeStyle} title="Classificação fixa nesta conta">
+    <span style={cfgBadgeStyle} title="Categoria fixa nesta conta">
       Fixa · {formatCurrency(item.fixa.valor)} · dia {item.fixa.dia_recebimento}
       {item.fixa.lancar_automatico ? ' · automático' : ''}
     </span>

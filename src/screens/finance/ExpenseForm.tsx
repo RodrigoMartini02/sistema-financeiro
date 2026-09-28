@@ -646,12 +646,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, ExpenseFormProps>(funct
             <button
               type="button"
               onClick={() => { form.setValue('categoria_id', categoriaSugestao.id as any); setCategoriaSugestao(null); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '12.5px', color: C.primaryDark, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+              style={{ display: 'block', marginTop: 6, fontSize: '12.5px', color: C.textMuted, cursor: 'pointer', background: 'transparent', border: 'none', padding: 0, textAlign: 'left' }}
             >
-              <span style={{ fontWeight: 600, background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}`, borderRadius: 6, padding: '2px 7px' }}>
-                {categoriaSugestao.nome}
-              </span>
-              <span style={{ color: C.textMuted }}>sugerida · Tab aceita</span>
+              Sugerida: <span style={{ color: C.primaryDark }}>{categoriaSugestao.nome}</span> · Tab aceita
             </button>
           )}
         </div>
