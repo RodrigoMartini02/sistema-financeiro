@@ -15,7 +15,10 @@ export interface Periodo {
 }
 
 export interface DespesaPainel {
+  /** Quem paga: o dono do cartão quando há cartão; sem cartão, quem cadastrou. É a pessoa das visões de dinheiro. */
   usuarioId: number;
+  /** Quem cadastrou a despesa (quem usou o cartão). */
+  autorId: number;
   categoriaId: number | null;
   cartaoId: number | null;
   formaPagamento: string | null;
@@ -387,13 +390,13 @@ export function agregarGastoPorCartao(despesas: DespesaPainel[]): Map<number, nu
   return porCartao;
 }
 
-/** Gasto de cada pessoa (quem lançou) em cada cartão: cartão → pessoa → valor. */
+/** Gasto de cada pessoa (quem cadastrou) em cada cartão: cartão → pessoa → valor. */
 export function agregarGastoPorCartaoEPessoa(despesas: DespesaPainel[]): Map<number, Map<number, number>> {
   const porCartao = new Map<number, Map<number, number>>();
   for (const despesa of despesas) {
     if (despesa.cartaoId === null) continue;
     const porPessoa = porCartao.get(despesa.cartaoId) ?? new Map<number, number>();
-    porPessoa.set(despesa.usuarioId, (porPessoa.get(despesa.usuarioId) ?? 0) + valorEfetivo(despesa));
+    porPessoa.set(despesa.autorId, (porPessoa.get(despesa.autorId) ?? 0) + valorEfetivo(despesa));
     porCartao.set(despesa.cartaoId, porPessoa);
   }
   return porCartao;

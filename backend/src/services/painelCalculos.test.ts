@@ -31,6 +31,7 @@ import {
 function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
   return {
     usuarioId: 1,
+    autorId: parcial.usuarioId ?? 1,
     categoriaId: null,
     cartaoId: null,
     formaPagamento: 'pix',
@@ -316,11 +317,12 @@ test('resumo de receitas sem renda nem fixa devolve comprometimento nulo', () =>
 
 test('cartões: gasto por pessoa em cada cartão fecha com o total do cartão', () => {
   const despesas = [
-    despesa({ usuarioId: 1, cartaoId: 6, valorOriginal: 100 }),
-    despesa({ usuarioId: 15, cartaoId: 6, valorOriginal: 40 }),
-    despesa({ usuarioId: 15, cartaoId: 6, valorOriginal: 10, pago: true, valorPago: 12 }),
-    despesa({ usuarioId: 15, cartaoId: 197, valorOriginal: 30 }),
-    despesa({ usuarioId: 1, cartaoId: null, valorOriginal: 500 }),
+    // No cartão 6 (do usuário 1) quem paga é o 1, mesmo quando quem cadastrou foi o 15.
+    despesa({ usuarioId: 1, autorId: 1, cartaoId: 6, valorOriginal: 100 }),
+    despesa({ usuarioId: 1, autorId: 15, cartaoId: 6, valorOriginal: 40 }),
+    despesa({ usuarioId: 1, autorId: 15, cartaoId: 6, valorOriginal: 10, pago: true, valorPago: 12 }),
+    despesa({ usuarioId: 15, autorId: 15, cartaoId: 197, valorOriginal: 30 }),
+    despesa({ usuarioId: 1, autorId: 1, cartaoId: null, valorOriginal: 500 }),
   ];
   const porPessoa = agregarGastoPorCartaoEPessoa(despesas);
   assert.deepEqual([...porPessoa.get(6)!], [[1, 100], [15, 52]]);

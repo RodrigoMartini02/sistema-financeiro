@@ -400,6 +400,12 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       .filter(Boolean) as string[],
   );
 
+  // A despesa é de quem paga (dono do cartão); quem cadastrou continua vendo o
+  // que lançou quando está marcado no filtro, para poder conferir e editar.
+  const passaFiltroPessoa = (i: Expense): boolean =>
+    (!!i.pagadorNome && nomesVisiveis.has(i.pagadorNome))
+    || (String(i.autorId) === meIdStr && !!i.autorNome && nomesVisiveis.has(i.autorNome));
+
   const filtered = allItems
     .filter((i) => {
       if (filtroStatus.size > 0 && !filtroStatus.has(getStatus(i))) return false;
@@ -407,7 +413,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
       // Enquanto o proprio usuario ainda nao carregou (meIdStr null), o
       // filtro de membros ainda nao tem base para aplicar — nao bloqueia a
       // exibicao para nao mostrar "vazio" por uma fracao de segundo.
-      if (meIdStr != null && (!i.autorNome || !nomesVisiveis.has(i.autorNome))) return false;
+      if (meIdStr != null && !passaFiltroPessoa(i)) return false;
       if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
       if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
       if (!passaFiltroDataPag(i)) return false;
@@ -816,16 +822,19 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                         <span className="truncate">{item.categoria}</span>
                       </td>
 
-                      {/* Usuario que lancou. Primeiro nome basta para distinguir. */}
+                      {/* Quem paga (dono do cartão, ou quem lançou sem cartão) e, se foi outra pessoa, quem cadastrou. */}
                       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-                        {getFirstName(item.autorNome)}
+                        {getFirstName(item.pagadorNome ?? item.autorNome)}
+                        {item.pagadorId != null && item.autorId != null && item.pagadorId !== item.autorId && (
+                          <span className={['block', SECONDARY_CLASS].join(' ')}>cadastrado por {getFirstName(item.autorNome)}</span>
+                        )}
                       </td>
 
                       {/* Pagamento */}
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
                         {getFormaLabel(item.formaPagamento)}
                         {item.cartaoNome && (
-                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}{item.cartaoDonoNome && ` (${getFirstName(item.cartaoDonoNome)})`}</span>
+                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>
                         )}
                       </td>
 

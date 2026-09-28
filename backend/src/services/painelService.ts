@@ -145,8 +145,17 @@ function filtroConta(colunaConta: AnyPgColumn, colunaUsuario: AnyPgColumn, accou
   );
 }
 
+/**
+ * Quem paga a despesa: o dono do cartão quando há cartão (crédito ou débito);
+ * sem cartão, quem cadastrou. É por ele que a despesa entra no filtro de
+ * pessoas e nas somas por pessoa — a compra no cartão de outra pessoa sai da
+ * renda do dono do cartão. Calculado na consulta, nada é gravado.
+ */
+const pagadorDespesa = sql<number>`COALESCE((SELECT ${cards.userId} FROM ${cards} WHERE ${cards.id} = ${expenses.cardId}), ${expenses.userId})`;
+
 const colunasDespesa = {
-  usuarioId: expenses.userId,
+  usuarioId: pagadorDespesa,
+  autorId: expenses.userId,
   categoriaId: expenses.categoryId,
   cartaoId: expenses.cardId,
   formaPagamento: expenses.paymentMethod,
@@ -161,6 +170,7 @@ const colunasDespesa = {
 
 type LinhaDespesa = {
   usuarioId: number;
+  autorId: number;
   categoriaId: number | null;
   cartaoId: number | null;
   formaPagamento: string | null;
@@ -175,7 +185,8 @@ type LinhaDespesa = {
 
 function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
   return {
-    usuarioId: linha.usuarioId,
+    usuarioId: Number(linha.usuarioId),
+    autorId: linha.autorId,
     categoriaId: linha.categoriaId,
     cartaoId: linha.cartaoId,
     formaPagamento: linha.formaPagamento,
@@ -191,7 +202,7 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
 
 function condicoesBaseDespesa(entrada: PainelEntrada): Array<SQL | undefined> {
   return [
-    inArray(expenses.userId, entrada.escopo),
+    inArray(pagadorDespesa, entrada.escopo),
     eq(expenses.status, STATUS_ATIVO),
     filtroConta(expenses.accountId, expenses.userId, entrada.accountId),
   ];

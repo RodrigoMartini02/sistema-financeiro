@@ -22,6 +22,12 @@ export async function buildOwnerAndAccountWhere(
    * visibilidade delas sem intencao.
    */
   visibleUserIds?: number[],
+  /**
+   * Coluna do dono do cartão da despesa (ex.: `ct.usuario_id`). Quando
+   * informada, entram também as despesas feitas por outras pessoas nos cartões
+   * de quem pode ser visto — o dono do cartão vê a própria fatura inteira.
+   */
+  cardOwnerColumn?: string,
 ): Promise<{ where: string; params: unknown[] }> {
   const params: unknown[] = [];
   let p = 0;
@@ -29,11 +35,12 @@ export async function buildOwnerAndAccountWhere(
   const targetUserId = queryUserId && userType === 'admin' ? parseInt(queryUserId) : userId;
   p++;
   let where: string;
+  const doCartao = (condicao: string) => (cardOwnerColumn ? ` OR ${cardOwnerColumn} ${condicao}` : '');
   if (visibleUserIds && visibleUserIds.length > 1) {
-    where = `WHERE ${tableAlias}.usuario_id = ANY($${p})`;
+    where = `WHERE (${tableAlias}.usuario_id = ANY(${p})${doCartao(`= ANY(${p})`)})`;
     params.push(visibleUserIds);
   } else {
-    where = `WHERE ${tableAlias}.usuario_id = $${p}`;
+    where = `WHERE (${tableAlias}.usuario_id = ${p}${doCartao(`= ${p}`)})`;
     params.push(targetUserId);
   }
 

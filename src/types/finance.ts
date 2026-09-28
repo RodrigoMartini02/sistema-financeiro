@@ -76,8 +76,11 @@ export interface Expense {
   formaPagamento: string;
   cartaoId?: number | null;
   cartaoNome?: string | null;
-  /** Dono do cartão, só quando não é quem lançou a despesa (gasto no cartão de outra pessoa). */
-  cartaoDonoNome?: string | null;
+  /** Quem cadastrou a despesa. */
+  autorId?: number | null;
+  /** Quem paga: o dono do cartão quando há cartão; sem cartão, quem cadastrou. */
+  pagadorId?: number | null;
+  pagadorNome?: string | null;
   dataVencimento: string;
   dataCompra?: string | null;
   /** Quando o lancamento foi cadastrado. Ordena a tabela: mais recente no topo. */

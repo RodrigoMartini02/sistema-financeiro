@@ -340,12 +340,19 @@ export function LancamentosTable({
     if (meIdStr == null) return true; // ainda carregando — nao bloqueia exibicao
     return !!autorNome && nomesVisiveis.has(autorNome);
   };
+  // Despesa é de quem paga (dono do cartão); quem cadastrou continua vendo o
+  // que lançou quando está marcado no filtro, para poder conferir e editar.
+  const passaFiltroDespesa = (i: Expense): boolean => {
+    if (meIdStr == null) return true;
+    return (!!i.pagadorNome && nomesVisiveis.has(i.pagadorNome))
+      || (String(i.autorId) === meIdStr && !!i.autorNome && nomesVisiveis.has(i.autorNome));
+  };
 
   const expensesFiltered = filtroTipo.has('despesa')
     ? allExpenses.filter((i) => {
         if (filtroStatus.size > 0 && !filtroStatus.has(getExpenseStatus(i))) return false;
         if (filtroCategoria.size > 0 && !filtroCategoria.has(i.categoria)) return false;
-        if (!passaFiltroMembro(i.autorNome)) return false;
+        if (!passaFiltroDespesa(i)) return false;
         if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
         if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
         if (!passaFiltroDataPag(i)) return false;
@@ -788,10 +795,13 @@ function ExpenseRow({
       </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
         {getFormaLabel(item.formaPagamento)}
-        {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}{item.cartaoDonoNome && ` (${getFirstName(item.cartaoDonoNome)})`}</span>}
+        {item.cartaoNome && <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>}
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
-        {getFirstName(item.autorNome)}
+        {getFirstName(item.pagadorNome ?? item.autorNome)}
+        {item.pagadorId != null && item.autorId != null && item.pagadorId !== item.autorId && (
+          <span className={['block', SECONDARY_CLASS].join(' ')}>cadastrado por {getFirstName(item.autorNome)}</span>
+        )}
       </td>
       <td className={TD_CLASS}><TipoBadge item={item} /></td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>

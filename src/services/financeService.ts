@@ -86,7 +86,10 @@ function expenseFromApi(r: RawExpense): Expense {
     formaPagamento: r.forma_pagamento ?? 'dinheiro',
     cartaoId: r.cartao_id ?? null,
     cartaoNome: r.cartao_nome ?? null,
-    cartaoDonoNome: r.cartao_dono_id != null && r.cartao_dono_id !== r.usuario_id ? r.cartao_dono_nome ?? null : null,
+    autorId: r.usuario_id ?? null,
+    // Compra no cartão de outra pessoa sai da renda do dono do cartão.
+    pagadorId: r.cartao_dono_id ?? r.usuario_id ?? null,
+    pagadorNome: r.cartao_dono_id != null ? r.cartao_dono_nome ?? null : r.autor_nome ?? null,
     dataVencimento: r.data_vencimento, dataCompra: r.data_compra,
     dataCriacao: r.data_criacao ?? null,
     autorNome: r.autor_nome ?? null,

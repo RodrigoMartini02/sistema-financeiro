@@ -19,8 +19,9 @@ function buildWhereClause(
   accountId: string | undefined,
   tableAlias: string = 'd',
   visibleUserIds?: number[],
+  cardOwnerColumn?: string,
 ): Promise<{ where: string; params: unknown[] }> {
-  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds);
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds, cardOwnerColumn);
 }
 
 const CARD_NOT_AVAILABLE = 'Card not available for this entry: choose one of your cards or a card shared with you';
@@ -209,7 +210,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     // cliente pede explicitamente (escopo=familia) E o solicitante tem a
     // permissao correspondente.
     const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
-    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis);
+    // Com o dono do cartão: quem paga a fatura vê também o que outros lançaram no cartão dele.
+    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id');
 
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
