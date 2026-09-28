@@ -1,6 +1,7 @@
 import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
+import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import {
   diferencaValor, formatDiferenca, getFirstName, getFormaLabel, getStatusColor,
@@ -74,10 +75,9 @@ export function ExpenseCard({
           {/* Categoria em texto com hierarquia, sem chip — mesmo criterio da
               tabela: a cor da categoria nao e configuravel em nenhuma tela. */}
           <span className="truncate">
-            {item.categoriaPai && <span className="text-[11px] text-slate-400 dark:text-slate-500">{item.categoriaPai} › </span>}
-            {item.categoria}
+            <NomeComDetalhe principal={item.categoriaPai ?? item.categoria} detalhe={item.categoriaPai ? item.categoria : null} />
           </span>
-          <span>{getFormaLabel(item.formaPagamento)}{item.cartaoNome ? ` · ${item.cartaoNome}` : ''}</span>
+          <span><NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} /></span>
           {(item.pagadorNome ?? item.autorNome) && <span>· {getFirstName(item.pagadorNome ?? item.autorNome)}</span>}
           {item.pagadorId != null && item.autorId != null && item.pagadorId !== item.autorId && (
             <span>(cadastrado por {getFirstName(item.autorNome)})</span>

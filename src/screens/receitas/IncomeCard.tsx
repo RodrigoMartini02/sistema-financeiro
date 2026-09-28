@@ -1,20 +1,18 @@
 import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Pencil, Tag, Trash2 } from 'lucide-react';
 import type { Income } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
+import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { formatCurrency, formatDate } from '../finance/formatters';
 
 /**
- * Categoria da receita no mesmo formato da despesa: "Grupo › Categoria", com o
- * grupo em cinza. Nada quando a receita não tem categoria.
+ * Categoria da receita no mesmo formato da despesa: "Grupo › Sub", com o grupo
+ * forte e a sub em cinza. Nada quando a receita não tem categoria.
  */
 export function categoriaReceita(item: Pick<Income, 'classificacaoNome' | 'classificacaoPai'>) {
   if (!item.classificacaoNome) return null;
-  return (
-    <>
-      {item.classificacaoPai && <span className="text-[11px] text-slate-400 dark:text-slate-500">{item.classificacaoPai} › </span>}
-      {item.classificacaoNome}
-    </>
-  );
+  return item.classificacaoPai
+    ? <NomeComDetalhe principal={item.classificacaoPai} detalhe={item.classificacaoNome} />
+    : <NomeComDetalhe principal={item.classificacaoNome} />;
 }
 
 interface IncomeCardProps {

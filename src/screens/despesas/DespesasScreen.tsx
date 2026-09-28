@@ -17,6 +17,7 @@ import type { Expense, ExpenseFormValues } from '../../types/finance';
 import type { Attachment } from '../../types/finance';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
+import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { ErrorState } from '../../ui/states';
 import { EmptyState } from '../../ui/EmptyState';
 import { ExpenseDialog } from '../finance/ExpenseDialog';
@@ -816,10 +817,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
                           categoria nao e usada porque nenhuma tela permite
                           escolhe-la: todas nascem no mesmo azul padrao. */}
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>
-                        {item.categoriaPai && (
-                          <span className={SECONDARY_CLASS}>{item.categoriaPai} › </span>
-                        )}
-                        <span className="truncate">{item.categoria}</span>
+                        <NomeComDetalhe principal={item.categoriaPai ?? item.categoria} detalhe={item.categoriaPai ? item.categoria : null} />
                       </td>
 
                       {/* Quem paga (dono do cartão, ou quem lançou sem cartão) e, se foi outra pessoa, quem cadastrou. */}
@@ -832,10 +830,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
                       {/* Pagamento */}
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
-                        {getFormaLabel(item.formaPagamento)}
-                        {item.cartaoNome && (
-                          <span className={SECONDARY_CLASS}> · {item.cartaoNome}</span>
-                        )}
+                        <NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
                       </td>
 
                       {/* Data pagamento */}
