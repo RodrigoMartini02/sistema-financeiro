@@ -3,13 +3,17 @@ import type { Income } from '../../types/finance';
 import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { formatCurrency, formatDate } from '../finance/formatters';
 
-/** Selo com o nome da classificação da receita; nada quando ela não tem. */
-export function classificacaoBadge(nome?: string | null) {
-  if (!nome) return null;
+/**
+ * Categoria da receita no mesmo formato da despesa: "Grupo › Categoria", com o
+ * grupo em cinza. Nada quando a receita não tem categoria.
+ */
+export function categoriaReceita(item: Pick<Income, 'classificacaoNome' | 'classificacaoPai'>) {
+  if (!item.classificacaoNome) return null;
   return (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-      {nome}
-    </span>
+    <>
+      {item.classificacaoPai && <span className="text-[11px] text-slate-400 dark:text-slate-500">{item.classificacaoPai} › </span>}
+      {item.classificacaoNome}
+    </>
   );
 }
 
@@ -74,7 +78,9 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
               <AlertCircle size={9} /> Em atraso
             </span>
           )}
-          {classificacaoBadge(item.classificacaoNome)}
+          {item.classificacaoNome && (
+            <span className="text-xs text-slate-600 dark:text-slate-300">{categoriaReceita(item)}</span>
+          )}
           {isEmpresa && item.valorComissao && item.valorComissao > 0 && (
             <span className="text-[11px] font-semibold text-amber-600">comissão {formatCurrency(item.valorComissao)}</span>
           )}

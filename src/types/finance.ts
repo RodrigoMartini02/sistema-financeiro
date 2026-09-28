@@ -36,6 +36,7 @@ export interface Income {
   cliente?: string | null;
   classificacaoId?: number | null;
   classificacaoNome?: string | null;
+  classificacaoPai?: string | null; // nome do grupo, quando a classificação é subcategoria
   representanteId?: number | null;
   representanteNome?: string | null;
   valorComissao?: number | null;

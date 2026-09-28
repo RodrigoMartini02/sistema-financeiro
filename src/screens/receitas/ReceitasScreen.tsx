@@ -23,7 +23,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import type { Attachment } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
-import { IncomeCard, classificacaoBadge } from './IncomeCard';
+import { IncomeCard, categoriaReceita } from './IncomeCard';
 
 const MONTH_NAMES_SHORT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -386,8 +386,8 @@ export function ReceitasScreen({ month, year, toolbarStart }: ReceitasScreenProp
                           )}
                         </td>
                       )}
-                      <td className="px-4 py-1.5">
-                        {classificacaoBadge(item.classificacaoNome) ?? <span className="text-slate-300 text-xs">—</span>}
+                      <td className="px-4 py-1.5 text-xs text-slate-600 dark:text-slate-300">
+                        {categoriaReceita(item) ?? <span className="text-slate-300 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-1.5 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                         {item.autorNome ?? '—'}
