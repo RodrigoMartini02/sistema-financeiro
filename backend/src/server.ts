@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import { testConnection } from './db/client';
 
-dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../../.env') });
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../.env') });
 
 const app = express();
 const PORT = process.env.PORT ?? 3010;
@@ -21,7 +21,6 @@ const devOrigins =
     ? [
         'http://localhost:3000', 'http://127.0.0.1:3000',
         'http://localhost:5173', 'http://127.0.0.1:5173',
-        'http://localhost:5175', 'http://127.0.0.1:5175',
         'http://localhost:5500', 'http://127.0.0.1:5500',
       ]
     : [];
@@ -96,9 +95,6 @@ import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import assistantFlowRoutes from './routes/assistantFlows';
-import futebolRoutes from './modules/futebol/routes';
-import { startFootballCron } from './modules/futebol/cron';
-import { startChampionshipsCron } from './modules/futebol/championshipsCron';
 import catalogoRoutes from './modules/catalogo/routes';
 import { authenticate, requireActivePlan } from './middleware/auth';
 import { requireScreenAccess } from './middleware/permissions';
@@ -152,7 +148,6 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/assistant-flows', assistantFlowRoutes);
-app.use('/api/futebol', futebolRoutes);
 app.use('/api/catalogo', catalogoRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
@@ -209,9 +204,6 @@ async function bootstrap(): Promise<void> {
     console.log(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
     console.log('================================================');
   });
-
-  startFootballCron();
-  startChampionshipsCron();
 }
 
 process.on('SIGTERM', () => process.exit(0));

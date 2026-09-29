@@ -79,5 +79,5 @@ A única exceção são alterações em arquivos de plano (`.plans/`) e memória
 - Backend Express.js + TypeScript + PostgreSQL
 - O banco pode estar apontando para produção — nunca assuma ambiente local
 - Skills disponíveis: `/planejar`, `/implementar`, `/finalizar`, `/run`
-- Nunca alterar `.env`
+- Alterar `.env` requer confirmação explícita do usuário a cada alteração (mesma régua das migrations) — nunca por padrão, nunca em lote sem revisão prévia do que será mudado/removido
 - Nunca executar migrations sem confirmação explícita
