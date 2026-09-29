@@ -1,61 +1,82 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
+import { isPaymentMethod, type PaymentMethod } from '../types/finance';
 
 export interface ExpenseSuggestionMatch {
-  descricao: string;
-  valorFinal: number;
-  categoriaId: number | null;
-  formaPagamento: string;
-}
-
-export interface CartaoSugerido {
-  id: number;
+  description: string;
+  amount: number;
+  categoryId: number | null;
+  /** Como veio do histórico: pode ser uma forma antiga, fora das quatro atuais. */
+  paymentMethod: string;
+  cardId: number | null;
 }
 
 export interface ExpenseSuggestions {
+  /** Até 4 descrições diferentes da conta ativa, cada uma com o lançamento mais recente. */
   matches: ExpenseSuggestionMatch[];
-  formaPagamentoSugerida: string | null;
-  cartaoSugerido: CartaoSugerido | null;
+  /** Valor da última despesa com exatamente a mesma descrição. */
+  lastAmount: number | null;
+  /** Forma mais usada na categoria informada; sem ela, a mais usada na conta. */
+  suggestedPaymentMethod: PaymentMethod | null;
+  /** Cartão mais usado com cada forma. */
+  preferredCardIds: { debito: number | null; credito: number | null };
 }
 
-interface RawMatch {
-  descricao: string;
-  valor_original?: string | number | null;
-  categoria_id?: number | null;
-  forma_pagamento?: string | null;
+export interface ExpenseSuggestionsQuery {
+  description: string;
+  categoryId: number | null;
 }
 
-interface RawCartaoSugerido {
-  id: number;
+export interface ExpenseDuplicateQuery {
+  description: string;
+  /** No parcelado, o valor da 1ª parcela. */
+  amount: number;
+  paymentMethod: PaymentMethod;
+  /** Só no parcelado. */
+  installmentCount: number | null;
+  /** Na edição, a própria despesa não conta. */
+  excludeId: number | null;
 }
 
 interface RawSuggestions {
-  matches: RawMatch[];
-  forma_pagamento_sugerida: string | null;
-  cartao_sugerido: RawCartaoSugerido | null;
+  matches: ExpenseSuggestionMatch[];
+  lastAmount: number | null;
+  suggestedPaymentMethod: string | null;
+  preferredCardIds: { debito: number | null; credito: number | null };
 }
 
-function asNumber(value: string | number | null | undefined): number {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
+function withActiveAccount(params: URLSearchParams): URLSearchParams {
+  const accountId = getActiveAccountId();
+  if (accountId) params.set('account_id', String(accountId));
+  return params;
 }
 
-export async function fetchExpenseSuggestions(descricao: string, categoriaId?: number): Promise<ExpenseSuggestions> {
-  const q = new URLSearchParams();
-  if (descricao) q.set('descricao', descricao);
-  if (categoriaId) q.set('categoria_id', String(categoriaId));
+/** Com a descrição vazia (ou com 1 letra), vêm só a forma e os cartões sugeridos. */
+export async function fetchExpenseSuggestions(query: ExpenseSuggestionsQuery): Promise<ExpenseSuggestions> {
+  const params = withActiveAccount(new URLSearchParams());
+  if (query.description) params.set('description', query.description);
+  if (query.categoryId) params.set('category_id', String(query.categoryId));
 
-  const raw = await apiRequest<RawSuggestions>(`/expenses/suggestions?${q}`);
-
+  const raw = await apiRequest<RawSuggestions | undefined>(`/expenses/suggestions?${params}`);
   return {
-    matches: raw.matches.map((match) => ({
-      descricao: match.descricao,
-      valorFinal: asNumber(match.valor_original),
-      categoriaId: match.categoria_id ?? null,
-      formaPagamento: match.forma_pagamento ?? 'dinheiro',
-    })),
-    formaPagamentoSugerida: raw.forma_pagamento_sugerida,
-    cartaoSugerido: raw.cartao_sugerido
-      ? { id: raw.cartao_sugerido.id }
+    matches: raw?.matches ?? [],
+    lastAmount: raw?.lastAmount ?? null,
+    suggestedPaymentMethod: raw?.suggestedPaymentMethod && isPaymentMethod(raw.suggestedPaymentMethod)
+      ? raw.suggestedPaymentMethod
       : null,
+    preferredCardIds: raw?.preferredCardIds ?? { debito: null, credito: null },
   };
+}
+
+/** Despesa igual lançada nos últimos 7 dias na conta ativa, ou null. */
+export async function fetchExpenseDuplicate(query: ExpenseDuplicateQuery): Promise<{ createdAt: string } | null> {
+  const params = withActiveAccount(new URLSearchParams({
+    description: query.description,
+    amount: query.amount.toFixed(2),
+    payment_method: query.paymentMethod,
+  }));
+  if (query.installmentCount !== null) params.set('installment_count', String(query.installmentCount));
+  if (query.excludeId !== null) params.set('exclude_id', String(query.excludeId));
+
+  const raw = await apiRequest<{ duplicate: { createdAt: string } | null } | undefined>(`/expenses/duplicate?${params}`);
+  return raw?.duplicate ?? null;
 }

@@ -5,12 +5,12 @@ import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
-import type { Expense, ExpenseFormValues, Income, IncomeFormValues, Attachment } from '../../types/finance';
+import type { Expense, Income, IncomeFormValues, Attachment } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { DASH, EntryTypeBadge, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from './entryTable';
-import { ExpenseDialog } from './ExpenseDialog';
+import { ExpenseDialog } from './expense-dialog/ExpenseDialog';
 import { IncomeDialog } from './IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from './PaymentModal';
@@ -432,14 +432,6 @@ export function LancamentosTable({
     });
   }
 
-  const handleSaveExpense = async (values: ExpenseFormValues[], onItemSaved?: () => void) => {
-    for (const v of values) {
-      await finance.saveExpense.mutateAsync({ values: v, id: values.length === 1 ? expenseDialog.item?.id : undefined });
-      onItemSaved?.();
-    }
-    setExpenseDialog({ open: false });
-  };
-
   const handleSaveIncome = async (values: IncomeFormValues[]) => {
     for (const v of values) await finance.saveIncome.mutateAsync({ values: v, id: incomeDialog.item?.id });
     setIncomeDialog({ open: false });
@@ -663,12 +655,7 @@ export function LancamentosTable({
       <ExpenseDialog
         open={expenseDialog.open}
         expense={expenseDialog.item}
-        month={month}
-        year={year}
-        isSaving={finance.saveExpense.isPending}
-        error={finance.saveExpense.error?.message}
         onClose={() => setExpenseDialog({ open: false })}
-        onSave={handleSaveExpense}
       />
       <IncomeDialog
         open={incomeDialog.open}

@@ -42,7 +42,7 @@ interface CardLimitRow {
 // (ver UPDATE em routes/expenses.ts); os INSERT não a informam, então linhas
 // nunca canceladas podem ter status nulo e sumiriam de um `= 'ativa'` direto.
 export async function getCardLimits(userId: number, accountId: number | null, expandir: boolean): Promise<CardLimit[]> {
-  // `expandir` e a intencao explicita de quem chama (ex.: ExpenseForm sempre
+  // `expandir` e a intencao explicita de quem chama (ex.: o modal de despesa sempre
   // pede familia, para poder usar um cartao de outro membro; a tela de
   // Movimentacoes repassa o filtro de Membros escolhido). Ampliar so o cartao
   // sem ampliar as despesas mostraria o cartao do outro com limite zerado,

@@ -77,8 +77,6 @@ interface IncomeFormProps {
   onRemover?: () => void;
   /** Cabecalho discreto ("Receita 1"). Ausente no formulario do topo. */
   titulo?: string;
-  /** Container rolavel do modal, para o seletor de classificacao se posicionar. */
-  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -102,7 +100,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function IncomeForm({
   valoresIniciais, income, month, year, presetDate, contaId, isEmpresa, isNew,
-  open, autoFocus, guideEnabled, onResumoChange, onRemover, titulo, scrollContainerRef,
+  open, autoFocus, guideEnabled, onResumoChange, onRemover, titulo,
 }, ref) {
   const qc = useQueryClient();
   const defaultDate = presetDate ?? `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
@@ -112,7 +110,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   // Refs em vez de id fixo: com N formularios do lote abertos, um id
   // repetido faria getElementById pegar o input do primeiro deles.
   const novoClienteRef = useRef<HTMLInputElement | null>(null);
-  const novaClassificacaoRef = useRef<HTMLInputElement | null>(null);
   const [anexos, setAnexos] = useState<Attachment[]>([]);
   const [replicar, setReplicar] = useState(false);
   const [replicarMes, setReplicarMes] = useState(month);
@@ -129,7 +126,6 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
   const [clienteTocado, setClienteTocado] = useState(false);
   const [representanteTocado, setRepresentanteTocado] = useState(false);
 
-  const [showClassificacaoForm, setShowClassificacaoForm] = useState<string | null>(null);
   const [showClienteForm, setShowClienteForm] = useState<string | null>(null);
   const [classificacaoSugestao, setClassificacaoSugestao] = useState<ClassificacaoReceita | null>(null);
   const [duplicataInfo, setDuplicataInfo] = useState<{ income: Income } | null>(null);
@@ -238,10 +234,8 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
 
   const criarClassificacaoMut = useMutation({
     mutationFn: (nome: string) => saveClassificacaoReceita({ nome }, undefined, contaId),
-    onSuccess: (classificacao) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['classificacoes-receita'] });
-      form.setValue('classificacaoId', classificacao.id);
-      setShowClassificacaoForm(null);
     },
   });
 
@@ -314,7 +308,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
       setHorasFaturar(false); setContratoId(null); setTipoHora(null); setQuantidadeHoras('');
       setProdutoId(null); setQuantidadeVendida('');
       setClienteTocado(false); setRepresentanteTocado(false);
-      setShowClassificacaoForm(null); setShowClienteForm(null);
+      setShowClienteForm(null);
       setClassificacaoSugestao(null); setDuplicataInfo(null);
       return;
     }
@@ -645,8 +639,7 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                           field.onChange(id ?? null);
                           if (id) { setClassificacaoSugestao(null); aplicarClassificacaoFixa(id); }
                         }}
-                        onCreateNew={(nome) => setShowClassificacaoForm(nome)}
-                        scrollContainerRef={scrollContainerRef}
+                        onCreate={async (nome) => (await criarClassificacaoMut.mutateAsync(nome)).id}
                       />
                     )}
                   />
@@ -667,46 +660,13 @@ export const IncomeForm = forwardRef<IncomeFormHandle, IncomeFormProps>(function
                   <Paperclip size={14} />
                 </button>
               </div>
-              {showClassificacaoForm !== null && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, borderRadius: 10, border: `1.5px solid ${C.primary}`, background: C.primarySoft, padding: 8 }}>
-                  <input
-                    type="text"
-                    defaultValue={showClassificacaoForm}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); const v = e.currentTarget.value.trim(); if (v) criarClassificacaoMut.mutate(v); }
-                      if (e.key === 'Escape') { e.preventDefault(); setShowClassificacaoForm(null); }
-                    }}
-                    ref={novaClassificacaoRef}
-                    placeholder="Nome da categoria"
-                    style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 10px', fontSize: 13, color: C.text, outline: 'none' }}
-                  />
-                  <button
-                    type="button"
-                    disabled={criarClassificacaoMut.isPending}
-                    onClick={() => {
-                      const v = novaClassificacaoRef.current?.value.trim();
-                      if (v) criarClassificacaoMut.mutate(v);
-                    }}
-                    style={{ borderRadius: 8, background: C.primary, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    {criarClassificacaoMut.isPending ? '...' : 'Criar'}
-                  </button>
-                  <button type="button" onClick={() => setShowClassificacaoForm(null)} style={{ color: C.textMuted, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}>
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
-              {criarClassificacaoMut.error && (
-                <div style={{ marginTop: 4, fontSize: 12, color: C.danger }}>{criarClassificacaoMut.error.message}</div>
-              )}
             </div>
             </div>
 
             {/* Anexos ocupam a largura toda. O componente monta sempre — o ref
                 é o que abre o seletor de arquivos. */}
             <div style={{ marginTop: 10 }}>
-              <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} hideTrigger />
+              <AttachmentSection ref={attachmentRef} value={anexos} onChange={setAnexos} />
             </div>
           </div>
 

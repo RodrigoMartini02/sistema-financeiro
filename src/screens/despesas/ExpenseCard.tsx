@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import {
   diferencaValor, formatDiferenca, getFirstName, getStatusColor,
   StatusBadge, valorExibido,
-} from './DespesasScreen';
+} from './expenseStatus';
 import { EntryTypeBadge, getPaymentMethodLabel } from '../finance/entryTable';
 
 interface ExpenseCardProps {

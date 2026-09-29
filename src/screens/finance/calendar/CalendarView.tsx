@@ -5,7 +5,7 @@ import { useFinanceDashboard } from '../../../hooks/useFinanceDashboard';
 import { fetchAppointments, saveAppointment } from '../../../services/appointmentsService';
 import { queryKeys } from '../../../services/queryKeys';
 import { ErrorState, LoadingState } from '../../../ui/states';
-import { ExpenseDialog } from '../ExpenseDialog';
+import { ExpenseDialog } from '../expense-dialog/ExpenseDialog';
 import { IncomeDialog } from '../IncomeDialog';
 import { AppointmentDialog } from '../AppointmentDialog';
 import { AgendaView } from './AgendaView';
@@ -210,20 +210,9 @@ export function CalendarView({ month, year, subView }: Props) {
 
       <ExpenseDialog
         open={dialog?.kind === 'despesa'}
-        month={month}
-        year={year}
         expense={editingExpense}
         presetDate={dialog?.presetDate}
-        isSaving={finance.saveExpense.isPending}
-        error={finance.saveExpense.error?.message}
         onClose={() => setDialog(null)}
-        onSave={async (items, onItemSaved) => {
-          for (const item of items) {
-            await finance.saveExpense.mutateAsync({ values: item, id: dialog?.id });
-            onItemSaved?.();
-          }
-          setDialog(null);
-        }}
       />
 
       <IncomeDialog

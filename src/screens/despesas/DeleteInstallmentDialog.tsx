@@ -8,7 +8,7 @@ import { fetchExpenseGroup } from '../../services/financeService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import type { Expense } from '../../types/finance';
-import { StatusBadge } from './DespesasScreen';
+import { StatusBadge } from './expenseStatus';
 
 type InstallmentDialogMode = 'excluir' | 'cancelar';
 

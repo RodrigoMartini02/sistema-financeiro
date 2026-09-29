@@ -11,12 +11,6 @@ interface DialogProps {
   children: ReactNode;
   size?: 'xs' | 'sm' | 'md' | 'card' | 'lg' | 'xl' | 'xxl';
   scrollBody?: boolean;
-  /**
-   * Altura fixa de 80% da viewport, em vez de apenas um teto. Usada em modais
-   * cujo conteudo varia muito (o de despesa cresce com o lote): sem isso o
-   * painel encolhe e cresce a cada acao, e os botoes do rodape mudam de lugar.
-   */
-  fixedHeight?: boolean;
 }
 
 // Larguras da especificação: categoria 340 · conta 440 · cartão 600.
@@ -27,15 +21,16 @@ const maxWSize: Record<NonNullable<DialogProps['size']>, string> = {
   card: 'max-w-[600px]',
   lg: 'max-w-[780px]',
   xl: 'max-w-[980px]',
-  xxl: 'max-w-[1180px]',
+  xxl: 'max-w-[1240px]',
 };
 
-export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true, fixedHeight = false }: DialogProps) {
+export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
   useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // Um popover que já tratou o Esc (FloatingPanel) marca o evento: o modal só fecha no Esc seguinte.
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) onClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
@@ -50,8 +45,7 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
       />
       <div
         className={[
-          'dialog-panel relative z-10 w-full flex flex-col',
-          fixedHeight ? 'h-[80vh]' : 'max-h-[85vh]',
+          'dialog-panel relative z-10 w-full flex flex-col max-h-[85vh]',
           // overflow-hidden recorta o rodapé (que tem fundo próprio) nos cantos
           // arredondados do painel.
           'overflow-hidden rounded-[18px] bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38),0_0_0_1px_rgba(13,47,63,0.06)]',

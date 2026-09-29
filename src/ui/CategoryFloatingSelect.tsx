@@ -1,258 +1,280 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, X } from 'lucide-react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import type { OpcaoCatalogo } from '../types/config';
 import { compararNomesCatalogo, groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
-import { C as sharedC } from './dialogFormTokens';
+import { C } from './dialogFormTokens';
+import { FloatingPanel } from './FloatingPanel';
 
-// Mantém os mesmos valores hex já usados neste componente (alguns divergem
-// sutilmente da paleta compartilhada, ex.: border/textSoft) para não alterar
-// o visual atual sem revisão dedicada — reaproveita o que já é idêntico.
-const C = {
-  border: '#dbe6ec',
-  primary: sharedC.primary,
-  primaryDark: sharedC.primaryDark,
-  text: sharedC.text,
-  textSoft: '#33566a',
-  // Mesmo cinza da subcategoria nas tabelas (slate-400).
-  sub: '#94a3b8',
-  placeholder: sharedC.placeholder,
-};
+const SEPARATOR = '#eef2f6';
+const INVALID_BORDER = '#fca5a5';
 
 interface Props<T extends OpcaoCatalogo> {
   categories: T[];
   value?: number;
   onChange: (id: number | undefined) => void;
-  onCreateNew: (nome: string) => void;
-  featuredIds?: number[];
-  scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  /** Cria a categoria com o nome digitado e devolve o id dela, que já fica escolhido. */
+  onCreate?: (name: string) => Promise<number>;
+  /** Categorias mais usadas, mostradas em chips antes da lista. */
+  recentIds?: number[];
+  invalid?: boolean;
+  /** Campo de 28px da grade de despesas; o padrão é o de 32px dos formulários. */
+  compact?: boolean;
 }
 
-interface MenuRect { top: number; left: number; width: number; }
+interface Option<T> {
+  category: T;
+  parent: T | null;
+}
 
 export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
-  categories, value, onChange, onCreateNew, featuredIds = [], scrollContainerRef,
+  categories, value, onChange, onCreate, recentIds = [], invalid = false, compact = false,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [rect, setRect] = useState<MenuRect | null>(null);
-  // Grupos (categoria com subs) começam fechados; guarda os ids dos abertos.
-  const [gruposAbertos, setGruposAbertos] = useState<number[]>([]);
-  const fieldRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>({});
+  const [creatingName, setCreatingName] = useState<string | null>(null);
+  const [createError, setCreateError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Só o que é diretamente selecionável entra aqui: categoria com sub ativa
-  // vira cabeçalho de grupo (group.parent), nunca uma opção clicável — só as
-  // subs (group.items) são selecionáveis nesse caso. A→Z com "Outros" no fim.
+  // Categoria com subcategoria ativa vira só o cabeçalho do grupo: escolhe-se a sub.
   const groups = groupSelectableCategories(categories)
     .map((group) => ({ ...group, items: group.items.slice().sort((a, b) => compararNomesCatalogo(a.nome, b.nome)) }))
-    .sort((a, b) => compararNomesCatalogo(a.parent?.nome ?? a.items[0].nome, b.parent?.nome ?? b.items[0].nome));
-  const selectable = groups.flatMap((group) => group.items);
-  const selected = selectable.find((c) => c.id === value);
+    .sort((a, b) => compararNomesCatalogo(a.parent?.nome ?? a.items[0]!.nome, b.parent?.nome ?? b.items[0]!.nome));
+  const options: Option<T>[] = groups.flatMap((group) => group.items.map((category) => ({ category, parent: group.parent })));
+  const selected = options.find((option) => option.category.id === value);
 
-  const openMenu = () => {
-    const fieldRect = fieldRef.current?.getBoundingClientRect();
-    if (!fieldRect) return;
-    setRect({ top: fieldRect.bottom + 6, left: fieldRect.left, width: fieldRect.width });
+  const normalizedQuery = normalizeCategoryText(query);
+  const results = normalizedQuery
+    ? options.filter(({ category, parent }) => normalizeCategoryText(category.nome).includes(normalizedQuery)
+      || (parent !== null && normalizeCategoryText(parent.nome).includes(normalizedQuery)))
+    : [];
+  const recents = recentIds
+    .map((id) => options.find((option) => option.category.id === id))
+    .filter((option): option is Option<T> => option !== undefined);
+  const canCreate = !!onCreate && !!normalizedQuery && creatingName === null
+    && !options.some(({ category }) => normalizeCategoryText(category.nome) === normalizedQuery);
+
+  const close = () => {
+    setOpen(false);
     setQuery('');
-    // Subcategoria já escolhida: o grupo dela abre junto, para mostrar onde está.
-    const grupoDaEscolhida = groups.find((group) => group.parent && group.items.some((c) => c.id === value))?.parent?.id;
-    setGruposAbertos(grupoDaEscolhida ? [grupoDaEscolhida] : []);
+    setCreatingName(null);
+    setCreateError('');
+  };
+
+  const toggleOpen = () => {
+    if (open) {
+      close();
+      return;
+    }
+    setExpandedGroups({});
     setOpen(true);
   };
 
-  const closeMenu = () => setOpen(false);
-
-  const alternarGrupo = (id: number) =>
-    setGruposAbertos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-
-  useEffect(() => {
-    if (open) searchRef.current?.focus();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (menuRef.current?.contains(target) || fieldRef.current?.contains(target)) return;
-      closeMenu();
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMenu();
-    };
-    const scrollContainer = scrollContainerRef?.current;
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    scrollContainer?.addEventListener('scroll', closeMenu);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-      scrollContainer?.removeEventListener('scroll', closeMenu);
-    };
-  }, [open, scrollContainerRef]);
-
-  const normalizedQuery = normalizeCategoryText(query);
-  const featured = featuredIds.map((id) => selectable.find((c) => c.id === id)).filter((c): c is T => Boolean(c));
-
-  // Buscar pelo nome do pai também deve trazer as subs dele — senão digitar
-  // "Alimentação" (que não é mais selecionável sozinha) não encontraria nada.
-  const groupsFiltered = normalizedQuery
-    ? groups
-      .map((group) => ({
-        ...group,
-        items: (group.parent && normalizeCategoryText(group.parent.nome).includes(normalizedQuery))
-          ? group.items
-          : group.items.filter((c) => normalizeCategoryText(c.nome).includes(normalizedQuery)),
-      }))
-      .filter((group) => group.items.length > 0)
-    : groups;
-
-  const exactMatch = selectable.some((c) => normalizeCategoryText(c.nome) === normalizedQuery);
-  const showCreateOption = normalizedQuery.length > 0 && !exactMatch;
-
+  // Clicar de novo na categoria escolhida desmarca.
   const pick = (id: number) => {
     onChange(value === id ? undefined : id);
-    closeMenu();
+    close();
+    triggerRef.current?.focus();
   };
 
+  const confirmCreate = async () => {
+    const name = (creatingName ?? '').trim();
+    if (!name || !onCreate || isCreating) return;
+    setIsCreating(true);
+    setCreateError('');
+    try {
+      const id = await onCreate(name);
+      onChange(id);
+      close();
+      triggerRef.current?.focus();
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Não foi possível criar a categoria.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (results[0]) pick(results[0].category.id);
+    else if (onCreate && query.trim()) setCreatingName(query.trim());
+  };
+
+  const handleCreateKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void confirmCreate();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setCreatingName(null);
+    }
+  };
+
+  const isGroupOpen = (groupId: number) => groupId in expandedGroups
+    ? expandedGroups[groupId]
+    : groups.some((group) => group.parent?.id === groupId && group.items.some((item) => item.id === value));
+
+  const height = compact ? 28 : 32;
+  const rowStyle = (active: boolean, indent: number) => ({
+    display: 'flex', alignItems: 'center', gap: 6, flex: 'none', height: 28, padding: `0 8px 0 ${indent}px`,
+    border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 12, textAlign: 'left' as const,
+    background: active ? C.primarySoft : 'transparent', color: active ? C.primaryDark : C.text,
+  });
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', minWidth: 0 }}>
       <button
-        ref={fieldRef}
+        ref={triggerRef}
         type="button"
-        onClick={() => (open ? closeMenu() : openMenu())}
+        onClick={toggleOpen}
+        title={selected ? [selected.parent?.nome, selected.category.nome].filter(Boolean).join(' › ') : undefined}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-          width: '100%', boxSizing: 'border-box', height: 32, padding: '0 9px',
-          borderRadius: 10, border: `1px solid ${open ? C.primary : sharedC.borderInput}`,
-          background: '#fff', cursor: 'pointer', transition: 'border-color .13s ease',
+          display: 'flex', alignItems: 'center', gap: 6, width: '100%', height, padding: '0 8px',
+          border: `1px solid ${invalid ? INVALID_BORDER : open ? C.primary : C.borderInput}`,
+          borderRadius: compact ? 8 : 10, background: '#fff', cursor: 'pointer', textAlign: 'left',
+          fontSize: compact ? 12 : 13, color: selected ? C.text : C.placeholder,
         }}
       >
-        {selected ? (
-          <span style={{ fontSize: 13, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {selected.nome}
-          </span>
-        ) : (
-          <span style={{ fontSize: 13, color: C.placeholder }}>Selecionar categoria</span>
-        )}
-        <ChevronDown size={13} style={{ flexShrink: 0, color: '#8ba3b0' }} />
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected ? (
+            <>
+              {selected.parent?.nome ?? selected.category.nome}
+              {selected.parent && <span style={{ color: C.textFaint }}> › {selected.category.nome}</span>}
+            </>
+          ) : 'Selecionar'}
+        </span>
+        <span aria-hidden="true" style={{ fontSize: 8, color: C.textFaint }}>▼</span>
       </button>
 
-      {open && rect && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={closeMenu} />
-          <div
-            ref={menuRef}
-            style={{
-              position: 'fixed', top: rect.top, left: rect.left, width: rect.width, zIndex: 41,
-              display: 'flex', flexDirection: 'column', gap: 6,
-              background: '#fff', border: `1px solid ${C.border}`, borderRadius: 12,
-              boxShadow: '0 20px 44px -14px rgba(13, 47, 63, 0.34)', padding: 8,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                ref={searchRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar categoria..."
-                style={{
-                  flex: 1, height: 38, borderRadius: 9, border: `1.5px solid ${C.border}`,
-                  background: '#fff', padding: '0 11px', fontSize: '13.5px', color: C.text, outline: 'none',
-                }}
-              />
-              {selected && (
-                <button
-                  type="button"
-                  onClick={() => pick(selected.id)}
-                  title="Remover categoria"
-                  style={{ display: 'flex', flexShrink: 0, alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 9, color: C.placeholder, background: 'transparent', border: 'none', cursor: 'pointer' }}
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
+      <FloatingPanel open={open} anchorRef={triggerRef} onClose={close} label="Categorias" minWidth={280} padding={8}>
+        <input
+          autoFocus
+          type="text"
+          value={query}
+          onChange={(event) => { setQuery(event.target.value); setCreatingName(null); }}
+          onKeyDown={handleSearchKeyDown}
+          placeholder="Buscar categoria..."
+          className="focus:border-[#0891b2] focus:shadow-[0_0_0_3px_rgba(8,145,178,0.14)]"
+          style={{ height: 28, padding: '0 9px', border: `1px solid ${C.borderInput}`, borderRadius: 8, fontSize: 12, color: C.text, outline: 'none' }}
+        />
 
-            <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 200, overflowY: 'auto' }}>
-              {!normalizedQuery && featured.length > 0 && (
-                <>
-                  <p style={{ margin: '4px 0 2px 9px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.placeholder }}>Recentes</p>
-                  {featured.map((category) => (
-                    <div
-                      key={`featured-${category.id}`}
-                      onClick={() => pick(category.id)}
-                      className="hover:bg-slate-100"
-                      style={{
-                        display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', borderRadius: 7,
-                        cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
-                        color: value === category.id ? C.primaryDark : C.textSoft,
-                      }}
-                    >
-                      {category.nome}
-                    </div>
-                  ))}
-                </>
-              )}
-              {groupsFiltered.map((group) => {
-                // Com busca, todo grupo que sobrou aparece aberto: senão a busca esconderia o que achou.
-                const aberto = !group.parent || !!normalizedQuery || gruposAbertos.includes(group.parent.id);
+        {!normalizedQuery && recents.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '0 2px' }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: C.textFaint }}>Recentes</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {recents.map(({ category }) => {
+                const active = category.id === value;
                 return (
-                  <div key={group.parent?.id ?? group.items[0].id}>
-                    {/* O grupo não se escolhe (só as subs): a linha dele só abre e fecha. */}
-                    {group.parent && (
-                      <div
-                        role="button"
-                        aria-expanded={aberto}
-                        onClick={() => alternarGrupo(group.parent!.id)}
-                        className="hover:bg-slate-100"
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, height: 30, padding: '0 9px',
-                          borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400, color: C.textSoft,
-                        }}
-                      >
-                        {group.parent.nome}
-                        <ChevronDown
-                          size={13}
-                          style={{ flexShrink: 0, color: '#8ba3b0', transform: aberto ? 'none' : 'rotate(-90deg)', transition: 'transform .13s ease' }}
-                        />
-                      </div>
-                    )}
-                    {aberto && group.items.map((category) => (
-                      <div
-                        key={category.id}
-                        onClick={() => pick(category.id)}
-                        className="hover:bg-slate-100"
-                        style={{
-                          display: 'flex', alignItems: 'center', height: 30, padding: '0 9px', marginLeft: group.parent ? 10 : 0,
-                          borderRadius: 7, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 400,
-                          color: value === category.id ? C.primaryDark : group.parent ? C.sub : C.textSoft,
-                        }}
-                      >
-                        {category.nome}
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => pick(category.id)}
+                    style={{
+                      height: 24, padding: '0 9px', borderRadius: 12, fontSize: 12, cursor: 'pointer',
+                      border: `1px solid ${active ? C.primary : C.borderInput}`,
+                      background: active ? C.primarySoft : '#fff', color: active ? C.primaryDark : C.text,
+                    }}
+                  >
+                    {category.nome}
+                  </button>
                 );
               })}
-              {groupsFiltered.length === 0 && !showCreateOption && (
-                <p style={{ padding: '8px 10px', fontSize: 13, color: C.placeholder }}>Nenhuma categoria encontrada</p>
-              )}
-              {showCreateOption && (
-                <div
-                  onClick={() => { onCreateNew(query.trim()); closeMenu(); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, height: 30, padding: '0 9px', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.primaryDark }}
-                >
-                  <Plus size={13} /> criar "{query.trim()}"
-                </div>
-              )}
             </div>
           </div>
-        </>
-      )}
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 220, overflowY: 'auto', borderTop: `1px solid ${SEPARATOR}`, paddingTop: 6 }}>
+          {normalizedQuery
+            ? results.map(({ category, parent }) => (
+              <button key={category.id} type="button" onClick={() => pick(category.id)} style={rowStyle(category.id === value, 8)}>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{category.nome}</span>
+                {parent && <span style={{ fontSize: 11, color: C.textFaint }}>{parent.nome}</span>}
+              </button>
+            ))
+            : groups.map((group) => {
+              if (!group.parent) {
+                const category = group.items[0]!;
+                return (
+                  <button key={category.id} type="button" onClick={() => pick(category.id)} style={rowStyle(category.id === value, 8)}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{category.nome}</span>
+                  </button>
+                );
+              }
+              const parent = group.parent;
+              const expanded = isGroupOpen(parent.id);
+              return (
+                <div key={parent.id} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedGroups((current) => ({ ...current, [parent.id]: !expanded }))}
+                    style={{ ...rowStyle(false, 8), fontWeight: 500 }}
+                  >
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{parent.nome}</span>
+                    <span aria-hidden="true" style={{ fontSize: 11, color: C.textFaint }}>{expanded ? '▾' : '▸'}</span>
+                  </button>
+                  {expanded && group.items.map((category) => (
+                    <button key={category.id} type="button" onClick={() => pick(category.id)} style={rowStyle(category.id === value, 22)}>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{category.nome}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          {(normalizedQuery ? results.length === 0 : groups.length === 0) && (
+            <span style={{ padding: '6px 8px', fontSize: 12, color: C.textFaint }}>Nenhuma categoria encontrada</span>
+          )}
+        </div>
+
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => setCreatingName(query.trim())}
+            style={{
+              height: 28, padding: '0 8px', border: 'none', borderTop: `1px solid ${SEPARATOR}`, background: 'transparent',
+              color: C.primary, fontSize: 12, fontWeight: 500, cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            + criar “{query.trim()}”
+          </button>
+        )}
+
+        {creatingName !== null && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8, borderTop: `1px solid ${SEPARATOR}` }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                autoFocus
+                type="text"
+                value={creatingName}
+                onChange={(event) => setCreatingName(event.target.value)}
+                onKeyDown={handleCreateKeyDown}
+                aria-label="Nome da nova categoria"
+                style={{ flex: 1, minWidth: 0, height: 28, padding: '0 8px', border: `1px solid ${C.primary}`, borderRadius: 8, fontSize: 12, color: C.text, outline: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => void confirmCreate()}
+                disabled={isCreating}
+                style={{ height: 28, padding: '0 10px', border: 'none', borderRadius: 8, background: C.primary, color: '#fff', fontSize: 12, fontWeight: 500, cursor: isCreating ? 'wait' : 'pointer' }}
+              >
+                Criar
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatingName(null)}
+                aria-label="Cancelar"
+                style={{ width: 28, height: 28, border: 'none', borderRadius: 8, background: '#f1f5f9', color: C.textSoft, cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+            {createError && <span style={{ fontSize: 12, color: C.danger }}>{createError}</span>}
+          </div>
+        )}
+      </FloatingPanel>
     </div>
   );
 }

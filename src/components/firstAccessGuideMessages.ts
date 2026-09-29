@@ -14,13 +14,10 @@ export const firstAccessGuideMessages = {
   despesasLote: 'Selecione v\u00e1rias despesas pendentes para pag\u00e1-las de uma vez.',
   despesasPagarSelecionadas: 'Clique em Pagar selecionadas para dar baixa em todas as despesas marcadas de uma s\u00f3 vez.',
   despesasMoverMes: 'Use Mover para pr\u00f3ximo m\u00eas para adiar uma despesa sem precisar recri\u00e1-la.',
-  despesasTogglesTipo: 'Escolha se esta despesa n\u00e3o repete, ser\u00e1 parcelada ou acontece todo m\u00eas.',
-  despesasCategoriaSugerida: 'Sugerimos uma categoria com base no hist\u00f3rico e na descri\u00e7\u00e3o. Clique em Usar para aplicar.',
   batchValorOriginal: 'Use Valor original para pagar cada despesa exatamente pelo valor lan\u00e7ado.',
   batchValorPersonalizado: 'Use Valor personalizado para ajustar o valor pago de cada despesa individualmente.',
 
   // Receitas
-  receitasContratosFaturamento: 'Fature um contrato do m\u00eas e depois confirme o recebimento quando o pagamento cair.',
   receitasHoras: 'Abra Horas a faturar para lan\u00e7ar horas de um contrato e calcular o valor automaticamente.',
   receitasReplicar: 'Use Replicar at\u00e9 para duplicar esta receita automaticamente nos meses seguintes.',
   receitasRepresentante: 'Ao vincular um representante, a comiss\u00e3o dele \u00e9 calculada automaticamente sobre esta receita.',

@@ -69,7 +69,6 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
     ? contaSelecionada.tipo === 'empresa'
     : localStorage.getItem('contaAtivaTipo') === 'empresa';
 
-  const bodyRef = useRef<HTMLDivElement>(null);
   // Delimita o formulário do topo, para os atalhos distinguirem de qual
   // formulário empilhado veio a tecla.
   const topoRef = useRef<HTMLDivElement>(null);
@@ -238,7 +237,7 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
       >
         {/* Corpo rolável. Blocos separados por linha de 1px, não por cards com
             borda: dentro de um modal, card sobre card cria moldura dupla. */}
-        <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* So aparece para quem tem mais de uma conta (dono de PF+PJs). */}
           {contas.length > 1 && (
@@ -281,7 +280,6 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
               autoFocus
               guideEnabled
               onResumoChange={setResumoTopo}
-              scrollContainerRef={bodyRef}
             />
           </div>
 
@@ -321,7 +319,6 @@ export function IncomeDialog({ open, month, year, income, isSaving, error, prese
                     titulo={`Receita ${indice + 1}`}
                     onRemover={() => removerDoLote(item.id)}
                     onResumoChange={registrarResumoLote(item.id)}
-                    scrollContainerRef={bodyRef}
                   />
                 </div>
               ))}

@@ -1,8 +1,10 @@
 import {
   createDemoFakeDatabase, generateId, todayIso, currentMonthYear,
-  type DemoFakeDatabase,
+  type DemoFakeDatabase, type RawExpenseDemo,
 } from './demoFakeDatabase';
+import type { ExpenseCreateInput } from '../../types/finance';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
+import { addMonthsClamped } from '../../utils/expenseSchedule';
 
 export interface FakeApiRequestInit {
   method?: string;
@@ -81,48 +83,28 @@ export function resolveFakeApiRequest(
   }
 
   // Despesas
-  if (matchEndpoint(endpoint, /^\/despesas$/) && method === 'GET') {
+  if (matchEndpoint(endpoint, /^\/expenses$/) && method === 'GET') {
     return db.despesas;
   }
-  if (matchEndpoint(endpoint, /^\/despesas$/) && method === 'POST') {
-    const body = parseBody<Record<string, unknown>>(init);
-    const { mes, ano } = currentMonthYear();
-    const categoria = db.categorias.find((c) => c.id === Number(body.categoria_id));
-    const valorFinal = Number(body.valor_original ?? 0);
-    const novaDespesa = {
-      id: generateId(),
-      descricao: String(body.descricao ?? ''),
-      categoria_nome: categoria?.nome ?? null,
-      categoria_id: categoria?.id ?? null,
-      forma_pagamento: String(body.forma_pagamento ?? 'dinheiro'),
-      cartao_id: (body.cartao_id as number | null) ?? null,
-      data_vencimento: String(body.data_vencimento ?? todayIso()),
-      data_compra: (body.data_compra as string | null) ?? null,
-      data_pagamento: body.pago ? String(body.data_vencimento ?? todayIso()) : null,
-      mes: Number(body.mes ?? mes),
-      ano: Number(body.ano ?? ano),
-      status: 'ativa',
-      pago: Boolean(body.pago),
-      parcelado: Boolean(body.parcelado),
-      recorrente: Boolean(body.recorrente),
-      numero_parcelas: (body.total_parcelas as number | null) ?? null,
-      parcela_atual: body.parcelado ? 1 : null,
-      observacoes: (body.observacoes as string | null) ?? null,
-      valor_original: Number(body.valor_original ?? valorFinal),
-      numero_nf: null,
-      data_emissao_nf: null,
-      anexos: null,
-    };
-    db.despesas = [novaDespesa, ...db.despesas];
-    return novaDespesa;
+  if (matchEndpoint(endpoint, /^\/expenses$/) && method === 'POST') {
+    const created = buildDemoExpenseRows(db, parseBody<ExpenseCreateInput>(init));
+    db.despesas = [...created, ...db.despesas];
+    return created[0];
   }
-  const despesaIdMatch = matchEndpoint(endpoint, /^\/despesas\/(\d+)$/);
+  // Sugestões e duplicata — sem histórico na demo
+  if (matchEndpoint(endpoint, /^\/expenses\/suggestions$/)) {
+    return { matches: [], lastAmount: null, suggestedPaymentMethod: null, preferredCardIds: { debito: null, credito: null } };
+  }
+  if (matchEndpoint(endpoint, /^\/expenses\/duplicate$/)) {
+    return { duplicate: null };
+  }
+  const despesaIdMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)$/);
   if (despesaIdMatch && method === 'DELETE') {
     const id = Number(despesaIdMatch[1]);
     db.despesas = db.despesas.filter((item) => item.id !== id);
     return undefined;
   }
-  const despesaPayMatch = matchEndpoint(endpoint, /^\/despesas\/(\d+)\/pay$/);
+  const despesaPayMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)\/pay$/);
   if (despesaPayMatch && method === 'POST') {
     const id = Number(despesaPayMatch[1]);
     const body = parseBody<Record<string, unknown>>(init);
@@ -188,9 +170,6 @@ export function resolveFakeApiRequest(
   }
 
   // Sugestões de autocomplete — sem sugestões na demo
-  if (matchEndpoint(endpoint, /^\/expenses\/suggestions$/)) {
-    return { matches: [], forma_pagamento_sugerida: null, cartao_sugerido: null };
-  }
   if (matchEndpoint(endpoint, /^\/incomes\/suggestions$/)) {
     return { matches: [], forma_pagamento_sugerida: null, cliente_sugerido: null };
   }
@@ -207,10 +186,40 @@ export function resolveFakeApiRequest(
     return buildDemoReport(db, new URLSearchParams(endpoint.split('?')[1] ?? ''));
   }
 
-  // Ações sem efeito real na demo (faturamento) — apenas simula sucesso
-  if (matchEndpoint(endpoint, /\/faturar$/)) return undefined;
-
   return undefined;
+}
+
+/** As mesmas linhas que o backend grava: a única, as 12 ocorrências da mensal ou uma por parcela. */
+function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): RawExpenseDemo[] {
+  const category = db.categorias.find((item) => item.id === input.categoryId);
+  const card = db.cartoes.find((item) => item.id === input.cardId);
+  const row = (
+    dueDate: string, amount: number, paid: boolean, paymentDate: string | null, extra: Partial<RawExpenseDemo>,
+  ): RawExpenseDemo => {
+    const [year, month] = dueDate.split('-').map(Number);
+    return {
+      id: generateId(), descricao: input.description, categoria_id: input.categoryId, categoria_nome: category?.nome ?? null,
+      forma_pagamento: input.paymentMethod, cartao_id: input.cardId, cartao_nome: card?.nome ?? null,
+      data_vencimento: dueDate, data_compra: input.purchaseDate, data_pagamento: paid ? paymentDate ?? dueDate : null,
+      mes: month! - 1, ano: year!, status: 'ativa', pago: paid, parcelado: false, recorrente: false,
+      numero_parcelas: null, parcela_atual: null, observacoes: null, valor_original: amount,
+      numero_nf: null, data_emissao_nf: null, anexos: null,
+      ...extra,
+    };
+  };
+
+  if (input.billingType === 'installments') {
+    return input.installments.map((item, index) => row(item.dueDate, item.amount, item.paid, item.paymentDate, {
+      parcelado: true, numero_parcelas: input.installments.length, parcela_atual: index + 1,
+    }));
+  }
+  // Fora do crédito, vencida até hoje já nasce paga, como no backend.
+  const paid = input.paid || (input.paymentMethod !== 'credito' && (input.paymentDate ?? input.dueDate) <= todayIso());
+  const first = row(input.dueDate, input.amount, paid, input.paymentDate, { recorrente: input.billingType === 'monthly' });
+  if (input.billingType === 'single') return [first];
+  return [first, ...Array.from({ length: 11 }, (_, index) => (
+    row(addMonthsClamped(input.dueDate, index + 1), input.amount, false, null, { recorrente: true })
+  ))];
 }
 
 const DEMO_PERSON = { id: 0, name: 'Você' };

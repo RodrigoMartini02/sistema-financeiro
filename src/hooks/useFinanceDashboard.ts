@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys, invalidateFinanceQueries } from '../services/queryKeys';
 import {
   fetchFinanceDashboard, saveIncome, deleteIncome,
-  saveExpense, deleteExpense,
+  deleteExpense,
 } from '../services/financeService';
-import type { IncomeFormValues, ExpenseFormValues } from '../types/finance';
+import type { IncomeFormValues } from '../types/finance';
 
 export function useFinanceDashboard(month: number, year: number, enabled = true, escopo?: 'familia') {
   const qc = useQueryClient();
@@ -30,12 +30,6 @@ export function useFinanceDashboard(month: number, year: number, enabled = true,
     onSuccess: invalidate,
   });
 
-  const saveExpenseMut = useMutation({
-    mutationFn: ({ values, id }: { values: ExpenseFormValues; id?: number }) =>
-      saveExpense(month, year, values, id),
-    onSuccess: invalidate,
-  });
-
   const deleteExpenseMut = useMutation({
     mutationFn: ({ id, deleteGroup, ids }: { id: number; deleteGroup?: boolean; ids?: number[] }) =>
       deleteExpense(id, { deleteGroup, ids }),
@@ -46,7 +40,6 @@ export function useFinanceDashboard(month: number, year: number, enabled = true,
     dashboard,
     saveIncome: saveIncomeMut,
     deleteIncome: deleteIncomeMut,
-    saveExpense: saveExpenseMut,
     deleteExpense: deleteExpenseMut,
   };
 }
