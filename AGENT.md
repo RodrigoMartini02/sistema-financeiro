@@ -430,7 +430,7 @@ Evite os seguintes padrões:
 
 ### Banco de dados
 
-- Nunca altere o arquivo .env
+- Alterar `.env` requer confirmação explícita do usuário a cada alteração (mesma régua das migrations) — nunca por padrão, nunca em lote sem revisão prévia do que será mudado/removido
 - Fazer query sem filtro de tenant/prefeitura em dados tenant-specific.
 - Caso altere alguma tabela ou adicione uma nova, verifique a necessidade de RLS
 - Usar SQL raw quando Drizzle resolver bem o caso.
