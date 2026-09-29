@@ -46,7 +46,7 @@ const MODULE_PRIORITY: Record<string, number> = {
   painel: 4,
   meses: 4,
   planos: 4,
-  relatorios: 5,
+  reports: 5,
 };
 
 const DEFAULT_PRIORITY = 3;

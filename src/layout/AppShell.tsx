@@ -20,7 +20,7 @@ import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
   | 'painel' | 'movimentacoes'
-  | 'relatorios' | 'clientes' | 'fluxo-assistente';
+  | 'reports' | 'clientes' | 'fluxo-assistente';
 
 /** Dono do sistema: o unico que edita o fluxo de conversa do assistente. */
 const FLOW_EDITOR_DOCUMENT = '08996441988';
@@ -50,7 +50,7 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementTy
     items: [
       { label: 'Painel',    icon: LayoutDashboard, section: 'painel' },
       { label: 'Movimenta\u00e7\u00f5es', icon: Wallet, section: 'movimentacoes' },
-      { label: 'Relat\u00f3rios', icon: BarChart3, section: 'relatorios' },
+      { label: 'Relat\u00f3rios', icon: BarChart3, section: 'reports' },
     ],
   },
   {

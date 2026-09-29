@@ -201,7 +201,7 @@ export function baldesDaSerie(janela: JanelaSerie): BaldeSerie[] {
 // ---------------------------------------------------------------------------
 // Regras por lançamento
 
-export function valorEfetivo(despesa: DespesaPainel): number {
+export function valorEfetivo(despesa: Pick<DespesaPainel, 'pago' | 'valorPago' | 'valorOriginal'>): number {
   if (despesa.pago && despesa.valorPago !== null) {
     return despesa.valorPago;
   }

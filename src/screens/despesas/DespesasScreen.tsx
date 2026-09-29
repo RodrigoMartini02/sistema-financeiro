@@ -18,6 +18,7 @@ import type { Attachment } from '../../types/finance';
 import { Button } from '../../ui/button';
 import { Card } from '../../ui/card';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
+import { EntryTypeBadge, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from '../finance/entryTable';
 import { ErrorState } from '../../ui/states';
 import { EmptyState } from '../../ui/EmptyState';
 import { ExpenseDialog } from '../finance/ExpenseDialog';
@@ -37,16 +38,6 @@ import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 type FiltroStatus = 'pago' | 'em_dia' | 'atrasada';
 type FiltroDataPag = 'hoje' | 'semana' | 'mes';
 type Ordenar = 'cadastro_desc' | 'vencimento_asc' | 'vencimento_desc' | 'valor_asc' | 'valor_desc' | 'descricao';
-
-const FORMA_LABELS: Record<string, string> = {
-  dinheiro: 'Dinheiro', pix: 'PIX',
-  debito: 'Débito', débito: 'Débito',
-  credito: 'Crédito', crédito: 'Crédito',
-};
-
-export function getFormaLabel(forma: string): string {
-  return FORMA_LABELS[(forma ?? '').toLowerCase()] ?? forma ?? '—';
-}
 
 export function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
@@ -94,12 +85,6 @@ export function formatDiferenca(diff: number): string {
   return `${diff > 0 ? '+' : '−'} ${formatCurrency(Math.abs(diff))}`;
 }
 
-// Estilo unico de informacao secundaria em toda a tabela. Antes havia tres
-// variacoes (tamanho herdado, 11px cinza e 10px verde) para o mesmo papel.
-const SECONDARY_CLASS = 'text-[11px] text-slate-400 dark:text-slate-500';
-const TH_CLASS = 'px-2 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center';
-const TD_CLASS = 'px-2 py-1.5 text-center';
-
 export function getStatusKey(item: Expense): 'pago' | 'atrasada' | 'em_dia' | 'cancelada' {
   return item.status === 'cancelada' ? 'cancelada' : getStatus(item);
 }
@@ -117,23 +102,6 @@ export function StatusBadge({ item }: { item: Expense }) {
       {STATUS_LABEL[key]}
     </span>
   );
-}
-
-// Os tres tipos sao mutuamente exclusivos, mas `parcelado` e `recorrente` sao
-// colunas independentes no banco e ha registros antigos com ambos true. A
-// prioridade e explicita: parcelada vence, porque o contador de parcelas prova
-// que a despesa tem fim.
-export function TipoBadge({ item }: { item: Expense }) {
-  // Sem cor propria: diferente do Status, onde a cor carrega significado
-  // (vermelho pede acao, verde encerra), aqui azul e roxo eram so decoracao.
-  // Mesmo tom das demais colunas de dado.
-  if (item.parcela) {
-    return <span className="text-xs text-slate-600 dark:text-slate-300">{item.parcela}</span>;
-  }
-  if (item.recorrente) {
-    return <span className="text-xs text-slate-600 dark:text-slate-300">Recorrente</span>;
-  }
-  return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
 }
 
 interface FilterOption { value: string; label: string }
@@ -478,7 +446,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
     {
       id: 'forma-pagamento',
       label: 'Forma de pagamento',
-      options: formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
+      options: formas.map((f) => ({ value: f, label: getPaymentMethodLabel(f) })),
       selected: filtroFormaPag,
       onChange: setFiltroFormaPag,
     },
@@ -800,7 +768,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
                       {/* Tipo */}
                       <td className={TD_CLASS}>
-                        <TipoBadge item={item} />
+                        <EntryTypeBadge item={item} />
                       </td>
 
                       {/* Vencimento — so a data; o "pago em" virou coluna. */}
@@ -830,7 +798,7 @@ export function DespesasScreen({ month, year, toolbarStart, onFilteredSummaryCha
 
                       {/* Pagamento */}
                       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
-                        <NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
+                        <NomeComDetalhe principal={getPaymentMethodLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
                       </td>
 
                       {/* Data pagamento */}

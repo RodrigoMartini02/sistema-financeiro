@@ -9,6 +9,7 @@ import type { Expense, ExpenseFormValues, Income, IncomeFormValues, Attachment }
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
+import { DASH, EntryTypeBadge, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from './entryTable';
 import { ExpenseDialog } from './ExpenseDialog';
 import { IncomeDialog } from './IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
@@ -32,16 +33,6 @@ export type Ordenar = 'cadastro_desc' | 'data_asc' | 'data_desc' | 'valor_asc' |
 type LancamentoItem =
   | { kind: 'despesa'; id: number; chave: string; data: Expense }
   | { kind: 'receita'; id: number; chave: string; data: Income };
-
-const FORMA_LABELS: Record<string, string> = {
-  dinheiro: 'Dinheiro', pix: 'PIX',
-  debito: 'Débito', débito: 'Débito',
-  credito: 'Crédito', crédito: 'Crédito',
-};
-
-export function getFormaLabel(forma: string): string {
-  return FORMA_LABELS[(forma ?? '').toLowerCase()] ?? forma ?? '—';
-}
 
 export function getExpenseStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
@@ -78,11 +69,6 @@ export function formatDiferenca(diff: number): string {
   return `${diff > 0 ? '+' : '−'} ${formatCurrency(Math.abs(diff))}`;
 }
 
-const SECONDARY_CLASS = 'text-[11px] text-slate-400 dark:text-slate-500';
-const TH_CLASS = 'px-2 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-400 text-center';
-const TD_CLASS = 'px-2 py-1.5 text-center';
-const DASH = <span className="text-slate-300 dark:text-slate-600">—</span>;
-
 function getExpenseStatusKey(item: Expense): 'pago' | 'atrasada' | 'em_dia' | 'cancelada' {
   return item.status === 'cancelada' ? 'cancelada' : getExpenseStatus(item);
 }
@@ -94,12 +80,6 @@ function getExpenseStatusColor(item: Expense): string {
 function ExpenseStatusBadge({ item }: { item: Expense }) {
   const key = getExpenseStatusKey(item);
   return <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')}>{STATUS_LABEL[key]}</span>;
-}
-
-function TipoBadge({ item }: { item: Expense }) {
-  if (item.parcela) return <span className="text-xs text-slate-600 dark:text-slate-300">{item.parcela}</span>;
-  if (item.recorrente) return <span className="text-xs text-slate-600 dark:text-slate-300">Recorrente</span>;
-  return <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>;
 }
 
 interface FilterOption { value: string; label: string }
@@ -352,7 +332,7 @@ export function LancamentosTable({
   const expensesFiltered = filtroTipo.has('despesa')
     ? allExpenses.filter((i) => {
         if (filtroStatus.size > 0 && !filtroStatus.has(getExpenseStatus(i))) return false;
-        if (filtroCategoria.size > 0 && !filtroCategoria.has(i.categoria)) return false;
+        if (filtroCategoria.size > 0 && !filtroCategoria.has(String(i.categoriaId))) return false;
         if (!passaFiltroDespesa(i)) return false;
         if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
         if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
@@ -794,7 +774,7 @@ function ExpenseRow({
         <NomeComDetalhe principal={item.categoriaPai ?? item.categoria} detalhe={item.categoriaPai ? item.categoria : null} />
       </td>
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
-        <NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
+        <NomeComDetalhe principal={getPaymentMethodLabel(item.formaPagamento)} detalhe={item.cartaoNome} />
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.pagadorNome ?? item.autorNome)}
@@ -802,7 +782,7 @@ function ExpenseRow({
           <span className={['block', SECONDARY_CLASS].join(' ')}>cadastrado por {getFirstName(item.autorNome)}</span>
         )}
       </td>
-      <td className={TD_CLASS}><TipoBadge item={item} /></td>
+      <td className={TD_CLASS}><EntryTypeBadge item={item} /></td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {item.dataCompra ? formatDate(item.dataCompra) : DASH}
       </td>

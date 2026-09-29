@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import type { ReportQuery } from '../types/reports';
 
 // undefined ("so eu"), null ("familia") e uma lista (combinacao especifica de
 // membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
@@ -52,6 +53,8 @@ export const queryKeys = {
   painel: (accountId: number | null, de: string, ate: string, membroId?: number[] | null) =>
     ['painel', accountId ?? 'ativa', de, ate, membroIdKeyPart(membroId)] as const,
   accountsOverview: (de: string, ate: string) => ['accounts-overview', de, ate] as const,
+  // A consulta inteira (período, filtros e pessoas) entra na chave: cada combinação é um relatório diferente.
+  reports: (accountId: number | null, query: ReportQuery) => ['reports', accountId ?? 'ativa', query] as const,
   // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,

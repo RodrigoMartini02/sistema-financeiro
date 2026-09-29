@@ -142,6 +142,17 @@ const t = async () => {
 
 Evite abreviações obscuras como `cfg`, `usr`, `tmp`, `x`, `data2`, exceto quando o contexto for extremamente claro.
 
+### English-Only Codebase
+
+Identificadores de código são em inglês: funções, variáveis, tipos, componentes, arquivos, pastas, rotas da API e
+parâmetros/campos de request e response.
+
+- Textos exibidos ao usuário (telas, mensagens, PDFs) continuam em português.
+- Tabelas e colunas do banco mantêm os nomes atuais (`despesas`, `usuario_id`...): são compartilhadas pelo sistema
+  inteiro, e o schema do Drizzle já expõe nomes em inglês para o código.
+- Código legado em português é dívida técnica aceita: não é reescrito em massa, mas é renomeado para inglês quando o
+  módulo é reconstruído ou alterado de forma ampla.
+
 ### 2. Usar ECMAScript moderno com legibilidade
 
 Bom exemplo:

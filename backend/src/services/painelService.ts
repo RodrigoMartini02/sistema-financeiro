@@ -1,11 +1,20 @@
-import { and, asc, eq, exists, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { and, asc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accounts, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes, users } from '../db/schema';
+import { accounts, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes } from '../db/schema';
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
 import { resolveAccountOwnerId } from '../utils/familyVisibility';
+import {
+  ACTIVE_STATUS,
+  RECEIVABLE_STATUSES,
+  accountFilter,
+  expenseBaseConditions,
+  expensePayer,
+  findPeopleNames,
+  incomeBaseConditions,
+  toNumber,
+} from './entryQueries';
 import {
   agregarAVistaParcelado,
   agregarCategorias,
@@ -109,55 +118,15 @@ export interface PainelResposta {
   } | null;
 }
 
-const STATUS_ATIVO = 'ativa';
-/** Receita lançada e ainda não recebida (contratos passam por faturada). */
-const STATUS_A_RECEBER = ['prevista', 'faturada'];
 const LIMITE_ESTOQUE_BAIXO = 20;
 const CODIGO_TABELA_INEXISTENTE = '42P01';
-
-function numero(valor: string | number | null | undefined): number {
-  const convertido = Number(valor ?? 0);
-  return Number.isFinite(convertido) ? convertido : 0;
-}
 
 function menorData(...datas: string[]): string {
   return datas.reduce((menor, data) => (data < menor ? data : menor));
 }
 
-/**
- * Filtro de conta único do painel, mesma regra de utils/accountFilter.ts:
- * o registro é da conta informada, ou não tem conta e o autor é dono dela
- * (conta pessoal) — registros anteriores ao conceito de conta.
- */
-function filtroConta(colunaConta: AnyPgColumn, colunaUsuario: AnyPgColumn, accountId: number | null): SQL | undefined {
-  if (!accountId) {
-    return undefined;
-  }
-  return or(
-    eq(colunaConta, accountId),
-    and(
-      isNull(colunaConta),
-      exists(
-        db.select({ id: accounts.id }).from(accounts).where(and(
-          eq(accounts.id, accountId),
-          eq(accounts.type, 'pessoal'),
-          eq(accounts.userId, colunaUsuario),
-        )),
-      ),
-    ),
-  );
-}
-
-/**
- * Quem paga a despesa: o dono do cartão quando há cartão (crédito ou débito);
- * sem cartão, quem cadastrou. É por ele que a despesa entra no filtro de
- * pessoas e nas somas por pessoa — a compra no cartão de outra pessoa sai da
- * renda do dono do cartão. Calculado na consulta, nada é gravado.
- */
-const pagadorDespesa = sql<number>`COALESCE((SELECT ${cards.userId} FROM ${cards} WHERE ${cards.id} = ${expenses.cardId}), ${expenses.userId})`;
-
 const colunasDespesa = {
-  usuarioId: pagadorDespesa,
+  usuarioId: expensePayer,
   autorId: expenses.userId,
   categoriaId: expenses.categoryId,
   cartaoId: expenses.cardId,
@@ -196,33 +165,17 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
     dataVencimento: linha.dataVencimento,
     dataPagamento: linha.dataPagamento,
     pago: linha.pago === true,
-    valorOriginal: numero(linha.valorOriginal),
-    valorPago: linha.valorPago === null ? null : numero(linha.valorPago),
+    valorOriginal: toNumber(linha.valorOriginal),
+    valorPago: linha.valorPago === null ? null : toNumber(linha.valorPago),
     parcelado: linha.parcelado === true,
     recorrente: linha.recorrente === true,
   };
 }
 
-function condicoesBaseDespesa(entrada: PainelEntrada): Array<SQL | undefined> {
-  return [
-    inArray(pagadorDespesa, entrada.escopo),
-    eq(expenses.status, STATUS_ATIVO),
-    filtroConta(expenses.accountId, expenses.userId, entrada.accountId),
-  ];
-}
-
-function condicoesBaseReceita(entrada: PainelEntrada, status: string[] = [STATUS_ATIVO]): Array<SQL | undefined> {
-  return [
-    inArray(incomes.userId, entrada.escopo),
-    inArray(incomes.status, status),
-    filtroConta(incomes.accountId, incomes.userId, entrada.accountId),
-  ];
-}
-
 /** Despesas que vencem OU foram pagas na janela — o "pago" da série e o atraso quitado usam a data de pagamento. */
 async function buscarDespesas(entrada: PainelEntrada, janela: Periodo): Promise<DespesaPainel[]> {
   const linhas = await db.select(colunasDespesa).from(expenses).where(and(
-    ...condicoesBaseDespesa(entrada),
+    ...expenseBaseConditions(entrada.escopo, entrada.accountId),
     or(
       and(gte(expenses.dueDate, janela.de), lte(expenses.dueDate, janela.ate)),
       and(gte(expenses.paymentDate, janela.de), lte(expenses.paymentDate, janela.ate)),
@@ -234,25 +187,25 @@ async function buscarDespesas(entrada: PainelEntrada, janela: Periodo): Promise<
 /** Tudo que está em aberto até o fim da janela de compromissos: atraso de qualquer período entra aqui. */
 async function buscarDespesasNaoPagas(entrada: PainelEntrada, ate: string): Promise<DespesaPainel[]> {
   const linhas = await db.select(colunasDespesa).from(expenses).where(and(
-    ...condicoesBaseDespesa(entrada),
+    ...expenseBaseConditions(entrada.escopo, entrada.accountId),
     eq(expenses.paid, false),
     lte(expenses.dueDate, ate),
   ));
   return linhas.map(paraDespesaPainel);
 }
 
-async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: string[] = [STATUS_ATIVO]): Promise<ReceitaPainel[]> {
+async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: string[] = [ACTIVE_STATUS]): Promise<ReceitaPainel[]> {
   const linhas = await db.select({
     usuarioId: incomes.userId,
     dataRecebimento: incomes.receiptDate,
     valor: incomes.amount,
     classificacaoId: incomes.classificationId,
   }).from(incomes).where(and(
-    ...condicoesBaseReceita(entrada, status),
+    ...incomeBaseConditions(entrada.escopo, entrada.accountId, status),
     gte(incomes.receiptDate, janela.de),
     lte(incomes.receiptDate, janela.ate),
   ));
-  return linhas.map((linha) => ({ ...linha, valor: numero(linha.valor) }));
+  return linhas.map((linha) => ({ ...linha, valor: toNumber(linha.valor) }));
 }
 
 /**
@@ -275,7 +228,7 @@ async function buscarFixas(entrada: PainelEntrada): Promise<FixaPainel[]> {
       inArray(incomeClassificationFixes.userId, entrada.escopo),
       eq(incomeClassifications.active, true),
     ));
-  return linhas.map((linha) => ({ ...linha, valor: numero(linha.valor) }));
+  return linhas.map((linha) => ({ ...linha, valor: toNumber(linha.valor) }));
 }
 
 /** Nomes das classificações usadas e das raízes delas (para agrupar a sub no pai). */
@@ -299,30 +252,21 @@ async function buscarClassificacoes(ids: number[]): Promise<Map<number, ItemArvo
 async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
   const [receitasAntes, despesasAntes, conta] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
-      ...condicoesBaseReceita(entrada),
+      ...incomeBaseConditions(entrada.escopo, entrada.accountId),
       lt(incomes.receiptDate, entrada.periodo.de),
     )),
     db.select({
       total: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.amountPaid}, ${expenses.originalAmount}) ELSE ${expenses.originalAmount} END), 0)`,
     }).from(expenses).where(and(
-      ...condicoesBaseDespesa(entrada),
+      ...expenseBaseConditions(entrada.escopo, entrada.accountId),
       lt(expenses.dueDate, entrada.periodo.de),
     )),
     entrada.accountId
       ? db.select({ aporte: accounts.initialContribution }).from(accounts).where(eq(accounts.id, entrada.accountId)).limit(1)
       : Promise.resolve([]),
   ]);
-  const aporteInicial = numero(conta[0]?.aporte);
-  return aporteInicial + numero(receitasAntes[0]?.total) - numero(despesasAntes[0]?.total);
-}
-
-async function buscarNomesPessoas(ids: number[]): Promise<Map<number, string>> {
-  if (ids.length === 0) {
-    return new Map();
-  }
-  const linhas = await db.select({ id: users.id, nome: users.name, sobrenome: users.lastName })
-    .from(users).where(inArray(users.id, ids));
-  return new Map(linhas.map((linha) => [linha.id, `${linha.nome} ${linha.sobrenome ?? ''}`.trim()]));
+  const aporteInicial = toNumber(conta[0]?.aporte);
+  return aporteInicial + toNumber(receitasAntes[0]?.total) - toNumber(despesasAntes[0]?.total);
 }
 
 /** Categorias usadas e as raízes delas (a pizza agrupa a subcategoria no pai). */
@@ -356,7 +300,7 @@ async function montarCartoes(entrada: PainelEntrada, despesasPeriodo: DespesaPai
   // O dono do cartão pode estar fora do filtro de pessoas (ex.: membro usando o cartão do titular).
   const idsPessoas = new Set<number>(linhas.map((cartao) => cartao.donoId));
   for (const porPessoa of gastoPorPessoa.values()) for (const usuarioId of porPessoa.keys()) idsPessoas.add(usuarioId);
-  const nomes = await buscarNomesPessoas([...idsPessoas]);
+  const nomes = await findPeopleNames([...idsPessoas]);
   const limitePorCartao = new Map(limites.map((limite) => [limite.id, limite]));
   return linhas
     .map((cartao) => ({
@@ -440,13 +384,13 @@ async function buscarEstoqueBaixo(entrada: PainelEntrada): Promise<NonNullable<P
       eq(catalogoProdutos.ativo, true),
       isNotNull(catalogoProdutos.estoqueMinimo),
       lte(catalogoProdutos.quantidadeEstoque, catalogoProdutos.estoqueMinimo),
-      filtroConta(catalogoProdutos.contaId, catalogoProdutos.usuarioId, entrada.accountId),
+      accountFilter(catalogoProdutos.contaId, catalogoProdutos.usuarioId, entrada.accountId),
     )).orderBy(asc(catalogoProdutos.quantidadeEstoque), asc(catalogoProdutos.nome)).limit(LIMITE_ESTOQUE_BAIXO);
     return linhas.map((linha) => ({
       id: linha.id,
       nome: linha.nome,
-      quantidadeEstoque: numero(linha.quantidadeEstoque),
-      estoqueMinimo: numero(linha.estoqueMinimo),
+      quantidadeEstoque: toNumber(linha.quantidadeEstoque),
+      estoqueMinimo: toNumber(linha.estoqueMinimo),
     }));
   } catch (error) {
     // O schema `catalogo` pode não existir no ambiente (migrations do catálogo
@@ -475,7 +419,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
     calcularSaldoAnterior(entrada),
-    buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, STATUS_A_RECEBER),
+    buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, RECEIVABLE_STATUSES),
     buscarFixas(entrada),
   ]);
 
@@ -495,7 +439,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     .map((linha) => linha.categoriaId)
     .filter((id): id is number => id !== null);
   const [nomesPessoas, categoriasPorId, cartoes, planejado, estoqueBaixo, classificacoes] = await Promise.all([
-    buscarNomesPessoas(entrada.escopo),
+    findPeopleNames(entrada.escopo),
     buscarCategorias(idsCategorias),
     montarCartoes(entrada, despesasPeriodo),
     montarPlanejado(entrada, despesasPeriodo),
@@ -506,7 +450,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
 
   // Quem cadastrou pode estar fora do filtro de pessoas (usou o cartão de quem está no filtro).
   const porOutros = agregarCategoriasPorOutros(despesasPeriodo);
-  const nomesAutores = await buscarNomesPessoas([...new Set(porOutros.map((linha) => linha.autorId))].filter((id) => !nomesPessoas.has(id)));
+  const nomesAutores = await findPeopleNames([...new Set(porOutros.map((linha) => linha.autorId))].filter((id) => !nomesPessoas.has(id)));
 
   return {
     periodo,

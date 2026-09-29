@@ -1,186 +1,125 @@
 import { Router, Request, Response } from 'express';
-import { query } from 'express-validator';
-import { pool } from '../db/client';
-import { authenticate } from '../middleware/auth';
-import { validate } from '../middleware/validation';
-import { generateReportPdf, formatDate, type DespesaReportRow, type ReceitaReportRow } from '../services/reportPdf';
-import { accountWhere as accountWhereBase } from '../utils/accountFilter';
+import { ACCOUNT_ACCESS_DENIED, canWriteToAccount } from '../utils/accountAccess';
+import { resolveDashboardScope } from '../utils/dashboardScope';
+import { formatIsoDateBr, getTodayIsoInTimezone } from '../utils/date';
+import { describeFilters, generateReportPdf } from '../services/reportPdf';
+import {
+  EXPENSE_STATUSES,
+  PAYMENT_DATE_WINDOWS,
+  REPORT_ENTRY_TYPES,
+  buildReport,
+  type ReportInput,
+} from '../services/reportService';
 
+// Autenticação, plano ativo e acesso à tela vêm do server.ts (app.use('/api/reports', ...)).
 const router = Router();
 
-const TIPO_VALUES = ['todos', 'despesas', 'receitas'] as const;
-const STATUS_VALUES = ['todos', 'pago', 'pendente'] as const;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function accountWhere(tableAlias: string, accountId: number | null, paramIndex: number): { clause: string; params: unknown[] } {
-  return accountWhereBase(accountId, paramIndex, tableAlias);
+class ReportRequestError extends Error {
+  constructor(message: string, readonly status = 400) {
+    super(message);
+  }
 }
 
-interface DespesaRow {
-  descricao: string;
-  categoria_nome: string | null;
-  forma_pagamento: string | null;
-  data_vencimento: string;
-  data_compra: string | null;
-  valor_original: string | null;
-  pago: boolean | null;
-  recorrente: boolean | null;
-  parcela_atual: number | null;
-  numero_parcelas: number | null;
+/** Parâmetro repetível (`?type=a&type=b`) como lista; ausente vira lista vazia. */
+function readList(value: unknown): string[] {
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : [value]).map(String).filter((item) => item.length > 0);
 }
 
-interface ReceitaRow {
-  descricao: string;
-  classificacao_nome: string | null;
-  data_recebimento: string;
-  status: string | null;
-  valor: string | null;
-  valor_comissao: string | null;
-  cliente: string | null;
-  representante_nome: string | null;
+function readEnumList<T extends string>(value: unknown, allowed: readonly T[]): T[] {
+  const items = readList(value);
+  if (!items.every((item) => (allowed as readonly string[]).includes(item))) {
+    throw new ReportRequestError('Filtro inválido');
+  }
+  return items as T[];
 }
 
-async function fetchDespesas(
-  userId: number,
-  dataInicio: string,
-  dataFim: string,
-  accountId: number | null,
-  formaFiltro: string | undefined,
-  statusFiltro: (typeof STATUS_VALUES)[number],
-): Promise<DespesaRow[]> {
-  // Mesmo criterio de fetchReceitas (abaixo): despesa cancelada nunca entra
-  // no relatorio, so o registro fica no banco (soft-status).
-  let where = "WHERE d.usuario_id = $1 AND d.status = 'ativa' AND d.data_vencimento >= $2 AND d.data_vencimento <= $3";
-  const params: unknown[] = [userId, dataInicio, dataFim];
-  let paramIndex = 4;
+function readIdList(value: unknown): number[] {
+  const ids = readList(value).map(Number);
+  if (!ids.every((id) => Number.isInteger(id) && id > 0)) {
+    throw new ReportRequestError('Filtro inválido');
+  }
+  return ids;
+}
 
-  if (formaFiltro && formaFiltro !== 'todos') {
-    where += ` AND d.forma_pagamento = $${paramIndex}`;
-    params.push(formaFiltro);
-    paramIndex += 1;
+/**
+ * Lê e valida o pedido: período, conta (só se o solicitante tiver acesso),
+ * pessoas (validadas como no Painel) e os filtros do botão de filtros.
+ */
+async function readReportRequest(req: Request): Promise<ReportInput> {
+  const { start_date: start, end_date: end, account_id: rawAccountId } = req.query;
+  if (typeof start !== 'string' || typeof end !== 'string' || !ISO_DATE.test(start) || !ISO_DATE.test(end) || start > end) {
+    throw new ReportRequestError('Período inválido');
   }
 
-  if (statusFiltro === 'pago') {
-    where += ' AND d.pago = true';
-  } else if (statusFiltro === 'pendente') {
-    where += ' AND d.pago = false';
+  const accountId = rawAccountId === undefined ? null : Number(rawAccountId);
+  if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) {
+    throw new ReportRequestError('Conta inválida');
+  }
+  const userId = req.user!.id;
+  if (accountId !== null && !(await canWriteToAccount(accountId, userId))) {
+    throw new ReportRequestError(ACCOUNT_ACCESS_DENIED, 404);
   }
 
-  const { clause: accountClause, params: accountParams } = accountWhere('d', accountId, paramIndex);
-  where += accountClause;
-  params.push(...accountParams);
+  const memberIds = readIdList(req.query['member_id']);
+  const scope = await resolveDashboardScope(userId, accountId, memberIds.length > 0 ? memberIds : undefined);
+  if (scope === null) {
+    throw new ReportRequestError('Pessoa não disponível');
+  }
 
-  const result = await pool.query<DespesaRow>(
-    `SELECT d.descricao, c.nome AS categoria_nome, d.forma_pagamento,
-            d.data_vencimento, d.data_compra, d.valor_original, d.pago,
-            d.recorrente, d.parcela_atual, d.numero_parcelas
-     FROM despesas d
-     LEFT JOIN categorias c ON d.categoria_id = c.id
-     ${where}
-     ORDER BY d.data_vencimento ASC`,
-    params,
-  );
-
-  return result.rows;
+  return {
+    scope,
+    accountId,
+    period: { start, end },
+    today: getTodayIsoInTimezone(),
+    filters: {
+      types: readEnumList(req.query['type'], REPORT_ENTRY_TYPES),
+      expenseStatuses: readEnumList(req.query['status'], EXPENSE_STATUSES),
+      categoryIds: readIdList(req.query['category_id']),
+      paymentMethods: readList(req.query['payment_method']),
+      cardIds: readIdList(req.query['card_id']),
+      paymentDates: readEnumList(req.query['payment_date'], PAYMENT_DATE_WINDOWS),
+    },
+  };
 }
 
-async function fetchReceitas(
-  userId: number,
-  dataInicio: string,
-  dataFim: string,
-  accountId: number | null,
-): Promise<ReceitaRow[]> {
-  const { clause: accountClause, params: accountParams } = accountWhere('r', accountId, 4);
-  const where = `WHERE r.usuario_id = $1 AND r.data_recebimento >= $2 AND r.data_recebimento <= $3 AND r.status != 'cancelada'${accountClause}`;
-  const params: unknown[] = [userId, dataInicio, dataFim, ...accountParams];
-
-  const result = await pool.query<ReceitaRow>(
-    `SELECT r.descricao, cr.nome AS classificacao_nome, r.data_recebimento, r.status,
-            r.valor, r.valor_comissao, r.cliente, rep.nome AS representante_nome
-     FROM receitas r
-     LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
-     LEFT JOIN representantes rep ON rep.id = r.representante_id
-     ${where}
-     ORDER BY r.data_recebimento ASC`,
-    params,
-  );
-
-  return result.rows;
+function sendError(res: Response, error: unknown, context: string, userId: number | undefined): void {
+  if (error instanceof ReportRequestError) {
+    res.status(error.status).json({ success: false, message: error.message });
+    return;
+  }
+  console.error(context, { userId, error });
+  res.status(500).json({ success: false, message: 'Não foi possível gerar o relatório' });
 }
 
-router.get(
-  '/pdf',
-  authenticate,
-  [
-    query('data_inicio').isISO8601().withMessage('Invalid start date'),
-    query('data_fim').isISO8601().withMessage('Invalid end date'),
-    query('tipo').optional().isIn(TIPO_VALUES).withMessage('Invalid tipo filter'),
-    query('status').optional().isIn(STATUS_VALUES).withMessage('Invalid status filter'),
-    validate,
-  ],
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { data_inicio, data_fim, tipo, forma, status, conta_id } = req.query as Record<string, string | undefined>;
+// GET /api/reports?start_date=AAAA-MM-DD&end_date=AAAA-MM-DD[&type=...][&status=...][&category_id=...]
+//   [&payment_method=...][&card_id=...][&payment_date=...][&member_id=...][&account_id=...]
+router.get('/', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input = await readReportRequest(req);
+    res.json({ success: true, data: await buildReport(input) });
+  } catch (error) {
+    sendError(res, error, 'Report error:', req.user?.id);
+  }
+});
 
-      if (data_inicio! > data_fim!) {
-        res.status(400).json({ success: false, message: 'data_inicio must not be after data_fim' });
-        return;
-      }
-
-      const tipoFiltro = (tipo as (typeof TIPO_VALUES)[number] | undefined) ?? 'todos';
-      const statusFiltro = (status as (typeof STATUS_VALUES)[number] | undefined) ?? 'todos';
-      const accountId = conta_id ? parseInt(conta_id) : null;
-      const userId = req.user!.id;
-
-      const [despesas, receitas] = await Promise.all([
-        tipoFiltro !== 'receitas'
-          ? fetchDespesas(userId, data_inicio!, data_fim!, accountId, forma, statusFiltro)
-          : Promise.resolve([]),
-        tipoFiltro !== 'despesas'
-          ? fetchReceitas(userId, data_inicio!, data_fim!, accountId)
-          : Promise.resolve([]),
-      ]);
-
-      const despesaRows: DespesaReportRow[] = despesas.map((d) => ({
-        descricao: d.descricao,
-        categoria: d.categoria_nome,
-        formaPagamento: d.forma_pagamento,
-        dataVencimento: d.data_vencimento,
-        dataCompra: d.data_compra,
-        valorFinal: d.valor_original ? parseFloat(d.valor_original) : null,
-        pago: d.pago === true,
-        recorrente: d.recorrente === true,
-        parcelaAtual: d.parcela_atual,
-        numeroParcelas: d.numero_parcelas,
-      }));
-
-      const receitaRows: ReceitaReportRow[] = receitas.map((r) => ({
-        descricao: r.descricao,
-        classificacao: r.classificacao_nome,
-        dataRecebimento: r.data_recebimento,
-        status: r.status,
-        cliente: r.cliente,
-        representante: r.representante_nome,
-        valor: r.valor ? parseFloat(r.valor) : null,
-        valorComissao: r.valor_comissao ? parseFloat(r.valor_comissao) : null,
-      }));
-
-      const periodoLabel = `${formatDate(data_inicio!)} a ${formatDate(data_fim!)}`;
-      const filtrosParts: string[] = [];
-      if (tipoFiltro !== 'todos') filtrosParts.push(tipoFiltro === 'despesas' ? 'Só despesas' : 'Só receitas');
-      if (forma && forma !== 'todos') filtrosParts.push(`Forma: ${forma}`);
-      if (statusFiltro !== 'todos') filtrosParts.push(statusFiltro === 'pago' ? 'Pagas' : 'Pendentes');
-      const filtrosLabel = filtrosParts.length > 0 ? filtrosParts.join(' · ') : 'Sem filtros adicionais';
-
-      const pdfBuffer = await generateReportPdf({ periodoLabel, filtrosLabel, despesas: despesaRows, receitas: receitaRows });
-
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="relatorio-${data_inicio}-a-${data_fim}.pdf"`);
-      res.send(pdfBuffer);
-    } catch (error) {
-      console.error('Generate report PDF error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao gerar relatório em PDF' });
-    }
-  },
-);
+// GET /api/reports/pdf — mesmos parâmetros; o PDF sai com exatamente o que a tela mostra.
+router.get('/pdf', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input = await readReportRequest(req);
+    const report = await buildReport(input);
+    const pdf = await generateReportPdf(report, {
+      period: `${formatIsoDateBr(input.period.start)} a ${formatIsoDateBr(input.period.end)}`,
+      filters: describeFilters(input.filters, report, input.scope.length),
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="relatorio-${input.period.start}-a-${input.period.end}.pdf"`);
+    res.send(pdf);
+  } catch (error) {
+    sendError(res, error, 'Report PDF error:', req.user?.id);
+  }
+});
 
 export default router;
