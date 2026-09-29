@@ -4,9 +4,10 @@ import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import {
-  diferencaValor, formatDiferenca, getFirstName, getFormaLabel, getStatusColor,
-  StatusBadge, TipoBadge, valorExibido,
+  diferencaValor, formatDiferenca, getFirstName, getStatusColor,
+  StatusBadge, valorExibido,
 } from './DespesasScreen';
+import { EntryTypeBadge, getPaymentMethodLabel } from '../finance/entryTable';
 
 interface ExpenseCardProps {
   item: Expense;
@@ -77,7 +78,7 @@ export function ExpenseCard({
           <span className="truncate">
             <NomeComDetalhe principal={item.categoriaPai ?? item.categoria} detalhe={item.categoriaPai ? item.categoria : null} />
           </span>
-          <span><NomeComDetalhe principal={getFormaLabel(item.formaPagamento)} detalhe={item.cartaoNome} /></span>
+          <span><NomeComDetalhe principal={getPaymentMethodLabel(item.formaPagamento)} detalhe={item.cartaoNome} /></span>
           {(item.pagadorNome ?? item.autorNome) && <span>· {getFirstName(item.pagadorNome ?? item.autorNome)}</span>}
           {item.pagadorId != null && item.autorId != null && item.pagadorId !== item.autorId && (
             <span>(cadastrado por {getFirstName(item.autorNome)})</span>
@@ -85,7 +86,7 @@ export function ExpenseCard({
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusBadge item={item} />
-          <TipoBadge item={item} />
+          <EntryTypeBadge item={item} />
           {isEmpresa && item.numeroNf && (
             <span className="text-[11px] text-slate-400">NF {item.numeroNf}</span>
           )}

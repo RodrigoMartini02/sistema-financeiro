@@ -19,3 +19,16 @@ export function getMonthYearFromIsoDate(isoDate: string): { mes: number; ano: nu
   const [ano, mes] = isoDate.split('-').map(Number);
   return { mes: mes! - 1, ano: ano! };
 }
+
+/** "2026-09-28" → "28/09/2026"; vazio vira "-". */
+export function formatIsoDateBr(isoDate: string | null): string {
+  if (!isoDate) return '-';
+  const [year, month, day] = isoDate.split('T')[0]!.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+/** Soma dias a uma data ISO "YYYY-MM-DD" (negativo subtrai), sem depender do fuso do processo. */
+export function addDaysToIsoDate(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}

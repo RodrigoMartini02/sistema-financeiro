@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import type { PainelData } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
-import { CardPainel, NumeroAnimado, Rotulo } from './base';
+import { CardPainel, Indicador, NumeroAnimado, Rotulo } from './base';
 import { corDaSituacao, useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
 import { Medidor } from './graficos/Medidor';
@@ -28,16 +27,6 @@ function NotaVariacao({ atual, anterior, subirEBom, rotuloAnterior }: { atual: n
       <Icone size={12} className={tom} aria-hidden="true" />
       <span className={`font-medium ${tom}`}>{formatarPercentual(Math.abs(percentual))}</span>&nbsp;vs {rotuloAnterior}
     </span>
-  );
-}
-
-function Indicador({ rotulo, valor, nota, tom = 'text-slate-900 dark:text-white' }: { rotulo: string; valor: ReactNode; nota: ReactNode; tom?: string }) {
-  return (
-    <CardPainel className="gap-2.5">
-      <Rotulo>{rotulo}</Rotulo>
-      <span className={`text-[22px] font-medium tabular-nums tracking-tight ${tom}`}>{valor}</span>
-      <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">{nota}</span>
-    </CardPainel>
   );
 }
 

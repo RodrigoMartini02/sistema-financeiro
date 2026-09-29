@@ -14,7 +14,7 @@ import { CatalogoPublicoPage } from './screens/public/CatalogoPublicoPage';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
-import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
+import { ReportsScreen } from './screens/reports/ReportsScreen';
 import { PlanosScreen } from './screens/planos/PlanosScreen';
 import { ClientesTab } from './screens/config/ClientesTab';
 
@@ -186,7 +186,7 @@ function AppContent() {
     switch (section) {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
-      case 'relatorios':    return <RelatoriosScreen />;
+      case 'reports':       return <ReportsScreen />;
       // ClientesTab também é usada dentro do ConfigPanel, que já aplica o
       // escopo. Aqui ela é tela própria da sidebar, fora do drawer, então
       // precisa declarar o escopo por conta própria — sem ele as variáveis

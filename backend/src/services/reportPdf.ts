@@ -1,5 +1,7 @@
 import path from 'path';
 import pdfmake from 'pdfmake';
+import { formatIsoDateBr } from '../utils/date';
+import type { ExpenseStatus, IncomeStatus, PaymentDateWindow, Report, ReportExpense, ReportFilters, ReportIncome } from './reportService';
 
 const FONTS_DIR = path.join(require.resolve('pdfmake/package.json'), '..', 'fonts', 'Roboto');
 
@@ -14,200 +16,196 @@ pdfmake.setFonts({
 pdfmake.setUrlAccessPolicy(() => false);
 pdfmake.setLocalAccessPolicy((filePath) => path.normalize(filePath).startsWith(path.normalize(FONTS_DIR)));
 
-export interface DespesaReportRow {
-  descricao: string;
-  categoria: string | null;
-  formaPagamento: string | null;
-  dataVencimento: string;
-  dataCompra: string | null;
-  valorFinal: number | null;
-  pago: boolean;
-  recorrente: boolean;
-  parcelaAtual: number | null;
-  numeroParcelas: number | null;
-}
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  dinheiro: 'Dinheiro',
+  pix: 'PIX',
+  debito: 'Débito',
+  credito: 'Crédito',
+  transferencia: 'Transferência',
+};
 
-export interface ReceitaReportRow {
-  descricao: string;
-  classificacao: string | null;
-  dataRecebimento: string;
-  status: string | null;
-  cliente: string | null;
-  representante: string | null;
-  valor: number | null;
-  valorComissao: number | null;
-}
+const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
+  paid: 'Pago',
+  on_time: 'Em dia',
+  overdue: 'Atrasada',
+};
+
+const INCOME_STATUS_LABELS: Record<IncomeStatus, string> = {
+  received: 'Recebida',
+  expected: 'Prevista',
+  overdue: 'Em atraso',
+};
+
+type Margin = [number, number, number, number];
 
 function formatCurrency(value: number | null): string {
   if (value === null || Number.isNaN(value)) return '-';
   return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function formatDate(value: string | null): string {
-  if (!value) return '-';
-  const [year, month, day] = value.split('T')[0]!.split('-');
-  return `${day}/${month}/${year}`;
+/** "Alimentação › Mercado"; sem grupo, só a categoria. */
+function withDetail(main: string | null, detail: string | null): string {
+  if (!main) return detail ?? '-';
+  return detail ? `${main} › ${detail}` : main;
 }
 
-// Mesma lógica de getStatus() em DespesasScreen.tsx
-function despesaStatusLabel(row: DespesaReportRow, todayIso: string): string {
-  if (row.pago) return 'Pago';
-  return row.dataVencimento < todayIso ? 'Atrasada' : 'Em dia';
+function firstName(fullName: string | null): string {
+  return fullName?.split(' ')[0] ?? '-';
 }
 
-// Mesma lógica de TipoBadge em DespesasScreen.tsx
-function despesaTipoLabel(row: DespesaReportRow): string {
-  const parcela = row.numeroParcelas ? `${row.parcelaAtual ?? 1}/${row.numeroParcelas}` : null;
-  const parts = [parcela, row.recorrente ? 'Recorrente' : null].filter(Boolean);
+function paymentMethodLabel(method: string): string {
+  return PAYMENT_METHOD_LABELS[method.toLowerCase()] ?? method;
+}
+
+const PAYMENT_DATE_LABELS: Record<PaymentDateWindow, string> = {
+  today: 'Pago hoje',
+  week: 'Pago esta semana',
+  month: 'Pago este mês',
+};
+
+/** Resumo dos filtros para o subtítulo do PDF: "Só despesas · Status: Pago · 2 categorias". */
+export function describeFilters(filters: ReportFilters, report: Report, peopleCount: number): string {
+  const parts: string[] = [];
+  if (filters.types.length === 1) parts.push(filters.types[0] === 'expense' ? 'Só despesas' : 'Só receitas');
+  if (filters.expenseStatuses.length > 0) parts.push(`Status: ${filters.expenseStatuses.map((status) => EXPENSE_STATUS_LABELS[status]).join(', ')}`);
+  if (filters.categoryIds.length > 0) parts.push(`${filters.categoryIds.length} ${filters.categoryIds.length === 1 ? 'categoria' : 'categorias'}`);
+  if (filters.paymentMethods.length > 0) parts.push(`Forma: ${filters.paymentMethods.map(paymentMethodLabel).join(', ')}`);
+  if (filters.cardIds.length > 0) {
+    const cardNames = report.filterOptions.cards.filter((card) => filters.cardIds.includes(card.id)).map((card) => card.name);
+    parts.push(`Cartão: ${cardNames.join(', ')}`);
+  }
+  if (filters.paymentDates.length > 0) parts.push(filters.paymentDates.map((window) => PAYMENT_DATE_LABELS[window]).join(', '));
+  if (peopleCount > 1) parts.push(`${peopleCount} pessoas`);
+  return parts.length > 0 ? parts.join(' · ') : 'Sem filtros adicionais';
+}
+
+/** "Grupo › Sub" (despesa e receita têm o mesmo formato). */
+function categoryLabel(row: Pick<ReportExpense | ReportIncome, 'categoryGroup' | 'categoryName'>): string {
+  return row.categoryGroup ? withDetail(row.categoryGroup, row.categoryName) : row.categoryName ?? 'Sem categoria';
+}
+
+/** Quem paga e, quando outra pessoa usou o cartão, quem cadastrou. */
+function expenseUser(row: ReportExpense): string {
+  const payer = firstName(row.payerName);
+  return row.authorId !== row.payerId ? `${payer} (cadastrado por ${firstName(row.authorName)})` : payer;
+}
+
+function expenseType(row: ReportExpense): string {
+  const parts = [row.installment, row.recurring ? 'Recorrente' : null].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : '-';
 }
 
-// Mesma lógica de status inline na coluna Data em ReceitasScreen.tsx
-function receitaStatusLabel(row: ReceitaReportRow, todayIso: string): string {
-  if (row.status === 'cancelada') return 'Cancelada';
-  if (row.status === 'prevista') {
-    return row.dataRecebimento < todayIso ? 'Em atraso' : 'Prevista';
-  }
-  return 'Recebida';
+export interface ReportPdfLabels {
+  period: string;
+  filters: string;
 }
 
-// Mesma lógica da coluna Cliente/Representante em ReceitasScreen.tsx
-function receitaClienteLabel(row: ReceitaReportRow): string {
-  return row.representante ?? row.cliente ?? '-';
-}
+export async function generateReportPdf(report: Report, labels: ReportPdfLabels): Promise<Buffer> {
+  const expectedIncome = report.incomes
+    .filter((row) => row.status !== 'received')
+    .reduce((sum, row) => sum + row.amount, 0);
 
-export interface GenerateReportPdfInput {
-  periodoLabel: string;
-  filtrosLabel: string;
-  despesas: DespesaReportRow[];
-  receitas: ReceitaReportRow[];
-}
-
-export async function generateReportPdf({ periodoLabel, filtrosLabel, despesas, receitas }: GenerateReportPdfInput): Promise<Buffer> {
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  const sortedDespesas = [...despesas].sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
-  const sortedReceitas = [...receitas].sort((a, b) => a.dataRecebimento.localeCompare(b.dataRecebimento));
-
-  const totalDespesas = sortedDespesas.reduce((sum, r) => sum + (r.valorFinal ?? 0), 0);
-  const totalReceitas = sortedReceitas.reduce((sum, r) => sum + (r.valor ?? 0), 0);
-
-  const despesasTableBody = [
+  const expensesTableBody = [
     [
       { text: 'Descrição', style: 'tableHeader' },
       { text: 'Tipo', style: 'tableHeader' },
       { text: 'Vencimento', style: 'tableHeader' },
-      { text: 'Data compra', style: 'tableHeader' },
       { text: 'Categoria', style: 'tableHeader' },
       { text: 'Pagamento', style: 'tableHeader' },
+      { text: 'Usuário', style: 'tableHeader' },
       { text: 'Status', style: 'tableHeader' },
       { text: 'Valor', style: 'tableHeader', alignment: 'right' },
     ],
-    ...sortedDespesas.map((row) => [
-      row.descricao,
-      despesaTipoLabel(row),
-      formatDate(row.dataVencimento),
-      formatDate(row.dataCompra),
-      row.categoria ?? '-',
-      row.formaPagamento ?? '-',
-      despesaStatusLabel(row, todayIso),
-      { text: formatCurrency(row.valorFinal), alignment: 'right' },
+    ...report.expenses.map((row) => [
+      row.description,
+      expenseType(row),
+      formatIsoDateBr(row.dueDate),
+      categoryLabel(row),
+      withDetail(paymentMethodLabel(row.paymentMethod), row.cardName),
+      expenseUser(row),
+      EXPENSE_STATUS_LABELS[row.status],
+      { text: formatCurrency(row.amount), alignment: 'right' },
     ]),
   ];
 
-  const receitasTableBody = [
+  const incomesTableBody = [
     [
       { text: 'Data', style: 'tableHeader' },
       { text: 'Descrição', style: 'tableHeader' },
       { text: 'Cliente/Repr.', style: 'tableHeader' },
       { text: 'Categoria', style: 'tableHeader' },
+      { text: 'Usuário', style: 'tableHeader' },
       { text: 'Status', style: 'tableHeader' },
       { text: 'Comissão', style: 'tableHeader', alignment: 'right' },
       { text: 'Valor', style: 'tableHeader', alignment: 'right' },
     ],
-    ...sortedReceitas.map((row) => [
-      formatDate(row.dataRecebimento),
-      row.descricao,
-      receitaClienteLabel(row),
-      row.classificacao ?? 'Sem categoria',
-      receitaStatusLabel(row, todayIso),
-      { text: formatCurrency(row.valorComissao), alignment: 'right' },
-      { text: formatCurrency(row.valor), alignment: 'right' },
+    ...report.incomes.map((row) => [
+      formatIsoDateBr(row.receiptDate),
+      row.description,
+      row.representative ?? row.client ?? '-',
+      categoryLabel(row),
+      firstName(row.authorName),
+      INCOME_STATUS_LABELS[row.status],
+      { text: formatCurrency(row.commission), alignment: 'right' },
+      { text: formatCurrency(row.amount), alignment: 'right' },
     ]),
   ];
 
   const zebraFill = (rowIndex: number) => (rowIndex === 0 ? null : rowIndex % 2 === 0 ? '#F8FAFC' : null);
+  const emptyText = (text: string) => ({ text, italics: true, color: '#888888', margin: [0, 0, 0, 4] as Margin });
+  const subtotal = (label: string, value: number) => ({
+    margin: [0, 4, 0, 0] as Margin,
+    alignment: 'right' as const,
+    text: [{ text: `${label}: `, style: 'subtotal' }, { text: formatCurrency(value), style: 'subtotal' }],
+  });
 
   const docDefinition = {
     pageSize: 'A4',
     pageOrientation: 'landscape' as const,
-    pageMargins: [30, 50, 30, 40] as [number, number, number, number],
+    pageMargins: [30, 50, 30, 40] as Margin,
     defaultStyle: { font: 'Roboto', fontSize: 8 },
     styles: {
-      title: { fontSize: 16, bold: true, margin: [0, 0, 0, 4] as [number, number, number, number] },
-      subtitle: { fontSize: 10, color: '#555555', margin: [0, 0, 0, 12] as [number, number, number, number] },
-      sectionTitle: { fontSize: 11, bold: true, margin: [0, 12, 0, 6] as [number, number, number, number] },
+      title: { fontSize: 16, bold: true, margin: [0, 0, 0, 4] as Margin },
+      subtitle: { fontSize: 10, color: '#555555', margin: [0, 0, 0, 12] as Margin },
+      sectionTitle: { fontSize: 11, bold: true, margin: [0, 12, 0, 6] as Margin },
       tableHeader: { bold: true, fontSize: 8, fillColor: '#0EC4D8', color: '#FFFFFF' },
-      subtotalLabel: { bold: true, fontSize: 9 },
-      subtotalValue: { bold: true, fontSize: 9 },
-      totalsLabel: { bold: true, fontSize: 10 },
-      totalsValue: { bold: true, fontSize: 10 },
+      subtotal: { bold: true, fontSize: 9 },
+      totals: { bold: true, fontSize: 10 },
     },
     content: [
       { text: 'Relatório financeiro', style: 'title' },
-      { text: `${periodoLabel} — ${filtrosLabel}`, style: 'subtitle' },
+      { text: `${labels.period} — ${labels.filters}`, style: 'subtitle' },
 
       { text: 'Despesas', style: 'sectionTitle' },
-      sortedDespesas.length > 0
+      report.expenses.length > 0
         ? {
-            table: {
-              headerRows: 1,
-              widths: ['*', 70, 55, 55, 70, 60, 55, 65],
-              body: despesasTableBody,
-            },
+            table: { headerRows: 1, widths: ['*', 55, 55, 95, 90, 90, 50, 65], body: expensesTableBody },
             layout: { fillColor: zebraFill },
           }
-        : { text: 'Nenhuma despesa no período.', italics: true, color: '#888888', margin: [0, 0, 0, 4] as [number, number, number, number] },
-      {
-        margin: [0, 4, 0, 0] as [number, number, number, number],
-        alignment: 'right' as const,
-        text: [
-          { text: 'Subtotal despesas: ', style: 'subtotalLabel' },
-          { text: formatCurrency(totalDespesas), style: 'subtotalValue' },
-        ],
-      },
+        : emptyText('Nenhuma despesa no período.'),
+      subtotal('Subtotal despesas', report.totals.expense),
 
       { text: 'Receitas', style: 'sectionTitle' },
-      sortedReceitas.length > 0
+      report.incomes.length > 0
         ? {
-            table: {
-              headerRows: 1,
-              widths: [55, '*', 90, 70, 65, 65, 65],
-              body: receitasTableBody,
-            },
+            table: { headerRows: 1, widths: [55, '*', 90, 95, 60, 55, 60, 65], body: incomesTableBody },
             layout: { fillColor: zebraFill },
           }
-        : { text: 'Nenhuma receita no período.', italics: true, color: '#888888', margin: [0, 0, 0, 4] as [number, number, number, number] },
-      {
-        margin: [0, 4, 0, 0] as [number, number, number, number],
-        alignment: 'right' as const,
-        text: [
-          { text: 'Subtotal receitas: ', style: 'subtotalLabel' },
-          { text: formatCurrency(totalReceitas), style: 'subtotalValue' },
-        ],
-      },
+        : emptyText('Nenhuma receita no período.'),
+      subtotal('Subtotal receitas recebidas', report.totals.income),
+      ...(expectedIncome > 0 ? [subtotal('Previstas (fora do total)', expectedIncome)] : []),
 
       {
-        margin: [0, 16, 0, 0] as [number, number, number, number],
+        margin: [0, 16, 0, 0] as Margin,
         columns: [
           { text: '', width: '*' },
           {
             width: 'auto',
             table: {
               body: [
-                [{ text: 'Total de receitas:', style: 'totalsLabel' }, { text: formatCurrency(totalReceitas), style: 'totalsValue', alignment: 'right' }],
-                [{ text: 'Total de despesas:', style: 'totalsLabel' }, { text: formatCurrency(totalDespesas), style: 'totalsValue', alignment: 'right' }],
-                [{ text: 'Saldo do período:', style: 'totalsLabel' }, { text: formatCurrency(totalReceitas - totalDespesas), style: 'totalsValue', alignment: 'right' }],
+                [{ text: 'Total de receitas:', style: 'totals' }, { text: formatCurrency(report.totals.income), style: 'totals', alignment: 'right' }],
+                [{ text: 'Total de despesas:', style: 'totals' }, { text: formatCurrency(report.totals.expense), style: 'totals', alignment: 'right' }],
+                [{ text: 'Saldo do período:', style: 'totals' }, { text: formatCurrency(report.totals.income - report.totals.expense), style: 'totals', alignment: 'right' }],
               ],
             },
             layout: 'noBorders',
@@ -217,6 +215,5 @@ export async function generateReportPdf({ periodoLabel, filtrosLabel, despesas, 
     ],
   };
 
-  const pdfDoc = pdfmake.createPdf(docDefinition);
-  return pdfDoc.getBuffer();
+  return pdfmake.createPdf(docDefinition).getBuffer();
 }

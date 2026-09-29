@@ -7,7 +7,7 @@ import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
 import { AppShell, type AppSection } from './layout/AppShell';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
-import { RelatoriosScreen } from './screens/relatorios/RelatoriosScreen';
+import { ReportsScreen } from './screens/reports/ReportsScreen';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/ExpenseDialog';
 import { useFinanceDashboard } from './hooks/useFinanceDashboard';
@@ -31,7 +31,7 @@ function DemoAppContent() {
     switch (section) {
       case 'painel': return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
-      case 'relatorios': return <RelatoriosScreen />;
+      case 'reports': return <ReportsScreen />;
       default: return <FinanceDashboard />;
     }
   };

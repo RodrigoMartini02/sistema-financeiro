@@ -7,16 +7,11 @@ import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { fetchCardLimits } from '../../services/cardLimitsService';
-import { fetchCategorias } from '../../services/configService';
-import { fetchMembros } from '../../services/membrosService';
-import { fetchMe } from '../../services/usuariosService';
 import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
-import { TERMOS } from '../config/ContasTab';
 import { ErrorState } from '../../ui/states';
-import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
+import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
-import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import type { Expense, Income } from '../../types/finance';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
@@ -24,10 +19,10 @@ import { MonthYearPicker } from './MonthYearPicker';
 import { MovementMetricCard } from './MovementMetricCard';
 import { CardLimitRow } from './CardLimitRow';
 import { formatCurrency } from './formatters';
+import { useEntryFilters } from './useEntryFilters';
 import { BudgetPanel } from './BudgetPanel';
 import {
-  LancamentosTable, OrdenarChip, getFormaLabel,
-  type TipoLancamento, type FiltroStatus, type FiltroDataPag, type Ordenar,
+  LancamentosTable, OrdenarChip, type Ordenar,
 } from './LancamentosTable';
 
 type MovementTab = 'lancamentos' | 'planejamento';
@@ -105,160 +100,23 @@ export function MovimentacoesScreen() {
     return () => setFillViewport(false);
   }, [preencherViewport, setFillViewport]);
 
-  // Filtro de Membros elevado para o pai: antes era estado duplicado e
-  // independente em DespesasScreen e ReceitasScreen, com escopoFamilia
-  // podendo divergir entre as duas telas. Agora e uma unica fonte, que
-  // tambem controla a faixa de limite de cartoes e a tabela combinada.
-  const [filtroMembros, setFiltroMembros] = useState<Set<string>>(new Set());
-  const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
-  const activeAccountId = getActiveAccountId();
-  const membrosQ = useQuery({
-    queryKey: queryKeys.membros(activeAccountId),
-    queryFn: () => fetchMembros(activeAccountId ?? undefined),
-    staleTime: 5 * 60_000,
-  });
-  const categoriasQ = useQuery({
-    queryKey: queryKeys.categorias(activeAccountId),
-    queryFn: () => fetchCategorias(activeAccountId),
-    staleTime: 5 * 60_000,
-  });
-  const meIdStr = meQ.data ? String(meQ.data.id) : null;
-  useEffect(() => {
-    if (!meIdStr) return;
-    setFiltroMembros((prev) => (prev.size === 0 ? new Set([meIdStr]) : prev));
-  }, [meIdStr]);
-  const temMembros = (membrosQ.data?.length ?? 0) > 0;
-  const outrosMembros = (membrosQ.data ?? []).filter((m) => m.usuario_id !== meQ.data?.id);
-  const escopoFamilia = [...filtroMembros].some((id) => id !== meIdStr);
-  const nomesVisiveis = new Set(
-    [...filtroMembros]
-      .map((id) => {
-        if (id === meIdStr) return meQ.data?.nomeExibicao ?? meQ.data?.nome;
-        const membro = outrosMembros.find((m) => String(m.usuario_id) === id);
-        // Nome completo (nome + sobrenome) para bater com autorNome, que
-        // sempre vem completo do backend — so o primeiro nome nunca casaria.
-        return membro ? `${membro.nome} ${membro.sobrenome ?? ''}`.trim() : undefined;
-      })
-      .filter(Boolean) as string[],
-  );
-
-  const cardLimits = useQuery({
-    queryKey: queryKeys.cardLimits(activeAccountId, escopoFamilia ? 'familia' : undefined),
-    queryFn: () => fetchCardLimits(escopoFamilia ? 'familia' : undefined),
-    staleTime: 60_000,
-  });
-
-  // Filtro de Tipo: substitui as antigas abas Receitas/Despesas por um grupo
-  // de filtro multi-selecao dentro do mesmo painel — default ambos marcados.
-  const [filtroTipo, setFiltroTipo] = useState<Set<TipoLancamento>>(new Set(['receita', 'despesa']));
-  const [filtroStatus, setFiltroStatus] = useState<Set<FiltroStatus>>(new Set());
-  const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(new Set());
-  const [filtroFormaPag, setFiltroFormaPag] = useState<Set<string>>(new Set());
-  const [filtroCartao, setFiltroCartao] = useState<Set<string>>(new Set());
-  const [filtroDataPag, setFiltroDataPag] = useState<Set<FiltroDataPag>>(new Set());
   const [ordenar, setOrdenar] = useState<Ordenar>('cadastro_desc');
-
   const [tableData, setTableData] = useState<{ expenses: Expense[]; incomes: Income[]; formas: string[]; cartoes: [string, string][] }>({
     expenses: [], incomes: [], formas: [], cartoes: [],
   });
   const [despesasSummary, setDespesasSummary] = useState<{ total: number; count: number; active: boolean } | null>(null);
 
-  const categoriaOptions = groupSelectableCategories(categoriasQ.data ?? [])
-    .flatMap((group) => group.parent
-      ? [
-          { value: group.parent.nome, label: group.parent.nome },
-          ...group.items.map((c) => ({ value: c.nome, label: c.nome, parentValue: group.parent!.nome })),
-        ]
-      : group.items.map((c) => ({ value: c.nome, label: c.nome })))
-    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  // Botão de filtros (mesmo de Relatórios): estado único que também controla
+  // a faixa de limite de cartões e a tabela combinada.
+  const filters = useEntryFilters({ paymentMethods: tableData.formas, cards: tableData.cartoes });
+  const { meId: meIdStr, familyScope: escopoFamilia, visibleNames: nomesVisiveis } = filters;
 
-  const membrosEhEstadoBase = meIdStr != null && filtroMembros.size === 1 && filtroMembros.has(meIdStr);
-  const hasFilterDespesa =
-    filtroStatus.size > 0 || filtroCategoria.size > 0 || filtroFormaPag.size > 0
-    || filtroCartao.size > 0 || filtroDataPag.size > 0;
-  const hasFilter = hasFilterDespesa || !membrosEhEstadoBase || filtroTipo.size !== 2;
-
-  const filterGroups: FilterGroup[] = [
-    {
-      id: 'tipo',
-      label: 'Tipo',
-      options: [
-        { value: 'receita', label: 'Receita' },
-        { value: 'despesa', label: 'Despesa' },
-      ],
-      selected: filtroTipo,
-      onChange: (next) => setFiltroTipo(next as Set<TipoLancamento>),
-    },
-    // Grupos de despesa so aparecem quando "Despesa" esta marcado no filtro
-    // de Tipo — nao fazem sentido isolados para receita.
-    ...(filtroTipo.has('despesa') ? [
-      {
-        id: 'status',
-        label: 'Status',
-        options: [
-          { value: 'pago', label: 'Pago' },
-          { value: 'em_dia', label: 'Em dia' },
-          { value: 'atrasada', label: 'Atrasada' },
-        ],
-        selected: filtroStatus,
-        onChange: (next: Set<string>) => setFiltroStatus(next as Set<FiltroStatus>),
-      },
-      {
-        id: 'categoria',
-        label: 'Categoria',
-        options: categoriaOptions,
-        selected: filtroCategoria,
-        onChange: setFiltroCategoria,
-      },
-      {
-        id: 'forma-pagamento',
-        label: 'Forma de pagamento',
-        options: tableData.formas.map((f) => ({ value: f, label: getFormaLabel(f) })),
-        selected: filtroFormaPag,
-        onChange: setFiltroFormaPag,
-      },
-      ...(tableData.cartoes.length > 0 ? [{
-        id: 'cartao',
-        label: 'Cartão',
-        options: tableData.cartoes.map(([id, nome]) => ({ value: id, label: nome })),
-        selected: filtroCartao,
-        onChange: setFiltroCartao,
-      }] : []),
-      {
-        id: 'data-pagamento',
-        label: 'Data de pagamento',
-        options: [
-          { value: 'hoje', label: 'Pago hoje' },
-          { value: 'semana', label: 'Esta semana' },
-          { value: 'mes', label: 'Este mês' },
-        ],
-        selected: filtroDataPag,
-        onChange: (next: Set<string>) => setFiltroDataPag(next as Set<FiltroDataPag>),
-      },
-    ] : []),
-    // Membros sempre visivel e compartilhado — nao muda entre estados do
-    // filtro de Tipo.
-    ...(temMembros && meQ.data ? [{
-      id: 'membros',
-      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
-      options: [
-        { value: meIdStr!, label: `${meQ.data.nomeExibicao ?? meQ.data.nome} (você)` },
-        ...outrosMembros.map((m) => ({ value: String(m.usuario_id), label: `${m.nome} ${m.sobrenome ?? ''}`.trim() })),
-      ],
-      selected: filtroMembros,
-      onChange: setFiltroMembros,
-    }] : []),
-  ];
-
-  const handleClearFilters = () => {
-    setFiltroTipo(new Set(['receita', 'despesa']));
-    setFiltroStatus(new Set());
-    setFiltroCategoria(new Set());
-    setFiltroFormaPag(new Set());
-    setFiltroCartao(new Set());
-    setFiltroDataPag(new Set());
-    if (meIdStr) setFiltroMembros(new Set([meIdStr]));
-  };
+  const activeAccountId = getActiveAccountId();
+  const cardLimits = useQuery({
+    queryKey: queryKeys.cardLimits(activeAccountId, escopoFamilia ? 'familia' : undefined),
+    queryFn: () => fetchCardLimits(escopoFamilia ? 'familia' : undefined),
+    staleTime: 60_000,
+  });
 
   const finance = useFinanceDashboard(month, year, true, escopoFamilia ? 'familia' : undefined);
 
@@ -325,7 +183,7 @@ export function MovimentacoesScreen() {
             {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
             <MovementSectionToggle activeTab={activeTab} onChange={handleTabChange} />
             <OrdenarChip options={ORDENAR_OPTIONS} value={ordenar} onChange={(v) => setOrdenar(v as Ordenar)} />
-            <MultiFilterPanel groups={filterGroups} hasActiveFilters={hasFilter} onClear={handleClearFilters} />
+            <MultiFilterPanel groups={filters.groups} hasActiveFilters={filters.hasActiveFilters} onClear={filters.clear} />
           </div>
         </div>
 
@@ -391,14 +249,14 @@ export function MovimentacoesScreen() {
                     escopoFamilia={escopoFamilia}
                     meIdStr={meIdStr}
                     nomesVisiveis={nomesVisiveis}
-                    filtroTipo={filtroTipo}
-                    filtroStatus={filtroStatus}
-                    filtroCategoria={filtroCategoria}
-                    filtroFormaPag={filtroFormaPag}
-                    filtroCartao={filtroCartao}
-                    filtroDataPag={filtroDataPag}
+                    filtroTipo={filters.state.types}
+                    filtroStatus={filters.state.statuses}
+                    filtroCategoria={filters.state.categoryIds}
+                    filtroFormaPag={filters.state.paymentMethods}
+                    filtroCartao={filters.state.cardIds}
+                    filtroDataPag={filters.state.paymentDates}
                     ordenar={ordenar}
-                    hasFilter={hasFilter}
+                    hasFilter={filters.hasActiveFilters}
                     onDataLoaded={setTableData}
                     onFilteredSummaryChange={setDespesasSummary}
                   />

@@ -16,10 +16,9 @@ export async function buildOwnerAndAccountWhere(
    * Usuarios cujos lancamentos o solicitante pode ver. Passado apenas por
    * despesas e receitas, onde existe a carteira compartilhada da familia.
    *
-   * Parametro explicito de proposito: outras seis rotas usam este utilitario
-   * (cartoes, contratos, clientes, compromissos, meses, relatorios) e devem
-   * continuar restritas ao dono. Mudar o comportamento padrao ampliaria a
-   * visibilidade delas sem intencao.
+   * Parametro explicito de proposito: sem ele, a consulta fica restrita ao
+   * dono. Mudar o comportamento padrao ampliaria a visibilidade de quem
+   * passar a usar este utilitario sem intencao.
    */
   visibleUserIds?: number[],
   /**

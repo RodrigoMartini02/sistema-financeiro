@@ -103,6 +103,17 @@ export function Rotulo({ children, className = '' }: { children: ReactNode; clas
   return <span className={`text-[11.5px] font-medium uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400 ${className}`}>{children}</span>;
 }
 
+/** Card de indicador: rótulo, valor em destaque e uma nota (Painel e Relatórios). */
+export function Indicador({ rotulo, valor, nota, tom = 'text-slate-900 dark:text-white' }: { rotulo: string; valor: ReactNode; nota: ReactNode; tom?: string }) {
+  return (
+    <CardPainel className="gap-2.5">
+      <Rotulo>{rotulo}</Rotulo>
+      <span className={`text-[22px] font-medium tabular-nums tracking-tight ${tom}`}>{valor}</span>
+      <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">{nota}</span>
+    </CardPainel>
+  );
+}
+
 export function Legenda({ itens }: { itens: { cor: string; nome: string }[] }) {
   return (
     <ul className="m-0 flex list-none flex-wrap gap-x-3.5 gap-y-1 p-0 text-[11.5px] text-slate-600 dark:text-slate-300">

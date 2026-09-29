@@ -2,6 +2,7 @@ import {
   createDemoFakeDatabase, generateId, todayIso, currentMonthYear,
   type DemoFakeDatabase,
 } from './demoFakeDatabase';
+import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
 
 export interface FakeApiRequestInit {
   method?: string;
@@ -201,10 +202,87 @@ export function resolveFakeApiRequest(
   if (matchEndpoint(endpoint, /^\/contratos$/)) return [];
   if (matchEndpoint(endpoint, /^\/contratos\/faturamento$/)) return [];
 
+  // Relatório do período — só período e tipo; os demais filtros não se aplicam na demo
+  if (matchEndpoint(endpoint, /^\/reports$/) && method === 'GET') {
+    return buildDemoReport(db, new URLSearchParams(endpoint.split('?')[1] ?? ''));
+  }
+
   // Ações sem efeito real na demo (faturamento) — apenas simula sucesso
   if (matchEndpoint(endpoint, /\/faturar$/)) return undefined;
 
   return undefined;
+}
+
+const DEMO_PERSON = { id: 0, name: 'Você' };
+
+function buildDemoReport(db: DemoFakeDatabase, params: URLSearchParams): Report {
+  const start = params.get('start_date') ?? '';
+  const end = params.get('end_date') ?? '';
+  const types = params.getAll('type');
+  const wants = (type: string) => types.length === 0 || types.includes(type);
+  const today = todayIso();
+  const categoryName = (id: number | null) => db.categorias.find((category) => category.id === id);
+
+  const expenses: ReportExpense[] = wants('expense') ? db.despesas
+    .filter((row) => row.status !== 'cancelada' && row.data_vencimento >= start && row.data_vencimento <= end)
+    .map((row) => {
+      const category = categoryName(row.categoria_id);
+      const group = category?.parent_id ? categoryName(category.parent_id) : undefined;
+      return {
+        id: row.id,
+        description: row.descricao,
+        categoryId: row.categoria_id,
+        categoryName: row.categoria_nome,
+        categoryGroup: group?.nome ?? null,
+        paymentMethod: row.forma_pagamento,
+        cardId: row.cartao_id,
+        cardName: row.cartao_nome ?? null,
+        payerId: DEMO_PERSON.id,
+        payerName: DEMO_PERSON.name,
+        authorId: DEMO_PERSON.id,
+        authorName: DEMO_PERSON.name,
+        dueDate: row.data_vencimento,
+        paymentDate: row.data_pagamento,
+        status: row.pago ? 'paid' : row.data_vencimento < today ? 'overdue' : 'on_time',
+        installment: row.numero_parcelas ? `${row.parcela_atual ?? 1}/${row.numero_parcelas}` : null,
+        recurring: row.recorrente,
+        amount: row.valor_original ?? 0,
+      };
+    }) : [];
+
+  const incomes: ReportIncome[] = wants('income') ? db.receitas
+    .filter((row) => row.status !== 'cancelada' && row.data_recebimento >= start && row.data_recebimento <= end)
+    .map((row) => ({
+      id: row.id,
+      description: row.descricao,
+      categoryName: row.classificacao_nome,
+      categoryGroup: null,
+      receiptDate: row.data_recebimento,
+      status: row.status === 'ativa' ? 'received' : row.data_recebimento < today ? 'overdue' : 'expected',
+      authorId: DEMO_PERSON.id,
+      authorName: DEMO_PERSON.name,
+      client: row.cliente,
+      representative: row.representante_nome,
+      commission: row.valor_comissao,
+      amount: row.valor,
+    })) : [];
+
+  const received = incomes.filter((row) => row.status === 'received');
+  return {
+    period: { start, end },
+    expenses,
+    incomes,
+    totals: {
+      income: received.reduce((sum, row) => sum + row.amount, 0),
+      incomeCount: received.length,
+      expense: expenses.reduce((sum, row) => sum + row.amount, 0),
+      expenseCount: expenses.length,
+    },
+    filterOptions: {
+      paymentMethods: [...new Set(expenses.map((row) => row.paymentMethod))].sort(),
+      cards: db.cartoes.map((card) => ({ id: card.id, name: card.nome })),
+    },
+  };
 }
 
 export const resolveDemoRequest = resolveFakeApiRequest;
