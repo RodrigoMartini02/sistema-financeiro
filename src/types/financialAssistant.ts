@@ -27,7 +27,7 @@ export interface FinancialAssistantDraft {
   /**
    * Campos de receita exclusivos de conta PJ. So aparecem no card quando a
    * conta do lancamento e empresa — em conta PF permanecem null/undefined,
-   * igual ao IncomeForm.tsx do desktop.
+   * igual ao modal de receita do desktop.
    */
   cliente?: string | null;
   representanteId?: number | null;

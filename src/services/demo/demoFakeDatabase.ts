@@ -136,4 +136,4 @@ export function createDemoFakeDatabase(): DemoFakeDatabase {
   return createSeed();
 }
 
-export { generateId, todayIso, currentMonthYear };
+export { generateId, todayIso };

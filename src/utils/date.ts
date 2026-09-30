@@ -47,6 +47,15 @@ export function brDateToIso(text: string): string {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
+/**
+ * Data de um campo em ISO, completando como o campo faria ao perder o foco ("5" é
+ * dia 5 deste mês). Assim salvar com Enter, ainda dentro do campo, grava a mesma
+ * data que a tela vai mostrar. Vazio quando a data não existe.
+ */
+export function brDateInputToIso(text: string, todayIso: string): string {
+  return brDateToIso(completeBrDate(text, todayIso));
+}
+
 /** Máscara durante a digitação: só dígitos, no formato dd/mm/aaaa. */
 export function maskBrDate(text: string): string {
   const digits = text.replace(/\D/g, '').slice(0, 8);

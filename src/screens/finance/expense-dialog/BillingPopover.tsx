@@ -3,8 +3,8 @@ import type { ExpenseBillingType } from '../../../types/finance';
 import { C } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import type { DraftPatch, ExpenseDraft } from './draftState';
-import { MoneyCell } from './MoneyCell';
-import { SEPARATOR, chevronStyle, ellipsisStyle, fieldStyle, linkButtonStyle, selectStyle } from './fieldStyles';
+import { MoneyCell } from '../entry-dialog/MoneyCell';
+import { SEPARATOR, chevronStyle, ellipsisStyle, fieldStyle, linkButtonStyle, selectStyle } from '../entry-dialog/fieldStyles';
 
 const BILLING_OPTIONS: ReadonlyArray<{ type: ExpenseBillingType; label: string }> = [
   { type: 'single', label: 'Não repete' },

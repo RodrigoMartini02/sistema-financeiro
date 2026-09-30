@@ -45,3 +45,19 @@ export function addMonthsClamped(isoDate: string, months: number): string {
   target.setUTCDate(Math.min(day!, lastDay));
   return target.toISOString().slice(0, 10);
 }
+
+/** Quantos meses há do mês da data até o mês `untilMonth` (0-11) de `untilYear`; negativo quando é antes. */
+export function countMonthsUntil(isoDate: string, untilMonth: number, untilYear: number): number {
+  const [year, month] = isoDate.split('-').map(Number);
+  return (untilYear - year!) * 12 + (untilMonth - (month! - 1));
+}
+
+/**
+ * Uma data por mês depois da data informada, até o mês `untilMonth` (0-11) de
+ * `untilYear`, inclusive: o mesmo dia, ou o último dia nos meses mais curtos.
+ * Vazio quando o mês final não é posterior ao da data.
+ */
+export function monthlyDatesUntil(isoDate: string, untilMonth: number, untilYear: number): string[] {
+  const count = Math.max(0, countMonthsUntil(isoDate, untilMonth, untilYear));
+  return Array.from({ length: count }, (_, index) => addMonthsClamped(isoDate, index + 1));
+}

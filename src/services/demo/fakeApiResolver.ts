@@ -1,8 +1,8 @@
 import {
-  createDemoFakeDatabase, generateId, todayIso, currentMonthYear,
-  type DemoFakeDatabase, type RawExpenseDemo,
+  createDemoFakeDatabase, generateId, todayIso,
+  type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo,
 } from './demoFakeDatabase';
-import type { ExpenseCreateInput } from '../../types/finance';
+import type { ExpenseCreateInput, IncomeCreateInput, IncomeUpdateInput } from '../../types/finance';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
 import { addMonthsClamped } from '../../utils/expenseSchedule';
 
@@ -33,34 +33,22 @@ export function resolveFakeApiRequest(
   const method = (init?.method ?? 'GET').toUpperCase();
 
   // Receitas
-  if (matchEndpoint(endpoint, /^\/receitas$/) && method === 'GET') {
+  if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'GET') {
     return db.receitas;
   }
-  if (matchEndpoint(endpoint, /^\/receitas$/) && method === 'POST') {
-    const body = parseBody<Record<string, unknown>>(init);
-    const { mes, ano } = currentMonthYear();
-    const novaReceita = {
-      id: generateId(),
-      descricao: String(body.descricao ?? ''),
-      valor: Number(body.valor ?? 0),
-      data_recebimento: String(body.data_recebimento ?? todayIso()),
-      mes: Number(body.mes ?? mes),
-      ano: Number(body.ano ?? ano),
-      status: 'ativa',
-      contrato_id: null,
-      observacoes: (body.observacoes as string | null) ?? null,
-      cliente: (body.cliente as string | null) ?? null,
-      classificacao_id: null,
-      classificacao_nome: null,
-      representante_id: null,
-      representante_nome: null,
-      valor_comissao: null,
-      anexos: null,
-    };
-    db.receitas = [novaReceita, ...db.receitas];
-    return novaReceita;
+  if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'POST') {
+    const created = buildDemoIncomeRows(parseBody<IncomeCreateInput>(init));
+    db.receitas = [...created, ...db.receitas];
+    return created[0];
   }
-  const receitaIdMatch = matchEndpoint(endpoint, /^\/receitas\/(\d+)$/);
+  // Sugestões e duplicata — sem histórico na demo
+  if (matchEndpoint(endpoint, /^\/incomes\/suggestions$/)) {
+    return { matches: [], lastAmount: null };
+  }
+  if (matchEndpoint(endpoint, /^\/incomes\/duplicate$/)) {
+    return { duplicate: null };
+  }
+  const receitaIdMatch = matchEndpoint(endpoint, /^\/incomes\/(\d+)$/);
   if (receitaIdMatch && method === 'DELETE') {
     const id = Number(receitaIdMatch[1]);
     db.receitas = db.receitas.filter((item) => item.id !== id);
@@ -68,17 +56,15 @@ export function resolveFakeApiRequest(
   }
   if (receitaIdMatch && method === 'PUT') {
     const id = Number(receitaIdMatch[1]);
-    const body = parseBody<Record<string, unknown>>(init);
-    db.receitas = db.receitas.map((item) =>
-      item.id === id
-        ? {
-            ...item,
-            descricao: String(body.descricao ?? item.descricao),
-            valor: Number(body.valor ?? item.valor),
-            data_recebimento: String(body.data_recebimento ?? item.data_recebimento),
-          }
-        : item,
-    );
+    const input = parseBody<IncomeUpdateInput>(init);
+    const [year, month] = input.receiptDate.split('-').map(Number);
+    db.receitas = db.receitas.map((item) => (item.id === id
+      ? {
+          ...item, descricao: input.description, valor: input.amount, data_recebimento: input.receiptDate,
+          mes: month! - 1, ano: year!, cliente: input.client, classificacao_id: input.categoryId,
+          representante_id: input.representativeId,
+        }
+      : item));
     return db.receitas.find((item) => item.id === id);
   }
 
@@ -169,11 +155,6 @@ export function resolveFakeApiRequest(
     return undefined;
   }
 
-  // Sugestões de autocomplete — sem sugestões na demo
-  if (matchEndpoint(endpoint, /^\/incomes\/suggestions$/)) {
-    return { matches: [], forma_pagamento_sugerida: null, cliente_sugerido: null };
-  }
-
   // Listas auxiliares sem dado relevante na demo — devolver vazio
   if (matchEndpoint(endpoint, /^\/representantes$/)) return { success: true, data: [] };
   if (matchEndpoint(endpoint, /^\/income-classifications$/)) return [];
@@ -220,6 +201,27 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
   return [first, ...Array.from({ length: 11 }, (_, index) => (
     row(addMonthsClamped(input.dueDate, index + 1), input.amount, false, null, { recorrente: true })
   ))];
+}
+
+/** As mesmas linhas que o backend grava: a receita e uma cópia por mês até "Repetir até". */
+function buildDemoIncomeRows(input: IncomeCreateInput): RawIncomeDemo[] {
+  const row = (receiptDate: string): RawIncomeDemo => {
+    const [year, month] = receiptDate.split('-').map(Number);
+    return {
+      id: generateId(), descricao: input.description, valor: input.amount, data_recebimento: receiptDate,
+      mes: month! - 1, ano: year!, status: 'ativa', contrato_id: input.billableHours?.contractId ?? null,
+      observacoes: null, cliente: input.client, classificacao_id: input.categoryId, classificacao_nome: null,
+      representante_id: input.representativeId, representante_nome: null, valor_comissao: null, anexos: null,
+    };
+  };
+  const [year, month] = input.receiptDate.split('-').map(Number);
+  const replicas = input.repeatUntil
+    ? Math.max(0, (input.repeatUntil.year - year!) * 12 + input.repeatUntil.month - (month! - 1))
+    : 0;
+  return [
+    row(input.receiptDate),
+    ...Array.from({ length: replicas }, (_, index) => row(addMonthsClamped(input.receiptDate, index + 1))),
+  ];
 }
 
 const DEMO_PERSON = { id: 0, name: 'Você' };

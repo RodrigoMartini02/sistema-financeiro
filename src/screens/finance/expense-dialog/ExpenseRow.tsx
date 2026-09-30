@@ -1,31 +1,41 @@
-import { useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { Trash2 } from 'lucide-react';
+import type { RefObject } from 'react';
 import type { Categoria } from '../../../types/config';
 import { isPaymentMethod } from '../../../types/finance';
 import type { CardLimit } from '../../../services/cardLimitsService';
 import type { ExpenseSuggestionMatch } from '../../../services/expenseSuggestionsService';
 import { CategoryFloatingSelect } from '../../../ui/CategoryFloatingSelect';
 import { C, formatMoney } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { suggestCategoryForDescription, type CategoryHistoryEntry } from '../../../utils/categorySuggestions';
 import { isoToBrDate } from '../../../utils/date';
-import { getPaymentMethodLabel } from '../entryTable';
-import { formatCurrency } from '../formatters';
-import { AttachmentsPopover } from './AttachmentsPopover';
-import { BillingPopover } from './BillingPopover';
-import { DateCell } from './DateCell';
+import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
+import { toCents } from '../entry-dialog/cents';
+import { DateCell } from '../entry-dialog/DateCell';
+import { DescriptionField } from '../entry-dialog/DescriptionField';
+import { SEPARATOR, checkboxStyle, ellipsisStyle, fieldStyle } from '../entry-dialog/fieldStyles';
 import {
-  cardForMethod, computedDueDate, duplicateText, helpText, lastAmountText, summarizeDraft, usesCard, type RuleContext,
+  AddToBatchButton, GridCell, GridRow, RemoveFromBatchButton, type RowVariant,
+} from '../entry-dialog/GridParts';
+import { MoneyCell } from '../entry-dialog/MoneyCell';
+import { SummaryLine, duplicateText, type StatusTone } from '../entry-dialog/SummaryLine';
+import { getPaymentMethodLabel } from '../entryTable';
+import { BillingPopover } from './BillingPopover';
+import {
+  cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft, usesCard,
+  type RuleContext, type SummaryStatus,
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
+import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { InstallmentsPopover } from './InstallmentsPopover';
-import { MoneyCell } from './MoneyCell';
 import { PaymentMethodPopover } from './PaymentMethodPopover';
-import { RowSummary } from './RowSummary';
 import type { DraftSuggestions } from './useExpenseSuggestions';
-import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS, checkboxStyle, ellipsisStyle, fieldStyle } from './fieldStyles';
 
-export type RowVariant = 'entry' | 'batch' | 'edit';
+const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
+  Pago: 'success',
+  Agendado: 'neutral',
+  'Entra na fatura': 'info',
+  'Com vencidas': 'danger',
+  'Em andamento': 'info',
+};
 
 /** Dados que todas as linhas usam. */
 export interface RowResources {
@@ -46,16 +56,37 @@ export function amountLabel(draft: ExpenseDraft): string {
   return draft.billingType === 'monthly' ? 'Valor mensal' : 'Valor';
 }
 
-/** Rótulo de cada campo, visível só abaixo de 1024px (no desktop o cabeçalho das colunas faz esse papel). */
-function Cell({ label, required = false, className = '', children }: { label?: string; required?: boolean; className?: string; children: ReactNode }) {
+/** Nota fiscal da despesa na conta PJ, no painel dos comprovantes. */
+function InvoiceFields({ draft, todayIso, invalid, onUpdate }: {
+  draft: ExpenseDraft;
+  todayIso: string;
+  invalid: boolean;
+  onUpdate: (patch: DraftPatch) => void;
+}) {
   return (
-    <div className={`flex min-w-0 flex-col gap-1 ${className}`}>
-      {label && (
-        <span className="lg:hidden" style={{ fontSize: 11, fontWeight: 600, color: C.chipOffText }}>
-          {label}{required && <span style={{ color: C.danger }}> *</span>}
-        </span>
-      )}
-      {children}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 10, borderTop: `1px solid ${SEPARATOR}` }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>
+        Nota fiscal <span style={{ fontWeight: 400, color: C.textFaint }}>· opcional</span>
+      </span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px', gap: 6 }}>
+        <input
+          type="text"
+          value={draft.invoiceNumber}
+          onChange={(event) => onUpdate({ invoiceNumber: event.target.value.slice(0, 50) })}
+          maxLength={50}
+          placeholder="Número da NF"
+          aria-label="Número da nota fiscal"
+          style={fieldStyle()}
+        />
+        <DateCell
+          label="Data de emissão da nota fiscal"
+          value={draft.invoiceDate}
+          onChange={(text) => onUpdate({ invoiceDate: text })}
+          todayIso={todayIso}
+          placeholder="emissão"
+          invalid={invalid}
+        />
+      </div>
     </div>
   );
 }
@@ -86,15 +117,9 @@ export function ExpenseRow({
   descriptionRef, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
-  const [autocompleteOpen, setAutocompleteOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(-1);
-  const ownDescriptionRef = useRef<HTMLInputElement>(null);
-  const inputRef = descriptionRef ?? ownDescriptionRef;
-
   const isEntry = variant === 'entry';
   const installments = draft.billingType === 'installments';
   const matches = suggestions?.suggestions?.matches ?? [];
-  const showAutocomplete = autocompleteOpen && matches.length > 0 && draft.description.trim().length >= 2;
   const preferredCardIds = suggestions?.suggestions?.preferredCardIds ?? { debito: null, credito: null };
 
   const history: CategoryHistoryEntry[] = showSummary
@@ -104,60 +129,30 @@ export function ExpenseRow({
     ? suggestCategoryForDescription(draft.description, categories, history)
     : null;
 
-  const pickMatch = (match: ExpenseSuggestionMatch) => {
-    setAutocompleteOpen(false);
-    onUpdate((current) => {
-      const patch: Partial<ExpenseDraft> = { description: match.description };
-      if (current.amountCents === null && match.amount > 0) patch.amountCents = Math.round(match.amount * 100);
-      if (current.categoryId === null && match.categoryId !== null && categories.some((category) => category.id === match.categoryId)) {
-        patch.categoryId = match.categoryId;
-      }
-      // A forma e o cartão do histórico só entram se a pessoa ainda não escolheu a forma.
-      if (!current.paymentMethodTouched && isPaymentMethod(match.paymentMethod)) {
-        const method = match.paymentMethod;
-        patch.paymentMethod = method;
-        patch.cardId = cardForMethod(context.cards, method, match.cardId, usesCard(method) ? preferredCardIds[method] : null);
-        patch.paymentMethodTouched = true;
-      }
-      return patch;
-    });
-  };
+  const pickMatch = (match: ExpenseSuggestionMatch) => onUpdate((current) => {
+    const patch: Partial<ExpenseDraft> = { description: match.description };
+    if (current.amountCents === null && match.amount > 0) patch.amountCents = toCents(match.amount);
+    if (current.categoryId === null && match.categoryId !== null && categories.some((category) => category.id === match.categoryId)) {
+      patch.categoryId = match.categoryId;
+    }
+    // A forma e o cartão do histórico só entram se a pessoa ainda não escolheu a forma.
+    if (!current.paymentMethodTouched && isPaymentMethod(match.paymentMethod)) {
+      const method = match.paymentMethod;
+      patch.paymentMethod = method;
+      patch.cardId = cardForMethod(context.cards, method, match.cardId, usesCard(method) ? preferredCardIds[method] : null);
+      patch.paymentMethodTouched = true;
+    }
+    return patch;
+  });
 
   const acceptCategorySuggestion = () => {
     if (categorySuggestion) onUpdate({ categoryId: categorySuggestion.id });
-  };
-
-  const handleDescriptionKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (showAutocomplete) {
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        setHighlighted((index) => (index + 1) % matches.length);
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        setHighlighted((index) => (index <= 0 ? matches.length - 1 : index - 1));
-        return;
-      }
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        event.stopPropagation();
-        pickMatch(matches[highlighted] ?? matches[0]!);
-        return;
-      }
-    }
-    // Tab aceita a categoria sugerida e segue para o próximo campo.
-    if (event.key === 'Tab' && !event.shiftKey && categorySuggestion) {
-      setAutocompleteOpen(false);
-      acceptCategorySuggestion();
-    }
   };
 
   const togglePaid = () => onUpdate((current) => (current.paid
     ? { paid: false, paymentDate: '', amountPaidCents: null }
     : { paid: true, paymentDate: current.paymentDate || isoToBrDate(context.todayIso) }));
 
-  const filled = draft.description.trim() !== '' || !!draft.amountCents;
   const dueDatePlaceholder = isoToBrDate(computedDueDate(draft, context).date);
   const purchaseLocked = isEntry && resources.lockPurchaseDate;
   const summary = showSummary ? summarizeDraft(draft, context) : null;
@@ -165,74 +160,23 @@ export function ExpenseRow({
 
   return (
     <>
-      <div
-        onFocus={onFocus}
-        data-entry-row={isEntry ? '' : undefined}
-        className={[
-          'grid grid-cols-2 items-end gap-2 lg:items-center lg:gap-x-1.5 lg:gap-y-0 xl:gap-x-2',
-          isEntry ? ENTRY_GRID_CLASS : BATCH_GRID_CLASS,
-          isEntry ? '' : 'max-lg:shadow-[inset_0_0_0_1px_#eef2f6]',
-        ].join(' ')}
-        style={{
-          padding: isEntry ? 8 : '5px 8px', borderRadius: 10,
-          background: isEntry ? C.panelBg : 'transparent',
-          boxShadow: isEntry ? `inset 0 0 0 1px ${C.panelBorder}` : undefined,
-        }}
-      >
-        <Cell label="Descrição" required className="col-span-2 lg:col-span-1">
-          <input
-            ref={inputRef}
-            type="text"
+      <GridRow variant={variant} columnsClass={isEntry ? ENTRY_GRID_CLASS : BATCH_GRID_CLASS} onFocus={onFocus}>
+        <GridCell label="Descrição" required className="col-span-2 lg:col-span-1">
+          <DescriptionField
             value={draft.description}
-            onChange={(event) => {
-              onUpdate({ description: event.target.value });
-              setAutocompleteOpen(true);
-              setHighlighted(-1);
-            }}
-            onKeyDown={handleDescriptionKeyDown}
-            onBlur={() => setAutocompleteOpen(false)}
+            onChange={(text) => onUpdate({ description: text })}
+            options={matches.map((match) => ({
+              description: match.description, detail: getPaymentMethodLabel(match.paymentMethod), amount: match.amount,
+            }))}
+            onPick={(index) => pickMatch(matches[index]!)}
+            onTab={categorySuggestion ? acceptCategorySuggestion : undefined}
             placeholder={isEntry ? 'Ex: Conta de luz' : 'Descrição'}
-            aria-label="Descrição"
-            aria-autocomplete="list"
-            aria-expanded={showAutocomplete}
-            autoComplete="off"
-            maxLength={255}
-            style={fieldStyle({ invalid: errors?.description })}
+            invalid={errors?.description}
+            inputRef={descriptionRef}
           />
-          <FloatingPanel
-            open={showAutocomplete}
-            anchorRef={inputRef}
-            onClose={() => setAutocompleteOpen(false)}
-            label="Sugestões do histórico"
-            minWidth={320}
-            padding={6}
-            sheetOnSmallScreens={false}
-            keepAnchorFocus
-          >
-            <div role="listbox" aria-label="Sugestões do histórico" style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ padding: '3px 8px 6px', fontSize: 11, color: C.textFaint }}>Do seu histórico · ↑↓ e Enter</span>
-              {matches.map((match, index) => (
-                <div
-                  key={match.description}
-                  role="option"
-                  aria-selected={index === highlighted}
-                  onClick={() => pickMatch(match)}
-                  onMouseEnter={() => setHighlighted(index)}
-                  style={{
-                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto auto', gap: 12, alignItems: 'center', height: 32,
-                    padding: '0 8px', borderRadius: 7, cursor: 'pointer', background: index === highlighted ? C.primarySoft : 'transparent',
-                  }}
-                >
-                  <span style={{ ...ellipsisStyle, fontSize: 12, color: C.text }}>{match.description}</span>
-                  <span style={{ fontSize: 11, color: C.textSoft }}>{getPaymentMethodLabel(match.paymentMethod)}</span>
-                  <span style={{ fontSize: 12, color: C.text, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(match.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </FloatingPanel>
-        </Cell>
+        </GridCell>
 
-        <Cell label="Categoria" required className="col-span-2 lg:col-span-1">
+        <GridCell label="Categoria" required className="col-span-2 lg:col-span-1">
           <CategoryFloatingSelect
             compact
             categories={categories}
@@ -242,10 +186,10 @@ export function ExpenseRow({
             recentIds={resources.recentCategoryIds}
             invalid={errors?.category}
           />
-        </Cell>
+        </GridCell>
 
         {!isEntry && (
-          <Cell label="Pagamento" className="col-span-2 lg:col-span-1">
+          <GridCell label="Pagamento" className="col-span-2 lg:col-span-1">
             <PaymentMethodPopover
               variant="cell"
               draft={draft}
@@ -255,10 +199,10 @@ export function ExpenseRow({
               cardInvalid={!!errors?.card}
               onChange={(choice) => onUpdate(choice)}
             />
-          </Cell>
+          </GridCell>
         )}
 
-        <Cell label="Cobrança">
+        <GridCell label="Cobrança">
           {readOnlyBilling ? (
             <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title="A cobrança não muda na edição">
               <span style={ellipsisStyle}>{readOnlyBilling}</span>
@@ -272,9 +216,9 @@ export function ExpenseRow({
               onCancelInstallmentCount={onCancelInstallmentCount}
             />
           )}
-        </Cell>
+        </GridCell>
 
-        <Cell label={amountLabel(draft)} required>
+        <GridCell label={amountLabel(draft)} required>
           <MoneyCell
             label={amountLabel(draft)}
             valueCents={draft.amountCents}
@@ -282,9 +226,9 @@ export function ExpenseRow({
             suffix={draft.billingType === 'monthly' ? '/mês' : undefined}
             invalid={errors?.amount}
           />
-        </Cell>
+        </GridCell>
 
-        <Cell label="Compra">
+        <GridCell label="Compra">
           <DateCell
             label="Data da compra"
             value={draft.purchaseDate}
@@ -295,9 +239,9 @@ export function ExpenseRow({
             title={purchaseLocked ? 'Data definida pelo calendário' : 'Data da compra'}
             invalid={errors?.purchaseDate}
           />
-        </Cell>
+        </GridCell>
 
-        <Cell label={installments ? '1ª vence' : 'Vencimento'}>
+        <GridCell label={installments ? '1ª vence' : 'Vencimento'}>
           <DateCell
             label="Vencimento"
             value={draft.dueDate}
@@ -307,15 +251,15 @@ export function ExpenseRow({
             title="Em branco, o sistema calcula"
             invalid={errors?.dueDate}
           />
-        </Cell>
+        </GridCell>
 
         {installments ? (
-          <Cell label="Pagamento das parcelas" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
+          <GridCell label="Pagamento das parcelas" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
             <InstallmentsPopover draft={draft} context={context} onUpdate={onUpdate} />
-          </Cell>
+          </GridCell>
         ) : (
           <>
-            <Cell label="Pago em" className="lg:border-l lg:border-[#dcebf1] lg:pl-2">
+            <GridCell label="Pago em" className="lg:border-l lg:border-[#dcebf1] lg:pl-2">
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                 <button
                   type="button"
@@ -338,8 +282,8 @@ export function ExpenseRow({
                   invalid={errors?.paymentDate}
                 />
               </div>
-            </Cell>
-            <Cell label="Valor pago">
+            </GridCell>
+            <GridCell label="Valor pago">
               <MoneyCell
                 label="Valor pago"
                 valueCents={draft.amountPaidCents}
@@ -347,52 +291,39 @@ export function ExpenseRow({
                 placeholder={draft.paid && draft.amountCents ? formatMoney(draft.amountCents / 100) : ''}
                 disabled={!draft.paid}
               />
-            </Cell>
+            </GridCell>
           </>
         )}
 
         <div className="flex items-center lg:block">
           <AttachmentsPopover
-            draft={draft}
-            isCompany={resources.isCompany}
+            attachments={draft.attachments}
+            onChange={(attachments) => onUpdate({ attachments })}
+            label={resources.isCompany ? 'Comprovantes e nota fiscal' : 'Comprovantes'}
+            highlighted={draft.invoiceNumber.trim() !== ''}
             invalid={!!errors?.invoiceDate}
-            todayIso={context.todayIso}
-            onUpdate={onUpdate}
-          />
+          >
+            {resources.isCompany && (
+              <InvoiceFields draft={draft} todayIso={context.todayIso} invalid={!!errors?.invoiceDate} onUpdate={onUpdate} />
+            )}
+          </AttachmentsPopover>
         </div>
 
         <div className="flex items-center justify-end lg:block">
-          {isEntry && (
-            <button
-              type="button"
-              onClick={onAddToBatch}
-              title="Adicionar ao lote (Shift+Enter)"
-              aria-label="Adicionar ao lote"
-              style={{
-                width: 28, height: 28, padding: 0, border: 'none', borderRadius: 8, fontSize: 17, lineHeight: 1, cursor: 'pointer',
-                background: filled ? C.primary : '#e6edf1', color: filled ? '#fff' : '#a3b6c0',
-              }}
-            >
-              +
-            </button>
-          )}
-          {variant === 'batch' && (
-            <button
-              type="button"
-              onClick={onRemove}
-              title="Remover do lote"
-              aria-label="Remover do lote"
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-rose-500 transition hover:bg-rose-50 hover:text-rose-700"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
+          {isEntry && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
+          {variant === 'batch' && <RemoveFromBatchButton onClick={onRemove} />}
         </div>
-      </div>
+      </GridRow>
 
       {showSummary && (
-        <RowSummary
-          summary={summary}
+        <SummaryLine
+          content={summary && {
+            status: { text: summary.status, tone: SUMMARY_TONE[summary.status] },
+            detail: summary.dueText,
+            total: summary.totalText,
+            badges: summary.badges,
+          }}
+          placeholder="Preencha descrição e valor para ver vencimento e total."
           categorySuggestion={categorySuggestion}
           onAcceptCategory={acceptCategorySuggestion}
           lastAmount={lastAmountText(suggestions?.suggestions?.lastAmount ?? null)}

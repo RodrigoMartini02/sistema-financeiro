@@ -43,26 +43,47 @@ export interface Income {
   anexos?: Attachment[] | null;
 }
 
-export interface IncomeFormValues {
-  descricao: string;
-  valor: number;
-  data: string;
-  /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
-  contaId?: number | null;
-  cliente?: string;
-  classificacaoId?: number | null;
-  observacoes?: string;
-  representanteId?: number | null;
-  valorComissao?: number | null;
-  anexos?: Attachment[];
-  replicarAte?: { mes: number; ano: number } | null;
-  contratoId?: number | null;
-  tipoHora?: 'presencial' | 'remoto' | null;
-  quantidadeHoras?: number | null;
-  /** Produto do catálogo vendido; a quantidade baixa o estoque. */
-  produtoId?: string | null;
-  quantidadeVendida?: number | null;
+export type IncomeHourType = 'presencial' | 'remoto';
+
+/** "Repetir até": réplicas mensais até este mês (0-11) e ano. */
+export interface IncomeRepeatUntil {
+  month: number;
+  year: number;
 }
+
+/** Venda de um produto do catálogo: a quantidade baixa o estoque. */
+export interface IncomeProductSale {
+  productId: string;
+  quantity: number;
+}
+
+/** Horas a faturar de um contrato: descontam o saldo de horas do tipo. */
+export interface IncomeBillableHours {
+  contractId: number;
+  hourType: IncomeHourType;
+  hours: number;
+}
+
+interface IncomeFieldsInput {
+  description: string;
+  categoryId: number | null;
+  amount: number;
+  receiptDate: string;
+  client: string | null;
+  representativeId: number | null;
+  attachments: Attachment[] | null;
+}
+
+/** Corpo do POST /incomes. Datas em ISO e valores em reais. */
+export interface IncomeCreateInput extends IncomeFieldsInput {
+  accountId: number | null;
+  repeatUntil: IncomeRepeatUntil | null;
+  productSale: IncomeProductSale | null;
+  billableHours: IncomeBillableHours | null;
+}
+
+/** Corpo do PUT /incomes/:id: só os campos da própria receita. */
+export type IncomeUpdateInput = IncomeFieldsInput;
 
 export interface Expense {
   id: number;

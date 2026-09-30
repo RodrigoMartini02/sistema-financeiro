@@ -7,14 +7,10 @@ export const DISABLED_BACKGROUND = '#f1f5f9';
 /** Parcela com valor ajustado à mão. */
 export const ADJUSTED_BORDER = '#67e8f9';
 
-/**
- * Grade da linha no desktop (a partir de 1024px). As colunas encolhem até o
- * mínimo em telas menores que o modal cheio (1240px); abaixo de 1024px os campos
- * ficam empilhados em duas colunas.
- */
-export const ENTRY_GRID_CLASS = 'lg:grid-cols-[minmax(110px,1fr)_minmax(100px,150px)_minmax(80px,100px)_minmax(96px,128px)_minmax(80px,84px)_minmax(80px,84px)_minmax(110px,121px)_minmax(76px,96px)_28px_28px]';
-/** Lote e edição: com a coluna "Pagamento" depois da categoria. */
-export const BATCH_GRID_CLASS = 'lg:grid-cols-[minmax(100px,1fr)_minmax(100px,150px)_minmax(96px,140px)_minmax(80px,100px)_minmax(96px,128px)_minmax(80px,84px)_minmax(80px,84px)_minmax(110px,121px)_minmax(76px,96px)_28px_28px]';
+/** Linha da grade: duas colunas empilhadas abaixo de 1024px; o modelo das colunas do desktop vem de cada modal. */
+export const ROW_GRID_CLASS = 'grid grid-cols-2 items-end gap-2 lg:items-center lg:gap-x-1.5 lg:gap-y-0 xl:gap-x-2';
+/** Cabeçalho das colunas, só no desktop, com o mesmo espaçamento da linha. */
+export const HEADER_GRID_CLASS = 'hidden lg:grid lg:gap-x-1.5 xl:gap-x-2';
 
 /** Anel de foco das caixas que têm um campo dentro (valor em R$). */
 export const FOCUS_WITHIN_CLASS = 'focus-within:!border-[#0891b2] focus-within:shadow-[0_0_0_3px_rgba(8,145,178,0.12)]';

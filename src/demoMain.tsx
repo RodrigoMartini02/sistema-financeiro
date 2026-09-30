@@ -8,9 +8,8 @@ import { AppShell, type AppSection } from './layout/AppShell';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
-import { IncomeDialog } from './screens/finance/IncomeDialog';
+import { IncomeDialog } from './screens/finance/income-dialog/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
-import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import './styles/globals.css';
 
 const demoQueryClient = new QueryClient({
@@ -21,11 +20,7 @@ const demoQueryClient = new QueryClient({
 
 function DemoAppContent() {
   const [section, setSection] = useState<AppSection>('movimentacoes');
-  const now = new Date();
-  const [month] = useState(now.getMonth());
-  const [year] = useState(now.getFullYear());
   const { quickAction, setQuickAction } = useAppContext();
-  const finance = useFinanceDashboard(month, year);
 
   const renderContent = () => {
     switch (section) {
@@ -40,14 +35,7 @@ function DemoAppContent() {
     <AppShell isDemoMode activeSection={section} onNavigate={setSection}>
       {renderContent()}
 
-      <IncomeDialog
-        open={quickAction === 'nova-receita'}
-        month={month} year={year}
-        isSaving={finance.saveIncome.isPending}
-        error={finance.saveIncome.error?.message}
-        onClose={() => setQuickAction('none')}
-        onSave={async (items) => { for (const v of items) await finance.saveIncome.mutateAsync({ values: v }); setQuickAction('none'); }}
-      />
+      <IncomeDialog open={quickAction === 'nova-receita'} onClose={() => setQuickAction('none')} />
       <ExpenseDialog open={quickAction === 'nova-despesa'} onClose={() => setQuickAction('none')} />
     </AppShell>
   );

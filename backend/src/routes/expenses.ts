@@ -5,8 +5,8 @@ import { getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { RequestInputError, sendRequestError } from '../utils/requestInput';
 import {
-  ExpenseRequestError,
   readCreateExpenseInput,
   readDuplicateQuery,
   readSuggestionsQuery,
@@ -95,22 +95,13 @@ async function resolveCardForWrite(
   const allowedCardId = await validateCardId(requestedCardId, userId, accountId);
   const cardId = allowedCardId ?? (currentCardId === requestedCardId ? requestedCardId : null);
   if (cardId === null) {
-    throw new ExpenseRequestError(CARD_NOT_AVAILABLE);
+    throw new RequestInputError(CARD_NOT_AVAILABLE);
   }
   const compatibilityError = await validateCardTypeCompatibility(cardId, paymentMethod, userId);
   if (compatibilityError) {
-    throw new ExpenseRequestError(compatibilityError);
+    throw new RequestInputError(compatibilityError);
   }
   return cardId;
-}
-
-function sendExpenseError(res: Response, error: unknown, context: string, userId: number | undefined, fallbackMessage: string): void {
-  if (error instanceof ExpenseRequestError) {
-    res.status(error.status).json({ success: false, message: error.message });
-    return;
-  }
-  console.error(context, { userId, error });
-  res.status(500).json({ success: false, message: fallbackMessage });
 }
 
 // GET /api/expenses
@@ -195,7 +186,7 @@ router.get('/suggestions', authenticate, async (req: Request, res: Response): Pr
     const query = readSuggestionsQuery(req.query as Record<string, unknown>);
     res.json({ success: true, data: await getExpenseSuggestions(req.user!.id, query) });
   } catch (error) {
-    sendExpenseError(res, error, 'Expense suggestions error:', req.user?.id, 'Não foi possível buscar as sugestões');
+    sendRequestError(res, error, 'Expense suggestions error:', req.user?.id, 'Não foi possível buscar as sugestões');
   }
 });
 
@@ -205,7 +196,7 @@ router.get('/duplicate', authenticate, async (req: Request, res: Response): Prom
     const query = readDuplicateQuery(req.query as Record<string, unknown>);
     res.json({ success: true, data: { duplicate: await findRecentDuplicate(req.user!.id, query) } });
   } catch (error) {
-    sendExpenseError(res, error, 'Expense duplicate check error:', req.user?.id, 'Não foi possível conferir se a despesa já foi lançada');
+    sendRequestError(res, error, 'Expense duplicate check error:', req.user?.id, 'Não foi possível conferir se a despesa já foi lançada');
   }
 });
 
@@ -214,13 +205,13 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
   try {
     const input = readCreateExpenseInput(req.body);
     if (!(await canWriteToAccount(input.accountId, req.user!.id))) {
-      throw new ExpenseRequestError(ACCOUNT_ACCESS_DENIED);
+      throw new RequestInputError(ACCOUNT_ACCESS_DENIED);
     }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, input.accountId);
     const created = await createExpense(req.user!.id, { ...input, cardId }, getTodayIsoInTimezone());
     res.status(201).json({ success: true, message: 'Expense created', data: created });
   } catch (error) {
-    sendExpenseError(res, error, 'Create expense error:', req.user?.id, 'Não foi possível registrar a despesa. Tente novamente.');
+    sendRequestError(res, error, 'Create expense error:', req.user?.id, 'Não foi possível registrar a despesa. Tente novamente.');
   }
 });
 
@@ -236,18 +227,18 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       : null;
     const current = ownerId === null ? null : await findExpenseForUpdate(ownerId, expenseId);
     if (ownerId === null || current === null) {
-      throw new ExpenseRequestError('Despesa não encontrada', 404);
+      throw new RequestInputError('Despesa não encontrada', 404);
     }
 
     const input = readUpdateExpenseInput(req.body);
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, current.accountId, current.cardId);
     const updated = await updateExpense(ownerId, expenseId, { ...input, cardId }, current.isInstallment, getTodayIsoInTimezone());
     if (!updated) {
-      throw new ExpenseRequestError('Despesa não encontrada', 404);
+      throw new RequestInputError('Despesa não encontrada', 404);
     }
     res.json({ success: true, message: 'Expense updated', data: updated });
   } catch (error) {
-    sendExpenseError(res, error, 'Update expense error:', req.user?.id, 'Não foi possível salvar a despesa. Tente novamente.');
+    sendRequestError(res, error, 'Update expense error:', req.user?.id, 'Não foi possível salvar a despesa. Tente novamente.');
   }
 });
 

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getActiveAccountId } from '../../../services/apiClient';
 import {
@@ -6,21 +5,11 @@ import {
   type ExpenseDuplicateQuery, type ExpenseSuggestions, type ExpenseSuggestionsQuery,
 } from '../../../services/expenseSuggestionsService';
 import { queryKeys } from '../../../services/queryKeys';
+import { useDebouncedValue } from '../entry-dialog/useDebouncedValue';
 import { duplicateQuery } from './draftRules';
 import type { ExpenseDraft } from './draftState';
 
-/** Espera enquanto a pessoa digita antes de consultar o servidor. */
-const TYPING_DELAY_MS = 220;
 const MIN_SEARCH_LENGTH = 2;
-
-function useDebouncedValue<T extends string>(value: T): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), TYPING_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [value]);
-  return debounced;
-}
 
 export interface DraftSuggestions {
   suggestions: ExpenseSuggestions | undefined;

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { RequestInputError } from '../utils/requestInput';
 import {
-  ExpenseRequestError,
   readCreateExpenseInput,
   readDuplicateQuery,
   readSuggestionsQuery,
@@ -34,7 +34,7 @@ function installment(overrides: Record<string, unknown> = {}): Record<string, un
 }
 
 function assertRejects(read: () => unknown, message: string): void {
-  assert.throws(read, (error: unknown) => error instanceof ExpenseRequestError && error.message === message);
+  assert.throws(read, (error: unknown) => error instanceof RequestInputError && error.message === message);
 }
 
 test('lê a despesa única e apara a descrição', () => {

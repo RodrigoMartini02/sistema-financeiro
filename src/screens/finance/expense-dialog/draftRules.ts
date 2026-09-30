@@ -5,9 +5,12 @@ import type {
   ExpenseCreateInput, ExpenseInstallmentInput, ExpenseUpdateInput, PaymentMethod,
 } from '../../../types/finance';
 import type { ExpenseDuplicateQuery } from '../../../services/expenseSuggestionsService';
-import { brDateToIso, completeBrDate, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
+import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
 import { addMonthsClamped, dateInMonth, invoiceDueDate, splitAmountInCents } from '../../../utils/expenseSchedule';
 import { formatCurrency } from '../formatters';
+import { formatCents, toReais } from '../entry-dialog/cents';
+import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
+import type { StatusTone, SummaryBadge } from '../entry-dialog/SummaryLine';
 import { MAX_INSTALLMENTS, MIN_INSTALLMENTS, type DraftErrors, type ExpenseDraft } from './draftState';
 
 const MAX_INVOICE_NUMBER_LENGTH = 50;
@@ -24,10 +27,6 @@ export interface RuleContext {
   savedDueDate?: string;
   /** Na edição de uma parcela, a regra "vencida fora do crédito nasce paga" não vale. */
   editingInstallment?: boolean;
-}
-
-function money(cents: number): string {
-  return formatCurrency(cents / 100);
 }
 
 function plural(count: number, singular: string, pluralForm: string): string {
@@ -68,17 +67,8 @@ export function isCreditWithCard(draft: ExpenseDraft, cards: Cartao[]): boolean 
   return draft.paymentMethod === 'credito' && selectedCard(draft, cards) !== undefined;
 }
 
-/**
- * Data de um campo em ISO. Completa como o campo faria ao perder o foco ("5" é
- * dia 5 deste mês), para que salvar com Enter, ainda dentro do campo, grave a
- * mesma data que a tela vai mostrar. Vazio quando a data não existe.
- */
-export function draftDateIso(text: string, todayIso: string): string {
-  return brDateToIso(completeBrDate(text, todayIso));
-}
-
 export function purchaseDateIso(draft: ExpenseDraft, todayIso: string): string {
-  return draftDateIso(draft.purchaseDate, todayIso) || todayIso;
+  return brDateInputToIso(draft.purchaseDate, todayIso) || todayIso;
 }
 
 export type DueDateKind = 'manual' | 'invoice' | 'recurrence' | 'purchase';
@@ -101,7 +91,7 @@ export function computedDueDate(draft: ExpenseDraft, context: RuleContext): DueD
 
 /** A data digitada manda sobre qualquer cálculo. */
 export function effectiveDueDate(draft: ExpenseDraft, context: RuleContext): DueDate {
-  const typed = draftDateIso(draft.dueDate, context.todayIso);
+  const typed = brDateInputToIso(draft.dueDate, context.todayIso);
   return typed ? { date: typed, kind: 'manual' } : computedDueDate(draft, context);
 }
 
@@ -157,8 +147,6 @@ export function markOverdueAsPaid(draft: ExpenseDraft, context: RuleContext): Pi
   return { installmentPayments: payments, overdueDismissed: true };
 }
 
-export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
-
 export interface InstallmentRow {
   index: number;
   dueDate: string;
@@ -203,7 +191,7 @@ export function installmentGrid(draft: ExpenseDraft, context: RuleContext): Inst
       if (credit) return { ...base, paid: true, paidAmountCents, status: 'paga', tone: 'success' };
       const parts: string[] = [];
       let late = false;
-      const paymentIso = draftDateIso(payment.paymentDate, context.todayIso);
+      const paymentIso = brDateInputToIso(payment.paymentDate, context.todayIso);
       if (paymentIso) {
         const days = Math.round((Date.parse(paymentIso) - Date.parse(dueDate)) / 86_400_000);
         if (days > 0) {
@@ -214,10 +202,10 @@ export function installmentGrid(draft: ExpenseDraft, context: RuleContext): Inst
         }
       }
       if (paidAmountCents > amountCents) {
-        parts.push(`+ ${money(paidAmountCents - amountCents)} de juros`);
+        parts.push(`+ ${formatCents(paidAmountCents - amountCents)} de juros`);
         late = true;
       } else if (paidAmountCents < amountCents) {
-        parts.push(`${money(amountCents - paidAmountCents)} de desconto`);
+        parts.push(`${formatCents(amountCents - paidAmountCents)} de desconto`);
       }
       return { ...base, paid: true, paidAmountCents, status: parts.join(' · ') || 'paga', tone: late ? 'warning' : 'success' };
     }
@@ -241,17 +229,12 @@ export function installmentMismatch(draft: ExpenseDraft): string | null {
   if (draft.billingType !== 'installments' || !draft.amountCents) return null;
   const sum = installmentAmounts(draft).reduce((total, amount) => total + amount, 0);
   if (sum === draft.amountCents) return null;
-  return `A soma das parcelas (${money(sum)}) difere do valor total informado (${money(draft.amountCents)}).`;
+  return `A soma das parcelas (${formatCents(sum)}) difere do valor total informado (${formatCents(draft.amountCents)}).`;
 }
 
 // ── Resumo ─────────────────────────────────────────────────────────────────
 
 export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento';
-
-export interface SummaryBadge {
-  text: string;
-  tone: StatusTone;
-}
 
 export interface DraftSummary {
   status: SummaryStatus;
@@ -300,10 +283,10 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
     }
     const allEqual = amounts.every((value) => value === amounts[0]);
     const totalText = `${count}x`
-      + (allEqual ? ` de ${money(amounts[0]!)}` : '')
+      + (allEqual ? ` de ${formatCents(amounts[0]!)}` : '')
       + (paidCount ? ` · ${paidCount} ${plural(paidCount, 'paga', 'pagas')}` : '')
       + (nextOpen >= 0 ? ` · próxima vence ${isoToShortBrDate(installmentDueDate(draft, context, nextOpen))}` : ' · quitado')
-      + ` · total ${money(amount)}`;
+      + ` · total ${formatCents(amount)}`;
     const status: SummaryStatus = paidCount === count ? 'Pago'
       : overdue ? 'Com vencidas'
         : credit ? 'Entra na fatura'
@@ -312,7 +295,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
     if (draft.knowsCashPrice && draft.cashPriceCents && amount > draft.cashPriceCents) {
       const interest = amount - draft.cashPriceCents;
       const percent = ((interest / draft.cashPriceCents) * 100).toFixed(1).replace('.', ',');
-      badges.push({ text: `+ ${money(interest)} de juros embutido (${percent}%)`, tone: 'warning' });
+      badges.push({ text: `+ ${formatCents(interest)} de juros embutido (${percent}%)`, tone: 'warning' });
     }
     if (!isCreditWithCard(draft, context.cards)) {
       let interest = 0;
@@ -324,8 +307,8 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
         if (difference > 0) interest += difference;
         else discount -= difference;
       });
-      if (interest) badges.push({ text: `+ ${money(interest)} de multa e juros`, tone: 'warning' });
-      if (discount) badges.push({ text: `${money(discount)} de desconto`, tone: 'success' });
+      if (interest) badges.push({ text: `+ ${formatCents(interest)} de multa e juros`, tone: 'warning' });
+      if (discount) badges.push({ text: `${formatCents(discount)} de desconto`, tone: 'success' });
     }
     if (overdue) badges.push({ text: `${overdue} ${plural(overdue, 'vencida', 'vencidas')} em aberto`, tone: 'danger' });
     return { status, dueText, totalText, badges };
@@ -337,11 +320,11 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   if (!autoPay && due.kind !== 'manual' && draft.billingType === 'single') dueText = `Vence ${isoToShortBrDate(due.date)}`;
 
   const totalText = draft.billingType === 'monthly'
-    ? `${money(amount)} · ${credit && due.card ? `todo mês na fatura ${due.card.nome}` : `todo dia ${draft.recurrenceDay ?? 1} · 12 ocorrências`}`
-    : `total ${money(amount)}`;
+    ? `${formatCents(amount)} · ${credit && due.card ? `todo mês na fatura ${due.card.nome}` : `todo dia ${draft.recurrenceDay ?? 1} · 12 ocorrências`}`
+    : `total ${formatCents(amount)}`;
   if (draft.paid && draft.amountPaidCents !== null) {
-    if (draft.amountPaidCents > amount) badges.push({ text: `+ ${money(draft.amountPaidCents - amount)} de multa e juros`, tone: 'warning' });
-    else if (draft.amountPaidCents < amount) badges.push({ text: `${money(amount - draft.amountPaidCents)} de desconto`, tone: 'success' });
+    if (draft.amountPaidCents > amount) badges.push({ text: `+ ${formatCents(draft.amountPaidCents - amount)} de multa e juros`, tone: 'warning' });
+    else if (draft.amountPaidCents < amount) badges.push({ text: `${formatCents(amount - draft.amountPaidCents)} de desconto`, tone: 'success' });
   }
   return { status, dueText, totalText, badges };
 }
@@ -359,14 +342,10 @@ export function lastAmountText(lastAmount: number | null): string | null {
   return lastAmount !== null ? `Última vez você pagou ${formatCurrency(lastAmount)}` : null;
 }
 
-export function duplicateText(createdAtIso: string): string {
-  return `Você já lançou isso em ${isoToShortBrDate(createdAtIso)} — é outra?`;
-}
-
 // ── Validação ──────────────────────────────────────────────────────────────
 
 export function validateDraft(draft: ExpenseDraft, context: RuleContext): DraftErrors {
-  const isInvalidOptionalDate = (text: string) => text.trim() !== '' && !draftDateIso(text, context.todayIso);
+  const isInvalidOptionalDate = (text: string) => text.trim() !== '' && !brDateInputToIso(text, context.todayIso);
   const errors: DraftErrors = {};
   if (!draft.description.trim()) errors.description = true;
   if (draft.categoryId === null) errors.category = true;
@@ -374,7 +353,7 @@ export function validateDraft(draft: ExpenseDraft, context: RuleContext): DraftE
   if (draft.paymentMethod === 'credito' && compatibleCards(context.cards, 'credito').length > 0 && !selectedCard(draft, context.cards)) {
     errors.card = true;
   }
-  if (!draftDateIso(draft.purchaseDate, context.todayIso)) errors.purchaseDate = true;
+  if (!brDateInputToIso(draft.purchaseDate, context.todayIso)) errors.purchaseDate = true;
   if (isInvalidOptionalDate(draft.dueDate)) errors.dueDate = true;
   if (isInvalidOptionalDate(draft.invoiceDate) || draft.invoiceNumber.trim().length > MAX_INVOICE_NUMBER_LENGTH) {
     errors.invoiceDate = true;
@@ -399,11 +378,6 @@ export function hasErrors(errors: DraftErrors): boolean {
   return Object.keys(errors).length > 0;
 }
 
-function joinWithAnd(items: string[]): string {
-  if (items.length <= 1) return items.join('');
-  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
-}
-
 /** Mensagem do rodapé: "Preencha descrição e valor e escolha o cartão de crédito." */
 export function errorMessage(errors: DraftErrors): string {
   const clauses: string[] = [];
@@ -420,17 +394,12 @@ export function errorMessage(errors: DraftErrors): string {
   ].filter((item): item is string => typeof item === 'string');
   if (invalidDates.length) clauses.push(`confira ${joinWithAnd(invalidDates)}`);
   if (errors.recurrenceDay) clauses.push('informe o dia do mês, de 1 a 31');
-  const sentence = joinWithAnd(clauses);
-  return sentence ? `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.` : '';
+  return toSentence(clauses);
 }
 
 export const EMPTY_FORM_MESSAGE = 'Preencha descrição, categoria e valor para registrar.';
 
 // ── Envio ──────────────────────────────────────────────────────────────────
-
-function reais(cents: number): number {
-  return cents / 100;
-}
 
 function commonFields(draft: ExpenseDraft, context: RuleContext) {
   const invoiceNumber = draft.invoiceNumber.trim();
@@ -441,7 +410,7 @@ function commonFields(draft: ExpenseDraft, context: RuleContext) {
     cardId: usesCard(draft.paymentMethod) ? draft.cardId : null,
     purchaseDate: purchaseDateIso(draft, context.todayIso),
     invoiceNumber: invoiceNumber || null,
-    invoiceDate: draftDateIso(draft.invoiceDate, context.todayIso) || null,
+    invoiceDate: brDateInputToIso(draft.invoiceDate, context.todayIso) || null,
     attachments: draft.attachments.length > 0 ? draft.attachments : null,
   };
 }
@@ -450,8 +419,8 @@ function commonFields(draft: ExpenseDraft, context: RuleContext) {
 function singlePayment(draft: ExpenseDraft, context: RuleContext) {
   return {
     paid: draft.paid,
-    paymentDate: draft.paid ? draftDateIso(draft.paymentDate, context.todayIso) || null : null,
-    amountPaid: draft.paid && draft.amountPaidCents !== null ? reais(draft.amountPaidCents) : null,
+    paymentDate: draft.paid ? brDateInputToIso(draft.paymentDate, context.todayIso) || null : null,
+    amountPaid: draft.paid && draft.amountPaidCents !== null ? toReais(draft.amountPaidCents) : null,
   };
 }
 
@@ -464,13 +433,13 @@ export function buildInstallments(draft: ExpenseDraft, context: RuleContext): Ex
   return installmentAmounts(draft).map((amountCents, index) => {
     const dueDate = installmentDueDate(draft, context, index);
     const payment = draft.installmentPayments[index];
-    if (!payment) return { amount: reais(amountCents), dueDate, paid: false, paymentDate: null, amountPaid: null };
+    if (!payment) return { amount: toReais(amountCents), dueDate, paid: false, paymentDate: null, amountPaid: null };
     return {
-      amount: reais(amountCents),
+      amount: toReais(amountCents),
       dueDate,
       paid: true,
-      paymentDate: credit ? dueDate : draftDateIso(payment.paymentDate, context.todayIso) || dueDate,
-      amountPaid: reais(credit ? amountCents : payment.amountPaidCents ?? amountCents),
+      paymentDate: credit ? dueDate : brDateInputToIso(payment.paymentDate, context.todayIso) || dueDate,
+      amountPaid: toReais(credit ? amountCents : payment.amountPaidCents ?? amountCents),
     };
   });
 }
@@ -483,7 +452,7 @@ export function buildCreateInput(draft: ExpenseDraft, context: RuleContext, acco
   return {
     ...fields,
     billingType: draft.billingType,
-    amount: reais(draft.amountCents ?? 0),
+    amount: toReais(draft.amountCents ?? 0),
     dueDate: effectiveDueDate(draft, context).date,
     ...singlePayment(draft, context),
   };
@@ -492,7 +461,7 @@ export function buildCreateInput(draft: ExpenseDraft, context: RuleContext, acco
 export function buildUpdateInput(draft: ExpenseDraft, context: RuleContext): ExpenseUpdateInput {
   return {
     ...commonFields(draft, context),
-    amount: reais(draft.amountCents ?? 0),
+    amount: toReais(draft.amountCents ?? 0),
     dueDate: effectiveDueDate(draft, context).date,
     ...singlePayment(draft, context),
   };
@@ -505,7 +474,7 @@ export function duplicateQuery(draft: ExpenseDraft, excludeId: number | null): E
   const installments = draft.billingType === 'installments';
   return {
     description,
-    amount: reais(installments ? installmentAmounts(draft)[0]! : draft.amountCents),
+    amount: toReais(installments ? installmentAmounts(draft)[0]! : draft.amountCents),
     paymentMethod: draft.paymentMethod,
     installmentCount: installments ? draft.installmentCount : null,
     excludeId,

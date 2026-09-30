@@ -82,7 +82,7 @@ export interface CategoryHistoryEntry {
 }
 
 /** O que se escolhe num lançamento: a categoria solta ou as subs de quem tem sub. */
-function selectableCategories(categories: Categoria[]): Categoria[] {
+function selectableCategories<T extends OpcaoCatalogo>(categories: T[]): T[] {
   return groupSelectableCategories(categories).flatMap((group) => group.items);
 }
 
@@ -96,7 +96,7 @@ function findCategoryByNames(categories: Categoria[], names: string[]): Categori
 }
 
 /** As categorias mais usadas no histórico, da mais frequente para a menos. */
-export function getRecentCategoryIds(history: CategoryHistoryEntry[], categories: Categoria[], limit = 5): number[] {
+export function getRecentCategoryIds(history: CategoryHistoryEntry[], categories: OpcaoCatalogo[], limit = 5): number[] {
   const selectableIds = new Set(selectableCategories(categories).map((category) => category.id));
   const usage = new Map<number, number>();
   history.forEach(({ categoryId }) => {

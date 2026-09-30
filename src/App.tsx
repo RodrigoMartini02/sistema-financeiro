@@ -31,9 +31,8 @@ import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection } from './layout/AppShell';
 import type { ConfigItemId } from './layout/ConfigPanel';
-import { IncomeDialog } from './screens/finance/IncomeDialog';
+import { IncomeDialog } from './screens/finance/income-dialog/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
-import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import { apiRequest } from './services/apiClient';
 import { trackPageView } from './services/analyticsService';
 import { useOnboardingChecklist, type OnboardingTarget } from './hooks/useOnboardingChecklist';
@@ -114,9 +113,6 @@ function AppContent() {
   const session = useAuthSession({ enabled: isAppRoute });
   const [section, setSection] = useState<AppSection>('movimentacoes');
   const [openConfigRequest, setOpenConfigRequest] = useState<{ token: number; item: ConfigItemId } | undefined>();
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
   const { quickAction, setQuickAction, fillViewport } = useAppContext();
 
   const planQuery = useQuery<PlanoStatus>({
@@ -145,7 +141,6 @@ function AppContent() {
   const activeAccountResolved =
     !contasLoading && !willReloadForAccountSwitch && (!!activeAccount || contasDoUsuario.length === 0);
 
-  const finance = useFinanceDashboard(month, year, hasPlanAccess && activeAccountResolved);
   const onboarding = useOnboardingChecklist(isAppRoute && !!session.user && hasPlanAccess && activeAccountResolved);
 
   if (!isAppRoute) return <PublicSite />;
@@ -214,14 +209,7 @@ function AppContent() {
     >
       {renderContent()}
 
-      <IncomeDialog
-        open={quickAction === 'nova-receita'}
-        month={month} year={year}
-        isSaving={finance.saveIncome.isPending}
-        error={finance.saveIncome.error?.message}
-        onClose={() => setQuickAction('none')}
-        onSave={async (items) => { for (const v of items) await finance.saveIncome.mutateAsync({ values: v }); setQuickAction('none'); }}
-      />
+      <IncomeDialog open={quickAction === 'nova-receita'} onClose={() => setQuickAction('none')} />
       <ExpenseDialog open={quickAction === 'nova-despesa'} onClose={() => setQuickAction('none')} />
       <OnboardingChecklistModal
         open={onboarding.isVisible}

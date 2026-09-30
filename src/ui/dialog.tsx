@@ -11,6 +11,8 @@ interface DialogProps {
   children: ReactNode;
   size?: 'xs' | 'sm' | 'md' | 'card' | 'lg' | 'xl' | 'xxl';
   scrollBody?: boolean;
+  /** Altura fixa de 85% da tela, em vez de crescer com o conteúdo (modais de lançamento em grade). */
+  fullHeight?: boolean;
 }
 
 // Larguras da especificação: categoria 340 · conta 440 · cartão 600.
@@ -24,7 +26,7 @@ const maxWSize: Record<NonNullable<DialogProps['size']>, string> = {
   xxl: 'max-w-[1240px]',
 };
 
-export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true }: DialogProps) {
+export function Dialog({ open, title, description, onClose, children, size = 'md', scrollBody = true, fullHeight = false }: DialogProps) {
   useFirstAccessGuideSurface(GUIDE_LAYER_MODAL, open);
 
   useEffect(() => {
@@ -45,7 +47,8 @@ export function Dialog({ open, title, description, onClose, children, size = 'md
       />
       <div
         className={[
-          'dialog-panel relative z-10 w-full flex flex-col max-h-[85vh]',
+          'dialog-panel relative z-10 w-full flex flex-col',
+          fullHeight ? 'h-[85vh]' : 'max-h-[85vh]',
           // overflow-hidden recorta o rodapé (que tem fundo próprio) nos cantos
           // arredondados do painel.
           'overflow-hidden rounded-[18px] bg-white shadow-[0_32px_80px_-24px_rgba(13,47,63,0.38),0_0_0_1px_rgba(13,47,63,0.06)]',

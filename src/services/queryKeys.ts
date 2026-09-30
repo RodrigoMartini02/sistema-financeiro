@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ReportQuery } from '../types/reports';
 import type { ExpenseDuplicateQuery, ExpenseSuggestionsQuery } from './expenseSuggestionsService';
+import type { IncomeDuplicateQuery, IncomeSuggestionsQuery } from './incomeSuggestionsService';
 
 // undefined ("so eu"), null ("familia") e uma lista (combinacao especifica de
 // membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
@@ -27,6 +28,17 @@ const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
 
 export function invalidateExpenseQueries(qc: QueryClient) {
   qc.invalidateQueries({ predicate: (q) => EXPENSE_DEPENDENT_QUERIES.has(q.queryKey[0]) });
+}
+
+// Uma receita gravada pode cair em vários meses (Repetir até), baixar o estoque,
+// descontar horas de contrato e gerar a despesa de comissão.
+const INCOME_DEPENDENT_QUERIES = new Set<unknown>([
+  'dashboard', 'painel', 'accounts-overview', 'budget-overview', 'budget-overview-range', 'reports',
+  'contratos-ativos', 'contratos-status-faturamento', 'catalogo-produtos', 'income-suggestions', 'income-duplicate',
+]);
+
+export function invalidateIncomeQueries(qc: QueryClient) {
+  qc.invalidateQueries({ predicate: (q) => INCOME_DEPENDENT_QUERIES.has(q.queryKey[0]) });
 }
 
 export const queryKeys = {
@@ -75,7 +87,10 @@ export const queryKeys = {
     ['expense-suggestions', accountId ?? 'ativa', query] as const,
   expenseDuplicate: (accountId: number | null, query: ExpenseDuplicateQuery | null) =>
     ['expense-duplicate', accountId ?? 'ativa', query] as const,
-  incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
+  incomeSuggestions: (accountId: number | null, query: IncomeSuggestionsQuery) =>
+    ['income-suggestions', accountId ?? 'ativa', query] as const,
+  incomeDuplicate: (accountId: number | null, query: IncomeDuplicateQuery | null) =>
+    ['income-duplicate', accountId ?? 'ativa', query] as const,
   appointments: (month: number, year: number) => ['appointments', month, year] as const,
   budgetOverview: (month: number, year: number, escopo?: 'familia') =>
     ['budget-overview', month, year, ...(escopo ? [escopo] : [])] as const,
