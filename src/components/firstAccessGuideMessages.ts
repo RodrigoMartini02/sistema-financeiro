@@ -18,8 +18,8 @@ export const firstAccessGuideMessages = {
   batchValorPersonalizado: 'Use Valor personalizado para ajustar o valor pago de cada despesa individualmente.',
 
   // Receitas
-  receitasHoras: 'Abra Horas a faturar para lan\u00e7ar horas de um contrato e calcular o valor automaticamente.',
-  receitasReplicar: 'Use Replicar at\u00e9 para duplicar esta receita automaticamente nos meses seguintes.',
+  receitasHoras: 'Abra o \u22ef para lan\u00e7ar horas de um contrato e calcular o valor automaticamente.',
+  receitasReplicar: 'Use Repetir para lan\u00e7ar esta receita todo m\u00eas at\u00e9 o m\u00eas escolhido.',
   receitasRepresentante: 'Ao vincular um representante, a comiss\u00e3o dele \u00e9 calculada automaticamente sobre esta receita.',
 
   // Categorias

@@ -1,7 +1,9 @@
-import { and, count, desc, eq, exists, gte, ilike, inArray, isNull, max, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, isNull, max, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accounts, cards, expenses, type Expense, type NewExpense } from '../db/schema';
+import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
+import { accountCondition } from '../utils/accountFilter';
 import { addMonthsClamped, getMonthYearFromIsoDate } from '../utils/date';
+import { escapeLikePattern } from '../utils/requestInput';
 import {
   PAYMENT_METHODS,
   type CreateExpenseInput,
@@ -175,26 +177,13 @@ export async function updateExpense(
   return updated ?? null;
 }
 
-/** Despesa sem conta gravada conta como da conta pessoal do dono (mesmo critério de utils/accountFilter.ts). */
-function belongsToAccount(accountId: number): SQL {
-  const personalAccountOfOwner = db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.type, 'pessoal'), eq(accounts.userId, expenses.userId)));
-  return or(eq(expenses.accountId, accountId), and(isNull(expenses.accountId), exists(personalAccountOfOwner))) as SQL;
-}
-
 /** O histórico de quem lança: só as próprias despesas ativas, na conta pedida. */
 function historyConditions(userId: number, accountId: number | null): SQL[] {
   const conditions: SQL[] = [eq(expenses.userId, userId), eq(expenses.status, 'ativa')];
   if (accountId !== null) {
-    conditions.push(belongsToAccount(accountId));
+    conditions.push(accountCondition(expenses.accountId, expenses.userId, accountId));
   }
   return conditions;
-}
-
-function escapeLikePattern(text: string): string {
-  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 export interface ExpenseSuggestionMatch {

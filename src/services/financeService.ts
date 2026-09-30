@@ -1,7 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
   Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
-  Income, IncomeFormValues, MonthBalance, PainelData, PainelFiltro,
+  Income, IncomeCreateInput, IncomeUpdateInput, MonthBalance, PainelData, PainelFiltro,
 } from '../types/finance';
 
 interface RawIncome {
@@ -114,7 +114,7 @@ export async function fetchFinanceDashboard(month: number, year: number, escopo?
   if (escopo) q.set('escopo', escopo);
   appendProfile(q);
   const [incomes, expenses, balance] = await Promise.all([
-    apiRequest<RawIncome[]>(`/receitas?${q}`),
+    apiRequest<RawIncome[]>(`/incomes?${q}`),
     apiRequest<RawExpense[]>(`/expenses?${q}`),
     fetchMonthBalance(month, year),
   ]);
@@ -135,50 +135,6 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
   };
 }
 
-export async function saveIncome(month: number, year: number, values: IncomeFormValues, id?: number) {
-  const accountId = values.contaId ?? getActiveAccountId();
-  const body = {
-    descricao: values.descricao, valor: values.valor,
-    data_recebimento: values.data, mes: month, ano: year,
-    observacoes: values.observacoes || null, cliente: values.cliente || null,
-    classificacao_id: values.classificacaoId ?? null, conta_id: accountId,
-    representante_id: values.representanteId ?? null,
-    valor_comissao: values.valorComissao ?? null,
-    anexos: values.anexos && values.anexos.length > 0 ? values.anexos : null,
-    contrato_id: values.contratoId ?? null,
-    tipo_hora: values.tipoHora ?? null,
-    quantidade_horas: values.quantidadeHoras ?? null,
-    produto_id: values.produtoId ?? null,
-    quantidade_vendida: values.quantidadeVendida ?? null,
-  };
-  const saved = await apiRequest<RawIncome>(id ? `/receitas/${id}` : '/receitas', {
-    method: id ? 'PUT' : 'POST', body: JSON.stringify(body),
-  });
-
-  if (!id && values.replicarAte) {
-    const { mes: mesFim, ano: anoFim } = values.replicarAte;
-    let m = month + 1;
-    let a = year;
-    while (a < anoFim || (a === anoFim && m <= mesFim)) {
-      const dataRep = `${a}-${String(m + 1).padStart(2, '0')}-${values.data.slice(8, 10)}`;
-      await apiRequest<RawIncome>('/receitas', {
-        method: 'POST',
-        // Sem produto nas copias: replicar e projetar receita futura, e so a
-        // venda original saiu do estoque de fato. Repetir o vinculo baixaria
-        // o mesmo produto uma vez por mes replicado.
-        body: JSON.stringify({
-          ...body, mes: m, ano: a, data_recebimento: dataRep,
-          produto_id: null, quantidade_vendida: null,
-        }),
-      });
-      m++;
-      if (m > 11) { m = 0; a++; }
-    }
-  }
-
-  return saved;
-}
-
 /**
  * Checagem ao abrir o sistema: lança as receitas fixas do mês que a rotina
  * diária ainda não lançou (só as configuradas por quem está usando).
@@ -189,11 +145,20 @@ export async function processarReceitasFixas(): Promise<{ launched: number; push
 
 /** Receita prevista/faturada passa a recebida (mesma ação da lista de receitas). */
 export async function receberReceita(id: number): Promise<void> {
-  return apiRequest<void>(`/receitas/${id}/receber`, { method: 'PUT' });
+  return apiRequest<void>(`/incomes/${id}/receber`, { method: 'PUT' });
 }
 
 export async function deleteIncome(id: number) {
-  return apiRequest<void>(`/receitas/${id}`, { method: 'DELETE' });
+  return apiRequest<void>(`/incomes/${id}`, { method: 'DELETE' });
+}
+
+/** Grava a receita e, com "Repetir até", as réplicas mensais, de uma vez (o servidor usa uma transação). */
+export async function createIncome(input: IncomeCreateInput): Promise<void> {
+  await apiRequest<unknown>('/incomes', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function updateIncome(id: number, input: IncomeUpdateInput): Promise<void> {
+  await apiRequest<unknown>(`/incomes/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
 /** Grava a despesa inteira de uma vez: a única, as 12 ocorrências da mensal ou todas as parcelas. */

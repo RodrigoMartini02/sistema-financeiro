@@ -5,13 +5,13 @@ import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
-import type { Expense, Income, IncomeFormValues, Attachment } from '../../types/finance';
+import type { Expense, Income, Attachment } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { DASH, EntryTypeBadge, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from './entryTable';
 import { ExpenseDialog } from './expense-dialog/ExpenseDialog';
-import { IncomeDialog } from './IncomeDialog';
+import { IncomeDialog } from './income-dialog/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from './PaymentModal';
 import { BatchPaymentModal } from './BatchPaymentModal';
@@ -230,7 +230,7 @@ export function LancamentosTable({
   });
 
   const cancelarReceitaMut = useMutation({
-    mutationFn: (id: number) => apiRequest<void>(`/receitas/${id}/cancelar`, { method: 'PUT' }),
+    mutationFn: (id: number) => apiRequest<void>(`/incomes/${id}/cancelar`, { method: 'PUT' }),
     onSuccess: () => invalidateFinanceQueries(qc, month, year),
   });
 
@@ -431,11 +431,6 @@ export function LancamentosTable({
       return next;
     });
   }
-
-  const handleSaveIncome = async (values: IncomeFormValues[]) => {
-    for (const v of values) await finance.saveIncome.mutateAsync({ values: v, id: incomeDialog.item?.id });
-    setIncomeDialog({ open: false });
-  };
 
   const selecionadasExpenses = expensesFiltered.filter((i) => selecionadas.has(`despesa-${i.id}`) && !i.pago);
 
@@ -660,12 +655,7 @@ export function LancamentosTable({
       <IncomeDialog
         open={incomeDialog.open}
         income={incomeDialog.item}
-        month={month}
-        year={year}
-        isSaving={finance.saveIncome.isPending}
-        error={finance.saveIncome.error?.message}
         onClose={() => setIncomeDialog({ open: false })}
-        onSave={handleSaveIncome}
       />
       <AttachmentPreviewDialog
         open={anexosDialog.open}

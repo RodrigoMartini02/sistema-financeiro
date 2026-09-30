@@ -1,5 +1,12 @@
 import { isPaymentMethod, type Attachment, type Expense, type ExpenseBillingType, type PaymentMethod } from '../../../types/finance';
 import { isoToBrDate } from '../../../utils/date';
+import {
+  batchReducer, findDraft, initialBatchState, nextDraftKey, updateDraft, withoutKey,
+  type BatchAction, type BatchState, type DraftPatch as BatchDraftPatch,
+} from '../entry-dialog/batchState';
+import { toCents } from '../entry-dialog/cents';
+
+export type DraftPatch = BatchDraftPatch<ExpenseDraft>;
 
 export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 360;
@@ -50,8 +57,6 @@ export interface ExpenseDraft {
   invoiceDate: string;
 }
 
-let lastDraftKey = 0;
-
 /** O que passa de uma despesa para a próxima: a forma, o cartão e a data da compra. */
 export interface DraftCarryOver {
   paymentMethod: PaymentMethod;
@@ -61,9 +66,8 @@ export interface DraftCarryOver {
 }
 
 export function createDraft(carryOver: DraftCarryOver, todayIso: string): ExpenseDraft {
-  lastDraftKey += 1;
   return {
-    key: lastDraftKey,
+    key: nextDraftKey(),
     description: '',
     categoryId: null,
     amountCents: null,
@@ -84,10 +88,6 @@ export function createDraft(carryOver: DraftCarryOver, todayIso: string): Expens
     invoiceDate: '',
     ...carryOver,
   };
-}
-
-function toCents(value: number): number {
-  return Math.round(value * 100);
 }
 
 /** A despesa gravada, pronta para editar. A cobrança não muda na edição. */
@@ -129,92 +129,30 @@ export interface DraftErrors {
   invoiceDate?: true;
 }
 
-export interface SavingProgress {
-  current: number;
-  total: number;
-}
-
-export interface DialogState {
-  entry: ExpenseDraft;
-  batch: ExpenseDraft[];
-  errors: Record<number, DraftErrors>;
-  footerError: string;
-  /** Item do lote com o resumo aberto (a linha de entrada sempre mostra o dela). */
-  activeKey: number | null;
+export interface DialogState extends BatchState<ExpenseDraft, DraftErrors> {
   /** Redução do nº de parcelas que apagaria ajustes ou pagamentos, esperando confirmação. */
   pendingInstallmentCount: { key: number; count: number } | null;
-  saving: SavingProgress | null;
-  toast: string | null;
 }
 
 export function initialDialogState(entry: ExpenseDraft): DialogState {
-  return {
-    entry,
-    batch: [],
-    errors: {},
-    footerError: '',
-    activeKey: null,
-    pendingInstallmentCount: null,
-    saving: null,
-    toast: null,
-  };
+  return { ...initialBatchState<ExpenseDraft, DraftErrors>(entry), pendingInstallmentCount: null };
 }
 
-export type DraftPatch = Partial<Omit<ExpenseDraft, 'key'>> | ((draft: ExpenseDraft) => Partial<Omit<ExpenseDraft, 'key'>>);
-
 export type DialogAction =
-  | { type: 'reset'; state: DialogState }
-  | { type: 'update'; key: number; patch: DraftPatch }
+  | BatchAction<ExpenseDraft, DraftErrors>
   /** Forma e cartão sugeridos pelo histórico: muda a despesa sem apagar os erros apontados. */
   | { type: 'applySuggestion'; key: number; patch: Pick<ExpenseDraft, 'paymentMethod' | 'cardId'> }
   | { type: 'setInstallmentCount'; key: number; count: number; force: boolean }
-  | { type: 'cancelInstallmentCount' }
-  | { type: 'showErrors'; errors: Record<number, DraftErrors>; message: string }
-  | { type: 'moveEntryToBatch'; nextEntry: ExpenseDraft }
-  | { type: 'removeFromBatch'; key: number }
-  | { type: 'setActive'; key: number }
-  | { type: 'savingStarted'; total: number }
-  | { type: 'savingProgress'; current: number }
-  | { type: 'draftSaved'; key: number; nextEntry: ExpenseDraft }
-  | { type: 'savingFailed'; message: string }
-  | { type: 'savingFinished'; toast: string }
-  | { type: 'toastExpired' };
-
-function withoutKey<T>(record: Record<number, T>, key: number): Record<number, T> {
-  const next = { ...record };
-  delete next[key];
-  return next;
-}
+  | { type: 'cancelInstallmentCount' };
 
 function keepBelow<T>(record: Record<number, T>, count: number): Record<number, T> {
   return Object.fromEntries(Object.entries(record).filter(([index]) => Number(index) < count));
 }
 
-function updateDraft(state: DialogState, key: number, change: (draft: ExpenseDraft) => ExpenseDraft): DialogState {
-  if (state.entry.key === key) return { ...state, entry: change(state.entry) };
-  return { ...state, batch: state.batch.map((draft) => (draft.key === key ? change(draft) : draft)) };
-}
-
-function findDraft(state: DialogState, key: number): ExpenseDraft | undefined {
-  return state.entry.key === key ? state.entry : state.batch.find((draft) => draft.key === key);
-}
-
 export function dialogReducer(state: DialogState, action: DialogAction): DialogState {
   switch (action.type) {
-    case 'reset':
-      return action.state;
-
-    case 'update': {
-      // Mexer na despesa limpa o erro dela e a mensagem do rodapé.
-      const updated = updateDraft(state, action.key, (draft) => ({
-        ...draft,
-        ...(typeof action.patch === 'function' ? action.patch(draft) : action.patch),
-      }));
-      return { ...updated, errors: withoutKey(state.errors, action.key), footerError: '' };
-    }
-
     case 'applySuggestion':
-      return updateDraft(state, action.key, (draft) => ({ ...draft, ...action.patch }));
+      return updateDraft<ExpenseDraft, DialogState>(state, action.key, (draft) => ({ ...draft, ...action.patch }));
 
     case 'setInstallmentCount': {
       const draft = findDraft(state, action.key);
@@ -225,7 +163,7 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
       if (wouldLose && !action.force) {
         return { ...state, pendingInstallmentCount: { key: action.key, count } };
       }
-      const updated = updateDraft(state, action.key, (current) => ({
+      const updated = updateDraft<ExpenseDraft, DialogState>(state, action.key, (current) => ({
         ...current,
         installmentCount: count,
         installmentAdjustments: keepBelow(current.installmentAdjustments, count),
@@ -237,56 +175,7 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
     case 'cancelInstallmentCount':
       return { ...state, pendingInstallmentCount: null };
 
-    case 'showErrors':
-      return { ...state, errors: action.errors, footerError: action.message };
-
-    case 'moveEntryToBatch':
-      return {
-        ...state,
-        batch: [...state.batch, state.entry],
-        entry: action.nextEntry,
-        footerError: '',
-        activeKey: null,
-      };
-
-    case 'removeFromBatch':
-      return {
-        ...state,
-        batch: state.batch.filter((draft) => draft.key !== action.key),
-        errors: withoutKey(state.errors, action.key),
-        footerError: '',
-        activeKey: state.activeKey === action.key ? null : state.activeKey,
-      };
-
-    case 'setActive':
-      return state.activeKey === action.key ? state : { ...state, activeKey: action.key };
-
-    case 'savingStarted':
-      return { ...state, saving: { current: 1, total: action.total }, footerError: '', toast: null };
-
-    case 'savingProgress':
-      return state.saving ? { ...state, saving: { ...state.saving, current: action.current } } : state;
-
-    // Cada despesa gravada sai da tela na hora: se uma falhar depois, só as que
-    // não foram gravadas continuam, e salvar de novo não duplica nada.
-    case 'draftSaved':
-      if (state.entry.key === action.key) {
-        return { ...state, entry: action.nextEntry, errors: withoutKey(state.errors, action.key) };
-      }
-      return {
-        ...state,
-        batch: state.batch.filter((draft) => draft.key !== action.key),
-        errors: withoutKey(state.errors, action.key),
-        activeKey: state.activeKey === action.key ? null : state.activeKey,
-      };
-
-    case 'savingFailed':
-      return { ...state, saving: null, footerError: action.message };
-
-    case 'savingFinished':
-      return { ...state, saving: null, errors: {}, footerError: '', activeKey: null, toast: action.toast };
-
-    case 'toastExpired':
-      return { ...state, toast: null };
+    default:
+      return batchReducer<ExpenseDraft, DraftErrors, DialogState>(state, action);
   }
 }

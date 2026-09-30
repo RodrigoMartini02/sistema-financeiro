@@ -1,3 +1,7 @@
+import { and, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { accounts } from '../db/schema';
+
 // Cláusula de filtro por conta usada em rotas que escopam dados por conta
 // (Pessoal/Empresa), com fallback: um registro sem conta_id definido é
 // considerado da conta "pessoal" do usuário dono.
@@ -13,4 +17,10 @@ export function accountWhere(
     clause: ` AND (${col} = $${paramIndex} OR (${col} IS NULL AND EXISTS (SELECT 1 FROM contas c WHERE c.id = $${paramIndex} AND c.tipo = 'pessoal' AND c.usuario_id = ${ownerCol})))`,
     params: [accountId],
   };
+}
+
+/** O mesmo critério de `accountWhere`, para as consultas com Drizzle. */
+export function accountCondition(accountIdColumn: AnyPgColumn, ownerIdColumn: AnyPgColumn, accountId: number): SQL {
+  const personalAccountOfOwner = sql`exists (select 1 from ${accounts} where ${accounts.id} = ${accountId} and ${accounts.type} = ${'pessoal'} and ${accounts.userId} = ${ownerIdColumn})`;
+  return or(eq(accountIdColumn, accountId), and(isNull(accountIdColumn), personalAccountOfOwner)) as SQL;
 }

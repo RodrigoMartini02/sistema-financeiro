@@ -20,7 +20,7 @@ import {
   sendFinancialCopilotMessage,
   type UltimosLancamentos,
 } from '../../services/assistantService';
-import { createExpense, fetchFinanceDashboard, saveIncome } from '../../services/financeService';
+import { createExpense, createIncome, fetchFinanceDashboard } from '../../services/financeService';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
@@ -29,7 +29,7 @@ import { fetchClassificacoesReceita } from '../../services/incomeClassifications
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
-import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
+import { invalidateExpenseQueries, invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import { installmentDueDates } from '../../utils/expenseSchedule';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { Card } from '../../ui/card';
@@ -471,8 +471,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     ? contaDoLancamento.tipo === 'empresa'
     : localStorage.getItem('contaAtivaTipo') === 'empresa';
 
-  // Campos de receita exclusivos de conta PJ: mesmas queries do IncomeForm.tsx
-  // do desktop, so habilitadas quando ha o que mostrar.
+  // Campos de receita exclusivos de conta PJ: mesmas queries do modal de
+  // receita do desktop, so habilitadas quando ha o que mostrar.
   const clientesQuery = useQuery({
     queryKey: queryKeys.clientes,
     queryFn: () => fetchClientes(),
@@ -480,7 +480,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     staleTime: 60_000,
   });
   // Classificacao vale para receita de conta pessoal e empresa: catalogo da
-  // conta do lancamento, como no IncomeForm.tsx do desktop.
+  // conta do lancamento, como no modal de receita do desktop.
   const classificacoesQuery = useQuery({
     queryKey: queryKeys.classificacoesReceita(contaAtivaId),
     queryFn: () => fetchClassificacoesReceita(contaAtivaId),
@@ -532,7 +532,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     card.ativo && (!card.tipo || card.tipo === 'ambos' || card.tipo === draft?.paymentMethod)
   ));
 
-  // ── Campos de receita PJ: mesmas regras do IncomeForm.tsx do desktop ──
+  // ── Campos de receita PJ: mesmas regras do modal de receita do desktop ──
   const clientes = clientesQuery.data ?? [];
   const classificacoes = opcoesDeClassificacao(classificacoesQuery.data ?? []);
   const representantes = representantesQuery.data ?? [];
@@ -703,7 +703,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   };
 
   // Produto vendido sugere o valor (quantidade x preco do produto), mas nao
-  // trava: o campo continua editavel por cima. Mesma regra do IncomeForm.tsx.
+  // trava: o campo continua editavel por cima. Mesma regra do modal de receita.
   useEffect(() => {
     if (!produtoSelecionado || !draft?.quantidadeVendida) return;
     const valorCalculado = Number(draft.quantidadeVendida) * Number(produtoSelecionado.valor);
@@ -966,26 +966,31 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setIsSaving(true);
     try {
       if (draft.kind === 'income') {
-        await saveIncome(month, year, {
-          descricao: draft.description.trim(),
-          contaId: draft.contaId ?? undefined,
-          valor: draft.amount,
-          data: date,
-          anexos: draftAttachments,
+        const until = draft.replicarAte ?? null;
+        const [receiptYear, receiptMonth] = date.split('-').map(Number);
+        // "Repetir até" o próprio mês da receita não repete nada.
+        const repeats = until !== null && until.ano * 12 + until.mes > receiptYear! * 12 + receiptMonth! - 1;
+        await createIncome({
+          // Sem conta escolhida no card, a receita entra na conta ativa.
+          accountId: draft.contaId ?? getActiveAccountId(),
+          description: draft.description.trim(),
+          categoryId: draft.classificacaoId ?? null,
+          amount: draft.amount,
+          receiptDate: date,
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
-          // aparecem, entao permanecem null/undefined aqui.
-          cliente: draft.cliente ?? undefined,
-          classificacaoId: draft.classificacaoId ?? null,
-          representanteId: draft.representanteId ?? null,
-          valorComissao: valorComissaoCalculado,
-          produtoId: draft.produtoId ?? null,
-          quantidadeVendida: draft.quantidadeVendida ?? null,
-          contratoId: draft.contratoId ?? null,
-          tipoHora: draft.tipoHora ?? null,
-          quantidadeHoras: draft.quantidadeHoras ?? null,
-          // PF e PJ: replica o lancamento para os meses futuros informados.
-          replicarAte: draft.replicarAte ?? null,
+          // aparecem, entao permanecem vazios aqui. A comissao sai do servidor.
+          client: draft.cliente?.trim() || null,
+          representativeId: draft.representanteId ?? null,
+          attachments: draftAttachments.length > 0 ? draftAttachments : null,
+          repeatUntil: repeats ? { month: until.mes, year: until.ano } : null,
+          productSale: draft.produtoId && draft.quantidadeVendida
+            ? { productId: draft.produtoId, quantity: draft.quantidadeVendida }
+            : null,
+          billableHours: draft.contratoId && draft.tipoHora && draft.quantidadeHoras
+            ? { contractId: draft.contratoId, hourType: draft.tipoHora, hours: draft.quantidadeHoras }
+            : null,
         });
+        invalidateIncomeQueries(queryClient);
       } else {
         const suggestedCategory = draft.category
           ? categories.find((category) => normalizeComparable(category.nome) === normalizeComparable(draft.category!))
@@ -1629,7 +1634,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       )}
 
                       {/* Campos de receita exclusivos de conta PJ — mesmo
-                          criterio do IncomeForm.tsx do desktop (isEmpresa).
+                          criterio do modal de receita do desktop (isEmpresa).
                           Em conta PF nenhum destes blocos aparece. */}
                       {draft.kind === 'income' && contaEhEmpresa && (
                         <>

@@ -3,14 +3,15 @@ import { C, formatMoney } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { isoToBrDate } from '../../../utils/date';
 import { formatCurrency } from '../formatters';
-import { DateCell } from './DateCell';
+import { DateCell } from '../entry-dialog/DateCell';
 import {
   defaultInstallmentAmount, installmentGrid, installmentMismatch, isCreditWithCard, markOverdueAsPaid,
-  overdueOpenCount, paidInstallmentCount, selectedCard, type RuleContext, type StatusTone,
+  overdueOpenCount, paidInstallmentCount, selectedCard, type RuleContext,
 } from './draftRules';
 import type { DraftPatch, ExpenseDraft, InstallmentPaymentDraft } from './draftState';
-import { MoneyCell } from './MoneyCell';
-import { SEPARATOR, checkboxStyle, ellipsisStyle, linkButtonStyle, selectStyle } from './fieldStyles';
+import { MoneyCell } from '../entry-dialog/MoneyCell';
+import type { StatusTone } from '../entry-dialog/SummaryLine';
+import { SEPARATOR, checkboxStyle, ellipsisStyle, linkButtonStyle, selectStyle } from '../entry-dialog/fieldStyles';
 
 const TONE_COLOR: Record<StatusTone, string> = {
   success: '#16a34a',

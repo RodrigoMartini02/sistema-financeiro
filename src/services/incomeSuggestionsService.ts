@@ -1,47 +1,49 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, getActiveAccountId } from './apiClient';
 
 export interface IncomeSuggestionMatch {
-  descricao: string;
-  valor: number;
-  cliente: string | null;
-  classificacaoId: number | null;
-  classificacaoNome: string | null;
+  description: string;
+  amount: number;
+  client: string | null;
+  categoryId: number | null;
 }
 
 export interface IncomeSuggestions {
+  /** Até 4 descrições diferentes da conta ativa, cada uma com a receita mais recente. */
   matches: IncomeSuggestionMatch[];
+  /** Valor da última receita com exatamente a mesma descrição. */
+  lastAmount: number | null;
 }
 
-interface RawMatch {
-  descricao: string;
-  valor?: string | number | null;
-  cliente?: string | null;
-  classificacao_id?: number | null;
-  classificacao_nome?: string | null;
+export interface IncomeSuggestionsQuery {
+  description: string;
 }
 
-interface RawSuggestions {
-  matches: RawMatch[];
+export interface IncomeDuplicateQuery {
+  description: string;
+  amount: number;
+  client: string | null;
+  /** Na edição, a própria receita não conta. */
+  excludeId: number | null;
 }
 
-function asNumber(value: string | number | null | undefined): number {
-  const n = Number(value ?? 0);
-  return Number.isFinite(n) ? n : 0;
+function withActiveAccount(params: URLSearchParams): URLSearchParams {
+  const accountId = getActiveAccountId();
+  if (accountId) params.set('account_id', String(accountId));
+  return params;
 }
 
-export async function fetchIncomeSuggestions(descricao: string): Promise<IncomeSuggestions> {
-  const q = new URLSearchParams();
-  if (descricao) q.set('descricao', descricao);
+export async function fetchIncomeSuggestions(query: IncomeSuggestionsQuery): Promise<IncomeSuggestions> {
+  const params = withActiveAccount(new URLSearchParams());
+  if (query.description) params.set('description', query.description);
+  const raw = await apiRequest<IncomeSuggestions | undefined>(`/incomes/suggestions?${params}`);
+  return { matches: raw?.matches ?? [], lastAmount: raw?.lastAmount ?? null };
+}
 
-  const raw = await apiRequest<RawSuggestions>(`/incomes/suggestions?${q}`);
-
-  return {
-    matches: raw.matches.map((match) => ({
-      descricao: match.descricao,
-      valor: asNumber(match.valor),
-      cliente: match.cliente ?? null,
-      classificacaoId: match.classificacao_id ?? null,
-      classificacaoNome: match.classificacao_nome ?? null,
-    })),
-  };
+/** Receita igual lançada nos últimos 7 dias na conta ativa, ou null. */
+export async function fetchIncomeDuplicate(query: IncomeDuplicateQuery): Promise<{ createdAt: string } | null> {
+  const params = withActiveAccount(new URLSearchParams({ description: query.description, amount: query.amount.toFixed(2) }));
+  if (query.client) params.set('client', query.client);
+  if (query.excludeId !== null) params.set('exclude_id', String(query.excludeId));
+  const raw = await apiRequest<{ duplicate: { createdAt: string } | null } | undefined>(`/incomes/duplicate?${params}`);
+  return raw?.duplicate ?? null;
 }

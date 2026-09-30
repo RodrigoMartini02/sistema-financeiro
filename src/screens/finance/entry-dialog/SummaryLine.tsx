@@ -1,6 +1,21 @@
 import type { CSSProperties } from 'react';
 import { C } from '../../../ui/dialogFormTokens';
-import type { DraftSummary, StatusTone, SummaryStatus } from './draftRules';
+import { isoToShortBrDate } from '../../../utils/date';
+
+export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+export interface SummaryBadge {
+  text: string;
+  tone: StatusTone;
+}
+
+/** Situação, datas e total do lançamento, mais os avisos em pílulas. */
+export interface SummaryContent {
+  status: { text: string; tone: StatusTone };
+  detail: string;
+  total: string;
+  badges: SummaryBadge[];
+}
 
 const TONE_COLORS: Record<StatusTone, [background: string, text: string]> = {
   success: [C.successBg, C.success],
@@ -8,14 +23,6 @@ const TONE_COLORS: Record<StatusTone, [background: string, text: string]> = {
   danger: ['#fff7ed', '#b45309'],
   info: [C.primarySoft, C.primaryDark],
   neutral: ['#f1f5f9', C.chipOffText],
-};
-
-const STATUS_TONE: Record<SummaryStatus, StatusTone> = {
-  Pago: 'success',
-  Agendado: 'neutral',
-  'Entra na fatura': 'info',
-  'Com vencidas': 'danger',
-  'Em andamento': 'info',
 };
 
 function pillStyle(tone: StatusTone): CSSProperties {
@@ -26,8 +33,10 @@ function pillStyle(tone: StatusTone): CSSProperties {
   };
 }
 
-interface RowSummaryProps {
-  summary: DraftSummary | null;
+interface SummaryLineProps {
+  content: SummaryContent | null;
+  /** Texto enquanto faltam os dados para o resumo. */
+  placeholder: string;
   categorySuggestion: { name: string } | null;
   onAcceptCategory: () => void;
   lastAmount: string | null;
@@ -37,8 +46,15 @@ interface RowSummaryProps {
   compactTop: boolean;
 }
 
-/** Linha sob a despesa ativa: situação, vencimento, total, avisos, sugestão de categoria e ajuda. */
-export function RowSummary({ summary, categorySuggestion, onAcceptCategory, lastAmount, duplicate, help, compactTop }: RowSummaryProps) {
+/** Aviso de lançamento igual cadastrado nos últimos 7 dias (a data vem do servidor). */
+export function duplicateText(createdAtIso: string): string {
+  return `Você já lançou isso em ${isoToShortBrDate(createdAtIso)} — é outra?`;
+}
+
+/** Linha sob o lançamento ativo: situação, datas, total, avisos, sugestão de categoria e ajuda. */
+export function SummaryLine({
+  content, placeholder, categorySuggestion, onAcceptCategory, lastAmount, duplicate, help, compactTop,
+}: SummaryLineProps) {
   return (
     <div
       aria-live="polite"
@@ -47,15 +63,15 @@ export function RowSummary({ summary, categorySuggestion, onAcceptCategory, last
         padding: compactTop ? '8px 8px 2px' : '0 8px 10px', fontSize: 12, color: C.textSoft,
       }}
     >
-      {summary ? (
+      {content ? (
         <>
-          <span style={pillStyle(STATUS_TONE[summary.status])}>{summary.status}</span>
-          <span>{summary.dueText}</span>
-          <span style={{ color: C.text, fontVariantNumeric: 'tabular-nums' }}>{summary.totalText}</span>
-          {summary.badges.map((badge) => <span key={badge.text} style={pillStyle(badge.tone)}>{badge.text}</span>)}
+          <span style={pillStyle(content.status.tone)}>{content.status.text}</span>
+          <span>{content.detail}</span>
+          <span style={{ color: C.text, fontVariantNumeric: 'tabular-nums' }}>{content.total}</span>
+          {content.badges.map((badge) => <span key={badge.text} style={pillStyle(badge.tone)}>{badge.text}</span>)}
         </>
       ) : (
-        <span style={{ color: C.placeholder }}>Preencha descrição e valor para ver vencimento e total.</span>
+        <span style={{ color: C.placeholder }}>{placeholder}</span>
       )}
       {categorySuggestion && (
         <button

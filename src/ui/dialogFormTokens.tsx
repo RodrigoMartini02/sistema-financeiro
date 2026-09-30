@@ -107,11 +107,6 @@ export const dialogFooterStyle: CSSProperties = {
   padding: '12px var(--dialog-px)',
 };
 
-export const panelStyle: CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 10, background: C.panelBg,
-  border: `1px solid ${C.panelBorder}`, borderRadius: 12, padding: '12px 14px', marginTop: 9,
-};
-
 export function chipStyle(active: boolean, opts?: { h?: number; r?: number; size?: number }): CSSProperties {
   const o = opts ?? {};
   return {

@@ -6,7 +6,7 @@ import { fetchAppointments, saveAppointment } from '../../../services/appointmen
 import { queryKeys } from '../../../services/queryKeys';
 import { ErrorState, LoadingState } from '../../../ui/states';
 import { ExpenseDialog } from '../expense-dialog/ExpenseDialog';
-import { IncomeDialog } from '../IncomeDialog';
+import { IncomeDialog } from '../income-dialog/IncomeDialog';
 import { AppointmentDialog } from '../AppointmentDialog';
 import { AgendaView } from './AgendaView';
 import { CalendarLegend } from './CalendarLegend';
@@ -217,19 +217,9 @@ export function CalendarView({ month, year, subView }: Props) {
 
       <IncomeDialog
         open={dialog?.kind === 'receita'}
-        month={month}
-        year={year}
         income={editingIncome}
         presetDate={dialog?.presetDate}
-        isSaving={finance.saveIncome.isPending}
-        error={finance.saveIncome.error?.message}
         onClose={() => setDialog(null)}
-        onSave={async (items) => {
-          // Editando, e um item so e ele carrega o id; criando, o lote grava
-          // uma a uma, todas novas.
-          for (const v of items) await finance.saveIncome.mutateAsync({ values: v, id: dialog?.id });
-          setDialog(null);
-        }}
       />
 
       <AppointmentDialog

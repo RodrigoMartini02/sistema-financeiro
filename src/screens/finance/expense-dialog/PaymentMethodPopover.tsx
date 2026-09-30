@@ -7,7 +7,7 @@ import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { formatCurrency } from '../formatters';
 import { cardForMethod, compatibleCards, selectedCard, usesCard } from './draftRules';
 import type { ExpenseDraft } from './draftState';
-import { INVALID_BORDER, SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from './fieldStyles';
+import { INVALID_BORDER, SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';
 
 export const PAYMENT_OPTIONS: ReadonlyArray<{ method: PaymentMethod; label: string; dot: string }> = [
   { method: 'pix', label: 'PIX', dot: '#1f9e8f' },

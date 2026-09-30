@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, type Dispatch, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useReducer, useRef, type Dispatch } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
 import type { Expense, FinanceDashboardData } from '../../../types/finance';
@@ -7,13 +7,16 @@ import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
 import { createExpense, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
-import { Dialog } from '../../../ui/dialog';
-import { C, dialogFooterStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../../ui/dialogFormTokens';
+import { C } from '../../../ui/dialogFormTokens';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
-import { formatCurrency } from '../formatters';
+import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
+import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
+import { HEADER_GRID_CLASS } from '../entry-dialog/fieldStyles';
+import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
+import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
-  EMPTY_FORM_MESSAGE, buildCreateInput, buildUpdateInput, cardForMethod, duplicateText, errorMessage, hasErrors,
+  EMPTY_FORM_MESSAGE, buildCreateInput, buildUpdateInput, cardForMethod, errorMessage, hasErrors,
   isDraftFilled, usesCard, validateDraft, type RuleContext,
 } from './draftRules';
 import {
@@ -21,13 +24,12 @@ import {
   type DialogAction, type DraftErrors, type DraftPatch, type ExpenseDraft,
 } from './draftState';
 import { ExpenseRow, amountLabel, type RowResources } from './ExpenseRow';
-import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS, SEPARATOR } from './fieldStyles';
+import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
 import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSuggestions';
 
 const TOAST_DURATION_MS = 2800;
-const HEADER_CLASS = 'hidden lg:grid lg:gap-x-1.5 xl:gap-x-2';
-const headerStyle = { fontSize: 11, fontWeight: 600, color: C.chipOffText };
+const EXPENSE_NOUN = { singular: 'despesa', plural: 'despesas' };
 
 interface ExpenseDialogProps {
   open: boolean;
@@ -47,10 +49,6 @@ interface ExpenseDialogProps {
 export function ExpenseDialog({ open, expense, presetDate, onClose }: ExpenseDialogProps) {
   if (!open) return null;
   return <ExpenseDialogContent key={expense?.id ?? 'new'} expense={expense ?? null} presetDate={presetDate} onClose={onClose} />;
-}
-
-function Required() {
-  return <span style={{ color: C.danger }}>*</span>;
 }
 
 /** Enquanto a pessoa não mexe na forma, ela segue a sugestão do histórico (pela categoria, se houver). */
@@ -204,63 +202,38 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
       dispatch({ type: 'showErrors', errors: { [state.entry.key]: validateDraft(state.entry, context) }, message: EMPTY_FORM_MESSAGE });
       return;
     }
-
-    const errors: Record<number, DraftErrors> = {};
-    let firstMessage = '';
-    state.batch.forEach((draft, index) => {
-      const draftErrors = validateDraft(draft, context);
-      if (!hasErrors(draftErrors)) return;
-      errors[draft.key] = draftErrors;
-      if (!firstMessage) firstMessage = `Despesa ${index + 1} do lote: ${errorMessage(draftErrors).toLowerCase()}`;
+    const { errors, message } = collectBatchErrors<ExpenseDraft, DraftErrors>({
+      batch: state.batch,
+      entry: entryFilled ? state.entry : null,
+      validate: (draft) => validateDraft(draft, context),
+      hasErrors,
+      describe: errorMessage,
+      itemLabel: 'Despesa',
     });
-    if (entryFilled) {
-      const entryErrors = validateDraft(state.entry, context);
-      if (hasErrors(entryErrors)) {
-        errors[state.entry.key] = entryErrors;
-        if (!firstMessage) firstMessage = errorMessage(entryErrors);
-      }
-    }
-    if (firstMessage) {
-      dispatch({ type: 'showErrors', errors, message: firstMessage });
+    if (message) {
+      dispatch({ type: 'showErrors', errors, message });
       return;
     }
 
-    // Uma por vez: cada despesa gravada sai do lote na hora, e uma falha para a
-    // gravação com as restantes na tela (salvar de novo não duplica as gravadas).
     const accountId = getActiveAccountId();
-    dispatch({ type: 'savingStarted', total: items.length });
-    for (let index = 0; index < items.length; index++) {
-      const draft = items[index]!;
-      dispatch({ type: 'savingProgress', current: index + 1 });
-      try {
-        await createExpense(buildCreateInput(draft, context, accountId));
-      } catch (error) {
-        if (index > 0) invalidateExpenseQueries(qc);
-        const message = error instanceof Error ? error.message : 'Não foi possível registrar a despesa.';
-        // As gravadas antes dela já saíram: a que falhou é a 1ª do lote que sobrou.
-        dispatch({ type: 'savingFailed', message: draft.key === state.entry.key ? message : `Despesa 1 do lote: ${message}` });
-        return;
-      }
-      dispatch({ type: 'draftSaved', key: draft.key, nextEntry: nextEntry(state.entry) });
+    const result = await saveInOrder<ExpenseDraft, DraftErrors>({
+      items,
+      entryKey: state.entry.key,
+      nextEntry: nextEntry(state.entry),
+      save: (draft) => createExpense(buildCreateInput(draft, context, accountId)),
+      dispatch,
+      itemLabel: 'Despesa',
+      fallbackMessage: 'Não foi possível registrar a despesa.',
+    });
+    if (result.saved > 0) invalidateExpenseQueries(qc);
+    if (!result.failed) {
+      dispatch({ type: 'savingFinished', toast: items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada' });
     }
-    invalidateExpenseQueries(qc);
-    dispatch({ type: 'savingFinished', toast: items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada' });
   };
 
   const save = () => {
     if (state.saving) return;
     void (expense ? saveEdit(expense) : saveNew());
-  };
-
-  // Enter salva e Shift+Enter (na linha de entrada) adiciona ao lote. Dentro do
-  // autocomplete e dos popovers, o Enter é deles.
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
-    const target = event.target as HTMLElement;
-    if (target.tagName !== 'INPUT' || target.closest('[data-floating-panel]')) return;
-    event.preventDefault();
-    if (!event.shiftKey) save();
-    else if (target.closest('[data-entry-row]')) addToBatch();
   };
 
   const rowHandlers = (key: number) => ({
@@ -277,16 +250,15 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
   const toSaveCount = isEdit ? 1 : state.batch.length + (entryFilled ? 1 : 0);
   const entryDuplicate = entrySuggestions.duplicateCreatedAt ? duplicateText(entrySuggestions.duplicateCreatedAt) : null;
   const entryLimit = cardLimitText(entry, cards, resources.cardLimits);
-  const batchSum = state.batch.reduce((sum, draft) => sum + (draft.amountCents ?? 0), 0);
 
   let footerMessage = '';
-  let footerColor = C.textSoft;
+  let footerTone: FooterTone = 'neutral';
   if (state.footerError) {
     footerMessage = state.footerError;
-    footerColor = C.danger;
+    footerTone = 'danger';
   } else if (entryDuplicate) {
     footerMessage = entryDuplicate;
-    footerColor = C.warn;
+    footerTone = 'warning';
   } else if (!isEdit && toSaveCount === 0) {
     footerMessage = EMPTY_FORM_MESSAGE;
   } else if (state.batch.length > 0) {
@@ -295,140 +267,105 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     footerMessage = 'Enter registra · Shift+Enter adiciona ao lote';
   }
 
-  const saveLabel = isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa';
   const editBillingLabel = expense
     ? expense.parcelado && expense.parcela ? `Parcela ${expense.parcela}` : expense.recorrente ? 'Mensal' : 'Não repete'
     : undefined;
 
+  const top = (
+    <>
+      {!isEdit && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, padding: '0 8px 12px' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Lançando em</span>
+          <PaymentMethodPopover
+            variant="bar"
+            draft={entry}
+            cards={cards}
+            cardLimits={resources.cardLimits}
+            preferredCardIds={entrySuggestions.suggestions?.preferredCardIds ?? { debito: null, credito: null }}
+            cardInvalid={!!state.errors[entry.key]?.card}
+            onChange={(choice) => dispatch({ type: 'update', key: entry.key, patch: choice })}
+          />
+          {entryLimit && <span style={{ fontSize: 12, color: C.textSoft }}>{entryLimit}</span>}
+        </div>
+      )}
+
+      {isEdit ? (
+        <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+          <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Pagamento</span><span>Cobrança</span>
+          <span>Valor <RequiredMark /></span><span>Compra</span><span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span>
+          <span>Valor pago</span><span /><span />
+        </div>
+      ) : (
+        <div className={`${HEADER_GRID_CLASS} ${ENTRY_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+          <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Cobrança</span>
+          <span>{amountLabel(entry)} <RequiredMark /></span><span>Compra</span><span>{entryInstallments ? '1ª vence' : 'Vencimento'}</span>
+          {entryInstallments
+            ? <span className="lg:col-span-2" style={{ paddingLeft: 9 }}>Pagamento das parcelas</span>
+            : <><span style={{ paddingLeft: 9 }}>Pago em</span><span>Valor pago</span></>}
+          <span /><span />
+        </div>
+      )}
+
+      {/* A chave recria a linha a cada despesa nova: nenhum campo guarda o
+          texto da anterior (o valor digitado seria gravado ao sair do campo). */}
+      <ExpenseRow
+        key={entry.key}
+        draft={entry}
+        variant={isEdit ? 'edit' : 'entry'}
+        resources={resources}
+        errors={state.errors[entry.key]}
+        showSummary
+        suggestions={entrySuggestions}
+        readOnlyBilling={editBillingLabel}
+        pendingInstallmentCount={pendingCountFor(entry.key)}
+        descriptionRef={descriptionRef}
+        onAddToBatch={addToBatch}
+        {...rowHandlers(entry.key)}
+      />
+    </>
+  );
+
+  const batch = state.batch.length > 0 ? {
+    count: state.batch.length,
+    sumCents: state.batch.reduce((sum, draft) => sum + (draft.amountCents ?? 0), 0),
+    header: (
+      <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '10px 8px 4px' }}>
+        <span>Descrição</span><span>Categoria</span><span>Pagamento</span><span>Cobrança</span><span>Valor</span><span>Compra</span>
+        <span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span><span>Valor pago</span><span /><span />
+      </div>
+    ),
+    rows: state.batch.map((draft) => (
+      <ExpenseRow
+        key={draft.key}
+        draft={draft}
+        variant="batch"
+        resources={resources}
+        errors={state.errors[draft.key]}
+        showSummary={draft.key === state.activeKey}
+        suggestions={draft.key === state.activeKey ? activeSuggestions : null}
+        pendingInstallmentCount={pendingCountFor(draft.key)}
+        onRemove={() => dispatch({ type: 'removeFromBatch', key: draft.key })}
+        {...rowHandlers(draft.key)}
+      />
+    )),
+  } : null;
+
   return (
-    <Dialog
-      open
+    <EntryDialogFrame
       title={isEdit ? 'Editar despesa' : 'Nova despesa'}
       description="Registre uma saída financeira"
-      onClose={requestClose}
-      size="xxl"
-      scrollBody={false}
-    >
-      <div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={handleKeyDown}>
-        <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-3 pb-3.5 pt-3.5 xl:px-5">
-          {!isEdit && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, padding: '0 8px 12px' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Lançando em</span>
-              <PaymentMethodPopover
-                variant="bar"
-                draft={entry}
-                cards={cards}
-                cardLimits={resources.cardLimits}
-                preferredCardIds={entrySuggestions.suggestions?.preferredCardIds ?? { debito: null, credito: null }}
-                cardInvalid={!!state.errors[entry.key]?.card}
-                onChange={(choice) => dispatch({ type: 'update', key: entry.key, patch: choice })}
-              />
-              {entryLimit && <span style={{ fontSize: 12, color: C.textSoft }}>{entryLimit}</span>}
-            </div>
-          )}
-
-          {isEdit ? (
-            <div className={`${HEADER_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...headerStyle, padding: '0 8px 6px' }}>
-              <span>Descrição <Required /></span><span>Categoria <Required /></span><span>Pagamento</span><span>Cobrança</span>
-              <span>Valor <Required /></span><span>Compra</span><span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span>
-              <span>Valor pago</span><span /><span />
-            </div>
-          ) : (
-            <div className={`${HEADER_CLASS} ${ENTRY_GRID_CLASS}`} style={{ ...headerStyle, padding: '0 8px 6px' }}>
-              <span>Descrição <Required /></span><span>Categoria <Required /></span><span>Cobrança</span>
-              <span>{amountLabel(entry)} <Required /></span><span>Compra</span><span>{entryInstallments ? '1ª vence' : 'Vencimento'}</span>
-              {entryInstallments
-                ? <span className="lg:col-span-2" style={{ paddingLeft: 9 }}>Pagamento das parcelas</span>
-                : <><span style={{ paddingLeft: 9 }}>Pago em</span><span>Valor pago</span></>}
-              <span /><span />
-            </div>
-          )}
-
-          {/* A chave recria a linha a cada despesa nova: nenhum campo guarda o
-              texto da anterior (o valor digitado seria gravado ao sair do campo). */}
-          <ExpenseRow
-            key={entry.key}
-            draft={entry}
-            variant={isEdit ? 'edit' : 'entry'}
-            resources={resources}
-            errors={state.errors[entry.key]}
-            showSummary
-            suggestions={entrySuggestions}
-            readOnlyBilling={editBillingLabel}
-            pendingInstallmentCount={pendingCountFor(entry.key)}
-            descriptionRef={descriptionRef}
-            onAddToBatch={addToBatch}
-            {...rowHandlers(entry.key)}
-          />
-
-          {state.batch.length > 0 && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '20px 8px 8px', borderBottom: `1px solid ${SEPARATOR}` }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>No lote</span>
-                <span style={{ fontSize: 12, color: C.textSoft }}>{state.batch.length === 1 ? '1 despesa' : `${state.batch.length} despesas`}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: C.textSoft }}>
-                  soma <span style={{ fontVariantNumeric: 'tabular-nums', color: C.text, fontWeight: 600 }}>{formatCurrency(batchSum / 100)}</span>
-                </span>
-              </div>
-              <div className={`${HEADER_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...headerStyle, padding: '10px 8px 4px' }}>
-                <span>Descrição</span><span>Categoria</span><span>Pagamento</span><span>Cobrança</span><span>Valor</span><span>Compra</span>
-                <span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span><span>Valor pago</span><span /><span />
-              </div>
-              <div className="flex flex-col gap-2 pt-2 lg:gap-0 lg:pt-0">
-                {state.batch.map((draft) => (
-                  <ExpenseRow
-                    key={draft.key}
-                    draft={draft}
-                    variant="batch"
-                    resources={resources}
-                    errors={state.errors[draft.key]}
-                    showSummary={draft.key === state.activeKey}
-                    suggestions={draft.key === state.activeKey ? activeSuggestions : null}
-                    pendingInstallmentCount={pendingCountFor(draft.key)}
-                    onRemove={() => dispatch({ type: 'removeFromBatch', key: draft.key })}
-                    {...rowHandlers(draft.key)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div style={dialogFooterStyle}>
-          <span role={state.footerError ? 'alert' : undefined} style={{ flex: 1, minWidth: 0, fontSize: 12, color: footerColor }}>
-            {footerMessage}
-          </span>
-          <button
-            type="button"
-            onClick={save}
-            disabled={!!state.saving}
-            style={toSaveCount > 0 ? saveButtonStyle : saveButtonDisabledStyle}
-          >
-            {saveLabel}
-          </button>
-        </div>
-
-        {state.saving && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2.5 bg-white/85" role="status">
-            <span style={{ fontSize: 13.5, fontWeight: 500, color: C.text }}>
-              {state.saving.total > 1 ? `Salvando despesas... ${state.saving.current} de ${state.saving.total}` : 'Salvando despesa...'}
-            </span>
-            <div style={{ width: 200, height: 4, borderRadius: 2, background: '#e2e8f0', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.round((state.saving.current / state.saving.total) * 100)}%`, background: C.primary, transition: 'width .3s' }} />
-            </div>
-          </div>
-        )}
-
-        {state.toast && (
-          <div
-            role="status"
-            className="fixed bottom-7 left-1/2 z-50 flex h-[38px] -translate-x-1/2 items-center rounded-full px-4 shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
-            style={{ background: '#0f172a', color: '#fff', fontSize: 12, fontWeight: 500 }}
-          >
-            {state.toast}
-          </div>
-        )}
-      </div>
-    </Dialog>
+      onRequestClose={requestClose}
+      onSave={save}
+      onAddToBatch={isEdit ? undefined : addToBatch}
+      top={top}
+      batch={batch}
+      itemNoun={EXPENSE_NOUN}
+      footerMessage={footerMessage}
+      footerTone={footerTone}
+      saveLabel={isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa'}
+      canSave={toSaveCount > 0}
+      saving={state.saving}
+      toast={state.toast}
+    />
   );
 }
