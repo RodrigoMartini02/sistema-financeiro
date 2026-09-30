@@ -1,6 +1,6 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
-  Attachment, Expense, ExpenseFormValues, FinanceDashboardData,
+  Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
   Income, IncomeFormValues, MonthBalance, PainelData, PainelFiltro,
 } from '../types/finance';
 
@@ -80,7 +80,6 @@ function expenseFromApi(r: RawExpense): Expense {
   return {
     id: r.id, descricao: r.descricao,
     valorFinal,
-    valorFinalTotal: valorFinal > 0 ? valorFinal : undefined,
     categoria: r.categoria_nome ?? 'Sem categoria',
     categoriaId: r.categoria_id ?? null,
     categoriaPai: r.categoria_pai_nome ?? null,
@@ -116,7 +115,7 @@ export async function fetchFinanceDashboard(month: number, year: number, escopo?
   appendProfile(q);
   const [incomes, expenses, balance] = await Promise.all([
     apiRequest<RawIncome[]>(`/receitas?${q}`),
-    apiRequest<RawExpense[]>(`/despesas?${q}`),
+    apiRequest<RawExpense[]>(`/expenses?${q}`),
     fetchMonthBalance(month, year),
   ]);
   return { incomes: incomes.map(incomeFromApi), expenses: expenses.map(expenseFromApi), balance };
@@ -197,32 +196,13 @@ export async function deleteIncome(id: number) {
   return apiRequest<void>(`/receitas/${id}`, { method: 'DELETE' });
 }
 
-export async function saveExpense(month: number, year: number, values: ExpenseFormValues, id?: number) {
-  const accountId = values.contaId ?? getActiveAccountId();
-  const valorOriginal = values.valor_original ?? 0;
-  const body: Record<string, unknown> = {
-    descricao: values.descricao,
-    valor_original: valorOriginal,
-    data_vencimento: values.dataVencimento, data_compra: values.dataCompra || null,
-    data_pagamento: values.pago ? values.dataVencimento : null,
-    mes: month, ano: year, forma_pagamento: values.formaPagamento,
-    observacoes: values.observacoes || null, pago: values.pago,
-    numero_nf: values.numero_nf ?? null,
-    data_emissao_nf: values.data_emissao_nf ?? null,
-    valor_pago: values.pago ? (values.valor_pago ?? valorOriginal) : null,
-    recorrente: values.recorrente ?? false,
-    parcelado: values.parcelado ?? false,
-    total_parcelas: values.parcelado ? (values.total_parcelas ?? null) : null,
-    parcelas_ja_pagas: values.parcelado ? (values.parcelasJaPagas ?? 0) : null,
-    recorrencia_mensal: values.recorrenciaMensal ?? false,
-    conta_id: accountId,
-  };
-  if (values.categoria_id) body.categoria_id = Number(values.categoria_id);
-  if (values.cartao_id) body.cartao_id = Number(values.cartao_id);
-  body.anexos = values.anexos && values.anexos.length > 0 ? values.anexos : null;
-  return apiRequest<RawExpense>(id ? `/despesas/${id}` : '/despesas', {
-    method: id ? 'PUT' : 'POST', body: JSON.stringify(body),
-  });
+/** Grava a despesa inteira de uma vez: a única, as 12 ocorrências da mensal ou todas as parcelas. */
+export async function createExpense(input: ExpenseCreateInput): Promise<void> {
+  await apiRequest<unknown>('/expenses', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export async function updateExpense(id: number, input: ExpenseUpdateInput): Promise<void> {
+  await apiRequest<unknown>(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
 // `id` e sempre a parcela ancora (usada pelo backend pra resolver dono/grupo).
@@ -234,12 +214,12 @@ export async function deleteExpense(id: number, options?: { deleteGroup?: boolea
   if (options?.ids?.length) params.set('ids', options.ids.join(','));
   else if (options?.deleteGroup) params.set('delete_group', 'true');
   const suffix = params.toString() ? `?${params}` : '';
-  return apiRequest<void>(`/despesas/${id}${suffix}`, { method: 'DELETE' });
+  return apiRequest<void>(`/expenses/${id}${suffix}`, { method: 'DELETE' });
 }
 
 // Todas as parcelas de um parcelamento, para a grade de exclusao/cancelamento.
 export async function fetchExpenseGroup(grupoId: number): Promise<Expense[]> {
-  const rows = await apiRequest<RawExpense[]>(`/despesas/group/${grupoId}`);
+  const rows = await apiRequest<RawExpense[]>(`/expenses/group/${grupoId}`);
   return rows.map(expenseFromApi);
 }
 
@@ -249,18 +229,18 @@ export async function cancelarDespesa(id: number, options?: { ids?: number[] }) 
   const params = new URLSearchParams();
   if (options?.ids?.length) params.set('ids', options.ids.join(','));
   const suffix = params.toString() ? `?${params}` : '';
-  return apiRequest<void>(`/despesas/${id}/cancelar${suffix}`, { method: 'PUT' });
+  return apiRequest<void>(`/expenses/${id}/cancelar${suffix}`, { method: 'PUT' });
 }
 
 export async function pagarDespesa(id: number, dataPagamento: string, valorPago: number) {
-  return apiRequest<void>(`/despesas/${id}/pay`, {
+  return apiRequest<void>(`/expenses/${id}/pay`, {
     method: 'POST',
     body: JSON.stringify({ data_pagamento: dataPagamento, valor_pago: valorPago }),
   });
 }
 
 export async function moverDespesa(id: number) {
-  return apiRequest<void>(`/despesas/${id}/mover`, { method: 'POST' });
+  return apiRequest<void>(`/expenses/${id}/mover`, { method: 'POST' });
 }
 
 export interface ContratoFaturamento {
@@ -291,13 +271,6 @@ export async function getContratosFaturamento(mes: number, ano: number): Promise
     receitaId: r.receita_id ?? null,
     receitaStatus: (r.receita_status as ContratoFaturamento['receitaStatus']) ?? null,
   }));
-}
-
-export async function faturarContrato(contratoId: number, mes: number, ano: number): Promise<void> {
-  await apiRequest<unknown>(`/contratos/${contratoId}/faturar`, {
-    method: 'POST',
-    body: JSON.stringify({ mes, ano }),
-  });
 }
 
 

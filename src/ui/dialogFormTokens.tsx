@@ -46,13 +46,6 @@ export const smallInputStyle: CSSProperties = {
   fontSize: 13, color: C.text, outline: 'none',
 };
 
-export const numericInputStyle: CSSProperties = {
-  width: 72, height: 32, boxSizing: 'border-box', borderRadius: 10,
-  border: `1px solid ${C.borderInput}`, background: '#fff', padding: '0 9px',
-  fontSize: 13, fontWeight: 600, color: C.text, textAlign: 'center',
-  fontVariantNumeric: 'tabular-nums', outline: 'none',
-};
-
 export const cardStyle: CSSProperties = {
   margin: '0 var(--dialog-px) 8px', padding: '11px 12px 12px', borderRadius: 12,
   border: `1px solid ${C.border}`, background: '#fff',
@@ -183,7 +176,7 @@ export function parseMoney(texto: string): number | null {
  * Reformatar a cada tecla jogava o cursor para o fim e impedia corrigir um
  * dígito no meio do número.
  */
-function useMoneyInput(value: number | undefined, onChange: (v: number) => void) {
+export function useMoneyInput(value: number | undefined, onChange: (v: number) => void) {
   const [texto, setTexto] = useState<string | null>(null);
   const emEdicao = texto !== null;
 
@@ -221,26 +214,6 @@ export function MoneyField({ value, onChange, autoFocus }: { value: number | und
         onBlur={handleBlur}
         placeholder="0,00"
         style={moneyInputStyle}
-      />
-    </div>
-  );
-}
-
-export function MoneyFieldSmall({ value, onChange, autoFocus, disabled }: { value: number | undefined; onChange: (v: number) => void; autoFocus?: boolean; disabled?: boolean }) {
-  const { exibido, handleChange, handleBlur } = useMoneyInput(value, onChange);
-  return (
-    <div style={{ position: 'relative' }}>
-      <span style={moneyPrefixStyle}>R$</span>
-      <input
-        type="text"
-        inputMode="decimal"
-        autoFocus={autoFocus}
-        disabled={disabled}
-        value={exibido}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        placeholder="0,00"
-        style={{ ...moneyInputStyle, background: disabled ? C.panelBg : '#fff', opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'text' }}
       />
     </div>
   );

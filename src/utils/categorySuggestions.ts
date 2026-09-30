@@ -1,5 +1,4 @@
 import type { Categoria, OpcaoCatalogo } from '../types/config';
-import type { Expense } from '../types/finance';
 
 export interface CategorySuggestionResult {
   id: number;
@@ -43,10 +42,6 @@ function tokenize(value: string): string[] {
   return normalizeCategoryText(value).split(/[^a-z0-9]+/).filter(Boolean);
 }
 
-function activeCategories(categories: Categoria[]): Categoria[] {
-  return categories.filter((category) => category.ativo);
-}
-
 /** Categoria com subcategoria ativa: nunca é selecionável em lançamento/filtro — só as subs. */
 export function hasActiveSubcategory(category: Categoria, categories: Categoria[]): boolean {
   return categories.some((c) => c.parent_id === category.id && c.ativo);
@@ -80,64 +75,71 @@ export function groupSelectableCategories<T extends OpcaoCatalogo>(categories: T
   return groups;
 }
 
-function findCategoryByName(categories: Categoria[], name: string): Categoria | undefined {
-  const normalizedName = normalizeCategoryText(name);
-  return activeCategories(categories).find((category) => normalizeCategoryText(category.nome) === normalizedName);
+/** Uma despesa do histórico: a descrição e a categoria que ela recebeu. */
+export interface CategoryHistoryEntry {
+  description: string;
+  categoryId: number | null | undefined;
+}
+
+/** O que se escolhe num lançamento: a categoria solta ou as subs de quem tem sub. */
+function selectableCategories(categories: Categoria[]): Categoria[] {
+  return groupSelectableCategories(categories).flatMap((group) => group.items);
 }
 
 function findCategoryByNames(categories: Categoria[], names: string[]): Categoria | undefined {
   for (const name of names) {
-    const category = findCategoryByName(categories, name);
+    const normalizedName = normalizeCategoryText(name);
+    const category = categories.find((item) => normalizeCategoryText(item.nome) === normalizedName);
     if (category) return category;
   }
   return undefined;
 }
 
-export function getRecentCategoryIds(expenses: Expense[], categories: Categoria[], limit = 5): number[] {
-  const byName = new Map(activeCategories(categories).map((category) => [normalizeCategoryText(category.nome), category.id]));
-  const usage = new Map<number, { count: number; lastIndex: number }>();
-
-  expenses.forEach((expense, index) => {
-    const categoryName = expense.categoria ? normalizeCategoryText(expense.categoria) : '';
-    if (!categoryName || categoryName === 'sem categoria') return;
-    const categoryId = byName.get(categoryName);
-    if (!categoryId) return;
-
-    const current = usage.get(categoryId) ?? { count: 0, lastIndex: -1 };
-    usage.set(categoryId, { count: current.count + 1, lastIndex: Math.max(current.lastIndex, index) });
+/** As categorias mais usadas no histórico, da mais frequente para a menos. */
+export function getRecentCategoryIds(history: CategoryHistoryEntry[], categories: Categoria[], limit = 5): number[] {
+  const selectableIds = new Set(selectableCategories(categories).map((category) => category.id));
+  const usage = new Map<number, number>();
+  history.forEach(({ categoryId }) => {
+    if (categoryId != null && selectableIds.has(categoryId)) usage.set(categoryId, (usage.get(categoryId) ?? 0) + 1);
   });
-
   return Array.from(usage.entries())
-    .sort((a, b) => b[1].count - a[1].count || b[1].lastIndex - a[1].lastIndex)
+    .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
     .map(([id]) => id);
 }
 
+/**
+ * Categoria sugerida para a descrição, a partir de 3 letras: primeiro a de uma
+ * despesa parecida do histórico; depois a que tem o próprio nome na descrição
+ * ("Mercado Extra" → Mercado); por fim, as palavras-chave.
+ */
 export function suggestCategoryForDescription(
   description: string,
   categories: Categoria[],
-  expenses: Expense[],
-  currentExpenseId?: number,
+  history: CategoryHistoryEntry[],
 ): CategorySuggestionResult | null {
   const normalizedDescription = normalizeCategoryText(description);
   if (normalizedDescription.length < 3) return null;
+  const selectable = selectableCategories(categories);
+  const byId = new Map(selectable.map((category) => [category.id, category]));
 
-  const reusableExpense = expenses.find((expense) => {
-    if (expense.id === currentExpenseId) return false;
-    const categoryName = normalizeCategoryText(expense.categoria ?? '');
-    if (!categoryName || categoryName === 'sem categoria') return false;
-    const previousDescription = normalizeCategoryText(expense.descricao ?? '');
-    return previousDescription.length >= 3 && (
-      normalizedDescription.includes(previousDescription) || previousDescription.includes(normalizedDescription)
+  const similar = history.find(({ description: previous, categoryId }) => {
+    if (categoryId == null || !byId.has(categoryId)) return false;
+    const normalizedPrevious = normalizeCategoryText(previous);
+    return normalizedPrevious.length >= 3 && (
+      normalizedDescription.includes(normalizedPrevious) || normalizedPrevious.includes(normalizedDescription)
     );
   });
-
-  if (reusableExpense) {
-    const category = findCategoryByName(categories, reusableExpense.categoria);
-    if (category) return { id: category.id, name: category.nome, reason: 'historico' };
-  }
+  const fromHistory = similar?.categoryId != null ? byId.get(similar.categoryId) : undefined;
+  if (fromHistory) return { id: fromHistory.id, name: fromHistory.nome, reason: 'historico' };
 
   const descriptionTokens = tokenize(description);
+  const byOwnName = selectable.find((category) => {
+    const nameTokens = tokenize(category.nome);
+    return nameTokens.length > 0 && nameTokens.every((token) => descriptionTokens.includes(token));
+  });
+  if (byOwnName) return { id: byOwnName.id, name: byOwnName.nome, reason: 'palavra-chave' };
+
   const keywordRule = KEYWORD_RULES.find((rule) => rule.keywords.some((keyword) => {
     const keywordTokens = tokenize(keyword);
     return keywordTokens.length > 1
@@ -145,7 +147,7 @@ export function suggestCategoryForDescription(
       : descriptionTokens.includes(keywordTokens[0]);
   }));
   if (keywordRule) {
-    const category = findCategoryByNames(categories, keywordRule.categories);
+    const category = findCategoryByNames(selectable, keywordRule.categories);
     if (category) return { id: category.id, name: category.nome, reason: 'palavra-chave' };
   }
 

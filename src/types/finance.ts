@@ -68,7 +68,6 @@ export interface Expense {
   id: number;
   descricao: string;
   valorFinal: number;           // valor da linha (por parcela, quando parcelado)
-  valorFinalTotal?: number;     // mesmo valor, usado na comparação ao editar
   valorOriginal?: number | null; // valor da compra, como veio do banco
   valorPago?: number | null;    // valor efetivamente pago (pode diferir por juros/desconto)
   categoria: string;
@@ -106,27 +105,50 @@ export interface Expense {
   anexos?: Attachment[] | null;
 }
 
-export interface ExpenseFormValues {
-  descricao: string;
-  /** Conta (PF/CNPJ) onde o lançamento entra. Undefined/null usa a conta ativa. */
-  contaId?: number | null;
-  valor_original?: number;      // preço base (obrigatório na prática)
-  valor_pago?: number;          // valor efetivamente pago, quando divergir do valor da compra
-  dataVencimento: string;
-  dataCompra?: string;
-  categoria_id?: number;
-  cartao_id?: number;
-  formaPagamento: string;
-  pago: boolean;
-  recorrente?: boolean;
-  parcelado?: boolean;
-  total_parcelas?: number;
-  parcelasJaPagas?: number;     // quantas parcelas nascem pagas (0 a total_parcelas-1)
-  recorrenciaMensal?: boolean;  // gera lote fixo de ocorrências futuras (dia livre ou fatura do cartão)
-  numero_nf?: string;
-  data_emissao_nf?: string;
-  observacoes?: string;
-  anexos?: Attachment[];
+export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export function isPaymentMethod(value: string): value is PaymentMethod {
+  return (PAYMENT_METHODS as readonly string[]).includes(value);
+}
+
+/** Não repete, recorrente (12 ocorrências) ou parcelado (uma linha por parcela). */
+export type ExpenseBillingType = 'single' | 'monthly' | 'installments';
+
+export interface ExpensePaymentInput {
+  paid: boolean;
+  /** Data real do pagamento. Paga sem data grava o vencimento. */
+  paymentDate: string | null;
+  /** Paga sem valor grava o próprio valor da despesa. */
+  amountPaid: number | null;
+}
+
+export interface ExpenseInstallmentInput extends ExpensePaymentInput {
+  amount: number;
+  dueDate: string;
+}
+
+interface ExpenseFieldsInput {
+  description: string;
+  categoryId: number | null;
+  paymentMethod: PaymentMethod;
+  cardId: number | null;
+  purchaseDate: string;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  attachments: Attachment[] | null;
+}
+
+/** Corpo do POST /expenses. Datas em ISO e valores em reais. */
+export type ExpenseCreateInput = ExpenseFieldsInput & { accountId: number | null } & (
+  | ({ billingType: 'single' | 'monthly'; amount: number; dueDate: string } & ExpensePaymentInput)
+  | { billingType: 'installments'; installments: ExpenseInstallmentInput[] }
+);
+
+/** Corpo do PUT /expenses/:id: edita uma linha; parcela, recorrência e conta não mudam. */
+export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentInput {
+  amount: number;
+  dueDate: string;
 }
 
 export interface FinanceDashboardData {

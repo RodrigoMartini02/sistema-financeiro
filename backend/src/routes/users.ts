@@ -24,7 +24,7 @@ router.get('/me', authenticate, async (req: Request, res: Response): Promise<voi
     // usuarios.nome sem o usuario pedir).
     //
     // O fallback precisa ser IDENTICO ao autor_nome de expenses.ts/incomes.ts
-    // (nome + sobrenome, nao so nome): telas como DespesasScreen comparam
+    // (nome + sobrenome, nao so nome): os filtros de lancamentos (useEntryFilters.ts) comparam
     // nomeExibicao contra autor_nome por igualdade de string para filtrar por
     // membro, e uma divergencia aqui faz o proprio lancamento do usuario
     // desaparecer da lista para ele mesmo.

@@ -32,7 +32,7 @@ import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection } from './layout/AppShell';
 import type { ConfigItemId } from './layout/ConfigPanel';
 import { IncomeDialog } from './screens/finance/IncomeDialog';
-import { ExpenseDialog } from './screens/finance/ExpenseDialog';
+import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
 import { useFinanceDashboard } from './hooks/useFinanceDashboard';
 import { apiRequest } from './services/apiClient';
 import { trackPageView } from './services/analyticsService';
@@ -222,14 +222,7 @@ function AppContent() {
         onClose={() => setQuickAction('none')}
         onSave={async (items) => { for (const v of items) await finance.saveIncome.mutateAsync({ values: v }); setQuickAction('none'); }}
       />
-      <ExpenseDialog
-        open={quickAction === 'nova-despesa'}
-        month={month} year={year}
-        isSaving={finance.saveExpense.isPending}
-        error={finance.saveExpense.error?.message}
-        onClose={() => setQuickAction('none')}
-        onSave={async (items) => { for (const v of items) await finance.saveExpense.mutateAsync({ values: v }); setQuickAction('none'); }}
-      />
+      <ExpenseDialog open={quickAction === 'nova-despesa'} onClose={() => setQuickAction('none')} />
       <OnboardingChecklistModal
         open={onboarding.isVisible}
         items={onboarding.items}

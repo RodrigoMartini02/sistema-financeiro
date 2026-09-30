@@ -20,7 +20,7 @@ import {
   sendFinancialCopilotMessage,
   type UltimosLancamentos,
 } from '../../services/assistantService';
-import { fetchFinanceDashboard, saveExpense, saveIncome } from '../../services/financeService';
+import { createExpense, fetchFinanceDashboard, saveIncome } from '../../services/financeService';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
@@ -29,7 +29,8 @@ import { fetchClassificacoesReceita } from '../../services/incomeClassifications
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
-import { queryKeys } from '../../services/queryKeys';
+import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
+import { installmentDueDates } from '../../utils/expenseSchedule';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
@@ -989,29 +990,42 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         const suggestedCategory = draft.category
           ? categories.find((category) => normalizeComparable(category.nome) === normalizeComparable(draft.category!))
           : undefined;
-        const parcelado = draft.billingType === 'parcelas';
-        const recorrente = draft.billingType === 'mensal';
-        await saveExpense(month, year, {
-          descricao: draft.description.trim(),
-          // Undefined mantem a conta ativa, que e o comportamento de antes.
-          contaId: draft.contaId ?? undefined,
-          valor_original: draft.amount,
-          dataVencimento: date,
-          dataCompra: draft.date ?? date,
-          categoria_id: suggestedCategory?.id,
-          cartao_id: draft.cardId ?? undefined,
-          formaPagamento: draft.paymentMethod,
-          pago: draft.paid,
-          valor_pago: draft.paid ? (draft.amountPaid ?? draft.amount) : undefined,
-          parcelado,
-          total_parcelas: parcelado ? (draft.installments ?? undefined) : undefined,
-          parcelasJaPagas: parcelado ? (draft.paidInstallments ?? 0) : undefined,
-          recorrente,
-          recorrenciaMensal: recorrente,
-          numero_nf: draft.invoiceNumber ?? undefined,
-          data_emissao_nf: draft.invoiceDate ?? undefined,
-          anexos: draftAttachments,
-        });
+        const amount = draft.amount;
+        const fields = {
+          // Sem conta escolhida no card, a despesa entra na conta ativa.
+          accountId: draft.contaId ?? getActiveAccountId(),
+          description: draft.description.trim(),
+          categoryId: suggestedCategory?.id ?? null,
+          paymentMethod: draft.paymentMethod,
+          cardId: draft.paymentMethod === 'debito' || draft.paymentMethod === 'credito' ? draft.cardId ?? null : null,
+          purchaseDate: draft.date ?? date,
+          invoiceNumber: draft.invoiceNumber ?? null,
+          invoiceDate: draft.invoiceDate ?? null,
+          attachments: draftAttachments.length > 0 ? draftAttachments : null,
+        };
+        if (draft.billingType === 'parcelas') {
+          // O valor do card é o de cada parcela; as N "já pagas" são as primeiras, quitadas no vencimento.
+          const paidInstallments = draft.paidInstallments ?? 0;
+          await createExpense({
+            ...fields,
+            billingType: 'installments',
+            installments: installmentDueDates(date, draft.installments ?? 0).map((dueDate, index) => {
+              const paid = index < paidInstallments;
+              return { amount, dueDate, paid, paymentDate: paid ? dueDate : null, amountPaid: paid ? amount : null };
+            }),
+          });
+        } else {
+          await createExpense({
+            ...fields,
+            billingType: draft.billingType === 'mensal' ? 'monthly' : 'single',
+            amount,
+            dueDate: date,
+            paid: draft.paid,
+            paymentDate: null,
+            amountPaid: draft.paid ? (draft.amountPaid ?? amount) : null,
+          });
+        }
+        invalidateExpenseQueries(queryClient);
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
       // Fechado o lancamento, a conversa volta ao inicio: o menu de acoes

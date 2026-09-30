@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ReportQuery } from '../types/reports';
+import type { ExpenseDuplicateQuery, ExpenseSuggestionsQuery } from './expenseSuggestionsService';
 
 // undefined ("so eu"), null ("familia") e uma lista (combinacao especifica de
 // membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
@@ -15,6 +16,17 @@ function membroIdKeyPart(membroId: number | number[] | null | undefined): string
 export function invalidateFinanceQueries(qc: QueryClient, month: number, year: number) {
   qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
   qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'painel' });
+}
+
+// Uma despesa gravada pode cair em qualquer mês (parcelas, recorrência, fatura)
+// e mexe no limite do cartão, no planejamento e nos relatórios.
+const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
+  'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
+  'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate',
+]);
+
+export function invalidateExpenseQueries(qc: QueryClient) {
+  qc.invalidateQueries({ predicate: (q) => EXPENSE_DEPENDENT_QUERIES.has(q.queryKey[0]) });
 }
 
 export const queryKeys = {
@@ -59,8 +71,10 @@ export const queryKeys = {
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
   expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
-  expenseSuggestions: (descricao: string, categoriaId?: number) =>
-    ['expense-suggestions', descricao, categoriaId] as const,
+  expenseSuggestions: (accountId: number | null, query: ExpenseSuggestionsQuery) =>
+    ['expense-suggestions', accountId ?? 'ativa', query] as const,
+  expenseDuplicate: (accountId: number | null, query: ExpenseDuplicateQuery | null) =>
+    ['expense-duplicate', accountId ?? 'ativa', query] as const,
   incomeSuggestions: (descricao: string) => ['income-suggestions', descricao] as const,
   appointments: (month: number, year: number) => ['appointments', month, year] as const,
   budgetOverview: (month: number, year: number, escopo?: 'familia') =>

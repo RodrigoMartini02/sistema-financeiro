@@ -11,7 +11,7 @@ import type { FlowDefinition } from './assistantFlowSchema';
  * - `income` so pergunta descricao e valor porque a tabela `receitas` nao tem
  *   as demais colunas — nao e escolha de UX.
  * - No credito, "ja foi paga" e "valor pago" somem: quem paga e a fatura.
- * - As condicoes espelham o modal de despesa (ExpenseForm.tsx). Mudou la,
+ * - As condicoes espelham o modal de despesa (screens/finance/expense-dialog). Mudou la,
  *   mude aqui.
  */
 export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {

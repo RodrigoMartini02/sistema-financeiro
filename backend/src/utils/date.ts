@@ -32,3 +32,16 @@ export function addDaysToIsoDate(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
 }
+
+/**
+ * Soma meses a uma data ISO "YYYY-MM-DD" mantendo o dia. Quando o mês de destino
+ * é mais curto, cai no último dia dele: 31/01 + 1 mês = 28/02. A conta parte
+ * sempre da data base, então 31/01 + 2 meses volta a 31/03.
+ */
+export function addMonthsClamped(isoDate: string, months: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const target = new Date(Date.UTC(year!, month! - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day!, lastDay));
+  return target.toISOString().slice(0, 10);
+}

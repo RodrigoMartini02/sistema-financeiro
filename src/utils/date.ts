@@ -19,3 +19,63 @@ export function daysAgoLocalIso(days: number): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** 2026-10-05 → 05/10/2026. Vazio quando não há data. */
+export function isoToBrDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+}
+
+/** 2026-10-05 → 05/10 (dia e mês, para resumos). */
+export function isoToShortBrDate(iso: string): string {
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+}
+
+/** 05/10/2026 → 2026-10-05. Vazio quando o texto está incompleto ou a data não existe (30/02). */
+export function brDateToIso(text: string): string {
+  const digits = text.replace(/\D/g, '');
+  if (digits.length !== 8) return '';
+  const day = Number(digits.slice(0, 2));
+  const month = Number(digits.slice(2, 4));
+  const year = Number(digits.slice(4));
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return '';
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+/** Máscara durante a digitação: só dígitos, no formato dd/mm/aaaa. */
+export function maskBrDate(text: string): string {
+  const digits = text.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+/**
+ * Complemento ao sair do campo: "5" vira dia 05 do mês e do ano de hoje, "0510"
+ * vira 05/10 do ano de hoje e "051026" vira 05/10/2026. Outros tamanhos ficam
+ * como foram digitados — a validação é que aponta a data incompleta.
+ */
+export function completeBrDate(text: string, todayIso: string): string {
+  const digits = text.replace(/\D/g, '');
+  if (!digits) return '';
+  const currentMonth = todayIso.slice(5, 7);
+  const currentYear = todayIso.slice(0, 4);
+  let day: string;
+  let month: string;
+  let year: string;
+  if (digits.length <= 2) {
+    [day, month, year] = [digits, currentMonth, currentYear];
+  } else if (digits.length <= 4) {
+    [day, month, year] = [digits.slice(0, 2), digits.slice(2), currentYear];
+  } else if (digits.length === 6) {
+    [day, month, year] = [digits.slice(0, 2), digits.slice(2, 4), `20${digits.slice(4)}`];
+  } else {
+    return text;
+  }
+  return `${pad2(Number(day))}/${pad2(Number(month))}/${year}`;
+}
