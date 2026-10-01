@@ -14,6 +14,8 @@ import { fetchServicos, saveServico, type Servico } from '../../services/servico
 import { fetchRepresentantes, type Representante } from '../../services/representantesService';
 import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
 import { getActiveAccountId } from '../../services/apiClient';
+import { useOwnPermissions } from '../../hooks/useOwnPermissions';
+import { canManageCatalog } from '../../utils/screenAccess';
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { queryKeys } from '../../services/queryKeys';
 import { Button } from '../../ui/button';
@@ -1286,15 +1288,20 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
   // 'new' = formulário de novo contrato; number = id de um contrato existente selecionado.
   const [selectedId, setSelectedId] = useState<number | 'new' | undefined>(undefined);
   const gerarPrevistasGuide = useFirstAccessGuide('clientes:gerar-previstas-v1');
+  // Os contratos do cliente (lista, cadastro, previstas, aditivo) dependem da
+  // permissão de Contratos; sem ela, a tela mostra só o cliente.
+  const canManageContracts = canManageCatalog(useOwnPermissions() ?? {}, 'contracts');
 
   const contratosQ = useQuery({
     queryKey: queryKeys.contratos(cliente.id),
     queryFn: () => fetchContratos(cliente.id),
+    enabled: canManageContracts,
   });
 
   const representantesQ = useQuery({
     queryKey: queryKeys.representantes,
     queryFn: () => fetchRepresentantes(),
+    enabled: canManageContracts,
   });
 
   const contratos = contratosQ.data ?? [];
@@ -1421,67 +1428,76 @@ export function ClienteDetail({ cliente, onBack, onEditCliente }: {
         </div>
       </div>
 
-      {/* Master-detail: lista de contratos à esquerda, detalhe à direita */}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <div className="flex shrink-0 flex-col gap-3 lg:w-[260px]">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              {contratos.length > 0
-                ? `${contratos.length} contrato${contratos.length !== 1 ? 's' : ''}`
-                : 'Nenhum contrato'}
-            </p>
-            <Button icon={<Plus size={14} />} onClick={() => setSelectedId('new')}>
-              Novo
-            </Button>
-          </div>
+      {canManageContracts ? (
+        <>
+          {/* Master-detail: lista de contratos à esquerda, detalhe à direita */}
+          <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+            <div className="flex shrink-0 flex-col gap-3 lg:w-[260px]">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-500">
+                  {contratos.length > 0
+                    ? `${contratos.length} contrato${contratos.length !== 1 ? 's' : ''}`
+                    : 'Nenhum contrato'}
+                </p>
+                <Button icon={<Plus size={14} />} onClick={() => setSelectedId('new')}>
+                  Novo
+                </Button>
+              </div>
 
-          {contratosQ.isLoading && (
-            <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>
-          )}
+              {contratosQ.isLoading && (
+                <p className="py-4 text-center text-sm text-slate-400">Carregando...</p>
+              )}
 
-          {!contratosQ.isLoading && contratos.length === 0 && !isNewForm && (
-            <EmptyState
-              title="Sem contratos"
-              description="Nenhum contrato cadastrado para este cliente."
-            />
-          )}
-
-          {contratos.length > 0 && (
-            <div className="scrollbar-thin grid gap-2 overflow-y-auto lg:max-h-full">
-              {contratos.map((c, i) => (
-                <ContratoRow
-                  key={c.id}
-                  contrato={c}
-                  index={i}
-                  active={!isNewForm && selectedContrato?.id === c.id}
-                  onClick={() => setSelectedId(c.id)}
+              {!contratosQ.isLoading && contratos.length === 0 && !isNewForm && (
+                <EmptyState
+                  title="Sem contratos"
+                  description="Nenhum contrato cadastrado para este cliente."
                 />
-              ))}
-            </div>
-          )}
-        </div>
+              )}
 
-        <div className="min-h-0 flex-1">
-          <ContratoDetailPane
-            key={isNewForm ? 'new' : selectedContrato?.id}
-            contrato={selectedContrato}
-            clienteId={cliente.id}
-            representantes={representantes}
-            isSaving={saveContratoMut.isPending}
-            onSave={(data, pendingServicos) => saveContratoMut.mutate({ data, pendingServicos })}
-            onEncerrar={
-              selectedContrato?.status === 'ativo'
-                ? () => handleEncerrarContrato(selectedContrato.id)
-                : undefined
-            }
-            onRegistrarAditivo={
-              selectedContrato?.status === 'ativo'
-                ? () => setAditivoModal({ open: true, contrato: selectedContrato })
-                : undefined
-            }
-          />
-        </div>
-      </div>
+              {contratos.length > 0 && (
+                <div className="scrollbar-thin grid gap-2 overflow-y-auto lg:max-h-full">
+                  {contratos.map((c, i) => (
+                    <ContratoRow
+                      key={c.id}
+                      contrato={c}
+                      index={i}
+                      active={!isNewForm && selectedContrato?.id === c.id}
+                      onClick={() => setSelectedId(c.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="min-h-0 flex-1">
+              <ContratoDetailPane
+                key={isNewForm ? 'new' : selectedContrato?.id}
+                contrato={selectedContrato}
+                clienteId={cliente.id}
+                representantes={representantes}
+                isSaving={saveContratoMut.isPending}
+                onSave={(data, pendingServicos) => saveContratoMut.mutate({ data, pendingServicos })}
+                onEncerrar={
+                  selectedContrato?.status === 'ativo'
+                    ? () => handleEncerrarContrato(selectedContrato.id)
+                    : undefined
+                }
+                onRegistrarAditivo={
+                  selectedContrato?.status === 'ativo'
+                    ? () => setAditivoModal({ open: true, contrato: selectedContrato })
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+        </>
+      ) : (
+        <EmptyState
+          title="Contratos não liberados"
+          description="Fale com o titular da conta para ver os contratos deste cliente."
+        />
+      )}
 
       <AditivoModal
         open={aditivoModal.open}

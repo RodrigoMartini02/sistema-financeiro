@@ -10,7 +10,8 @@ interface ClientSelectProps {
   clients: string[];
   onChange: (name: string) => void;
   /** Cadastra o cliente com o nome digitado e devolve o nome gravado. */
-  onCreate: (name: string) => Promise<string>;
+  /** Sem ele, não há "+ cadastrar": só escolhe entre os já cadastrados. */
+  onCreate?: (name: string) => Promise<string>;
   invalid: boolean;
 }
 
@@ -30,7 +31,7 @@ export function ClientSelect({ value, clients, onChange, onCreate, invalid }: Cl
   const results = normalizedQuery
     ? clients.filter((name) => normalizeCategoryText(name).includes(normalizedQuery))
     : clients;
-  const canCreate = normalizedQuery !== '' && !clients.some((name) => normalizeCategoryText(name) === normalizedQuery);
+  const canCreate = !!onCreate && normalizedQuery !== '' && !clients.some((name) => normalizeCategoryText(name) === normalizedQuery);
 
   const close = () => {
     setOpen(false);
@@ -46,7 +47,7 @@ export function ClientSelect({ value, clients, onChange, onCreate, invalid }: Cl
 
   const create = async () => {
     const name = query.trim();
-    if (!name || creating) return;
+    if (!name || creating || !onCreate) return;
     setCreating(true);
     setCreateError('');
     try {

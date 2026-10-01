@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, type Dispatch } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
 import type { Expense, FinanceDashboardData } from '../../../types/finance';
+import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
@@ -10,6 +11,7 @@ import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys
 import { C } from '../../../ui/dialogFormTokens';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
+import { canManageCatalog } from '../../../utils/screenAccess';
 import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
 import { HEADER_GRID_CLASS } from '../entry-dialog/fieldStyles';
@@ -93,6 +95,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     ? draftFromExpense(expense, todayIso)
     : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), paymentMethodTouched: false }, todayIso)));
 
+  const permissions = useOwnPermissions() ?? {};
   const categoriesQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
   const cardsQuery = useQuery({ queryKey: queryKeys.cartoes(undefined, 'familia'), queryFn: () => fetchCartoes(undefined, 'familia') });
   const limitsQuery = useQuery({ queryKey: queryKeys.cardLimits(undefined, 'familia'), queryFn: () => fetchCardLimits('familia'), staleTime: 60_000 });
@@ -155,7 +158,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     cardLimits: limitsQuery.data ?? [],
     isCompany,
     lockPurchaseDate: !isEdit && !!presetDate,
-    createCategory,
+    createCategory: canManageCatalog(permissions, 'expenseCategories') ? createCategory : undefined,
   };
 
   const nextEntry = (from: ExpenseDraft) => createDraft({

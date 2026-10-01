@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ReportQuery } from '../types/reports';
+import type { DashboardEntries } from './financeService';
 import type { ExpenseDuplicateQuery, ExpenseSuggestionsQuery } from './expenseSuggestionsService';
 import type { IncomeDuplicateQuery, IncomeSuggestionsQuery } from './incomeSuggestionsService';
 
@@ -44,11 +45,13 @@ export function invalidateIncomeQueries(qc: QueryClient) {
 export const queryKeys = {
   session: ['session'] as const,
   planStatus: ['plano-status'] as const,
+  ownPermissions: ['own-permissions'] as const,
   // Sem escopo, chave estavel identica a antes: invalidateFinanceQueries
   // (que so passa month/year) continua casando por prefixo com as duas
-  // variantes de escopo, invalidando as duas de uma vez.
-  dashboard: (month: number, year: number, escopo?: 'familia') =>
-    ['dashboard', month, year, ...(escopo ? [escopo] : [])] as const,
+  // variantes de escopo, invalidando as duas de uma vez. Quem só pode ver
+  // receitas ou só despesas busca um lado só, e a chave diz qual.
+  dashboard: (month: number, year: number, escopo?: 'familia', entries: DashboardEntries = 'all') =>
+    ['dashboard', month, year, ...(escopo ? [escopo] : []), ...(entries !== 'all' ? [entries] : [])] as const,
   // Parametrizado por conta: sem argumento, chave estavel identica a antes
   // (['categorias', 'ativa']) — os call sites que nao lidam com troca de
   // conta continuam funcionando sem qualquer ajuste alem de virar chamada.

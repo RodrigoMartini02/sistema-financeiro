@@ -1,6 +1,6 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, notExists, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { planNotificationEvents, users } from '../db/schema';
+import { accountMembers, accounts, planNotificationEvents, users } from '../db/schema';
 import {
   getEffectivePlanAccess,
   PLAN_STATUS,
@@ -94,6 +94,45 @@ export async function getPlanStatusForUser(userId: number): Promise<PlanStatusRe
     createdAt: user.createdAt,
     userType: user.userType,
   };
+}
+
+export interface PlanHolder {
+  holderId: number;
+  /** Membro ativo de uma conta: o plano que vale é o do titular dela. */
+  isAccountMember: boolean;
+}
+
+/**
+ * De quem é o plano que vale para o usuário: o do titular da conta, quando ele
+ * é membro ou colaborador ativo dela (conta_membros), ou o dele mesmo. O membro
+ * nasce com teste próprio, que não deve bloqueá-lo enquanto o titular paga.
+ */
+export async function resolvePlanHolder(userId: number): Promise<PlanHolder> {
+  const [membership] = await db
+    .select({ ownerId: accounts.userId })
+    .from(accountMembers)
+    .innerJoin(accounts, eq(accounts.id, accountMembers.accountId))
+    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.status, 'ativo')))
+    .limit(1);
+
+  if (!membership) {
+    return { holderId: userId, isAccountMember: false };
+  }
+  return { holderId: membership.ownerId, isAccountMember: true };
+}
+
+export interface RequesterPlanStatus extends PlanStatusResult {
+  isAccountMember: boolean;
+}
+
+/** Status do plano que vale para quem faz o pedido (ver resolvePlanHolder). */
+export async function getRequesterPlanStatus(userId: number): Promise<RequesterPlanStatus | null> {
+  const holder = await resolvePlanHolder(userId);
+  const planStatus = await getPlanStatusForUser(holder.holderId);
+  if (!planStatus) {
+    return null;
+  }
+  return { ...planStatus, isAccountMember: holder.isAccountMember };
 }
 
 async function expirePlanRecord(record: PlanRecord): Promise<{
@@ -269,6 +308,13 @@ async function sendAccessSuspendedEmail(params: { email: string; name: string })
   }
 }
 
+async function skipPendingNotification(eventId: number, reason: string): Promise<void> {
+  await db
+    .update(planNotificationEvents)
+    .set({ status: 'skipped', lastError: reason, updatedAt: new Date() })
+    .where(and(eq(planNotificationEvents.id, eventId), eq(planNotificationEvents.status, 'pending')));
+}
+
 async function dispatchPendingPlanNotifications(): Promise<{
   sent: number;
   failed: number;
@@ -285,9 +331,11 @@ async function dispatchPendingPlanNotifications(): Promise<{
       planStatus: users.planStatus,
       planExpiration: users.planExpiration,
       createdAt: users.createdAt,
+      memberAccountId: accountMembers.accountId,
     })
     .from(planNotificationEvents)
     .innerJoin(users, eq(planNotificationEvents.userId, users.id))
+    .leftJoin(accountMembers, and(eq(accountMembers.userId, users.id), eq(accountMembers.status, 'ativo')))
     .where(eq(planNotificationEvents.status, 'pending'));
 
   let sent = 0;
@@ -295,6 +343,14 @@ async function dispatchPendingPlanNotifications(): Promise<{
   let skipped = 0;
 
   for (const event of pendingEvents) {
+    // Aviso criado antes de o membro seguir o plano do titular: o acesso dele
+    // não depende mais do próprio cadastro, então o e-mail não vale.
+    if (event.memberAccountId !== null) {
+      await skipPendingNotification(event.id, 'Account member: the plan follows the account owner.');
+      skipped += 1;
+      continue;
+    }
+
     const effectiveAccess = getEffectivePlanAccess({
       userType: event.userType,
       planStatus: event.planStatus,
@@ -303,14 +359,7 @@ async function dispatchPendingPlanNotifications(): Promise<{
     });
 
     if (effectiveAccess.status !== PLAN_STATUS.expired) {
-      await db
-        .update(planNotificationEvents)
-        .set({
-          status: 'skipped',
-          lastError: 'Plan was reactivated before notification dispatch.',
-          updatedAt: new Date(),
-        })
-        .where(and(eq(planNotificationEvents.id, event.id), eq(planNotificationEvents.status, 'pending')));
+      await skipPendingNotification(event.id, 'Plan was reactivated before notification dispatch.');
       skipped += 1;
       continue;
     }
@@ -368,7 +417,17 @@ export async function processPlanLifecycle(): Promise<PlanLifecycleResult> {
       createdAt: users.createdAt,
     })
     .from(users)
-    .where(inArray(users.planStatus, [PLAN_STATUS.trial, PLAN_STATUS.active]));
+    .where(and(
+      inArray(users.planStatus, [PLAN_STATUS.trial, PLAN_STATUS.active]),
+      // Membro ativo usa o plano do titular (resolvePlanHolder): o teste
+      // próprio dele não expira nem gera e-mail de acesso suspenso.
+      notExists(
+        db
+          .select({ id: accountMembers.id })
+          .from(accountMembers)
+          .where(and(eq(accountMembers.userId, users.id), eq(accountMembers.status, 'ativo'))),
+      ),
+    ));
 
   let expiredTrials = 0;
   let expiredPaidPlans = 0;

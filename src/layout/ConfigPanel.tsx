@@ -7,6 +7,10 @@ import {
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
 import { fetchMe } from '../services/usuariosService';
+import { useOwnPermissions } from '../hooks/useOwnPermissions';
+import {
+  isConfigItemVisible, type AccountType, type ConfigItemContext, type PermissionSet,
+} from '../utils/screenAccess';
 import { PlanosScreen } from '../screens/planos/PlanosScreen';
 import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
@@ -30,8 +34,8 @@ const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
 
 // `group` define apenas o agrupamento visual da navegação. A ordem dentro de
-// cada grupo é a ordem desta lista; a visibilidade continua sendo decidida
-// pelo filtro em `visibleItems`, sem qualquer relação com o grupo.
+// cada grupo é a ordem desta lista; a visibilidade é decidida por
+// isConfigItemVisible (utils/screenAccess.ts), sem qualquer relação com o grupo.
 const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: ConfigGroupLabel }[] = [
   { id: 'contas',         label: 'Contas',         icon: Layers,     group: 'Geral' },
   { id: 'assinatura',     label: 'Assinatura',     icon: Crown,      group: 'Geral' },
@@ -48,6 +52,25 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
 ];
 
 const GROUP_ORDER: ConfigGroupLabel[] = ['Geral', 'Finanças', 'Pessoas', 'Avançado'];
+
+/** Quem vê o painel: tipo de usuário e documento do cadastro, e o tipo da conta ativa. */
+export function configItemContext(
+  user: { tipo?: string; documento?: string } | undefined,
+  accountType: AccountType | null,
+): ConfigItemContext {
+  const isAdmin = user?.tipo === 'admin';
+  return {
+    isOwner: user?.tipo === 'titular' || isAdmin,
+    isAdmin,
+    canViewAnalytics: (user?.documento ?? '').replace(/\D/g, '') === ANALYTICS_ALLOWED_DOCUMENT,
+    accountType,
+  };
+}
+
+/** Algum item a mostrar: sem nenhum, o acesso às Configurações some. */
+export function hasVisibleConfigItems(permissions: PermissionSet, context: ConfigItemContext): boolean {
+  return ITEMS.some((item) => isConfigItemVisible(item.id, permissions, context));
+}
 
 interface ConfigPanelProps {
   open: boolean;
@@ -74,12 +97,10 @@ function useResettableItem(open: boolean, initialItem: ConfigItemId) {
 
 export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChange }: ConfigPanelProps) {
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
-  const meTipo = me?.tipo;
-  const meDocument = (me?.documento ?? '').replace(/\D/g, '');
-  const isAdmin = meTipo === 'admin';
-  const isGestor = meTipo === 'titular' || isAdmin;
-  const canViewAnalytics = meDocument === ANALYTICS_ALLOWED_DOCUMENT;
   const contaTipo = localStorage.getItem('contaAtivaTipo');
+  const permissions = useOwnPermissions() ?? {};
+  const context = configItemContext(me, contaTipo as AccountType | null);
+  const { isAdmin, isOwner: isGestor, canViewAnalytics } = context;
 
   const [activeItem, setActiveItemState] = useResettableItem(open, initialItem);
   const setActiveItem = (item: ConfigItemId) => {
@@ -87,23 +108,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
     onItemChange?.(item);
   };
 
-  const visibleItems = ITEMS.filter((item) => {
-    if (item.id === 'acessos') return canViewAnalytics;
-    if (item.id === 'integracoes-ia') return isAdmin;
-    // Assinatura/plano e responsabilidade do titular da conta — membro nunca
-    // gerencia pagamento, mesmo que a API ja bloqueie a acao.
-    if (item.id === 'assinatura') return isGestor;
-    // Gestao de membros/colaboradores agora vive dentro de Contas; Permissoes
-    // continua item proprio, e existe nos dois tipos de conta: em pessoal com
-    // carteira compartilhada, em empresa isolados entre si (familyVisibility.ts).
-    if (item.id === 'permissoes') return isGestor;
-    // PJ-only: catalogo alimenta contratos e faturamento; representantes e
-    // socios nao existem em conta pessoal; produtos/estoque e venda de PJ.
-    if (item.id === 'representantes' || item.id === 'socios' || item.id === 'servicos' || item.id === 'catalogo') {
-      return contaTipo !== 'pessoal';
-    }
-    return true;
-  });
+  const visibleItems = ITEMS.filter((item) => isConfigItemVisible(item.id, permissions, context));
 
   const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;
 

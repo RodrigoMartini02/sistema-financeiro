@@ -14,7 +14,9 @@ import { invalidateIncomeQueries, queryKeys } from '../../../services/queryKeys'
 import { fetchRepresentantes } from '../../../services/representantesService';
 import type { ClassificacaoReceita } from '../../../types/config';
 import type { FinanceDashboardData, Income } from '../../../types/finance';
+import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
+import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { collectBatchErrors, initialBatchState, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
@@ -81,10 +83,22 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     queryFn: () => fetchClassificacoesReceita(accountId),
     staleTime: 60_000,
   });
-  const representativesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: isCompany, staleTime: 60_000 });
-  const contractsQuery = useQuery({ queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, enabled: isCompany, staleTime: 60_000 });
-  const productsQuery = useQuery({ queryKey: queryKeys.catalogoProdutos, queryFn: fetchProdutos, enabled: isCompany, staleTime: 60_000 });
-  const clientsQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: isCompany, staleTime: 60_000 });
+  // Listas da conta empresa: só as que a pessoa pode ler (utils/screenAccess.ts).
+  const permissions = useOwnPermissions() ?? {};
+  const readsCompanyList = (list: 'representatives' | 'contracts' | 'products' | 'clients') =>
+    isCompany && canReadCatalogList(permissions, list);
+  const representativesQuery = useQuery({
+    queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: readsCompanyList('representatives'), staleTime: 60_000,
+  });
+  const contractsQuery = useQuery({
+    queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, enabled: readsCompanyList('contracts'), staleTime: 60_000,
+  });
+  const productsQuery = useQuery({
+    queryKey: queryKeys.catalogoProdutos, queryFn: fetchProdutos, enabled: readsCompanyList('products'), staleTime: 60_000,
+  });
+  const clientsQuery = useQuery({
+    queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: readsCompanyList('clients'), staleTime: 60_000,
+  });
 
   const categories = useMemo(() => (categoriesQuery.data ?? []).filter((category) => category.ativo), [categoriesQuery.data]);
   const context: IncomeRuleContext = useMemo(() => ({
@@ -150,8 +164,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     recentCategoryIds,
     categoryHistory,
     lockReceiptDate: !isEdit && !!presetDate,
-    createCategory,
-    createClient,
+    createCategory: canManageCatalog(permissions, 'incomeCategories') ? createCategory : undefined,
+    createClient: canManageCatalog(permissions, 'clients') ? createClient : undefined,
   };
 
   const requestClose = () => {

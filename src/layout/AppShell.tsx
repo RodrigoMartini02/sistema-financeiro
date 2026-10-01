@@ -7,16 +7,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { getActiveAccountId } from '../services/apiClient';
 import { processarReceitasFixas } from '../services/financeService';
-import { fetchOwnPermissions } from '../services/permissoesService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
+import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTelaDesktop } from '../hooks/useTelaDesktop';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
 import { AccountMenu } from './AccountMenu';
-import { ConfigPanel, type ConfigItemId } from './ConfigPanel';
+import { visibleSections, type AccountType } from '../utils/screenAccess';
+import { ConfigPanel, configItemContext, hasVisibleConfigItems, type ConfigItemId } from './ConfigPanel';
 
 export type AppSection =
   | 'painel' | 'movimentacoes'
@@ -236,9 +237,19 @@ export function AppShell({
   // O assistente só é usado no celular: no desktop ele nem monta.
   const telaDesktop = useTelaDesktop();
 
+  // Menu, sininho, Configurações e assistente seguem as permissões de quem
+  // está logado (utils/screenAccess.ts); enquanto carregam, nada aparece.
+  const ownPermissions = useOwnPermissions();
+  const contaTipo = localStorage.getItem('contaAtivaTipo') as AccountType | null;
+  const sections = ownPermissions ? visibleSections(ownPermissions, contaTipo) : [];
+  const canViewNotifications = ownPermissions?.accessNotifications === true;
+  const canUseAssistant = ownPermissions?.accessAssistant === true;
+  const canLaunchIncomes = ownPermissions?.accessIncomes === true;
+  const hasConfigItems = !!ownPermissions && hasVisibleConfigItems(ownPermissions, configItemContext(user, contaTipo));
+
   // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
-  // mês que já passaram do dia e ainda não foram lançadas. Sem permissão de
-  // receitas a chamada é recusada e nada acontece.
+  // mês que já passaram do dia e ainda não foram lançadas. Só para quem pode
+  // lançar receitas — para os demais o servidor recusaria.
   const receitasFixas = useMutation({
     mutationFn: processarReceitasFixas,
     onSuccess: ({ launched }) => {
@@ -248,17 +259,9 @@ export function AppShell({
     },
   });
   useEffect(() => {
-    if (!isDemoMode) receitasFixas.mutate();
-  }, [isDemoMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isDemoMode && canLaunchIncomes) receitasFixas.mutate();
+  }, [isDemoMode, canLaunchIncomes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: ownPermissions } = useQuery({
-    queryKey: ['own-permissions'],
-    queryFn: fetchOwnPermissions,
-    enabled: !isDemoMode,
-    staleTime: 5 * 60_000,
-  });
-  const canViewNotifications = ownPermissions?.accessNotifications ?? true;
-  const canViewDashboard = ownPermissions?.accessDashboard ?? true;
   const notifAccountId = getActiveAccountId();
   const { data: notifications = [] } = useQuery({
     queryKey: queryKeys.notificacoes(notifAccountId),
@@ -314,9 +317,8 @@ export function AppShell({
   const currentNav = ALL_NAV.find((n) => n.section === activeSection);
   const sectionLabel = currentNav?.label;
 
-  const contaTipo = localStorage.getItem('contaAtivaTipo');
-  const navGroups = (contaTipo === 'pessoal' ? NAV_GROUPS.filter((g) => g.label !== 'Consultoria') : NAV_GROUPS)
-    .map((g) => ({ ...g, items: g.items.filter((item) => item.section !== 'painel' || canViewDashboard) }))
+  const navGroups = NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((item) => sections.includes(item.section)) }))
     .filter((g) => g.items.length > 0);
 
   const sidebar = (
@@ -369,16 +371,18 @@ export function AppShell({
           })}
         </div>
 
-        {!isDemoMode && (
+        {!isDemoMode && (hasConfigItems || podeEditarFluxo) && (
         <div className="mt-4 flex flex-col">
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
-          <button
-            onClick={() => openConfig()}
-            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
-          >
-            <Settings size={17} />
-            <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
-          </button>
+          {hasConfigItems && (
+            <button
+              onClick={() => openConfig()}
+              className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
+            >
+              <Settings size={17} />
+              <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
+            </button>
+          )}
 
           {/* Editor do fluxo do assistente. Tela inteira, nao aba do drawer: o
               canvas precisa de espaco. Restrito ao dono do sistema \u2014 e ele quem
@@ -483,7 +487,7 @@ export function AppShell({
 
             <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />
 
-            <AccountMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode ? undefined : openConfig} />
+            <AccountMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode || !hasConfigItems ? undefined : openConfig} />
           </div>
         </header>
 
@@ -495,10 +499,10 @@ export function AppShell({
           {children}
         </main>
       </div>
-      {!isDemoMode && !telaDesktop && <FinancialAssistant />}
+      {!isDemoMode && !telaDesktop && canUseAssistant && <FinancialAssistant />}
       {!isDemoMode && (
         <ConfigPanel
-          open={configPanel.open}
+          open={configPanel.open && hasConfigItems}
           initialItem={configPanel.item}
           onClose={closeConfig}
           onItemChange={(item) => {

@@ -1,12 +1,5 @@
+import type { PermissionFlag } from '../types/permissions';
 import { apiRequest } from './apiClient';
-
-export type PermissionFlag =
-  | 'accessExpenses' | 'accessIncomes' | 'accessBudget' | 'accessCalendar'
-  | 'accessDashboard' | 'accessReports' | 'accessNotifications' | 'accessAssistant'
-  | 'accessAccounts' | 'accessCategories' | 'accessCards' | 'accessServices' | 'accessRepresentatives' | 'accessPartners' | 'accessMembers' | 'accessSubscription'
-  | 'accessClients' | 'accessContracts' | 'accessProductCatalog'
-  | 'accessFamilyEntries' | 'editFamilyEntries' | 'accessFamilyCards'
-  | 'accessGeneralOverview';
 
 export type MemberPermissionsData = Record<PermissionFlag, boolean> & {
   id?: number;
@@ -52,8 +45,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { flag: 'accessServices', label: 'Catálogo de Serviços' },
       { flag: 'accessRepresentatives', label: 'Representantes' },
       { flag: 'accessPartners', label: 'Sócios' },
-      { flag: 'accessMembers', label: 'Membros/Colaboradores' },
-      { flag: 'accessSubscription', label: 'Assinatura/Planos' },
     ],
   },
   {

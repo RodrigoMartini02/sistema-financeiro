@@ -6,6 +6,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useAppContext } from '../../context/AppContext';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
+import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { fetchCardLimits } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
@@ -13,6 +14,7 @@ import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
 import type { Expense, Income } from '../../types/finance';
+import { canReadCatalogList, movementControls } from '../../utils/screenAccess';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
@@ -87,8 +89,12 @@ export function MovimentacoesScreen() {
   const isCalendario = viewMode === 'calendario' && !isPlanning;
   const isLista = !isCalendario;
   const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
-  const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista });
-  const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista });
+  // Cada botão e cada modo só aparece com a permissão correspondente; enquanto
+  // as permissões carregam, nenhum aparece.
+  const permissions = useOwnPermissions() ?? {};
+  const controls = movementControls(permissions);
+  const novaReceitaGuide = useFirstAccessGuide('receitas:novo-v1', { enabled: isLista && controls.newIncome });
+  const novaDespesaGuide = useFirstAccessGuide('despesas:novo-v1', { enabled: isLista && controls.newExpense });
 
   // Altura total: cabecalho, filtros e cards de resumo ficam fixos e so o
   // corpo da tabela rola. Planejamento fica de fora — nao foi readequado
@@ -115,6 +121,7 @@ export function MovimentacoesScreen() {
   const cardLimits = useQuery({
     queryKey: queryKeys.cardLimits(activeAccountId, escopoFamilia ? 'familia' : undefined),
     queryFn: () => fetchCardLimits(escopoFamilia ? 'familia' : undefined),
+    enabled: canReadCatalogList(permissions, 'cards'),
     staleTime: 60_000,
   });
 
@@ -141,47 +148,51 @@ export function MovimentacoesScreen() {
             <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
-                  <Plus size={15} /> Nova receita
-                </button>
-                {novaReceitaGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    align="right"
-                    className="w-[min(25rem,calc(100vw-2rem))]"
-                    icon={TrendingUp}
-                    description={firstAccessGuideMessages.receitasNova}
-                    onDismiss={novaReceitaGuide.dismiss}
-                    onSilenceAll={novaReceitaGuide.silenceAll}
-                  />
-                )}
-              </div>
-              <div className="relative">
-                <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
-                  <Plus size={15} /> Nova despesa
-                </button>
-                {novaDespesaGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="top"
-                    align="right"
-                    className="w-[min(25rem,calc(100vw-2rem))]"
-                    icon={TrendingDown}
-                    description={firstAccessGuideMessages.despesasNova}
-                    onDismiss={novaDespesaGuide.dismiss}
-                    onSilenceAll={novaDespesaGuide.silenceAll}
-                  />
-                )}
-              </div>
+              {controls.newIncome && (
+                <div className="relative">
+                  <button type="button" style={successOutlineButtonStyle} onClick={() => setQuickAction('nova-receita')}>
+                    <Plus size={15} /> Nova receita
+                  </button>
+                  {novaReceitaGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(25rem,calc(100vw-2rem))]"
+                      icon={TrendingUp}
+                      description={firstAccessGuideMessages.receitasNova}
+                      onDismiss={novaReceitaGuide.dismiss}
+                      onSilenceAll={novaReceitaGuide.silenceAll}
+                    />
+                  )}
+                </div>
+              )}
+              {controls.newExpense && (
+                <div className="relative">
+                  <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
+                    <Plus size={15} /> Nova despesa
+                  </button>
+                  {novaDespesaGuide.isVisible && (
+                    <FirstAccessGuideCard
+                      floating
+                      placement="top"
+                      align="right"
+                      className="w-[min(25rem,calc(100vw-2rem))]"
+                      icon={TrendingDown}
+                      description={firstAccessGuideMessages.despesasNova}
+                      onDismiss={novaDespesaGuide.dismiss}
+                      onSilenceAll={novaDespesaGuide.silenceAll}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {isCalendario && <CalendarSubViewToggle value={subView} onChange={setSubView} />}
-            {!isPlanning && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
-            <MovementSectionToggle activeTab={activeTab} onChange={handleTabChange} />
+            {!isPlanning && controls.calendar && <ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+            {controls.planning && <MovementSectionToggle activeTab={activeTab} onChange={handleTabChange} />}
             <OrdenarChip options={ORDENAR_OPTIONS} value={ordenar} onChange={(v) => setOrdenar(v as Ordenar)} />
             <MultiFilterPanel groups={filters.groups} hasActiveFilters={filters.hasActiveFilters} onClear={filters.clear} />
           </div>

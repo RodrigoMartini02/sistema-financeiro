@@ -59,8 +59,8 @@ async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string 
 // (nunca aceita do client, para não vazar outra conta). Esta lista alimenta a
 // opção "Família" nas telas financeiras (Despesas, Receitas, Dashboard,
 // Orçamento, Cartões) — por isso usa accessFamilyEntries, a permissão que já
-// significa "ver lançamentos dos outros membros", em vez de accessMembers
-// (que é sobre a tela de gestão de membros, nunca acessível a um membro).
+// significa "ver lançamentos dos outros membros" (a gestão de membros é só
+// do titular e não tem permissão).
 // Sem accessFamilyEntries, só recebe a si mesmo na lista; com ela, recebe a
 // lista completa, igual ao gestor veria.
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
@@ -634,7 +634,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
 const PERMISSION_FLAGS: PermissionFlag[] = [
   'accessExpenses', 'accessIncomes', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
-  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners', 'accessMembers', 'accessSubscription',
+  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners',
   'accessClients', 'accessContracts', 'accessProductCatalog',
   'accessFamilyEntries', 'editFamilyEntries', 'accessFamilyCards',
   'accessGeneralOverview',
