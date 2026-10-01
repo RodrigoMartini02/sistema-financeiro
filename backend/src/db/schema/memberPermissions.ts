@@ -34,15 +34,14 @@ export const memberPermissions = pgTable('membro_permissoes', {
   accessNotifications: boolean('acesso_notificacoes').notNull().default(false),
   accessAssistant: boolean('acesso_assistente').notNull().default(false),
 
-  // Configurações
+  // Configurações. Gerenciar membros, permissões e o plano é só do titular —
+  // não há permissão para isso (ver requireTitular e requireNotAccountMember).
   accessAccounts: boolean('acesso_contas').notNull().default(false),
   accessCategories: boolean('acesso_categorias').notNull().default(false),
   accessCards: boolean('acesso_cartoes').notNull().default(false),
   accessServices: boolean('acesso_servicos').notNull().default(false),
   accessRepresentatives: boolean('acesso_representantes').notNull().default(false),
   accessPartners: boolean('acesso_socios').notNull().default(false),
-  accessMembers: boolean('acesso_membros').notNull().default(false),
-  accessSubscription: boolean('acesso_assinatura').notNull().default(false),
 
   // Comercial (visível apenas em conta tipo empresa)
   accessClients: boolean('acesso_clientes').notNull().default(false),

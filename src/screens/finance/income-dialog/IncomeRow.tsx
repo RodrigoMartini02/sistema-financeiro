@@ -36,8 +36,10 @@ export interface IncomeRowResources {
   categoryHistory: CategoryHistoryEntry[];
   /** Calendário: a data da linha de entrada vem do dia clicado. */
   lockReceiptDate: boolean;
-  createCategory: (name: string) => Promise<number>;
-  createClient: (name: string) => Promise<string>;
+  /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
+  createCategory?: (name: string) => Promise<number>;
+  /** Sem a permissão de Clientes, só escolhe entre os já cadastrados. */
+  createClient?: (name: string) => Promise<string>;
 }
 
 interface IncomeRowProps {

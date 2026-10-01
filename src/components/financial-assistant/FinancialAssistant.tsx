@@ -20,7 +20,10 @@ import {
   sendFinancialCopilotMessage,
   type UltimosLancamentos,
 } from '../../services/assistantService';
-import { createExpense, createIncome, fetchFinanceDashboard } from '../../services/financeService';
+import { createExpense, createIncome } from '../../services/financeService';
+import { useDashboardQuery } from '../../hooks/useFinanceDashboard';
+import { useOwnPermissions } from '../../hooks/useOwnPermissions';
+import { allowedAssistantIntents, canReadCatalogList } from '../../utils/screenAccess';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
@@ -436,22 +439,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   // Mesma fonte que contaEhEmpresa usa abaixo: a conta escolhida no draft do
   // lancamento em edicao, com fallback para a conta ativa global.
   const contaAtivaId = draft?.contaId ?? getActiveAccountId();
+  // Só as listas que a pessoa pode ler, e os lançamentos do lado que ela vê
+  // (utils/screenAccess.ts): o resto o servidor recusaria.
+  const permissions = useOwnPermissions() ?? {};
+  const readsList = (list: Parameters<typeof canReadCatalogList>[1]) => canReadCatalogList(permissions, list);
+  const allowedIntents = allowedAssistantIntents(permissions);
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categorias(contaAtivaId),
     queryFn: () => fetchCategorias(contaAtivaId),
-    enabled: open,
+    enabled: open && readsList('expenseCategories'),
     staleTime: 60_000,
   });
-  const dashboardQuery = useQuery({
-    queryKey: queryKeys.dashboard(month, year),
-    queryFn: () => fetchFinanceDashboard(month, year),
-    enabled: open,
-    staleTime: 30_000,
-  });
+  const dashboardQuery = useDashboardQuery(month, year, { enabled: open });
   const cardsQuery = useQuery({
     queryKey: queryKeys.cartoes(undefined, 'familia'),
     queryFn: () => fetchCartoes(undefined, 'familia'),
-    enabled: open,
+    enabled: open && readsList('cards'),
     staleTime: 60_000,
   });
   // Mesma fonte do modal: o seletor so aparece para quem tem mais de uma
@@ -476,7 +479,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const clientesQuery = useQuery({
     queryKey: queryKeys.clientes,
     queryFn: () => fetchClientes(),
-    enabled: open && contaEhEmpresa,
+    enabled: open && contaEhEmpresa && readsList('clients'),
     staleTime: 60_000,
   });
   // Classificacao vale para receita de conta pessoal e empresa: catalogo da
@@ -484,25 +487,25 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const classificacoesQuery = useQuery({
     queryKey: queryKeys.classificacoesReceita(contaAtivaId),
     queryFn: () => fetchClassificacoesReceita(contaAtivaId),
-    enabled: open,
+    enabled: open && readsList('incomeCategories'),
     staleTime: 60_000,
   });
   const representantesQuery = useQuery({
     queryKey: queryKeys.representantes,
     queryFn: () => fetchRepresentantes(),
-    enabled: open && contaEhEmpresa,
+    enabled: open && contaEhEmpresa && readsList('representatives'),
     staleTime: 60_000,
   });
   const produtosQuery = useQuery({
     queryKey: queryKeys.catalogoProdutos,
     queryFn: () => fetchProdutos(),
-    enabled: open && contaEhEmpresa,
+    enabled: open && contaEhEmpresa && readsList('products'),
     staleTime: 60_000,
   });
   const contratosAtivosQuery = useQuery({
     queryKey: queryKeys.contratosAtivos,
     queryFn: () => fetchContratosAtivos(),
-    enabled: open && contaEhEmpresa,
+    enabled: open && contaEhEmpresa && readsList('contracts'),
     staleTime: 60_000,
   });
 
@@ -1328,7 +1331,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       pergunta do fluxo. */}
                   {message.showWelcomeActions && (
                     <div className="mt-2 flex flex-col items-start gap-1.5">
-                      {abertura.opcoes.map((opcao) => (
+                      {abertura.opcoes.filter((opcao) => allowedIntents.includes(opcao.intent)).map((opcao) => (
                         <button
                           key={opcao.intent}
                           type="button"

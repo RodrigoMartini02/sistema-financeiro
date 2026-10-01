@@ -97,17 +97,19 @@ import aiIntegrationRoutes from './routes/ai-integrations';
 import assistantFlowRoutes from './routes/assistantFlows';
 import catalogoRoutes from './modules/catalogo/routes';
 import { authenticate, requireActivePlan } from './middleware/auth';
-import { requireScreenAccess } from './middleware/permissions';
+import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/usuarios', userRoutes);           // PT alias
-app.use('/api/contas', authenticate, requireActivePlan, requireScreenAccess('accessAccounts'), accountRoutes);
+// Cadastros compartilhados: a listagem também abre para quem depende dela ao
+// lançar ou em outra tela (utils/catalogAccess.ts); o resto exige a permissão do cadastro.
+app.use('/api/contas', authenticate, requireActivePlan, requireCatalogAccess('accounts'), accountRoutes);
 app.use('/api/account-members', authenticate, requireActivePlan, accountMemberRoutes);
-app.use('/api/categories', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), categoryRoutes);
-app.use('/api/categorias', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), categoryRoutes);     // PT alias
-app.use('/api/cards', authenticate, requireActivePlan, requireScreenAccess('accessCards'), cardRoutes);
-app.use('/api/cartoes', authenticate, requireActivePlan, requireScreenAccess('accessCards'), cardRoutes);            // PT alias
+app.use('/api/categories', authenticate, requireActivePlan, requireCatalogAccess('expenseCategories'), categoryRoutes);
+app.use('/api/categorias', authenticate, requireActivePlan, requireCatalogAccess('expenseCategories'), categoryRoutes);     // PT alias
+app.use('/api/cards', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);
+app.use('/api/cartoes', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);            // PT alias
 app.use('/api/incomes', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);
 app.use('/api/receitas', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);         // PT alias
 app.use('/api/expenses', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);
@@ -125,15 +127,15 @@ app.use('/api/planos', planRoutes);             // PT alias
 app.use('/api/paypal', paypalRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/avaliacoes', ratingRoutes);       // PT alias
-app.use('/api/representatives', authenticate, requireActivePlan, requireScreenAccess('accessRepresentatives'), representativeRoutes);
-app.use('/api/representantes', authenticate, requireActivePlan, requireScreenAccess('accessRepresentatives'), representativeRoutes); // PT alias
+app.use('/api/representatives', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes);
+app.use('/api/representantes', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes); // PT alias
 app.use('/api/partners', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);
 app.use('/api/socios', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);          // PT alias
-app.use('/api/income-classifications', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), incomeClassificationRoutes);
-app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireScreenAccess('accessCategories'), incomeClassificationRoutes); // PT alias
-app.use('/api/clientes', authenticate, requireActivePlan, requireScreenAccess('accessClients'), clientRoutes);
-app.use('/api/contratos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractRoutes);
-app.use('/api/servicos', authenticate, requireActivePlan, requireScreenAccess('accessServices'), serviceRoutes);
+app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
+app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
+app.use('/api/clientes', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
+app.use('/api/contratos', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
+app.use('/api/servicos', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceRoutes);
 app.use('/api/contratos-servicos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractServiceRoutes);
 app.use('/api/contrato-anexos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);

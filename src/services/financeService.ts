@@ -106,16 +106,24 @@ function expenseFromApi(r: RawExpense): Expense {
   };
 }
 
+/**
+ * Que lançamentos buscar: quem só tem permissão de despesas (ou só de receitas)
+ * não pede o outro lado, que o servidor recusaria e derrubaria a busca inteira.
+ */
+export type DashboardEntries = 'all' | 'incomes' | 'expenses';
+
 // `escopo: 'familia'` traz também os lançamentos dos demais membros/
 // colaboradores com permissão de carteira compartilhada. Sem ele (padrão),
 // só os próprios lançamentos.
-export async function fetchFinanceDashboard(month: number, year: number, escopo?: 'familia'): Promise<FinanceDashboardData> {
+export async function fetchFinanceDashboard(
+  month: number, year: number, escopo?: 'familia', entries: DashboardEntries = 'all',
+): Promise<FinanceDashboardData> {
   const q = new URLSearchParams({ mes: String(month), ano: String(year) });
   if (escopo) q.set('escopo', escopo);
   appendProfile(q);
   const [incomes, expenses, balance] = await Promise.all([
-    apiRequest<RawIncome[]>(`/incomes?${q}`),
-    apiRequest<RawExpense[]>(`/expenses?${q}`),
+    entries !== 'expenses' ? apiRequest<RawIncome[]>(`/incomes?${q}`) : Promise.resolve([]),
+    entries !== 'incomes' ? apiRequest<RawExpense[]>(`/expenses?${q}`) : Promise.resolve([]),
     fetchMonthBalance(month, year),
   ]);
   return { incomes: incomes.map(incomeFromApi), expenses: expenses.map(expenseFromApi), balance };

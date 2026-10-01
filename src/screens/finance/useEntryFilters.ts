@@ -5,6 +5,8 @@ import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
 import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
+import { useOwnPermissions } from '../../hooks/useOwnPermissions';
+import { canReadCatalogList } from '../../utils/screenAccess';
 import type { FilterGroup } from '../../ui/MultiFilterPanel';
 import { compararNomesCatalogo, groupSelectableCategories } from '../../utils/categorySuggestions';
 import { TERMOS } from '../config/ContasTab';
@@ -45,9 +47,12 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
     queryFn: () => fetchMembros(accountId ?? undefined),
     staleTime: 5 * 60_000,
   });
+  // Quem só lança receitas não lê categorias de despesa: o filtro fica sem elas.
+  const canReadCategories = canReadCatalogList(useOwnPermissions() ?? {}, 'expenseCategories');
   const categoriesQ = useQuery({
     queryKey: queryKeys.categorias(accountId),
     queryFn: () => fetchCategorias(accountId),
+    enabled: canReadCategories,
     staleTime: 5 * 60_000,
   });
 

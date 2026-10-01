@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
@@ -15,7 +16,6 @@ import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
-import { PlanosScreen } from './screens/planos/PlanosScreen';
 import { ClientesTab } from './screens/config/ClientesTab';
 
 // Sob demanda: o canvas carrega a React Flow, pesada, e a tela e restrita ao
@@ -27,6 +27,7 @@ import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
+import { PlanExpiredGate, type PlanoStatus } from './components/auth/PlanExpiredGate';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection } from './layout/AppShell';
@@ -39,42 +40,9 @@ import { useOnboardingChecklist, type OnboardingTarget } from './hooks/useOnboar
 import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
 import { queryKeys } from './services/queryKeys';
 import { useActiveAccount } from './hooks/useActiveAccount';
-
-interface PlanoStatus {
-  status: 'trial' | 'ativo' | 'expirado';
-  plano_tipo: string | null;
-  plano_expiracao: string | null;
-  dias_restantes_trial: number | null;
-}
-
-function PlanExpiredGate({ trialExpired }: { trialExpired: boolean }) {
-  const qc = useQueryClient();
-  const title = trialExpired ? 'Período de teste encerrado' : 'Plano vencido';
-  return (
-    <div className="fixed inset-0 z-[9999] flex flex-col overflow-auto bg-white">
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-600">Fingerence</p>
-            <h1 className="text-lg font-bold text-slate-900">{title}</h1>
-          </div>
-          <button
-            onClick={() => qc.invalidateQueries({ queryKey: queryKeys.planStatus })}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-xs text-slate-500 hover:bg-slate-50 transition"
-          >
-            Já paguei — verificar
-          </button>
-        </div>
-      </div>
-      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-        <p className="mb-8 text-center text-sm text-slate-500">
-          Seus dados estão preservados. Escolha um plano para continuar usando o Fingerence.
-        </p>
-        <PlanosScreen />
-      </div>
-    </div>
-  );
-}
+import { useOwnPermissions } from './hooks/useOwnPermissions';
+import { EmptyState } from './ui/EmptyState';
+import { resolveSection, visibleSections, type AccountType } from './utils/screenAccess';
 
 function PublicPageTracker() {
   const location = useLocation();
@@ -141,7 +109,18 @@ function AppContent() {
   const activeAccountResolved =
     !contasLoading && !willReloadForAccountSwitch && (!!activeAccount || contasDoUsuario.length === 0);
 
-  const onboarding = useOnboardingChecklist(isAppRoute && !!session.user && hasPlanAccess && activeAccountResolved);
+  // O checklist ensina a montar a conta (categorias, cartões, clientes...):
+  // é tarefa do titular, não de membro ou colaborador.
+  const isOwner = session.user?.tipo === 'titular' || session.user?.tipo === 'admin';
+  const onboarding = useOnboardingChecklist(
+    isAppRoute && !!session.user && hasPlanAccess && activeAccountResolved && isOwner,
+  );
+
+  // Tela mostrada: a escolhida, se a pessoa pode abri-la; senão a primeira
+  // liberada (ver resolveSection). Enquanto as permissões carregam, nenhuma.
+  const ownPermissions = useOwnPermissions({ enabled: isAppRoute && !!session.user && hasPlanAccess });
+  const accountType = localStorage.getItem('contaAtivaTipo') as AccountType | null;
+  const shownSection = ownPermissions ? resolveSection(section, visibleSections(ownPermissions, accountType)) : undefined;
 
   if (!isAppRoute) return <PublicSite />;
   if (!session.hasToken) {
@@ -162,7 +141,7 @@ function AppContent() {
     );
   }
   if (planQuery.data?.status === 'expirado') {
-    return <PlanExpiredGate trialExpired={!planQuery.data.plano_tipo} />;
+    return <PlanExpiredGate planStatus={planQuery.data} />;
   }
 
   const handleNavigate = (sec: AppSection) => {
@@ -178,7 +157,17 @@ function AppContent() {
   };
 
   const renderContent = () => {
-    switch (section) {
+    if (shownSection === undefined) return null;
+    if (shownSection === null) {
+      return (
+        <EmptyState
+          icon={Lock}
+          title="Nenhuma tela liberada"
+          description="Fale com o titular da conta para liberar o seu acesso."
+        />
+      );
+    }
+    switch (shownSection) {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
       case 'reports':       return <ReportsScreen />;
@@ -202,10 +191,10 @@ function AppContent() {
   return (
     <AppShell
       user={session.user}
-      activeSection={section}
+      activeSection={shownSection ?? section}
       onNavigate={(s) => handleNavigate(s)}
       openConfigRequest={openConfigRequest}
-      fillViewport={section === 'movimentacoes' && fillViewport}
+      fillViewport={shownSection === 'movimentacoes' && fillViewport}
     >
       {renderContent()}
 

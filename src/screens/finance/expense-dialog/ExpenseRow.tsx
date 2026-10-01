@@ -48,7 +48,8 @@ export interface RowResources {
   isCompany: boolean;
   /** Calendário: a data da compra da linha de entrada vem do dia clicado. */
   lockPurchaseDate: boolean;
-  createCategory: (name: string) => Promise<number>;
+  /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
+  createCategory?: (name: string) => Promise<number>;
 }
 
 export function amountLabel(draft: ExpenseDraft): string {

@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Users } from 'lucide-react';
 import { fetchMembros, type MembroListItem } from '../../services/membrosService';
 import {
-  fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS,
-  type PermissionFlag, type MemberPermissionsData,
+  fetchMemberPermissions, updateMemberPermissions, PERMISSION_GROUPS, type MemberPermissionsData,
 } from '../../services/permissoesService';
+import type { PermissionFlag } from '../../types/permissions';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import { TERMOS } from './ContasTab';

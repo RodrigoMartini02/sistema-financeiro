@@ -88,9 +88,11 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
     onOpenConfig?.();
   };
 
+  // Sem onOpenConfig (demonstração, ou ninguém a mostrar nas Configurações)
+  // a entrada some do menu.
   const menuItems: Array<{ onSelect: () => void }> = [
     ...data.map((c) => ({ onSelect: () => select(c) })),
-    { onSelect: handleOpenConfig },
+    ...(onOpenConfig ? [{ onSelect: handleOpenConfig }] : []),
     { onSelect: handleLogout },
   ];
 
@@ -220,19 +222,21 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
               </div>
             )}
 
-            <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
-              <button
-                ref={(el) => { itemRefs.current[data.length] = el; }}
-                role="menuitem"
-                type="button"
-                onClick={handleOpenConfig}
-                onKeyDown={(e) => handleItemKeyDown(e, data.length)}
-                className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
-              >
-                <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
-                <span className="flex-1 text-left">Configurações</span>
-              </button>
-            </div>
+            {onOpenConfig && (
+              <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
+                <button
+                  ref={(el) => { itemRefs.current[data.length] = el; }}
+                  role="menuitem"
+                  type="button"
+                  onClick={handleOpenConfig}
+                  onKeyDown={(e) => handleItemKeyDown(e, data.length)}
+                  className="flex h-[38px] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-[13px] font-medium text-[rgba(232,244,245,0.78)] transition hover:bg-[rgba(14,196,216,0.09)] hover:text-[#E8F4F5]"
+                >
+                  <Settings size={16} className="shrink-0 text-[rgba(14,196,216,0.6)]" />
+                  <span className="flex-1 text-left">Configurações</span>
+                </button>
+              </div>
+            )}
 
             <div className="border-t border-[rgba(14,196,216,0.12)] p-1.5">
               <button

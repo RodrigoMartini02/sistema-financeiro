@@ -1,7 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useConfirm } from '../../../context/ConfirmContext';
-import { fetchFinanceDashboard, receberReceita } from '../../../services/financeService';
-import { invalidateIncomeQueries, queryKeys } from '../../../services/queryKeys';
+import { useDashboardQuery } from '../../../hooks/useFinanceDashboard';
+import { receberReceita } from '../../../services/financeService';
+import { invalidateIncomeQueries } from '../../../services/queryKeys';
 import type { Income } from '../../../types/finance';
 import { C } from '../../../ui/dialogFormTokens';
 import { isoToBrDate } from '../../../utils/date';
@@ -18,11 +19,7 @@ export function PredictedIncomesStrip({ receiptIso }: { receiptIso: string }) {
   const confirm = useConfirm();
   const [year, month] = receiptIso.split('-').map(Number);
   const monthIndex = month! - 1;
-  const monthQuery = useQuery({
-    queryKey: queryKeys.dashboard(monthIndex, year!),
-    queryFn: () => fetchFinanceDashboard(monthIndex, year!),
-    staleTime: 60_000,
-  });
+  const monthQuery = useDashboardQuery(monthIndex, year!);
   const receive = useMutation({
     mutationFn: receberReceita,
     onSuccess: () => invalidateIncomeQueries(qc),

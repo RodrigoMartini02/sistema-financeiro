@@ -7,12 +7,12 @@ import { fetchPainel } from '../../services/financeService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchMembros } from '../../services/membrosService';
 import { fetchMe } from '../../services/usuariosService';
-import { fetchOwnPermissions } from '../../services/permissoesService';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel, type FilterGroup } from '../../ui/MultiFilterPanel';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import type { PainelPeriodo } from '../../types/finance';
 import { TERMOS } from '../config/ContasTab';
 import { DashboardPeriodFilter, descreverPeriodo, periodoDoAnoAtual } from './DashboardPeriodFilter';
@@ -54,7 +54,7 @@ export function FinanceDashboard() {
     staleTime: 5 * 60_000,
   });
   // Mesma chave usada em AppShell.tsx — cache compartilhado.
-  const { data: permissoes } = useQuery({ queryKey: ['own-permissions'], queryFn: fetchOwnPermissions, staleTime: 5 * 60_000 });
+  const permissoes = useOwnPermissions();
   const podeVerTodasAsContas = permissoes?.accessGeneralOverview ?? true;
 
   const meId = meQ.data ? String(meQ.data.id) : null;

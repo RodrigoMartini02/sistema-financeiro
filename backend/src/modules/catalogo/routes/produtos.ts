@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { eq, and, asc, desc, inArray } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
-import { requireScreenAccess } from '../../../middleware/permissions';
+import { requireCatalogAccess, requireScreenAccess } from '../../../middleware/permissions';
 import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque } from '../db/schema';
 import { accounts } from '../../../db/schema';
 import { isValidProdutoValor, isValidProdutoImagemMimeType } from '../../../services/catalogo';
@@ -70,7 +70,8 @@ function parseEstoqueMinimo(valor: unknown): string | null {
 }
 
 // GET /api/catalogo/produtos
-router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+// A listagem também abre para quem lança receita com produto vendido (utils/catalogAccess.ts).
+router.get('/', authenticate, requireCatalogAccess('products'), async (req: Request, res: Response): Promise<void> => {
   try {
     const produtos = await db
       .select()

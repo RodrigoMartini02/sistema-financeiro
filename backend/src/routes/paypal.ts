@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { requireNotAccountMember } from '../middleware/permissions';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.get('/config', (_req: Request, res: Response): void => {
 });
 
 // POST /api/paypal/create-order
-router.post('/create-order', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/create-order', authenticate, requireNotAccountMember, async (req: Request, res: Response): Promise<void> => {
   const { tipo } = req.body as { tipo: unknown };
 
   if (!['mensal', 'anual'].includes(String(tipo))) {
@@ -97,7 +98,7 @@ router.post('/create-order', authenticate, async (req: Request, res: Response): 
 });
 
 // POST /api/paypal/capture-order
-router.post('/capture-order', authenticate, async (req: Request, res: Response): Promise<void> => {
+router.post('/capture-order', authenticate, requireNotAccountMember, async (req: Request, res: Response): Promise<void> => {
   const { orderID, tipo } = req.body as { orderID: unknown; tipo: unknown };
 
   if (!orderID || !['mensal', 'anual'].includes(String(tipo))) {

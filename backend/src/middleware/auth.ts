@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { getPlanStatusForUser, isPlanAccessActive } from '../services/plan-lifecycle';
+import { getRequesterPlanStatus, isPlanAccessActive } from '../services/plan-lifecycle';
 
 // Papel dentro da conta a que o usuario esta vinculado — so informativo
 // (ex.: qual rotulo/tela mostrar). Nunca usado para decidir acesso a dado:
@@ -89,7 +89,8 @@ export async function requireActivePlan(req: Request, res: Response, next: NextF
   }
 
   try {
-    const planStatus = await getPlanStatusForUser(req.user.id);
+    // Membro ativo usa o plano do titular da conta (resolvePlanHolder).
+    const planStatus = await getRequesterPlanStatus(req.user.id);
     if (!planStatus) {
       res.status(401).json({ success: false, message: 'Access denied.' });
       return;

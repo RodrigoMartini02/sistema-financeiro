@@ -3,6 +3,7 @@ import {
   type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo,
 } from './demoFakeDatabase';
 import type { ExpenseCreateInput, IncomeCreateInput, IncomeUpdateInput } from '../../types/finance';
+import { PERMISSION_FLAGS } from '../../types/permissions';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
 import { addMonthsClamped } from '../../utils/expenseSchedule';
 
@@ -153,6 +154,11 @@ export function resolveFakeApiRequest(
   const appointmentIdMatch = matchEndpoint(endpoint, /^\/appointments\/(\d+)$/);
   if (appointmentIdMatch) {
     return undefined;
+  }
+
+  // Quem usa a demo é titular: tudo liberado
+  if (matchEndpoint(endpoint, /^\/account-members\/me\/permissions$/)) {
+    return Object.fromEntries(PERMISSION_FLAGS.map((flag) => [flag, true]));
   }
 
   // Listas auxiliares sem dado relevante na demo — devolver vazio
