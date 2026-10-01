@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Briefcase, ChevronDown, ChevronRight, ChevronUp, Tag, User, Pencil, AlertCircle, Plus, ShieldAlert, UserX } from 'lucide-react';
-import { fetchContas, saveConta, deleteConta, reactivateConta } from '../../services/configService';
+import { Briefcase, ChevronRight, User, Pencil, AlertCircle, Plus, ShieldAlert, UserX } from 'lucide-react';
+import {
+  fetchContas, saveConta, deleteConta, reactivateConta,
+  type CompanyAccountSaveValues, type ContaSaveValues, type PersonalAccountSaveValues,
+} from '../../services/configService';
 import {
   fetchMembros, createMembro, deactivateMembro, updateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
 import { queryKeys } from '../../services/queryKeys';
-import type { Conta } from '../../types/config';
+import type { Conta, Enquadramento } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle, MoneyField } from '../../ui/dialogFormTokens';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle, cfgRowStyle, cfgRowIndexStyle } from '../../ui/configTokens';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
@@ -21,6 +24,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
+import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
 import { formatCPF, formatCNPJ, formatDocumento, formatDocumentoAuto } from '../../utils/document';
 import { updateMe, updateFoto, type UsuarioMe } from '../../services/usuariosService';
 
@@ -38,13 +42,16 @@ export const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
 // ─── Membros da conta (movido de MembrosTab.tsx) ──────────────────────────────
 
 function NovoMembroDialog({
-  open, isSaving, error, termo, onClose, onSave,
+  open, isSaving, error, termo, accountType, onClose, onSave,
 }: {
   open: boolean; isSaving: boolean; error?: string; termo: Termo;
+  accountType: Conta['tipo'];
   onClose: () => void; onSave: (body: MembroCreateBody) => void;
 }) {
-  // Controlado para aplicar a máscara; o campo aceita CPF ou CNPJ.
+  // Controlado para aplicar a máscara. O colaborador da empresa é pessoa:
+  // só CPF. O membro da família aceita CPF ou CNPJ.
   const [documento, setDocumento] = useState('');
+  const onlyCpf = accountType === 'empresa';
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,38 +90,44 @@ function NovoMembroDialog({
               <input name="email" type="email" placeholder={`${termo.singular}@email.com`} required style={fieldInputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>CPF / CNPJ</label>
+              <label style={labelStyle}>{onlyCpf ? 'CPF' : 'CPF / CNPJ'}</label>
               <input
                 name="documento"
                 value={documento}
-                onChange={(e) => setDocumento(formatDocumentoAuto(e.target.value))}
+                onChange={(e) => setDocumento(onlyCpf ? formatCPF(e.target.value) : formatDocumentoAuto(e.target.value))}
                 placeholder="000.000.000-00"
                 inputMode="numeric"
-                maxLength={18}
+                maxLength={onlyCpf ? 14 : 18}
                 className={CFG_MONO_CLASS}
                 style={fieldInputStyle}
               />
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={labelStyle}>Telefone</label>
-              <input name="telefone" placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+          {/* Telefone e nascimento são do membro da família; o colaborador da
+              empresa não tem esses campos. */}
+          {accountType === 'pessoal' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={labelStyle}>Telefone</label>
+                <input name="telefone" placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Data de nascimento</label>
+                <input name="data_nascimento" type="date" style={fieldInputStyle} />
+              </div>
             </div>
-            <div>
-              <label style={labelStyle}>Data de nascimento</label>
-              <input name="data_nascimento" type="date" style={fieldInputStyle} />
-            </div>
-          </div>
+          )}
 
           <div>
             <label style={labelStyle}><span>Senha</span><span style={{ color: C.danger }}>*</span></label>
-            <input name="senha" type="password" placeholder="••••••••" required minLength={6} style={fieldInputStyle} />
+            <input name="senha" type="password" placeholder="••••••••" required minLength={8} style={fieldInputStyle} />
           </div>
 
           <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: CFG.muted }}>
-            Documento é opcional — deixe em branco se {termo.artigo} {termo.singular} não tiver CPF (ex.: menor de idade). Senha com mínimo de 6 caracteres.
+            {onlyCpf
+              ? 'CPF é opcional. Senha com mínimo de 8 caracteres.'
+              : `Documento é opcional — deixe em branco se ${termo.artigo} ${termo.singular} não tiver CPF (ex.: menor de idade). Senha com mínimo de 8 caracteres.`}
           </p>
 
           {error && (
@@ -221,186 +234,36 @@ function TransferirPendenciasDialog({
   );
 }
 
-// Conta é considerada incompleta quando, sendo empresa, falta razão social ou
-// enquadramento. Dados pessoais do titular (telefone, nascimento, e-mail)
-// vivem em `users`, fora do escopo desta checagem.
+// Conta PJ incompleta: sem razão social, o único campo obrigatório da empresa
+// que o cadastro antigo deixava vazio.
 function isContaIncompleta(c: Conta): boolean {
-  if (c.tipo !== 'empresa') return false;
-  return !c.razao_social?.trim() || !c.enquadramento;
-}
-
-// ─── Category preview data (mirrors backend presets) ─────────────────────────
-
-const PREVIEW_CATEGORIAS: Record<string, { nome: string; total: number }[]> = {
-  MEI: [
-    { nome: 'Fornecedores', total: 3 },
-    { nome: 'Despesas Operacionais', total: 4 },
-    { nome: 'Tributação MEI', total: 2 },
-    { nome: 'Marketing', total: 3 },
-    { nome: 'Equipamentos', total: 2 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-    { nome: 'Transporte', total: 2 },
-  ],
-  ME: [
-    { nome: 'Fornecedores', total: 4 },
-    { nome: 'Despesas Operacionais', total: 5 },
-    { nome: 'Folha de Pagamento', total: 7 },
-    { nome: 'Tributos e Impostos', total: 5 },
-    { nome: 'Contabilidade', total: 3 },
-    { nome: 'Marketing e Vendas', total: 4 },
-    { nome: 'Tecnologia', total: 4 },
-    { nome: 'Viagens e Deslocamentos', total: 4 },
-    { nome: 'Equipamentos', total: 3 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-  EPP: [
-    { nome: 'Fornecedores', total: 4 },
-    { nome: 'Despesas Operacionais', total: 5 },
-    { nome: 'Folha de Pagamento', total: 7 },
-    { nome: 'Tributos e Impostos', total: 5 },
-    { nome: 'Contabilidade', total: 3 },
-    { nome: 'Marketing e Vendas', total: 4 },
-    { nome: 'Tecnologia', total: 4 },
-    { nome: 'Viagens e Deslocamentos', total: 4 },
-    { nome: 'Equipamentos', total: 3 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-  SLU: [
-    { nome: 'Fornecedores', total: 4 },
-    { nome: 'Despesas Operacionais', total: 5 },
-    { nome: 'Folha de Pagamento', total: 7 },
-    { nome: 'Tributos e Impostos', total: 5 },
-    { nome: 'Contabilidade', total: 3 },
-    { nome: 'Marketing e Vendas', total: 4 },
-    { nome: 'Tecnologia', total: 4 },
-    { nome: 'Viagens e Deslocamentos', total: 4 },
-    { nome: 'Equipamentos', total: 3 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-  EIRELI: [
-    { nome: 'Fornecedores', total: 4 },
-    { nome: 'Despesas Operacionais', total: 5 },
-    { nome: 'Folha de Pagamento', total: 7 },
-    { nome: 'Tributos e Impostos', total: 5 },
-    { nome: 'Contabilidade', total: 3 },
-    { nome: 'Marketing e Vendas', total: 4 },
-    { nome: 'Tecnologia', total: 4 },
-    { nome: 'Viagens e Deslocamentos', total: 4 },
-    { nome: 'Equipamentos', total: 3 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-  LTDA: [
-    { nome: 'Fornecedores', total: 5 },
-    { nome: 'Despesas Operacionais', total: 6 },
-    { nome: 'Folha de Pagamento', total: 8 },
-    { nome: 'Tributos e Impostos', total: 7 },
-    { nome: 'Contabilidade', total: 4 },
-    { nome: 'Marketing e Vendas', total: 5 },
-    { nome: 'Tecnologia', total: 5 },
-    { nome: 'Viagens e Deslocamentos', total: 5 },
-    { nome: 'Equipamentos e Imobilizado', total: 4 },
-    { nome: 'Financeiro e Bancário', total: 5 },
-    { nome: 'Jurídico e Compliance', total: 4 },
-    { nome: 'RH e Benefícios', total: 5 },
-    { nome: 'Distribuição de Resultados', total: 2 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-  SA: [
-    { nome: 'Fornecedores', total: 5 },
-    { nome: 'Despesas Operacionais', total: 6 },
-    { nome: 'Folha de Pagamento', total: 8 },
-    { nome: 'Tributos e Impostos', total: 7 },
-    { nome: 'Contabilidade', total: 4 },
-    { nome: 'Marketing e Vendas', total: 5 },
-    { nome: 'Tecnologia', total: 5 },
-    { nome: 'Viagens e Deslocamentos', total: 5 },
-    { nome: 'Equipamentos e Imobilizado', total: 4 },
-    { nome: 'Financeiro e Bancário', total: 5 },
-    { nome: 'Jurídico e Compliance', total: 4 },
-    { nome: 'RH e Benefícios', total: 5 },
-    { nome: 'Distribuição de Resultados', total: 2 },
-    { nome: 'Pró-labore e Retiradas', total: 0 },
-  ],
-};
-
-const ENQUADRAMENTO_OPTIONS = [
-  { value: 'MEI',    label: 'MEI',    description: 'Microempreendedor Individual' },
-  { value: 'ME',     label: 'ME',     description: 'Microempresa' },
-  { value: 'EPP',    label: 'EPP',    description: 'Empresa de Pequeno Porte' },
-  { value: 'SLU',    label: 'SLU',    description: 'Sociedade Limitada Unipessoal' },
-  { value: 'EIRELI', label: 'EIRELI', description: 'Empresa Individual de Resp. Limitada' },
-  { value: 'LTDA',   label: 'LTDA',   description: 'Sociedade Limitada' },
-  { value: 'SA',     label: 'SA',     description: 'Sociedade Anônima' },
-];
-
-function CategoryPreview({ enquadramento }: { enquadramento: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const cats = PREVIEW_CATEGORIAS[enquadramento];
-  if (!cats) return null;
-
-  const totalSubs = cats.reduce((s, c) => s + c.total, 0);
-  const shown = expanded ? cats : cats.slice(0, 4);
-
-  return (
-    <div style={{
-      borderRadius: 10, border: `1px solid ${C.successBorder}`, background: C.successBg,
-      padding: '9px 11px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: C.success }}>
-          {cats.length} categorias serão criadas automaticamente
-        </p>
-        <span style={{
-          flex: 'none', borderRadius: 999, padding: '3px 6px',
-          fontSize: 10, fontWeight: 700, background: '#fff', color: C.success,
-        }}>
-          {totalSubs} subcategorias
-        </span>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, marginTop: 8 }}>
-        {shown.map((c) => (
-          <div key={c.nome} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.success }}>
-            <Tag size={9} style={{ flex: 'none', opacity: 0.7 }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nome}</span>
-            {c.total > 0 && <span style={{ opacity: 0.6 }}>({c.total})</span>}
-          </div>
-        ))}
-      </div>
-      {cats.length > 4 && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4, marginTop: 7,
-            border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
-            fontSize: 11, fontWeight: 600, color: C.success,
-          }}
-        >
-          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          {expanded ? 'Mostrar menos' : `Ver mais ${cats.length - 4} categorias`}
-        </button>
-      )}
-    </div>
-  );
+  return c.tipo === 'empresa' && !c.razao_social?.trim();
 }
 
 // ─── Dialog ──────────────────────────────────────────────────────────────────
+
+/** Na conta pessoal padrão, o formulário entrega também os dados da pessoa (PUT /users/me). */
+type ContaDialogValues =
+  | CompanyAccountSaveValues
+  | (PersonalAccountSaveValues & {
+    novaSenha?: string; meNome?: string; meSobrenome?: string; meEmail?: string;
+    meDocumento?: string; meTelefone?: string; meDataNascimento?: string;
+  });
+
+function initialBalanceOf(conta?: Conta): number | undefined {
+  return conta?.aporte_inicial != null ? Number(conta.aporte_inicial) : undefined;
+}
 
 function ContaDialog({
   open, conta, me, isSaving, error, onClose, onSave, onDelete, onSaveMeFoto,
 }: {
   open: boolean; conta?: Conta;
-  /** So presente ao editar a Conta Padrão — dados pessoais do titular,
-   *  editados no mesmo formulário. */
+  /** Só ao editar a Conta Padrão. Na PF, os dados pessoais do titular; na PJ,
+   *  que é o login, o e-mail e o logo do acesso. Editados no mesmo formulário. */
   me?: UsuarioMe;
   isSaving: boolean; error?: string;
   onClose: () => void;
-  onSave: (v: {
-    tipo: 'pessoal' | 'empresa'; nome: string; documento?: string; razao_social?: string;
-    nome_fantasia?: string; atividade?: string; enquadramento?: string; data_abertura?: string; novaSenha?: string;
-    meNome?: string; meSobrenome?: string; meEmail?: string; meDocumento?: string;
-    meTelefone?: string; meDataNascimento?: string;
-  }) => void;
+  onSave: (v: ContaDialogValues) => void;
   onDelete?: () => void;
   onSaveMeFoto?: (dataUrl: string | null) => void;
 }) {
@@ -408,7 +271,10 @@ function ContaDialog({
   // existe mais — o fluxo correto para "mais uma pessoa" é Novo membro).
   // Editar uma conta PF pré-existente continua possível, herdando o tipo dela.
   const tipo = conta?.tipo ?? 'empresa';
-  const [enquadramento, setEnquadramento] = useState<string>(conta?.enquadramento ?? '');
+  // A PJ padrão do titular é o login: o acesso (e-mail, senha e logo) é o da empresa.
+  const isLoginCompany = tipo === 'empresa' && !!conta?.eh_padrao && !!me;
+  const [enquadramento, setEnquadramento] = useState<Enquadramento | ''>(conta?.enquadramento ?? '');
+  const [saldoInicial, setSaldoInicial] = useState<number | undefined>(() => initialBalanceOf(conta));
   // Documento é controlado para aplicar a máscara a cada tecla. O backend
   // limpa a pontuação ao salvar (accounts.ts), então enviar formatado é seguro.
   const [documento, setDocumento] = useState(() =>
@@ -418,6 +284,8 @@ function ContaDialog({
   // (que so existe em conta PJ). So relevante quando `me` está presente.
   const [meDocumento, setMeDocumento] = useState(() => formatCPF(me?.documento ?? ''));
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  // Erro conferido aqui antes de enviar (CNPJ); o do servidor chega por `error`.
+  const [formError, setFormError] = useState('');
   const confirm = useConfirm();
 
   useEffect(() => {
@@ -434,7 +302,9 @@ function ContaDialog({
   useEffect(() => {
     if (!open) return;
     setEnquadramento(conta?.enquadramento ?? '');
+    setSaldoInicial(initialBalanceOf(conta));
     setDocumento(formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'));
+    setFormError('');
   }, [open, conta]);
 
   const handleDelete = async () => {
@@ -450,24 +320,40 @@ function ContaDialog({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const nomeFantasia = tipo === 'empresa' ? (fd.get('nome_fantasia') as string || '') : '';
-    const razaoSocial = tipo === 'empresa' ? (fd.get('razao_social') as string || '') : '';
     const novaSenha = (fd.get('nova_senha') as string || '').trim();
+
+    if (tipo === 'empresa') {
+      if (!isValidCnpj(documento)) {
+        setFormError('CNPJ inválido');
+        return;
+      }
+      setFormError('');
+      onSave({
+        tipo,
+        documento,
+        razao_social: (fd.get('razao_social') as string || '').trim(),
+        nome_fantasia: (fd.get('nome_fantasia') as string || '').trim() || undefined,
+        enquadramento: enquadramento || undefined,
+        data_abertura: (fd.get('data_abertura') as string) || undefined,
+        aporte_inicial: saldoInicial || null,
+        ...(isLoginCompany ? {
+          email: (fd.get('email') as string || '').trim(),
+          ...(novaSenha ? { nova_senha: novaSenha } : {}),
+        } : {}),
+      });
+      return;
+    }
+
     // Conta pessoal nunca teve (nem pode ter) um nome proprio, diferente do
     // titular: toda conta tipo='pessoal' e sempre a conta padrao dele. O
     // nome exibido em listas/seletor e sempre derivado de Nome+Sobrenome,
-    // igual PJ ja deriva do Nome fantasia — nunca digitado a parte.
+    // igual PJ ja deriva da empresa — nunca digitado a parte.
     const nomePessoal = [fd.get('me_nome') as string, fd.get('me_sobrenome') as string]
       .filter(Boolean).join(' ').trim();
     onSave({
       tipo,
-      nome: tipo === 'empresa' ? (nomeFantasia || razaoSocial || 'Empresa') : nomePessoal,
+      nome: nomePessoal,
       documento: documento.trim() || undefined,
-      razao_social: tipo === 'empresa' ? (razaoSocial || undefined) : undefined,
-      nome_fantasia: tipo === 'empresa' ? (nomeFantasia || undefined) : undefined,
-      atividade: tipo === 'empresa' ? (fd.get('atividade') as string || undefined) : undefined,
-      enquadramento: tipo === 'empresa' && enquadramento ? enquadramento : undefined,
-      data_abertura: tipo === 'empresa' ? ((fd.get('data_abertura') as string) || undefined) : undefined,
       ...(me ? {
         meNome: (fd.get('me_nome') as string || '').trim(),
         meSobrenome: (fd.get('me_sobrenome') as string || '').trim() || undefined,
@@ -480,47 +366,51 @@ function ContaDialog({
     });
   };
 
+  // O avatar é o controle de upload da foto (PF) ou do logo (PJ do login).
+  const photoHeader = (title: string, hint: string, ariaLabel: string, emptyIcon: ReactNode) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => setAvatarDialogOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
+        }}
+        aria-label={ariaLabel}
+        style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
+      >
+        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
+          {me?.foto
+            ? <img src={me.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
+            : emptyIcon}
+        </span>
+        <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
+          <Pencil size={10} />
+        </span>
+      </span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>{title}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>{hint}</span>
+      </div>
+    </div>
+  );
+
+  const shownError = formError || error;
+
   return (
     <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
-        {/* Altura fixa: editar conta PF pré-existente ainda usa o campo CPF,
-            e a criação PJ mostra o preview de categorias — o overflow do
-            container absorve a diferença. Cresce quando a seção de dados
-            pessoais do titular (`me`) está presente. */}
-        <div style={{ flex: 1, minHeight: 0, height: me ? 620 : 340, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Altura fixa: o overflow do container absorve a diferença entre os
+            tipos de conta. Cresce quando há os dados pessoais do titular (PF
+            padrão) ou o bloco "Acesso" (PJ que é o login). */}
+        <div style={{ flex: 1, minHeight: 0, height: tipo === 'pessoal' && me ? 620 : isLoginCompany ? 470 : 340, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {me && (
+          {me && tipo === 'pessoal' && (
             <>
               {/* Meus dados: identidade do titular como pessoa, sempre em
                   cima — a conta em si vem depois. Mesmo formulário, uma
                   submissão só, duas chamadas internas (usuarios + contas). */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setAvatarDialogOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAvatarDialogOpen(true); }
-                  }}
-                  aria-label="Enviar foto de perfil"
-                  style={{ position: 'relative', width: 54, height: 54, flex: 'none', cursor: 'pointer' }}
-                >
-                  <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', overflow: 'hidden', background: C.primarySoft, display: 'grid', placeItems: 'center', color: C.primaryDark }}>
-                    {me.foto
-                      ? <img src={me.foto} alt="" style={{ height: '100%', width: '100%', objectFit: 'cover' }} />
-                      : <User size={22} />}
-                  </span>
-                  <span style={{ position: 'absolute', right: -2, bottom: -2, width: 21, height: 21, borderRadius: '50%', background: C.primary, border: '2px solid #fff', display: 'grid', placeItems: 'center', color: '#fff' }}>
-                    <Pencil size={10} />
-                  </span>
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Meus dados</span>
-                  <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.3, color: C.textMuted }}>
-                    Toque no avatar para enviar sua foto · PNG ou SVG, até 1 MB
-                  </span>
-                </div>
-              </div>
+              {photoHeader('Meus dados', 'Toque no avatar para enviar sua foto · PNG ou SVG, até 1 MB', 'Enviar foto de perfil', <User size={22} />)}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
@@ -564,35 +454,28 @@ function ContaDialog({
                 </div>
               </div>
 
-              <AvatarUploadDialog
-                open={avatarDialogOpen}
-                onClose={() => setAvatarDialogOpen(false)}
-                onConfirm={(dataUrl) => { onSaveMeFoto?.(dataUrl); setAvatarDialogOpen(false); }}
-                isSaving={false}
-              />
-
               <div style={cfgDividerStyle} />
             </>
           )}
 
           {tipo === 'empresa' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <label style={labelStyle}>Razão social</label>
-                <input name="razao_social" defaultValue={conta?.razao_social ?? ''} placeholder="Ex: Empresa ABC Ltda." style={fieldInputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}><span>Nome fantasia</span><span style={{ color: C.danger }}>*</span></label>
-                <input name="nome_fantasia" defaultValue={conta?.nome_fantasia ?? conta?.nome ?? ''} placeholder="Ex: ABC Stores" autoFocus required style={fieldInputStyle} />
-              </div>
-            </div>
-          )}
-
-          {tipo === 'empresa' && (
             <>
+              {/* Bloco da empresa: os mesmos campos na Nova conta, no Editar e
+                  no cadastro pelo site. */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}><span>Razão social</span><span style={{ color: C.danger }}>*</span></label>
+                  <input name="razao_social" defaultValue={conta?.razao_social ?? ''} placeholder="Ex: Empresa ABC Ltda." autoFocus required maxLength={150} style={fieldInputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Nome fantasia</label>
+                  <input name="nome_fantasia" defaultValue={conta?.nome_fantasia ?? ''} placeholder="Ex: ABC Stores" maxLength={150} style={fieldInputStyle} />
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, position: 'relative' }}>
                 <div>
-                  <label style={labelStyle}><span>CNPJ</span>{!conta && <span style={{ color: C.danger }}>*</span>}</label>
+                  <label style={labelStyle}><span>CNPJ</span><span style={{ color: C.danger }}>*</span></label>
                   <input
                     name="documento"
                     value={documento}
@@ -600,16 +483,21 @@ function ContaDialog({
                     placeholder="00.000.000/0000-00"
                     inputMode="numeric"
                     maxLength={18}
-                    required={!conta}
+                    required
                     className={CFG_MONO_CLASS}
                     style={fieldInputStyle}
                   />
+                  {isLoginCompany && (
+                    <p style={{ margin: '4px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+                      Também é o documento de acesso (login).
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label style={labelStyle}>Enquadramento</label>
                   <select
                     value={enquadramento}
-                    onChange={(e) => setEnquadramento(e.target.value)}
+                    onChange={(e) => setEnquadramento(e.target.value as Enquadramento | '')}
                     style={fieldInputStyle}
                   >
                     <option value="">Selecione...</option>
@@ -633,17 +521,52 @@ function ContaDialog({
                 )}
               </div>
 
-              <div>
-                <label style={labelStyle}>Data de abertura</label>
-                <input
-                  name="data_abertura"
-                  type="date"
-                  defaultValue={conta?.data_abertura?.slice(0, 10) ?? ''}
-                  style={fieldInputStyle}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>Data de abertura</label>
+                  <input
+                    name="data_abertura"
+                    type="date"
+                    defaultValue={conta?.data_abertura?.slice(0, 10) ?? ''}
+                    style={fieldInputStyle}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Saldo inicial</label>
+                  <MoneyField value={saldoInicial} onChange={setSaldoInicial} />
+                </div>
               </div>
+            </>
+          )}
 
-              {isNew && enquadramento && <CategoryPreview enquadramento={enquadramento} />}
+          {isLoginCompany && me && (
+            <>
+              <div style={cfgDividerStyle} />
+
+              {/* Acesso: o login da PJ é a própria empresa. Salvo junto com a
+                  empresa, no mesmo pedido; o logo vai na hora, como a foto. */}
+              {photoHeader('Acesso', 'Toque no logo para enviar · PNG ou SVG, até 1 MB', 'Enviar logo da empresa', <Briefcase size={22} />)}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={labelStyle}><span>E-mail</span><span style={{ color: C.danger }}>*</span></label>
+                  <input name="email" type="email" defaultValue={me.email} placeholder="contato@empresa.com" required style={fieldInputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Nova senha</label>
+                  <input
+                    name="nova_senha"
+                    type="password"
+                    placeholder="••••••••"
+                    minLength={8}
+                    autoComplete="new-password"
+                    style={fieldInputStyle}
+                  />
+                </div>
+              </div>
+              <p style={{ margin: '-6px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+                Deixe a senha em branco para manter a atual. Mínimo 8 caracteres.
+              </p>
             </>
           )}
 
@@ -666,7 +589,7 @@ function ContaDialog({
           {/* Senha do usuário logado (não da conta) — só ao editar, nunca ao
               criar uma conta nova. Campo único: preenchido vira a nova senha,
               vazio não muda nada. */}
-          {conta && (
+          {conta && tipo === 'pessoal' && (
             <div>
               <label style={labelStyle}>Nova senha</label>
               <input
@@ -683,9 +606,18 @@ function ContaDialog({
             </div>
           )}
 
-          {error && (
+          {me && (
+            <AvatarUploadDialog
+              open={avatarDialogOpen}
+              onClose={() => setAvatarDialogOpen(false)}
+              onConfirm={(dataUrl) => { onSaveMeFoto?.(dataUrl); setAvatarDialogOpen(false); }}
+              isSaving={false}
+            />
+          )}
+
+          {shownError && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
-              {error}
+              {shownError}
             </div>
           )}
         </div>
@@ -712,9 +644,10 @@ function ContaDialog({
 // ─── Editar usuário (a si mesmo, ou — se gestor — outro membro) ───────────────
 
 function EditarUsuarioDialog({
-  open, membro, isSelf, isSaving, error, onClose, onSave, onSaveFoto,
+  open, membro, isSelf, accountType, isSaving, error, onClose, onSave, onSaveFoto,
 }: {
   open: boolean; membro?: MembroListItem; isSelf: boolean;
+  accountType: Conta['tipo'];
   isSaving: boolean; error?: string;
   onClose: () => void;
   onSave: (input: {
@@ -733,6 +666,10 @@ function EditarUsuarioDialog({
     setDocumento(formatCPF(membro?.documento ?? ''));
   }, [open, membro]);
 
+  // Telefone e nascimento são do membro da família; o colaborador da empresa
+  // não tem esses campos.
+  const showPersonalContact = accountType === 'pessoal';
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -742,11 +679,31 @@ function EditarUsuarioDialog({
       sobrenome: (fd.get('sobrenome') as string) || undefined,
       email: (fd.get('email') as string) || undefined,
       documento: documento.trim() || undefined,
-      telefone: (fd.get('telefone') as string) || undefined,
-      data_nascimento: (fd.get('data_nascimento') as string) || undefined,
+      // Sem os campos na tela, reenvia o que já estava gravado: o PUT
+      // /users/me (editar a si mesmo) grava o perfil inteiro e apagaria.
+      telefone: showPersonalContact
+        ? (fd.get('telefone') as string) || undefined
+        : membro?.telefone ?? undefined,
+      data_nascimento: showPersonalContact
+        ? (fd.get('data_nascimento') as string) || undefined
+        : membro?.data_nascimento?.slice(0, 10) ?? undefined,
       ...(novaSenha ? { novaSenha } : {}),
     });
   };
+
+  const emailField = (
+    <div>
+      <label style={labelStyle}>E-mail</label>
+      <input
+        key={`email-${membro?.usuario_id}`}
+        name="email"
+        type="email"
+        defaultValue={membro?.email ?? ''}
+        placeholder="contato@email.com"
+        style={fieldInputStyle}
+      />
+    </div>
+  );
 
   return (
     <Dialog open={open} title={isSelf ? 'Meus dados' : `Editar ${membro?.nome ?? ''}`} onClose={onClose} size="card" scrollBody={false}>
@@ -827,42 +784,36 @@ function EditarUsuarioDialog({
                 style={fieldInputStyle}
               />
             </div>
-            <div>
-              <label style={labelStyle}>Data de nascimento</label>
-              <input
-                key={`nasc-${membro?.usuario_id}`}
-                name="data_nascimento"
-                type="date"
-                defaultValue={membro?.data_nascimento?.slice(0, 10) ?? ''}
-                style={fieldInputStyle}
-              />
-            </div>
+            {showPersonalContact ? (
+              <div>
+                <label style={labelStyle}>Data de nascimento</label>
+                <input
+                  key={`nasc-${membro?.usuario_id}`}
+                  name="data_nascimento"
+                  type="date"
+                  defaultValue={membro?.data_nascimento?.slice(0, 10) ?? ''}
+                  style={fieldInputStyle}
+                />
+              </div>
+            ) : emailField}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={labelStyle}>Telefone</label>
-              <input
-                key={`tel-${membro?.usuario_id}`}
-                name="telefone"
-                defaultValue={membro?.telefone ?? ''}
-                placeholder="(00) 00000-0000"
-                maxLength={20}
-                style={fieldInputStyle}
-              />
+          {showPersonalContact && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={labelStyle}>Telefone</label>
+                <input
+                  key={`tel-${membro?.usuario_id}`}
+                  name="telefone"
+                  defaultValue={membro?.telefone ?? ''}
+                  placeholder="(00) 00000-0000"
+                  maxLength={20}
+                  style={fieldInputStyle}
+                />
+              </div>
+              {emailField}
             </div>
-            <div>
-              <label style={labelStyle}>E-mail</label>
-              <input
-                key={`email-${membro?.usuario_id}`}
-                name="email"
-                type="email"
-                defaultValue={membro?.email ?? ''}
-                placeholder="contato@email.com"
-                style={fieldInputStyle}
-              />
-            </div>
-          </div>
+          )}
 
           <div>
             <label style={labelStyle}>Nova senha</label>
@@ -1094,6 +1045,7 @@ function MembrosDaConta({
           isSaving={createMut.isPending}
           error={mutError}
           termo={termo}
+          accountType={conta.tipo}
           onClose={() => setNovoDialogOpen(false)}
           onSave={(body) => createMut.mutate(body)}
         />
@@ -1103,6 +1055,7 @@ function MembrosDaConta({
         open={!!editandoMembro}
         membro={editandoMembro ?? eu}
         isSelf={editandoSouEu}
+        accountType={conta.tipo}
         isSaving={editarUsuarioMut.isPending}
         error={mutError}
         onClose={() => setEditandoMembro(null)}
@@ -1166,8 +1119,16 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
   const listaExibida = mostrarDesativados ? data.filter((c) => !c.ativo) : data.filter((c) => c.ativo);
 
   const saveMut = useMutation({
-    mutationFn: ({ v, id }: { v: Parameters<typeof saveConta>[0]; id?: number }) => saveConta(v, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.contas }); setDialog({ open: false }); },
+    mutationFn: ({ v, id }: { v: ContaSaveValues; id?: number; isLoginCompany?: boolean }) => saveConta(v, id),
+    onSuccess: (_conta, { isLoginCompany }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.contas });
+      // Na PJ que é o login, o mesmo pedido mudou nome, CNPJ, e-mail e senha do acesso.
+      if (isLoginCompany) {
+        qc.invalidateQueries({ queryKey: queryKeys.session });
+        qc.invalidateQueries({ queryKey: ['usuario-me'] });
+      }
+      setDialog({ open: false });
+    },
     onError: (e) => setMutError(e.message),
   });
 
@@ -1185,8 +1146,8 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
   // Dados pessoais do titular (nome/sobrenome/CPF/nascimento/telefone/email/
   // senha) vivem em `usuarios`, nao em `contas` — vao por uma chamada
   // separada (updateMe), fora do payload de saveConta. So dispara quando a
-  // conta editada e a Conta Padrao (a que nasceu no cadastro do proprio
-  // titular); editar uma conta PJ adicional nunca toca os dados da pessoa.
+  // conta editada e a Conta Padrao PF (a que nasceu no cadastro do proprio
+  // titular). Na PJ padrao, o acesso vai no mesmo pedido da conta.
   const meMut = useMutation({
     mutationFn: (input: Parameters<typeof updateMe>[0]) => updateMe(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['usuario-me'] }),
@@ -1199,13 +1160,12 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
     onError: (e: Error) => setMutError(e.message),
   });
 
-  const handleSave = (
-    { novaSenha, meNome, meSobrenome, meEmail, meDocumento, meTelefone, meDataNascimento, ...v }:
-      Parameters<typeof saveConta>[0] & {
-        novaSenha?: string; meNome?: string; meSobrenome?: string; meEmail?: string;
-        meDocumento?: string; meTelefone?: string; meDataNascimento?: string;
-      },
-  ) => {
+  const handleSave = (values: ContaDialogValues) => {
+    if (values.tipo === 'empresa') {
+      saveMut.mutate({ v: values, id: dialog.item?.id, isLoginCompany: !!dialog.item?.eh_padrao });
+      return;
+    }
+    const { novaSenha, meNome, meSobrenome, meEmail, meDocumento, meTelefone, meDataNascimento, ...v } = values;
     saveMut.mutate({ v, id: dialog.item?.id });
     if (meNome) {
       meMut.mutate({

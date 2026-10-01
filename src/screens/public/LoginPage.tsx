@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import {
-  login, register, forgotPassword, verifyRecoveryCode, resetPassword,
+  login, register, registerCompany, forgotPassword, verifyRecoveryCode, resetPassword,
   googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
 } from '../../services/authService';
 import { consumeAuthOrigin } from '../../services/session';
+import type { Enquadramento } from '../../types/config';
 import { Button } from '../../ui/button';
-import { Field, Input, PasswordInput, ToggleGroup } from '../../ui/form';
+import { Field, Input, PasswordInput, Select, ToggleGroup } from '../../ui/form';
 import { TermosModal } from './TermosModal';
+import { ENQUADRAMENTO_OPTIONS, isValidCnpj, parseInitialBalance } from '../../utils/companyAccount';
 import { formatDocumento } from '../../utils/document';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
@@ -122,20 +124,32 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!termosAceitos) { setError('Você precisa aceitar os Termos de Uso e a Política de Privacidade para criar uma conta.'); return; }
-    setError(''); setLoading(true);
     const fd = new FormData(e.currentTarget);
+    const documento = fd.get('documento') as string;
+    if (isRegisterCnpj && !isValidCnpj(documento)) { setError('CNPJ inválido'); return; }
+    setError(''); setLoading(true);
     try {
-      const { token, usuario } = await register({
-        nome: fd.get('nome') as string,
-        sobrenome: (fd.get('sobrenome') as string) || undefined,
-        documento: fd.get('documento') as string,
-        email: fd.get('email') as string,
-        senha: fd.get('senha') as string,
-        nomeFantasia: (fd.get('nome_fantasia') as string) || undefined,
-        telefone: (fd.get('telefone') as string) || undefined,
-        dataNascimento: (fd.get('data_nascimento') as string) || undefined,
-        dataAbertura: (fd.get('data_abertura') as string) || undefined,
-      });
+      // Com CNPJ, o login é a própria empresa: só os dados dela, e-mail e senha.
+      const { token, usuario } = isRegisterCnpj
+        ? await registerCompany({
+          documento,
+          razaoSocial: (fd.get('razao_social') as string).trim(),
+          nomeFantasia: (fd.get('nome_fantasia') as string).trim() || undefined,
+          enquadramento: (fd.get('enquadramento') as Enquadramento | '') || undefined,
+          dataAbertura: (fd.get('data_abertura') as string) || undefined,
+          aporteInicial: parseInitialBalance(fd.get('aporte_inicial') as string),
+          email: fd.get('email') as string,
+          senha: fd.get('senha') as string,
+        })
+        : await register({
+          nome: fd.get('nome') as string,
+          sobrenome: (fd.get('sobrenome') as string) || undefined,
+          documento,
+          email: fd.get('email') as string,
+          senha: fd.get('senha') as string,
+          telefone: (fd.get('telefone') as string) || undefined,
+          dataNascimento: (fd.get('data_nascimento') as string) || undefined,
+        });
       saveSession(token, usuario);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar');
@@ -188,6 +202,20 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
   };
 
   const backToLogin = () => { setMode('login'); setError(''); setSuccess(''); };
+
+  const documentoField = (
+    <Field label={isRegisterCnpj ? 'CNPJ' : 'CPF'}>
+      <Input
+        name="documento"
+        required
+        inputMode="numeric"
+        maxLength={18}
+        value={registerDocumento}
+        onChange={(e) => setRegisterDocumento(formatDocumento(e.target.value, registerTipo))}
+      />
+    </Field>
+  );
+
   const textButtonClass = tone === 'light' ? 'site-neon-light-text-button' : 'site-neon-text-button';
   const submitButtonClass = tone === 'light' ? 'site-neon-light-button' : 'site-neon-button';
 
@@ -262,40 +290,49 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
                 { value: 'empresa', label: 'Pessoa Jurídica' },
               ]}
             />
-            <Field label="Nome"><Input name="nome" required /></Field>
-            {!isRegisterCnpj && (
-              <Field label="Sobrenome"><Input name="sobrenome" /></Field>
+            {/* Chave por tipo: ao trocar PF/PJ, um campo do outro tipo que caia
+                na mesma posição não herda o que foi digitado. */}
+            {isRegisterCnpj ? (
+              <Fragment key="empresa">
+                <Field label="Razão social">
+                  <Input name="razao_social" required maxLength={150} placeholder="Ex: Empresa ABC Ltda." />
+                </Field>
+                <Field label="Nome fantasia">
+                  <Input name="nome_fantasia" maxLength={150} placeholder="Ex: ABC Stores" />
+                </Field>
+                {documentoField}
+                <Field label="Enquadramento">
+                  <Select name="enquadramento" defaultValue="">
+                    <option value="">Selecione...</option>
+                    {ENQUADRAMENTO_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="Data de abertura da empresa">
+                  <Input name="data_abertura" type="date" />
+                </Field>
+                <Field label="Saldo inicial" hint="Dinheiro que a empresa já tem hoje. Opcional.">
+                  <Input name="aporte_inicial" inputMode="decimal" placeholder="R$ 0,00" />
+                </Field>
+              </Fragment>
+            ) : (
+              <Fragment key="pessoal">
+                <Field label="Nome"><Input name="nome" required /></Field>
+                <Field label="Sobrenome"><Input name="sobrenome" /></Field>
+                {documentoField}
+                <Field label="Data de nascimento">
+                  <Input name="data_nascimento" type="date" />
+                </Field>
+                <Field label="Telefone">
+                  <Input name="telefone" placeholder="(00) 00000-0000" />
+                </Field>
+              </Fragment>
             )}
-            <Field label={isRegisterCnpj ? 'CNPJ' : 'CPF'}>
-              <Input
-                name="documento"
-                required
-                inputMode="numeric"
-                maxLength={18}
-                value={registerDocumento}
-                onChange={(e) => setRegisterDocumento(formatDocumento(e.target.value, registerTipo))}
-              />
-            </Field>
-            {isRegisterCnpj && (
-              <Field label="Nome fantasia da empresa">
-                <Input name="nome_fantasia" required placeholder="Ex: ABC Stores" />
-              </Field>
-            )}
-            {isRegisterCnpj && (
-              <Field label="Data de abertura da empresa">
-                <Input name="data_abertura" type="date" />
-              </Field>
-            )}
-            {!isRegisterCnpj && (
-              <Field label="Data de nascimento">
-                <Input name="data_nascimento" type="date" />
-              </Field>
-            )}
-            <Field label="Telefone">
-              <Input name="telefone" placeholder="(00) 00000-0000" />
-            </Field>
             <Field label="Email"><Input name="email" type="email" required /></Field>
-            <Field label="Senha"><PasswordInput name="senha" required /></Field>
+            <Field label="Senha">
+              <PasswordInput name="senha" required minLength={isRegisterCnpj ? 8 : undefined} />
+            </Field>
 
             <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-[rgba(14,196,216,0.15)] dark:bg-[rgba(14,196,216,0.04)]">
               <input

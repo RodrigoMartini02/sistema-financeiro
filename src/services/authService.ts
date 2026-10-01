@@ -1,5 +1,6 @@
 ﻿import { apiRequest } from './apiClient';
 import type { AuthUser } from '../types/auth';
+import type { Enquadramento } from '../types/config';
 
 interface LoginPayload {
   token: string;
@@ -28,12 +29,11 @@ export interface RegisterInput {
   documento: string;
   email: string;
   senha: string;
-  nomeFantasia?: string;
   telefone?: string;
   dataNascimento?: string;
-  dataAbertura?: string;
 }
 
+/** Cadastro com CPF: a pessoa é o login. */
 export async function register(input: RegisterInput): Promise<LoginPayload> {
   return apiRequest<LoginPayload>('/auth/register', {
     method: 'POST',
@@ -43,10 +43,36 @@ export async function register(input: RegisterInput): Promise<LoginPayload> {
       documento: input.documento,
       email: input.email,
       senha: input.senha,
-      nome_fantasia: input.nomeFantasia || undefined,
       telefone: input.telefone || undefined,
       data_nascimento: input.dataNascimento || undefined,
+    }),
+  });
+}
+
+export interface RegisterCompanyInput {
+  documento: string;
+  razaoSocial: string;
+  nomeFantasia?: string;
+  enquadramento?: Enquadramento;
+  dataAbertura?: string;
+  aporteInicial: number | null;
+  email: string;
+  senha: string;
+}
+
+/** Cadastro com CNPJ: o login é a própria empresa (CNPJ, e-mail e senha), sem dados de pessoa. */
+export async function registerCompany(input: RegisterCompanyInput): Promise<LoginPayload> {
+  return apiRequest<LoginPayload>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      documento: input.documento,
+      razao_social: input.razaoSocial,
+      nome_fantasia: input.nomeFantasia || undefined,
+      enquadramento: input.enquadramento || undefined,
       data_abertura: input.dataAbertura || undefined,
+      aporte_inicial: input.aporteInicial,
+      email: input.email,
+      senha: input.senha,
     }),
   });
 }

@@ -1,12 +1,65 @@
 import { Router, Request, Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import { eq, and, ne } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { accounts } from '../db/schema';
+import { accounts, users } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { companyAccountColumns, readCompanyAccountInput, readLoginAccessInput } from '../services/companyAccountInput';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
+import { RequestInputError, sendRequestError } from '../utils/requestInput';
 
 const router = Router();
+
+type QueryExecutor = Pick<typeof db, 'select'>;
+
+/** CNPJ não repete entre as contas do mesmo titular (entre titulares diferentes, pode). */
+async function assertCnpjFreeForOwner(
+  executor: QueryExecutor,
+  ownerId: number,
+  cnpj: string,
+  exceptAccountId: number | null,
+): Promise<void> {
+  const conditions = [eq(accounts.userId, ownerId), eq(accounts.document, cnpj)];
+  if (exceptAccountId !== null) {
+    conditions.push(ne(accounts.id, exceptAccountId));
+  }
+
+  const [duplicate] = await executor.select({ id: accounts.id }).from(accounts).where(and(...conditions)).limit(1);
+  if (duplicate) {
+    throw new RequestInputError('Este CNPJ já está em outra conta sua');
+  }
+}
+
+/** CNPJ e e-mail do login da PJ não podem ser o acesso de outro usuário. */
+async function assertLoginIdentityFree(
+  executor: QueryExecutor,
+  userId: number,
+  cnpj: string,
+  email: string | undefined,
+): Promise<void> {
+  const [documentInUse] = await executor
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.document, cnpj), ne(users.id, userId)))
+    .limit(1);
+  if (documentInUse) {
+    throw new RequestInputError('Este CNPJ já é o acesso de outro usuário');
+  }
+
+  if (email === undefined) {
+    return;
+  }
+
+  const [emailInUse] = await executor
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.email, email), ne(users.id, userId)))
+    .limit(1);
+  if (emailInUse) {
+    throw new RequestInputError('E-mail já em uso');
+  }
+}
 
 // GET /api/contas
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
@@ -24,7 +77,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     if (membership.rows.length > 0) {
       const contaId = (membership.rows[0] as { conta_id: number }).conta_id;
       const result = await pool.query(
-        `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
+        `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, aporte_inicial, enquadramento,
                 data_abertura, ativo, eh_padrao, data_criacao
          FROM contas WHERE id = $1`,
         [contaId],
@@ -34,7 +87,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     }
 
     const result = await pool.query(
-      `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento,
+      `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, aporte_inicial, enquadramento,
               data_abertura, ativo, eh_padrao, data_criacao
        FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY data_criacao, id`,
       [req.user!.id],
@@ -51,33 +104,15 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // fluxo "Novo membro" (account-members), não de uma segunda conta própria.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, data_abertura } =
-      req.body as Record<string, string | undefined>;
-
-    if (!nome?.trim()) {
-      res.status(400).json({ success: false, message: 'Name is required' });
-      return;
-    }
-
-    const cleanCnpj = (documento ?? '').replace(/\D/g, '');
-    if (cleanCnpj.length !== 14) {
-      res.status(400).json({ success: false, message: 'Invalid CNPJ. Provide 14 digits.' });
-      return;
-    }
+    const company = readCompanyAccountInput(req.body);
+    await assertCnpjFreeForOwner(db, req.user!.id, company.document, null);
 
     const [created] = await db
       .insert(accounts)
       .values({
         userId: req.user!.id,
         type: 'empresa',
-        name: nome.trim(),
-        document: cleanCnpj,
-        legalName: razao_social ?? null,
-        tradeName: nome_fantasia ?? null,
-        activity: atividade ?? null,
-        initialContribution: aporte_inicial ?? null,
-        enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
-        openingDate: data_abertura ?? null,
+        ...companyAccountColumns(company),
         active: true,
       })
       .returning();
@@ -87,8 +122,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
     res.status(201).json({ success: true, message: 'Company created successfully', data: created });
   } catch (error) {
-    console.error('Create account error:', error);
-    res.status(500).json({ success: false, message: 'Failed to create account' });
+    sendRequestError(res, error, 'Create account error:', req.user?.id, 'Failed to create account');
   }
 });
 
@@ -96,18 +130,12 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const accountId = parseInt(req.params['id']!);
-    const { nome, documento, razao_social, nome_fantasia, atividade, aporte_inicial, enquadramento, data_abertura } =
-      req.body as Record<string, string | undefined>;
-
-    if (!nome?.trim()) {
-      res.status(400).json({ success: false, message: 'Name is required' });
-      return;
-    }
+    const userId = req.user!.id;
 
     const [account] = await db
-      .select({ id: accounts.id, type: accounts.type })
+      .select({ id: accounts.id, type: accounts.type, isDefault: accounts.isDefault })
       .from(accounts)
-      .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
+      .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
       .limit(1);
 
     if (!account) {
@@ -116,28 +144,50 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     if (account.type === 'empresa') {
-      const cleanCnpj = (documento ?? '').replace(/\D/g, '');
-      if (cleanCnpj.length !== 14) {
-        res.status(400).json({ success: false, message: 'Invalid CNPJ. Provide 14 digits.' });
-        return;
-      }
+      const company = readCompanyAccountInput(req.body);
+      // A conta padrão PJ do próprio titular é o login: nome, CNPJ, e-mail e
+      // senha do acesso acompanham a empresa e são salvos no mesmo pedido.
+      const loginAccess = account.isDefault ? readLoginAccessInput(req.body) : null;
+      const newPasswordHash = loginAccess?.newPassword ? await bcrypt.hash(loginAccess.newPassword, 10) : null;
 
-      const [updated] = await db
-        .update(accounts)
-        .set({
-          name: nome.trim(),
-          document: cleanCnpj,
-          legalName: razao_social ?? null,
-          tradeName: nome_fantasia ?? null,
-          activity: atividade ?? null,
-          initialContribution: aporte_inicial ?? null,
-          enquadramento: (enquadramento ?? null) as 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA' | null,
-          openingDate: data_abertura ?? null,
-        })
-        .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
-        .returning();
+      // Conta e login juntos ou nada: um erro em qualquer passo desfaz tudo.
+      const updated = await db.transaction(async (transaction) => {
+        await assertCnpjFreeForOwner(transaction, userId, company.document, account.id);
+        if (loginAccess) {
+          await assertLoginIdentityFree(transaction, userId, company.document, loginAccess.email);
+        }
+
+        const [updatedAccount] = await transaction
+          .update(accounts)
+          .set(companyAccountColumns(company))
+          .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+          .returning();
+
+        if (loginAccess) {
+          await transaction
+            .update(users)
+            .set({
+              name: company.displayName,
+              lastName: null,
+              document: company.document,
+              ...(loginAccess.email ? { email: loginAccess.email } : {}),
+              ...(newPasswordHash ? { password: newPasswordHash } : {}),
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, userId));
+        }
+
+        return updatedAccount;
+      });
 
       res.json({ success: true, message: 'Company updated successfully', data: updated });
+      return;
+    }
+
+    const { nome, documento } = req.body as Record<string, string | undefined>;
+
+    if (!nome?.trim()) {
+      res.status(400).json({ success: false, message: 'Name is required' });
       return;
     }
 
@@ -147,13 +197,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         name: nome.trim(),
         document: documento ? documento.replace(/\D/g, '') : null,
       })
-      .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
+      .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
       .returning();
 
     res.json({ success: true, message: 'Account updated successfully', data: updated });
   } catch (error) {
-    console.error('Update account error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update account' });
+    sendRequestError(res, error, 'Update account error:', req.user?.id, 'Failed to update account');
   }
 });
 

@@ -5,7 +5,7 @@ import { body } from 'express-validator';
 import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireTitular } from '../middleware/auth';
-import { validate, validateDocument } from '../middleware/validation';
+import { isValidCpf, validate, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
 import { validarPeriodo } from '../services/painelCalculos';
 
@@ -47,6 +47,19 @@ async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string 
     .where(and(eq(accounts.id, contaId), eq(accounts.userId, gestorId)))
     .limit(1);
   return account?.id ?? null;
+}
+
+/**
+ * Documento do membro, quando informado. O colaborador de empresa é pessoa:
+ * só CPF. O membro de conta pessoal aceita CPF ou CNPJ, como sempre.
+ * Devolve a mensagem de erro quando o documento não vale.
+ */
+async function checkMemberDocument(accountId: number, cleanDoc: string): Promise<string | null> {
+  const [account] = await db.select({ type: accounts.type }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
+  if (account?.type === 'empresa') {
+    return isValidCpf(cleanDoc) ? null : 'Informe um CPF válido';
+  }
+  return validateDocument(cleanDoc) ? null : 'Invalid CPF/CNPJ';
 }
 
 // GET /api/account-members — lista os membros vinculados à conta.
@@ -120,7 +133,7 @@ router.post(
   [
     body('nome').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Invalid email'),
-    body('senha').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+    body('senha').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
@@ -144,8 +157,9 @@ router.post(
       let cleanDoc: string | null = null;
       if (documento?.trim()) {
         cleanDoc = documento.replace(/[^\d]+/g, '');
-        if (!validateDocument(cleanDoc)) {
-          res.status(400).json({ success: false, message: 'Invalid CPF/CNPJ' });
+        const documentError = await checkMemberDocument(accountId, cleanDoc);
+        if (documentError) {
+          res.status(400).json({ success: false, message: documentError });
           return;
         }
         const [docExists] = await db.select({ id: users.id }).from(users).where(eq(users.document, cleanDoc)).limit(1);
@@ -460,8 +474,9 @@ router.put(
       if (documento) {
         const cleanDoc = documento.replace(/[^\d]+/g, '');
 
-        if (!validateDocument(cleanDoc)) {
-          res.status(400).json({ success: false, message: 'Invalid CPF/CNPJ' });
+        const documentError = await checkMemberDocument(accountId, cleanDoc);
+        if (documentError) {
+          res.status(400).json({ success: false, message: documentError });
           return;
         }
 

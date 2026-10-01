@@ -1,0 +1,11 @@
+-- 0056: sai a coluna contas.atividade. A conta PJ passou a ter os mesmos campos
+-- da empresa no cadastro pelo site, na Nova conta e no Editar conta, e o campo
+-- "atividade" saiu das telas, do servidor e do schema.
+--
+-- ORDEM: aplicar só DEPOIS do deploy do código que já não usa a coluna. O
+-- código anterior seleciona e grava `atividade` e quebraria se ela sumisse
+-- antes. Idempotente.
+--
+-- ATENCAO: nao executar sem confirmacao explicita do usuario. O ambiente
+-- pode estar apontando para producao.
+ALTER TABLE contas DROP COLUMN IF EXISTS atividade;
