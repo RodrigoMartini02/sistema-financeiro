@@ -1,5 +1,5 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
-import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta } from '../types/config';
+import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta, Enquadramento } from '../types/config';
 
 export async function fetchCategorias(accountId?: number | null): Promise<Categoria[]> {
   const id = accountId ?? getActiveAccountId();
@@ -57,11 +57,31 @@ export async function fetchContas(incluirInativos = false): Promise<Conta[]> {
   return Array.isArray(r) ? r : (r as any).data ?? [];
 }
 
-export async function saveConta(values: {
-  tipo: 'pessoal' | 'empresa'; nome: string; documento?: string;
-  razao_social?: string; nome_fantasia?: string; atividade?: string;
-  enquadramento?: string; data_abertura?: string;
-}, id?: number): Promise<Conta> {
+/** Conta pessoal: nome e CPF, como sempre. */
+export interface PersonalAccountSaveValues {
+  tipo: 'pessoal';
+  nome: string;
+  documento?: string;
+}
+
+/** Conta PJ: o bloco da empresa. O nome da conta é calculado no servidor. */
+export interface CompanyAccountSaveValues {
+  tipo: 'empresa';
+  documento: string;
+  razao_social: string;
+  nome_fantasia?: string;
+  enquadramento?: Enquadramento;
+  data_abertura?: string;
+  /** null limpa o saldo inicial. */
+  aporte_inicial: number | null;
+  /** Só na PJ que é o login: o acesso vai junto, no mesmo pedido. */
+  email?: string;
+  nova_senha?: string;
+}
+
+export type ContaSaveValues = PersonalAccountSaveValues | CompanyAccountSaveValues;
+
+export async function saveConta(values: ContaSaveValues, id?: number): Promise<Conta> {
   const r = await apiRequest<{ success: boolean; data: Conta }>(
     id ? `/contas/${id}` : '/contas',
     { method: id ? 'PUT' : 'POST', body: JSON.stringify(values) }

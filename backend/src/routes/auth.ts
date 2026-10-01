@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { body } from 'express-validator';
+import { body, type CustomValidator } from 'express-validator';
 import { eq, or } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, accounts } from '../db/schema';
@@ -11,9 +11,23 @@ import { recordAnalyticsEvent } from '../services/analytics';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { ensureUserHasAccount } from '../services/accountBackfill';
+import { companyAccountColumns, readCompanyAccountInput } from '../services/companyAccountInput';
 import { resolveMemberRole } from '../utils/familyVisibility';
+import { sendRequestError } from '../utils/requestInput';
 
 const router = Router();
+
+const CNPJ_LENGTH = 14;
+
+function documentDigits(value: unknown): string {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+// Cadastro com CNPJ é a própria empresa: o documento e os dados dela são lidos
+// por readCompanyAccountInput, com as mensagens dele. Nome e documento de
+// pessoa só passam pelas validações abaixo no cadastro com CPF.
+const isPersonRegistration: CustomValidator = (_value, { req }) =>
+  documentDigits(req.body?.documento).length !== CNPJ_LENGTH;
 
 function getJwtSecret(): string {
   return process.env['JWT_SECRET']!;
@@ -142,9 +156,10 @@ router.post(
 router.post(
   '/register',
   [
-    body('nome').notEmpty().withMessage('Name is required'),
+    body('nome').if(isPersonRegistration).notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Invalid email'),
     body('documento')
+      .if(isPersonRegistration)
       .notEmpty()
       .withMessage('Document is required')
       .custom(validateDocument)
@@ -156,16 +171,15 @@ router.post(
     try {
       const {
         nome, sobrenome, email, documento, senha, tipo, google_id, pais, estado, cidade,
-        nome_fantasia, telefone, data_nascimento, data_abertura,
+        telefone, data_nascimento,
       } = req.body as Record<string, string | undefined>;
 
-      const cleanDoc = documento!.replace(/[^\d]+/g, '');
-      const isCnpj = cleanDoc.length === 14;
-
-      if (isCnpj && !nome_fantasia?.trim()) {
-        res.status(400).json({ success: false, message: 'Trade name is required for CNPJ registration' });
-        return;
-      }
+      const company = documentDigits(documento).length === CNPJ_LENGTH ? readCompanyAccountInput(req.body) : null;
+      const cleanDoc = company ? company.document : documentDigits(documento);
+      // O login PJ é a própria empresa: leva o nome dela e nenhum dado de pessoa.
+      const identity = company
+        ? { name: company.displayName, lastName: null, telefone: null, dataNascimento: null }
+        : { name: nome!, lastName: sobrenome?.trim() || null, telefone: telefone ?? null, dataNascimento: data_nascimento ?? null };
 
       const existing = await db
         .select({ id: users.id })
@@ -187,8 +201,7 @@ router.post(
         const [createdUser] = await transaction
           .insert(users)
           .values({
-            name: nome!,
-            lastName: sobrenome?.trim() || null,
+            ...identity,
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
@@ -198,8 +211,6 @@ router.post(
             country: pais ?? null,
             state: estado ?? null,
             city: cidade ?? null,
-            telefone: telefone ?? null,
-            dataNascimento: data_nascimento ?? null,
           })
           .returning({ id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document, type: users.type, status: users.status });
 
@@ -207,16 +218,13 @@ router.post(
         // registering with a CNPJ, 'pessoal' (CPF) otherwise. Esta é sempre a
         // Conta Padrão do usuário (nasceu no cadastro externo, vinculada à
         // cobrança do plano em `usuarios`).
-        if (isCnpj) {
+        if (company) {
           await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
           await ensureDefaultIncomeClassifications(createdUser!.id, 'empresa', transaction);
           await transaction.insert(accounts).values({
             userId: createdUser!.id,
             type: 'empresa',
-            name: nome_fantasia!.trim(),
-            document: cleanDoc,
-            tradeName: nome_fantasia!.trim(),
-            openingDate: data_abertura ?? null,
+            ...companyAccountColumns(company),
             active: true,
             isDefault: true,
           });
@@ -261,8 +269,7 @@ router.post(
         },
       });
     } catch (error) {
-      console.error('Registration error:', error);
-      res.status(500).json({ success: false, message: 'Failed to register user' });
+      sendRequestError(res, error, 'Registration error:', undefined, 'Failed to register user');
     }
   },
 );

@@ -4,6 +4,7 @@ import type { AuthUser } from '../types/auth';
 import type { Conta } from '../types/config';
 import { logout } from '../services/session';
 import { useActiveAccount } from '../hooks/useActiveAccount';
+import { companyDisplayName } from '../utils/companyAccount';
 import { formatDocumento } from '../utils/document';
 import { Z_DROPDOWN } from '../ui/zIndex';
 import type { ConfigItemId } from './ConfigPanel';
@@ -53,7 +54,14 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
     if (activeIndex >= 0) itemRefs.current[activeIndex]?.focus();
   }, [activeIndex]);
 
-  const userFullName = [user?.nome, user?.sobrenome].filter(Boolean).join(' ').trim() || 'Usuário';
+  // Titular cuja conta padrão é PJ: o login é a própria empresa, então o topo
+  // mostra o nome dela. Membro e colaborador continuam com o próprio nome (a
+  // conta que eles veem é a do titular).
+  const isOwner = user?.tipo === 'titular' || user?.tipo === 'admin';
+  const loginCompany = isOwner ? data.find((c) => c.eh_padrao && c.tipo === 'empresa') : undefined;
+  const userFullName = (loginCompany && (companyDisplayName(loginCompany) || loginCompany.nome))
+    || [user?.nome, user?.sobrenome].filter(Boolean).join(' ').trim()
+    || 'Usuário';
 
   if (isDemoMode) {
     return (

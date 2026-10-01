@@ -21,6 +21,18 @@ export function validateDocument(document: string): boolean {
   return false;
 }
 
+/** Só CPF (11 dígitos, com dígito verificador); a pontuação é ignorada. */
+export function isValidCpf(document: string): boolean {
+  const doc = document.replace(/[^\d]+/g, '');
+  return doc.length === 11 && validateCpf(doc);
+}
+
+/** Só CNPJ (14 dígitos, com dígito verificador); a pontuação é ignorada. */
+export function isValidCnpj(document: string): boolean {
+  const doc = document.replace(/[^\d]+/g, '');
+  return doc.length === 14 && validateCnpj(doc);
+}
+
 function validateCpf(cpf: string): boolean {
   if (/^(\d)\1{10}$/.test(cpf)) return false;
   let sum = 0;
