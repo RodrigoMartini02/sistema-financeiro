@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import { isClassificationAllowed, parseClassificationId } from '../services/incomeClassificationCatalog';
 
 const router = Router();
@@ -43,6 +44,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   try {
     const { conta_id } = req.query as Record<string, string | undefined>;
     const incluirInativos = req.query['incluir_inativos'] === 'true';
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(conta_id) : null);
 
     const result = await pool.query(
       // O `c.ativo` do JOIN filtra comissões, não representantes — só o
@@ -62,7 +64,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
          AND ($2::int IS NULL OR r.conta_id = $2)
        GROUP BY r.id
        ORDER BY r.nome ASC`,
-      [req.user!.id, conta_id ? parseInt(conta_id) : null],
+      [ownerId, conta_id ? parseInt(conta_id) : null],
     );
 
     res.json({ success: true, data: result.rows });
@@ -87,6 +89,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
 
     const commissions = await readCommissions(req.user!.id, conta_id ? parseInt(String(conta_id)) : null, commissionsInput);
     if (!commissions) {
@@ -97,7 +100,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const result = await pool.query(
       `INSERT INTO representantes (usuario_id, conta_id, nome, email, telefone)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.user!.id, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), email ?? null, telefone ?? null],
+      [ownerId, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), email ?? null, telefone ?? null],
     );
 
     const rep = result.rows[0] as Record<string, unknown>;
@@ -109,12 +112,12 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       );
     }
 
-    // Auto-criar categoria "Comissão" para o usuário (idempotente)
+    // Auto-criar categoria "Comissão" no catálogo do dono da conta (idempotente)
     await pool.query(
       `INSERT INTO categorias (usuario_id, nome, cor, icone)
        SELECT $1, 'Comissão', '#f59e0b', 'handshake'
        WHERE NOT EXISTS (SELECT 1 FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = 'comissão')`,
-      [req.user!.id],
+      [ownerId],
     );
 
     res.status(201).json({ success: true, message: 'Representative created', data: rep });
@@ -128,6 +131,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { nome, email, telefone, comissoes: commissionsInput } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
@@ -137,7 +141,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     const existing = await pool.query(
       'SELECT conta_id FROM representantes WHERE id = $1 AND usuario_id = $2',
-      [id, req.user!.id],
+      [id, ownerId],
     );
     if (existing.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Representative not found' });
@@ -156,7 +160,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const result = await pool.query(
       `UPDATE representantes SET nome = $1, email = $2, telefone = $3
        WHERE id = $4 AND usuario_id = $5 RETURNING *`,
-      [String(nome).trim(), email ?? null, telefone ?? null, id, req.user!.id],
+      [String(nome).trim(), email ?? null, telefone ?? null, id, ownerId],
     );
 
     if (result.rows.length === 0) {
@@ -184,9 +188,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       `UPDATE representantes SET ativo = false WHERE id = $1 AND usuario_id = $2 RETURNING id`,
-      [id, req.user!.id],
+      [id, ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Representative not found' });

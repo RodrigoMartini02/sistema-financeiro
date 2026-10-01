@@ -2,7 +2,10 @@ import type { PoolClient } from 'pg';
 
 interface CreateCommissionExpenseParams {
   client: PoolClient;
-  userId: number;
+  /** Quem lançou a receita: a despesa de comissão fica com ele. */
+  authorId: number;
+  /** Dono do catálogo da conta (o titular): o representante e a categoria "Comissão" são dele. */
+  catalogOwnerId: number;
   representanteId: number;
   valorComissao: number;
   dataRecebimento: string;
@@ -15,11 +18,11 @@ interface CreateCommissionExpenseParams {
 // transação da receita — se qualquer etapa falhar, a receita e a comissão
 // são desfeitas juntas (nada de receita salva com comissão órfã).
 export async function createCommissionExpense({
-  client, userId, representanteId, valorComissao, dataRecebimento, mes, ano, contaId,
+  client, authorId, catalogOwnerId, representanteId, valorComissao, dataRecebimento, mes, ano, contaId,
 }: CreateCommissionExpenseParams): Promise<void> {
   const repResult = await client.query(
     'SELECT nome FROM representantes WHERE id = $1 AND usuario_id = $2',
-    [representanteId, userId],
+    [representanteId, catalogOwnerId],
   );
   if (repResult.rows.length === 0) return;
 
@@ -31,12 +34,12 @@ export async function createCommissionExpense({
   // sob demanda, não é uma categoria padrão).
   let catResult = await client.query(
     `SELECT id FROM categorias WHERE usuario_id = $1 AND LOWER(nome) = 'comissão' AND conta_id IS NOT DISTINCT FROM $2 LIMIT 1`,
-    [userId, contaId],
+    [catalogOwnerId, contaId],
   );
   if (catResult.rows.length === 0) {
     catResult = await client.query(
       `INSERT INTO categorias (usuario_id, nome, cor, icone, conta_id) VALUES ($1, 'Comissão', '#f59e0b', 'handshake', $2) RETURNING id`,
-      [userId, contaId],
+      [catalogOwnerId, contaId],
     );
   }
   const categoriaId = (catResult.rows[0] as { id: number }).id;
@@ -50,7 +53,7 @@ export async function createCommissionExpense({
       data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, conta_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8)`,
     [
-      userId,
+      authorId,
       `Comissão - ${repNome}`,
       valorComissao,
       dataRecebimento,

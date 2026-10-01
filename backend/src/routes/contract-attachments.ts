@@ -4,6 +4,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'contratos');
 
@@ -47,9 +48,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   }
 
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const contratoCheck = await pool.query(
       'SELECT id FROM contratos WHERE id = $1 AND usuario_id = $2',
-      [parseInt(contrato_id), req.user!.id],
+      [parseInt(contrato_id), ownerId],
     );
     if (contratoCheck.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Contract not found' });
@@ -61,7 +63,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
        FROM contrato_anexos
        WHERE contrato_id = $1 AND usuario_id = $2
        ORDER BY created_at DESC`,
-      [parseInt(contrato_id), req.user!.id],
+      [parseInt(contrato_id), ownerId],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -91,9 +93,10 @@ router.post(
     }
 
     try {
+      const ownerId = await resolveAccountOwnerId(req.user!.id, null);
       const contratoCheck = await pool.query(
         'SELECT id FROM contratos WHERE id = $1 AND usuario_id = $2',
-        [parseInt(contrato_id), req.user!.id],
+        [parseInt(contrato_id), ownerId],
       );
       if (contratoCheck.rows.length === 0) {
         fs.unlinkSync(file.path);
@@ -105,7 +108,7 @@ router.post(
         `INSERT INTO contrato_anexos (contrato_id, usuario_id, nome_original, nome_arquivo, mime_type, tamanho)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, contrato_id, nome_original, mime_type, tamanho, created_at`,
-        [parseInt(contrato_id), req.user!.id, file.originalname, file.filename, file.mimetype, file.size],
+        [parseInt(contrato_id), ownerId, file.originalname, file.filename, file.mimetype, file.size],
       );
 
       res.status(201).json({ success: true, data: result.rows[0] });
@@ -122,11 +125,12 @@ router.get('/:id/arquivo', authenticate, async (req: Request, res: Response): Pr
   const id = parseInt(req.params['id'] ?? '0');
 
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query<Pick<AnexoRow, 'nome_original' | 'nome_arquivo' | 'mime_type'>>(
       `SELECT nome_original, nome_arquivo, mime_type
        FROM contrato_anexos
        WHERE id = $1 AND usuario_id = $2`,
-      [id, req.user!.id],
+      [id, ownerId],
     );
 
     if (result.rows.length === 0) {
@@ -156,11 +160,12 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
   const id = parseInt(req.params['id'] ?? '0');
 
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query<Pick<AnexoRow, 'nome_arquivo'>>(
       `DELETE FROM contrato_anexos
        WHERE id = $1 AND usuario_id = $2
        RETURNING nome_arquivo`,
-      [id, req.user!.id],
+      [id, ownerId],
     );
 
     if (result.rows.length === 0) {

@@ -13,6 +13,7 @@ import {
   readUpdateExpenseInput,
   type PaymentMethod,
 } from '../services/expenseInput';
+import { isExpenseCategoryAllowed } from '../services/expenseCategoryCatalog';
 import {
   createExpense,
   findExpenseForUpdate,
@@ -37,6 +38,7 @@ function buildWhereClause(
   return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds, cardOwnerColumn);
 }
 
+const CATEGORY_NOT_AVAILABLE = 'Categoria indisponível para esta conta';
 const CARD_NOT_AVAILABLE = 'Cartão indisponível para este lançamento: escolha um cartão seu ou compartilhado com você';
 
 /**
@@ -207,6 +209,9 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     if (!(await canWriteToAccount(input.accountId, req.user!.id))) {
       throw new RequestInputError(ACCOUNT_ACCESS_DENIED);
     }
+    if (!(await isExpenseCategoryAllowed(req.user!.id, input.accountId, input.categoryId))) {
+      throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
+    }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, input.accountId);
     const created = await createExpense(req.user!.id, { ...input, cardId }, getTodayIsoInTimezone());
     res.status(201).json({ success: true, message: 'Expense created', data: created });
@@ -231,6 +236,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const input = readUpdateExpenseInput(req.body);
+    // A categoria que a despesa já tem continua aceita: lançamentos antigos podem
+    // apontar para categorias de antes do catálogo da conta.
+    if (input.categoryId !== current.categoryId
+      && !(await isExpenseCategoryAllowed(req.user!.id, current.accountId, input.categoryId))) {
+      throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
+    }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, current.accountId, current.cardId);
     const updated = await updateExpense(ownerId, expenseId, { ...input, cardId }, current.isInstallment, getTodayIsoInTimezone());
     if (!updated) {

@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { accountWhere as accountWhereBase } from '../utils/accountFilter';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import {
   findCatalogClassification,
   findDefaultClassificationId,
@@ -132,9 +133,10 @@ async function gerarPrevistas(
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { cliente_id, status, conta_id } = req.query as Record<string, string | undefined>;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(conta_id) : null);
 
     let where = 'WHERE ct.usuario_id = $1';
-    const params: unknown[] = [req.user!.id];
+    const params: unknown[] = [ownerId];
 
     if (cliente_id) {
       where += ` AND ct.cliente_id = $${params.length + 1}`;
@@ -187,7 +189,8 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
     }
 
     const accountId = conta_id ? parseInt(conta_id) : null;
-    const params: unknown[] = [req.user!.id, mesNum, anoNum];
+    const ownerId = await resolveAccountOwnerId(req.user!.id, accountId);
+    const params: unknown[] = [ownerId, mesNum, anoNum];
     const { clause: accountClause, params: accountParams } = accountWhereBase(accountId, 4, 'c');
     params.push(...accountParams);
 
@@ -223,13 +226,14 @@ router.get('/faturamento', authenticate, async (req: Request, res: Response): Pr
 // GET /api/contratos/:id
 router.get('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       `SELECT ct.*, cl.nome AS cliente_nome, r.nome AS representante_nome
        FROM contratos ct
        LEFT JOIN clientes cl ON cl.id = ct.cliente_id
        LEFT JOIN representantes r ON r.id = ct.representante_id
        WHERE ct.id = $1 AND ct.usuario_id = $2`,
-      [req.params['id'], req.user!.id],
+      [req.params['id'], ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Contract not found' });
@@ -269,6 +273,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
 
     const classificacoes = await resolveContractClassifications(
       req.user!.id,
@@ -293,7 +298,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
           valor_mensal, classificacao_mensalidade_id, classificacao_implantacao_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$16,$17,$18,$18,$19,$20,$21) RETURNING *`,
       [
-        req.user!.id,
+        ownerId,
         parseInt(String(cliente_id)),
         numero ?? null,
         vencimento,
@@ -336,11 +341,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       valor_mensal,
       classificacao_mensalidade_id, classificacao_implantacao_id,
     } = req.body as Record<string, unknown>;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
 
     const atualResult = await pool.query(
       `SELECT conta_id, classificacao_mensalidade_id, classificacao_implantacao_id
        FROM contratos WHERE id = $1 AND usuario_id = $2`,
-      [req.params['id'], req.user!.id],
+      [req.params['id'], ownerId],
     );
     const atual = atualResult.rows[0] as {
       conta_id: number | null;
@@ -412,7 +418,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         hrIni,                                                        // $15
         parseFloat(String(valor_mensal ?? 0)) || 0,                  // $16
         req.params['id'],                                             // $17
-        req.user!.id,                                                 // $18
+        ownerId,                                                 // $18
         classificacoes.mensalidade,                                   // $19
         classificacoes.implantacao,                                   // $20
       ],
@@ -432,13 +438,14 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const contractId = parseInt(req.params['id']!);
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
 
     const contractResult = await pool.query(
       `SELECT ct.*, cl.nome AS cliente_nome
        FROM contratos ct
        LEFT JOIN clientes cl ON cl.id = ct.cliente_id
        WHERE ct.id = $1 AND ct.usuario_id = $2`,
-      [contractId, req.user!.id],
+      [contractId, ownerId],
     );
 
     if (contractResult.rows.length === 0) {
@@ -460,11 +467,11 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
     }
 
     // Cancel existing future predicted revenues before regenerating
-    await cancelFutureRevenues(contractId, req.user!.id);
+    await cancelFutureRevenues(contractId, ownerId);
 
     const count = await gerarPrevistas(
       contractId,
-      req.user!.id,
+      ownerId,
       contract.cliente_nome,
       contract.data_inicio_faturamento,
       contract.vencimento,
@@ -483,10 +490,11 @@ router.post('/:id/gerar-previstas', authenticate, async (req: Request, res: Resp
 router.put('/:id/encerrar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const contractId = parseInt(req.params['id']!);
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
 
     const result = await pool.query(
       `UPDATE contratos SET status = 'encerrado' WHERE id = $1 AND usuario_id = $2 RETURNING *`,
-      [contractId, req.user!.id],
+      [contractId, ownerId],
     );
 
     if (result.rows.length === 0) {
@@ -495,7 +503,7 @@ router.put('/:id/encerrar', authenticate, async (req: Request, res: Response): P
     }
 
     // Cancel future predicted revenues (só após confirmar que o contrato pertence ao usuário)
-    await cancelFutureRevenues(contractId, req.user!.id);
+    await cancelFutureRevenues(contractId, ownerId);
 
     res.json({ success: true, message: 'Contract closed', data: result.rows[0] });
   } catch (error) {
@@ -508,6 +516,7 @@ router.put('/:id/encerrar', authenticate, async (req: Request, res: Response): P
 router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const contractId = parseInt(req.params['id']!);
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const {
       novo_numero, novo_vencimento,
       novo_num_aditivo, nova_data_aditivo, novo_ajuste,
@@ -524,7 +533,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
       `SELECT ct.*, cl.nome AS cliente_nome
        FROM contratos ct LEFT JOIN clientes cl ON cl.id = ct.cliente_id
        WHERE ct.id = $1 AND ct.usuario_id = $2`,
-      [contractId, req.user!.id],
+      [contractId, ownerId],
     );
 
     if (currentContractResult.rows.length === 0) {
@@ -535,10 +544,10 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
     const currentContract = currentContractResult.rows[0] as Record<string, unknown>;
 
     // Close previous contract (cancel future revenues + mark as encerrado)
-    await cancelFutureRevenues(contractId, req.user!.id);
+    await cancelFutureRevenues(contractId, ownerId);
     await pool.query(
       `UPDATE contratos SET status = 'encerrado' WHERE id = $1 AND usuario_id = $2`,
-      [contractId, req.user!.id],
+      [contractId, ownerId],
     );
 
     // Carry financial fields from the previous contract — new period starts with fresh saldo_atual = saldo_ini
@@ -557,7 +566,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
           valor_mensal, classificacao_mensalidade_id, classificacao_implantacao_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15, $16, $17, $17, $18, $19, $20) RETURNING *`,
       [
-        req.user!.id,                                                                              // $1
+        ownerId,                                                                              // $1
         currentContract['cliente_id'],                                                             // $2
         novo_numero ?? currentContract['numero'],                                                   // $3
         novo_vencimento,                                                                           // $4
@@ -588,7 +597,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
       `INSERT INTO contratos_servicos (contrato_id, servico_id, usuario_id, valor_mensal, implantado, faturando, data_inicio_faturamento)
        SELECT $1, servico_id, usuario_id, valor_mensal, implantado, faturando, data_inicio_faturamento
        FROM contratos_servicos WHERE contrato_id = $2 AND usuario_id = $3`,
-      [newContractId, contractId, req.user!.id],
+      [newContractId, contractId, ownerId],
     );
 
     // Copy legacy technical services if any exist
@@ -596,14 +605,14 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
       `INSERT INTO servicos_tecnicos_contrato (contrato_id, usuario_id, tipo, valor_hora, qtde_contratada, qtde_consumida)
        SELECT $1, usuario_id, tipo, valor_hora, qtde_contratada, 0
        FROM servicos_tecnicos_contrato WHERE contrato_id = $2 AND usuario_id = $3`,
-      [newContractId, contractId, req.user!.id],
+      [newContractId, contractId, ownerId],
     );
 
     // Generate predicted revenues for the new contract
     if (nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento']) {
       await gerarPrevistas(
         newContractId,
-        req.user!.id,
+        ownerId,
         String(currentContract['cliente_nome']),
         String(nova_data_inicio_faturamento ?? currentContract['data_inicio_faturamento']),
         String(novo_vencimento),
@@ -623,6 +632,7 @@ router.put('/:id/aditivo', authenticate, async (req: Request, res: Response): Pr
 router.post('/:id/faturar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const contratoId = parseInt(req.params['id']!);
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { mes, ano } = req.body as Record<string, unknown>;
 
     if (!mes || !ano) {
@@ -639,7 +649,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
        FROM contratos c
        JOIN clientes cl ON cl.id = c.cliente_id
        WHERE c.id = $1 AND c.usuario_id = $2 AND c.status = 'ativo'`,
-      [contratoId, req.user!.id],
+      [contratoId, ownerId],
     );
 
     if (contratoResult.rows.length === 0) {
@@ -662,7 +672,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
          AND EXTRACT(YEAR FROM data_recebimento) = $3
          AND usuario_id = $4
          AND status != 'cancelada'`,
-      [contratoId, mesNum, anoNum, req.user!.id],
+      [contratoId, mesNum, anoNum, ownerId],
     );
 
     let resultRow: Record<string, unknown>;
@@ -678,7 +688,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
       // prevista → faturada
       const updated = await pool.query(
         `UPDATE receitas SET status = 'faturada' WHERE id = $1 AND usuario_id = $2 RETURNING *`,
-        [existing.id, req.user!.id],
+        [existing.id, ownerId],
       );
       resultRow = updated.rows[0] as Record<string, unknown>;
     } else {
@@ -693,7 +703,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
         `SELECT COALESCE(SUM(valor_mensal), 0) AS total
          FROM contratos_servicos
          WHERE contrato_id = $1 AND usuario_id = $2 AND faturando = true`,
-        [contratoId, req.user!.id],
+        [contratoId, ownerId],
       );
       const somaServicos = parseFloat((servicosResult.rows[0] as { total: string }).total);
       const valor = somaServicos > 0 ? somaServicos : (parseFloat(String(contrato.valor_mensal)) || 0);
@@ -704,7 +714,7 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
          VALUES ($1, $2, $3, $4, $5, $6, 'faturada', $7, $8, $9)
          RETURNING *`,
         [
-          req.user!.id,
+          ownerId,
           `Mensalidade - ${contrato.cliente_nome}`,
           valor,
           dueDate,
@@ -729,13 +739,14 @@ router.post('/:id/faturar', authenticate, async (req: Request, res: Response): P
 router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const contractId = parseInt(req.params['id']!);
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
 
     const contractResult = await pool.query(
       `SELECT ct.*, cl.nome AS cliente_nome
        FROM contratos ct
        LEFT JOIN clientes cl ON cl.id = ct.cliente_id
        WHERE ct.id = $1 AND ct.usuario_id = $2`,
-      [contractId, req.user!.id],
+      [contractId, ownerId],
     );
 
     if (contractResult.rows.length === 0) {
@@ -774,14 +785,14 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
       }
       await pool.query(
         'UPDATE contratos SET classificacao_implantacao_id = $1 WHERE id = $2 AND usuario_id = $3',
-        [classificacaoImplantacao, contractId, req.user!.id],
+        [classificacaoImplantacao, contractId, ownerId],
       );
     }
 
     // Evitar duplicata
     const existing = await pool.query(
       `SELECT id FROM receitas WHERE contrato_id = $1 AND classificacao_id = $2 AND usuario_id = $3 LIMIT 1`,
-      [contractId, classificacaoImplantacao, req.user!.id],
+      [contractId, classificacaoImplantacao, ownerId],
     );
     if (existing.rows.length > 0) {
       res.json({ success: true, message: 'Receita de implantação já existe', data: existing.rows[0] });
@@ -797,7 +808,7 @@ router.post('/:id/receita-implantacao', authenticate, async (req: Request, res: 
        VALUES ($1, $2, $3, $4, $5, $6, 'prevista', $7, $8, $9)
        RETURNING *`,
       [
-        req.user!.id,
+        ownerId,
         `Implantação - ${ct.cliente_nome}`,
         valorTotal,
         dataRef,

@@ -35,10 +35,10 @@ interface CommissionRule {
 // declará-los ali mudaria o que o drizzle-kit gera de migration. Por isso as duas
 // consultas abaixo seguem em SQL parametrizado, na mesma transação da receita.
 
-/** Comissão ativa do representante (do próprio usuário) para a categoria da receita. */
+/** Comissão ativa do representante (do dono do catálogo da conta) para a categoria da receita. */
 async function findCommissionRule(
   client: PoolClient,
-  userId: number,
+  catalogOwnerId: number,
   representativeId: number,
   categoryId: number | null,
 ): Promise<CommissionRule | null> {
@@ -49,19 +49,19 @@ async function findCommissionRule(
        JOIN representantes r ON r.id = c.representante_id
       WHERE c.representante_id = $1 AND r.usuario_id = $2 AND c.classificacao_id = $3 AND c.ativo = true
       LIMIT 1`,
-    [representativeId, userId, categoryId],
+    [representativeId, catalogOwnerId, categoryId],
   );
   const row = result.rows[0] as { percentual: string | number; tipo: string | null } | undefined;
   if (!row) return null;
   return { percent: Number(row.percentual), type: row.tipo === 'unica' ? 'unica' : 'mensal' };
 }
 
-/** Horas a faturar saem do saldo do contrato (do próprio usuário), sem ficar negativo. */
-async function debitContractHours(client: PoolClient, userId: number, billableHours: IncomeBillableHours): Promise<void> {
+/** Horas a faturar saem do saldo do contrato (do dono do catálogo da conta), sem ficar negativo. */
+async function debitContractHours(client: PoolClient, catalogOwnerId: number, billableHours: IncomeBillableHours): Promise<void> {
   const column = HOUR_BALANCE_COLUMNS[billableHours.hourType];
   await client.query(
     `UPDATE contratos SET ${column} = GREATEST(0, ${column} - $1) WHERE id = $2 AND usuario_id = $3`,
-    [billableHours.hours, billableHours.contractId, userId],
+    [billableHours.hours, billableHours.contractId, catalogOwnerId],
   );
 }
 
@@ -72,8 +72,13 @@ async function debitContractHours(client: PoolClient, userId: number, billableHo
  * anexos, a venda do produto e o desconto das horas ficam só na original. A
  * comissão mensal gera a despesa de comissão em cada lançamento; a única, só na
  * original.
+ *
+ * A receita e a despesa de comissão ficam com quem lançou (`authorId`). O
+ * representante, o produto e o contrato são do catálogo da conta, procurados no
+ * dono dela (`catalogOwnerId`): o titular, também quando quem lança é membro ou
+ * colaborador.
  */
-export async function createIncome(userId: number, input: CreateIncomeInput): Promise<Income> {
+export async function createIncome(authorId: number, catalogOwnerId: number, input: CreateIncomeInput): Promise<Income> {
   const replicaDates = input.repeatUntil
     ? monthlyDatesUntil(input.receiptDate, input.repeatUntil.month, input.repeatUntil.year)
     : [];
@@ -84,7 +89,7 @@ export async function createIncome(userId: number, input: CreateIncomeInput): Pr
     const transaction = drizzle(client, { schema });
 
     const commission = input.representativeId !== null
-      ? await findCommissionRule(client, userId, input.representativeId, input.categoryId)
+      ? await findCommissionRule(client, catalogOwnerId, input.representativeId, input.categoryId)
       : null;
     const commissionAmount = commission ? roundCents((input.amount * commission.percent) / 100) : 0;
 
@@ -92,7 +97,7 @@ export async function createIncome(userId: number, input: CreateIncomeInput): Pr
       const { mes, ano } = getMonthYearFromIsoDate(receiptDate);
       const withCommission = commissionAmount > 0 && (isOriginal || commission?.type === 'mensal');
       return {
-        userId,
+        userId: authorId,
         accountId: input.accountId,
         description: input.description,
         amount: toDecimal(input.amount),
@@ -119,7 +124,8 @@ export async function createIncome(userId: number, input: CreateIncomeInput): Pr
       if (row.commissionAmount === null) continue;
       await createCommissionExpense({
         client,
-        userId,
+        authorId,
+        catalogOwnerId,
         representanteId: input.representativeId!,
         valorComissao: Number(row.commissionAmount),
         dataRecebimento: row.receiptDate,
@@ -131,7 +137,7 @@ export async function createIncome(userId: number, input: CreateIncomeInput): Pr
     if (input.productSale) {
       await registrarMovimentacaoEstoqueNaTransacao(client, {
         produtoId: input.productSale.productId,
-        usuarioId: userId,
+        usuarioId: catalogOwnerId,
         tipo: 'saida',
         quantidade: input.productSale.quantity,
         motivo: 'Venda registrada em receita',
@@ -139,7 +145,7 @@ export async function createIncome(userId: number, input: CreateIncomeInput): Pr
       });
     }
     if (input.billableHours) {
-      await debitContractHours(client, userId, input.billableHours);
+      await debitContractHours(client, catalogOwnerId, input.billableHours);
     }
 
     await client.query('COMMIT');

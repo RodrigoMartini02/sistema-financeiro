@@ -3,17 +3,19 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
 import { requireScreenAccess } from '../../../middleware/permissions';
+import { resolveAccountOwnerId } from '../../../utils/familyVisibility';
 import { catalogoContas } from '../db/schema';
 
 const router = Router();
 
-// GET /api/catalogo/conta — retorna (e cria se necessário) o identificador público da vitrine do usuário
+// GET /api/catalogo/conta — retorna (e cria se necessário) o identificador público da vitrine do dono do catálogo
 router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const [contaExistente] = await db
       .select()
       .from(catalogoContas)
-      .where(eq(catalogoContas.usuarioId, req.user!.id))
+      .where(eq(catalogoContas.usuarioId, ownerId))
       .limit(1);
 
     if (contaExistente) {
@@ -23,7 +25,7 @@ router.get('/', authenticate, requireScreenAccess('accessProductCatalog'), async
 
     const [conta] = await db
       .insert(catalogoContas)
-      .values({ usuarioId: req.user!.id })
+      .values({ usuarioId: ownerId })
       .returning();
 
     res.status(201).json({ success: true, data: conta });

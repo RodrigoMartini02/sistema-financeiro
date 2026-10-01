@@ -1,4 +1,6 @@
-import { pool } from '../db/client';
+import { and, eq } from 'drizzle-orm';
+import { db, pool } from '../db/client';
+import { accounts, accountMembers } from '../db/schema';
 import { podeAcessarCarteiraDeOutros } from './carteiraAcesso';
 
 /**
@@ -102,36 +104,33 @@ export function resolveVisibleUserIds(
 }
 
 /**
- * Dono de uma conta PESSOAL, para dados de CATALOGO da conta (categorias,
- * cartoes, etc.) — nunca copiados por membro, sempre gravados sob o
- * usuario_id do dono. Diferente de resolveVisibleUserIds: aqui nao ha
- * permissao nenhuma envolvida, porque nao expoe lancamentos de ninguem, so
- * diz a quem pertence o catalogo que a conta inteira compartilha. Um membro
- * sem nenhuma permissao de familia ainda precisa disto para categorizar e
- * ver o grafico dos proprios lancamentos.
+ * Dono do CATALOGO da conta (categorias, clientes, contratos, representantes,
+ * produtos, socios, servicos): o titular, em conta pessoal e em conta empresa.
+ * Membro e colaborador leem e gravam no catalogo do titular — o catalogo e da
+ * conta, nunca copiado por pessoa. Diferente de resolveVisibleUserIds: aqui
+ * nao ha permissao envolvida, porque nao expoe lancamentos de ninguem, so diz
+ * a quem pertence o catalogo (ver e gerenciar cada cadastro continua
+ * dependendo da permissao, em requireCatalogAccess). Um membro sem nenhuma
+ * permissao de familia ainda precisa disto para categorizar e ver o grafico
+ * dos proprios lancamentos.
  *
- * Retorna o proprio requesterId quando ele nao esta vinculado a conta
- * nenhuma (e dono de si mesmo) ou quando a conta e do tipo empresa (sem
- * compartilhamento de catalogo entre colaboradores).
+ * Com `accountId`, so devolve o titular quando o solicitante tem vinculo ativo
+ * com ESSA conta; sem ela, vale a conta do vinculo ativo dele. Em qualquer
+ * outro caso (o proprio titular, conta alheia, sem vinculo) devolve o proprio
+ * solicitante — nunca o dono de uma conta a que ele nao pertence.
  */
 export async function resolveAccountOwnerId(requesterId: number, accountId: number | null): Promise<number> {
-  if (!accountId) return requesterId;
-
-  const conta = await pool.query(
-    `SELECT tipo, usuario_id FROM contas WHERE id = $1`,
-    [accountId],
-  );
-  const row = conta.rows[0] as { tipo: string; usuario_id: number } | undefined;
-  if (!row || row.tipo !== 'pessoal') return requesterId;
-
-  if (requesterId === row.usuario_id) return requesterId;
-
-  const vinculo = await pool.query(
-    `SELECT 1 FROM conta_membros
-      WHERE conta_id = $1 AND usuario_id = $2 AND status = 'ativo' LIMIT 1`,
-    [accountId, requesterId],
-  );
-  return vinculo.rows.length > 0 ? row.usuario_id : requesterId;
+  const [link] = await db
+    .select({ ownerId: accounts.userId })
+    .from(accountMembers)
+    .innerJoin(accounts, eq(accounts.id, accountMembers.accountId))
+    .where(and(
+      eq(accountMembers.userId, requesterId),
+      eq(accountMembers.status, 'ativo'),
+      ...(accountId ? [eq(accountMembers.accountId, accountId)] : []),
+    ))
+    .limit(1);
+  return link?.ownerId ?? requesterId;
 }
 
 /**

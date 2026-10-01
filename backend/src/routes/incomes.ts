@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
-import { resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
+import { resolveAccountOwnerId, resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
 import { EstoqueError } from '../services/estoque';
@@ -99,7 +99,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     if (!(await isClassificationAllowed(req.user!.id, input.accountId, input.categoryId))) {
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
-    const created = await createIncome(req.user!.id, input);
+    // Comissão, horas do contrato e estoque saem do catálogo da conta (o
+    // titular); a receita fica com quem lançou.
+    const catalogOwnerId = await resolveAccountOwnerId(req.user!.id, input.accountId);
+    const created = await createIncome(req.user!.id, catalogOwnerId, input);
     res.status(201).json({ success: true, message: 'Income created', data: created });
   } catch (error) {
     // Estoque insuficiente é erro de quem lança: a mensagem diz quanto há disponível.
