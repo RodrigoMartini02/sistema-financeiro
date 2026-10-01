@@ -170,7 +170,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
-        nome, sobrenome, email, documento, senha, tipo, google_id, pais, estado, cidade,
+        nome, sobrenome, email, documento, senha, google_id, pais, estado, cidade,
         telefone, data_nascimento,
       } = req.body as Record<string, string | undefined>;
 
@@ -205,7 +205,9 @@ router.post(
             email: email!.toLowerCase(),
             document: cleanDoc,
             password: hashedPassword,
-            type: (tipo as 'membro' | 'titular' | 'admin' | undefined) ?? 'titular',
+            // O cadastro pelo site cria sempre o titular. Admin só pela rota de
+            // admin (POST /users); o tipo nunca vem do pedido.
+            type: 'titular',
             status: 'ativo',
             googleId: google_id ?? null,
             country: pais ?? null,
@@ -474,13 +476,13 @@ router.post(
   '/reset-password',
   [
     body('email').isEmail().withMessage('Invalid email'),
-    body('novaSenha').isLength({ min: 8 }).withMessage('Minimum 8 characters'),
+    body('nova_senha').isLength({ min: 8 }).withMessage('Minimum 8 characters'),
     body('codigo').notEmpty().withMessage('Code is required'),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, novaSenha, codigo } = req.body as { email: string; novaSenha: string; codigo: string };
+      const { email, nova_senha: newPassword, codigo } = req.body as { email: string; nova_senha: string; codigo: string };
 
       const result = await pool.query(
         'SELECT id, dados_financeiros FROM usuarios WHERE email = $1',
@@ -515,7 +517,7 @@ router.post(
         return;
       }
 
-      const hashedPassword = await bcrypt.hash(novaSenha, 10);
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       await pool.query(
         `UPDATE usuarios

@@ -21,7 +21,6 @@ import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
@@ -293,12 +292,6 @@ function ContaDialog({
     setMeDocumento(formatCPF(me?.documento ?? ''));
   }, [open, me]);
 
-  const isNew = !conta;
-  const enquadramentoGuide = useFirstAccessGuide('contas:enquadramento-v1', {
-    enabled: open && isNew && tipo === 'empresa',
-    layer: GUIDE_LAYER_MODAL,
-  });
-
   useEffect(() => {
     if (!open) return;
     setEnquadramento(conta?.enquadramento ?? '');
@@ -473,7 +466,7 @@ function ContaDialog({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, position: 'relative' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                   <label style={labelStyle}><span>CNPJ</span><span style={{ color: C.danger }}>*</span></label>
                   <input
@@ -508,17 +501,6 @@ function ContaDialog({
                     ))}
                   </select>
                 </div>
-                {isNew && enquadramentoGuide.isVisible && (
-                  <FirstAccessGuideCard
-                    floating
-                    placement="bottom"
-                    className="w-[min(24rem,calc(100vw-2rem))]"
-                    icon={Briefcase}
-                    description={firstAccessGuideMessages.contasEnquadramento}
-                    onDismiss={enquadramentoGuide.dismiss}
-                    onSilenceAll={enquadramentoGuide.silenceAll}
-                  />
-                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -968,12 +950,12 @@ function MembrosDaConta({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '2px 0 2px 22px' }}>
       <span style={{ fontSize: 11, fontWeight: 600, color: CFG.faint }}>
-        {list.length} {termo.singular}{list.length === 1 ? '' : 's'}
+        {list.length} {list.length === 1 ? termo.singular : termo.plural.toLowerCase()}
       </span>
 
       {listQuery.isLoading ? (
         <p style={{ padding: '12px 0', textAlign: 'center', fontSize: 12, color: CFG.muted }}>
-          Carregando {termo.singular}s...
+          Carregando {termo.plural.toLowerCase()}...
         </p>
       ) : list.length === 0 ? (
         <EmptyState icon={ShieldAlert} title={`Nenhum ${termo.singular} vinculado ainda`} />
@@ -1293,7 +1275,7 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
                   <button
                     type="button"
                     onClick={() => toggleExpand(c.id)}
-                    aria-label={isExpanded ? `Recolher ${TERMOS[c.tipo].singular}s` : `Expandir ${TERMOS[c.tipo].singular}s`}
+                    aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} ${TERMOS[c.tipo].plural.toLowerCase()}`}
                     style={{
                       flex: 'none', display: 'grid', placeItems: 'center', width: 20, height: 20,
                       border: 'none', background: 'transparent', borderRadius: 8,

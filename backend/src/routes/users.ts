@@ -158,6 +158,37 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
   }
 });
 
+// PUT /api/users/me/password — troca só a senha do próprio usuário, sem
+// reenviar o perfil (o PUT /me grava todos os campos e apagaria os que não
+// vierem). Sem exigência de senha atual, a mesma decisão do PUT /me.
+router.put('/me/password', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { nova_senha: newPassword } = req.body as { nova_senha?: unknown };
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      res.status(400).json({ success: false, message: 'A nova senha precisa ter pelo menos 8 caracteres' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const [updated] = await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, req.user!.id))
+      .returning({ id: users.id });
+
+    if (!updated) {
+      res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Senha alterada' });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({ success: false, message: 'Não foi possível alterar a senha' });
+  }
+});
+
 // DELETE /api/users/me/cancel
 router.delete('/me/cancel', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {

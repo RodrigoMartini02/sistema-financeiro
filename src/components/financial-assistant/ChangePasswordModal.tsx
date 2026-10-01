@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { KeyRound, Save } from 'lucide-react';
-import { fetchMe, updateMe } from '../../services/usuariosService';
+import { updatePassword } from '../../services/usuariosService';
 import { Dialog } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { Field, Input } from '../../ui/form';
@@ -12,12 +12,10 @@ interface ChangePasswordModalProps {
 }
 
 export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
-  const qc = useQueryClient();
-  const { data: user } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
   const [senhaNova, setSenhaNova] = useState('');
   const [formError, setFormError] = useState('');
 
-  const updateMut = useMutation({ mutationFn: updateMe });
+  const updateMut = useMutation({ mutationFn: updatePassword });
 
   const reset = () => {
     setSenhaNova('');
@@ -34,15 +32,9 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
     setFormError('');
 
     if (senhaNova.length < 8) { setFormError('A nova senha deve ter pelo menos 8 caracteres'); return; }
-    if (!user) { setFormError('Não foi possível carregar os dados da conta'); return; }
 
     try {
-      await updateMut.mutateAsync({
-        nome: user.nome, email: user.email, documento: user.documento,
-        pais: user.pais ?? undefined, estado: user.estado ?? undefined, cidade: user.cidade ?? undefined,
-        nova_senha: senhaNova,
-      });
-      qc.invalidateQueries({ queryKey: ['usuario-me'] });
+      await updateMut.mutateAsync(senhaNova);
       reset();
       onClose();
     } catch (err) {
@@ -75,7 +67,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
 
         <div className="flex items-center justify-end gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={handleClose}>Fechar</Button>
-          <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending || !user}>
+          <Button type="submit" icon={<Save size={15} />} disabled={updateMut.isPending}>
             Alterar senha
           </Button>
         </div>
