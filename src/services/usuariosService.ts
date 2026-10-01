@@ -17,7 +17,7 @@ export interface UsuarioMePutBody {
   nome: string; sobrenome?: string; email?: string; documento?: string;
   pais?: string; estado?: string; cidade?: string;
   telefone?: string; data_nascimento?: string;
-  senha_atual?: string; nova_senha?: string;
+  nova_senha?: string;
 }
 
 export interface UsuarioListItem {
@@ -45,6 +45,13 @@ export async function fetchMe(): Promise<UsuarioMe> {
 export async function updateMe(body: UsuarioMePutBody): Promise<UsuarioMe> {
   return apiRequest<UsuarioMe>('/usuarios/me', {
     method: 'PUT', body: JSON.stringify(body),
+  });
+}
+
+/** Troca só a senha do usuário logado; o perfil não é reenviado. */
+export async function updatePassword(novaSenha: string): Promise<void> {
+  await apiRequest<{ success: boolean; message: string }>('/users/me/password', {
+    method: 'PUT', body: JSON.stringify({ nova_senha: novaSenha }),
   });
 }
 

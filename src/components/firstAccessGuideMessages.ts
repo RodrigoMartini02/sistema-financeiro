@@ -31,9 +31,6 @@ export const firstAccessGuideMessages = {
   cartoesValidade: 'A validade \u00e9 apenas informativa e n\u00e3o afeta lan\u00e7amentos ou faturas.',
   cartoesLimite: 'O limite \u00e9 informativo: o sistema n\u00e3o bloqueia lan\u00e7amentos que o ultrapassem.',
 
-  // Contas
-  contasEnquadramento: 'Escolher um enquadramento cria categorias de despesas automaticamente para essa conta.',
-
   // Usu\u00e1rios
   usuariosDesativarExcluir: 'Desativar bloqueia o login e pode ser revertido. Excluir \u00e9 permanente e s\u00f3 o administrador pode fazer.',
 
