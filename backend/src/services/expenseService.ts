@@ -133,16 +133,17 @@ export async function createExpense(userId: number, input: CreateExpenseInput, t
 export interface ExpenseForUpdate {
   accountId: number | null;
   cardId: number | null;
+  categoryId: number | null;
   isInstallment: boolean;
 }
 
 export async function findExpenseForUpdate(ownerId: number, expenseId: number): Promise<ExpenseForUpdate | null> {
   const [row] = await db
-    .select({ accountId: expenses.accountId, cardId: expenses.cardId, installment: expenses.installment })
+    .select({ accountId: expenses.accountId, cardId: expenses.cardId, categoryId: expenses.categoryId, installment: expenses.installment })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)));
   if (!row) return null;
-  return { accountId: row.accountId, cardId: row.cardId, isInstallment: row.installment === true };
+  return { accountId: row.accountId, cardId: row.cardId, categoryId: row.categoryId, isInstallment: row.installment === true };
 }
 
 /**

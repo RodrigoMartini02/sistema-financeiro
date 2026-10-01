@@ -3,6 +3,7 @@ import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { accountWhere as accountWhereBase } from '../utils/accountFilter';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   try {
     const { conta_id } = req.query as Record<string, string | undefined>;
     const accountId = conta_id ? parseInt(conta_id) : null;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, accountId);
     const { clause, params: extra } = accountWhere(accountId, 2);
 
     const result = await pool.query(
@@ -26,7 +28,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
        WHERE c.usuario_id = $1${clause}
        GROUP BY c.id
        ORDER BY c.nome ASC`,
-      [req.user!.id, ...extra],
+      [ownerId, ...extra],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -38,9 +40,10 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // GET /api/clientes/:id
 router.get('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       'SELECT * FROM clientes WHERE id = $1 AND usuario_id = $2',
-      [req.params['id'], req.user!.id],
+      [req.params['id'], ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Client not found' });
@@ -67,19 +70,20 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
 
     // Gera código sequencial automaticamente
     const nextCodeResult = await pool.query(
       `SELECT COALESCE(MAX(codigo::int), 0) + 1 AS proximo
        FROM clientes WHERE usuario_id = $1 AND codigo ~ '^[0-9]+$'`,
-      [req.user!.id],
+      [ownerId],
     );
     const codigoGerado = String((nextCodeResult.rows[0] as { proximo: number }).proximo);
 
     const result = await pool.query(
       `INSERT INTO clientes (usuario_id, nome, codigo, tipo_empresa, cnpj, conta_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.user!.id, String(nome).trim(), codigoGerado, tipo_empresa ?? null, cnpj ?? null, conta_id ? parseInt(String(conta_id)) : null],
+      [ownerId, String(nome).trim(), codigoGerado, tipo_empresa ?? null, cnpj ?? null, conta_id ? parseInt(String(conta_id)) : null],
     );
     res.status(201).json({ success: true, message: 'Client created', data: result.rows[0] });
   } catch (error) {
@@ -102,6 +106,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
 
     const result = await pool.query(
       `UPDATE clientes SET nome = $1, codigo = $2, tipo_empresa = $3, cnpj = $4, conta_id = $5
@@ -109,7 +114,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       [
         String(nome).trim(), codigo ?? null, tipo_empresa ?? null, cnpj ?? null,
         conta_id ? parseInt(String(conta_id)) : null,
-        req.params['id'], req.user!.id,
+        req.params['id'], ownerId,
       ],
     );
     if (result.rows.length === 0) {
@@ -126,9 +131,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // DELETE /api/clientes/:id
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       'DELETE FROM clientes WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params['id'], req.user!.id],
+      [req.params['id'], ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Client not found' });

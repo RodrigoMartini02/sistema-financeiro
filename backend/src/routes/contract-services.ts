@@ -1,12 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 
 const router = Router();
 
 // GET /api/contratos-servicos?contrato_id=X
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { contrato_id } = req.query as Record<string, string | undefined>;
 
     if (!contrato_id) {
@@ -21,7 +23,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
        JOIN contratos ct ON ct.id = cs.contrato_id
        WHERE cs.contrato_id = $1 AND cs.usuario_id = $2 AND ct.usuario_id = $2
        ORDER BY s.nome ASC`,
-      [parseInt(contrato_id), req.user!.id],
+      [parseInt(contrato_id), ownerId],
     );
     res.json({ success: true, data: result.rows });
   } catch (error) {
@@ -33,6 +35,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/contratos-servicos — vincular serviço a contrato
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { contrato_id, servico_id, valor_mensal } = req.body as Record<string, unknown>;
 
     if (!contrato_id || !servico_id) {
@@ -43,7 +46,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     // Verify contract belongs to user
     const contratoCheck = await pool.query(
       'SELECT id FROM contratos WHERE id = $1 AND usuario_id = $2',
-      [parseInt(String(contrato_id)), req.user!.id],
+      [parseInt(String(contrato_id)), ownerId],
     );
     if (contratoCheck.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Contract not found' });
@@ -53,7 +56,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     // Verify service belongs to user
     const servicoCheck = await pool.query(
       'SELECT id, valor_mensal_padrao FROM servicos WHERE id = $1 AND usuario_id = $2',
-      [parseInt(String(servico_id)), req.user!.id],
+      [parseInt(String(servico_id)), ownerId],
     );
     if (servicoCheck.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Service not found' });
@@ -68,7 +71,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       const result = await pool.query(
         `INSERT INTO contratos_servicos (contrato_id, servico_id, usuario_id, valor_mensal)
          VALUES ($1, $2, $3, $4) RETURNING *`,
-        [parseInt(String(contrato_id)), parseInt(String(servico_id)), req.user!.id, valorFinal],
+        [parseInt(String(contrato_id)), parseInt(String(servico_id)), ownerId, valorFinal],
       );
 
       // JOIN to return service name in response
@@ -94,6 +97,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 // PUT /api/contratos-servicos/:id
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { valor_mensal, implantado, faturando, data_inicio_faturamento } =
       req.body as Record<string, unknown>;
 
@@ -110,7 +114,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
         faturando != null ? Boolean(faturando) : null,
         data_inicio_faturamento ?? null,
         req.params['id'],
-        req.user!.id,
+        ownerId,
       ],
     );
     if (result.rows.length === 0) {
@@ -133,9 +137,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 // DELETE /api/contratos-servicos/:id
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       'DELETE FROM contratos_servicos WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params['id'], req.user!.id],
+      [req.params['id'], ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Contract service not found' });

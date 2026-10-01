@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { resolveAccountOwnerId } from '../utils/familyVisibility';
 
 const router = Router();
 
@@ -10,13 +11,14 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   try {
     const { conta_id } = req.query as Record<string, string | undefined>;
     const incluirInativos = req.query['incluir_inativos'] === 'true';
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(conta_id) : null);
 
     const result = await pool.query(
       `SELECT * FROM socios
        WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'}
          AND ($2::int IS NULL OR conta_id = $2)
        ORDER BY nome ASC`,
-      [req.user!.id, conta_id ? parseInt(conta_id) : null],
+      [ownerId, conta_id ? parseInt(conta_id) : null],
     );
 
     res.json({ success: true, data: result.rows });
@@ -46,11 +48,12 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
+    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
 
     const result = await pool.query(
       `INSERT INTO socios (usuario_id, conta_id, nome, percentual)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [req.user!.id, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), pct],
+      [ownerId, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), pct],
     );
 
     res.status(201).json({ success: true, message: 'Partner created', data: result.rows[0] });
@@ -64,6 +67,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { nome, percentual } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
@@ -80,7 +84,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     const result = await pool.query(
       `UPDATE socios SET nome = $1, percentual = $2
        WHERE id = $3 AND usuario_id = $4 RETURNING *`,
-      [String(nome).trim(), pct, id, req.user!.id],
+      [String(nome).trim(), pct, id, ownerId],
     );
 
     if (result.rows.length === 0) {
@@ -99,9 +103,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const result = await pool.query(
       `UPDATE socios SET ativo = false WHERE id = $1 AND usuario_id = $2 RETURNING id`,
-      [id, req.user!.id],
+      [id, ownerId],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ success: false, message: 'Partner not found' });

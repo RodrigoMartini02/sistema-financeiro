@@ -11,6 +11,7 @@ import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque 
 import { accounts } from '../../../db/schema';
 import { isValidProdutoValor, isValidProdutoImagemMimeType } from '../../../services/catalogo';
 import { EstoqueError, registrarMovimentacaoEstoque, type TipoMovimentacaoEstoque } from '../../../services/estoque';
+import { resolveAccountOwnerId } from '../../../utils/familyVisibility';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
@@ -39,8 +40,9 @@ const router = Router();
 const INVALID_CONTA = Symbol('INVALID_CONTA');
 
 /**
- * Valida que a conta financeira informada pertence ao usuario. `conta_id` vem
- * do localStorage do navegador — sem esta checagem, trocar o valor no cliente
+ * Valida que a conta financeira informada pertence ao dono do catalogo (o
+ * titular, tambem quando quem cadastra e um colaborador). `conta_id` vem do
+ * localStorage do navegador — sem esta checagem, trocar o valor no cliente
  * bastaria para pendurar um produto na conta de outra pessoa.
  */
 async function resolveContaDoUsuario(
@@ -73,10 +75,11 @@ function parseEstoqueMinimo(valor: unknown): string | null {
 // A listagem também abre para quem lança receita com produto vendido (utils/catalogAccess.ts).
 router.get('/', authenticate, requireCatalogAccess('products'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const produtos = await db
       .select()
       .from(catalogoProdutos)
-      .where(eq(catalogoProdutos.usuarioId, req.user!.id))
+      .where(eq(catalogoProdutos.usuarioId, ownerId))
       .orderBy(asc(catalogoProdutos.nome));
 
     const produtoIds = produtos.map((produto) => produto.id);
@@ -110,6 +113,7 @@ router.get('/', authenticate, requireCatalogAccess('products'), async (req: Requ
 // POST /api/catalogo/produtos
 router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { nome, descricao, valor, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
@@ -123,7 +127,7 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
     }
     const valorNumerico = Number(valor);
 
-    const contaId = await resolveContaDoUsuario(conta_id, req.user!.id);
+    const contaId = await resolveContaDoUsuario(conta_id, ownerId);
     if (contaId === INVALID_CONTA) {
       res.status(400).json({ success: false, message: 'Conta inválida' });
       return;
@@ -132,7 +136,7 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
     const [produto] = await db
       .insert(catalogoProdutos)
       .values({
-        usuarioId: req.user!.id,
+        usuarioId: ownerId,
         contaId,
         nome: String(nome).trim(),
         descricao: descricao ? String(descricao).trim() : null,
@@ -151,6 +155,7 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
 // PUT /api/catalogo/produtos/:id
 router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { nome, descricao, valor, ativo, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
 
     if (!nome || String(nome).trim() === '') {
@@ -164,7 +169,7 @@ router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), as
     }
     const valorNumerico = Number(valor);
 
-    const contaId = await resolveContaDoUsuario(conta_id, req.user!.id);
+    const contaId = await resolveContaDoUsuario(conta_id, ownerId);
     if (contaId === INVALID_CONTA) {
       res.status(400).json({ success: false, message: 'Conta inválida' });
       return;
@@ -183,7 +188,7 @@ router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), as
         ativo: typeof ativo === 'boolean' ? ativo : undefined,
         updatedAt: new Date(),
       })
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
       .returning();
 
     if (!produto) {
@@ -201,6 +206,7 @@ router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), as
 // DELETE /api/catalogo/produtos/:id
 router.delete('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const imagens = await db
       .select()
       .from(catalogoProdutoImagens)
@@ -208,7 +214,7 @@ router.delete('/:id', authenticate, requireScreenAccess('accessProductCatalog'),
 
     const [produto] = await db
       .delete(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
       .returning();
 
     if (!produto) {
@@ -245,10 +251,11 @@ router.post(
     }
 
     try {
+      const ownerId = await resolveAccountOwnerId(req.user!.id, null);
       const [produto] = await db
         .select({ id: catalogoProdutos.id })
         .from(catalogoProdutos)
-        .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, req.user!.id)))
+        .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
         .limit(1);
 
       if (!produto) {
@@ -293,6 +300,7 @@ router.post(
 // GET /api/catalogo/produtos/imagens/:nomeArquivo — stream file inline
 router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const nomeArquivo = path.basename(req.params['nomeArquivo'] ?? '');
     const [imagem] = await db
       .select({ produtoId: catalogoProdutoImagens.produtoId })
@@ -308,7 +316,7 @@ router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessPro
     const [produto] = await db
       .select({ id: catalogoProdutos.id })
       .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, ownerId)))
       .limit(1);
 
     if (!produto) {
@@ -333,6 +341,7 @@ router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessPro
 // DELETE /api/catalogo/produtos/imagens/:imagemId
 router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const [imagem] = await db
       .select()
       .from(catalogoProdutoImagens)
@@ -347,7 +356,7 @@ router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessPro
     const [produto] = await db
       .select({ id: catalogoProdutos.id })
       .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, ownerId)))
       .limit(1);
 
     if (!produto) {
@@ -372,6 +381,7 @@ router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessPro
 // POST /api/catalogo/produtos/:id/estoque — registra entrada ou saida manual
 router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const { tipo, quantidade, motivo } = req.body as Record<string, unknown>;
 
     if (tipo !== 'entrada' && tipo !== 'saida') {
@@ -381,7 +391,7 @@ router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCata
 
     const resultado = await registrarMovimentacaoEstoque({
       produtoId: req.params['id']!,
-      usuarioId: req.user!.id,
+      usuarioId: ownerId,
       tipo: tipo as TipoMovimentacaoEstoque,
       quantidade: Number(quantidade),
       motivo: motivo ? String(motivo).trim() : null,
@@ -406,10 +416,11 @@ router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCata
 // GET /api/catalogo/produtos/:id/estoque/movimentacoes — historico do produto
 router.get('/:id/estoque/movimentacoes', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
+    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const [produto] = await db
       .select({ id: catalogoProdutos.id })
       .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, req.user!.id)))
+      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
       .limit(1);
 
     if (!produto) {
