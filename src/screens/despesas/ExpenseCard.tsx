@@ -4,9 +4,9 @@ import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import {
-  diferencaValor, formatDiferenca, getFirstName, getStatusColor,
-  StatusBadge, valorExibido,
+  formatDiferenca, getFirstName, getStatusColor, StatusBadge,
 } from './expenseStatus';
+import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
 import { EntryTypeBadge, getPaymentMethodLabel } from '../finance/entryTable';
 
 interface ExpenseCardProps {
@@ -108,11 +108,11 @@ export function ExpenseCard({
             aparecia mesmo quando igual ao final, repetindo o numero. */}
         <div className="flex flex-col items-end">
           <span className={['whitespace-nowrap text-sm', getStatusColor(item)].join(' ')}>
-            {formatCurrency(valorExibido(item))}
+            {formatCurrency(effectiveExpenseValue(item))}
           </span>
-          {diferencaValor(item) !== null && (
+          {paymentDifference(item) !== null && (
             <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
-              {formatDiferenca(diferencaValor(item)!)}
+              {formatDiferenca(paymentDifference(item)!)}
             </p>
           )}
         </div>

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNull, or } from 'drizzle-orm';
 import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
+import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
 import { inferDeterministicCopilotIntent, isQuestion, type CopilotIntentHint } from './copilotIntent';
 import { AiUsageLimitError, assertAiUsageWithinLimits, assertVoiceUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
@@ -199,7 +200,7 @@ async function storeMessage(input: {
 
 async function buildSummaryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
-    db.select({ amount: expenses.originalAmount }).from(expenses)
+    db.select({ amount: effectiveExpenseAmount() }).from(expenses)
       .where(accountExpenseCondition(userId, account, month, year)),
     db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year)),
   ]);
@@ -219,7 +220,7 @@ async function buildSummaryCard(userId: number, account: FinancialAccount, month
 async function buildCategoryCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
   const rows = await db.select({
     categoryName: categories.name,
-    amount: expenses.originalAmount,
+    amount: effectiveExpenseAmount(),
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
     .where(accountExpenseCondition(userId, account, month, year));
   const totals = new Map<string, number>();
@@ -243,7 +244,7 @@ async function buildTransactionsCard(input: {
   searchTerm: string | null;
 }): Promise<CopilotCard> {
   const [expenseRows, incomeRows] = await Promise.all([
-    db.select({ description: expenses.description, amount: expenses.originalAmount, date: expenses.dueDate })
+    db.select({ description: expenses.description, amount: effectiveExpenseAmount(), date: expenses.dueDate })
       .from(expenses).where(accountExpenseCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
     db.select({ description: incomes.description, amount: incomes.amount, date: incomes.receiptDate })
       .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(incomes.receiptDate)).limit(30),
@@ -268,7 +269,7 @@ async function buildTransactionsCard(input: {
 }
 
 async function buildUpcomingCard(userId: number, account: FinancialAccount, month: number, year: number): Promise<CopilotCard> {
-  const rows = await db.select({ description: expenses.description, amount: expenses.originalAmount, dueDate: expenses.dueDate, paid: expenses.paid })
+  const rows = await db.select({ description: expenses.description, amount: effectiveExpenseAmount(), dueDate: expenses.dueDate, paid: expenses.paid })
     .from(expenses).where(accountExpenseCondition(userId, account, month, year)).orderBy(asc(expenses.dueDate));
   const today = getTodayIsoInTimezone();
   const upcoming = rows.filter((row) => !row.paid && String(row.dueDate) >= today).slice(0, 8);

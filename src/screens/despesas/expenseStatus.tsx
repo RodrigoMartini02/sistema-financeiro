@@ -31,21 +31,6 @@ export function getFirstName(nome?: string | null): string {
   return first || '—';
 }
 
-// O valor que a linha representa: o que saiu, quando pago; o previsto, quando
-// nao. Em parcelada e o valor da parcela, nao o total da compra.
-export function valorExibido(item: Expense): number {
-  return item.pago && item.valorPago != null ? item.valorPago : item.valorFinal;
-}
-
-// Diferenca entre o previsto e o pago — juros ou desconto. Só existe quando a
-// despesa foi paga por um valor diferente do previsto; nos demais casos nao ha
-// nada a comunicar e a linha secundaria nao aparece.
-export function diferencaValor(item: Expense): number | null {
-  if (!item.pago || item.valorPago == null) return null;
-  const diff = item.valorPago - item.valorFinal;
-  return diff === 0 ? null : diff;
-}
-
 export function formatDiferenca(diff: number): string {
   return `${diff > 0 ? '+' : '−'} ${formatCurrency(Math.abs(diff))}`;
 }

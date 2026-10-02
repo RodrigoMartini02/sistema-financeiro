@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accountMembers, accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
+import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { resolveAccountOwnerId, resolveVisibleUserIds } from '../utils/familyVisibility';
 
 export interface FinancialAccount {
@@ -229,8 +230,7 @@ export async function getBudgetOverview(input: {
     )),
     db.select({
       categoryId: expenses.categoryId,
-      amount: expenses.originalAmount,
-      originalAmount: expenses.originalAmount,
+      amount: effectiveExpenseAmount(),
       paid: expenses.paid,
     }).from(expenses).where(expenseAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
     db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
@@ -252,8 +252,8 @@ export async function getBudgetOverview(input: {
       month: resolved.referenceMonth,
       year: resolved.referenceYear,
       incomeTotal: incomeRows.reduce((total, row) => total + asNumber(row.amount), 0),
-      paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
-      projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
+      paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount), 0),
+      projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount), 0),
       items: [],
     };
   }
@@ -266,8 +266,7 @@ export async function getBudgetOverview(input: {
     }).from(budgetTargets).where(and(eq(budgetTargets.userId, userId), eq(budgetTargets.accountId, account.id))),
     db.select({
       categoryId: expenses.categoryId,
-      amount: expenses.originalAmount,
-      originalAmount: expenses.originalAmount,
+      amount: effectiveExpenseAmount(),
       month: expenses.month,
       year: expenses.year,
     }).from(expenses).where(expenseAccountCondition(scopeIds, account, null, null)),
@@ -292,7 +291,7 @@ export async function getBudgetOverview(input: {
   const paidByCategory = new Map<number, number>();
   for (const row of expenseRows) {
     if (!row.categoryId) continue;
-    const amount = asNumber(row.amount ?? row.originalAmount);
+    const amount = asNumber(row.amount);
     projectedByCategory.set(row.categoryId, (projectedByCategory.get(row.categoryId) ?? 0) + amount);
     if (row.paid) paidByCategory.set(row.categoryId, (paidByCategory.get(row.categoryId) ?? 0) + amount);
   }
@@ -301,7 +300,7 @@ export async function getBudgetOverview(input: {
   const historicByCategory = new Map<number, number>();
   for (const row of historicalRows) {
     if (!row.categoryId || !priorPeriods.some((period) => period.month === row.month && period.year === row.year)) continue;
-    historicByCategory.set(row.categoryId, (historicByCategory.get(row.categoryId) ?? 0) + asNumber(row.amount ?? row.originalAmount));
+    historicByCategory.set(row.categoryId, (historicByCategory.get(row.categoryId) ?? 0) + asNumber(row.amount));
   }
 
   // Rollup: a meta é cadastrada na categoria raiz, então o total dela precisa
@@ -373,8 +372,8 @@ export async function getBudgetOverview(input: {
     month: resolved.referenceMonth,
     year: resolved.referenceYear,
     incomeTotal,
-    paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
-    projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount ?? row.originalAmount), 0),
+    paidTotal: expenseRows.filter((row) => row.paid).reduce((total, row) => total + asNumber(row.amount), 0),
+    projectedTotal: expenseRows.reduce((total, row) => total + asNumber(row.amount), 0),
     items,
   };
 }

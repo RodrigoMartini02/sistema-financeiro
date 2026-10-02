@@ -14,6 +14,7 @@ import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
 import { filterExpenses } from '../../utils/expenseFilters';
+import { effectiveExpenseValue } from '../../utils/expenseValue';
 import { canReadCatalogList, movementControls } from '../../utils/screenAccess';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
@@ -133,8 +134,11 @@ export function MovimentacoesScreen() {
   const filteredExpenses = filters.hasActiveFilters
     ? filterExpenses(dashboard?.expenses ?? [], filters.state, { meId: meIdStr, visibleNames: nomesVisiveis }, month, year)
     : null;
-  const despesasMes = filteredExpenses ? filteredExpenses.reduce((sum, item) => sum + item.valorFinal, 0) : despesasLancadasMes;
-  const resultadoMes = receitasMes - despesasMes;
+  // Só a "Despesa do mês" segue o filtro, pelo valor efetivo (o pago, quando
+  // paga). Resultado e saldo atual são sempre do mês inteiro, como saldo
+  // anterior e receita, para nenhum card misturar filtrado com não filtrado.
+  const despesasMes = filteredExpenses ? filteredExpenses.reduce((sum, item) => sum + effectiveExpenseValue(item), 0) : despesasLancadasMes;
+  const resultadoMes = receitasMes - despesasLancadasMes;
   const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
 
   const handleTabChange = (tab: MovementTab) => {
