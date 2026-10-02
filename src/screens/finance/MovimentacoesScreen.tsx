@@ -13,7 +13,7 @@ import { getActiveAccountId } from '../../services/apiClient';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
-import type { Expense, Income } from '../../types/finance';
+import { filterExpenses } from '../../utils/expenseFilters';
 import { canReadCatalogList, movementControls } from '../../utils/screenAccess';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
 import { CalendarView } from './calendar/CalendarView';
@@ -107,10 +107,7 @@ export function MovimentacoesScreen() {
   }, [preencherViewport, setFillViewport]);
 
   const [ordenar, setOrdenar] = useState<Ordenar>('cadastro_desc');
-  const [tableData, setTableData] = useState<{ expenses: Expense[]; incomes: Income[]; formas: string[]; cartoes: [string, string][] }>({
-    expenses: [], incomes: [], formas: [], cartoes: [],
-  });
-  const [despesasSummary, setDespesasSummary] = useState<{ total: number; count: number; active: boolean } | null>(null);
+  const [tableData, setTableData] = useState<{ formas: string[]; cartoes: [string, string][] }>({ formas: [], cartoes: [] });
 
   // Botão de filtros (mesmo de Relatórios): estado único que também controla
   // a faixa de limite de cartões e a tabela combinada.
@@ -131,7 +128,12 @@ export function MovimentacoesScreen() {
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
   const receitasMes = dashboard?.balance.receitas ?? 0;
   const despesasLancadasMes = dashboard?.balance.despesas ?? 0;
-  const despesasMes = despesasSummary?.active ? despesasSummary.total : despesasLancadasMes;
+  // Com filtro ativo, o total de despesas segue a mesma regra da tabela
+  // (filterExpenses), calculado aqui: a tabela não precisa avisar a tela.
+  const filteredExpenses = filters.hasActiveFilters
+    ? filterExpenses(dashboard?.expenses ?? [], filters.state, { meId: meIdStr, visibleNames: nomesVisiveis }, month, year)
+    : null;
+  const despesasMes = filteredExpenses ? filteredExpenses.reduce((sum, item) => sum + item.valorFinal, 0) : despesasLancadasMes;
   const resultadoMes = receitasMes - despesasMes;
   const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
 
@@ -219,7 +221,7 @@ export function MovimentacoesScreen() {
               label="Despesa do mês"
               value={formatCurrency(despesasMes)}
               tone="expense"
-              note={despesasSummary?.active ? `${despesasSummary.count} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
+              note={filteredExpenses ? `${filteredExpenses.length} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
             />
             <MovementMetricCard
               label="Resultado do mês"
@@ -269,7 +271,6 @@ export function MovimentacoesScreen() {
                     ordenar={ordenar}
                     hasFilter={filters.hasActiveFilters}
                     onDataLoaded={setTableData}
-                    onFilteredSummaryChange={setDespesasSummary}
                   />
                 </div>
               : <BudgetPanel month={month} year={year} />)

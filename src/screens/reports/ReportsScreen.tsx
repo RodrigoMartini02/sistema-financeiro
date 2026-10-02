@@ -14,15 +14,15 @@ import type {
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { ErrorState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
-import type { FiltroDataPag, FiltroStatus, TipoLancamento } from '../finance/LancamentosTable';
+import type { EntryType, ExpenseStatus, PaymentDateWindow } from '../../utils/expenseFilters';
 import { ENTRADA_PAINEL, Indicador } from '../finance/painel/base';
 import { useEntryFilters } from '../finance/useEntryFilters';
 import { ReportEntries, buildReportRows, type ReportSort, type ReportSortKey } from './ReportEntries';
 import { PERIOD_PRESETS, presetPeriod, samePeriod, type ReportPeriod } from './reportPeriod';
 
-const TYPE_TO_API: Record<TipoLancamento, ReportEntryType> = { receita: 'income', despesa: 'expense' };
-const STATUS_TO_API: Record<FiltroStatus, ReportExpenseStatus> = { pago: 'paid', em_dia: 'on_time', atrasada: 'overdue' };
-const PAYMENT_DATE_TO_API: Record<FiltroDataPag, ReportPaymentDateWindow> = { hoje: 'today', semana: 'week', mes: 'month' };
+const TYPE_TO_API: Record<EntryType, ReportEntryType> = { receita: 'income', despesa: 'expense' };
+const STATUS_TO_API: Record<ExpenseStatus, ReportExpenseStatus> = { pago: 'paid', em_dia: 'on_time', atrasada: 'overdue' };
+const PAYMENT_DATE_TO_API: Record<PaymentDateWindow, ReportPaymentDateWindow> = { hoje: 'today', semana: 'week', mes: 'month' };
 
 const PILL = 'inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-medium transition';
 const PILL_IDLE = 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700';
