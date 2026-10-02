@@ -12,6 +12,8 @@ import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { ensureUserHasAccount } from '../services/accountBackfill';
 import { companyAccountColumns, readCompanyAccountInput } from '../services/companyAccountInput';
+import { releaseRecoveryAttempt, reserveRecoveryAttempt } from '../services/passwordRecoveryCode';
+import { blockedAccessMessage, wrongCodeMessage } from '../utils/authMessages';
 import { resolveMemberRole } from '../utils/familyVisibility';
 import { sendRequestError } from '../utils/requestInput';
 
@@ -98,14 +100,16 @@ router.post(
         return;
       }
 
-      if (user.status === 'bloqueado') {
-        res.status(403).json({ success: false, message: 'Conta bloqueada. Fale com o suporte.' });
-        return;
-      }
-
       const passwordValid = await bcrypt.compare(senha, user.password);
       if (!passwordValid) {
         res.status(401).json({ success: false, message: 'Senha incorreta' });
+        return;
+      }
+
+      // O status só aparece para quem sabe a senha.
+      const blockedMessage = blockedAccessMessage(user.status);
+      if (blockedMessage) {
+        res.status(403).json({ success: false, message: blockedMessage });
         return;
       }
 
@@ -422,51 +426,19 @@ router.post(
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
-    const INVALID_MSG = 'Código inválido ou expirado';
     try {
       const { email, codigo } = req.body as { email: string; codigo: string };
-
-      const result = await pool.query(
-        'SELECT id, dados_financeiros FROM usuarios WHERE email = $1',
-        [email.toLowerCase()],
-      );
-
-      if (result.rows.length === 0) {
-        res.status(400).json({ success: false, message: INVALID_MSG });
+      const attempt = await reserveRecoveryAttempt(email.toLowerCase());
+      if (attempt.code !== String(codigo).trim()) {
+        res.status(400).json({ success: false, message: wrongCodeMessage(attempt.attemptsUsed) });
         return;
       }
 
-      const user = result.rows[0] as { id: number; dados_financeiros: Record<string, unknown> };
-      const df = user.dados_financeiros ?? {};
-      const storedCode = df['recovery_code'] as string | undefined;
-      const expiry = df['recovery_code_expiry'] as string | undefined;
-      const attempts = (df['recovery_attempts'] as number | undefined) ?? 0;
-
-      if (!storedCode || !expiry) {
-        res.status(400).json({ success: false, message: 'Code not found. Request a new one.' });
-        return;
-      }
-      if (new Date() > new Date(expiry)) {
-        res.status(400).json({ success: false, message: 'Code expired. Request a new one.' });
-        return;
-      }
-      if (attempts >= 3) {
-        res.status(400).json({ success: false, message: 'Too many attempts. Request a new code.' });
-        return;
-      }
-      if (storedCode !== codigo) {
-        await pool.query(
-          `UPDATE usuarios SET dados_financeiros = COALESCE(dados_financeiros, '{}'::jsonb) || jsonb_build_object('recovery_attempts', $1) WHERE id = $2`,
-          [attempts + 1, user.id],
-        );
-        res.status(400).json({ success: false, message: INVALID_MSG });
-        return;
-      }
-
-      res.json({ success: true, message: 'Code is valid' });
+      // Acerto não conta: a tentativa volta, e a redefinição ainda tem a dela.
+      await releaseRecoveryAttempt(attempt.userId);
+      res.json({ success: true, message: 'Código confirmado.' });
     } catch (error) {
-      console.error('Verify recovery code error:', error);
-      res.status(500).json({ success: false, message: 'Server error' });
+      sendRequestError(res, error, 'Verify recovery code error:', undefined, 'Não foi possível conferir o código agora. Tente de novo em instantes.');
     }
   },
 );
@@ -484,36 +456,9 @@ router.post(
     try {
       const { email, nova_senha: newPassword, codigo } = req.body as { email: string; nova_senha: string; codigo: string };
 
-      const result = await pool.query(
-        'SELECT id, dados_financeiros FROM usuarios WHERE email = $1',
-        [email.toLowerCase()],
-      );
-
-      if (result.rows.length === 0) {
-        res.status(404).json({ success: false, message: 'User not found' });
-        return;
-      }
-
-      const user = result.rows[0] as { id: number; dados_financeiros: Record<string, unknown> };
-      const df = user.dados_financeiros ?? {};
-      const storedCode = df['recovery_code'] as string | undefined;
-      const expiry = df['recovery_code_expiry'] as string | undefined;
-      const attempts = (df['recovery_attempts'] as number | undefined) ?? 0;
-
-      if (!storedCode || !expiry) {
-        res.status(400).json({ success: false, message: 'Code not found. Request a new one.' });
-        return;
-      }
-      if (new Date() > new Date(expiry)) {
-        res.status(400).json({ success: false, message: 'Code expired. Request a new one.' });
-        return;
-      }
-      if (attempts >= 3) {
-        res.status(400).json({ success: false, message: 'Too many attempts. Request a new code.' });
-        return;
-      }
-      if (storedCode !== codigo) {
-        res.status(400).json({ success: false, message: 'Invalid code' });
+      const attempt = await reserveRecoveryAttempt(email.toLowerCase());
+      if (attempt.code !== String(codigo).trim()) {
+        res.status(400).json({ success: false, message: wrongCodeMessage(attempt.attemptsUsed) });
         return;
       }
 
@@ -525,13 +470,12 @@ router.post(
              data_atualizacao = CURRENT_TIMESTAMP,
              dados_financeiros = dados_financeiros - 'recovery_code' - 'recovery_code_expiry' - 'recovery_attempts'
          WHERE id = $2`,
-        [hashedPassword, user.id],
+        [hashedPassword, attempt.userId],
       );
 
-      res.json({ success: true, message: 'Password changed successfully' });
+      res.json({ success: true, message: 'Senha redefinida.' });
     } catch (error) {
-      console.error('Reset password error:', error);
-      res.status(500).json({ success: false, message: 'Failed to update password' });
+      sendRequestError(res, error, 'Reset password error:', undefined, 'Não foi possível redefinir a senha agora. Tente de novo em instantes.');
     }
   },
 );
@@ -586,8 +530,9 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (user.status !== 'ativo') {
-      res.status(403).json({ success: false, message: 'Conta desativada. Fale com o suporte.' });
+    const blockedMessage = blockedAccessMessage(user.status);
+    if (blockedMessage) {
+      res.status(403).json({ success: false, message: blockedMessage });
       return;
     }
 
