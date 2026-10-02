@@ -78,7 +78,19 @@ interface AttemptData {
   blockedUntil: number | null;
 }
 
-export function authRateLimiter() {
+/** Campo do pedido que, junto com o IP, identifica quem está tentando. */
+type RateLimitField = 'documento' | 'email';
+
+function rateLimitIdentity(req: Request, field: RateLimitField): string {
+  const value = String(req.body?.[field] ?? '');
+  return field === 'email' ? value.trim().toLowerCase() : value.replace(/[^\d]+/g, '');
+}
+
+function minutesLabel(minutes: number): string {
+  return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+}
+
+export function authRateLimiter(field: RateLimitField) {
   const loginAttempts = new Map<string, AttemptData>();
   const WINDOW_MS = 15 * 60 * 1000;
   const MAX_ATTEMPTS = 5;
@@ -93,8 +105,7 @@ export function authRateLimiter() {
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
-    const document = (req.body?.documento as string | undefined)?.replace(/[^\d]+/g, '') ?? '';
-    const key = `${ip}:${document}`;
+    const key = `${ip}:${rateLimitIdentity(req, field)}`;
     const now = Date.now();
 
     if (!loginAttempts.has(key)) {
@@ -107,7 +118,7 @@ export function authRateLimiter() {
       const minutesLeft = Math.ceil((data.blockedUntil - now) / 60000);
       res.status(429).json({
         success: false,
-        message: `Too many login attempts. Try again in ${minutesLeft} minutes.`,
+        message: `Muitas tentativas. Tente de novo em ${minutesLabel(minutesLeft)}.`,
         blockedUntil: data.blockedUntil,
       });
       return;
@@ -125,7 +136,7 @@ export function authRateLimiter() {
       data.blockedUntil = now + BLOCK_DURATION;
       res.status(429).json({
         success: false,
-        message: 'Too many login attempts. Account temporarily blocked for 30 minutes.',
+        message: `Muitas tentativas. Tente de novo em ${minutesLabel(BLOCK_DURATION / 60000)}.`,
         blockedUntil: data.blockedUntil,
       });
       return;

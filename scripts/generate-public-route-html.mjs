@@ -3,7 +3,7 @@ import path from 'node:path';
 
 const distDir = path.resolve('dist');
 const siteUrl = 'https://fin-gerence.com.br';
-const imageUrl = `${siteUrl}/icons/logo.png`;
+const imageUrl = `${siteUrl}/icons/fingerence-share.png`;
 
 const routes = [
   {

@@ -60,7 +60,7 @@ export function LoginModal({ isOpen, onClose, notice, initialMode = 'login', ton
       >
         <div className="relative flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <img src="/icons/logo.png" alt="FINGERENCE" className="h-7 w-7 object-contain" />
+            <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-7 w-7 object-contain" />
             <p
               className={['tracking-[0.20em]', isLight ? 'text-slate-950' : 'text-site-text'].join(' ')}
               style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, fontStyle: 'italic' }}

@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect } from 'react';
-import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import {
   login, register, registerCompany, forgotPassword, verifyRecoveryCode, resetPassword,
   googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
@@ -62,6 +62,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [resendingCode, setResendingCode] = useState(false);
   const [verifiedCode, setVerifiedCode] = useState('');
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [modalTermos, setModalTermos] = useState<'termos' | 'privacidade' | null>(null);
@@ -170,6 +171,19 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
       setError(err instanceof Error ? err.message : 'Erro ao solicitar recuperação');
     } finally { setLoading(false); }
   };
+
+  // Pede um código novo para o mesmo e-mail (o anterior deixa de valer) e continua na tela do código.
+  const handleResendCode = async () => {
+    setError(''); setSuccess(''); setResendingCode(true);
+    try {
+      await forgotPassword(recoveryEmail);
+      setSuccess(`Código reenviado para ${recoveryEmail}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível reenviar o código');
+    } finally { setResendingCode(false); }
+  };
+
+  const changeRecoveryEmail = () => { setMode('forgot'); setError(''); setSuccess(''); };
 
   const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -395,9 +409,14 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
           <Button type="submit" disabled={loading} className={`${submitButtonClass} w-full justify-center`}>
             {loading ? 'Verificando...' : 'Verificar código'}
           </Button>
-          <button type="button" onClick={() => setMode('forgot')} className={`${textButtonClass} flex items-center justify-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
-            <ArrowLeft size={14} /> Reenviar código
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onClick={changeRecoveryEmail} className={`${textButtonClass} flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
+              <ArrowLeft size={14} /> Trocar e-mail
+            </button>
+            <button type="button" onClick={handleResendCode} disabled={loading || resendingCode} className={`${textButtonClass} flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 disabled:opacity-60 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
+              <RefreshCw size={14} className={resendingCode ? 'animate-spin' : ''} /> {resendingCode ? 'Reenviando...' : 'Reenviar código'}
+            </button>
+          </div>
         </form>
       )}
 

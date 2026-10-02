@@ -20,7 +20,7 @@ export function SiteFooter({ onOpenTermos, onOpenPrivacidade, tone = 'dark' }: S
     ].join(' ')}>
       <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8 xl:px-10">
         <div className="flex items-center gap-3">
-          <img src="/icons/logo.png" alt="FINGERENCE" className="h-7 w-7 object-contain" />
+          <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-7 w-7 object-contain" />
           <p
             className={['tracking-[0.20em]', isLight ? 'text-slate-500' : 'text-site-textMuted'].join(' ')}
             style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 400, fontStyle: 'italic' }}
