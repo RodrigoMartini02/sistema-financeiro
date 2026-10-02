@@ -21,23 +21,16 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
+import { filterExpenses, getExpenseStatus, type EntryType, type ExpenseStatus, type PaymentDateWindow } from '../../utils/expenseFilters';
 import { ExpenseCard } from '../despesas/ExpenseCard';
 import { IncomeCard, categoriaReceita } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
 
-export type TipoLancamento = 'receita' | 'despesa';
-export type FiltroStatus = 'pago' | 'em_dia' | 'atrasada';
-export type FiltroDataPag = 'hoje' | 'semana' | 'mes';
 export type Ordenar = 'cadastro_desc' | 'data_asc' | 'data_desc' | 'valor_asc' | 'valor_desc' | 'descricao';
 
 type LancamentoItem =
   | { kind: 'despesa'; id: number; chave: string; data: Expense }
   | { kind: 'receita'; id: number; chave: string; data: Income };
-
-export function getExpenseStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
-  if (item.pago) return 'pago';
-  return item.dataVencimento < getLocalTodayIso() ? 'atrasada' : 'em_dia';
-}
 
 const STATUS_TEXT_COLOR: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
   pago: 'text-green-600 dark:text-green-400',
@@ -166,16 +159,19 @@ export interface LancamentosTableProps {
   escopoFamilia: boolean;
   meIdStr: string | null;
   nomesVisiveis: Set<string>;
-  filtroTipo: Set<TipoLancamento>;
-  filtroStatus: Set<FiltroStatus>;
+  filtroTipo: Set<EntryType>;
+  filtroStatus: Set<ExpenseStatus>;
   filtroCategoria: Set<string>;
   filtroFormaPag: Set<string>;
   filtroCartao: Set<string>;
-  filtroDataPag: Set<FiltroDataPag>;
+  filtroDataPag: Set<PaymentDateWindow>;
   ordenar: Ordenar;
   hasFilter: boolean;
-  onDataLoaded?: (data: { expenses: Expense[]; incomes: Income[]; formas: string[]; cartoes: [string, string][] }) => void;
-  onFilteredSummaryChange?: (summary: { total: number; count: number; active: boolean }) => void;
+  /**
+   * Opções de forma de pagamento e cartão do mês, para o painel de filtros da tela.
+   * Precisa ser estável (ex.: setter do useState): o efeito que a chama depende dela.
+   */
+  onDataLoaded?: (options: { formas: string[]; cartoes: [string, string][] }) => void;
 }
 
 /**
@@ -188,7 +184,7 @@ export interface LancamentosTableProps {
 export function LancamentosTable({
   month, year, isEmpresa, escopoFamilia, meIdStr, nomesVisiveis,
   filtroTipo, filtroStatus, filtroCategoria, filtroFormaPag, filtroCartao, filtroDataPag, ordenar, hasFilter,
-  onDataLoaded, onFilteredSummaryChange,
+  onDataLoaded,
 }: LancamentosTableProps) {
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [incomeDialog, setIncomeDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
@@ -306,40 +302,22 @@ export function LancamentosTable({
   };
 
   const hoje = getLocalTodayIso();
-  const semanaAgo = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 10);
-  const mesPrefixo = `${year}-${String(month + 1).padStart(2, '0')}`;
-
-  const passaFiltroDataPag = (i: Expense): boolean => {
-    if (filtroDataPag.size === 0) return true;
-    if (filtroDataPag.has('hoje') && i.dataPagamento === hoje) return true;
-    if (filtroDataPag.has('semana') && i.dataPagamento && i.dataPagamento >= semanaAgo && i.dataPagamento <= hoje) return true;
-    if (filtroDataPag.has('mes') && i.dataPagamento?.startsWith(mesPrefixo)) return true;
-    return false;
-  };
 
   const passaFiltroMembro = (autorNome?: string | null): boolean => {
     if (meIdStr == null) return true; // ainda carregando — nao bloqueia exibicao
     return !!autorNome && nomesVisiveis.has(autorNome);
   };
-  // Despesa é de quem paga (dono do cartão); quem cadastrou continua vendo o
-  // que lançou quando está marcado no filtro, para poder conferir e editar.
-  const passaFiltroDespesa = (i: Expense): boolean => {
-    if (meIdStr == null) return true;
-    return (!!i.pagadorNome && nomesVisiveis.has(i.pagadorNome))
-      || (String(i.autorId) === meIdStr && !!i.autorNome && nomesVisiveis.has(i.autorNome));
-  };
 
-  const expensesFiltered = filtroTipo.has('despesa')
-    ? allExpenses.filter((i) => {
-        if (filtroStatus.size > 0 && !filtroStatus.has(getExpenseStatus(i))) return false;
-        if (filtroCategoria.size > 0 && !filtroCategoria.has(String(i.categoriaId))) return false;
-        if (!passaFiltroDespesa(i)) return false;
-        if (filtroFormaPag.size > 0 && !filtroFormaPag.has(i.formaPagamento)) return false;
-        if (filtroCartao.size > 0 && !filtroCartao.has(String(i.cartaoId ?? ''))) return false;
-        if (!passaFiltroDataPag(i)) return false;
-        return true;
-      })
-    : [];
+  const expensesFiltered = filterExpenses(
+    allExpenses,
+    {
+      types: filtroTipo, statuses: filtroStatus, categoryIds: filtroCategoria,
+      paymentMethods: filtroFormaPag, cardIds: filtroCartao, paymentDates: filtroDataPag,
+    },
+    { meId: meIdStr, visibleNames: nomesVisiveis },
+    month,
+    year,
+  );
 
   const incomesFiltered = filtroTipo.has('receita')
     ? allIncomes.filter((i) => passaFiltroMembro(i.autorNome))
@@ -376,25 +354,18 @@ export function LancamentosTable({
     }
   });
 
+  // Depende do resultado da consulta (referência estável no React Query, e
+  // `undefined` enquanto carrega), nunca de uma lista recriada a cada render.
+  const dashboardData = finance.dashboard.data;
   useEffect(() => {
     if (!onDataLoaded) return;
-    const formas = [...new Set(allExpenses.map((i) => i.formaPagamento))].sort();
+    const expenses = dashboardData?.expenses ?? [];
+    const formas = [...new Set(expenses.map((i) => i.formaPagamento))].sort();
     const cartoes = [...new Map(
-      allExpenses.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
+      expenses.filter((i) => i.cartaoId != null).map((i) => [String(i.cartaoId), i.cartaoNome ?? `Cartão #${i.cartaoId}`])
     ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-    onDataLoaded({ expenses: allExpenses, incomes: allIncomes, formas, cartoes });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allExpenses, allIncomes]);
-
-  useEffect(() => {
-    const totalDespesas = expensesFiltered.reduce((s, i) => s + i.valorFinal, 0);
-    onFilteredSummaryChange?.({
-      total: totalDespesas,
-      count: expensesFiltered.length,
-      active: hasFilter,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expensesFiltered, hasFilter]);
+    onDataLoaded({ formas, cartoes });
+  }, [dashboardData, onDataLoaded]);
 
   useEffect(() => { setSelecionadas(new Set()); }, [month, year]);
 

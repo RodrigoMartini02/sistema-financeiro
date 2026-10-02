@@ -11,16 +11,16 @@ import type { FilterGroup } from '../../ui/MultiFilterPanel';
 import { compararNomesCatalogo, groupSelectableCategories } from '../../utils/categorySuggestions';
 import { TERMOS } from '../config/ContasTab';
 import { getPaymentMethodLabel } from './entryTable';
-import type { FiltroDataPag, FiltroStatus, TipoLancamento } from './LancamentosTable';
+import type { EntryType, ExpenseStatus, PaymentDateWindow } from '../../utils/expenseFilters';
 
 export interface EntryFilterState {
-  types: Set<TipoLancamento>;
-  statuses: Set<FiltroStatus>;
+  types: Set<EntryType>;
+  statuses: Set<ExpenseStatus>;
   /** Ids das categorias (subcategorias; marcar o grupo marca as subs). */
   categoryIds: Set<string>;
   paymentMethods: Set<string>;
   cardIds: Set<string>;
-  paymentDates: Set<FiltroDataPag>;
+  paymentDates: Set<PaymentDateWindow>;
   /** Ids das pessoas; começa só com quem está logado. */
   memberIds: Set<string>;
 }
@@ -32,7 +32,7 @@ interface EntryFilterOptions {
   cards: [string, string][];
 }
 
-const ALL_TYPES: TipoLancamento[] = ['receita', 'despesa'];
+const ALL_TYPES: EntryType[] = ['receita', 'despesa'];
 
 /**
  * Botão de filtros dos lançamentos (Movimentações e Relatórios): o estado de
@@ -56,12 +56,12 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
     staleTime: 5 * 60_000,
   });
 
-  const [types, setTypes] = useState<Set<TipoLancamento>>(new Set(ALL_TYPES));
-  const [statuses, setStatuses] = useState<Set<FiltroStatus>>(new Set());
+  const [types, setTypes] = useState<Set<EntryType>>(new Set(ALL_TYPES));
+  const [statuses, setStatuses] = useState<Set<ExpenseStatus>>(new Set());
   const [categoryIds, setCategoryIds] = useState<Set<string>>(new Set());
   const [selectedPaymentMethods, setSelectedPaymentMethods] = useState<Set<string>>(new Set());
   const [cardIds, setCardIds] = useState<Set<string>>(new Set());
-  const [paymentDates, setPaymentDates] = useState<Set<FiltroDataPag>>(new Set());
+  const [paymentDates, setPaymentDates] = useState<Set<PaymentDateWindow>>(new Set());
   const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
 
   const meId = meQ.data ? String(meQ.data.id) : null;
@@ -106,7 +106,7 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
         { value: 'despesa', label: 'Despesa' },
       ],
       selected: types,
-      onChange: (next) => setTypes(next as Set<TipoLancamento>),
+      onChange: (next) => setTypes(next as Set<EntryType>),
     },
     // Grupos de despesa só aparecem com "Despesa" marcado: não fazem sentido para receita.
     ...(types.has('despesa') ? [
@@ -119,7 +119,7 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
           { value: 'atrasada', label: 'Atrasada' },
         ],
         selected: statuses,
-        onChange: (next: Set<string>) => setStatuses(next as Set<FiltroStatus>),
+        onChange: (next: Set<string>) => setStatuses(next as Set<ExpenseStatus>),
       },
       { id: 'categoria', label: 'Categoria', options: categoryOptions, selected: categoryIds, onChange: setCategoryIds },
       {
@@ -145,7 +145,7 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
           { value: 'mes', label: 'Este mês' },
         ],
         selected: paymentDates,
-        onChange: (next: Set<string>) => setPaymentDates(next as Set<FiltroDataPag>),
+        onChange: (next: Set<string>) => setPaymentDates(next as Set<PaymentDateWindow>),
       },
     ] : []),
     // Pessoas sempre visível: não depende do filtro de Tipo.
