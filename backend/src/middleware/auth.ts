@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { eq } from 'drizzle-orm';
+import { db } from '../db/client';
+import { users } from '../db/schema';
+import { blockedAccessMessage } from '../utils/authMessages';
 import { getRequesterPlanStatus, isPlanAccessActive } from '../services/plan-lifecycle';
 
 // Papel dentro da conta a que o usuario esta vinculado — so informativo
@@ -34,7 +38,7 @@ function getJwtSecret(): string {
   return secret;
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -44,6 +48,20 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     }
 
     const decoded = jwt.verify(token, getJwtSecret()) as TokenPayload;
+
+    // O status vem do banco a cada pedido (o token não sabe dele): quem foi
+    // desativado ou bloqueado perde a sessão aberta no próximo pedido.
+    const [account] = await db.select({ status: users.status }).from(users).where(eq(users.id, decoded.id)).limit(1);
+    if (!account) {
+      res.status(401).json({ success: false, message: 'Sessão inválida. Entre de novo.' });
+      return;
+    }
+    const blockedMessage = blockedAccessMessage(account.status);
+    if (blockedMessage) {
+      res.status(401).json({ success: false, message: blockedMessage });
+      return;
+    }
+
     req.user = {
       id: decoded.id,
       document: decoded.document ?? decoded.documento ?? '',
@@ -60,7 +78,8 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
       res.status(401).json({ success: false, message: 'Token expired. Please log in again.' });
       return;
     }
-    res.status(500).json({ success: false, message: 'Failed to verify authentication.' });
+    console.error('Authenticate error:', error);
+    res.status(500).json({ success: false, message: 'Não foi possível validar a sessão agora. Tente de novo em instantes.' });
   }
 }
 
