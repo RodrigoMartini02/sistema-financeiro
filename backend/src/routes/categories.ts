@@ -132,27 +132,6 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   }
 });
 
-// GET /api/categories/stats/usage
-router.get('/stats/usage', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const result = await pool.query(
-      `SELECT c.id, c.nome, c.cor,
-        COUNT(d.id) AS total_uses,
-        COALESCE(SUM(d.valor_original), 0) AS total_amount
-       FROM categorias c
-       LEFT JOIN despesas d ON c.id = d.categoria_id
-       WHERE c.usuario_id = $1
-       GROUP BY c.id, c.nome, c.cor
-       ORDER BY total_uses DESC, c.nome ASC`,
-      [req.user!.id],
-    );
-    res.json({ success: true, data: result.rows });
-  } catch (error) {
-    console.error('Category stats error:', error);
-    res.status(500).json({ success: false, message: 'Failed to get category statistics' });
-  }
-});
-
 // POST /api/categories/default
 router.post('/default', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {

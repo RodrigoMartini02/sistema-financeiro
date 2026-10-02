@@ -17,6 +17,7 @@ import { WeekGrid } from './WeekGrid';
 import type { CalendarItemKind } from './calendarStatus';
 import { getExpenseStatus, getIncomeStatus } from './calendarStatus';
 import type { CalendarItem } from './types';
+import { effectiveExpenseValue } from '../../../utils/expenseValue';
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -87,7 +88,7 @@ export function CalendarView({ month, year, subView }: Props) {
     for (const expense of finance.dashboard.data?.expenses ?? []) {
       push(expense.dataVencimento, {
         kind: 'despesa', id: expense.id, title: expense.descricao,
-        date: expense.dataVencimento, value: expense.valorFinal,
+        date: expense.dataVencimento, value: effectiveExpenseValue(expense),
         status: getExpenseStatus(expense),
       });
     }

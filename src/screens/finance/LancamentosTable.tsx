@@ -22,6 +22,8 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
 import { filterExpenses, getExpenseStatus, type EntryType, type ExpenseStatus, type PaymentDateWindow } from '../../utils/expenseFilters';
+import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
+import { formatDiferenca } from '../despesas/expenseStatus';
 import { ExpenseCard } from '../despesas/ExpenseCard';
 import { IncomeCard, categoriaReceita } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
@@ -46,20 +48,6 @@ const STATUS_LABEL: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string>
 export function getFirstName(nome?: string | null): string {
   const first = (nome ?? '').trim().split(/\s+/)[0];
   return first || '—';
-}
-
-export function valorExibido(item: Expense): number {
-  return item.pago && item.valorPago != null ? item.valorPago : item.valorFinal;
-}
-
-export function diferencaValor(item: Expense): number | null {
-  if (!item.pago || item.valorPago == null) return null;
-  const diff = item.valorPago - item.valorFinal;
-  return diff === 0 ? null : diff;
-}
-
-export function formatDiferenca(diff: number): string {
-  return `${diff > 0 ? '+' : '−'} ${formatCurrency(Math.abs(diff))}`;
 }
 
 function getExpenseStatusKey(item: Expense): 'pago' | 'atrasada' | 'em_dia' | 'cancelada' {
@@ -334,7 +322,7 @@ export function LancamentosTable({
   // data de recebimento em receita como equivalentes; valor usa o valor
   // exibido de cada tipo.
   const dataDoItem = (item: LancamentoItem): string => item.kind === 'despesa' ? item.data.dataVencimento : item.data.data;
-  const valorDoItem = (item: LancamentoItem): number => item.kind === 'despesa' ? valorExibido(item.data) : item.data.valor;
+  const valorDoItem = (item: LancamentoItem): number => item.kind === 'despesa' ? effectiveExpenseValue(item.data) : item.data.valor;
 
   const filtered = [...combined].sort((a, b) => {
     switch (ordenar) {
@@ -742,8 +730,8 @@ function ExpenseRow({
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}><ExpenseStatusBadge item={item} /></td>
       <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
-        <span className={['text-xs', getExpenseStatusColor(item)].join(' ')}>{formatCurrency(valorExibido(item))}</span>
-        {diferencaValor(item) !== null && <p className={SECONDARY_CLASS}>{formatDiferenca(diferencaValor(item)!)}</p>}
+        <span className={['text-xs', getExpenseStatusColor(item)].join(' ')}>{formatCurrency(effectiveExpenseValue(item))}</span>
+        {paymentDifference(item) !== null && <p className={SECONDARY_CLASS}>{formatDiferenca(paymentDifference(item)!)}</p>}
       </td>
       {isEmpresa && (
         <td className={[TD_CLASS, 'text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap'].join(' ')}>
