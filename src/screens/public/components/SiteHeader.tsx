@@ -102,7 +102,7 @@ export function SiteHeader({ onOpenLogin, tone = 'dark' }: SiteHeaderProps) {
           aria-label="Ir para a Home do FINGERENCE"
         >
           <img
-            src="/icons/logo.png"
+            src="/icons/fingerence-logo.webp"
             alt="FINGERENCE"
             width={72}
             height={72}

@@ -2,6 +2,14 @@ import { logout } from './session';
 import { resolveDemoRequest } from './demo/fakeApiResolver';
 import { getDemoDatabase } from './demo/demoDatabaseSingleton';
 
+interface ApiRequestOptions {
+  /**
+   * Login, cadastro e recuperação de senha: vão sem token, e o 401 delas
+   * (ex.: senha incorreta) é a resposta da própria rota, não sessão vencida.
+   */
+  anonymous?: boolean;
+}
+
 interface ApiEnvelope<T> {
   success?: boolean;
   message?: string;
@@ -30,7 +38,11 @@ export function getActiveAccountId() {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export async function apiRequest<T>(endpoint: string, init: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+  endpoint: string,
+  init: RequestInit = {},
+  { anonymous = false }: ApiRequestOptions = {},
+): Promise<T> {
   // Dentro do documento demo.html, toda requisição é resolvida contra um banco fake em
   // memória — nunca toca rede real, sessão real ou localStorage/sessionStorage de sessão
   // real. Fora desse documento (Home real, app autenticado), comportamento inalterado.
@@ -38,20 +50,22 @@ export async function apiRequest<T>(endpoint: string, init: RequestInit = {}): P
     return resolveDemoRequest(getDemoDatabase(), endpoint, { method: init.method, body: init.body as string | undefined }) as T;
   }
 
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
   const headers = new Headers(init.headers);
 
   if (!headers.has('Content-Type') && init.body) {
     headers.set('Content-Type', 'application/json');
   }
-  if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (!anonymous) {
+    const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  }
 
   const response = await fetch(`${getApiUrl()}${endpoint}`, { ...init, headers });
   const payload = await response.json().catch(() => ({})) as ApiEnvelope<T>;
 
-  if (response.status === 401) {
+  if (response.status === 401 && !anonymous) {
     logout();
-    throw new Error('Sessao expirada');
+    throw new Error('Sessão expirada');
   }
 
   if (!response.ok || payload.success === false) {

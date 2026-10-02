@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const SITE_URL = 'https://fin-gerence.com.br';
-const DEFAULT_IMAGE = `${SITE_URL}/icons/logo.png`;
+const DEFAULT_IMAGE = `${SITE_URL}/icons/fingerence-share.png`;
 
 type SeoConfig = {
   title: string;

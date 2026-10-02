@@ -72,7 +72,7 @@ async function sendRecoveryEmail(email: string, name: string, code: string): Pro
 router.post(
   '/login',
   [
-    authRateLimiter(),
+    authRateLimiter('documento'),
     body('documento').notEmpty().withMessage('Document is required'),
     body('senha').notEmpty().withMessage('Password is required'),
     validate,
@@ -94,18 +94,18 @@ router.post(
         .limit(1);
 
       if (!user) {
-        res.status(401).json({ success: false, message: 'Invalid document or password' });
+        res.status(401).json({ success: false, message: 'CPF, CNPJ ou e-mail não cadastrado' });
         return;
       }
 
       if (user.status === 'bloqueado') {
-        res.status(403).json({ success: false, message: 'Account blocked. Contact support.' });
+        res.status(403).json({ success: false, message: 'Conta bloqueada. Fale com o suporte.' });
         return;
       }
 
       const passwordValid = await bcrypt.compare(senha, user.password);
       if (!passwordValid) {
-        res.status(401).json({ success: false, message: 'Invalid document or password' });
+        res.status(401).json({ success: false, message: 'Senha incorreta' });
         return;
       }
 
@@ -147,7 +147,7 @@ router.post(
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ success: false, message: 'Failed to log in' });
+      res.status(500).json({ success: false, message: 'Não foi possível entrar agora. Tente de novo em instantes.' });
     }
   },
 );
@@ -365,9 +365,8 @@ router.post(
 // POST /api/auth/forgot-password
 router.post(
   '/forgot-password',
-  [body('email').isEmail().withMessage('Invalid email'), validate],
+  [authRateLimiter('email'), body('email').isEmail().withMessage('Invalid email'), validate],
   async (req: Request, res: Response): Promise<void> => {
-    const GENERIC_MSG = 'Se este e-mail estiver cadastrado, você receberá um código de recuperação em breve.';
     try {
       const { email } = req.body as { email: string };
       const normalizedEmail = email.toLowerCase();
@@ -378,9 +377,8 @@ router.post(
         .where(eq(users.email, normalizedEmail))
         .limit(1);
 
-      // Always return 200 — don't reveal whether email exists
       if (!user) {
-        res.json({ success: true, message: GENERIC_MSG });
+        res.status(404).json({ success: false, message: 'E-mail não cadastrado. Confira o e-mail usado no cadastro.' });
         return;
       }
 
@@ -403,12 +401,14 @@ router.post(
         await sendRecoveryEmail(normalizedEmail, user.name!, code);
       } catch (emailErr) {
         console.error('[Recovery] Failed to send email:', (emailErr as Error).message);
+        res.status(502).json({ success: false, message: 'Não foi possível enviar o código agora. Tente de novo em instantes.' });
+        return;
       }
 
-      res.json({ success: true, message: GENERIC_MSG });
+      res.json({ success: true, message: 'Código enviado. Se não chegar em alguns minutos, confira a caixa de spam.' });
     } catch (error) {
       console.error('Forgot password error:', error);
-      res.status(500).json({ success: false, message: 'Server error' });
+      res.status(500).json({ success: false, message: 'Não foi possível pedir o código agora. Tente de novo em instantes.' });
     }
   },
 );
@@ -542,7 +542,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
     const { code, redirect_uri } = req.body as { code: string; redirect_uri: string };
 
     if (!code) {
-      res.status(400).json({ success: false, message: 'Authorization code not provided' });
+      res.status(400).json({ success: false, message: 'O Google não enviou a autorização. Tente entrar de novo.' });
       return;
     }
 
@@ -561,7 +561,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
     const tokenData = await tokenResponse.json() as Record<string, string>;
 
     if (tokenData['error']) {
-      res.status(400).json({ success: false, message: `Google auth error: ${tokenData['error_description'] ?? tokenData['error']}` });
+      res.status(400).json({ success: false, message: `Erro na autenticação com o Google: ${tokenData['error_description'] ?? tokenData['error']}` });
       return;
     }
 
@@ -571,7 +571,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
     const googleUser = await userInfoResponse.json() as { email?: string; id?: string };
 
     if (!googleUser.email) {
-      res.status(400).json({ success: false, message: 'Could not retrieve email from Google' });
+      res.status(400).json({ success: false, message: 'Não foi possível obter o e-mail da conta Google.' });
       return;
     }
 
@@ -582,12 +582,12 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
       .limit(1);
 
     if (!user) {
-      res.status(403).json({ success: false, message: 'Email not registered in the system.' });
+      res.status(403).json({ success: false, message: 'E-mail do Google não cadastrado no sistema.' });
       return;
     }
 
     if (user.status !== 'ativo') {
-      res.status(403).json({ success: false, message: 'Account disabled. Contact support.' });
+      res.status(403).json({ success: false, message: 'Conta desativada. Fale com o suporte.' });
       return;
     }
 
@@ -617,7 +617,7 @@ router.post('/google', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Google login error:', error);
-    res.status(500).json({ success: false, message: 'Internal error processing Google login' });
+    res.status(500).json({ success: false, message: 'Não foi possível entrar com o Google agora. Tente de novo em instantes.' });
   }
 });
 

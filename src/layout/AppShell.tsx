@@ -326,7 +326,7 @@ export function AppShell({
       {/* Logo */}
       <div className="border-b border-[rgba(14,196,216,0.15)] bg-[#0A2530] px-5 py-5">
         <div className="flex items-center gap-3">
-          <img src="/icons/logo.png" alt="FINGERENCE" className="h-12 w-12 shrink-0 object-contain" />
+          <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-12 w-12 shrink-0 object-contain" />
           <div>
             <p className="leading-none tracking-[0.22em] text-[#E8F4F5]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 600, fontStyle: 'italic' }}>FINGERENCE</p>
             <p className="mt-1 text-[10px] font-medium text-[rgba(14,196,216,0.55)]">Sistema financeiro</p>
