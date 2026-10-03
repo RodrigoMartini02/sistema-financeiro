@@ -50,7 +50,6 @@ export const firstAccessGuideMessages = {
   representantesTipoComissao: 'Mensal repete a comiss\u00e3o todo m\u00eas enquanto a receita existir; \u00danica \u00e9 paga apenas uma vez.',
 
   // S\u00f3cios
-  sociosNovo: 'Clique em Novo s\u00f3cio para cadastrar uma participa\u00e7\u00e3o. \u00c9 um cadastro de refer\u00eancia, n\u00e3o afeta lan\u00e7amentos.',
 
   // Servi\u00e7os
   servicosNovo: 'Clique em Novo servi\u00e7o para cadastrar um item reutiliz\u00e1vel em contratos de clientes.',

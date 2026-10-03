@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  CAPITAL_INCOME_CLASSIFICATION,
   CONTRACT_INCOME_CLASSIFICATION,
   canChangeContractSetupClassification,
   getDefaultIncomeClassifications,
@@ -33,6 +34,11 @@ test('a lista da empresa traz as classificações que o contrato usa', () => {
     [CONTRACT_INCOME_CLASSIFICATION.mensalidade, CONTRACT_INCOME_CLASSIFICATION.implantacao],
   );
   assert.equal(todosOsNomes('pessoal').includes(CONTRACT_INCOME_CLASSIFICATION.raiz), false);
+});
+
+test('a lista da empresa traz "Aportes", onde entra o capital dos sócios; a pessoal não', () => {
+  assert.ok(getDefaultIncomeClassifications('empresa').some((item) => item.nome === CAPITAL_INCOME_CLASSIFICATION));
+  assert.equal(todosOsNomes('pessoal').includes(CAPITAL_INCOME_CLASSIFICATION), false);
 });
 
 test('classificação de implantação trava depois de gerada a implantação', () => {

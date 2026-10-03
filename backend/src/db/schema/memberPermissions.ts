@@ -41,7 +41,6 @@ export const memberPermissions = pgTable('membro_permissoes', {
   accessCards: boolean('acesso_cartoes').notNull().default(false),
   accessServices: boolean('acesso_servicos').notNull().default(false),
   accessRepresentatives: boolean('acesso_representantes').notNull().default(false),
-  accessPartners: boolean('acesso_socios').notNull().default(false),
 
   // Comercial (visível apenas em conta tipo empresa)
   accessClients: boolean('acesso_clientes').notNull().default(false),

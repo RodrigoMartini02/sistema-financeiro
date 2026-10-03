@@ -4,7 +4,6 @@ import {
   integer,
   varchar,
   boolean,
-  decimal,
   timestamp,
   date,
   index,
@@ -31,7 +30,6 @@ export const accounts = pgTable(
     isDefault: boolean('eh_padrao').notNull().default(false),
     legalName: varchar('razao_social', { length: 150 }),
     tradeName: varchar('nome_fantasia', { length: 150 }),
-    initialContribution: decimal('aporte_inicial', { precision: 12, scale: 2 }),
     enquadramento: varchar('enquadramento', { length: 10 })
       .$type<'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA'>(),
     openingDate: date('data_abertura'),

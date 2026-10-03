@@ -3,7 +3,7 @@
 // Sem acesso ao banco: a unicidade do CNPJ e do e-mail é conferida na rota.
 import type { NewAccount } from '../db/schema';
 import { isValidCnpj } from '../middleware/validation';
-import { RequestInputError, readOptionalIsoDate, readOptionalText, readRecord, roundCents } from '../utils/requestInput';
+import { RequestInputError, readOptionalIsoDate, readOptionalText, readRecord } from '../utils/requestInput';
 
 export const ENQUADRAMENTOS = ['MEI', 'ME', 'EPP', 'SLU', 'EIRELI', 'LTDA', 'SA'] as const;
 export type Enquadramento = (typeof ENQUADRAMENTOS)[number];
@@ -14,8 +14,6 @@ export const MIN_PASSWORD_LENGTH = 8;
 const MAX_COMPANY_NAME_LENGTH = 150;
 /** contas.nome: varchar(100). */
 const MAX_ACCOUNT_NAME_LENGTH = 100;
-/** Maior valor que cabe em decimal(12,2). */
-const MAX_INITIAL_BALANCE = 9_999_999_999.99;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface CompanyAccountInput {
@@ -25,9 +23,6 @@ export interface CompanyAccountInput {
   document: string;
   enquadramento: Enquadramento | null;
   openingDate: string | null;
-  initialBalance: number | null;
-  /** O pedido trouxe `aporte_inicial` (null limpa). Sem ele, a edição mantém o valor salvo. */
-  initialBalanceSent: boolean;
   /** Nome da conta: nome fantasia ou, sem ele, razão social. */
   displayName: string;
 }
@@ -40,7 +35,7 @@ export interface LoginAccessInput {
 
 type CompanyAccountColumns = Pick<
   NewAccount,
-  'name' | 'document' | 'legalName' | 'tradeName' | 'enquadramento' | 'openingDate' | 'initialContribution'
+  'name' | 'document' | 'legalName' | 'tradeName' | 'enquadramento' | 'openingDate'
 >;
 
 function isBlank(value: unknown): boolean {
@@ -78,16 +73,6 @@ function readEnquadramento(value: unknown): Enquadramento | null {
   return value as Enquadramento;
 }
 
-function readInitialBalance(value: unknown): number | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_INITIAL_BALANCE) {
-    throw new RequestInputError('Saldo inicial inválido');
-  }
-  return roundCents(value);
-}
-
 /** Corpo do cadastro PJ (POST /auth/register), do POST /contas e do PUT /contas/:id de conta PJ. */
 export function readCompanyAccountInput(body: unknown): CompanyAccountInput {
   const record = readRecord(body, 'Pedido inválido');
@@ -100,15 +85,13 @@ export function readCompanyAccountInput(body: unknown): CompanyAccountInput {
     document: readCnpj(record['documento']),
     enquadramento: readEnquadramento(record['enquadramento']),
     openingDate: readOptionalIsoDate(openingDate === '' ? null : openingDate, 'Data de abertura inválida'),
-    initialBalance: readInitialBalance(record['aporte_inicial']),
-    initialBalanceSent: record['aporte_inicial'] !== undefined,
     // contas.nome guarda até 100 caracteres; os nomes completos ficam em
     // razao_social e nome_fantasia.
     displayName: (tradeName ?? legalName).slice(0, MAX_ACCOUNT_NAME_LENGTH),
   };
 }
 
-/** Colunas de `contas` com o bloco da empresa; o saldo inicial só entra quando veio no pedido. */
+/** Colunas de `contas` com o bloco da empresa. */
 export function companyAccountColumns(input: CompanyAccountInput): CompanyAccountColumns {
   return {
     name: input.displayName,
@@ -117,9 +100,6 @@ export function companyAccountColumns(input: CompanyAccountInput): CompanyAccoun
     tradeName: input.tradeName,
     enquadramento: input.enquadramento,
     openingDate: input.openingDate,
-    ...(input.initialBalanceSent
-      ? { initialContribution: input.initialBalance === null ? null : input.initialBalance.toFixed(2) }
-      : {}),
   };
 }
 

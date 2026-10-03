@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot, Briefcase, CreditCard, HandCoins, Layers,
+  Bot, CreditCard, HandCoins, Layers,
   Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
@@ -9,7 +9,7 @@ import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configToke
 import { fetchMe } from '../services/usuariosService';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import {
-  isConfigItemVisible, type AccountType, type ConfigItemContext, type PermissionSet,
+  isAnalyticsViewer, isConfigItemVisible, type AccountType, type ConfigItemContext, type PermissionSet,
 } from '../utils/screenAccess';
 import { PlanosScreen } from '../screens/planos/PlanosScreen';
 import { ContasTab } from '../screens/config/ContasTab';
@@ -18,7 +18,6 @@ import { ClassificacoesReceitaTab } from '../screens/config/ClassificacoesReceit
 import { CartaoTab } from '../screens/config/CartaoTab';
 import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
-import { SociosTab } from '../screens/config/SociosTab';
 import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
@@ -26,10 +25,8 @@ import { CatalogoTab } from '../screens/config/CatalogoTab';
 
 export type ConfigItemId =
   | 'contas' | 'assinatura'
-  | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'servicos' | 'representantes' | 'socios' | 'usuarios' | 'permissoes'
+  | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'servicos' | 'representantes' | 'usuarios' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo';
-
-const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
 
@@ -45,7 +42,6 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
-  { id: 'socios',         label: 'Sócios',         icon: Briefcase,  group: 'Pessoas' },
   { id: 'permissoes',     label: 'Permissões',         icon: ShieldCheck, group: 'Pessoas' },
   { id: 'acessos',        label: 'Acessos',        icon: Activity,   group: 'Pessoas' },
   { id: 'integracoes-ia', label: 'Integrações de IA', icon: Bot,     group: 'Avançado' },
@@ -62,7 +58,7 @@ export function configItemContext(
   return {
     isOwner: user?.tipo === 'titular' || isAdmin,
     isAdmin,
-    canViewAnalytics: (user?.documento ?? '').replace(/\D/g, '') === ANALYTICS_ALLOWED_DOCUMENT,
+    canViewAnalytics: isAnalyticsViewer(user),
     accountType,
   };
 }
@@ -175,7 +171,6 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'servicos' && <ServicosTab />}
           {current.id === 'catalogo' && <CatalogoTab />}
           {current.id === 'representantes' && <RepresentantesTab />}
-          {current.id === 'socios' && <SociosTab />}
           {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
           {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
           {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}

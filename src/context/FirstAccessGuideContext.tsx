@@ -38,7 +38,6 @@ const MODULE_PRIORITY: Record<string, number> = {
   contas: 1,
   clientes: 1,
   representantes: 1,
-  socios: 1,
   servicos: 1,
   usuarios: 2,
   despesas: 3,

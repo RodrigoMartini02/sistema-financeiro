@@ -44,7 +44,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { flag: 'accessCards', label: 'Cartões' },
       { flag: 'accessServices', label: 'Catálogo de Serviços' },
       { flag: 'accessRepresentatives', label: 'Representantes' },
-      { flag: 'accessPartners', label: 'Sócios' },
     ],
   },
   {

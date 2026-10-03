@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { ConfigItemId } from '../layout/ConfigPanel';
 import { PERMISSION_FLAGS, type PermissionFlag } from '../types/permissions';
 import {
-  allowedAssistantIntents, canManageCatalog, canReadCatalogList, dashboardEntries, isConfigItemVisible,
+  allowedAssistantIntents, canManageCatalog, canReadCatalogList, dashboardEntries, isAnalyticsViewer, isConfigItemVisible,
   movementControls, resolveSection, visibleSections, type CatalogName, type ConfigItemContext, type PermissionSet,
 } from './screenAccess';
 
@@ -12,7 +12,7 @@ const only = (...flags: PermissionFlag[]): PermissionSet => Object.fromEntries(f
 
 const CONFIG_ITEMS: ConfigItemId[] = [
   'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo',
-  'representantes', 'socios', 'permissoes', 'acessos', 'integracoes-ia',
+  'representantes', 'permissoes', 'acessos', 'integracoes-ia',
 ];
 const owner = (accountType: ConfigItemContext['accountType']): ConfigItemContext => ({
   isOwner: true, isAdmin: false, canViewAnalytics: false, accountType,
@@ -51,7 +51,7 @@ test('Movimentações: botões, calendário, Planejamento e o que buscar', () =>
 test('Configurações do titular: tudo da conta empresa; na pessoal sem os itens de empresa', () => {
   assert.deepEqual(visibleItems(ALL, owner('empresa')), [
     'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo',
-    'representantes', 'socios', 'permissoes',
+    'representantes', 'permissoes',
   ]);
   assert.deepEqual(visibleItems(ALL, owner('pessoal')), [
     'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'permissoes',
@@ -60,9 +60,17 @@ test('Configurações do titular: tudo da conta empresa; na pessoal sem os itens
   assert.ok(isConfigItemVisible('integracoes-ia', ALL, { ...owner('pessoal'), isAdmin: true }));
 });
 
+test('aba Acessos: o CPF liberado só vale para admin', () => {
+  assert.equal(isAnalyticsViewer({ tipo: 'admin', documento: '089.964.419-88' }), true);
+  assert.equal(isAnalyticsViewer({ tipo: 'membro', documento: '08996441988' }), false);
+  assert.equal(isAnalyticsViewer({ tipo: 'titular', documento: '08996441988' }), false);
+  assert.equal(isAnalyticsViewer({ tipo: 'admin', documento: '52998224725' }), false);
+  assert.equal(isAnalyticsViewer(undefined), false);
+});
+
 test('Configurações do membro: cada item com a sua permissão, nunca assinatura nem permissões', () => {
   assert.deepEqual(visibleItems(ALL, member('empresa')), [
-    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'representantes', 'socios',
+    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'representantes',
   ]);
   assert.deepEqual(visibleItems(only('accessCards'), member('pessoal')), ['cartoes']);
   assert.deepEqual(visibleItems(only('accessRepresentatives'), member('pessoal')), []);

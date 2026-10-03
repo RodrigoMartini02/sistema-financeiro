@@ -4,7 +4,10 @@ import { eq, and, ne } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { accounts, users } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { saveAccountPartners } from '../services/accountPartners';
+import { readAccountPartnersInput } from '../services/accountPartnersInput';
 import { companyAccountColumns, readCompanyAccountInput, readLoginAccessInput } from '../services/companyAccountInput';
+import { findOwnLoginWithDocument } from '../services/documentConflicts';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
@@ -31,19 +34,18 @@ async function assertCnpjFreeForOwner(
   }
 }
 
-/** CNPJ e e-mail do login da PJ não podem ser o acesso de outro usuário. */
+/**
+ * CNPJ e e-mail do login da PJ não podem ser o acesso de outro usuário. O
+ * CNPJ só esbarra em outro acesso próprio: login de membro com o mesmo
+ * documento é outro login, criado por um gestor.
+ */
 async function assertLoginIdentityFree(
   executor: QueryExecutor,
   userId: number,
   cnpj: string,
   email: string | undefined,
 ): Promise<void> {
-  const [documentInUse] = await executor
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.document, cnpj), ne(users.id, userId)))
-    .limit(1);
-  if (documentInUse) {
+  if (await findOwnLoginWithDocument(executor, cnpj, userId)) {
     throw new RequestInputError('Este CNPJ já é o acesso de outro usuário');
   }
 
@@ -77,7 +79,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     if (membership.rows.length > 0) {
       const contaId = (membership.rows[0] as { conta_id: number }).conta_id;
       const result = await pool.query(
-        `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, aporte_inicial, enquadramento,
+        `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, enquadramento,
                 data_abertura, ativo, eh_padrao, data_criacao
          FROM contas WHERE id = $1`,
         [contaId],
@@ -87,7 +89,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     }
 
     const result = await pool.query(
-      `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, aporte_inicial, enquadramento,
+      `SELECT id, tipo, nome, documento, razao_social, nome_fantasia, enquadramento,
               data_abertura, ativo, eh_padrao, data_criacao
        FROM contas WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'} ORDER BY data_criacao, id`,
       [req.user!.id],
@@ -102,23 +104,38 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/contas
 // Cria sempre conta PJ — uma pessoa física adicional na conta é papel do
 // fluxo "Novo membro" (account-members), não de uma segunda conta própria.
+// Conta, catálogo padrão e sócios (com o capital lançado como receita) entram
+// juntos ou nada.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const company = readCompanyAccountInput(req.body);
-    await assertCnpjFreeForOwner(db, req.user!.id, company.document, null);
+    const partnersInput = readAccountPartnersInput((req.body as Record<string, unknown>)['socios']);
+    const ownerId = req.user!.id;
 
-    const [created] = await db
-      .insert(accounts)
-      .values({
-        userId: req.user!.id,
-        type: 'empresa',
-        ...companyAccountColumns(company),
-        active: true,
-      })
-      .returning();
+    const created = await db.transaction(async (transaction) => {
+      await assertCnpjFreeForOwner(transaction, ownerId, company.document, null);
 
-    await ensureDefaultCategories(req.user!.id, 'empresa');
-    await ensureDefaultIncomeClassifications(req.user!.id, 'empresa');
+      const [account] = await transaction
+        .insert(accounts)
+        .values({
+          userId: ownerId,
+          type: 'empresa',
+          ...companyAccountColumns(company),
+          active: true,
+        })
+        .returning();
+
+      await ensureDefaultCategories(ownerId, 'empresa', transaction);
+      await ensureDefaultIncomeClassifications(ownerId, 'empresa', transaction);
+
+      if (partnersInput) {
+        await saveAccountPartners(transaction, {
+          ownerId, accountId: account!.id, openingDate: company.openingDate, partners: partnersInput,
+        });
+      }
+
+      return account;
+    });
 
     res.status(201).json({ success: true, message: 'Company created successfully', data: created });
   } catch (error) {
@@ -145,6 +162,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
     if (account.type === 'empresa') {
       const company = readCompanyAccountInput(req.body);
+      const partnersInput = readAccountPartnersInput((req.body as Record<string, unknown>)['socios']);
       // A conta padrão PJ do próprio titular é o login: nome, CNPJ, e-mail e
       // senha do acesso acompanham a empresa e são salvos no mesmo pedido.
       const loginAccess = account.isDefault ? readLoginAccessInput(req.body) : null;
@@ -175,6 +193,12 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
               updatedAt: new Date(),
             })
             .where(eq(users.id, userId));
+        }
+
+        if (partnersInput) {
+          await saveAccountPartners(transaction, {
+            ownerId: userId, accountId: account.id, openingDate: company.openingDate, partners: partnersInput,
+          });
         }
 
         return updatedAccount;

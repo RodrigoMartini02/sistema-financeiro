@@ -1,19 +1,26 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { body, query } from 'express-validator';
-import { pool } from '../db/client';
+import { eq } from 'drizzle-orm';
+import { db, pool } from '../db/client';
+import { users } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { validate } from '../middleware/validation';
 import { recordAnalyticsEvent } from '../services/analytics';
 
 const router = Router();
+/** CPF do dono da plataforma. Vale só junto com o tipo admin: o CPF pode repetir num acesso de colaborador. */
 const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
 
 async function requireAnalyticsAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const result = await pool.query('SELECT documento FROM usuarios WHERE id = $1 LIMIT 1', [req.user!.id]);
-    const document = String((result.rows[0] as { documento?: string } | undefined)?.documento ?? '').replace(/\D/g, '');
+    const [requester] = await db
+      .select({ document: users.document, type: users.type })
+      .from(users)
+      .where(eq(users.id, req.user!.id))
+      .limit(1);
+    const document = (requester?.document ?? '').replace(/\D/g, '');
 
-    if (document !== ANALYTICS_ALLOWED_DOCUMENT) {
+    if (requester?.type !== 'admin' || document !== ANALYTICS_ALLOWED_DOCUMENT) {
       res.status(403).json({ success: false, message: 'Access denied.' });
       return;
     }

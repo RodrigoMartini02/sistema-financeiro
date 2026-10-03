@@ -9,7 +9,7 @@ import type { Enquadramento } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Field, Input, PasswordInput, Select, ToggleGroup } from '../../ui/form';
 import { TermosModal } from './TermosModal';
-import { ENQUADRAMENTO_OPTIONS, isValidCnpj, parseInitialBalance } from '../../utils/companyAccount';
+import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
 import { formatDocumento } from '../../utils/document';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
@@ -138,7 +138,6 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
           nomeFantasia: (fd.get('nome_fantasia') as string).trim() || undefined,
           enquadramento: (fd.get('enquadramento') as Enquadramento | '') || undefined,
           dataAbertura: (fd.get('data_abertura') as string) || undefined,
-          aporteInicial: parseInitialBalance(fd.get('aporte_inicial') as string),
           email: fd.get('email') as string,
           senha: fd.get('senha') as string,
         })
@@ -269,7 +268,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
       {mode === 'login' && (
         <div className="mt-4 grid gap-3">
           <form className="grid gap-3" onSubmit={handleLogin}>
-            <Field label="CPF ou CNPJ">
+            <Field label="CPF, CNPJ ou e-mail">
               <Input name="documento" autoComplete="username" required />
             </Field>
             <Field label="Senha">
@@ -325,9 +324,6 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
                 </Field>
                 <Field label="Data de abertura da empresa">
                   <Input name="data_abertura" type="date" />
-                </Field>
-                <Field label="Saldo inicial" hint="Dinheiro que a empresa já tem hoje. Opcional.">
-                  <Input name="aporte_inicial" inputMode="decimal" placeholder="R$ 0,00" />
                 </Field>
               </Fragment>
             ) : (

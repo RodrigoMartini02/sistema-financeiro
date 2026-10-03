@@ -4,8 +4,10 @@ import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, categories, cards as cardsTable, expenses, incomes } from '../db/schema';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { resolveMemberAccountId } from '../middleware/permissions';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
+import { findAccountAccessWithDocument, findOwnLoginWithDocument } from '../services/documentConflicts';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { accountWhere } from '../utils/accountFilter';
 import { isActiveFamilyMember } from '../utils/familyVisibility';
@@ -65,7 +67,7 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
     }
 
     const [current] = await db
-      .select({ password: users.password, email: users.email, document: users.document })
+      .select({ password: users.password, email: users.email, document: users.document, type: users.type })
       .from(users)
       .where(eq(users.id, req.user!.id))
       .limit(1);
@@ -107,19 +109,24 @@ router.put('/me', authenticate, async (req: Request, res: Response): Promise<voi
       const cleanDoc = documento.replace(/[^\d]+/g, '');
 
       if (!validateDocument(cleanDoc)) {
-        res.status(400).json({ success: false, message: 'Invalid CPF/CNPJ' });
+        res.status(400).json({ success: false, message: 'CPF/CNPJ inválido' });
         return;
       }
 
       if (cleanDoc !== current.document) {
-        const [documentInUse] = await db
-          .select({ id: users.id })
-          .from(users)
-          .where(and(eq(users.document, cleanDoc), ne(users.id, req.user!.id)))
-          .limit(1);
+        // Acesso próprio: o documento não pode ser de outro acesso próprio.
+        // Membro: não pode ser de quem já tem acesso à conta do vínculo.
+        let documentInUse: boolean;
+        if (current.type === 'membro') {
+          const memberAccountId = await resolveMemberAccountId(req.user!.id);
+          documentInUse = memberAccountId !== null
+            && await findAccountAccessWithDocument(db, memberAccountId, cleanDoc, req.user!.id);
+        } else {
+          documentInUse = await findOwnLoginWithDocument(db, cleanDoc, req.user!.id);
+        }
 
         if (documentInUse) {
-          res.status(400).json({ success: false, message: 'Document already in use' });
+          res.status(400).json({ success: false, message: 'Este CPF/CNPJ já está em uso' });
           return;
         }
       }
@@ -348,9 +355,13 @@ router.post('/', authenticate, requireAdmin, async (req: Request, res: Response)
     }
 
     const cleanDoc = documento.replace(/[^\d]+/g, '');
-    const [docExists] = await db.select({ id: users.id }).from(users).where(eq(users.document, cleanDoc)).limit(1);
-    if (docExists) {
-      res.status(400).json({ success: false, message: 'Document already registered' });
+    // Acesso próprio (titular/admin) só esbarra em outro acesso próprio; um
+    // membro avulso, sem conta para conferir, segue esbarrando em qualquer um.
+    const documentTaken = tipo === 'membro'
+      ? (await db.select({ id: users.id }).from(users).where(eq(users.document, cleanDoc)).limit(1)).length > 0
+      : await findOwnLoginWithDocument(db, cleanDoc);
+    if (documentTaken) {
+      res.status(400).json({ success: false, message: 'Este CPF/CNPJ já está cadastrado' });
       return;
     }
 

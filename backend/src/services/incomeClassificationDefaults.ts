@@ -27,6 +27,9 @@ export const CONTRACT_INCOME_CLASSIFICATION = {
   implantacao: 'Implantação',
 } as const;
 
+/** Onde entra o capital inicial dos sócios lançado como receita (modal da conta PJ). */
+export const CAPITAL_INCOME_CLASSIFICATION = 'Aportes';
+
 const BUSINESS_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassification[] = [
   {
     nome: CONTRACT_INCOME_CLASSIFICATION.raiz,
@@ -36,6 +39,7 @@ const BUSINESS_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassificat
   { nome: 'Vendas', subcategorias: [] },
   { nome: 'Rendimentos', subcategorias: [] },
   { nome: 'Reembolsos', subcategorias: [] },
+  { nome: CAPITAL_INCOME_CLASSIFICATION, subcategorias: [] },
   { nome: 'Outros', subcategorias: [] },
 ];
 

@@ -1,121 +1,36 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../db/client';
-import { authenticate } from '../middleware/auth';
-import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
-import { resolveAccountOwnerId } from '../utils/familyVisibility';
+import { and, eq } from 'drizzle-orm';
+import { db } from '../db/client';
+import { accounts } from '../db/schema';
+import { authenticate, requireTitular } from '../middleware/auth';
+import { listAccountPartners } from '../services/accountPartners';
+import { RequestInputError, readQueryId, sendRequestError } from '../utils/requestInput';
 
 const router = Router();
 
-// GET /api/partners
-router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+// GET /api/partners?conta_id= — sócios ativos de uma conta do titular, para o
+// modal da conta. Só leitura: a gravação vai junto com a conta (POST/PUT
+// /api/contas), e só o titular edita, porque o capital pode virar receita.
+router.get('/', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { conta_id } = req.query as Record<string, string | undefined>;
-    const incluirInativos = req.query['incluir_inativos'] === 'true';
-    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(conta_id) : null);
+    const accountId = readQueryId(req.query['conta_id'], 'Informe a conta');
+    if (accountId === null) {
+      throw new RequestInputError('Informe a conta');
+    }
 
-    const result = await pool.query(
-      `SELECT * FROM socios
-       WHERE usuario_id = $1 ${incluirInativos ? '' : 'AND ativo = true'}
-         AND ($2::int IS NULL OR conta_id = $2)
-       ORDER BY nome ASC`,
-      [ownerId, conta_id ? parseInt(conta_id) : null],
-    );
+    const [account] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.id, accountId), eq(accounts.userId, req.user!.id)))
+      .limit(1);
+    if (!account) {
+      res.status(404).json({ success: false, message: 'Conta não encontrada' });
+      return;
+    }
 
-    res.json({ success: true, data: result.rows });
+    res.json({ success: true, data: await listAccountPartners(req.user!.id, account.id) });
   } catch (error) {
-    console.error('List partners error:', error);
-    res.status(500).json({ success: false, message: 'Failed to list partners' });
-  }
-});
-
-// POST /api/partners
-router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { nome, percentual, conta_id } = req.body as Record<string, unknown>;
-
-    if (!nome || String(nome).trim() === '') {
-      res.status(400).json({ success: false, message: 'Name is required' });
-      return;
-    }
-
-    const pct = parseFloat(String(percentual));
-    if (isNaN(pct) || pct <= 0 || pct > 100) {
-      res.status(400).json({ success: false, message: 'Percentage must be between 0.01 and 100' });
-      return;
-    }
-
-    if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
-      res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
-      return;
-    }
-    const ownerId = await resolveAccountOwnerId(req.user!.id, conta_id ? parseInt(String(conta_id)) : null);
-
-    const result = await pool.query(
-      `INSERT INTO socios (usuario_id, conta_id, nome, percentual)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [ownerId, conta_id ? parseInt(String(conta_id)) : null, String(nome).trim(), pct],
-    );
-
-    res.status(201).json({ success: true, message: 'Partner created', data: result.rows[0] });
-  } catch (error) {
-    console.error('Create partner error:', error);
-    res.status(500).json({ success: false, message: 'Failed to create partner' });
-  }
-});
-
-// PUT /api/partners/:id
-router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const { nome, percentual } = req.body as Record<string, unknown>;
-
-    if (!nome || String(nome).trim() === '') {
-      res.status(400).json({ success: false, message: 'Name is required' });
-      return;
-    }
-
-    const pct = parseFloat(String(percentual));
-    if (isNaN(pct) || pct <= 0 || pct > 100) {
-      res.status(400).json({ success: false, message: 'Invalid percentage' });
-      return;
-    }
-
-    const result = await pool.query(
-      `UPDATE socios SET nome = $1, percentual = $2
-       WHERE id = $3 AND usuario_id = $4 RETURNING *`,
-      [String(nome).trim(), pct, id, ownerId],
-    );
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Partner not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Partner updated', data: result.rows[0] });
-  } catch (error) {
-    console.error('Update partner error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update partner' });
-  }
-});
-
-// DELETE /api/partners/:id
-router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const result = await pool.query(
-      `UPDATE socios SET ativo = false WHERE id = $1 AND usuario_id = $2 RETURNING id`,
-      [id, ownerId],
-    );
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Partner not found' });
-      return;
-    }
-    res.json({ success: true, message: 'Partner removed' });
-  } catch (error) {
-    console.error('Remove partner error:', error);
-    res.status(500).json({ success: false, message: 'Failed to remove partner' });
+    sendRequestError(res, error, 'List partners error:', req.user?.id, 'Não foi possível carregar os sócios agora.');
   }
 });
 
