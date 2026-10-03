@@ -10,7 +10,8 @@ export type MemberPermissionsData = Record<PermissionFlag, boolean> & {
 interface PermissionGroup {
   id: string;
   label: string;
-  items: { flag: PermissionFlag; label: string }[];
+  /** companyOnly: a tela só existe em conta PJ. */
+  items: { flag: PermissionFlag; label: string; companyOnly?: boolean }[];
 }
 
 export const PERMISSION_GROUPS: PermissionGroup[] = [
@@ -44,6 +45,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { flag: 'accessCards', label: 'Cartões' },
       { flag: 'accessServices', label: 'Catálogo de Serviços' },
       { flag: 'accessRepresentatives', label: 'Representantes' },
+      { flag: 'accessSectors', label: 'Setores', companyOnly: true },
+      { flag: 'accessJobTitles', label: 'Cargos', companyOnly: true },
     ],
   },
   {

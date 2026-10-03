@@ -3,11 +3,13 @@ import {
   serial,
   integer,
   varchar,
+  date,
   timestamp,
   index,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { accounts } from './accounts';
+import { jobTitles, sectors } from './sectorsAndJobTitles';
 
 // Vincula um usuario (membro, tipo 'membro') a uma conta gerenciada por um
 // titular. Um usuario so pode ser membro de uma conta por vez (usuario_id
@@ -28,6 +30,11 @@ export const accountMembers = pgTable(
       .notNull()
       .default('ativo')
       .$type<'ativo' | 'inativo'>(),
+    // Dados de trabalho do colaborador de conta PJ, no vínculo com a empresa
+    // (não no cadastro da pessoa). Setor e cargo vêm das listas da conta.
+    sectorId: integer('setor_id').references(() => sectors.id, { onDelete: 'set null' }),
+    jobTitleId: integer('cargo_id').references(() => jobTitles.id, { onDelete: 'set null' }),
+    admissionDate: date('data_admissao'),
     createdAt: timestamp('data_criacao').defaultNow(),
   },
   (table) => ({

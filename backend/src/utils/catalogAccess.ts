@@ -21,7 +21,9 @@ export type CatalogName =
   | 'contracts'
   | 'representatives'
   | 'services'
-  | 'products';
+  | 'products'
+  | 'sectors'
+  | 'jobTitles';
 
 /** Qualquer membro lê a listagem — a rota já devolve só o que é dele. */
 export const ANY_MEMBER = 'anyMember';
@@ -53,6 +55,10 @@ export const CATALOG_RULES: Record<CatalogName, CatalogRule> = {
   },
   services: { manageFlag: 'accessServices', listReaders: ['accessContracts'], listPaths: ['/'] },
   products: { manageFlag: 'accessProductCatalog', listReaders: ['accessIncomes'], listPaths: ['/'] },
+  // Só quem mantém a tela lista: o modal do colaborador, que escolhe setor e
+  // cargo, é do titular, que sempre passa.
+  sectors: { manageFlag: 'accessSectors', listReaders: [], listPaths: ['/'] },
+  jobTitles: { manageFlag: 'accessJobTitles', listReaders: [], listPaths: ['/'] },
 };
 
 export type CatalogPermissions = Partial<Record<PermissionFlag, boolean>>;

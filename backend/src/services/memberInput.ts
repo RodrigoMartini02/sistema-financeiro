@@ -2,7 +2,7 @@
 // /api/account-members), com as mensagens em português. Sem acesso ao banco:
 // a validade do documento pelo tipo da conta e a unicidade do e-mail e do
 // documento são conferidas na rota.
-import { RequestInputError, readRecord } from '../utils/requestInput';
+import { RequestInputError, readOptionalIsoDate, readRecord } from '../utils/requestInput';
 
 export const MIN_MEMBER_PASSWORD_LENGTH = 8;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,6 +17,10 @@ export interface NewMemberInput {
   document: string | null;
   telefone: string | null;
   dataNascimento: string | null;
+  /** Dados de trabalho (só conta PJ): conferidos contra a conta na rota. */
+  sectorId: number | null;
+  jobTitleId: number | null;
+  admissionDate: string | null;
 }
 
 /** Na edição, campo ausente (undefined) mantém o valor gravado. */
@@ -34,6 +38,10 @@ export interface MemberUpdateInput {
   /** Só os dígitos. */
   document?: string;
   newPassword?: string;
+  /** null limpa. */
+  sectorId?: number | null;
+  jobTitleId?: number | null;
+  admissionDate?: string | null;
 }
 
 function readName(value: unknown): string {
@@ -60,6 +68,21 @@ function documentDigits(value: string): string {
   return value.replace(/[^\d]+/g, '');
 }
 
+/** Setor ou cargo escolhido na lista da conta: vazio é "nenhum". */
+function readOptionalCatalogId(value: unknown, message: string): number | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new RequestInputError(message);
+  }
+  return value;
+}
+
+function readAdmissionDate(value: unknown): string | null {
+  return readOptionalIsoDate(value === '' ? null : value, 'Data de admissão inválida');
+}
+
 /** Campo opcional da edição: ausente mantém; vazio ou null limpa. */
 function readOptionalField(record: Record<string, unknown>, key: string): string | null | undefined {
   if (record[key] === undefined) {
@@ -84,6 +107,9 @@ export function readNewMemberInput(body: unknown): NewMemberInput {
     document: document === null ? null : documentDigits(document),
     telefone: readText(record['telefone']),
     dataNascimento: readText(record['data_nascimento']),
+    sectorId: readOptionalCatalogId(record['setor_id'], 'Setor inválido'),
+    jobTitleId: readOptionalCatalogId(record['cargo_id'], 'Cargo inválido'),
+    admissionDate: readAdmissionDate(record['data_admissao']),
   };
 }
 
@@ -114,6 +140,16 @@ export function readMemberUpdateInput(body: unknown): MemberUpdateInput {
   const document = readText(record['documento']);
   if (document !== null) {
     input.document = documentDigits(document);
+  }
+
+  if (record['setor_id'] !== undefined) {
+    input.sectorId = readOptionalCatalogId(record['setor_id'], 'Setor inválido');
+  }
+  if (record['cargo_id'] !== undefined) {
+    input.jobTitleId = readOptionalCatalogId(record['cargo_id'], 'Cargo inválido');
+  }
+  if (record['data_admissao'] !== undefined) {
+    input.admissionDate = readAdmissionDate(record['data_admissao']);
   }
 
   const newPassword = record['nova_senha'];

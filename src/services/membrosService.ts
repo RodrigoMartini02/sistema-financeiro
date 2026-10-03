@@ -17,6 +17,12 @@ export interface MembroListItem {
   pais?: string | null;
   estado?: string | null;
   cidade?: string | null;
+  /** Dados de trabalho do colaborador de conta PJ (vínculo com a empresa). */
+  setor_id?: number | null;
+  setor_nome?: string | null;
+  cargo_id?: number | null;
+  cargo_nome?: string | null;
+  data_admissao?: string | null;
 }
 
 export interface MembroCreateBody {
@@ -27,6 +33,10 @@ export interface MembroCreateBody {
   documento?: string;
   telefone?: string;
   data_nascimento?: string;
+  /** Só colaborador de conta PJ. */
+  setor_id?: number | null;
+  cargo_id?: number | null;
+  data_admissao?: string | null;
 }
 
 export interface PendingExpense {
@@ -71,6 +81,10 @@ export interface MembroUpdateBody {
   pais?: string;
   estado?: string;
   cidade?: string;
+  /** Só colaborador de conta PJ; null tira o setor, o cargo ou a data. */
+  setor_id?: number | null;
+  cargo_id?: number | null;
+  data_admissao?: string | null;
 }
 
 // Gestor edita os dados cadastrais completos de um membro da própria
@@ -91,6 +105,9 @@ export async function updateMembro(usuarioId: number, body: MembroUpdateBody, co
       ...(body.pais !== undefined ? { pais: body.pais } : {}),
       ...(body.estado !== undefined ? { estado: body.estado } : {}),
       ...(body.cidade !== undefined ? { cidade: body.cidade } : {}),
+      ...(body.setor_id !== undefined ? { setor_id: body.setor_id } : {}),
+      ...(body.cargo_id !== undefined ? { cargo_id: body.cargo_id } : {}),
+      ...(body.data_admissao !== undefined ? { data_admissao: body.data_admissao } : {}),
       ...(contaId ? { conta_id: contaId } : {}),
     }),
   });

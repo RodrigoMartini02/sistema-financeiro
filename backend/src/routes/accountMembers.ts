@@ -2,7 +2,9 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { and, eq, isNotNull, ne, or } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
+import {
+  users, accounts, accountMembers, expenses, memberPermissions, sectors, jobTitles, type AccountNameCatalogTable,
+} from '../db/schema';
 import { authenticate, requireTitular } from '../middleware/auth';
 import { isValidCpf, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
@@ -70,6 +72,52 @@ async function checkMemberDocument(accountId: number, cleanDoc: string): Promise
   return validateDocument(cleanDoc) ? null : 'CPF/CNPJ inválido';
 }
 
+interface MemberPlacement {
+  sectorId?: number | null;
+  jobTitleId?: number | null;
+  admissionDate?: string | null;
+}
+
+async function isActiveInAccount(table: AccountNameCatalogTable, id: number, accountId: number): Promise<boolean> {
+  const [found] = await db
+    .select({ id: table.id })
+    .from(table)
+    .where(and(eq(table.id, id), eq(table.accountId, accountId), eq(table.active, true)))
+    .limit(1);
+  return found !== undefined;
+}
+
+/**
+ * Setor, cargo e admissão só existem em conta PJ. Setor e cargo precisam ser
+ * desta conta e estar ativos — ou ser os que o colaborador já tem, porque um
+ * setor desativado depois continua com quem o usa. Devolve a mensagem de
+ * erro, ou null.
+ */
+async function checkMemberPlacement(
+  accountId: number,
+  placement: MemberPlacement,
+  current?: { sectorId: number | null; jobTitleId: number | null },
+): Promise<string | null> {
+  const values = [placement.sectorId, placement.jobTitleId, placement.admissionDate];
+  if (values.every((value) => value === undefined || value === null)) {
+    return null;
+  }
+
+  const [account] = await db.select({ type: accounts.type }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
+  if (account?.type !== 'empresa') {
+    return 'Cargo, setor e admissão só existem em conta de empresa';
+  }
+  if (placement.sectorId != null && placement.sectorId !== current?.sectorId
+    && !(await isActiveInAccount(sectors, placement.sectorId, accountId))) {
+    return 'Setor não encontrado nesta conta';
+  }
+  if (placement.jobTitleId != null && placement.jobTitleId !== current?.jobTitleId
+    && !(await isActiveInAccount(jobTitles, placement.jobTitleId, accountId))) {
+    return 'Cargo não encontrado nesta conta';
+  }
+  return null;
+}
+
 // GET /api/account-members — lista os membros vinculados à conta.
 //
 // Gestor: vê a conta que escolher (conta_id opcional, valida propriedade) ou
@@ -108,9 +156,12 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       ? await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
                   u.id AS usuario_id, u.nome, u.sobrenome, u.email, u.documento, u.status AS usuario_status,
-                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
+                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade,
+                  m.setor_id, st.nome AS setor_nome, m.cargo_id, cg.nome AS cargo_nome, m.data_admissao
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
+           LEFT JOIN setores st ON st.id = m.setor_id
+           LEFT JOIN cargos cg ON cg.id = m.cargo_id
            WHERE m.conta_id = $1
            ORDER BY u.nome ASC`,
           [accountId],
@@ -118,9 +169,12 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       : await pool.query(
           `SELECT m.id AS membro_id, m.status AS membro_status, m.data_criacao AS vinculado_em,
                   u.id AS usuario_id, u.nome, u.sobrenome, u.email, u.documento, u.status AS usuario_status,
-                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade
+                  u.foto, u.telefone, u.data_nascimento, u.pais, u.estado, u.cidade,
+                  m.setor_id, st.nome AS setor_nome, m.cargo_id, cg.nome AS cargo_nome, m.data_admissao
            FROM conta_membros m
            JOIN usuarios u ON u.id = m.usuario_id
+           LEFT JOIN setores st ON st.id = m.setor_id
+           LEFT JOIN cargos cg ON cg.id = m.cargo_id
            WHERE m.conta_id = $1 AND m.usuario_id = $2
            ORDER BY u.nome ASC`,
           [accountId, req.user!.id],
@@ -166,6 +220,12 @@ router.post('/', authenticate, requireTitular, async (req: Request, res: Respons
       }
     }
 
+    const placementError = await checkMemberPlacement(accountId, input);
+    if (placementError) {
+      res.status(400).json({ success: false, message: placementError });
+      return;
+    }
+
     const hashedPassword = await bcrypt.hash(input.password, 10);
 
     const created = await db.transaction(async (transaction) => {
@@ -191,6 +251,9 @@ router.post('/', authenticate, requireTitular, async (req: Request, res: Respons
         accountId,
         userId: member!.id,
         status: 'ativo',
+        sectorId: input.sectorId,
+        jobTitleId: input.jobTitleId,
+        admissionDate: input.admissionDate,
       });
 
       // Toda permissão nasce restritiva (false) — o gestor libera
@@ -405,7 +468,7 @@ router.put('/:id', authenticate, requireTitular, async (req: Request, res: Respo
     }
 
     const [membership] = await db
-      .select({ id: accountMembers.id })
+      .select({ id: accountMembers.id, sectorId: accountMembers.sectorId, jobTitleId: accountMembers.jobTitleId })
       .from(accountMembers)
       .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
       .limit(1);
@@ -474,15 +537,35 @@ router.put('/:id', authenticate, requireTitular, async (req: Request, res: Respo
       updateData.password = await bcrypt.hash(input.newPassword, 10);
     }
 
-    const [updated] = await db
-      .update(users)
-      .set(updateData)
-      .where(eq(users.id, memberUserId))
-      .returning({
-        id: users.id, nome: users.name, sobrenome: users.lastName, foto: users.photo, email: users.email, documento: users.document,
-        telefone: users.telefone, data_nascimento: users.dataNascimento,
-        pais: users.country, estado: users.state, cidade: users.city,
-      });
+    const placement: MemberPlacement = {
+      sectorId: input.sectorId, jobTitleId: input.jobTitleId, admissionDate: input.admissionDate,
+    };
+    const placementError = await checkMemberPlacement(accountId, placement, membership);
+    if (placementError) {
+      res.status(400).json({ success: false, message: placementError });
+      return;
+    }
+    const membershipUpdate: Partial<typeof accountMembers.$inferInsert> = {};
+    if (placement.sectorId !== undefined) membershipUpdate.sectorId = placement.sectorId;
+    if (placement.jobTitleId !== undefined) membershipUpdate.jobTitleId = placement.jobTitleId;
+    if (placement.admissionDate !== undefined) membershipUpdate.admissionDate = placement.admissionDate;
+
+    // Pessoa e vínculo juntos ou nada.
+    const updated = await db.transaction(async (transaction) => {
+      const [person] = await transaction
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, memberUserId))
+        .returning({
+          id: users.id, nome: users.name, sobrenome: users.lastName, foto: users.photo, email: users.email, documento: users.document,
+          telefone: users.telefone, data_nascimento: users.dataNascimento,
+          pais: users.country, estado: users.state, cidade: users.city,
+        });
+      if (Object.keys(membershipUpdate).length > 0) {
+        await transaction.update(accountMembers).set(membershipUpdate).where(eq(accountMembers.id, membership.id));
+      }
+      return person;
+    });
 
     res.json({ success: true, message: 'Member updated successfully', data: updated });
   } catch (error) {
@@ -618,6 +701,7 @@ const PERMISSION_FLAGS: PermissionFlag[] = [
   'accessExpenses', 'accessIncomes', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
   'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives',
+  'accessSectors', 'accessJobTitles',
   'accessClients', 'accessContracts', 'accessProductCatalog',
   'accessFamilyEntries', 'editFamilyEntries', 'accessFamilyCards',
   'accessGeneralOverview',

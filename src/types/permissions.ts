@@ -3,7 +3,7 @@
 export const PERMISSION_FLAGS = [
   'accessExpenses', 'accessIncomes', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
-  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives',
+  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessSectors', 'accessJobTitles',
   'accessClients', 'accessContracts', 'accessProductCatalog',
   'accessFamilyEntries', 'editFamilyEntries', 'accessFamilyCards',
   'accessGeneralOverview',

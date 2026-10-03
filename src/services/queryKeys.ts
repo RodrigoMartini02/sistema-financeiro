@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { ReportQuery } from '../types/reports';
 import type { DashboardEntries } from './financeService';
+import type { AccountNameCatalogKind } from './accountNameCatalogService';
 import type { ExpenseDuplicateQuery, ExpenseSuggestionsQuery } from './expenseSuggestionsService';
 import type { IncomeDuplicateQuery, IncomeSuggestionsQuery } from './incomeSuggestionsService';
 
@@ -86,6 +87,11 @@ export const queryKeys = {
   // Mesmo padrao de categorias/cartoes: sem accountId, chave estavel identica
   // a antes (['membros', 'ativa']).
   membros: (accountId?: number | null) => ['membros', accountId ?? 'ativa'] as const,
+  // Prefixo de todas as listas de membros (qualquer conta): a linha mostra cargo e setor pelo nome.
+  membrosAll: ['membros'] as const,
+  // Setores e cargos de uma conta PJ (ativos e desativados); o prefixo por tipo invalida todas as contas.
+  accountNames: (kind: AccountNameCatalogKind, accountId: number | null) => ['account-names', kind, accountId ?? 'nenhuma'] as const,
+  accountNamesOfKind: (kind: AccountNameCatalogKind) => ['account-names', kind] as const,
   expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
   expenseSuggestions: (accountId: number | null, query: ExpenseSuggestionsQuery) =>
     ['expense-suggestions', accountId ?? 'ativa', query] as const,

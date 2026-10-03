@@ -97,10 +97,12 @@ const CONFIG_ITEM_FLAG: Partial<Record<ConfigItemId, PermissionFlag>> = {
   servicos: 'accessServices',
   catalogo: 'accessProductCatalog',
   representantes: 'accessRepresentatives',
+  setores: 'accessSectors',
+  cargos: 'accessJobTitles',
 };
 
-/** Representantes, serviços e produtos não existem em conta pessoal. */
-const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'servicos', 'catalogo']);
+/** Representantes, setores, cargos, serviços e produtos não existem em conta pessoal. */
+const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'setores', 'cargos', 'servicos', 'catalogo']);
 
 export function isConfigItemVisible(item: ConfigItemId, permissions: PermissionSet, context: ConfigItemContext): boolean {
   if (item === 'acessos') return context.canViewAnalytics;
@@ -122,7 +124,9 @@ export type CatalogName =
   | 'contracts'
   | 'representatives'
   | 'services'
-  | 'products';
+  | 'products'
+  | 'sectors'
+  | 'jobTitles';
 
 interface CatalogRule {
   manageFlag: PermissionFlag;
@@ -142,6 +146,8 @@ const CATALOG_RULES: Record<CatalogName, CatalogRule> = {
   representatives: { manageFlag: 'accessRepresentatives', listReaders: ['accessIncomes', 'accessContracts'] },
   services: { manageFlag: 'accessServices', listReaders: ['accessContracts'] },
   products: { manageFlag: 'accessProductCatalog', listReaders: ['accessIncomes'] },
+  sectors: { manageFlag: 'accessSectors', listReaders: [] },
+  jobTitles: { manageFlag: 'accessJobTitles', listReaders: [] },
 };
 
 /** Criar, editar e excluir no cadastro (ex.: "+ cadastrar" nos modais). */

@@ -1,5 +1,6 @@
 export * from './users';
 export * from './accounts';
+export * from './sectorsAndJobTitles';
 export * from './accountMembers';
 export * from './memberPermissions';
 export * from './categories';
