@@ -52,6 +52,13 @@ test('lançar despesa lê categorias de despesa, cartões e limites; lançar rec
   assert.equal(allowed('services', incomes, 'GET', '/'), false);
 });
 
+test('Setores e Cargos: cada tela com a sua permissão, uma não libera a outra', () => {
+  assert.ok(allowed('sectors', { accessSectors: true }, 'POST', '/'));
+  assert.equal(allowed('jobTitles', { accessSectors: true }, 'GET', '/'), false);
+  assert.ok(allowed('jobTitles', { accessJobTitles: true }, 'DELETE', '/7'));
+  assert.equal(allowed('sectors', { accessJobTitles: true, accessAccounts: true }, 'GET', '/'), false);
+});
+
 test('sem permissão nenhuma só a lista de contas fica aberta', () => {
   for (const catalog of CATALOGS) {
     const expected = catalog === 'accounts';

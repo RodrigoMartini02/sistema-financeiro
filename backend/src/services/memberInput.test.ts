@@ -20,6 +20,20 @@ test('cadastro: apara o nome, normaliza o e-mail e deixa o documento só com dí
   assert.equal(input.document, '52998224725');
   assert.equal(input.telefone, '11 99999-0000');
   assert.equal(input.dataNascimento, null);
+  assert.equal(input.sectorId, null);
+  assert.equal(input.jobTitleId, null);
+  assert.equal(input.admissionDate, null);
+});
+
+test('cadastro: setor, cargo e admissão do colaborador de empresa', () => {
+  const input = readNewMemberInput(newMember({ setor_id: 3, cargo_id: 9, data_admissao: '2025-02-01' }));
+  assert.equal(input.sectorId, 3);
+  assert.equal(input.jobTitleId, 9);
+  assert.equal(input.admissionDate, '2025-02-01');
+  assert.equal(readNewMemberInput(newMember({ setor_id: '', data_admissao: '' })).sectorId, null);
+  assertRejects(() => readNewMemberInput(newMember({ setor_id: '3' })), 'Setor inválido');
+  assertRejects(() => readNewMemberInput(newMember({ cargo_id: 0 })), 'Cargo inválido');
+  assertRejects(() => readNewMemberInput(newMember({ data_admissao: '01/02/2025' })), 'Data de admissão inválida');
 });
 
 test('cadastro: documento, sobrenome e contato são opcionais', () => {
@@ -50,6 +64,19 @@ test('edição: campo ausente mantém; vazio ou null limpa', () => {
   assert.equal(cleared.lastName, null);
   assert.equal(cleared.telefone, null);
   assert.equal(cleared.photo, null);
+});
+
+test('edição: setor, cargo e admissão — ausente mantém, null limpa', () => {
+  const kept = readMemberUpdateInput({ nome: 'Maria' });
+  assert.equal('sectorId' in kept, false);
+  assert.equal('jobTitleId' in kept, false);
+  assert.equal('admissionDate' in kept, false);
+
+  const changed = readMemberUpdateInput({ nome: 'Maria', setor_id: 4, cargo_id: null, data_admissao: '' });
+  assert.equal(changed.sectorId, 4);
+  assert.equal(changed.jobTitleId, null);
+  assert.equal(changed.admissionDate, null);
+  assertRejects(() => readMemberUpdateInput({ nome: 'Maria', cargo_id: -2 }), 'Cargo inválido');
 });
 
 test('edição: e-mail, documento e senha vazios mantêm o gravado', () => {

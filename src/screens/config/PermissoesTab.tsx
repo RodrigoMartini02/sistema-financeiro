@@ -63,10 +63,10 @@ export function PermissoesTab({ contaTipo }: { contaTipo: 'pessoal' | 'empresa' 
   const permissions: MemberPermissionsData | undefined = permissionsQuery.data;
   // Comercial trata de clientes e contratos: só em conta empresa. A carteira
   // compartilhada vale nos dois tipos de conta.
-  const visibleGroups = PERMISSION_GROUPS.filter((g) => {
-    if (g.id === 'comercial') return contaTipo === 'empresa';
-    return true;
-  });
+  // Setores e cargos também só existem em conta empresa.
+  const visibleGroups = PERMISSION_GROUPS
+    .filter((g) => g.id !== 'comercial' || contaTipo === 'empresa')
+    .map((g) => ({ ...g, items: g.items.filter((item) => !item.companyOnly || contaTipo === 'empresa') }));
 
   if (membrosQuery.isLoading) {
     return <p style={{ padding: 20, fontSize: 12.5, color: CFG.muted }}>Carregando membros...</p>;

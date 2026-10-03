@@ -80,6 +80,7 @@ import paypalRoutes from './routes/paypal';
 import ratingRoutes from './routes/ratings';
 import representativeRoutes from './routes/representatives';
 import partnerRoutes from './routes/partners';
+import { jobTitleRoutes, sectorRoutes } from './routes/accountNameCatalog';
 import incomeClassificationRoutes from './routes/income-classifications';
 import clientRoutes from './routes/clients';
 import contractRoutes from './routes/contracts';
@@ -130,6 +131,9 @@ app.use('/api/representatives', authenticate, requireActivePlan, requireCatalogA
 app.use('/api/representantes', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes); // PT alias
 // Sócios: só leitura, só do titular — a gravação vai junto com a conta (POST/PUT /api/contas).
 app.use('/api/partners', authenticate, requireActivePlan, requireTitular, partnerRoutes);
+// Setores e cargos da conta PJ (Configurações → Pessoas), cada tela com a sua permissão.
+app.use('/api/sectors', authenticate, requireActivePlan, requireCatalogAccess('sectors'), sectorRoutes);
+app.use('/api/job-titles', authenticate, requireActivePlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
 app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
 app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
 app.use('/api/clientes', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);

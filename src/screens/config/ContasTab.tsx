@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type CSSProperties, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Briefcase, ChevronRight, User, Pencil, AlertCircle, Plus, ShieldAlert, UserX } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
 import { fetchAccountPartners } from '../../services/partnersService';
+import { fetchAccountNames } from '../../services/accountNameCatalogService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import type { Conta, Enquadramento } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
@@ -26,6 +27,10 @@ import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
 import { buildPartnersPayload, partnerRowFromApi, validatePartnerRows, type PartnerRow } from '../../utils/accountPartners';
+import {
+  catalogOptions, collaboratorRoleLabel, readCollaboratorWorkFields, type CollaboratorWorkFields,
+} from '../../utils/collaboratorRole';
+import { formatDate } from '../finance/formatters';
 import { formatCPF, formatCNPJ, formatDocumento, formatDocumentoAuto } from '../../utils/document';
 import { updateMe, updateFoto, type UsuarioMe } from '../../services/usuariosService';
 import { AccountPartnersSection } from './AccountPartnersSection';
@@ -43,11 +48,91 @@ export const TERMOS: Record<'pessoal' | 'empresa', Termo> = {
 
 // ─── Membros da conta (movido de MembrosTab.tsx) ──────────────────────────────
 
+const readOnlyFieldStyle: CSSProperties = {
+  ...fieldInputStyle, display: 'flex', alignItems: 'center', background: C.panelBg, color: C.textSoft,
+};
+
+/**
+ * Dados de trabalho do colaborador de conta PJ: telefone, admissão, cargo e
+ * setor, estes dois escolhidos nas listas da conta. No "Meus dados" do
+ * colaborador só o telefone muda — o resto quem altera é o titular. Enquanto
+ * as listas não chegam, os selects não existem no formulário, e o envio não
+ * mexe no cargo nem no setor.
+ */
+function WorkFieldsSection({ accountId, member, readOnly = false }: {
+  accountId: number; member?: MembroListItem; readOnly?: boolean;
+}) {
+  const sectorsQuery = useQuery({
+    queryKey: queryKeys.accountNames('sectors', accountId),
+    queryFn: () => fetchAccountNames('sectors', accountId),
+    enabled: !readOnly,
+  });
+  const jobTitlesQuery = useQuery({
+    queryKey: queryKeys.accountNames('job-titles', accountId),
+    queryFn: () => fetchAccountNames('job-titles', accountId),
+    enabled: !readOnly,
+  });
+  const memberKey = member?.usuario_id ?? 'novo';
+  const admission = member?.data_admissao?.slice(0, 10) ?? '';
+
+  const catalogField = (
+    name: 'cargo_id' | 'setor_id', label: string, emptyLabel: string, query: typeof sectorsQuery,
+    currentId?: number | null, currentName?: string | null,
+  ) => (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      {readOnly ? (
+        <div style={readOnlyFieldStyle}>{currentName || '—'}</div>
+      ) : query.isSuccess ? (
+        <select key={`${name}-${memberKey}`} name={name} defaultValue={currentId != null ? String(currentId) : ''} style={fieldInputStyle}>
+          <option value="">{emptyLabel}</option>
+          {catalogOptions(query.data, currentId).map((option) => (
+            <option key={option.value} value={String(option.value)}>{option.label}</option>
+          ))}
+        </select>
+      ) : (
+        <div style={readOnlyFieldStyle}>{query.isError ? 'Não foi possível carregar' : 'Carregando...'}</div>
+      )}
+    </div>
+  );
+
+  const noListsYet = sectorsQuery.isSuccess && jobTitlesQuery.isSuccess
+    && !sectorsQuery.data.some((item) => item.ativo) && !jobTitlesQuery.data.some((item) => item.ativo);
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={labelStyle}>Telefone</label>
+          <input key={`tel-${memberKey}`} name="telefone" defaultValue={member?.telefone ?? ''} placeholder="(00) 00000-0000" maxLength={20} style={fieldInputStyle} />
+        </div>
+        <div>
+          <label style={labelStyle}>Data de admissão</label>
+          {readOnly
+            ? <div style={readOnlyFieldStyle}>{admission ? formatDate(admission) : '—'}</div>
+            : <input key={`adm-${memberKey}`} name="data_admissao" type="date" defaultValue={admission} style={fieldInputStyle} />}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {catalogField('cargo_id', 'Cargo', 'Sem cargo', jobTitlesQuery, member?.cargo_id, member?.cargo_nome)}
+        {catalogField('setor_id', 'Setor', 'Sem setor', sectorsQuery, member?.setor_id, member?.setor_nome)}
+      </div>
+
+      {noListsYet && (
+        <p style={{ margin: '-6px 0 0', fontSize: 11, fontWeight: 500, color: CFG.muted }}>
+          Cadastre cargos e setores em Configurações → Pessoas.
+        </p>
+      )}
+    </>
+  );
+}
+
 function NovoMembroDialog({
-  open, isSaving, error, termo, accountType, onClose, onSave,
+  open, isSaving, error, termo, accountId, accountType, onClose, onSave,
 }: {
   open: boolean; isSaving: boolean; error?: string; termo: Termo;
-  accountType: Conta['tipo'];
+  accountId: number; accountType: Conta['tipo'];
   onClose: () => void; onSave: (body: MembroCreateBody) => void;
 }) {
   // Controlado para aplicar a máscara. O colaborador da empresa é pessoa:
@@ -66,6 +151,7 @@ function NovoMembroDialog({
       senha:     fd.get('senha') as string,
       telefone:  (fd.get('telefone') as string) || undefined,
       data_nascimento: (fd.get('data_nascimento') as string) || undefined,
+      ...readCollaboratorWorkFields(fd),
       ...(doc ? { documento: doc } : {}),
     });
   };
@@ -74,7 +160,7 @@ function NovoMembroDialog({
     <Dialog open={open} title={`Novo ${termo.singular}`} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho conforme o conteúdo. */}
-        <div style={{ flex: 1, minHeight: 0, height: 400, overflowY: 'auto', overflowX: 'hidden', padding: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ flex: 1, minHeight: 0, height: accountType === 'empresa' ? 520 : 400, overflowY: 'auto', overflowX: 'hidden', padding: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label style={labelStyle}><span>Nome</span><span style={{ color: C.danger }}>*</span></label>
@@ -106,9 +192,9 @@ function NovoMembroDialog({
             </div>
           </div>
 
-          {/* Telefone e nascimento são do membro da família; o colaborador da
-              empresa não tem esses campos. */}
-          {accountType === 'pessoal' && (
+          {/* O membro da família tem telefone e nascimento; o colaborador da
+              empresa, telefone e os dados de trabalho. */}
+          {accountType === 'pessoal' ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={labelStyle}>Telefone</label>
@@ -119,6 +205,8 @@ function NovoMembroDialog({
                 <input name="data_nascimento" type="date" style={fieldInputStyle} />
               </div>
             </div>
+          ) : (
+            <WorkFieldsSection accountId={accountId} />
           )}
 
           <div>
@@ -675,16 +763,16 @@ function ContaDialog({
 // ─── Editar usuário (a si mesmo, ou — se gestor — outro membro) ───────────────
 
 function EditarUsuarioDialog({
-  open, membro, isSelf, accountType, isSaving, error, onClose, onSave, onSaveFoto,
+  open, membro, isSelf, accountId, accountType, isSaving, error, onClose, onSave, onSaveFoto,
 }: {
   open: boolean; membro?: MembroListItem; isSelf: boolean;
-  accountType: Conta['tipo'];
+  accountId: number; accountType: Conta['tipo'];
   isSaving: boolean; error?: string;
   onClose: () => void;
   onSave: (input: {
     nome: string; sobrenome?: string; novaSenha?: string; email?: string; documento?: string;
     telefone?: string; data_nascimento?: string;
-  }) => void;
+  } & CollaboratorWorkFields) => void;
   onSaveFoto: (dataUrl: string | null) => void;
 }) {
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
@@ -697,8 +785,8 @@ function EditarUsuarioDialog({
     setDocumento(formatCPF(membro?.documento ?? ''));
   }, [open, membro]);
 
-  // Telefone e nascimento são do membro da família; o colaborador da empresa
-  // não tem esses campos.
+  // Nascimento é do membro da família; o colaborador da empresa tem os dados
+  // de trabalho (cargo, setor e admissão). Telefone, os dois.
   const showPersonalContact = accountType === 'pessoal';
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -710,14 +798,14 @@ function EditarUsuarioDialog({
       sobrenome: (fd.get('sobrenome') as string) || undefined,
       email: (fd.get('email') as string) || undefined,
       documento: documento.trim() || undefined,
-      // Sem os campos na tela, reenvia o que já estava gravado: o PUT
+      telefone: (fd.get('telefone') as string) || undefined,
+      // Sem o campo na tela, reenvia o que já estava gravado: o PUT
       // /users/me (editar a si mesmo) grava o perfil inteiro e apagaria.
-      telefone: showPersonalContact
-        ? (fd.get('telefone') as string) || undefined
-        : membro?.telefone ?? undefined,
       data_nascimento: showPersonalContact
         ? (fd.get('data_nascimento') as string) || undefined
         : membro?.data_nascimento?.slice(0, 10) ?? undefined,
+      // No "Meus dados" os campos de trabalho só aparecem: não vão no envio.
+      ...readCollaboratorWorkFields(fd),
       ...(novaSenha ? { novaSenha } : {}),
     });
   };
@@ -828,6 +916,10 @@ function EditarUsuarioDialog({
               </div>
             ) : emailField}
           </div>
+
+          {!showPersonalContact && (
+            <WorkFieldsSection key={`work-${membro?.usuario_id}`} accountId={accountId} member={membro} readOnly={isSelf} />
+          )}
 
           {showPersonalContact && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -943,7 +1035,7 @@ function MembrosDaConta({
     mutationFn: async (input: {
       nome: string; sobrenome?: string; novaSenha?: string; email?: string; documento?: string;
       telefone?: string; data_nascimento?: string;
-    }): Promise<void> => {
+    } & CollaboratorWorkFields): Promise<void> => {
       if (editandoSouEu) {
         await updateMe({
           nome: input.nome, sobrenome: input.sobrenome, nova_senha: input.novaSenha, email: input.email,
@@ -1033,6 +1125,9 @@ function MembrosDaConta({
               >
                 <span style={{ minWidth: 0, flex: 1, fontSize: 12.5, fontWeight: 500, color: CFG.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {m.nome}{souEu && <span style={{ color: CFG.faint, fontWeight: 400 }}> (você)</span>}
+                  {collaboratorRoleLabel(m) && (
+                    <span style={{ color: CFG.muted, fontWeight: 400 }}> · {collaboratorRoleLabel(m)}</span>
+                  )}
                 </span>
                 <span style={{ flex: 'none', fontSize: 11, color: CFG.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
                   {m.email}
@@ -1076,6 +1171,7 @@ function MembrosDaConta({
           isSaving={createMut.isPending}
           error={mutError}
           termo={termo}
+          accountId={conta.id}
           accountType={conta.tipo}
           onClose={() => setNovoDialogOpen(false)}
           onSave={(body) => createMut.mutate(body)}
@@ -1086,6 +1182,7 @@ function MembrosDaConta({
         open={!!editandoMembro}
         membro={editandoMembro ?? eu}
         isSelf={editandoSouEu}
+        accountId={conta.id}
         accountType={conta.tipo}
         isSaving={editarUsuarioMut.isPending}
         error={mutError}
