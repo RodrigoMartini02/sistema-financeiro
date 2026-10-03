@@ -55,7 +55,7 @@ export function PriceSummary({ itemCount, subtotal, savings, delivery, total }: 
 export function ProductThumb({ imageUrl, size }: { imageUrl: string | null; size: 'large' | 'small' }) {
   const box = size === 'large' ? 'h-20 w-20 sm:h-24 sm:w-24' : 'h-12 w-12';
   return (
-    <span className={`${box} flex-none overflow-hidden rounded-xl border border-slate-100 bg-slate-100`}>
+    <span className={`${box} block flex-none overflow-hidden rounded-xl border border-slate-100 bg-slate-100`}>
       {imageUrl
         ? <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
         : <span className="flex h-full w-full items-center justify-center text-slate-300"><ShoppingBag size={size === 'large' ? 24 : 16} /></span>}
