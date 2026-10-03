@@ -5,7 +5,7 @@ import type { ExpenseCreateInput, ExpenseInstallmentInput } from '../../types/fi
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import type { RuleContext } from '../../screens/finance/expense-dialog/draftRules';
 import {
-  buildExpenseSave, categoryIdByName, duplicateCheckKey, fillExpenseDefaults, toExpenseDraft, type CardCategory,
+  buildExpenseSave, categoryIdByName, duplicateCheckKey, fillDraftDefaults, toExpenseDraft, type CardCategory,
 } from './cardDraft';
 
 const TODAY = '2026-10-02';
@@ -71,7 +71,7 @@ test('crédito com cartão de crédito cadastrado exige o cartão, como no modal
 });
 
 test('frase sem data: a compra é hoje e o vencimento, a data da compra', () => {
-  const filled = fillExpenseDefaults(draft({ date: null, paid: true }), TODAY);
+  const filled = fillDraftDefaults(draft({ date: null, paid: true }), TODAY);
   const input = save(filled);
 
   assert.equal(filled.date, TODAY);
@@ -150,18 +150,24 @@ test('categoria vai pelo nome, sem acento nem caixa; sem categoria o salvar acus
 });
 
 test('padrões não sobrescrevem o que veio da frase', () => {
-  const fromSentence = fillExpenseDefaults(draft({ date: '2026-09-30', paid: true }), TODAY);
+  const fromSentence = fillDraftDefaults(draft({ date: '2026-09-30', paid: true }), TODAY);
   assert.equal(fromSentence.date, '2026-09-30');
   assert.equal(fromSentence.paymentDate, '2026-09-30');
 
-  const withPaymentDate = fillExpenseDefaults(draft({ paid: true, paymentDate: '2026-09-29' }), TODAY);
+  const withPaymentDate = fillDraftDefaults(draft({ paid: true, paymentDate: '2026-09-29' }), TODAY);
   assert.equal(withPaymentDate.paymentDate, '2026-09-29');
 
-  const unpaid = fillExpenseDefaults(draft({ date: null }), TODAY);
+  const unpaid = fillDraftDefaults(draft({ date: null }), TODAY);
   assert.equal(unpaid.paymentDate, null);
+});
 
-  const income: FinancialAssistantDraft = { ...draft({ date: null }), kind: 'income' };
-  assert.equal(fillExpenseDefaults(income, TODAY), income);
+test('receita sem data vem com hoje, como o modal do desktop; com data, fica a da frase', () => {
+  const income = (overrides: Partial<FinancialAssistantDraft>): FinancialAssistantDraft => ({ ...draft(overrides), kind: 'income' });
+
+  assert.equal(fillDraftDefaults(income({ date: null }), TODAY).date, TODAY);
+  assert.equal(fillDraftDefaults(income({ date: '2026-09-28' }), TODAY).date, '2026-09-28');
+  // Receita não tem "Pago em": o padrão da despesa paga não vale para ela.
+  assert.equal(fillDraftDefaults(income({ date: null, paid: true }), TODAY).paymentDate, undefined);
 });
 
 test('aviso de duplicata compara a parcela e o vencimento efetivo', () => {

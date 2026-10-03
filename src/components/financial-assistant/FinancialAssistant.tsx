@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Camera, Check, ChevronDown, CircleCheck, FileText, LoaderCircle, MessageCircleMore,
+  Camera, Check, ChevronDown, CircleCheck, FileText, MessageCircleMore,
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,10 +51,11 @@ import {
 import { useSpeech } from './useSpeech';
 import { escolherSaudacao } from './saudacao';
 import {
-  buildExpenseSave, duplicateCheckKey, fillExpenseDefaults, normalizeComparable, toExpenseDraft,
+  buildExpenseSave, duplicateCheckKey, fillDraftDefaults, normalizeComparable, toExpenseDraft,
 } from './cardDraft';
 import { InstallmentList } from './InstallmentList';
 import { PaymentCard, openExpenseLabel, paymentDifferenceText, type PaymentDraft } from './PaymentCard';
+import { CardActions } from './CardActions';
 
 type ChatRole = 'assistant' | 'user';
 
@@ -975,8 +976,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setIntentHint(candidates.length > 0 ? 'pay_expense' : null);
       setSlotState(result.mode === 'slot' ? result.slotState ?? null : null);
       if (result.mode === 'draft' && result.draft) {
-        // Datas que o modal do desktop preenche sozinho (compra hoje, "Pago em").
-        setDraft(fillExpenseDefaults(result.draft, getLocalTodayIso()));
+        // Datas que os modais do desktop preenchem sozinhos (hoje, "Pago em").
+        setDraft(fillDraftDefaults(result.draft, getLocalTodayIso()));
         setInstallmentsOpen(false);
         setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
       }
@@ -2138,28 +2139,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </p>
                     )}
 
-                    {/* Lado a lado: empilhados custavam 110px de altura,
-                        e o card precisa caber inteiro na tela. */}
-                    <div className="grid grid-cols-[1fr_auto] gap-2 px-3.5 pb-3">
-                      <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="flex h-11 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
-                      >
-                        {isSaving && <LoaderCircle size={18} className="animate-spin" />}
-                        {isSaving ? 'Salvando...' : 'Salvar'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={discardDraft}
-                        aria-label="Descartar este lançamento sem salvar"
-                        disabled={isSaving}
-                        className="flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
-                      >
-                        Descartar
-                      </button>
-                    </div>
+                    <CardActions
+                      isSaving={isSaving}
+                      onSave={() => void handleSave()}
+                      onDiscard={discardDraft}
+                      discardLabel="Descartar este lançamento sem salvar"
+                    />
                   </Card>
                 )}
 

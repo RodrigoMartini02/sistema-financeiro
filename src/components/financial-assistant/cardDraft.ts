@@ -39,13 +39,14 @@ export function categoryIdByName(categories: CardCategory[], name: string | null
 }
 
 /**
- * Datas que o modal do desktop preenche sozinho: sem data na frase, a compra é
- * hoje; despesa paga (fora do parcelado) ganha "Pago em" com o dia da frase ou
- * hoje. O que veio da frase nunca é sobrescrito.
+ * Datas que os modais do desktop preenchem sozinhos: sem data na frase, a
+ * receita é de hoje e a compra da despesa também; despesa paga (fora do
+ * parcelado) ganha "Pago em" com o dia da frase ou hoje. O que veio da frase
+ * nunca é sobrescrito.
  */
-export function fillExpenseDefaults(draft: FinancialAssistantDraft, todayIso: string): FinancialAssistantDraft {
-  if (draft.kind !== 'expense') return draft;
+export function fillDraftDefaults(draft: FinancialAssistantDraft, todayIso: string): FinancialAssistantDraft {
   const date = draft.date ?? todayIso;
+  if (draft.kind === 'income') return { ...draft, date };
   const paidOutsideInstallments = draft.paid && draft.billingType !== 'parcelas';
   return {
     ...draft,
