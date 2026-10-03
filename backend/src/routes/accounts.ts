@@ -4,6 +4,7 @@ import { eq, and, ne } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { accounts, users } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { ensureDefaultAccountNames } from '../services/accountNameCatalogSeed';
 import { saveAccountPartners } from '../services/accountPartners';
 import { readAccountPartnersInput } from '../services/accountPartnersInput';
 import { companyAccountColumns, readCompanyAccountInput, readLoginAccessInput } from '../services/companyAccountInput';
@@ -104,8 +105,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // POST /api/contas
 // Cria sempre conta PJ — uma pessoa física adicional na conta é papel do
 // fluxo "Novo membro" (account-members), não de uma segunda conta própria.
-// Conta, catálogo padrão e sócios (com o capital lançado como receita) entram
-// juntos ou nada.
+// Conta, catálogo padrão (categorias, setores e cargos) e sócios (com o
+// capital lançado como receita) entram juntos ou nada.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const company = readCompanyAccountInput(req.body);
@@ -127,6 +128,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 
       await ensureDefaultCategories(ownerId, 'empresa', transaction);
       await ensureDefaultIncomeClassifications(ownerId, 'empresa', transaction);
+      await ensureDefaultAccountNames(transaction, { ownerId, accountId: account!.id });
 
       if (partnersInput) {
         await saveAccountPartners(transaction, {
