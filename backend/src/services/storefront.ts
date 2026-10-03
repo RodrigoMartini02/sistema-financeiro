@@ -1,4 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import { accounts, users } from '../db/schema';
 import { catalogoContas, catalogoProdutoImagens, catalogoProdutos, type CatalogoConta } from '../modules/catalogo/db/schema';
@@ -203,16 +204,19 @@ export async function findPublicStorefront(param: string): Promise<PublicStorefr
     return null;
   }
 
+  // As duas tabelas se chamam "contas" (catalogo.contas e a conta financeira):
+  // sem o apelido, o Postgres acusa referência ambígua no join.
+  const storefronts = alias(catalogoContas, 'vitrine');
   const [row] = await db
     .select({
-      id: catalogoContas.id,
+      id: storefronts.id,
       contaId: accounts.id,
       ownerId: accounts.userId,
-      slug: catalogoContas.slug,
-      nome: catalogoContas.nome,
-      descricao: catalogoContas.descricao,
-      whatsapp: catalogoContas.whatsapp,
-      logo: catalogoContas.logo,
+      slug: storefronts.slug,
+      nome: storefronts.nome,
+      descricao: storefronts.descricao,
+      whatsapp: storefronts.whatsapp,
+      logo: storefronts.logo,
       accountName: accounts.name,
       tradeName: accounts.tradeName,
       isDefault: accounts.isDefault,
@@ -220,10 +224,10 @@ export async function findPublicStorefront(param: string): Promise<PublicStorefr
       active: accounts.active,
       ownerPhoto: users.photo,
     })
-    .from(catalogoContas)
-    .innerJoin(accounts, eq(accounts.id, catalogoContas.contaId))
+    .from(storefronts)
+    .innerJoin(accounts, eq(accounts.id, storefronts.contaId))
     .innerJoin(users, eq(users.id, accounts.userId))
-    .where(parsed.kind === 'id' ? eq(catalogoContas.id, parsed.id) : eq(catalogoContas.slug, parsed.slug))
+    .where(parsed.kind === 'id' ? eq(storefronts.id, parsed.id) : eq(storefronts.slug, parsed.slug))
     .limit(1);
 
   if (!row || row.type !== 'empresa' || row.active === false) {
