@@ -5,7 +5,7 @@ import { getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveVisibleUserIds, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
-import { RequestInputError, sendRequestError } from '../utils/requestInput';
+import { RequestInputError, readQueryId, sendRequestError } from '../utils/requestInput';
 import {
   readCreateExpenseInput,
   readDuplicateQuery,
@@ -21,6 +21,9 @@ import {
   getExpenseSuggestions,
   updateExpense,
 } from '../services/expenseService';
+import { BudgetInputError, resolveFinancialAccount, type FinancialAccount } from '../services/budgetService';
+import { despesasEmAberto } from '../services/assistantQueries';
+import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense } from '../services/assistantPayment';
 
 const router = Router();
 
@@ -199,6 +202,41 @@ router.get('/duplicate', authenticate, async (req: Request, res: Response): Prom
     res.json({ success: true, data: { duplicate: await findRecentDuplicate(req.user!.id, query) } });
   } catch (error) {
     sendRequestError(res, error, 'Expense duplicate check error:', req.user?.id, 'Não foi possível conferir se a despesa já foi lançada');
+  }
+});
+
+/** Quantas despesas a lista do chip "Pagar despesa" traz: o padrão cabe na conversa. */
+function readOpenExpensesLimit(value: unknown): number {
+  if (value === undefined || value === '') return MAX_PAYMENT_CANDIDATES;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new RequestInputError('Limite inválido');
+  }
+  return limit;
+}
+
+async function resolveAccountForQuery(userId: number, accountId: number | null): Promise<FinancialAccount> {
+  try {
+    return await resolveFinancialAccount(userId, accountId);
+  } catch (error) {
+    if (error instanceof BudgetInputError) throw new RequestInputError(error.message, 404);
+    throw error;
+  }
+}
+
+// GET /api/expenses/em-aberto?conta_id=&limite= — despesas a pagar pelo chip "Pagar despesa" do
+// assistente: vencidas e as do mês corrente, só a próxima de cada parcelamento ou recorrência.
+router.get('/em-aberto', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const query = req.query as Record<string, unknown>;
+    const accountId = readQueryId(query['conta_id'], 'Conta inválida');
+    const limit = readOpenExpensesLimit(query['limite']);
+    const account = await resolveAccountForQuery(req.user!.id, accountId);
+    const today = getTodayIsoInTimezone();
+    const rows = await despesasEmAberto({ userId: req.user!.id, account }, lastDayOfMonth(today));
+    res.json({ success: true, data: nextOpenPerGroup(rows).slice(0, limit).map((row) => toOpenExpense(row, today)) });
+  } catch (error) {
+    sendRequestError(res, error, 'Open expenses error:', req.user?.id, 'Não foi possível buscar as despesas em aberto');
   }
 });
 

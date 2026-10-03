@@ -317,7 +317,7 @@ test('abertura sem posicao continua valida', () => {
   const parsed = parseFlowDefinition(JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)));
 
   assert.equal(parsed.abertura?.posicao, undefined);
-  assert.equal(parsed.abertura?.opcoes.length, 3);
+  assert.equal(parsed.abertura?.opcoes.length, 4);
 });
 
 test('fluxo gravado sem abertura recebe a padrao ao ser carregado', () => {
@@ -329,7 +329,7 @@ test('fluxo gravado sem abertura recebe a padrao ao ser carregado', () => {
 
   const completado = comAberturaPadrao(semAbertura);
 
-  assert.equal(completado.abertura?.opcoes.length, 3);
+  assert.equal(completado.abertura?.opcoes.length, 4);
   assert.equal(completado.abertura?.saudacao, DEFAULT_FLOW_DEFINITION.abertura?.saudacao);
 });
 
@@ -344,8 +344,53 @@ test('abertura propria nao e sobrescrita pela padrao', () => {
 
   const resultado = comAberturaPadrao(editada);
 
+  // A saudacao e a opcao gravadas ficam como estao; so entram as que faltam.
   assert.equal(resultado.abertura?.saudacao, 'E aí, o que manda?');
-  assert.equal(resultado.abertura?.opcoes.length, 1);
+  assert.deepEqual(resultado.abertura?.opcoes[0], { intent: 'register_expense', label: 'Gastei', abertura: 'Conta aí.' });
+  assert.deepEqual(
+    resultado.abertura?.opcoes.map((opcao) => opcao.intent),
+    ['register_expense', 'pay_expense', 'register_income', 'ask'],
+  );
+});
+
+test('abertura gravada antes do "Pagar despesa" ganha a opcao depois de "Lancar despesa"', () => {
+  const gravada = {
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      opcoes: [
+        { intent: 'register_expense', label: 'Despesa', abertura: 'Conta aí.' },
+        { intent: 'register_income', label: 'Receita', abertura: 'Entrou quanto?' },
+        { intent: 'ask', label: 'Perguntar', abertura: 'Pode falar.' },
+      ],
+    },
+  };
+
+  const completado = comAberturaPadrao(gravada);
+
+  assert.deepEqual(
+    completado.abertura?.opcoes.map((opcao) => opcao.label),
+    ['Despesa', 'Pagar despesa', 'Receita', 'Perguntar'],
+  );
+  assert.equal(completado.abertura?.opcoes[1]?.intent, 'pay_expense');
+});
+
+test('abertura que ja tem todas as opcoes volta intacta', () => {
+  const completa = JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION));
+
+  assert.equal(comAberturaPadrao(completa), completa);
+});
+
+test('opcao de pagar despesa e aceita ao ler o fluxo gravado', () => {
+  const parsed = parseFlowDefinition({
+    ...JSON.parse(JSON.stringify(DEFAULT_FLOW_DEFINITION)),
+    abertura: {
+      saudacao: 'Oi!',
+      opcoes: [{ intent: 'pay_expense', label: 'Pagar', abertura: 'Qual?' }],
+    },
+  });
+
+  assert.deepEqual(parsed.abertura?.opcoes, [{ intent: 'pay_expense', label: 'Pagar', abertura: 'Qual?' }]);
 });
 
 test('completar a abertura nao altera nos, ordem nem obrigatorios', () => {

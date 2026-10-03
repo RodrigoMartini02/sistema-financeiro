@@ -24,7 +24,7 @@ export function invalidateFinanceQueries(qc: QueryClient, month: number, year: n
 // e mexe no limite do cartão, no planejamento e nos relatórios.
 const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
-  'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate',
+  'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate', 'despesas-em-aberto',
 ]);
 
 export function invalidateExpenseQueries(qc: QueryClient) {
@@ -104,6 +104,7 @@ export const queryKeys = {
   assistantFlow: ['assistant-flow'] as const,
   assistantAbertura: ['assistant-abertura'] as const,
   assistantUltimosLancamentos: (accountId?: number | null) => ['assistant-ultimos-lancamentos', accountId ?? 'ativa'] as const,
+  despesasEmAberto: (accountId?: number | null) => ['despesas-em-aberto', accountId ?? 'ativa'] as const,
   // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so
   // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>

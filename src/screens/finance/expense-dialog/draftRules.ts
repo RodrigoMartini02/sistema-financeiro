@@ -236,6 +236,15 @@ export function installmentMismatch(draft: ExpenseDraft): string | null {
 
 export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento';
 
+/** Cor da situação na linha de resumo (modal e card do assistente). */
+export const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
+  Pago: 'success',
+  Agendado: 'neutral',
+  'Entra na fatura': 'info',
+  'Com vencidas': 'danger',
+  'Em andamento': 'info',
+};
+
 export interface DraftSummary {
   status: SummaryStatus;
   dueText: string;

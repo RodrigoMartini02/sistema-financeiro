@@ -122,11 +122,15 @@ function toGraph(
       // Cada intencao entra no fluxo por um `kind` diferente, e sao as
       // condicoes do proprio fluxo que decidem onde isso cai. E o que torna
       // visivel que receita so pergunta descricao e valor.
+      // "Pagar despesa" nao percorre perguntas: paga uma despesa ja lancada
+      // pelo card de pagamento, entao fica sem ligacao.
       const destino = opcao.intent === 'register_expense'
         ? primeiroNoParaKind(definition, 'expense')
         : opcao.intent === 'register_income'
           ? primeiroNoParaKind(definition, 'income')
-          : CONSULTA_NODE_ID;
+          : opcao.intent === 'ask'
+            ? CONSULTA_NODE_ID
+            : null;
 
       if (!destino) continue;
       if (destino !== CONSULTA_NODE_ID && !nodePorId.has(destino)) continue;

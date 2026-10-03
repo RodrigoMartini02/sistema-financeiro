@@ -151,6 +151,35 @@ function extractAmountBeforeInstallments(text: string): number | null {
   return Math.round(amount * 100) / 100;
 }
 
+/**
+ * Valor da parcela dito depois do parcelamento: "10x de 300", "12 vezes de
+ * 250", "em 10x no credito de 300 reais". Devolve o total (parcelas x valor):
+ * o card trabalha com o total, como o modal de despesa do desktop.
+ *
+ * O valor dito antes do parcelamento ("3000 em 10x") ja e o total e fica com
+ * extractAmountBeforeInstallments. Ate quatro palavras sem numero podem
+ * separar o parcelamento do "de" ("no cartao nubank de 300").
+ */
+function extractTotalFromInstallmentValue(text: string): number | null {
+  const match = text.match(
+    /(\d{1,3})\s*(?:x|vezes|parcelas)\b(?:\s+[^\s\d]+){0,4}?\s+de\s+(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![\d.,]*\d)/i,
+  );
+  if (!match?.[1] || !match[2]) return null;
+
+  const count = Number(match[1]);
+  if (!Number.isInteger(count) || count < 2 || count > 360) return null;
+
+  const compact = match[2];
+  const normalized = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(compact)
+    ? compact.replace(/\./g, '').replace(',', '.')
+    : compact.replace(',', '.');
+  const installment = Number(normalized);
+  if (!Number.isFinite(installment) || installment <= 0) return null;
+
+  const total = Math.round(installment * count * 100) / 100;
+  return total < 10_000_000 ? total : null;
+}
+
 function parsePositiveInteger(text: string, max: number): number | null {
   const digits = text.match(/\d{1,3}/);
   if (!digits) return null;
@@ -377,6 +406,9 @@ function cleanDescription(candidate: string | null): string | null {
 
   const cleaned = candidate
     .replace(/\b(?:no|na|em|com|via|por)\s+(?:cartao\s+de\s+)?(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro|especie|espécie)\b/gi, ' ')
+    .replace(/(?:^|\s)(?:no|na|com|pelo|pela)\s+cart[aã]o(?=\s|$)/gi, ' ')
+    // "Cartão" sozinho e a forma de pagar, nao o que foi comprado.
+    .replace(/^\s*cart[aã]o\s*$/i, ' ')
     .replace(/\b(?:pix|pics|pixs|credito|crédito|debito|débito|dinheiro)\b/gi, ' ')
     .replace(/\b(?:paguei|pagei|gastei|comprei|compras|passei|recebi|ganhei|custou|foi)\b/gi, ' ')
     .replace(/\bR\$\s*[\d.,]+/gi, ' ')
@@ -384,8 +416,11 @@ function cleanDescription(candidate: string | null): string | null {
     .replace(/\b\d+(?:[.,]\d+)*\s*(?:reais?|conto|paus)?\b/gi, ' ')
     .replace(/\b(?:reais?|real|centavos?)\b/gi, ' ')
     .replace(/\b(?:hoje|ontem|amanha|amanhã)\b/gi, ' ')
-    .replace(/\b(?:de|do|da|dos|das|em|no|na|para|ao|a|o|uma?|e)\b\s*$/gi, ' ')
-    .replace(/^\s*\b(?:de|do|da|dos|das|em|no|na|para|ao|a|o|uma?|e)\b/gi, ' ')
+    // Espaco, e nao \b, em volta do conectivo: sem a flag `u`, letra acentuada
+    // nao conta como letra para o \b, e o "o" final de "pão" e "cartão" saia
+    // como se fosse o artigo ("pã", "cartã").
+    .replace(/(?:^|\s)(?:de|do|da|dos|das|em|no|na|para|ao|a|o|uma?|e)\s*$/gi, ' ')
+    .replace(/^\s*(?:de|do|da|dos|das|em|no|na|para|ao|a|o|uma?|e)(?=\s|$)/gi, ' ')
     .replace(/\s+/g, ' ')
     // De novo no fim: retirar valor e forma deixa preposicao solta na ponta
     // ("geladeira em", "conta de").
@@ -432,7 +467,9 @@ export function seedDraftFromMessage(
   // de 3000. Onde ha digito, ele e a fonte do valor.
   const temNumeroEscrito = /\d/.test(raw);
 
-  draft.amount = extractAmountFromText(raw)
+  // "10x de 300" vem primeiro: o 300 e a parcela, e o card guarda o total.
+  draft.amount = extractTotalFromInstallmentValue(raw)
+    ?? extractAmountFromText(raw)
     ?? (!temNumeroEscrito && spokenAfterVerb?.[1]
       ? extractSpokenAmountWithoutCurrency(spokenAfterVerb[1])
       : null)

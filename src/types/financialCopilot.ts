@@ -1,8 +1,8 @@
-import type { Attachment } from './finance';
+import type { Attachment, OpenExpense } from './finance';
 import type { FinancialAssistantDraft } from './financialAssistant';
 
 export type FinancialCopilotCardType = 'summary' | 'categories' | 'transactions' | 'upcoming' | 'budget';
-export type FinancialCopilotIntentHint = 'register_expense' | 'register_income' | 'ask';
+export type FinancialCopilotIntentHint = 'register_expense' | 'register_income' | 'ask' | 'pay_expense';
 
 export interface FinancialCopilotCardItem {
   label: string;
@@ -22,12 +22,19 @@ export interface FinancialCopilotQuickReply {
   value: string;
 }
 
+/** Chip "Pagar despesa": as despesas oferecidas e o que a frase trouxe do pagamento. */
+export interface FinancialCopilotPayment {
+  candidates: OpenExpense[];
+  amountPaid: number | null;
+  paymentDate: string | null;
+}
+
 /** Estado opaco do preenchimento guiado: o client apenas devolve o que recebeu. */
 export type FinancialCopilotSlotState = Record<string, unknown>;
 
 export interface FinancialCopilotResponse {
   conversationId: number | null;
-  mode: 'answer' | 'draft' | 'help' | 'slot';
+  mode: 'answer' | 'draft' | 'help' | 'slot' | 'payment';
   reply: string;
   cards: FinancialCopilotCard[];
   draft: FinancialAssistantDraft | null;
@@ -36,6 +43,8 @@ export interface FinancialCopilotResponse {
   slotState?: FinancialCopilotSlotState | null;
   /** Texto preparado para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
   spokenReply?: string;
+  /** So no modo `payment`. */
+  payment?: FinancialCopilotPayment;
 }
 
 export interface FinancialCopilotRequest {

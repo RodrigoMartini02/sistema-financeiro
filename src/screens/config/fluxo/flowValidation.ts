@@ -203,9 +203,9 @@ function validarAbertura(definition: FlowDefinition): FlowIssue[] {
   const issues: FlowIssue[] = [];
 
   for (const opcao of definition.abertura.opcoes) {
-    // A consulta sai do preenchimento guiado de proposito: nao ter destino
-    // aqui e o comportamento correto, nao um caminho quebrado.
-    if (opcao.intent === 'ask') continue;
+    // A consulta e o pagamento saem do preenchimento guiado de proposito: nao
+    // ter destino aqui e o comportamento correto, nao um caminho quebrado.
+    if (opcao.intent === 'ask' || opcao.intent === 'pay_expense') continue;
 
     const kind = opcao.intent === 'register_expense' ? 'expense' : 'income';
     const destino = primeiroNoParaKind(definition, kind);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { interpretFinancialAssistantText } from './financialAssistant';
+import { extractDateFromText, interpretFinancialAssistantText } from './financialAssistant';
+import { addDaysToIsoDate, getTodayIsoInTimezone } from '../utils/date';
 
 test('interprets a voice transcription of an expense as a paid Pix purchase', () => {
   const interpretation = interpretFinancialAssistantText('Fiz compras no mercado hoje gastei R$ 100 no pics');
@@ -52,4 +53,12 @@ test('boleto indica despesa, mas nao vira forma de pagamento', () => {
 
   assert.equal(interpretation.kind, 'expense');
   assert.notEqual(interpretation.paymentMethod, 'boleto');
+});
+
+test('"ontem" vira a data de ontem; hoje e dia N continuam valendo', () => {
+  const hoje = getTodayIsoInTimezone();
+  assert.equal(extractDateFromText('paguei a luz ontem'), addDaysToIsoDate(hoje, -1));
+  assert.equal(extractDateFromText('paguei hoje'), hoje);
+  assert.equal(extractDateFromText('vence dia 5')?.slice(8), '05');
+  assert.equal(extractDateFromText('luz 121,29'), null);
 });

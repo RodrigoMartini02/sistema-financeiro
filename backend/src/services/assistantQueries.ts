@@ -5,6 +5,8 @@ import { getTodayIsoInTimezone } from '../utils/date';
 import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { getBudgetOverview, type FinancialAccount } from './budgetService';
 import { assertValidRange, describeRange } from './assistantDateRange';
+import type { OpenExpenseRow } from './assistantPayment';
+import { ACTIVE_STATUS } from './entryQueries';
 
 // Consultas do assistente. Cada funcao recebe periodo em datas absolutas (o
 // modelo nunca manda "esse mes") e devolve dado bruto — a redacao da resposta
@@ -661,6 +663,39 @@ export async function variacaoPorCategoria(scope: QueryScope, meses: number) {
   }).sort((left, right) => (right.variacaoPercentual ?? 0) - (left.variacaoPercentual ?? 0));
 
   return { meses: janela, itens, criterio: 'acima de 1,5x a média dos meses anteriores' };
+}
+
+// ── Pagamento pelo chip "Pagar despesa" ─────────────────────────────
+
+/** Teto de linhas lidas para escolher a despesa a pagar. */
+const MAX_OPEN_ROWS = 500;
+
+/**
+ * Despesas em aberto do usuario na conta, por vencimento. Mesma regra da rota
+ * de pagar (POST /expenses/:id/pay): so as do proprio usuario — oferecer uma
+ * que a rota recusaria terminaria num 404 ao salvar. Com `ate`, so as que
+ * vencem ate essa data.
+ */
+export async function despesasEmAberto(scope: QueryScope, ate?: string): Promise<OpenExpenseRow[]> {
+  const conditions = [
+    expenseAll(scope)!,
+    or(eq(expenses.paid, false), isNull(expenses.paid))!,
+    eq(expenses.status, ACTIVE_STATUS),
+  ];
+  if (ate) conditions.push(lte(expenses.dueDate, ate));
+
+  const rows = await db.select({
+    id: expenses.id,
+    description: expenses.description,
+    amount: expenses.originalAmount,
+    dueDate: expenses.dueDate,
+    currentInstallment: expenses.currentInstallment,
+    numberOfInstallments: expenses.numberOfInstallments,
+    installmentGroupId: expenses.installmentGroupId,
+    paymentMethod: expenses.paymentMethod,
+  }).from(expenses).where(and(...conditions)).orderBy(asc(expenses.dueDate), asc(expenses.id)).limit(MAX_OPEN_ROWS);
+
+  return rows.map((row) => ({ ...row, amount: asNumber(row.amount), dueDate: String(row.dueDate) }));
 }
 
 export class AssistantQueryError extends Error {}

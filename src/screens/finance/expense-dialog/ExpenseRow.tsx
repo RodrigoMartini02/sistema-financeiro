@@ -16,26 +16,18 @@ import {
   AddToBatchButton, GridCell, GridRow, RemoveFromBatchButton, type RowVariant,
 } from '../entry-dialog/GridParts';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
-import { SummaryLine, duplicateText, type StatusTone } from '../entry-dialog/SummaryLine';
+import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
 import { getPaymentMethodLabel } from '../entryTable';
 import { BillingPopover } from './BillingPopover';
 import {
-  cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft, usesCard,
-  type RuleContext, type SummaryStatus,
+  SUMMARY_TONE, cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft, usesCard,
+  type RuleContext,
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
 import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { InstallmentsPopover } from './InstallmentsPopover';
 import { PaymentMethodPopover } from './PaymentMethodPopover';
 import type { DraftSuggestions } from './useExpenseSuggestions';
-
-const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
-  Pago: 'success',
-  Agendado: 'neutral',
-  'Entra na fatura': 'info',
-  'Com vencidas': 'danger',
-  'Em andamento': 'info',
-};
 
 /** Dados que todas as linhas usam. */
 export interface RowResources {
