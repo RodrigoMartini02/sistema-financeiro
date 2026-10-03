@@ -125,6 +125,15 @@ export function readQueryId(value: unknown, message: string): number | null {
   return id;
 }
 
+/** Id obrigatório, na query ou no corpo: ausente ou inválido volta com `message`. */
+export function readRequiredId(value: unknown, message: string): number {
+  const id = typeof value === 'number' || typeof value === 'string' ? readQueryId(value, message) : null;
+  if (id === null) {
+    throw new RequestInputError(message);
+  }
+  return id;
+}
+
 /** Texto digitado pela pessoa usado dentro de um LIKE: `%` e `_` valem como texto. */
 export function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`);

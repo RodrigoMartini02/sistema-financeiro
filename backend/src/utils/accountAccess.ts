@@ -1,4 +1,7 @@
-import { pool } from '../db/client';
+import { eq } from 'drizzle-orm';
+import { db, pool } from '../db/client';
+import { accounts } from '../db/schema';
+import { RequestInputError } from './requestInput';
 
 /**
  * Confirma que o solicitante pode GRAVAR na conta informada.
@@ -51,3 +54,33 @@ export async function canWriteToAccount(
  * existem no sistema.
  */
 export const ACCOUNT_ACCESS_DENIED = 'Account not available';
+
+/** Resposta única para conta inexistente e conta alheia nas rotas por conta PJ. */
+export const ACCOUNT_NOT_FOUND_MESSAGE = 'Conta não encontrada';
+
+/**
+ * Conta PJ em que o solicitante pode mexer: dono ou vínculo ativo. Conta
+ * inexistente e conta alheia dão a mesma resposta (404); conta pessoal volta
+ * com `personalAccountMessage`, porque o cadastro só existe em empresa.
+ */
+export async function resolveCompanyAccount(
+  requesterId: number,
+  accountId: number,
+  personalAccountMessage: string,
+): Promise<{ id: number; ownerId: number }> {
+  if (!(await canWriteToAccount(accountId, requesterId))) {
+    throw new RequestInputError(ACCOUNT_NOT_FOUND_MESSAGE, 404);
+  }
+  const [account] = await db
+    .select({ id: accounts.id, ownerId: accounts.userId, type: accounts.type })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .limit(1);
+  if (!account) {
+    throw new RequestInputError(ACCOUNT_NOT_FOUND_MESSAGE, 404);
+  }
+  if (account.type !== 'empresa') {
+    throw new RequestInputError(personalAccountMessage);
+  }
+  return { id: account.id, ownerId: account.ownerId };
+}

@@ -122,7 +122,8 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
                 <option value="">Nenhum (lançamento avulso)</option>
                 {context.products.map((product) => (
                   <option key={product.id} value={product.id}>
-                    {product.nome} — {formatCurrency(Number(product.valor))} · {Number(product.quantidadeEstoque)} em estoque
+                    {product.nome} — {formatCurrency(product.valorFinal)}
+                    {product.controlaEstoque ? ` · ${Number(product.quantidadeEstoque)} em estoque` : ''}
                   </option>
                 ))}
               </select>
@@ -140,9 +141,11 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
             </div>
             {sale && (
               <span style={{ fontSize: 12, color: sale.insufficient ? C.danger : C.textSoft }}>
-                {sale.insufficient
-                  ? `Estoque insuficiente: há ${sale.stock} disponível.`
-                  : `Baixa ${sale.quantity} do estoque · restam ${sale.remaining}. O valor pode ser ajustado.`}
+                {!sale.tracksStock
+                  ? 'Produto sem controle de estoque. O valor pode ser ajustado.'
+                  : sale.insufficient
+                    ? `Estoque insuficiente: há ${sale.stock} disponível.`
+                    : `Baixa ${sale.quantity} do estoque · restam ${sale.remaining}. O valor pode ser ajustado.`}
               </span>
             )}
           </div>

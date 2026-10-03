@@ -1,150 +1,70 @@
 import path from 'path';
 import fs from 'fs';
-import { Router, Request, Response, NextFunction } from 'express';
-import { eq, and, asc, inArray } from 'drizzle-orm';
-import { db } from '../../../db/client';
-import { catalogoContas, catalogoProdutos, catalogoProdutoImagens } from '../db/schema';
-import { isValidCatalogoContaId } from '../../../services/catalogo';
+import { Router, Request, Response } from 'express';
+import { findPublicStorefront, isPublicProductImage, listPublicProducts } from '../../../services/storefront';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
-declare global {
-  namespace Express {
-    interface Request {
-      catalogoUsuarioId?: number;
-    }
-  }
-}
-
-async function contaExists(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const { contaId } = req.params;
-
-    if (!contaId || !isValidCatalogoContaId(contaId)) {
-      res.status(404).json({ success: false, message: 'Catálogo não encontrado' });
-      return;
-    }
-
-    const [conta] = await db
-      .select({ usuarioId: catalogoContas.usuarioId })
-      .from(catalogoContas)
-      .where(eq(catalogoContas.id, contaId))
-      .limit(1);
-
-    if (!conta) {
-      res.status(404).json({ success: false, message: 'Catálogo não encontrado' });
-      return;
-    }
-
-    req.catalogoUsuarioId = conta.usuarioId;
-    next();
-  } catch (error) {
-    console.error('Catalogo public conta lookup error:', error);
-    res.status(500).json({ success: false, message: 'Erro ao validar catálogo' });
-  }
-}
-
-function usuarioId(req: Request): number {
-  return req.catalogoUsuarioId!;
-}
+const STORE_NOT_FOUND_MESSAGE = 'Loja não encontrada';
+const IMAGE_NOT_FOUND_MESSAGE = 'Imagem não encontrada';
+/** O nome do arquivo da imagem é único e nunca é reaproveitado: o navegador pode guardá-la de vez. */
+const IMMUTABLE_IMAGE_CACHE = 'public, max-age=31536000, immutable';
 
 const router = Router();
 
-// GET /api/catalogo/public/:contaId/produtos
-router.get('/:contaId/produtos', contaExists, async (req: Request, res: Response): Promise<void> => {
+// GET /api/catalogo/public/:vitrine — loja e produtos ativos da conta, pelo link
+// amigável ou pelo código antigo. Nunca devolve quantidade em estoque, dono ou conta.
+router.get('/:storefront', async (req: Request, res: Response): Promise<void> => {
   try {
-    const produtos = await db
-      .select({
-        id: catalogoProdutos.id,
-        nome: catalogoProdutos.nome,
-        descricao: catalogoProdutos.descricao,
-        valor: catalogoProdutos.valor,
-      })
-      .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.usuarioId, usuarioId(req)), eq(catalogoProdutos.ativo, true)))
-      .orderBy(asc(catalogoProdutos.nome));
-
-    const produtoIds = produtos.map((produto) => produto.id);
-    const imagens = produtoIds.length
-      ? await db
-          .select({
-            id: catalogoProdutoImagens.id,
-            produtoId: catalogoProdutoImagens.produtoId,
-            nomeArquivo: catalogoProdutoImagens.nomeArquivo,
-            ordem: catalogoProdutoImagens.ordem,
-          })
-          .from(catalogoProdutoImagens)
-          .where(inArray(catalogoProdutoImagens.produtoId, produtoIds))
-          .orderBy(asc(catalogoProdutoImagens.ordem))
-      : [];
-
-    const imagensPorProduto = new Map<string, typeof imagens>();
-    for (const imagem of imagens) {
-      const lista = imagensPorProduto.get(imagem.produtoId) ?? [];
-      lista.push(imagem);
-      imagensPorProduto.set(imagem.produtoId, lista);
+    const storefront = await findPublicStorefront(req.params['storefront'] ?? '');
+    if (!storefront) {
+      res.status(404).json({ success: false, message: STORE_NOT_FOUND_MESSAGE });
+      return;
     }
 
-    const data = produtos.map((produto) => ({
-      ...produto,
-      imagens: imagensPorProduto.get(produto.id) ?? [],
-    }));
-
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data: {
+        loja: {
+          id: storefront.id,
+          link: storefront.link,
+          nome: storefront.nome,
+          descricao: storefront.descricao,
+          whatsapp: storefront.whatsapp,
+          logo: storefront.logo,
+        },
+        produtos: await listPublicProducts(storefront),
+      },
+    });
   } catch (error) {
-    console.error('Public catalogo produtos error:', error);
-    res.status(500).json({ success: false, message: 'Erro ao listar produtos' });
+    console.error('Public storefront error:', { storefront: req.params['storefront'], error });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar a loja agora.' });
   }
 });
 
-// GET /api/catalogo/public/:contaId/imagens/:nomeArquivo — stream file inline
-router.get(
-  '/:contaId/imagens/:nomeArquivo',
-  contaExists,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const nomeArquivo = path.basename(req.params['nomeArquivo'] ?? '');
-      const [imagem] = await db
-        .select({ produtoId: catalogoProdutoImagens.produtoId })
-        .from(catalogoProdutoImagens)
-        .where(eq(catalogoProdutoImagens.nomeArquivo, nomeArquivo))
-        .limit(1);
-
-      if (!imagem) {
-        res.status(404).json({ success: false, message: 'Imagem not found' });
-        return;
-      }
-
-      const [produto] = await db
-        .select({ id: catalogoProdutos.id })
-        .from(catalogoProdutos)
-        .where(
-          and(
-            eq(catalogoProdutos.id, imagem.produtoId),
-            eq(catalogoProdutos.usuarioId, usuarioId(req)),
-            eq(catalogoProdutos.ativo, true),
-          ),
-        )
-        .limit(1);
-
-      if (!produto) {
-        res.status(404).json({ success: false, message: 'Imagem not found' });
-        return;
-      }
-
-      const filePath = path.join(UPLOAD_DIR, nomeArquivo);
-      if (!fs.existsSync(filePath)) {
-        res.status(404).json({ success: false, message: 'File not found on disk' });
-        return;
-      }
-
-      res.setHeader('Content-Type', 'image/webp');
-      fs.createReadStream(filePath).pipe(res);
-    } catch (error) {
-      console.error('Public catalogo produto imagem error:', error);
-      res.status(500).json({ success: false, message: 'Erro ao carregar imagem' });
+// GET /api/catalogo/public/:vitrine/imagens/:nomeArquivo — imagem de produto ativo da vitrine
+router.get('/:storefront/imagens/:nomeArquivo', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const storefront = await findPublicStorefront(req.params['storefront'] ?? '');
+    const fileName = path.basename(req.params['nomeArquivo'] ?? '');
+    if (!storefront || !(await isPublicProductImage(storefront, fileName))) {
+      res.status(404).json({ success: false, message: IMAGE_NOT_FOUND_MESSAGE });
+      return;
     }
-  },
-);
+
+    const filePath = path.join(UPLOAD_DIR, fileName);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, message: IMAGE_NOT_FOUND_MESSAGE });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Cache-Control', IMMUTABLE_IMAGE_CACHE);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('Public storefront image error:', { storefront: req.params['storefront'], error });
+    res.status(500).json({ success: false, message: 'Não foi possível carregar a imagem agora.' });
+  }
+});
 
 export default router;

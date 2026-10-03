@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Lock } from 'lucide-react';
@@ -6,12 +6,12 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
 import { HomePage } from './screens/public/HomePage';
+import { StorefrontPage } from './screens/public/storefront/StorefrontPage';
 import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
 import { SobrePage } from './screens/public/SobrePage';
 import { PlanosPage } from './screens/public/PlanosPage';
 import { ContatoPage } from './screens/public/ContatoPage';
 import { LegalPage } from './screens/public/LegalPage';
-import { CatalogoPublicoPage } from './screens/public/CatalogoPublicoPage';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
@@ -40,6 +40,20 @@ import { useOwnPermissions } from './hooks/useOwnPermissions';
 import { EmptyState } from './ui/EmptyState';
 import { resolveSection, visibleSections, type AccountType } from './utils/screenAccess';
 
+/** Vitrine de uma loja (link novo ou antigo): é a página da empresa, não do FINGERENCE. */
+function isStorefrontPath(pathname: string): boolean {
+  return /^\/(loja|catalogo)\/[^/]+\/?$/.test(pathname);
+}
+
+/**
+ * Partes do site do FINGERENCE que não entram na vitrine: SEO, contagem de
+ * acessos, aviso de cookies e o convite para instalar o app.
+ */
+function MarketingSiteOnly({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return isStorefrontPath(pathname) ? null : <>{children}</>;
+}
+
 function PublicPageTracker() {
   const location = useLocation();
 
@@ -52,8 +66,10 @@ function PublicPageTracker() {
 function PublicSite() {
   return (
     <BrowserRouter>
-      <PublicPageTracker />
-      <PublicSeo />
+      <MarketingSiteOnly>
+        <PublicPageTracker />
+        <PublicSeo />
+      </MarketingSiteOnly>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/index.html" element={<HomePage />} />
@@ -63,11 +79,15 @@ function PublicSite() {
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/termos" element={<LegalPage type="termos" />} />
         <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
-        <Route path="/catalogo/:contaId" element={<CatalogoPublicoPage />} />
+        <Route path="/loja/:storefront" element={<StorefrontPage />} />
+        {/* Link antigo da vitrine, com o código: continua abrindo a mesma loja. */}
+        <Route path="/catalogo/:storefront" element={<StorefrontPage />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
-      <CookieBanner />
-      <InstallPwaBanner />
+      <MarketingSiteOnly>
+        <CookieBanner />
+        <InstallPwaBanner />
+      </MarketingSiteOnly>
     </BrowserRouter>
   );
 }

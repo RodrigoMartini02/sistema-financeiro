@@ -381,6 +381,8 @@ async function buscarEstoqueBaixo(entrada: PainelEntrada): Promise<NonNullable<P
     }).from(catalogoProdutos).where(and(
       inArray(catalogoProdutos.usuarioId, entrada.escopo),
       eq(catalogoProdutos.ativo, true),
+      // Sem controle de estoque o saldo não anda: não há o que alertar.
+      eq(catalogoProdutos.controlaEstoque, true),
       isNotNull(catalogoProdutos.estoqueMinimo),
       lte(catalogoProdutos.quantidadeEstoque, catalogoProdutos.estoqueMinimo),
       accountFilter(catalogoProdutos.contaId, catalogoProdutos.usuarioId, entrada.accountId),

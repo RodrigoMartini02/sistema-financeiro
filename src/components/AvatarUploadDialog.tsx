@@ -9,6 +9,9 @@ interface AvatarUploadDialogProps {
   onClose: () => void;
   onConfirm: (dataUrl: string) => void;
   isSaving?: boolean;
+  /** Padrão: foto da conta. A vitrine usa o mesmo recorte para o logo da loja. */
+  title?: string;
+  description?: string;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -20,7 +23,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false }: AvatarUploadDialogProps) {
+export function AvatarUploadDialog({
+  open, onClose, onConfirm, isSaving = false,
+  title = 'Foto da conta', description = 'Selecione uma imagem e ajuste o enquadramento',
+}: AvatarUploadDialogProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -145,7 +151,7 @@ export function AvatarUploadDialog({ open, onClose, onConfirm, isSaving = false 
   };
 
   return (
-    <Dialog open={open} title="Foto da conta" description="Selecione uma imagem e ajuste o enquadramento" onClose={handleClose}>
+    <Dialog open={open} title={title} description={description} onClose={handleClose}>
       <div className="flex flex-col items-center gap-5">
         <input
           ref={fileInputRef}

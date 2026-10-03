@@ -40,6 +40,8 @@ export interface Income {
   representanteId?: number | null;
   representanteNome?: string | null;
   valorComissao?: number | null;
+  /** Produto do catálogo vendido nesta receita: cancelar ou excluir devolve o estoque. */
+  produtoId?: string | null;
   anexos?: Attachment[] | null;
 }
 

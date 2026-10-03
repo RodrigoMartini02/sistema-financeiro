@@ -3,15 +3,18 @@ import fs from 'fs';
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
-import { eq, and, asc, desc, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, max } from 'drizzle-orm';
 import { db } from '../../../db/client';
 import { authenticate } from '../../../middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from '../../../middleware/permissions';
-import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque } from '../db/schema';
-import { accounts } from '../../../db/schema';
-import { isValidProdutoValor, isValidProdutoImagemMimeType } from '../../../services/catalogo';
-import { EstoqueError, registrarMovimentacaoEstoque, type TipoMovimentacaoEstoque } from '../../../services/estoque';
-import { resolveAccountOwnerId } from '../../../utils/familyVisibility';
+import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque, type CatalogoProduto } from '../db/schema';
+import { isUuid, isValidProdutoImagemMimeType } from '../../../services/catalogo';
+import { readProductAccountId, readProductInput, readStockMovementInput, type ProductInput } from '../../../services/productInput';
+import { buildProductPricing } from '../../../services/productPricing';
+import { listImagesByProduct } from '../../../services/productImages';
+import { STOCK_REASONS, recordStockMovement, type StockExecutor } from '../../../services/stock';
+import { canWriteToAccount, resolveCompanyAccount } from '../../../utils/accountAccess';
+import { RequestInputError, readRequiredId, sendRequestError } from '../../../utils/requestInput';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
@@ -21,6 +24,11 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024;
 const MAX_OUTPUT_DIMENSION = 1600;
+const MOVEMENT_HISTORY_LIMIT = 100;
+
+const PERSONAL_ACCOUNT_MESSAGE = 'Produtos só existem em conta de empresa';
+const PRODUCT_NOT_FOUND_MESSAGE = 'Produto não encontrado';
+const IMAGE_NOT_FOUND_MESSAGE = 'Imagem não encontrada';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -36,203 +44,162 @@ const upload = multer({
 
 const router = Router();
 
-/** Sentinela: conta informada existe no corpo mas nao pertence ao usuario. */
-const INVALID_CONTA = Symbol('INVALID_CONTA');
+function toDecimal(value: number): string {
+  return value.toFixed(2);
+}
+
+function toQuantity(value: number | null): string | null {
+  return value === null ? null : value.toFixed(3);
+}
+
+/** Colunas que o cadastro grava, iguais na criação e na edição. */
+function productColumns(input: ProductInput) {
+  return {
+    nome: input.name,
+    descricao: input.description,
+    valor: toDecimal(input.price),
+    descontoTipo: input.discount?.type ?? null,
+    descontoValor: input.discount ? toDecimal(input.discount.value) : null,
+    categoria: input.category,
+    controlaEstoque: input.tracksStock,
+    estoqueMinimo: toQuantity(input.minimumStock),
+  };
+}
 
 /**
- * Valida que a conta financeira informada pertence ao dono do catalogo (o
- * titular, tambem quando quem cadastra e um colaborador). `conta_id` vem do
- * localStorage do navegador — sem esta checagem, trocar o valor no cliente
- * bastaria para pendurar um produto na conta de outra pessoa.
+ * Produto pelo id, desde que a conta PJ dele seja do solicitante (dono ou
+ * colaborador dela). Só o id não basta: com duas PJs do mesmo dono, o
+ * colaborador de uma não mexe nos produtos da outra. Produto sem conta, de
+ * conta alheia ou inexistente dão a mesma resposta.
  */
-async function resolveContaDoUsuario(
-  contaIdBruto: unknown,
-  usuarioId: number,
-): Promise<number | null | typeof INVALID_CONTA> {
-  if (contaIdBruto === undefined || contaIdBruto === null || contaIdBruto === '') return null;
+async function loadAccessibleProduct(productId: string | undefined, requesterId: number): Promise<CatalogoProduto> {
+  const [product] = productId && isUuid(productId)
+    ? await db.select().from(catalogoProdutos).where(eq(catalogoProdutos.id, productId)).limit(1)
+    : [];
+  if (!product || product.contaId === null || !(await canWriteToAccount(product.contaId, requesterId))) {
+    throw new RequestInputError(PRODUCT_NOT_FOUND_MESSAGE, 404);
+  }
+  return product;
+}
 
-  const contaId = Number(contaIdBruto);
-  if (!Number.isInteger(contaId)) return INVALID_CONTA;
-
-  const [conta] = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(and(eq(accounts.id, contaId), eq(accounts.userId, usuarioId)))
+async function hasStockMovements(executor: StockExecutor, productId: string): Promise<boolean> {
+  const [movement] = await executor
+    .select({ id: catalogoMovimentacoesEstoque.id })
+    .from(catalogoMovimentacoesEstoque)
+    .where(eq(catalogoMovimentacoesEstoque.produtoId, productId))
     .limit(1);
-
-  return conta ? conta.id : INVALID_CONTA;
+  return movement !== undefined;
 }
 
-/** Nulo/vazio = produto sem alerta de estoque baixo. */
-function parseEstoqueMinimo(valor: unknown): string | null {
-  if (valor === undefined || valor === null || valor === '') return null;
-  const numero = Number(valor);
-  if (!Number.isFinite(numero) || numero < 0) return null;
-  return numero.toFixed(3);
+/** Produto como as telas recebem: com o preço final, o selo de desconto e as imagens. */
+async function toProductViews(products: CatalogoProduto[]) {
+  const imagesByProduct = await listImagesByProduct(products.map((product) => product.id));
+  return products.map((product) => ({
+    ...product,
+    ...buildProductPricing(product),
+    imagens: imagesByProduct.get(product.id) ?? [],
+  }));
 }
 
-// GET /api/catalogo/produtos
+async function loadProductView(productId: string) {
+  const [product] = await db.select().from(catalogoProdutos).where(eq(catalogoProdutos.id, productId)).limit(1);
+  const [view] = await toProductViews([product!]);
+  return view;
+}
+
+// GET /api/catalogo/produtos?conta_id= — produtos da conta PJ.
 // A listagem também abre para quem lança receita com produto vendido (utils/catalogAccess.ts).
 router.get('/', authenticate, requireCatalogAccess('products'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const produtos = await db
+    const account = await resolveCompanyAccount(
+      req.user!.id,
+      readRequiredId(req.query['conta_id'], 'Informe a conta'),
+      PERSONAL_ACCOUNT_MESSAGE,
+    );
+    const products = await db
       .select()
       .from(catalogoProdutos)
-      .where(eq(catalogoProdutos.usuarioId, ownerId))
-      .orderBy(asc(catalogoProdutos.nome));
+      .where(and(eq(catalogoProdutos.contaId, account.id), eq(catalogoProdutos.usuarioId, account.ownerId)))
+      .orderBy(asc(catalogoProdutos.nome), asc(catalogoProdutos.id));
 
-    const produtoIds = produtos.map((produto) => produto.id);
-    const imagens = produtoIds.length
-      ? await db
-          .select()
-          .from(catalogoProdutoImagens)
-          .where(inArray(catalogoProdutoImagens.produtoId, produtoIds))
-          .orderBy(asc(catalogoProdutoImagens.ordem))
-      : [];
-
-    const imagensPorProduto = new Map<string, typeof imagens>();
-    for (const imagem of imagens) {
-      const lista = imagensPorProduto.get(imagem.produtoId) ?? [];
-      lista.push(imagem);
-      imagensPorProduto.set(imagem.produtoId, lista);
-    }
-
-    const data = produtos.map((produto) => ({
-      ...produto,
-      imagens: imagensPorProduto.get(produto.id) ?? [],
-    }));
-
-    res.json({ success: true, data });
+    res.json({ success: true, data: await toProductViews(products) });
   } catch (error) {
-    console.error('List catalogo produtos error:', error);
-    res.status(500).json({ success: false, message: 'Failed to list produtos' });
+    sendRequestError(res, error, 'List catalogo produtos error:', req.user?.id, 'Não foi possível carregar os produtos agora.');
   }
 });
 
-// POST /api/catalogo/produtos
+// POST /api/catalogo/produtos — o produto nasce na conta PJ informada; com o
+// controle de estoque ligado, a quantidade inicial vira a entrada "Estoque inicial".
 router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const { nome, descricao, valor, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
+    const input = readProductInput(req.body);
+    const account = await resolveCompanyAccount(req.user!.id, readProductAccountId(req.body), PERSONAL_ACCOUNT_MESSAGE);
 
-    if (!nome || String(nome).trim() === '') {
-      res.status(400).json({ success: false, message: 'Nome é obrigatório' });
-      return;
-    }
+    const productId = await db.transaction(async (transaction) => {
+      const [created] = await transaction
+        .insert(catalogoProdutos)
+        .values({
+          ...productColumns(input),
+          usuarioId: account.ownerId,
+          contaId: account.id,
+          ativo: input.active ?? true,
+        })
+        .returning({ id: catalogoProdutos.id });
 
-    if (!isValidProdutoValor(valor)) {
-      res.status(400).json({ success: false, message: 'Valor deve ser maior que zero' });
-      return;
-    }
-    const valorNumerico = Number(valor);
+      if (input.initialQuantity > 0) {
+        await recordStockMovement(transaction, {
+          productId: created!.id,
+          ownerId: account.ownerId,
+          type: 'entrada',
+          quantity: input.initialQuantity,
+          reason: STOCK_REASONS.initialStock,
+        });
+      }
+      return created!.id;
+    });
 
-    const contaId = await resolveContaDoUsuario(conta_id, ownerId);
-    if (contaId === INVALID_CONTA) {
-      res.status(400).json({ success: false, message: 'Conta inválida' });
-      return;
-    }
-
-    const [produto] = await db
-      .insert(catalogoProdutos)
-      .values({
-        usuarioId: ownerId,
-        contaId,
-        nome: String(nome).trim(),
-        descricao: descricao ? String(descricao).trim() : null,
-        valor: valorNumerico.toFixed(2),
-        estoqueMinimo: parseEstoqueMinimo(estoque_minimo),
-      })
-      .returning();
-
-    res.status(201).json({ success: true, message: 'Produto criado', data: produto });
+    res.status(201).json({ success: true, message: 'Produto criado', data: await loadProductView(productId) });
   } catch (error) {
-    console.error('Create catalogo produto error:', error);
-    res.status(500).json({ success: false, message: 'Failed to create produto' });
+    sendRequestError(res, error, 'Create catalogo produto error:', req.user?.id, 'Não foi possível salvar o produto agora.');
   }
 });
 
-// PUT /api/catalogo/produtos/:id
+// PUT /api/catalogo/produtos/:id — a conta não muda. Ligar o controle num
+// produto sem movimentação aceita a quantidade inicial.
 router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const { nome, descricao, valor, ativo, conta_id, estoque_minimo } = req.body as Record<string, unknown>;
+    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    const input = readProductInput(req.body);
 
-    if (!nome || String(nome).trim() === '') {
-      res.status(400).json({ success: false, message: 'Nome é obrigatório' });
-      return;
-    }
-
-    if (!isValidProdutoValor(valor)) {
-      res.status(400).json({ success: false, message: 'Valor deve ser maior que zero' });
-      return;
-    }
-    const valorNumerico = Number(valor);
-
-    const contaId = await resolveContaDoUsuario(conta_id, ownerId);
-    if (contaId === INVALID_CONTA) {
-      res.status(400).json({ success: false, message: 'Conta inválida' });
-      return;
-    }
-
-    const [produto] = await db
-      .update(catalogoProdutos)
-      .set({
-        nome: String(nome).trim(),
-        descricao: descricao ? String(descricao).trim() : null,
-        valor: valorNumerico.toFixed(2),
-        // `conta_id` ausente no corpo mantem a conta atual; so troca quando
-        // o campo e enviado de fato.
-        contaId: conta_id === undefined ? undefined : contaId,
-        estoqueMinimo: estoque_minimo === undefined ? undefined : parseEstoqueMinimo(estoque_minimo),
-        ativo: typeof ativo === 'boolean' ? ativo : undefined,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
-      .returning();
-
-    if (!produto) {
-      res.status(404).json({ success: false, message: 'Produto not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Produto atualizado', data: produto });
-  } catch (error) {
-    console.error('Update catalogo produto error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update produto' });
-  }
-});
-
-// DELETE /api/catalogo/produtos/:id
-router.delete('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const imagens = await db
-      .select()
-      .from(catalogoProdutoImagens)
-      .where(eq(catalogoProdutoImagens.produtoId, req.params['id']!));
-
-    const [produto] = await db
-      .delete(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
-      .returning();
-
-    if (!produto) {
-      res.status(404).json({ success: false, message: 'Produto not found' });
-      return;
-    }
-
-    for (const imagem of imagens) {
-      const filePath = path.join(UPLOAD_DIR, path.basename(imagem.nomeArquivo));
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+    await db.transaction(async (transaction) => {
+      if (input.initialQuantity > 0
+        && (product.controlaEstoque || await hasStockMovements(transaction, product.id))) {
+        throw new RequestInputError('A quantidade inicial só vale ao ligar o controle de um produto sem movimentação');
       }
-    }
 
-    res.json({ success: true, message: 'Produto removido' });
+      await transaction
+        .update(catalogoProdutos)
+        .set({
+          ...productColumns(input),
+          ativo: input.active,
+          updatedAt: new Date(),
+        })
+        .where(eq(catalogoProdutos.id, product.id));
+
+      if (input.initialQuantity > 0) {
+        await recordStockMovement(transaction, {
+          productId: product.id,
+          ownerId: product.usuarioId,
+          type: 'entrada',
+          quantity: input.initialQuantity,
+          reason: STOCK_REASONS.initialStock,
+        });
+      }
+    });
+
+    res.json({ success: true, message: 'Produto atualizado', data: await loadProductView(product.id) });
   } catch (error) {
-    console.error('Delete catalogo produto error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete produto' });
+    sendRequestError(res, error, 'Update catalogo produto error:', req.user?.id, 'Não foi possível salvar o produto agora.');
   }
 });
 
@@ -243,56 +210,33 @@ router.post(
   requireScreenAccess('accessProductCatalog'),
   upload.single('imagem'),
   async (req: Request, res: Response): Promise<void> => {
-    const file = req.file;
-
-    if (!file) {
-      res.status(400).json({ success: false, message: 'No file uploaded' });
-      return;
-    }
-
     try {
-      const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-      const [produto] = await db
-        .select({ id: catalogoProdutos.id })
-        .from(catalogoProdutos)
-        .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
-        .limit(1);
-
-      if (!produto) {
-        res.status(404).json({ success: false, message: 'Produto not found' });
-        return;
+      const file = req.file;
+      if (!file) {
+        throw new RequestInputError('Envie uma imagem');
       }
+      const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
 
-      const ultimaImagem = await db
-        .select({ ordem: catalogoProdutoImagens.ordem })
+      const [last] = await db
+        .select({ ordem: max(catalogoProdutoImagens.ordem) })
         .from(catalogoProdutoImagens)
-        .where(eq(catalogoProdutoImagens.produtoId, produto.id))
-        .orderBy(asc(catalogoProdutoImagens.ordem));
-      const proximaOrdem = ultimaImagem.length
-        ? Math.max(...ultimaImagem.map((imagem) => imagem.ordem)) + 1
-        : 0;
+        .where(eq(catalogoProdutoImagens.produtoId, product.id));
+      const nextOrder = last?.ordem === null || last?.ordem === undefined ? 0 : last.ordem + 1;
 
       const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-      const filePath = path.join(UPLOAD_DIR, filename);
-
       await sharp(file.buffer)
         .resize({ width: MAX_OUTPUT_DIMENSION, height: MAX_OUTPUT_DIMENSION, fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 82 })
-        .toFile(filePath);
+        .toFile(path.join(UPLOAD_DIR, filename));
 
-      const [imagem] = await db
+      const [image] = await db
         .insert(catalogoProdutoImagens)
-        .values({
-          produtoId: produto.id,
-          nomeArquivo: filename,
-          ordem: proximaOrdem,
-        })
+        .values({ produtoId: product.id, nomeArquivo: filename, ordem: nextOrder })
         .returning();
 
-      res.status(201).json({ success: true, message: 'Imagem enviada', data: imagem });
+      res.status(201).json({ success: true, message: 'Imagem enviada', data: image });
     } catch (error) {
-      console.error('Upload catalogo produto imagem error:', error);
-      res.status(500).json({ success: false, message: 'Failed to upload imagem' });
+      sendRequestError(res, error, 'Upload catalogo produto imagem error:', req.user?.id, 'Não foi possível enviar a imagem agora.');
     }
   },
 );
@@ -300,145 +244,92 @@ router.post(
 // GET /api/catalogo/produtos/imagens/:nomeArquivo — stream file inline
 router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
     const nomeArquivo = path.basename(req.params['nomeArquivo'] ?? '');
-    const [imagem] = await db
+    const [image] = await db
       .select({ produtoId: catalogoProdutoImagens.produtoId })
       .from(catalogoProdutoImagens)
       .where(eq(catalogoProdutoImagens.nomeArquivo, nomeArquivo))
       .limit(1);
-
-    if (!imagem) {
-      res.status(404).json({ success: false, message: 'Imagem not found' });
-      return;
+    if (!image) {
+      throw new RequestInputError(IMAGE_NOT_FOUND_MESSAGE, 404);
     }
-
-    const [produto] = await db
-      .select({ id: catalogoProdutos.id })
-      .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, ownerId)))
-      .limit(1);
-
-    if (!produto) {
-      res.status(404).json({ success: false, message: 'Imagem not found' });
-      return;
-    }
+    await loadAccessibleProduct(image.produtoId, req.user!.id);
 
     const filePath = path.join(UPLOAD_DIR, nomeArquivo);
     if (!fs.existsSync(filePath)) {
-      res.status(404).json({ success: false, message: 'File not found on disk' });
-      return;
+      throw new RequestInputError(IMAGE_NOT_FOUND_MESSAGE, 404);
     }
-
     res.setHeader('Content-Type', 'image/webp');
     fs.createReadStream(filePath).pipe(res);
   } catch (error) {
-    console.error('Get catalogo produto imagem error:', error);
-    res.status(500).json({ success: false, message: 'Failed to retrieve imagem' });
+    sendRequestError(res, error, 'Get catalogo produto imagem error:', req.user?.id, 'Não foi possível carregar a imagem agora.');
   }
 });
 
 // DELETE /api/catalogo/produtos/imagens/:imagemId
 router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const [imagem] = await db
-      .select()
-      .from(catalogoProdutoImagens)
-      .where(eq(catalogoProdutoImagens.id, req.params['imagemId']!))
-      .limit(1);
-
-    if (!imagem) {
-      res.status(404).json({ success: false, message: 'Imagem not found' });
-      return;
+    const imageId = req.params['imagemId'] ?? '';
+    const [image] = isUuid(imageId)
+      ? await db.select().from(catalogoProdutoImagens).where(eq(catalogoProdutoImagens.id, imageId)).limit(1)
+      : [];
+    if (!image) {
+      throw new RequestInputError(IMAGE_NOT_FOUND_MESSAGE, 404);
     }
+    await loadAccessibleProduct(image.produtoId, req.user!.id);
 
-    const [produto] = await db
-      .select({ id: catalogoProdutos.id })
-      .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, imagem.produtoId), eq(catalogoProdutos.usuarioId, ownerId)))
-      .limit(1);
-
-    if (!produto) {
-      res.status(404).json({ success: false, message: 'Imagem not found' });
-      return;
-    }
-
-    await db.delete(catalogoProdutoImagens).where(eq(catalogoProdutoImagens.id, imagem.id));
-
-    const filePath = path.join(UPLOAD_DIR, path.basename(imagem.nomeArquivo));
+    await db.delete(catalogoProdutoImagens).where(eq(catalogoProdutoImagens.id, image.id));
+    const filePath = path.join(UPLOAD_DIR, path.basename(image.nomeArquivo));
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-
     res.json({ success: true, message: 'Imagem removida' });
   } catch (error) {
-    console.error('Delete catalogo produto imagem error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete imagem' });
+    sendRequestError(res, error, 'Delete catalogo produto imagem error:', req.user?.id, 'Não foi possível remover a imagem agora.');
   }
 });
 
-// POST /api/catalogo/produtos/:id/estoque — registra entrada ou saida manual
+// POST /api/catalogo/produtos/:id/estoque — entrada ou saída manual, só com o controle ligado
 router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const { tipo, quantidade, motivo } = req.body as Record<string, unknown>;
-
-    if (tipo !== 'entrada' && tipo !== 'saida') {
-      res.status(400).json({ success: false, message: 'Tipo deve ser entrada ou saida' });
-      return;
+    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    if (!product.controlaEstoque) {
+      throw new RequestInputError('Ligue o controle de estoque deste produto');
     }
+    const movement = readStockMovementInput(req.body);
 
-    const resultado = await registrarMovimentacaoEstoque({
-      produtoId: req.params['id']!,
-      usuarioId: ownerId,
-      tipo: tipo as TipoMovimentacaoEstoque,
-      quantidade: Number(quantidade),
-      motivo: motivo ? String(motivo).trim() : null,
-    });
+    const result = await db.transaction((transaction) => recordStockMovement(transaction, {
+      productId: product.id,
+      ownerId: product.usuarioId,
+      type: movement.type,
+      quantity: movement.quantity,
+      reason: movement.reason,
+    }));
 
     res.status(201).json({
       success: true,
-      message: tipo === 'entrada' ? 'Entrada registrada' : 'Saída registrada',
-      data: resultado,
+      message: movement.type === 'entrada' ? 'Entrada registrada' : 'Saída registrada',
+      data: { saldoAtual: result.currentBalance },
     });
   } catch (error) {
-    if (error instanceof EstoqueError) {
-      const status = error.code === 'PRODUTO_NAO_ENCONTRADO' ? 404 : 400;
-      res.status(status).json({ success: false, code: error.code, message: error.message });
-      return;
-    }
-    console.error('Registrar movimentacao estoque error:', error);
-    res.status(500).json({ success: false, message: 'Failed to register stock movement' });
+    sendRequestError(res, error, 'Registrar movimentacao estoque error:', req.user?.id, 'Não foi possível registrar a movimentação agora.');
   }
 });
 
 // GET /api/catalogo/produtos/:id/estoque/movimentacoes — historico do produto
 router.get('/:id/estoque/movimentacoes', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const ownerId = await resolveAccountOwnerId(req.user!.id, null);
-    const [produto] = await db
-      .select({ id: catalogoProdutos.id })
-      .from(catalogoProdutos)
-      .where(and(eq(catalogoProdutos.id, req.params['id']!), eq(catalogoProdutos.usuarioId, ownerId)))
-      .limit(1);
-
-    if (!produto) {
-      res.status(404).json({ success: false, message: 'Produto not found' });
-      return;
-    }
-
-    const movimentacoes = await db
+    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    const movements = await db
       .select()
       .from(catalogoMovimentacoesEstoque)
-      .where(eq(catalogoMovimentacoesEstoque.produtoId, produto.id))
+      .where(eq(catalogoMovimentacoesEstoque.produtoId, product.id))
       .orderBy(desc(catalogoMovimentacoesEstoque.createdAt))
-      .limit(100);
+      .limit(MOVEMENT_HISTORY_LIMIT);
 
-    res.json({ success: true, data: movimentacoes });
+    res.json({ success: true, data: movements });
   } catch (error) {
-    console.error('List movimentacoes estoque error:', error);
-    res.status(500).json({ success: false, message: 'Failed to list stock movements' });
+    sendRequestError(res, error, 'List movimentacoes estoque error:', req.user?.id, 'Não foi possível carregar o histórico agora.');
   }
 });
 

@@ -1,14 +1,15 @@
 import type { PoolClient } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { and, count, desc, eq, gte, ilike, inArray, isNull, max, ne, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, max, ne, sql, type SQL } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import * as schema from '../db/schema';
 import { incomes, type Income, type NewIncome } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
 import { getMonthYearFromIsoDate, monthlyDatesUntil } from '../utils/date';
 import { escapeLikePattern, roundCents } from '../utils/requestInput';
-import { createCommissionExpense } from './commissionService';
-import { registrarMovimentacaoEstoqueNaTransacao } from './estoque';
+import { cancelLinkedCommission, createCommissionExpense } from './commissionService';
+import { CANCELLED_STATUS } from './entryQueries';
+import { STOCK_REASONS, returnSoldStock, sellProductInIncome, type StockExecutor } from './stock';
 import type {
   CreateIncomeInput, HourType, IncomeBillableHours, IncomeDuplicateQuery, IncomeSuggestionsQuery, UpdateIncomeInput,
 } from './incomeInput';
@@ -132,16 +133,16 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
         mes: row.month,
         ano: row.year,
         contaId: input.accountId,
+        incomeId: row.id,
       });
     }
     if (input.productSale) {
-      await registrarMovimentacaoEstoqueNaTransacao(client, {
-        produtoId: input.productSale.productId,
-        usuarioId: catalogOwnerId,
-        tipo: 'saida',
-        quantidade: input.productSale.quantity,
-        motivo: 'Venda registrada em receita',
-        receitaId: original!.id,
+      await sellProductInIncome(transaction, {
+        productId: input.productSale.productId,
+        ownerId: catalogOwnerId,
+        accountId: input.accountId,
+        quantity: input.productSale.quantity,
+        incomeId: original!.id,
       });
     }
     if (input.billableHours) {
@@ -155,6 +156,83 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
     throw error;
   } finally {
     client.release();
+  }
+}
+
+/** Receita do dono travada até o fim da transação: cancelar e excluir não correm em paralelo. */
+async function lockIncome(
+  executor: StockExecutor,
+  ownerId: number,
+  incomeId: number,
+): Promise<{ id: number; status: string } | null> {
+  const [income] = await executor
+    .select({ id: incomes.id, status: incomes.status })
+    .from(incomes)
+    .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)))
+    .limit(1)
+    .for('update');
+  return income ?? null;
+}
+
+/**
+ * Desfaz o que a receita gerou: devolve ao estoque a quantidade vendida e
+ * cancela a comissão dela que ainda não foi paga. Receita já cancelada não tem
+ * mais nada a desfazer — o cancelamento fez isso.
+ */
+async function undoIncomeEffects(executor: StockExecutor, incomeId: number, stockReason: string): Promise<void> {
+  await returnSoldStock(executor, { incomeId, reason: stockReason });
+  await cancelLinkedCommission(executor, incomeId);
+}
+
+/** Cancela a receita (continua no banco, fora dos totais). Falso quando não é do dono. Cancelar de novo não faz nada. */
+export async function cancelIncome(ownerId: number, incomeId: number): Promise<boolean> {
+  return db.transaction(async (transaction) => {
+    const income = await lockIncome(transaction, ownerId, incomeId);
+    if (!income) {
+      return false;
+    }
+    if (income.status === CANCELLED_STATUS) {
+      return true;
+    }
+    await transaction.update(incomes).set({ status: CANCELLED_STATUS }).where(eq(incomes.id, income.id));
+    await undoIncomeEffects(transaction, income.id, STOCK_REASONS.incomeCancelled);
+    return true;
+  });
+}
+
+/** Apaga a receita de vez. Falso quando não é do dono. */
+export async function deleteIncome(ownerId: number, incomeId: number): Promise<boolean> {
+  return db.transaction(async (transaction) => {
+    const income = await lockIncome(transaction, ownerId, incomeId);
+    if (!income) {
+      return false;
+    }
+    if (income.status !== CANCELLED_STATUS) {
+      await undoIncomeEffects(transaction, income.id, STOCK_REASONS.incomeDeleted);
+    }
+    await transaction.delete(incomes).where(eq(incomes.id, income.id));
+    return true;
+  });
+}
+
+/**
+ * Excluir o ano apaga as receitas dele: antes, devolve ao estoque o que as não
+ * canceladas venderam. Operação rara, então a devolução é receita por receita,
+ * com a mesma função do cancelamento. As comissões do ano vão embora com as
+ * despesas dele.
+ */
+export async function returnStockOfYear(executor: StockExecutor, ownerId: number, year: number): Promise<void> {
+  const yearIncomes = await executor
+    .select({ id: incomes.id })
+    .from(incomes)
+    .where(and(
+      eq(incomes.userId, ownerId),
+      eq(incomes.year, year),
+      ne(incomes.status, CANCELLED_STATUS),
+      isNotNull(incomes.productId),
+    ));
+  for (const income of yearIncomes) {
+    await returnSoldStock(executor, { incomeId: income.id, reason: STOCK_REASONS.yearDeleted });
   }
 }
 

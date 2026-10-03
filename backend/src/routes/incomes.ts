@@ -5,7 +5,6 @@ import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveAccountOwnerId, resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
-import { EstoqueError } from '../services/estoque';
 import { isClassificationAllowed } from '../services/incomeClassificationCatalog';
 import { processFixedIncomes } from '../services/fixedIncomes';
 import {
@@ -15,7 +14,9 @@ import {
   readUpdateIncomeInput,
 } from '../services/incomeInput';
 import {
+  cancelIncome,
   createIncome,
+  deleteIncome,
   findIncomeForUpdate,
   findRecentIncomeDuplicate,
   getIncomeSuggestions,
@@ -105,11 +106,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
     const created = await createIncome(req.user!.id, catalogOwnerId, input);
     res.status(201).json({ success: true, message: 'Income created', data: created });
   } catch (error) {
-    // Estoque insuficiente é erro de quem lança: a mensagem diz quanto há disponível.
-    if (error instanceof EstoqueError) {
-      res.status(error.code === 'PRODUTO_NAO_ENCONTRADO' ? 404 : 400).json({ success: false, code: error.code, message: error.message });
-      return;
-    }
+    // Estoque insuficiente (StockError) é erro de quem lança: a mensagem diz quanto há disponível.
     sendRequestError(res, error, 'Create income error:', req.user?.id, 'Não foi possível registrar a receita. Tente novamente.');
   }
 });
@@ -193,73 +190,41 @@ router.put('/:id/receber', authenticate, async (req: Request, res: Response): Pr
   }
 });
 
-// PUT /api/incomes/:id/cancelar
+/** Dono da receita para escrever: sem permissão, a resposta é a mesma de receita inexistente. */
+async function resolveIncomeOwner(rawId: string | undefined, requesterId: number): Promise<{ incomeId: number; ownerId: number }> {
+  const incomeId = Number(rawId);
+  const ownerId = Number.isInteger(incomeId) && incomeId > 0
+    ? await resolveOwnerForWrite('receitas', incomeId, requesterId)
+    : null;
+  if (ownerId === null) {
+    throw new RequestInputError('Receita não encontrada', 404);
+  }
+  return { incomeId, ownerId };
+}
+
+// PUT /api/incomes/:id/cancelar — devolve o estoque vendido e cancela a comissão não paga
 router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const incomeId = parseInt(req.params['id']!);
-    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
-    if (donoWrite === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
+    const { incomeId, ownerId } = await resolveIncomeOwner(req.params['id'], req.user!.id);
+    if (!(await cancelIncome(ownerId, incomeId))) {
+      throw new RequestInputError('Receita não encontrada', 404);
     }
-
-    const receitaResult = await pool.query(
-      'SELECT representante_id, mes, ano FROM receitas WHERE id = $1 AND usuario_id = $2',
-      [incomeId, donoWrite],
-    );
-
-    if (receitaResult.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
-    }
-
-    const receita = receitaResult.rows[0] as { representante_id: number | null; mes: number; ano: number };
-
-    await pool.query(
-      "UPDATE receitas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2",
-      [incomeId, donoWrite],
-    );
-
-    if (receita.representante_id) {
-      await pool.query(
-        `UPDATE despesas SET status = 'cancelada'
-         WHERE usuario_id = $1 AND mes = $2 AND ano = $3
-           AND descricao LIKE 'Comissão - %' AND status = 'ativa'`,
-        [req.user!.id, receita.mes, receita.ano],
-      );
-    }
-
     res.json({ success: true, message: 'Income cancelled' });
   } catch (error) {
-    console.error('Cancel income error:', error);
-    res.status(500).json({ success: false, message: 'Failed to cancel income' });
+    sendRequestError(res, error, 'Cancel income error:', req.user?.id, 'Não foi possível cancelar a receita. Tente novamente.');
   }
 });
 
-// DELETE /api/incomes/:id
+// DELETE /api/incomes/:id — devolve o estoque vendido e cancela a comissão não paga, se a receita não estava cancelada
 router.delete('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const incomeId = parseInt(req.params['id']!);
-    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
-    if (donoWrite === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
+    const { incomeId, ownerId } = await resolveIncomeOwner(req.params['id'], req.user!.id);
+    if (!(await deleteIncome(ownerId, incomeId))) {
+      throw new RequestInputError('Receita não encontrada', 404);
     }
-
-    const result = await pool.query(
-      'DELETE FROM receitas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [incomeId, donoWrite],
-    );
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
-    }
-
     res.json({ success: true, message: 'Income deleted' });
   } catch (error) {
-    console.error('Delete income error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete income' });
+    sendRequestError(res, error, 'Delete income error:', req.user?.id, 'Não foi possível excluir a receita. Tente novamente.');
   }
 });
 

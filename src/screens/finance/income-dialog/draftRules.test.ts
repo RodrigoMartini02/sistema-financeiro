@@ -8,7 +8,7 @@ import { formatCurrency } from '../formatters';
 import { createIncomeDraft, type IncomeDraft } from './draftState';
 import {
   buildIncomeCreateInput, buildIncomeUpdateInput, calculatedAmountCents, commissionPreview, contractPrefill,
-  defaultRepeatUntil, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, replicaCount,
+  defaultRepeatUntil, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, productSaleInfo, replicaCount,
   summarizeIncomeDraft, validateIncomeDraft, type IncomeRuleContext,
 } from './draftRules';
 
@@ -19,8 +19,9 @@ const ANA: Representante = {
   comissoes: [{ classificacao_id: 4, percentual: 10, tipo: 'mensal' }, { classificacao_id: 5, percentual: 5, tipo: 'unica' }],
 };
 const CANECA: Produto = {
-  id: 'p-1', usuarioId: 1, contaId: 17, nome: 'Caneca', descricao: null, valor: '35.00', quantidadeEstoque: '10',
-  estoqueMinimo: null, ativo: true, imagens: [], createdAt: '2026-01-01', updatedAt: '2026-01-01',
+  id: 'p-1', usuarioId: 1, contaId: 17, nome: 'Caneca', descricao: null, categoria: null, valor: '35.00',
+  descontoTipo: null, descontoValor: null, valorFinal: 35, descontoPercentual: null, controlaEstoque: true,
+  quantidadeEstoque: '10', estoqueMinimo: null, ativo: true, imagens: [], createdAt: '2026-01-01', updatedAt: '2026-01-01',
 };
 const CONTRATO: ContratoResumo = {
   id: 8, cliente_nome: 'Empresa XYZ', representante_id: 7,
@@ -148,4 +149,21 @@ test('duplicata compara descrição, valor e cliente', () => {
   });
   assert.equal(incomeDuplicateQuery(draft({ description: '' }), null), null);
   assert.equal(incomeDuplicateQuery(draft(), null)?.client, null);
+});
+
+test('produto com desconto pré-preenche o valor com o preço final', () => {
+  const comDesconto: Produto = {
+    ...CANECA, descontoTipo: 'percentual', descontoValor: '20.00', valorFinal: 28, descontoPercentual: 20,
+  };
+  const comDescontoContext: IncomeRuleContext = { ...context, products: [comDesconto] };
+  assert.equal(calculatedAmountCents(draft({ productId: 'p-1', soldQuantity: 2 }), comDescontoContext), 5600);
+});
+
+test('produto sem controle de estoque não fica insuficiente nem mostra o estoque', () => {
+  const semControle: Produto = { ...CANECA, controlaEstoque: false, quantidadeEstoque: '0' };
+  const semControleContext: IncomeRuleContext = { ...context, products: [semControle] };
+  const venda = draft({ categoryId: null, productId: 'p-1', soldQuantity: 5 });
+  assert.equal(productSaleInfo(venda, semControleContext)?.insufficient, false);
+  assert.equal(validateIncomeDraft(venda, semControleContext).product, undefined);
+  assert.deepEqual(summarizeIncomeDraft(venda, semControleContext)?.badges ?? [], []);
 });

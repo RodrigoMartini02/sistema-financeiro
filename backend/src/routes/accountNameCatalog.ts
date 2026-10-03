@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { and, asc, eq, ne, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accounts, jobTitles, sectors, type AccountNameCatalogTable } from '../db/schema';
+import { jobTitles, sectors, type AccountNameCatalogTable } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { readAccountCatalogName, type AccountCatalogLabels } from '../services/accountNameInput';
-import { canWriteToAccount } from '../utils/accountAccess';
-import { RequestInputError, readQueryId, readRecord, sendRequestError } from '../utils/requestInput';
+import { canWriteToAccount, resolveCompanyAccount } from '../utils/accountAccess';
+import { isUniqueViolation } from '../utils/dbErrors';
+import { RequestInputError, readQueryId, readRecord, readRequiredId, sendRequestError } from '../utils/requestInput';
 
-const ACCOUNT_NOT_FOUND_MESSAGE = 'Conta não encontrada';
-const UNIQUE_VIOLATION = '23505';
+const PERSONAL_ACCOUNT_MESSAGE = 'Setores e cargos só existem em conta de empresa';
 
 interface AccountNameCatalogConfig {
   table: AccountNameCatalogTable;
@@ -17,43 +17,6 @@ interface AccountNameCatalogConfig {
     notFound: string;
     duplicate: string;
   };
-}
-
-/** Violação do índice único (nome repetido entre os ativos), com ou sem o invólucro do Drizzle. */
-function isUniqueViolation(error: unknown): boolean {
-  const hasCode = (value: unknown) =>
-    typeof value === 'object' && value !== null && (value as { code?: unknown }).code === UNIQUE_VIOLATION;
-  return hasCode(error) || (typeof error === 'object' && error !== null && hasCode((error as { cause?: unknown }).cause));
-}
-
-function readAccountId(value: unknown): number {
-  const accountId = readQueryId(value, 'Informe a conta');
-  if (accountId === null) {
-    throw new RequestInputError('Informe a conta');
-  }
-  return accountId;
-}
-
-/**
- * Conta PJ em que o solicitante pode mexer: dono ou vínculo ativo. Conta
- * inexistente e conta alheia dão a mesma resposta.
- */
-async function resolveCompanyAccount(requesterId: number, accountId: number): Promise<{ id: number; ownerId: number }> {
-  if (!(await canWriteToAccount(accountId, requesterId))) {
-    throw new RequestInputError(ACCOUNT_NOT_FOUND_MESSAGE, 404);
-  }
-  const [account] = await db
-    .select({ id: accounts.id, ownerId: accounts.userId, type: accounts.type })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .limit(1);
-  if (!account) {
-    throw new RequestInputError(ACCOUNT_NOT_FOUND_MESSAGE, 404);
-  }
-  if (account.type !== 'empresa') {
-    throw new RequestInputError('Setores e cargos só existem em conta de empresa');
-  }
-  return { id: account.id, ownerId: account.ownerId };
 }
 
 /**
@@ -99,7 +62,7 @@ export function createAccountNameCatalogRouter({ table, labels }: AccountNameCat
   // GET /?conta_id=&incluir_inativos=true
   router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
     try {
-      const account = await resolveCompanyAccount(req.user!.id, readAccountId(req.query['conta_id']));
+      const account = await resolveCompanyAccount(req.user!.id, readRequiredId(req.query['conta_id'], 'Informe a conta'), PERSONAL_ACCOUNT_MESSAGE);
       const includeInactive = req.query['incluir_inativos'] === 'true';
       const rows = await db
         .select()
@@ -117,7 +80,7 @@ export function createAccountNameCatalogRouter({ table, labels }: AccountNameCat
     try {
       const body = readRecord(req.body, 'Pedido inválido');
       const name = readAccountCatalogName(body['nome'], labels);
-      const account = await resolveCompanyAccount(req.user!.id, readAccountId(body['conta_id']));
+      const account = await resolveCompanyAccount(req.user!.id, readRequiredId(body['conta_id'], 'Informe a conta'), PERSONAL_ACCOUNT_MESSAGE);
       if (await hasActiveName(account.id, name)) {
         throw new RequestInputError(labels.duplicate);
       }

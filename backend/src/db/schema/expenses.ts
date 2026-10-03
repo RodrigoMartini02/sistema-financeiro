@@ -11,10 +11,12 @@ import {
   timestamp,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './users';
 import { accounts } from './accounts';
 import { categories } from './categories';
 import { cards } from './cards';
+import { incomes } from './incomes';
 
 export const expenses = pgTable(
   'despesas',
@@ -46,6 +48,9 @@ export const expenses = pgTable(
     // filtro, lancamento cancelado volta a somar nos totais.
     status: varchar('status', { length: 20 }).notNull().default('ativa'),
     attachments: jsonb('anexos'),
+    // Receita que gerou a despesa de comissão: cancelar ou excluir a receita
+    // cancela a comissão ligada, se ainda não foi paga (commissionService).
+    sourceIncomeId: integer('receita_origem_id').references(() => incomes.id, { onDelete: 'set null' }),
     numeroNf: varchar('numero_nf', { length: 50 }),
     dataEmissaoNf: date('data_emissao_nf'),
     createdAt: timestamp('data_criacao').defaultNow(),
@@ -58,6 +63,9 @@ export const expenses = pgTable(
     ),
     accountIdx: index('idx_despesas_conta').on(table.accountId),
     installmentGroupIdx: index('idx_despesas_grupo_parcelamento').on(table.installmentGroupId),
+    sourceIncomeIdx: index('idx_despesas_receita_origem')
+      .on(table.sourceIncomeId)
+      .where(sql`${table.sourceIncomeId} IS NOT NULL`),
   }),
 );
 

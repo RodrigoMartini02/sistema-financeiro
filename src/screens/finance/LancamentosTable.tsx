@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
-import { queryKeys, invalidateFinanceQueries } from '../../services/queryKeys';
+import { queryKeys, invalidateExpenseQueries, invalidateFinanceQueries, invalidateIncomeQueries } from '../../services/queryKeys';
 import type { Expense, Income, Attachment } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
@@ -169,6 +169,14 @@ export interface LancamentosTableProps {
  * Todo o estado de filtro vem do pai (MovimentacoesScreen), que também monta
  * o painel de filtro único da barra de ferramentas.
  */
+/** O que cancelar ou excluir a receita desfaz junto, para o aviso da confirmação. */
+function incomeUndoNotes(item: Income): string[] {
+  return [
+    ...(item.produtoId ? ['A quantidade vendida volta para o estoque.'] : []),
+    ...(item.representanteId ? ['A comissão desta receita também é cancelada, se ainda não foi paga.'] : []),
+  ];
+}
+
 export function LancamentosTable({
   month, year, isEmpresa, escopoFamilia, meIdStr, nomesVisiveis,
   filtroTipo, filtroStatus, filtroCategoria, filtroFormaPag, filtroCartao, filtroDataPag, ordenar, hasFilter,
@@ -213,9 +221,15 @@ export function LancamentosTable({
     },
   });
 
+  // Cancelar devolve o estoque vendido e cancela a comissão não paga: além do
+  // painel, mudam os produtos e as despesas.
   const cancelarReceitaMut = useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/incomes/${id}/cancelar`, { method: 'PUT' }),
-    onSuccess: () => invalidateFinanceQueries(qc, month, year),
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      invalidateIncomeQueries(qc);
+      invalidateExpenseQueries(qc);
+    },
   });
 
   const receberReceitaMut = useMutation({
@@ -274,16 +288,18 @@ export function LancamentosTable({
     if (item.status === 'cancelada') return;
     const ok = await confirm({
       title: 'Cancelar receita',
-      message: `Cancelar "${item.descricao}"?`,
+      message: [`Cancelar "${item.descricao}"?`, ...incomeUndoNotes(item)].join(' '),
       confirmLabel: 'Cancelar receita',
     });
     if (ok) cancelarReceitaMut.mutate(item.id);
   };
 
   const handleExcluirReceita = async (item: Income) => {
+    // A receita já cancelada devolveu o estoque e cancelou a comissão no cancelamento.
+    const notes = item.status === 'cancelada' ? [] : incomeUndoNotes(item);
     const ok = await confirm({
       title: 'Excluir receita',
-      message: `Excluir "${item.descricao}"? Esta ação não pode ser desfeita.`,
+      message: [`Excluir "${item.descricao}"? Esta ação não pode ser desfeita.`, ...notes].join(' '),
       confirmLabel: 'Excluir receita',
     });
     if (ok) finance.deleteIncome.mutate(item.id);

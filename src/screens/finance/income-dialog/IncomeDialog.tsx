@@ -94,7 +94,10 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, enabled: readsCompanyList('contracts'), staleTime: 60_000,
   });
   const productsQuery = useQuery({
-    queryKey: queryKeys.catalogoProdutos, queryFn: fetchProdutos, enabled: readsCompanyList('products'), staleTime: 60_000,
+    queryKey: queryKeys.catalogoProdutos(accountId),
+    queryFn: () => fetchProdutos(accountId!),
+    enabled: readsCompanyList('products') && accountId !== null,
+    staleTime: 60_000,
   });
   const clientsQuery = useQuery({
     queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: readsCompanyList('clients'), staleTime: 60_000,
@@ -105,8 +108,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     todayIso,
     isCompany,
     representatives: representativesQuery.data ?? [],
-    // Vender de uma conta o produto de outra misturaria os estoques.
-    products: (productsQuery.data ?? []).filter((product) => product.ativo && (product.contaId === null || product.contaId === accountId)),
+    // A lista já vem só da conta da receita: vender de uma conta o produto de outra misturaria os estoques.
+    products: (productsQuery.data ?? []).filter((product) => product.ativo),
     contracts: contractsQuery.data ?? [],
     clientNames: (clientsQuery.data ?? []).map((client) => client.nome),
   }), [todayIso, isCompany, representativesQuery.data, productsQuery.data, contractsQuery.data, clientsQuery.data, accountId]);
