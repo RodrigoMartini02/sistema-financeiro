@@ -57,7 +57,7 @@ function CartItemCard({ line, product, imageUrl, productPath, onSetQuantity, onR
   const hasDiscount = line.product.valorFinal < line.product.valor;
   return (
     <li className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:gap-4 sm:p-4">
-      <Link to={productPath} aria-label={`Ver ${line.product.nome}`}>
+      <Link to={productPath} aria-label={`Ver ${line.product.nome}`} className="flex-none">
         <ProductThumb imageUrl={imageUrl} size="large" />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
