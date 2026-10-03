@@ -13,6 +13,7 @@ interface RawIncome {
   classificacao_id?: number | null; classificacao_nome?: string | null; classificacao_pai_nome?: string | null;
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
+  produto_id?: string | null;
   anexos?: Attachment[] | null;
   autor_nome?: string | null;
 }
@@ -65,6 +66,7 @@ function incomeFromApi(r: RawIncome): Income {
     representanteNome: r.representante_nome ?? null,
     autorNome: r.autor_nome ?? null,
     valorComissao: r.valor_comissao != null ? asNumber(r.valor_comissao) : null,
+    produtoId: r.produto_id ?? null,
     anexos: Array.isArray(r.anexos) ? r.anexos : null,
   };
 }

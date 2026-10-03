@@ -1,4 +1,8 @@
 import type { PoolClient } from 'pg';
+import { and, eq, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import { expenses } from '../db/schema';
+import { ACTIVE_STATUS, CANCELLED_STATUS } from './entryQueries';
 
 interface CreateCommissionExpenseParams {
   client: PoolClient;
@@ -12,13 +16,15 @@ interface CreateCommissionExpenseParams {
   mes: number;
   ano: number;
   contaId: number | null;
+  /** Receita que gerou a comissão: a original ou a réplica mensal. */
+  incomeId: number;
 }
 
 // Cria a despesa de comissão vinculada a uma receita, dentro da mesma
 // transação da receita — se qualquer etapa falhar, a receita e a comissão
 // são desfeitas juntas (nada de receita salva com comissão órfã).
 export async function createCommissionExpense({
-  client, authorId, catalogOwnerId, representanteId, valorComissao, dataRecebimento, mes, ano, contaId,
+  client, authorId, catalogOwnerId, representanteId, valorComissao, dataRecebimento, mes, ano, contaId, incomeId,
 }: CreateCommissionExpenseParams): Promise<void> {
   const repResult = await client.query(
     'SELECT nome FROM representantes WHERE id = $1 AND usuario_id = $2',
@@ -50,8 +56,8 @@ export async function createCommissionExpense({
   // identificador unico, entao a coluna saiu junto com este calculo.
   await client.query(
     `INSERT INTO despesas (usuario_id, descricao, valor_original,
-      data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, conta_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8)`,
+      data_vencimento, mes, ano, categoria_id, forma_pagamento, pago, recorrente, conta_id, receita_origem_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'dinheiro', false, false, $8, $9)`,
     [
       authorId,
       `Comissão - ${repNome}`,
@@ -61,6 +67,23 @@ export async function createCommissionExpense({
       ano,
       categoriaId,
       contaId,
+      incomeId,
     ],
   );
+}
+
+/**
+ * Receita cancelada ou excluída: cancela a comissão que ela gerou, e só se
+ * ainda não foi paga — a paga continua, porque o dinheiro já saiu. Comissão
+ * antiga sem vínculo com a receita não é tocada.
+ */
+export async function cancelLinkedCommission(executor: Pick<typeof db, 'update'>, incomeId: number): Promise<void> {
+  await executor
+    .update(expenses)
+    .set({ status: CANCELLED_STATUS })
+    .where(and(
+      eq(expenses.sourceIncomeId, incomeId),
+      eq(expenses.status, ACTIVE_STATUS),
+      sql`${expenses.paid} IS NOT TRUE`,
+    ));
 }

@@ -115,7 +115,10 @@ export const queryKeys = {
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>
     ['card-limits', accountId ?? 'ativa', escopo ?? 'eu'] as const,
   notificacoes: (accountId?: number | null) => ['notificacoes', accountId ?? 'ativa'] as const,
-  catalogoProdutos: ['catalogo-produtos'] as const,
-  catalogoConta: ['catalogo-conta'] as const,
+  // Produtos de uma conta PJ; o prefixo 'catalogo-produtos' (em INCOME_DEPENDENT_QUERIES)
+  // invalida todas as contas de uma vez.
+  catalogoProdutos: (accountId: number | null) => ['catalogo-produtos', accountId ?? 'nenhuma'] as const,
+  storefrontConfig: (accountId: number | null) => ['storefront-config', accountId ?? 'nenhuma'] as const,
+  publicStorefront: (storefront: string) => ['public-storefront', storefront] as const,
   movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
 };

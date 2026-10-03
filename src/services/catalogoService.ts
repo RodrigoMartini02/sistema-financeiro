@@ -1,4 +1,5 @@
 import { apiRequest, getApiUrl } from './apiClient';
+import type { ProductDiscountType } from '../utils/productPricing';
 
 export interface ProdutoImagem {
   id: string;
@@ -10,11 +11,21 @@ export interface ProdutoImagem {
 export interface Produto {
   id: string;
   usuarioId: number;
-  /** Conta financeira (PF/PJ) dona do produto. Nulo nos produtos antigos. */
+  /** Conta PJ dona do produto. */
   contaId: number | null;
   nome: string;
   descricao: string | null;
+  categoria: string | null;
   valor: string;
+  /** Desconto em R$ ('valor') ou em % ('percentual'); os dois nulos = sem desconto. */
+  descontoTipo: ProductDiscountType | null;
+  descontoValor: string | null;
+  /** Preço com desconto, calculado pelo servidor. */
+  valorFinal: number;
+  /** Selo "-X%"; nulo sem desconto (ou abaixo de 1%). */
+  descontoPercentual: number | null;
+  /** Desligado: a venda não mexe no estoque e a vitrine nunca mostra esgotado. */
+  controlaEstoque: boolean;
   quantidadeEstoque: string;
   /** Nulo = produto sem alerta de estoque baixo. */
   estoqueMinimo: string | null;
@@ -35,22 +46,25 @@ export interface MovimentacaoEstoque {
   createdAt: string;
 }
 
-export interface CatalogoConta {
-  id: string;
-  usuarioId: number;
-}
-
-export async function fetchProdutos(): Promise<Produto[]> {
-  return apiRequest<Produto[]>('/catalogo/produtos');
+/** Produtos da conta PJ (ativos e desativados). */
+export async function fetchProdutos(accountId: number): Promise<Produto[]> {
+  return apiRequest<Produto[]>(`/catalogo/produtos?conta_id=${accountId}`);
 }
 
 export interface ProdutoFormData {
   nome: string;
   descricao: string;
   valor: number;
+  categoria: string;
+  desconto_tipo: ProductDiscountType | null;
+  desconto_valor: number | null;
+  controla_estoque: boolean;
+  /** Só ao ligar o controle num produto sem movimentação. */
+  quantidade_inicial?: number | null;
+  estoque_minimo: number | null;
   ativo?: boolean;
-  conta_id?: number | null;
-  estoque_minimo?: number | null;
+  /** Só na criação: a conta do produto não muda depois. */
+  conta_id?: number;
 }
 
 export async function saveProduto(data: ProdutoFormData, id?: string): Promise<Produto> {
@@ -72,10 +86,6 @@ export async function registrarMovimentacaoEstoque(
 
 export async function fetchMovimentacoesEstoque(produtoId: string): Promise<MovimentacaoEstoque[]> {
   return apiRequest<MovimentacaoEstoque[]>(`/catalogo/produtos/${produtoId}/estoque/movimentacoes`);
-}
-
-export async function deleteProduto(id: string): Promise<void> {
-  return apiRequest<void>(`/catalogo/produtos/${id}`, { method: 'DELETE' });
 }
 
 export async function uploadProdutoImagem(produtoId: string, file: File): Promise<ProdutoImagem> {
@@ -108,24 +118,4 @@ export async function fetchProdutoImagemBlob(nomeArquivo: string): Promise<Blob>
     throw new Error('Falha ao carregar imagem');
   }
   return response.blob();
-}
-
-export async function fetchCatalogoConta(): Promise<CatalogoConta> {
-  return apiRequest<CatalogoConta>('/catalogo/conta');
-}
-
-export interface ProdutoPublico {
-  id: string;
-  nome: string;
-  descricao: string | null;
-  valor: string;
-  imagens: ProdutoImagem[];
-}
-
-export async function fetchProdutosPublicos(contaId: string): Promise<ProdutoPublico[]> {
-  return apiRequest<ProdutoPublico[]>(`/catalogo/public/${contaId}/produtos`);
-}
-
-export function getProdutoImagemPublicaUrl(contaId: string, nomeArquivo: string): string {
-  return `${getApiUrl()}/catalogo/public/${contaId}/imagens/${nomeArquivo}`;
 }

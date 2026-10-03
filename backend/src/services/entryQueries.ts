@@ -8,6 +8,8 @@ import { accounts, cards, expenses, incomes, users } from '../db/schema';
 
 /** Lançamento vigente (o cancelado continua no banco com outro status). */
 export const ACTIVE_STATUS = 'ativa';
+/** Lançamento cancelado: continua no banco, fora de todos os totais. */
+export const CANCELLED_STATUS = 'cancelada';
 /** Receita lançada e ainda não recebida (contratos passam por faturada). */
 export const RECEIVABLE_STATUSES = ['prevista', 'faturada'];
 

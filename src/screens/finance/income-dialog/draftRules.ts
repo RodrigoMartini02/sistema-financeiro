@@ -92,6 +92,8 @@ export function commissionPreview(draft: IncomeDraft, context: IncomeRuleContext
 
 export interface ProductSaleInfo {
   product: Produto;
+  /** Sem controle de estoque, a venda não baixa nem é barrada pelo saldo. */
+  tracksStock: boolean;
   stock: number;
   quantity: number;
   remaining: number;
@@ -106,11 +108,13 @@ export function productSaleInfo(draft: IncomeDraft, context: IncomeRuleContext):
   const quantity = draft.soldQuantity ?? 0;
   return {
     product,
+    tracksStock: product.controlaEstoque,
     stock,
     quantity,
     remaining: Math.max(0, stock - quantity),
-    insufficient: quantity > stock,
-    totalCents: toCents(quantity * Number(product.valor)),
+    insufficient: product.controlaEstoque && quantity > stock,
+    // O preço com desconto só pré-preenche: o valor da receita continua editável.
+    totalCents: toCents(quantity * product.valorFinal),
   };
 }
 
@@ -237,7 +241,7 @@ export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleCont
   if (commission.kind === 'missing') badges.push({ text: 'sem comissão configurada para esta categoria', tone: 'warning' });
 
   const sale = productSaleInfo(draft, context);
-  if (sale && sale.quantity > 0) {
+  if (sale && sale.tracksStock && sale.quantity > 0) {
     badges.push(sale.insufficient
       ? { text: `estoque insuficiente: há ${formatQuantity(sale.stock)}`, tone: 'danger' }
       : { text: `baixa ${formatQuantity(sale.quantity)} do estoque · restam ${formatQuantity(sale.remaining)}`, tone: 'neutral' });

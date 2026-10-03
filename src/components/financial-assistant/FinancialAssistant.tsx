@@ -508,9 +508,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     staleTime: 60_000,
   });
   const produtosQuery = useQuery({
-    queryKey: queryKeys.catalogoProdutos,
-    queryFn: () => fetchProdutos(),
-    enabled: open && contaEhEmpresa && readsList('products'),
+    queryKey: queryKeys.catalogoProdutos(contaAtivaId),
+    queryFn: () => fetchProdutos(contaAtivaId!),
+    enabled: open && contaEhEmpresa && readsList('products') && contaAtivaId !== null,
     staleTime: 60_000,
   });
   const contratosAtivosQuery = useQuery({
@@ -550,12 +550,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const clientes = clientesQuery.data ?? [];
   const classificacoes = opcoesDeClassificacao(classificacoesQuery.data ?? []);
   const representantes = representantesQuery.data ?? [];
-  // Mesmo criterio do desktop: so produtos ativos e da conta do lancamento
-  // (ou sem conta vinculada) — vender de uma conta o produto de outra
-  // misturaria os estoques.
-  const produtosDisponiveis = (produtosQuery.data ?? []).filter((produto) => (
-    produto.ativo && (produto.contaId === null || produto.contaId === contaAtivaId)
-  ));
+  // Mesmo criterio do desktop: so produtos ativos. A lista ja vem da conta do
+  // lancamento — vender de uma conta o produto de outra misturaria os estoques.
+  const produtosDisponiveis = (produtosQuery.data ?? []).filter((produto) => produto.ativo);
   const contratosAtivos = contratosAtivosQuery.data ?? [];
 
   const representanteSelecionado = draft?.representanteId
@@ -571,7 +568,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const produtoSelecionado = draft?.produtoId
     ? produtosDisponiveis.find((produto) => produto.id === draft.produtoId)
     : null;
-  const estoqueDisponivel = produtoSelecionado ? Number(produtoSelecionado.quantidadeEstoque) : null;
+  // Sem controle de estoque a venda nao baixa nem e barrada pelo saldo: nao ha estoque a mostrar.
+  const estoqueDisponivel = produtoSelecionado?.controlaEstoque ? Number(produtoSelecionado.quantidadeEstoque) : null;
 
   const contratoSelecionado = draft?.contratoId
     ? contratosAtivos.find((contrato) => contrato.id === draft.contratoId)
@@ -751,11 +749,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setDraft((current) => current ? { ...current, ...patch } : current);
   };
 
-  // Produto vendido sugere o valor (quantidade x preco do produto), mas nao
+  // Produto vendido sugere o valor (quantidade x preco com desconto), mas nao
   // trava: o campo continua editavel por cima. Mesma regra do modal de receita.
   useEffect(() => {
     if (!produtoSelecionado || !draft?.quantidadeVendida) return;
-    const valorCalculado = Number(draft.quantidadeVendida) * Number(produtoSelecionado.valor);
+    const valorCalculado = Number(draft.quantidadeVendida) * produtoSelecionado.valorFinal;
     if (valorCalculado > 0) updateDraft({ amount: valorCalculado });
   }, [produtoSelecionado, draft?.quantidadeVendida]); // eslint-disable-line react-hooks/exhaustive-deps
 

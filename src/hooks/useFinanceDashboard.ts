@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys, invalidateFinanceQueries } from '../services/queryKeys';
+import { queryKeys, invalidateExpenseQueries, invalidateFinanceQueries, invalidateIncomeQueries } from '../services/queryKeys';
 import { fetchFinanceDashboard, deleteIncome, deleteExpense } from '../services/financeService';
 import { dashboardEntries } from '../utils/screenAccess';
 import { useOwnPermissions } from './useOwnPermissions';
@@ -27,9 +27,14 @@ export function useFinanceDashboard(month: number, year: number, enabled = true,
 
   const invalidate = () => invalidateFinanceQueries(qc, month, year);
 
+  // Excluir a receita devolve o estoque vendido e cancela a comissão não paga.
   const deleteIncomeMut = useMutation({
     mutationFn: deleteIncome,
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      invalidateIncomeQueries(qc);
+      invalidateExpenseQueries(qc);
+    },
   });
 
   const deleteExpenseMut = useMutation({
