@@ -4,7 +4,7 @@ import { categories, copilotConversations, copilotMessages, expenses, incomes } 
 import { getTodayIsoInTimezone } from '../utils/date';
 import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { classifyCopilotMessage, type CopilotIntent } from './aiProvider';
-import { inferDeterministicCopilotIntent, isQuestion, type CopilotIntentHint } from './copilotIntent';
+import { inferDeterministicCopilotIntent, type CopilotIntentHint } from './copilotIntent';
 import { AiUsageLimitError, assertAiUsageWithinLimits, assertVoiceUsageWithinLimits, getActiveAiProvider, recordAiUsage } from './aiIntegrations';
 import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
@@ -29,15 +29,7 @@ import {
   type OpenExpense,
   type OpenExpenseRow,
 } from './assistantPayment';
-// advanceSlotSession/startSlotSession pertencem ao fluxo guiado, hoje fora do
-// produto: o assistente le a frase de uma vez com readDraftFromMessage. Eles
-// seguem exportados e testados para a retomada do fluxograma.
-import {
-  loadSlotCatalog,
-  parseSlotSessionState,
-  readDraftFromMessage,
-  type SlotSessionState,
-} from './assistantSlotSession';
+import { loadSlotCatalog, readDraftFromMessage } from './assistantSlotSession';
 import type { SlotDraft } from './assistantSlotFilling';
 import { buildQuerySystemPrompt, runAssistantQuery } from './assistantToolRunner';
 import type { ToolMessage } from './aiToolCalling';
@@ -79,8 +71,6 @@ export interface FinancialCopilotResponse {
   missingFields: Array<'description' | 'amount'>;
   /** Botoes da pergunta em aberto; vazio quando a resposta e livre. */
   quickReplies?: CopilotQuickReply[];
-  /** Estado do preenchimento guiado, devolvido para o client reenviar. */
-  slotState?: SlotSessionState | null;
   /** Resposta pronta para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
   spokenReply?: string;
   /** So no modo `payment`: nenhuma escrita aqui, quem paga e o card. */
@@ -357,9 +347,9 @@ export async function deleteCopilotConversation(input: { userId: number; account
 }
 
 /**
- * Converte o rascunho do fluxo guiado para o formato que o card de revisao e o
- * salvamento ja usam. `confidence` fica alta porque cada campo aqui foi dito ou
- * confirmado pelo usuario, nao inferido de um documento.
+ * Converte o rascunho lido da frase para o formato que o card de revisao e o
+ * salvamento ja usam. `confidence` fica alta porque cada campo aqui foi dito
+ * pelo usuario, nao inferido de um documento.
  */
 function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraft {
   return {
@@ -380,33 +370,6 @@ function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraf
     invoiceDate: slotDraft.invoiceDate,
   };
 }
-
-/**
- * Recupera o estado do preenchimento guiado. A ultima mensagem do assistente
- * que carregava um slot pendente e a fonte; sem a tabela de mensagens, o client
- * reenvia o estado no proprio request.
- *
- * Sem chamador enquanto o fluxo guiado esta fora do produto. Preservada, e nao
- * removida, porque o fluxograma sera retomado — ver
- * .plans/card-preenchido-no-assistente.md. Exportada para nao virar codigo
- * morto invisivel ao compilador.
- */
-export function resolveSlotState(history: StoredMessage[], fromRequest: SlotSessionState | null): SlotSessionState | null {
-  if (fromRequest) return fromRequest;
-
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    const message = history[index];
-    if (message?.role !== 'assistant') continue;
-    const payload = message.payload as Record<string, unknown> | null;
-    if (!payload || payload['mode'] !== 'slot') continue;
-    return parseSlotSessionState(payload['slotState']);
-  }
-
-  return null;
-}
-
-/** Usado pelo fluxo guiado, hoje fora do produto. Ver resolveSlotState. */
-export const MISUNDERSTOOD_PREFIX = 'Não peguei essa parte, me ajuda?';
 
 /** Historico da conversa no formato neutro que os adaptadores de tool traduzem. */
 function toToolHistory(history: StoredMessage[]): ToolMessage[] {
@@ -469,10 +432,6 @@ function resolverRespostaDeTipo(
  * credito" ja sabe todas as respostas: o ping-pong so impunha o ritmo da
  * maquina a quem ja tinha a informacao pronta.
  *
- * O fluxo guiado (assistantSlotSession, assistantFlowEngine e o editor de
- * fluxograma) continua no codigo e testado, fora do produto, para ser
- * retomado — ver .plans/card-preenchido-no-assistente.md.
- *
  * Nenhuma escrita financeira acontece aqui: quem grava e o card, apos o
  * usuario confirmar.
  */
@@ -484,8 +443,6 @@ async function runSlotFlow(input: {
   /** Sem leitor: o card nasce da frase atual, nao da conversa anterior. */
   history: StoredMessage[];
   intentHint: AssistantIntentHint | null;
-  /** Sem leitor: nao ha mais preenchimento em andamento entre mensagens. */
-  slotState: SlotSessionState | null;
   voiceMode: boolean;
 }): Promise<FinancialCopilotResponse> {
   const catalog = await loadSlotCatalog(input.userId, input.account);
@@ -521,7 +478,6 @@ async function runSlotFlow(input: {
         { label: 'É despesa', value: 'despesa' },
         { label: 'É dinheiro que entrou', value: 'receita' },
       ],
-      slotState: null,
       spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, pergunta) : undefined,
     };
     await storeMessage({
@@ -558,7 +514,6 @@ async function runSlotFlow(input: {
     cards: [],
     draft,
     missingFields: [],
-    slotState: null,
     spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, reply) : undefined,
   };
   await storeMessage({
@@ -653,7 +608,6 @@ export async function runFinancialCopilot(input: {
   context?: AssistantDraftContext;
   conversationId: number | null;
   intentHint: AssistantIntentHint | null;
-  slotState?: SlotSessionState | null;
   voiceMode?: boolean;
 }): Promise<FinancialCopilotResponse> {
   validateInput(input);
@@ -669,18 +623,10 @@ export async function runFinancialCopilot(input: {
 
   const draftContext = contextWithIntentHint(input.context, input.intentHint);
 
-  // Sessao de preenchimento guiado ativa (ex: "Entendi que e X, certo?")
-  // manda no proximo turno, a menos que a mensagem seja claramente uma
-  // pergunta nova. Sem isso, uma resposta curta como "sim" nao bate com
-  // nenhum padrao de registro nem de pergunta, cai em 'help' e abandona o
-  // fluxo que ja sabia exatamente o que estava perguntando.
-  const hasActiveSlotSession = Boolean(input.slotState?.pendingSlot);
-  let intent: CopilotIntent = hasActiveSlotSession && !isQuestion(normalizeText(input.message))
-    ? 'register'
-    : inferDeterministicCopilotIntent(input.message, input.attachments.length, {
-      intentHint: input.intentHint,
-      hasPendingDraft: hasPendingDraft(draftContext),
-    });
+  let intent: CopilotIntent = inferDeterministicCopilotIntent(input.message, input.attachments.length, {
+    intentHint: input.intentHint,
+    hasPendingDraft: hasPendingDraft(draftContext),
+  });
   let providerName: 'openai' | 'anthropic' | 'gemini' | 'deterministic' = 'deterministic';
   let providerModel: string | null = null;
   let inputTokens = 0;
@@ -768,8 +714,8 @@ export async function runFinancialCopilot(input: {
   }
 
   if (intent === 'register') {
-    // Anexos trazem dados que a conversa nao tem como perguntar (OCR, Pix); o
-    // fluxo guiado nao substitui essa leitura.
+    // Anexos trazem dados que a frase nao tem (OCR, Pix): a leitura do texto
+    // nao substitui a do documento.
     if (input.attachments.length > 0) {
       const draftResult = await createFinancialAssistantDraft({
         message: input.message,
@@ -797,7 +743,6 @@ export async function runFinancialCopilot(input: {
       message: input.message,
       history,
       intentHint: input.intentHint,
-      slotState: input.slotState ?? null,
       voiceMode: input.voiceMode ?? false,
     });
     await recordUsageQuietly();

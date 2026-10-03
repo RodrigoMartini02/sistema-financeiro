@@ -1,6 +1,6 @@
 import type { AppSection } from '../layout/AppShell';
 import type { ConfigItemId } from '../layout/ConfigPanel';
-import type { FlowIntent } from '../services/assistantFlowService';
+import type { FinancialCopilotIntentHint } from '../types/financialCopilot';
 import type { DashboardEntries } from '../services/financeService';
 import type { PermissionFlag } from '../types/permissions';
 
@@ -32,10 +32,9 @@ export function visibleSections(permissions: PermissionSet, accountType: Account
 /**
  * Seção a mostrar: a atual, se continua liberada; senão Movimentações, que é a
  * entrada de sempre; senão a primeira liberada. null: nenhuma tela liberada.
- * O editor do fluxo do assistente tem regra própria no menu e não entra aqui.
  */
 export function resolveSection(current: AppSection, sections: AppSection[]): AppSection | null {
-  if (current === 'fluxo-assistente' || sections.includes(current)) return current;
+  if (sections.includes(current)) return current;
   if (sections.includes('movimentacoes')) return 'movimentacoes';
   return sections[0] ?? null;
 }
@@ -149,8 +148,8 @@ export function canReadCatalogList(permissions: PermissionSet, catalog: CatalogN
 // ── Assistente ─────────────────────────────────────────────────────────────
 
 /** Opções da abertura do assistente que a pessoa pode seguir. */
-export function allowedAssistantIntents(permissions: PermissionSet): FlowIntent[] {
-  const intents: FlowIntent[] = [];
+export function allowedAssistantIntents(permissions: PermissionSet): FinancialCopilotIntentHint[] {
+  const intents: FinancialCopilotIntentHint[] = [];
   // Pagar usa as rotas de despesa, como o botão "Pagar" do desktop.
   if (allows(permissions, 'accessExpenses')) intents.push('register_expense', 'pay_expense');
   if (allows(permissions, 'accessIncomes')) intents.push('register_income');

@@ -101,8 +101,6 @@ export const queryKeys = {
     ['budget-overview-range', deMes, deAno, ateMes, ateAno] as const,
   copilotConversations: ['copilot-conversations'] as const,
   aiIntegrations: ['ai-integrations'] as const,
-  assistantFlow: ['assistant-flow'] as const,
-  assistantAbertura: ['assistant-abertura'] as const,
   assistantUltimosLancamentos: (accountId?: number | null) => ['assistant-ultimos-lancamentos', accountId ?? 'ativa'] as const,
   despesasEmAberto: (accountId?: number | null) => ['despesas-em-aberto', accountId ?? 'ativa'] as const,
   // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so

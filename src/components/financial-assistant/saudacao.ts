@@ -1,4 +1,4 @@
-import type { FlowAbertura } from '../../services/assistantFlowService';
+import type { AberturaAssistente } from './abertura';
 
 /**
  * Escolhe a saudação conforme o tempo desde a última conversa.
@@ -17,7 +17,7 @@ const LIMITE_SESSAO_MS = 60 * 60 * 1000;
 const LIMITE_DIA_MS = 24 * 60 * 60 * 1000;
 
 export function escolherSaudacao(
-  abertura: FlowAbertura,
+  abertura: AberturaAssistente,
   /** `updatedAt` da conversa mais recente; ausente na primeira vez. */
   ultimaConversaEm: string | null | undefined,
   agora: Date = new Date(),
