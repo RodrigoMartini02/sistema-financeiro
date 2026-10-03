@@ -11,6 +11,7 @@ import { recordAnalyticsEvent } from '../services/analytics';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { ensureUserHasAccount } from '../services/accountBackfill';
+import { ensureDefaultAccountNames } from '../services/accountNameCatalogSeed';
 import { companyAccountColumns, readCompanyAccountInput } from '../services/companyAccountInput';
 import { findOwnLoginWithDocument } from '../services/documentConflicts';
 import { pickLoginByDocument } from '../services/loginDocument';
@@ -248,13 +249,14 @@ router.post(
         if (company) {
           await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
           await ensureDefaultIncomeClassifications(createdUser!.id, 'empresa', transaction);
-          await transaction.insert(accounts).values({
+          const [companyAccount] = await transaction.insert(accounts).values({
             userId: createdUser!.id,
             type: 'empresa',
             ...companyAccountColumns(company),
             active: true,
             isDefault: true,
-          });
+          }).returning({ id: accounts.id });
+          await ensureDefaultAccountNames(transaction, { ownerId: createdUser!.id, accountId: companyAccount!.id });
         } else {
           await ensureDefaultCategories(createdUser!.id, 'pessoal', transaction);
           await ensureDefaultIncomeClassifications(createdUser!.id, 'pessoal', transaction);
