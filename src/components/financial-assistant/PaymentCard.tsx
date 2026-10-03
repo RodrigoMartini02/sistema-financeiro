@@ -2,12 +2,12 @@
 // desktop (PaymentModal) no formato do card de despesa do assistente. Mostra a
 // despesa, o previsto e o vencimento; pede o valor pago e a data do pagamento.
 // Quem grava é o assistente, pela mesma rota do desktop (pagarDespesa).
-import { LoaderCircle } from 'lucide-react';
 import type { OpenExpense } from '../../types/finance';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { isoToBrDate } from '../../utils/date';
 import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
+import { CardActions } from './CardActions';
 
 export interface PaymentDraft {
   expense: OpenExpense;
@@ -103,26 +103,7 @@ export function PaymentCard({ payment, isSaving, onChange, onSave, onDiscard }: 
         </p>
       )}
 
-      <div className="grid grid-cols-[1fr_auto] gap-2 px-3.5 pb-3">
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving}
-          className="flex h-11 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
-        >
-          {isSaving && <LoaderCircle size={18} className="animate-spin" />}
-          {isSaving ? 'Salvando...' : 'Salvar'}
-        </button>
-        <button
-          type="button"
-          onClick={onDiscard}
-          aria-label="Descartar este pagamento sem salvar"
-          disabled={isSaving}
-          className="flex h-11 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:border-rose-900 dark:hover:bg-rose-950/30 dark:hover:text-rose-300"
-        >
-          Descartar
-        </button>
-      </div>
+      <CardActions isSaving={isSaving} onSave={onSave} onDiscard={onDiscard} discardLabel="Descartar este pagamento sem salvar" />
     </Card>
   );
 }
