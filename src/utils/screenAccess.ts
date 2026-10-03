@@ -96,13 +96,15 @@ const CONFIG_ITEM_FLAG: Partial<Record<ConfigItemId, PermissionFlag>> = {
   cartoes: 'accessCards',
   servicos: 'accessServices',
   catalogo: 'accessProductCatalog',
+  // Pedidos da vitrine: quem cuida dos produtos cuida das vendas deles.
+  pedidos: 'accessProductCatalog',
   representantes: 'accessRepresentatives',
   setores: 'accessSectors',
   cargos: 'accessJobTitles',
 };
 
-/** Representantes, setores, cargos, serviços e produtos não existem em conta pessoal. */
-const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'setores', 'cargos', 'servicos', 'catalogo']);
+/** Representantes, setores, cargos, serviços, produtos e pedidos não existem em conta pessoal. */
+const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'setores', 'cargos', 'servicos', 'catalogo', 'pedidos']);
 
 export function isConfigItemVisible(item: ConfigItemId, permissions: PermissionSet, context: ConfigItemContext): boolean {
   if (item === 'acessos') return context.canViewAnalytics;

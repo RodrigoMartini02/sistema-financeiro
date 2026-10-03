@@ -16,6 +16,8 @@ export interface CartItem {
 export interface CartProduct {
   id: string;
   nome: string;
+  /** Preço cheio: a diferença para o final é a economia mostrada no resumo. */
+  valor: number;
   valorFinal: number;
   esgotado: boolean;
 }
@@ -91,6 +93,11 @@ export function cartLines(cart: CartItem[], products: CartProduct[]): CartLine[]
 
 export function cartTotal(lines: CartLine[]): number {
   return roundCents(lines.reduce((sum, line) => sum + line.subtotal, 0));
+}
+
+/** "Você economiza": a soma dos descontos dos produtos na sacola. */
+export function cartSavings(lines: CartLine[]): number {
+  return roundCents(lines.reduce((sum, line) => sum + (line.product.valor - line.product.valorFinal) * line.quantity, 0));
 }
 
 export function cartItemCount(cart: CartItem[]): number {

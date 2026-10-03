@@ -1,63 +1,49 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { MessageCircle, Search, Share2, ShoppingBag, Store } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Check, MessageCircle, Search, Share2 } from 'lucide-react';
 import {
-  fetchPublicStorefront, getPublicProductImageUrl, storefrontPublicUrl, type PublicProduct,
+  getPublicProductImageUrl, storefrontBasePath, storefrontPublicUrl, type PublicProduct,
 } from '../../../services/storefrontService';
-import { queryKeys } from '../../../services/queryKeys';
 import { buildWhatsappUrl } from '../../../utils/storefrontCart';
 import { matchesStorefrontFilter, storefrontCategories } from '../../../utils/storefrontCatalog';
-import { formatCurrency } from '../../finance/formatters';
 import { StorefrontProductCard } from './StorefrontProductCard';
 import { StorefrontProductSheet } from './StorefrontProductSheet';
-import { StorefrontCartSheet } from './StorefrontCartSheet';
+import { CartButton, StoreLogo, StorefrontFooter, StorefrontMessage, usePublicStorefront } from './StorefrontLayout';
 import { useStorefrontCart } from './useStorefrontCart';
 import { shareLink } from './shareLink';
 
 const PRODUCT_PARAM = 'produto';
 const SKELETON_CARDS = 8;
+const ADDED_TOAST_MS = 4000;
 
 function setMetaDescription(content: string): void {
   document.head.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', content);
 }
 
-function StorefrontMessage({ title, description }: { title: string; description?: string }) {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 px-4 text-center">
-      <Store size={36} className="text-slate-300" />
-      <p className="text-base font-semibold text-slate-700">{title}</p>
-      {description && <p className="text-sm text-slate-500">{description}</p>}
-    </div>
-  );
-}
-
 /**
  * Vitrine pública de uma loja, pelo link amigável (/loja/<link>) ou pelo
  * código antigo (/catalogo/<código>). Produtos com busca, categorias, detalhe
- * com fotos e uma sacola que envia o pedido pelo WhatsApp da loja.
+ * com fotos e a sacola, que fecha a compra na vitrine (Mercado Pago da loja)
+ * ou envia o pedido pelo WhatsApp dela.
  */
 export function StorefrontPage() {
   const { storefront: storefrontParam = '' } = useParams<{ storefront: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
   const [storeShareFeedback, setStoreShareFeedback] = useState('');
+  const [addedToast, setAddedToast] = useState<{ id: number; name: string } | null>(null);
 
-  const storefrontQuery = useQuery({
-    queryKey: queryKeys.publicStorefront(storefrontParam),
-    queryFn: () => fetchPublicStorefront(storefrontParam),
-    enabled: storefrontParam !== '',
-    retry: false,
-  });
+  const storefrontQuery = usePublicStorefront(storefrontParam);
   const store = storefrontQuery.data?.loja;
   const products = useMemo(() => storefrontQuery.data?.produtos ?? [], [storefrontQuery.data]);
   const cart = useStorefrontCart(store?.id, products);
 
   const categories = useMemo(() => storefrontCategories(products), [products]);
   const visibleProducts = products.filter((product) => matchesStorefrontFilter(product, selectedCategory, search));
-  const canBuy = Boolean(store?.whatsapp);
+  // Compra pela vitrine ou, sem ela, pelo WhatsApp; sem nenhum dos dois, a vitrine é só catálogo.
+  const canBuy = storefrontQuery.data?.checkout.online === true || Boolean(store?.whatsapp);
+  const basePath = store ? storefrontBasePath(store) : null;
 
   // O link amigável vale enquanto não for trocado; o código (id) é o endereço estável das imagens.
   const storeUrl = store?.link ? storefrontPublicUrl(store.link) : window.location.href.split('?')[0]!;
@@ -78,6 +64,17 @@ export function StorefrontPage() {
     setMetaDescription(store.descricao ?? `Produtos de ${store.nome}`);
   }, [store]);
 
+  useEffect(() => {
+    if (!addedToast) return;
+    const timer = setTimeout(() => setAddedToast(null), ADDED_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [addedToast]);
+
+  const addToCart = (product: PublicProduct, quantity = 1) => {
+    cart.add(product.id, quantity);
+    setAddedToast({ id: Date.now(), name: product.nome });
+  };
+
   const handleShareStore = async () => {
     if (!store) return;
     const result = await shareLink({ title: store.nome, url: storeUrl });
@@ -95,9 +92,7 @@ export function StorefrontPage() {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-4 py-5">
-          <span className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400">
-            {store?.logo ? <img src={store.logo} alt={`Logo de ${store.nome}`} className="h-full w-full object-cover" /> : <Store size={24} />}
-          </span>
+          <StoreLogo store={store} size="large" />
           <div className="min-w-0 flex-1">
             {store ? (
               <>
@@ -133,6 +128,7 @@ export function StorefrontPage() {
                   <span className="hidden sm:inline">WhatsApp</span>
                 </a>
               )}
+              {canBuy && basePath && <CartButton to={`${basePath}/sacola`} count={cart.count} />}
             </div>
           )}
         </div>
@@ -205,35 +201,14 @@ export function StorefrontPage() {
                 imageUrl={imageUrlOf(product)}
                 canBuy={canBuy}
                 onOpen={() => openProductSheet(product.id)}
-                onAdd={() => cart.add(product.id)}
+                onAdd={() => addToCart(product)}
               />
             ))}
           </div>
         )}
       </main>
 
-      {/* Com a barra da sacola fixa embaixo, o rodapé sobe para não ficar coberto. */}
-      <footer className={`text-center text-xs text-slate-400 ${canBuy && cart.count > 0 ? 'pb-28' : 'pb-8'}`}>
-        Feito com{' '}
-        <a href="https://fin-gerence.com.br" target="_blank" rel="noreferrer" className="font-semibold text-slate-500 hover:text-brand-600">
-          FINGERENCE
-        </a>
-      </footer>
-
-      {canBuy && cart.count > 0 && !cartOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-20 px-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          <button
-            type="button"
-            onClick={() => setCartOpen(true)}
-            className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-3 rounded-full bg-slate-900 px-5 text-white shadow-lg transition hover:bg-slate-800"
-          >
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <ShoppingBag size={18} /> Ver sacola · {cart.count} {cart.count === 1 ? 'item' : 'itens'}
-            </span>
-            <span className="text-sm font-bold">{formatCurrency(cart.total)}</span>
-          </button>
-        </div>
-      )}
+      <StorefrontFooter className="pb-8" />
 
       {store && openProduct && (
         <StorefrontProductSheet
@@ -244,25 +219,35 @@ export function StorefrontPage() {
           shareUrl={`${storeUrl}?${PRODUCT_PARAM}=${openProduct.id}`}
           onClose={closeProductSheet}
           onAdd={(quantity) => {
-            cart.add(openProduct.id, quantity);
+            addToCart(openProduct, quantity);
             closeProductSheet();
           }}
         />
       )}
 
-      {store?.whatsapp && (
-        <StorefrontCartSheet
-          open={cartOpen}
-          storeName={store.nome}
-          whatsapp={store.whatsapp}
-          lines={cart.lines}
-          total={cart.total}
-          imageUrlOf={(productId) => imageUrlOf(products.find((product) => product.id === productId))}
-          onClose={() => setCartOpen(false)}
-          onSetQuantity={cart.setQuantity}
-          onRemove={cart.remove}
-          onClear={cart.clear}
-        />
+      {addedToast && basePath && (
+        <div
+          key={addedToast.id}
+          role="status"
+          className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <div className="flex w-full max-w-md items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-lg">
+            <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-emerald-500">
+              <Check size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Adicionado à sacola</p>
+              <p className="truncate text-xs text-slate-300">{addedToast.name}</p>
+            </div>
+            <Link
+              to={`${basePath}/sacola`}
+              className="flex h-9 flex-none items-center rounded-full bg-white px-4 text-xs font-bold text-slate-900 transition hover:bg-slate-100"
+            >
+              Ver sacola
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   );

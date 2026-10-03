@@ -7,6 +7,7 @@ import {
   buildWhatsappUrl,
   cartItemCount,
   cartLines,
+  cartSavings,
   cartTotal,
   formatBrl,
   parseStoredCart,
@@ -16,9 +17,9 @@ import {
   type CartProduct,
 } from './storefrontCart';
 
-const camiseta: CartProduct = { id: 'p1', nome: 'Camiseta azul', valorFinal: 49.9, esgotado: false };
-const caneca: CartProduct = { id: 'p2', nome: 'Caneca', valorFinal: 25, esgotado: false };
-const bone: CartProduct = { id: 'p3', nome: 'Boné', valorFinal: 35, esgotado: true };
+const camiseta: CartProduct = { id: 'p1', nome: 'Camiseta azul', valor: 59.9, valorFinal: 49.9, esgotado: false };
+const caneca: CartProduct = { id: 'p2', nome: 'Caneca', valor: 25, valorFinal: 25, esgotado: false };
+const bone: CartProduct = { id: 'p3', nome: 'Boné', valor: 35, valorFinal: 35, esgotado: true };
 
 test('adiciona, soma no mesmo item e respeita o limite por item', () => {
   let cart = addToCart([], 'p1');
@@ -90,4 +91,9 @@ test('sem observação, a mensagem não tem a linha dela', () => {
 test('link do WhatsApp da loja, com a mensagem codificada', () => {
   assert.equal(buildWhatsappUrl('5511987654321'), 'https://wa.me/5511987654321');
   assert.equal(buildWhatsappUrl('5511987654321', 'Olá & até'), 'https://wa.me/5511987654321?text=Ol%C3%A1%20%26%20at%C3%A9');
+});
+
+test('você economiza: a soma dos descontos dos produtos', () => {
+  const lines = cartLines([{ productId: 'p1', quantity: 3 }, { productId: 'p2', quantity: 2 }], [camiseta, caneca]);
+  assert.equal(cartSavings(lines), 30);
 });

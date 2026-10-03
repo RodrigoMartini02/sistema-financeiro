@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bot, Briefcase, CreditCard, HandCoins, Layers, Network,
-  Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag,
+  Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag, ReceiptText,
 } from 'lucide-react';
 import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
@@ -23,11 +23,12 @@ import { PermissoesTab } from '../screens/config/PermissoesTab';
 import { AcessosTab } from '../screens/config/AcessosTab';
 import { IntegracoesIaTab } from '../screens/config/IntegracoesIaTab';
 import { CatalogoTab } from '../screens/config/CatalogoTab';
+import { PedidosTab } from '../screens/config/PedidosTab';
 
 export type ConfigItemId =
   | 'contas' | 'assinatura'
   | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'servicos' | 'representantes' | 'setores' | 'cargos' | 'usuarios' | 'permissoes'
-  | 'acessos' | 'integracoes-ia' | 'catalogo';
+  | 'acessos' | 'integracoes-ia' | 'catalogo' | 'pedidos';
 
 type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
 
@@ -42,6 +43,7 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
   { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
+  { id: 'pedidos',        label: 'Pedidos',        icon: ReceiptText, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
   { id: 'setores',        label: 'Setores',        icon: Network,    group: 'Pessoas' },
   { id: 'cargos',         label: 'Cargos',         icon: Briefcase,  group: 'Pessoas' },
@@ -173,6 +175,7 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'cartoes' && <CartaoTab />}
           {current.id === 'servicos' && <ServicosTab />}
           {current.id === 'catalogo' && <CatalogoTab />}
+          {current.id === 'pedidos' && <PedidosTab />}
           {current.id === 'representantes' && <RepresentantesTab />}
           {current.id === 'setores' && <AccountNameCatalogTab key="sectors" kind="sectors" />}
           {current.id === 'cargos' && <AccountNameCatalogTab key="job-titles" kind="job-titles" />}

@@ -21,7 +21,7 @@ export function StorefrontPrice({ product, large = false }: { product: PublicPro
 export function StorefrontProductCard({ product, imageUrl, canBuy, onOpen, onAdd }: {
   product: PublicProduct;
   imageUrl: string | null;
-  /** Sem WhatsApp na loja, a vitrine é só catálogo. */
+  /** Sem compra pela vitrine nem WhatsApp, a vitrine é só catálogo. */
   canBuy: boolean;
   onOpen: () => void;
   onAdd: () => void;

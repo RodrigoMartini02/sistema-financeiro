@@ -186,18 +186,24 @@ async function undoIncomeEffects(executor: StockExecutor, incomeId: number, stoc
 
 /** Cancela a receita (continua no banco, fora dos totais). Falso quando não é do dono. Cancelar de novo não faz nada. */
 export async function cancelIncome(ownerId: number, incomeId: number): Promise<boolean> {
-  return db.transaction(async (transaction) => {
-    const income = await lockIncome(transaction, ownerId, incomeId);
-    if (!income) {
-      return false;
-    }
-    if (income.status === CANCELLED_STATUS) {
-      return true;
-    }
-    await transaction.update(incomes).set({ status: CANCELLED_STATUS }).where(eq(incomes.id, income.id));
-    await undoIncomeEffects(transaction, income.id, STOCK_REASONS.incomeCancelled);
+  return db.transaction((transaction) => cancelIncomeInTransaction(transaction, ownerId, incomeId));
+}
+
+/**
+ * O cancelamento dentro de uma transação já aberta: o estorno de um pedido da
+ * vitrine cancela as receitas dele todas juntas.
+ */
+export async function cancelIncomeInTransaction(executor: StockExecutor, ownerId: number, incomeId: number): Promise<boolean> {
+  const income = await lockIncome(executor, ownerId, incomeId);
+  if (!income) {
+    return false;
+  }
+  if (income.status === CANCELLED_STATUS) {
     return true;
-  });
+  }
+  await executor.update(incomes).set({ status: CANCELLED_STATUS }).where(eq(incomes.id, income.id));
+  await undoIncomeEffects(executor, income.id, STOCK_REASONS.incomeCancelled);
+  return true;
 }
 
 /** Apaga a receita de vez. Falso quando não é do dono. */

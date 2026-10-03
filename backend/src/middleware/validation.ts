@@ -147,3 +147,38 @@ export function authRateLimiter(field: RateLimitField) {
     next();
   };
 }
+
+interface IpWindow {
+  count: number;
+  windowStart: number;
+}
+
+/**
+ * Limite simples por IP para rotas públicas que geram custo ou dados (ex.:
+ * criar pedido com cobrança na vitrine): no máximo `max` pedidos por janela.
+ * Em memória, como o authRateLimiter — vale por instância do servidor.
+ */
+export function ipRateLimiter({ max, windowMs, message }: { max: number; windowMs: number; message: string }) {
+  const windows = new Map<string, IpWindow>();
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, data] of windows.entries()) {
+      if (now - data.windowStart > windowMs) windows.delete(key);
+    }
+  }, windowMs).unref();
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+    const now = Date.now();
+    const current = windows.get(ip);
+    const data = current && now - current.windowStart <= windowMs ? current : { count: 0, windowStart: now };
+    data.count += 1;
+    windows.set(ip, data);
+    if (data.count > max) {
+      res.status(429).json({ success: false, message });
+      return;
+    }
+    next();
+  };
+}

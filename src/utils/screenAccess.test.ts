@@ -11,7 +11,7 @@ const ALL: PermissionSet = Object.fromEntries(PERMISSION_FLAGS.map((flag) => [fl
 const only = (...flags: PermissionFlag[]): PermissionSet => Object.fromEntries(flags.map((flag) => [flag, true]));
 
 const CONFIG_ITEMS: ConfigItemId[] = [
-  'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo',
+  'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos',
   'representantes', 'setores', 'cargos', 'permissoes', 'acessos', 'integracoes-ia',
 ];
 const owner = (accountType: ConfigItemContext['accountType']): ConfigItemContext => ({
@@ -50,7 +50,7 @@ test('Movimentações: botões, calendário, Planejamento e o que buscar', () =>
 
 test('Configurações do titular: tudo da conta empresa; na pessoal sem os itens de empresa', () => {
   assert.deepEqual(visibleItems(ALL, owner('empresa')), [
-    'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo',
+    'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos',
     'representantes', 'setores', 'cargos', 'permissoes',
   ]);
   assert.deepEqual(visibleItems(ALL, owner('pessoal')), [
@@ -70,8 +70,10 @@ test('aba Acessos: o CPF liberado só vale para admin', () => {
 
 test('Configurações do membro: cada item com a sua permissão, nunca assinatura nem permissões', () => {
   assert.deepEqual(visibleItems(ALL, member('empresa')), [
-    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'representantes', 'setores', 'cargos',
+    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos', 'representantes', 'setores', 'cargos',
   ]);
+  assert.deepEqual(visibleItems(only('accessProductCatalog'), member('empresa')), ['catalogo', 'pedidos']);
+  assert.deepEqual(visibleItems(only('accessProductCatalog'), member('pessoal')), []);
   assert.deepEqual(visibleItems(only('accessCards'), member('pessoal')), ['cartoes']);
   assert.deepEqual(visibleItems(only('accessRepresentatives'), member('pessoal')), []);
   assert.deepEqual(visibleItems(only('accessSectors'), member('empresa')), ['setores']);

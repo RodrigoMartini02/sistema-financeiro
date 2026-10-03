@@ -53,3 +53,14 @@ export function formatWhatsappInput(value: string): string {
   const splitAt = number.length === 9 ? 5 : 4;
   return `(${areaCode}) ${number.slice(0, splitAt)}-${number.slice(splitAt)}`;
 }
+
+/**
+ * Texto sugerido para a política de troca da vitrine: o direito de
+ * arrependimento de 7 dias (art. 49 do CDC) e os prazos para produto com
+ * defeito (art. 26). A loja ajusta ao próprio caso.
+ */
+export const SUGGESTED_EXCHANGE_POLICY = [
+  'Você pode desistir da compra em até 7 dias corridos depois de receber o produto (direito de arrependimento, art. 49 do Código de Defesa do Consumidor), com a devolução integral do valor pago.',
+  'Para trocar ou devolver, fale com a loja informando o número do pedido. O produto deve voltar sem sinais de uso e, de preferência, na embalagem original.',
+  'Produto com defeito: avise a loja em até 30 dias (produto não durável) ou 90 dias (produto durável) para troca, conserto ou devolução do valor.',
+].join('\n\n');
