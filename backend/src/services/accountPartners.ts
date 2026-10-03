@@ -3,13 +3,14 @@
 // dono da conta. O capital vira receita uma vez só e fica ligado ao sócio por
 // socios.receita_capital_id; se a receita for apagada, o vínculo some e o
 // capital destrava.
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
-import { incomeClassifications, incomes, partners } from '../db/schema';
+import { incomes, partners } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError } from '../utils/requestInput';
 import type { AccountPartnerInput } from './accountPartnersInput';
 import { CAPITAL_INCOME_CLASSIFICATION } from './incomeClassificationDefaults';
+import { ensureCompanyIncomeClassification } from './incomeClassificationCatalog';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -32,35 +33,6 @@ interface SaveAccountPartnersParams {
   /** Data de abertura da empresa: a data da receita do capital. Sem ela, hoje. */
   openingDate: string | null;
   partners: AccountPartnerInput[];
-}
-
-/**
- * Categoria "Aportes" do dono, criada se faltar (sem recriar as demais
- * padrão). SQL cru pelo mesmo motivo de ensureDefaultIncomeClassifications: o
- * ON CONFLICT aponta para um índice único parcial com LOWER(nome). A busca é
- * feita na própria transação, que enxerga a linha ainda não confirmada.
- */
-async function ensureCapitalIncomeClassification(transaction: Transaction, ownerId: number): Promise<number> {
-  await transaction.execute(sql`
-    INSERT INTO classificacoes_receita (usuario_id, tipo, nome)
-    VALUES (${ownerId}, 'empresa', ${CAPITAL_INCOME_CLASSIFICATION})
-    ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
-  `);
-
-  const [classification] = await transaction
-    .select({ id: incomeClassifications.id })
-    .from(incomeClassifications)
-    .where(and(
-      eq(incomeClassifications.userId, ownerId),
-      eq(incomeClassifications.type, 'empresa'),
-      isNull(incomeClassifications.accountId),
-      sql`LOWER(${incomeClassifications.name}) = LOWER(${CAPITAL_INCOME_CLASSIFICATION})`,
-    ))
-    .limit(1);
-  if (!classification) {
-    throw new Error('Capital income classification missing after insert');
-  }
-  return classification.id;
 }
 
 /** Receita recebida com o capital do sócio, na conta e no nome do dono. */
@@ -152,7 +124,7 @@ export async function saveAccountPartners(transaction: Transaction, params: Save
       continue;
     }
 
-    capitalClassificationId ??= await ensureCapitalIncomeClassification(transaction, ownerId);
+    capitalClassificationId ??= await ensureCompanyIncomeClassification(transaction, ownerId, CAPITAL_INCOME_CLASSIFICATION);
     const incomeId = await launchCapitalIncome(transaction, {
       ownerId,
       accountId,

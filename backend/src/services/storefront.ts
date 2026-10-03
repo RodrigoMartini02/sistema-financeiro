@@ -5,6 +5,8 @@ import { accounts, users } from '../db/schema';
 import { catalogoContas, catalogoProdutoImagens, catalogoProdutos, type CatalogoConta } from '../modules/catalogo/db/schema';
 import { isUniqueViolation } from '../utils/dbErrors';
 import { RequestInputError } from '../utils/requestInput';
+import { reservedQuantities } from './orders';
+import { availableQuantity } from './orderPricing';
 import { buildProductPricing } from './productPricing';
 import { listImagesByProduct, type ProductImageView } from './productImages';
 import { parseStorefrontParam, slugify, withSlugSuffix, type StorefrontInput } from './storefrontInput';
@@ -28,6 +30,13 @@ export interface StorefrontConfig {
   /** O que foi gravado; nulo usa `logoPadrao`. */
   logo: string | null;
   logoPadrao: string | null;
+  retiradaAtiva: boolean;
+  retiradaEndereco: string | null;
+  retiradaHorario: string | null;
+  entregaAtiva: boolean;
+  entregaTaxa: number | null;
+  entregaDescricao: string | null;
+  politicaTroca: string | null;
 }
 
 export interface PublicStorefront {
@@ -39,6 +48,11 @@ export interface PublicStorefront {
   descricao: string | null;
   whatsapp: string | null;
   logo: string | null;
+  /** Retirada no local, quando a loja oferece. */
+  retirada: { endereco: string; horario: string | null } | null;
+  /** Entrega com taxa fixa, quando a loja oferece. */
+  entrega: { taxa: number; descricao: string | null } | null;
+  politicaTroca: string | null;
 }
 
 export interface PublicStorefrontProduct {
@@ -111,6 +125,13 @@ function toConfig(storefront: CatalogoConta, branding: AccountBranding): Storefr
     whatsapp: storefront.whatsapp,
     logo: storefront.logo,
     logoPadrao: branding.defaultLogo,
+    retiradaAtiva: storefront.retiradaAtiva,
+    retiradaEndereco: storefront.retiradaEndereco,
+    retiradaHorario: storefront.retiradaHorario,
+    entregaAtiva: storefront.entregaAtiva,
+    entregaTaxa: storefront.entregaTaxa === null ? null : Number(storefront.entregaTaxa),
+    entregaDescricao: storefront.entregaDescricao,
+    politicaTroca: storefront.politicaTroca,
   };
 }
 
@@ -180,6 +201,13 @@ export async function updateStorefront(account: CompanyAccount, input: Storefron
         descricao: input.description,
         whatsapp: input.whatsapp,
         logo: input.logo,
+        retiradaAtiva: input.pickup.active,
+        retiradaEndereco: input.pickup.address,
+        retiradaHorario: input.pickup.hours,
+        entregaAtiva: input.delivery.active,
+        entregaTaxa: input.delivery.fee === null ? null : input.delivery.fee.toFixed(2),
+        entregaDescricao: input.delivery.description,
+        politicaTroca: input.exchangePolicy,
         updatedAt: new Date(),
       })
       .where(eq(catalogoContas.contaId, account.id))
@@ -217,6 +245,13 @@ export async function findPublicStorefront(param: string): Promise<PublicStorefr
       descricao: storefronts.descricao,
       whatsapp: storefronts.whatsapp,
       logo: storefronts.logo,
+      retiradaAtiva: storefronts.retiradaAtiva,
+      retiradaEndereco: storefronts.retiradaEndereco,
+      retiradaHorario: storefronts.retiradaHorario,
+      entregaAtiva: storefronts.entregaAtiva,
+      entregaTaxa: storefronts.entregaTaxa,
+      entregaDescricao: storefronts.entregaDescricao,
+      politicaTroca: storefronts.politicaTroca,
       accountName: accounts.name,
       tradeName: accounts.tradeName,
       isDefault: accounts.isDefault,
@@ -244,12 +279,20 @@ export async function findPublicStorefront(param: string): Promise<PublicStorefr
     descricao: row.descricao,
     whatsapp: row.whatsapp,
     logo: row.logo ?? branding.defaultLogo,
+    retirada: row.retiradaAtiva && row.retiradaEndereco
+      ? { endereco: row.retiradaEndereco, horario: row.retiradaHorario }
+      : null,
+    entrega: row.entregaAtiva && row.entregaTaxa !== null
+      ? { taxa: Number(row.entregaTaxa), descricao: row.entregaDescricao }
+      : null,
+    politicaTroca: row.politicaTroca,
   };
 }
 
 /**
  * Produtos ativos da conta da vitrine, por nome. A quantidade em estoque é
- * lida só para saber se o produto esgotou e nunca sai daqui.
+ * lida só para saber se o produto esgotou — descontado o que está separado em
+ * pedidos pendentes — e nunca sai daqui.
  */
 export async function listPublicProducts(storefront: PublicStorefront): Promise<PublicStorefrontProduct[]> {
   const products = await db
@@ -272,7 +315,11 @@ export async function listPublicProducts(storefront: PublicStorefront): Promise<
     ))
     .orderBy(asc(catalogoProdutos.nome), asc(catalogoProdutos.id));
 
-  const imagesByProduct = await listImagesByProduct(products.map((product) => product.id));
+  const productIds = products.map((product) => product.id);
+  const [imagesByProduct, reserved] = await Promise.all([
+    listImagesByProduct(productIds),
+    reservedQuantities(db, productIds.filter((id) => products.find((product) => product.id === id)?.controlaEstoque)),
+  ]);
 
   return products.map((product) => ({
     id: product.id,
@@ -281,7 +328,7 @@ export async function listPublicProducts(storefront: PublicStorefront): Promise<
     categoria: product.categoria,
     valor: Number(product.valor),
     ...buildProductPricing(product),
-    esgotado: product.controlaEstoque && Number(product.quantidadeEstoque) <= 0,
+    esgotado: availableQuantity(Number(product.quantidadeEstoque), reserved.get(product.id) ?? 0, product.controlaEstoque) === 0,
     imagens: imagesByProduct.get(product.id) ?? [],
   }));
 }

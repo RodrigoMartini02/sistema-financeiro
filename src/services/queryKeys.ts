@@ -120,5 +120,11 @@ export const queryKeys = {
   catalogoProdutos: (accountId: number | null) => ['catalogo-produtos', accountId ?? 'nenhuma'] as const,
   storefrontConfig: (accountId: number | null) => ['storefront-config', accountId ?? 'nenhuma'] as const,
   publicStorefront: (storefront: string) => ['public-storefront', storefront] as const,
+  publicOrder: (storefront: string, orderId: string) => ['public-order', storefront, orderId] as const,
+  mercadoPagoStatus: (accountId: number | null) => ['mercado-pago-status', accountId ?? 'nenhuma'] as const,
+  // Pedidos da vitrine de uma conta PJ; o prefixo invalida todos os filtros de situação.
+  storefrontOrders: (accountId: number | null, status: string | null) => ['storefront-orders', accountId ?? 'nenhuma', status ?? 'todos'] as const,
+  storefrontOrdersAll: ['storefront-orders'] as const,
+  storefrontOrder: (orderId: string) => ['storefront-order', orderId] as const,
   movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShoppingBag, PackagePlus, Store, Link2, ExternalLink } from 'lucide-react';
 import {
@@ -468,9 +468,32 @@ function MovimentacaoDialog({
   );
 }
 
+type MercadoPagoReturn = 'conectado' | 'erro';
+
+/** Volta da autorização no Mercado Pago: o servidor devolve o resultado na URL. */
+function readMercadoPagoReturn(): MercadoPagoReturn | null {
+  const value = new URLSearchParams(window.location.search).get('mercadoPago');
+  return value === 'conectado' || value === 'erro' ? value : null;
+}
+
+/**
+ * Tira o resultado da URL e refaz o histórico como se as Configurações
+ * tivessem sido abertas no app: fechar volta para o app, não para o Mercado Pago.
+ */
+function clearMercadoPagoReturn(): void {
+  const configUrl = new URL(window.location.href);
+  if (!configUrl.searchParams.has('mercadoPago')) return;
+  configUrl.searchParams.delete('mercadoPago');
+  const appUrl = new URL(configUrl);
+  appUrl.search = '';
+  window.history.replaceState(null, '', appUrl);
+  window.history.pushState({ fingerenceConfig: true }, '', configUrl);
+}
+
 export function CatalogoTab() {
   const qc = useQueryClient();
   const accountId = getActiveAccountId();
+  const [mercadoPagoReturn, setMercadoPagoReturn] = useState(readMercadoPagoReturn);
   const [dialog, setDialog] = useState<{ open: boolean; item?: Produto }>({ open: false });
   const [estoqueDialog, setEstoqueDialog] = useState<{ open: boolean; item?: Produto }>({ open: false });
   const [vitrineOpen, setVitrineOpen] = useState(false);
@@ -531,7 +554,12 @@ export function CatalogoTab() {
     },
   });
 
+  useEffect(() => {
+    clearMercadoPagoReturn();
+  }, []);
+
   const vitrineUrl = vitrineQ.data ? storefrontPublicUrl(vitrineQ.data.link) : null;
+  const semFormaDeEntrega = vitrineQ.data !== undefined && !vitrineQ.data.retiradaAtiva && !vitrineQ.data.entregaAtiva;
 
   const copiarLink = () => {
     if (!vitrineUrl) return;
@@ -554,6 +582,19 @@ export function CatalogoTab() {
         actionLabel="Novo produto"
         onAction={() => setDialog({ open: true })}
       />
+
+      {mercadoPagoReturn && (
+        <InfoBanner variant={mercadoPagoReturn === 'conectado' ? 'success' : 'warn'}>
+          <span role="status" style={{ flex: 1, minWidth: 0 }}>
+            {mercadoPagoReturn === 'conectado'
+              ? `Mercado Pago conectado: as vendas da vitrine caem direto na conta da empresa.${semFormaDeEntrega ? ' Falta ativar a retirada ou a entrega em “Configurar vitrine”.' : ''}`
+              : 'Não foi possível conectar o Mercado Pago. Tente de novo em “Configurar vitrine”.'}
+          </span>
+          <button type="button" style={smallButtonStyle} onClick={() => setMercadoPagoReturn(null)}>
+            Fechar
+          </button>
+        </InfoBanner>
+      )}
 
       <InfoBanner>
         <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>

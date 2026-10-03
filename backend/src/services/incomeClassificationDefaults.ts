@@ -30,13 +30,16 @@ export const CONTRACT_INCOME_CLASSIFICATION = {
 /** Onde entra o capital inicial dos sócios lançado como receita (modal da conta PJ). */
 export const CAPITAL_INCOME_CLASSIFICATION = 'Aportes';
 
+/** Onde entram as vendas pagas pela vitrine (um pedido, uma receita por item). */
+export const SALES_INCOME_CLASSIFICATION = 'Vendas';
+
 const BUSINESS_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassification[] = [
   {
     nome: CONTRACT_INCOME_CLASSIFICATION.raiz,
     subcategorias: [CONTRACT_INCOME_CLASSIFICATION.mensalidade, CONTRACT_INCOME_CLASSIFICATION.implantacao],
   },
   { nome: 'Serviços', subcategorias: [] },
-  { nome: 'Vendas', subcategorias: [] },
+  { nome: SALES_INCOME_CLASSIFICATION, subcategorias: [] },
   { nome: 'Rendimentos', subcategorias: [] },
   { nome: 'Reembolsos', subcategorias: [] },
   { nome: CAPITAL_INCOME_CLASSIFICATION, subcategorias: [] },

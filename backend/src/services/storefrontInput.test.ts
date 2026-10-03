@@ -106,12 +106,34 @@ test('lê a configuração da vitrine', () => {
     whatsapp: '5511987654321',
     slug: 'doces-da-ana',
     logo: TINY_PNG,
+    pickup: { active: false, address: null, hours: null },
+    delivery: { active: false, fee: null, description: null },
+    exchangePolicy: null,
   });
   const empty = readStorefrontInput(body({ nome: '', descricao: null, whatsapp: '', logo: '' }));
   assert.equal(empty.name, null);
   assert.equal(empty.description, null);
   assert.equal(empty.whatsapp, null);
   assert.equal(empty.logo, null);
+});
+
+test('lê retirada, entrega e política de troca', () => {
+  const input = readStorefrontInput(body({
+    retirada_ativa: true, retirada_endereco: ' Rua A, 10 ', retirada_horario: 'Seg a sex, 9h às 18h',
+    entrega_ativa: true, entrega_taxa: 12.499, entrega_descricao: 'Centro, em até 2 dias',
+    politica_troca: ' Troca em até 7 dias. ',
+  }));
+  assert.deepEqual(input.pickup, { active: true, address: 'Rua A, 10', hours: 'Seg a sex, 9h às 18h' });
+  assert.deepEqual(input.delivery, { active: true, fee: 12.5, description: 'Centro, em até 2 dias' });
+  assert.equal(input.exchangePolicy, 'Troca em até 7 dias.');
+  assert.deepEqual(readStorefrontInput(body({ entrega_ativa: true, entrega_taxa: 0 })).delivery, { active: true, fee: 0, description: null });
+});
+
+test('retirada ativa exige endereço; entrega ativa exige taxa válida', () => {
+  assertRejects(() => readStorefrontInput(body({ retirada_ativa: true })), 'Informe o endereço de retirada');
+  assertRejects(() => readStorefrontInput(body({ entrega_ativa: true })), 'Informe a taxa de entrega (0 para entrega grátis)');
+  assertRejects(() => readStorefrontInput(body({ entrega_ativa: true, entrega_taxa: -1 })), 'Taxa de entrega inválida');
+  assertRejects(() => readStorefrontInput(body({ entrega_taxa: '10' })), 'Taxa de entrega inválida');
 });
 
 test('recusa configuração sem conta, com link inválido, logo inválido ou texto longo', () => {

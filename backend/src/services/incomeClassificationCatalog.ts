@@ -132,3 +132,37 @@ export function parseClassificationId(value: unknown): number | null | undefined
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : Number.NaN;
 }
+
+/**
+ * Categoria de receita da PJ do dono (sem conta específica), criada se faltar
+ * — sem recriar as demais padrão. SQL cru pelo mesmo motivo de
+ * ensureDefaultIncomeClassifications: o ON CONFLICT aponta para um índice
+ * único parcial com LOWER(nome). A busca é feita no mesmo executor, que
+ * enxerga a linha ainda não confirmada da transação.
+ */
+export async function ensureCompanyIncomeClassification(
+  executor: Pick<typeof db, 'execute' | 'select'>,
+  ownerId: number,
+  name: string,
+): Promise<number> {
+  await executor.execute(sql`
+    INSERT INTO classificacoes_receita (usuario_id, tipo, nome)
+    VALUES (${ownerId}, 'empresa', ${name})
+    ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
+  `);
+
+  const [classification] = await executor
+    .select({ id: incomeClassifications.id })
+    .from(incomeClassifications)
+    .where(and(
+      eq(incomeClassifications.userId, ownerId),
+      eq(incomeClassifications.type, 'empresa'),
+      isNull(incomeClassifications.accountId),
+      sql`LOWER(${incomeClassifications.name}) = LOWER(${name})`,
+    ))
+    .limit(1);
+  if (!classification) {
+    throw new Error(`Income classification "${name}" missing after insert`);
+  }
+  return classification.id;
+}

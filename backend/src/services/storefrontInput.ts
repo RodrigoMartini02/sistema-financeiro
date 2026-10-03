@@ -2,7 +2,7 @@
 // (`/loja/<link>` ou o código antigo `/catalogo/<uuid>`). Sem acesso ao banco:
 // pode ser testado isoladamente. Os campos do pedido seguem o padrão em
 // português do módulo do catálogo.
-import { RequestInputError, readOptionalText, readRecord, readRequiredId } from '../utils/requestInput';
+import { MAX_AMOUNT, RequestInputError, readOptionalText, readRecord, readRequiredId, roundCents } from '../utils/requestInput';
 import { isUuid } from './catalogo';
 
 export const STOREFRONT_SLUG_MIN_LENGTH = 3;
@@ -20,6 +20,11 @@ const LOGO_DATA_URL = /^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2
 /** DDI do Brasil: o número é guardado só com dígitos e com ele na frente. */
 const BRAZIL_CALLING_CODE = '55';
 
+const MAX_PICKUP_ADDRESS_LENGTH = 280;
+const MAX_PICKUP_HOURS_LENGTH = 120;
+const MAX_DELIVERY_DESCRIPTION_LENGTH = 280;
+const MAX_EXCHANGE_POLICY_LENGTH = 5000;
+
 export interface StorefrontInput {
   accountId: number;
   /** Nulo usa o nome fantasia ou o nome da conta. */
@@ -28,6 +33,11 @@ export interface StorefrontInput {
   whatsapp: string | null;
   slug: string;
   logo: string | null;
+  /** Retirada no local: endereço obrigatório quando ativa. */
+  pickup: { active: boolean; address: string | null; hours: string | null };
+  /** Entrega com taxa fixa (pode ser 0, grátis): taxa obrigatória quando ativa. */
+  delivery: { active: boolean; fee: number | null; description: string | null };
+  exchangePolicy: string | null;
 }
 
 export type StorefrontParam = { kind: 'id'; id: string } | { kind: 'slug'; slug: string };
@@ -127,7 +137,33 @@ export function readStorefrontInput(body: unknown): StorefrontInput {
     throw new RequestInputError('Logo inválido: envie uma imagem JPG, PNG ou WebP');
   }
 
+  const pickupActive = record['retirada_ativa'] === true;
+  const pickupAddress = readOptionalText(record['retirada_endereco'], 'Endereço de retirada', MAX_PICKUP_ADDRESS_LENGTH);
+  if (pickupActive && pickupAddress === null) {
+    throw new RequestInputError('Informe o endereço de retirada');
+  }
+  const deliveryActive = record['entrega_ativa'] === true;
+  const rawFee = record['entrega_taxa'];
+  const fee = rawFee === undefined || rawFee === null || rawFee === '' ? null : rawFee;
+  if (fee !== null && (typeof fee !== 'number' || !Number.isFinite(fee) || fee < 0 || fee > MAX_AMOUNT)) {
+    throw new RequestInputError('Taxa de entrega inválida');
+  }
+  if (deliveryActive && fee === null) {
+    throw new RequestInputError('Informe a taxa de entrega (0 para entrega grátis)');
+  }
+
   return {
+    pickup: {
+      active: pickupActive,
+      address: pickupAddress,
+      hours: readOptionalText(record['retirada_horario'], 'Horário de retirada', MAX_PICKUP_HOURS_LENGTH),
+    },
+    delivery: {
+      active: deliveryActive,
+      fee: fee === null ? null : roundCents(fee as number),
+      description: readOptionalText(record['entrega_descricao'], 'Área e prazo de entrega', MAX_DELIVERY_DESCRIPTION_LENGTH),
+    },
+    exchangePolicy: readOptionalText(record['politica_troca'], 'Política de troca', MAX_EXCHANGE_POLICY_LENGTH),
     accountId: readRequiredId(record['conta_id'], 'Informe a conta da vitrine'),
     name: readOptionalText(record['nome'], 'Nome da loja', MAX_STORE_NAME_LENGTH),
     description: readOptionalText(record['descricao'], 'Descrição', MAX_STORE_DESCRIPTION_LENGTH),

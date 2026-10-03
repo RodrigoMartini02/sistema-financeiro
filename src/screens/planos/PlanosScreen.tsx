@@ -14,10 +14,9 @@ import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { createMercadoPago, type MercadoPagoInstance } from '../../utils/mercadoPagoSdk';
 
 // ─── types ───────────────────────────────────────────────────
-
-declare global { interface Window { MercadoPago: any } }
 
 type PlanTipo = 'mensal' | 'premium' | 'anual' | 'premium_anual';
 
@@ -88,41 +87,21 @@ function maskCpf(v: string) {
 
 // ─── MP SDK loader ────────────────────────────────────────────
 
-let mpInitPromise: Promise<any> | null = null;
+let mpInitPromise: Promise<MercadoPagoInstance | null> | null = null;
 
-function loadMpSdk(): Promise<any> {
+function loadMpSdk(): Promise<MercadoPagoInstance | null> {
   if (mpInitPromise) return mpInitPromise;
-  mpInitPromise = new Promise((resolve) => {
-    const load = async () => {
-      try {
-        if (!window.MercadoPago) {
-          await new Promise<void>((res, rej) => {
-            if (document.getElementById('mp-sdk')) {
-              const existing = document.getElementById('mp-sdk') as HTMLScriptElement;
-              if ((existing as any)._loaded) { res(); return; }
-              existing.addEventListener('load', () => { (existing as any)._loaded = true; res(); });
-              existing.addEventListener('error', rej);
-              return;
-            }
-            const s = document.createElement('script');
-            s.id = 'mp-sdk';
-            s.src = 'https://sdk.mercadopago.com/js/v2';
-            s.onload = () => { (s as any)._loaded = true; res(); };
-            s.onerror = rej;
-            document.head.appendChild(s);
-          });
-        }
-        const config = await apiRequest<any>('/planos/config');
-        const pubKey = config.public_key ?? config.data?.public_key ?? null;
-        if (!pubKey) return resolve(null); // sem chave — não bloqueia a UI
-        resolve(new window.MercadoPago(pubKey, { locale: 'pt-BR' }));
-      } catch (e) {
-        console.warn('[MP SDK] Falha ao carregar:', e);
-        resolve(null); // graceful degradation
-      }
-    };
-    load();
-  });
+  mpInitPromise = (async () => {
+    try {
+      const config = await apiRequest<any>('/planos/config');
+      const pubKey = config.public_key ?? config.data?.public_key ?? null;
+      if (!pubKey) return null; // sem chave — não bloqueia a UI
+      return await createMercadoPago(pubKey);
+    } catch (e) {
+      console.warn('[MP SDK] Falha ao carregar:', e);
+      return null; // graceful degradation
+    }
+  })();
   return mpInitPromise;
 }
 

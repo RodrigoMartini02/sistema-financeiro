@@ -7,6 +7,9 @@ import { ConfirmProvider } from './context/ConfirmContext';
 import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
 import { HomePage } from './screens/public/HomePage';
 import { StorefrontPage } from './screens/public/storefront/StorefrontPage';
+import { StorefrontCartPage } from './screens/public/storefront/StorefrontCartPage';
+import { StorefrontCheckoutPage } from './screens/public/storefront/StorefrontCheckoutPage';
+import { StorefrontOrderPage } from './screens/public/storefront/StorefrontOrderPage';
 import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
 import { SobrePage } from './screens/public/SobrePage';
 import { PlanosPage } from './screens/public/PlanosPage';
@@ -40,9 +43,9 @@ import { useOwnPermissions } from './hooks/useOwnPermissions';
 import { EmptyState } from './ui/EmptyState';
 import { resolveSection, visibleSections, type AccountType } from './utils/screenAccess';
 
-/** Vitrine de uma loja (link novo ou antigo): é a página da empresa, não do FINGERENCE. */
+/** Vitrine de uma loja (link novo ou antigo) e as páginas dela: são da empresa, não do FINGERENCE. */
 function isStorefrontPath(pathname: string): boolean {
-  return /^\/(loja|catalogo)\/[^/]+\/?$/.test(pathname);
+  return /^\/(loja|catalogo)\/[^/]+(\/.*)?$/.test(pathname);
 }
 
 /**
@@ -80,6 +83,9 @@ function PublicSite() {
         <Route path="/termos" element={<LegalPage type="termos" />} />
         <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
         <Route path="/loja/:storefront" element={<StorefrontPage />} />
+        <Route path="/loja/:storefront/sacola" element={<StorefrontCartPage />} />
+        <Route path="/loja/:storefront/checkout" element={<StorefrontCheckoutPage />} />
+        <Route path="/loja/:storefront/pedido/:pedidoId" element={<StorefrontOrderPage />} />
         {/* Link antigo da vitrine, com o código: continua abrindo a mesma loja. */}
         <Route path="/catalogo/:storefront" element={<StorefrontPage />} />
         <Route path="*" element={<HomePage />} />
