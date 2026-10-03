@@ -745,4 +745,12 @@ A implementação estará pronta quando:
   - **Funções renomeadas ou removidas:** `isValidCatalogoContaId` virou `isUuid`. Saiu `isValidProdutoValor`, porque o cadastro passou a usar `readAmount`.
   - **Erro de estoque:** `StockError` estende `RequestInputError`. A resposta de estoque insuficiente vem sem o campo `code`, que nenhuma tela lia.
   - **Regras puras da tela:** além de `productPricing` e `storefrontCart`, entraram `storefrontConfig` (link e WhatsApp enquanto a pessoa digita) e `storefrontCatalog` (busca e categorias), com testes. O compartilhar da vitrine fica em `src/screens/public/storefront/shareLink.ts`.
-- **Ainda não feito:** migrations no banco local, roteiro de API, teste de renderização e conferência no navegador. Isso espera a confirmação para aplicar 0064 a 0067 no banco local.
+- **Validação local (2026-10-03, após o "faça a sequência segura e correta" do usuário):**
+  - **Migrations:** 0064 a 0067 aplicadas no banco local, uma por vez. O `migrations:status --banco local` ficou sem pendentes.
+  - **Roteiro de API** (`roteiro_vitrine.mjs`, backend local na porta 3015 com o `.env.dev`): 29/29. A primeira rodada deu 26/29 e achou um bug, corrigido no commit seguinte.
+    - A consulta pública juntava `catalogo.contas` com `contas`, e o Postgres acusava "referência a tabela contas é ambígua".
+    - A vitrine passou a usar o apelido `vitrine` na consulta (`alias` do Drizzle, em `services/storefront.ts`).
+  - **Teste de renderização no servidor** (temporário, em `src/tmpclaude-*`, apagado depois): 12/12. Ele cobriu a vitrine (com e sem WhatsApp), o detalhe por `?produto=`, a sacola, a tela "Produtos e estoque" e "Configurar vitrine".
+  - **Limpeza:** os usuários `@roteiro-vitrine.test` e as imagens enviadas no teste foram apagados.
+  - **Porta 3014:** já estava ocupada por um processo `node` de antes desta sessão, que não foi mexido.
+- **Ainda não feito:** a conferência no navegador (layout da tela e da vitrine no celular e no computador).
