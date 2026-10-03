@@ -613,7 +613,12 @@ Nenhuma pergunta impede a implementação. Os padrões de "Decisões aplicadas" 
 
 ## Notas da implementação (2026-10-03)
 
-- **Nome da categoria:** a categoria do capital ficou "Aportes", e não "Aporte de capital". O projeto tem a regra, conferida em `incomeClassificationDefaults.test.ts`, de uma palavra por categoria raiz de receita. Falta a confirmação do usuário; se ele preferir o nome do plano, a regra e o teste precisam mudar junto.
+- **Nome da categoria:** a categoria do capital ficou "Aportes", e não "Aporte de capital". O projeto tem a regra, conferida em `incomeClassificationDefaults.test.ts`, de uma palavra por categoria raiz de receita. O usuário confirmou o nome em 2026-10-03.
 - **Aba Acessos:** a regra do frontend saiu do `ConfigPanel` para `isAnalyticsViewer` em `src/utils/screenAccess.ts`, que agora tem teste.
 - **Leitores puros:** os leitores sem acesso ao banco ficaram em `loginDocument.ts`, `memberInput.ts` e `accountPartnersInput.ts`, para que os testes não carreguem o `.env`. As consultas ao banco ficaram em `documentConflicts.ts` e `accountPartners.ts`.
-- **Validação local ainda não feita:** o roteiro de API (`roteiro_socios.mjs`) e o teste de renderização (`smoke_socios.mts`) estão prontos no scratchpad. Eles dependem de 0059, 0060 e 0061 no banco local, que esperam a confirmação do usuário.
+- **Validação local (2026-10-03):**
+  - 0059, 0060 e 0061 foram aplicadas no banco local com a confirmação do usuário.
+  - Roteiro de API (`roteiro_socios.mjs`, backend local na porta 3013): 43/43.
+  - Teste de renderização (`smoke_socios.mts`): 15/15.
+  - Os usuários de teste `@roteiro-socios.test` foram apagados depois.
+  - O `ConfigPanel` não foi renderizado. A saída do item "Sócios" é conferida pela checagem de tipos e pelo `screenAccess.test.ts`, e a aba Acessos só para admin, pelo teste de `isAnalyticsViewer`.
