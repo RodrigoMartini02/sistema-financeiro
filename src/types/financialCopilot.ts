@@ -29,9 +29,6 @@ export interface FinancialCopilotPayment {
   paymentDate: string | null;
 }
 
-/** Estado opaco do preenchimento guiado: o client apenas devolve o que recebeu. */
-export type FinancialCopilotSlotState = Record<string, unknown>;
-
 export interface FinancialCopilotResponse {
   conversationId: number | null;
   mode: 'answer' | 'draft' | 'help' | 'slot' | 'payment';
@@ -40,7 +37,6 @@ export interface FinancialCopilotResponse {
   draft: FinancialAssistantDraft | null;
   missingFields: Array<'description' | 'amount'>;
   quickReplies?: FinancialCopilotQuickReply[];
-  slotState?: FinancialCopilotSlotState | null;
   /** Texto preparado para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
   spokenReply?: string;
   /** So no modo `payment`. */
@@ -55,7 +51,6 @@ export interface FinancialCopilotRequest {
   context?: Partial<FinancialAssistantDraft>;
   conversationId?: number | null;
   intentHint?: FinancialCopilotIntentHint | null;
-  slotState?: FinancialCopilotSlotState | null;
   voiceMode?: boolean;
 }
 
@@ -73,7 +68,6 @@ export interface FinancialCopilotStoredMessage {
     mode?: FinancialCopilotResponse['mode'];
     cards?: FinancialCopilotCard[];
     draft?: FinancialAssistantDraft;
-    slotState?: FinancialCopilotSlotState;
   } | null;
   createdAt: string;
 }

@@ -94,7 +94,6 @@ import pushRoutes from './routes/push';
 import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
-import assistantFlowRoutes from './routes/assistantFlows';
 import catalogoRoutes from './modules/catalogo/routes';
 import { authenticate, requireActivePlan } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
@@ -149,7 +148,6 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 // usuário autenticado deve ver com os próprios dados. Ver budget.ts.
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
-app.use('/api/assistant-flows', assistantFlowRoutes);
 app.use('/api/catalogo', catalogoRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────

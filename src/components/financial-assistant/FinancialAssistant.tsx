@@ -10,7 +10,6 @@ import type {
   FinancialCopilotCard,
   FinancialCopilotIntentHint,
   FinancialCopilotQuickReply,
-  FinancialCopilotSlotState,
 } from '../../types/financialCopilot';
 import {
   deleteFinancialCopilotConversation,
@@ -26,7 +25,6 @@ import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { allowedAssistantIntents, canReadCatalogList } from '../../utils/screenAccess';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
-import { fetchAbertura, type FlowAbertura } from '../../services/assistantFlowService';
 import { fetchClientes, fetchContratosAtivos } from '../../services/clientesService';
 import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
@@ -50,6 +48,7 @@ import {
 } from './fontSize';
 import { useSpeech } from './useSpeech';
 import { escolherSaudacao } from './saudacao';
+import { ABERTURA } from './abertura';
 import {
   buildExpenseSave, duplicateCheckKey, fillDraftDefaults, normalizeComparable, toExpenseDraft,
 } from './cardDraft';
@@ -164,24 +163,6 @@ function storeFabPosition(position: FabPosition): void {
     // esta sessao, sem quebrar o arraste.
   }
 }
-
-/**
- * Abertura exibida enquanto a do fluxo nao chegou — e quando ela falha.
- *
- * O chat abre instantaneamente, sem rede, como sempre abriu; se o servidor
- * responder com algo diferente, o texto e substituido em seguida. Sem isso,
- * trazer a abertura para o fluxo custaria uma tela de carregamento no lugar
- * de uma saudação imediata.
- */
-const ABERTURA_PADRAO: FlowAbertura = {
-  saudacao: 'Olá! O que vamos fazer hoje?',
-  opcoes: [
-    { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
-    { intent: 'pay_expense', label: 'Pagar despesa', abertura: 'Qual despesa você pagou?' },
-    { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },
-    { intent: 'ask', label: 'Consultar', abertura: 'Pode perguntar. O que você quer saber?' },
-  ],
-};
 
 function buildInitialMessage(saudacao: string): ChatMessage {
   return {
@@ -411,26 +392,16 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [fabPosition, setFabPosition] = useState<FabPosition>(() => readStoredFabPosition());
   const fabDragRef = useRef<{ startX: number; startY: number; startRight: number; startBottom: number; moved: boolean } | null>(null);
 
-  // A abertura vem do fluxo editavel, mas o chat nao espera por ela: abre com
-  // a padrao e troca quando a resposta chega. `placeholderData` evita que o
-  // primeiro render tenha `undefined`.
-  const { data: abertura = ABERTURA_PADRAO } = useQuery({
-    queryKey: queryKeys.assistantAbertura,
-    queryFn: fetchAbertura,
-    placeholderData: ABERTURA_PADRAO,
-    staleTime: 5 * 60_000,
-  });
-
   // Lembrete discreto do ultimo lancamento de cada tipo, para reduzir
   // duplicidade por esquecimento. Muda a cada lancamento novo — staleTime
-  // curto, diferente da abertura (que e so configuracao de fluxo).
+  // curto.
   const { data: ultimosLancamentos } = useQuery({
     queryKey: queryKeys.assistantUltimosLancamentos(getActiveAccountId()),
     queryFn: fetchUltimosLancamentos,
     staleTime: 30_000,
   });
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage(ABERTURA_PADRAO.saudacao)]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [buildInitialMessage(ABERTURA.saudacao)]);
 
   const [fontSize, setFontSize] = useState<AssistantFontSize>(() => readStoredFontSize());
   const handleFontSizeChange = (nextFontSize: AssistantFontSize) => {
@@ -453,7 +424,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [isSaving, setIsSaving] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [intentHint, setIntentHint] = useState<FinancialCopilotIntentHint | null>(null);
-  const [slotState, setSlotState] = useState<FinancialCopilotSlotState | null>(null);
   // Marca que a proxima mensagem nasceu do microfone: so ai a resposta e falada.
   const [voiceMode, setVoiceMode] = useState(false);
   const speech = useSpeech();
@@ -558,10 +528,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   // A conversa mais recente da o tempo desde a ultima visita. Ja vem nesta
   // query, entao a saudacao nao custa request nenhum.
-  const saudacaoAtual = escolherSaudacao(abertura, conversationsQuery.data?.[0]?.updatedAt);
+  const saudacaoAtual = escolherSaudacao(ABERTURA, conversationsQuery.data?.[0]?.updatedAt);
 
-  // A saudacao so e conhecida depois que abertura e historico chegam: ate la
-  // o chat ja abriu com a padrao, e aqui o texto e trocado sem tocar no resto
+  // A saudacao so e conhecida depois que o historico chega: ate la o chat ja
+  // abriu com a de primeira vez, e aqui o texto e trocado sem tocar no resto
   // da conversa.
   useEffect(() => {
     setMessages((atual) => atual.map((m) => (
@@ -802,10 +772,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setLastVoiceTranscript(null);
     setError(null);
     const createdAt = new Date().toISOString();
-    // Textos vem do fluxo; o padrao cobre o caso de uma intencao sem opcao
-    // correspondente (fluxo editado removendo uma delas).
-    const opcao = abertura.opcoes.find((o) => o.intent === nextIntent)
-      ?? ABERTURA_PADRAO.opcoes.find((o) => o.intent === nextIntent)!;
+    const opcao = ABERTURA.opcoes.find((o) => o.intent === nextIntent)!;
     const aberturaMessageId = newMessageId();
     if (nextIntent !== 'pay_expense') {
       setPayment(null);
@@ -965,7 +932,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         context: draft ?? undefined,
         conversationId,
         intentHint,
-        slotState,
         voiceMode: askedByVoice,
       });
       setConversationId(result.conversationId);
@@ -974,7 +940,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       // No pagamento, o que for digitado continua sendo busca de pagamento ate
       // a despesa ser paga, descartada ou o "Voltar".
       setIntentHint(candidates.length > 0 ? 'pay_expense' : null);
-      setSlotState(result.mode === 'slot' ? result.slotState ?? null : null);
       if (result.mode === 'draft' && result.draft) {
         // Datas que os modais do desktop preenchem sozinhos (hoje, "Pago em").
         setDraft(fillDraftDefaults(result.draft, getLocalTodayIso()));
@@ -1015,7 +980,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   const startNewConversation = () => {
     setConversationId(null);
-    setMessages([buildInitialMessage(abertura.saudacao)]);
+    setMessages([buildInitialMessage(ABERTURA.saudacao)]);
     setDraft(null);
     setInstallmentsOpen(false);
     setPayment(null);
@@ -1024,7 +989,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setComposer('');
     setAttachments([]);
     setIntentHint(null);
-    setSlotState(null);
     setLastVoiceTranscript(null);
     setHistoryOpen(false);
     setError(null);
@@ -1048,7 +1012,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setPaymentHint(null);
       setDraftAttachments([]);
       setIntentHint(null);
-      setSlotState(null);
       setLastVoiceTranscript(null);
       setHistoryOpen(false);
     } catch (requestError) {
@@ -1200,7 +1163,6 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setDraft(null);
       setInstallmentsOpen(false);
       setDraftAttachments([]);
-      setSlotState(null);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o lançamento.');
     } finally {
@@ -1541,7 +1503,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       pergunta do fluxo. */}
                   {message.showWelcomeActions && (
                     <div className="mt-2 flex flex-col items-start gap-1.5">
-                      {abertura.opcoes.filter((opcao) => allowedIntents.includes(opcao.intent)).map((opcao) => (
+                      {ABERTURA.opcoes.filter((opcao) => allowedIntents.includes(opcao.intent)).map((opcao) => (
                         <button
                           key={opcao.intent}
                           type="button"

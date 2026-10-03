@@ -37,7 +37,6 @@ test('tela mostrada: a escolhida se liberada; senão Movimentações; senão a p
   assert.equal(resolveSection('painel', ['movimentacoes', 'reports']), 'movimentacoes');
   assert.equal(resolveSection('movimentacoes', ['painel', 'reports']), 'painel');
   assert.equal(resolveSection('movimentacoes', []), null);
-  assert.equal(resolveSection('fluxo-assistente', []), 'fluxo-assistente');
 });
 
 test('Movimentações: botões, calendário, Planejamento e o que buscar', () => {

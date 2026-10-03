@@ -1,0 +1,11 @@
+-- 0058: sai a tabela assistente_fluxos (criada na 0039). O fluxo guiado do
+-- assistente — editor de fluxograma, motor de perguntas e a rota
+-- /api/assistant-flows — foi removido: o Juca lê a frase de uma vez e abre o
+-- card, e o menu inicial (saudações e chips) passou a ficar no código.
+--
+-- ORDEM: aplicar só DEPOIS do deploy do código que já não usa a tabela. O
+-- código anterior lê o fluxo salvo para montar o menu do chat. Idempotente.
+--
+-- ATENCAO: nao executar sem confirmacao explicita do usuario. O ambiente
+-- pode estar apontando para producao.
+DROP TABLE IF EXISTS assistente_fluxos;

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import {
   AlertTriangle, BarChart3, Bell, Building2, LayoutDashboard,
-  Moon, Settings, Sun, Wallet, Workflow, X,
+  Moon, Settings, Sun, Wallet, X,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
@@ -21,10 +21,7 @@ import { ConfigPanel, configItemContext, hasVisibleConfigItems, type ConfigItemI
 
 export type AppSection =
   | 'painel' | 'movimentacoes'
-  | 'reports' | 'clientes' | 'fluxo-assistente';
-
-/** Dono do sistema: o unico que edita o fluxo de conversa do assistente. */
-const FLOW_EDITOR_DOCUMENT = '08996441988';
+  | 'reports' | 'clientes';
 
 interface AppShellProps {
   user?: AuthUser;
@@ -270,14 +267,6 @@ export function AppShell({
     staleTime: 60_000,
   });
   const naoLidasCount = notifications.filter((item) => item.status === 'pending').length;
-  // Fora do produto: o assistente deixou de conduzir a conversa por perguntas
-  // e passou a ler a frase de uma vez, entao nao ha sequencia para desenhar.
-  // A tela e o motor seguem no codigo, testados, para serem retomados — ver
-  // .plans/card-preenchido-no-assistente.md.
-  const FLUXO_EDITOR_ATIVO = false;
-  const podeEditarFluxo = FLUXO_EDITOR_ATIVO
-    && !isDemoMode
-    && (user?.documento ?? '').replace(/\D/g, '') === FLOW_EDITOR_DOCUMENT;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
     const item = isDemoMode ? undefined : readConfigParam();
@@ -371,40 +360,16 @@ export function AppShell({
           })}
         </div>
 
-        {!isDemoMode && (hasConfigItems || podeEditarFluxo) && (
+        {!isDemoMode && hasConfigItems && (
         <div className="mt-4 flex flex-col">
           <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
-          {hasConfigItems && (
-            <button
-              onClick={() => openConfig()}
-              className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
-            >
-              <Settings size={17} />
-              <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
-            </button>
-          )}
-
-          {/* Editor do fluxo do assistente. Tela inteira, nao aba do drawer: o
-              canvas precisa de espaco. Restrito ao dono do sistema \u2014 e ele quem
-              define como o assistente conversa com todo mundo. */}
-          {podeEditarFluxo && (
-            <button
-              onClick={() => { onNavigate?.('fluxo-assistente'); setMobileOpen(false); }}
-              className={[
-                'relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg text-sm font-medium transition',
-                activeSection === 'fluxo-assistente'
-                  ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
-                  : 'text-[#E8F4F5] hover:bg-[rgba(14,196,216,0.06)]',
-              ].join(' ')}
-              style={{ paddingLeft: activeSection === 'fluxo-assistente' ? '10px' : '12px', paddingRight: '12px' }}
-            >
-              {activeSection === 'fluxo-assistente' && (
-                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />
-              )}
-              <Workflow size={17} className={activeSection === 'fluxo-assistente' ? 'text-[#0EC4D8]' : ''} />
-              <span className="flex-1 text-left">Fluxo do assistente</span>
-            </button>
-          )}
+          <button
+            onClick={() => openConfig()}
+            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
+          >
+            <Settings size={17} />
+            <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
+          </button>
         </div>
         )}
       </nav>

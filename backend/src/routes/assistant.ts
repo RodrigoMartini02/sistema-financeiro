@@ -13,7 +13,6 @@ import {
   FinancialCopilotInputError,
   type AssistantIntentHint,
 } from '../services/financialCopilot';
-import { parseSlotSessionState } from '../services/assistantSlotSession';
 import { resolveFinancialAccount } from '../services/budgetService';
 import { ultimosLancamentos } from '../services/assistantQueries';
 
@@ -122,7 +121,6 @@ router.post('/chat', async (req: Request, res: Response): Promise<void> => {
       context: asContext(body['context']),
       conversationId: asOptionalPositiveInteger(body['conversa_id']),
       intentHint: asIntentHint(body['intent_hint']),
-      slotState: parseSlotSessionState(body['slot_state']),
       voiceMode: body['modo_voz'] === true,
     });
     res.json({ success: true, data: result });
