@@ -27,6 +27,7 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
     saudacaoRetornoLongo: 'Que bom que voltou! O que vamos lançar hoje?',
     opcoes: [
       { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
+      { intent: 'pay_expense', label: 'Pagar despesa', abertura: 'Qual despesa você pagou?' },
       { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },
       { intent: 'ask', label: 'Consultar', abertura: 'Pode perguntar. O que você quer saber?' },
     ],
@@ -252,13 +253,35 @@ export const DEFAULT_FLOW_DEFINITION: FlowDefinition = {
  * tela usa para avisar. Ela roda tambem no PUT, onde completar mascararia um
  * payload incompleto vindo do editor.
  *
+ * Abertura gravada antes de uma opcao nova existir (o "Pagar despesa") ganha
+ * a opcao que falta, na posicao do padrao; as gravadas ficam como estao,
+ * textos inclusive. Tudo em memoria: a linha so muda quando o dono salvar no
+ * editor, como no completar da abertura inteira.
+ *
  * Fica aqui, e nao no store, para o teste nao arrastar a conexao com o banco
  * que assistantFlowStore importa.
  */
 export function comAberturaPadrao(definicao: FlowDefinition): FlowDefinition {
-  if (definicao.abertura) {
+  const padrao = DEFAULT_FLOW_DEFINITION.abertura!;
+  if (!definicao.abertura) {
+    return { ...definicao, abertura: padrao };
+  }
+
+  const gravadas = definicao.abertura.opcoes;
+  const faltantes = padrao.opcoes.filter((opcao) => !gravadas.some((gravada) => gravada.intent === opcao.intent));
+  if (faltantes.length === 0) {
     return definicao;
   }
 
-  return { ...definicao, abertura: DEFAULT_FLOW_DEFINITION.abertura };
+  const opcoes = [...gravadas];
+  for (const faltante of faltantes) {
+    // Entra logo depois da opcao que a precede no padrao; a primeira do padrao
+    // entra no inicio; sem a anterior gravada, no fim.
+    const indicePadrao = padrao.opcoes.indexOf(faltante);
+    const anterior = indicePadrao > 0 ? padrao.opcoes[indicePadrao - 1] : undefined;
+    const posicaoAnterior = anterior ? opcoes.findIndex((opcao) => opcao.intent === anterior.intent) : -1;
+    const destino = indicePadrao === 0 ? 0 : posicaoAnterior >= 0 ? posicaoAnterior + 1 : opcoes.length;
+    opcoes.splice(destino, 0, faltante);
+  }
+  return { ...definicao, abertura: { ...definicao.abertura, opcoes } };
 }

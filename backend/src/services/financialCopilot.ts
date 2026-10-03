@@ -9,12 +9,26 @@ import { AiUsageLimitError, assertAiUsageWithinLimits, assertVoiceUsageWithinLim
 import { getBudgetOverview, resolveFinancialAccount, type FinancialAccount } from './budgetService';
 import {
   createFinancialAssistantDraft,
+  extractAmountFromText,
+  extractDateFromText,
   inferKind,
   inferKindWithOrigin,
   type AssistantAttachmentInput,
   type AssistantDraftContext,
   type FinancialAssistantDraft,
 } from './financialAssistant';
+import { hasScreenAccess } from '../middleware/permissions';
+import { despesasEmAberto } from './assistantQueries';
+import {
+  MAX_PAYMENT_CANDIDATES,
+  lastDayOfMonth,
+  matchOpenExpenses,
+  nextOpenPerGroup,
+  searchTerms,
+  toOpenExpense,
+  type OpenExpense,
+  type OpenExpenseRow,
+} from './assistantPayment';
 // advanceSlotSession/startSlotSession pertencem ao fluxo guiado, hoje fora do
 // produto: o assistente le a frase de uma vez com readDraftFromMessage. Eles
 // seguem exportados e testados para a retomada do fluxograma.
@@ -49,9 +63,16 @@ export interface CopilotQuickReply {
   value: string;
 }
 
+/** Despesas oferecidas pelo chip "Pagar despesa" e o que a frase trouxe do pagamento. */
+export interface CopilotPayment {
+  candidates: OpenExpense[];
+  amountPaid: number | null;
+  paymentDate: string | null;
+}
+
 export interface FinancialCopilotResponse {
   conversationId: number | null;
-  mode: 'answer' | 'draft' | 'help' | 'slot';
+  mode: 'answer' | 'draft' | 'help' | 'slot' | 'payment';
   reply: string;
   cards: CopilotCard[];
   draft: FinancialAssistantDraft | null;
@@ -62,6 +83,8 @@ export interface FinancialCopilotResponse {
   slotState?: SlotSessionState | null;
   /** Resposta pronta para a sintese de fala; ausente fora do modo voz ou com cota estourada. */
   spokenReply?: string;
+  /** So no modo `payment`: nenhuma escrita aqui, quem paga e o card. */
+  payment?: CopilotPayment;
 }
 
 export class FinancialCopilotInputError extends Error {}
@@ -352,7 +375,6 @@ function slotDraftToAssistantDraft(slotDraft: SlotDraft): FinancialAssistantDraf
     cardId: slotDraft.cardId,
     billingType: slotDraft.billingType,
     installments: slotDraft.installments,
-    paidInstallments: slotDraft.paidInstallments,
     amountPaid: slotDraft.amountPaid,
     invoiceNumber: slotDraft.invoiceNumber,
     invoiceDate: slotDraft.invoiceDate,
@@ -548,6 +570,79 @@ async function runSlotFlow(input: {
   return response;
 }
 
+/**
+ * Chip "Pagar despesa": acha a despesa em aberto que a frase cita ("luz
+ * 121,29", "agua ontem") e devolve o que o card de pagamento precisa — as
+ * candidatas, o valor e a data que a frase trouxe.
+ *
+ * Nenhuma escrita financeira acontece aqui: quem paga e o card, pela mesma
+ * rota do botao "Pagar" do desktop.
+ */
+async function runPayFlow(input: {
+  userId: number;
+  account: FinancialAccount;
+  conversationId: number | null;
+  message: string;
+  voiceMode: boolean;
+}): Promise<FinancialCopilotResponse> {
+  const respond = async (
+    reply: string,
+    mode: FinancialCopilotResponse['mode'],
+    payment?: CopilotPayment,
+  ): Promise<FinancialCopilotResponse> => {
+    const response: FinancialCopilotResponse = {
+      conversationId: input.conversationId,
+      mode,
+      reply,
+      cards: [],
+      draft: null,
+      missingFields: [],
+      payment,
+      spokenReply: input.voiceMode ? await buildSpokenReply(input.userId, reply) : undefined,
+    };
+    await storeMessage({ conversationId: input.conversationId, role: 'assistant', content: reply, payload: { mode } });
+    return response;
+  };
+
+  // Mesma permissao do botao "Pagar" do desktop (rotas /expenses): o chip so
+  // aparece com ela, mas quem barra e o servidor.
+  if (!(await hasScreenAccess(input.userId, 'accessExpenses'))) {
+    return respond('Você não tem acesso às despesas desta conta.', 'help');
+  }
+
+  const today = getTodayIsoInTimezone();
+  const amountPaid = extractAmountFromText(input.message);
+  const paymentDate = extractDateFromText(input.message);
+  const open = nextOpenPerGroup(await despesasEmAberto({ userId: input.userId, account: input.account }));
+  const offer = (rows: OpenExpenseRow[]): CopilotPayment => ({
+    candidates: rows.map((row) => toOpenExpense(row, today)),
+    amountPaid,
+    paymentDate,
+  });
+  // Vencidas e as do mes; sem nenhuma ate o fim do mes, as proximas.
+  const nearest = (): OpenExpenseRow[] => {
+    const endOfMonth = lastDayOfMonth(today);
+    const untilEndOfMonth = open.filter((row) => row.dueDate <= endOfMonth);
+    return (untilEndOfMonth.length > 0 ? untilEndOfMonth : open).slice(0, MAX_PAYMENT_CANDIDATES);
+  };
+
+  if (open.length === 0) {
+    return respond('Você não tem despesas em aberto.', 'payment', offer([]));
+  }
+  if (searchTerms(input.message).length === 0) {
+    return respond('Qual delas?', 'payment', offer(nearest()));
+  }
+
+  const matches = matchOpenExpenses(input.message, open);
+  if (matches.length === 1) {
+    return respond('Achei. Confira e salve o pagamento.', 'payment', offer(matches));
+  }
+  if (matches.length > 1) {
+    return respond('Achei mais de uma. Qual delas?', 'payment', offer(matches.slice(0, MAX_PAYMENT_CANDIDATES)));
+  }
+  return respond('Não achei despesa em aberto com esse nome. Estas são as próximas:', 'payment', offer(nearest()));
+}
+
 export async function runFinancialCopilot(input: {
   userId: number;
   accountId: number | null;
@@ -610,6 +705,19 @@ export async function runFinancialCopilot(input: {
       if (!isMissingTableError(error)) throw error;
     }
   };
+
+  // O chip e escolha explicita: pagar nao passa pela consulta nem pelo registro.
+  if (input.intentHint === 'pay_expense') {
+    const response = await runPayFlow({
+      userId: input.userId,
+      account,
+      conversationId,
+      message: input.message,
+      voiceMode: input.voiceMode ?? false,
+    });
+    await recordUsageQuietly();
+    return response;
+  }
 
   if (intent !== 'register') {
     // Consulta por ferramentas: o modelo escolhe qual chamar e com que filtros,

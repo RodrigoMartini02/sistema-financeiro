@@ -1,7 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
   Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
-  Income, IncomeCreateInput, IncomeUpdateInput, MonthBalance, PainelData, PainelFiltro,
+  Income, IncomeCreateInput, IncomeUpdateInput, MonthBalance, OpenExpense, PainelData, PainelFiltro,
 } from '../types/finance';
 
 interface RawIncome {
@@ -210,6 +210,14 @@ export async function pagarDespesa(id: number, dataPagamento: string, valorPago:
     method: 'POST',
     body: JSON.stringify({ data_pagamento: dataPagamento, valor_pago: valorPago }),
   });
+}
+
+/** Despesas a pagar pelo chip "Pagar despesa" do assistente: vencidas e as do mês, a próxima de cada parcelamento. */
+export async function fetchDespesasEmAberto(contaId: number | null): Promise<OpenExpense[]> {
+  const q = new URLSearchParams();
+  if (contaId) q.set('conta_id', String(contaId));
+  const suffix = q.toString() ? `?${q}` : '';
+  return apiRequest<OpenExpense[]>(`/expenses/em-aberto${suffix}`);
 }
 
 export async function moverDespesa(id: number) {

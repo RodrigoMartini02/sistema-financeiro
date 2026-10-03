@@ -63,7 +63,7 @@ function asContext(value: unknown): AssistantDraftContext | undefined {
 
 function asIntentHint(value: unknown): AssistantIntentHint | null {
   if (value === undefined || value === null || value === '') return null;
-  if (value === 'register_expense' || value === 'register_income' || value === 'ask') return value;
+  if (value === 'register_expense' || value === 'register_income' || value === 'ask' || value === 'pay_expense') return value;
   throw new FinancialAssistantInputError('Comando da assistente inválido.');
 }
 

@@ -49,7 +49,7 @@ export interface FlowNode {
   posicao?: { x: number; y: number };
 }
 
-export type FlowIntent = 'register_expense' | 'register_income' | 'ask';
+export type FlowIntent = 'register_expense' | 'register_income' | 'ask' | 'pay_expense';
 
 export interface FlowIntentOption {
   intent: FlowIntent;

@@ -102,8 +102,9 @@ test('listas: o cadastro libera ler e gerenciar; quem lança só lê o que usa',
   assert.equal(canReadCatalogList({}, 'expenseCategories'), false);
 });
 
-test('assistente: lançar despesa e receita só com a permissão; perguntar sempre', () => {
-  assert.deepEqual(allowedAssistantIntents(ALL), ['register_expense', 'register_income', 'ask']);
+test('assistente: lançar e pagar despesa, lançar receita só com a permissão; perguntar sempre', () => {
+  assert.deepEqual(allowedAssistantIntents(ALL), ['register_expense', 'pay_expense', 'register_income', 'ask']);
+  assert.deepEqual(allowedAssistantIntents(only('accessExpenses')), ['register_expense', 'pay_expense', 'ask']);
   assert.deepEqual(allowedAssistantIntents(only('accessIncomes')), ['register_income', 'ask']);
   assert.deepEqual(allowedAssistantIntents({}), ['ask']);
 });

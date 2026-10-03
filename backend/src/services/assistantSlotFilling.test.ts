@@ -432,3 +432,45 @@ test('boleto nao e forma de pagamento: a forma fica em aberto e o boleto segue n
   assert.equal(draft.amount, 120);
   assert.equal(draft.paymentMethod, null);
 });
+
+test('parcela dita depois do parcelamento vira o total, como no modal do desktop', () => {
+  // O card grava o valor como total e divide nas parcelas. "12 vezes de 250"
+  // e o valor de cada parcela: o rascunho guarda 3000.
+  const casos: Array<[string, number, number]> = [
+    ['parcelei a tv em 12 vezes de 250', 3000, 12],
+    ['comprei uma geladeira em 10x no credito de 300 reais', 3000, 10],
+    ['10x de 300 no cartão', 3000, 10],
+    ['camiseta em 3 parcelas de 49,90', 149.7, 3],
+  ];
+  for (const [frase, total, parcelas] of casos) {
+    const draft = seedDraftFromMessage('expense', frase, catalog);
+    assert.equal(draft.amount, total, frase);
+    assert.equal(draft.installments, parcelas, frase);
+    assert.equal(draft.billingType, 'parcelas', frase);
+  }
+});
+
+test('valor dito antes do parcelamento continua sendo o total', () => {
+  const casos: Array<[string, number, number]> = [
+    ['comprei um celular 3000 em 10x no credito', 3000, 10],
+    ['tênis 600 em 3x', 600, 3],
+    ['comprei um notebook de 4.500,00 em 12 parcelas', 4500, 12],
+  ];
+  for (const [frase, total, parcelas] of casos) {
+    const draft = seedDraftFromMessage('expense', frase, catalog);
+    assert.equal(draft.amount, total, frase);
+    assert.equal(draft.installments, parcelas, frase);
+  }
+});
+
+test('descricao com acento no fim nao perde a ultima letra', () => {
+  // Sem a flag `u`, o  nao ve letra acentuada como letra: o "o" final de
+  // "pão" saia como se fosse o artigo.
+  assert.equal(seedDraftFromMessage('expense', 'comprei pão 10 reais', catalog).description, 'pão');
+  assert.equal(seedDraftFromMessage('expense', 'gastei 30 no feijão', catalog).description, 'feijão');
+});
+
+test('"no cartão" e forma de pagar, nao descricao', () => {
+  assert.equal(seedDraftFromMessage('expense', '10x de 300 no cartão', catalog).description, null);
+  assert.equal(seedDraftFromMessage('expense', 'paguei 50 no cartão', catalog).description, null);
+});

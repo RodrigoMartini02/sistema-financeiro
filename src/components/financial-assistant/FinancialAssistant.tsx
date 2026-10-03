@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  Camera, Check, ChevronDown, FileText, LoaderCircle, MessageCircleMore,
+  Camera, Check, ChevronDown, CircleCheck, FileText, LoaderCircle, MessageCircleMore,
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MONTH_NAMES, type Attachment, type Expense, type Income } from '../../types/finance';
+import { MONTH_NAMES, type Attachment, type Expense, type Income, type OpenExpense } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import type {
   FinancialCopilotCard,
@@ -20,7 +20,7 @@ import {
   sendFinancialCopilotMessage,
   type UltimosLancamentos,
 } from '../../services/assistantService';
-import { createExpense, createIncome } from '../../services/financeService';
+import { createExpense, createIncome, fetchDespesasEmAberto, pagarDespesa } from '../../services/financeService';
 import { useDashboardQuery } from '../../hooks/useFinanceDashboard';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { allowedAssistantIntents, canReadCatalogList } from '../../utils/screenAccess';
@@ -33,8 +33,15 @@ import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
 import { invalidateExpenseQueries, invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
-import { installmentDueDates } from '../../utils/expenseSchedule';
 import { formatCurrency } from '../../screens/finance/formatters';
+import { formatCents } from '../../screens/finance/entry-dialog/cents';
+import type { StatusTone } from '../../screens/finance/entry-dialog/SummaryLine';
+import { MIN_INSTALLMENTS, type ExpenseDraft } from '../../screens/finance/expense-dialog/draftState';
+import {
+  SUMMARY_TONE, effectiveDueDate, installmentAmounts, overdueOpenCount, paidInstallmentCount, summarizeDraft,
+  type RuleContext,
+} from '../../screens/finance/expense-dialog/draftRules';
+import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
 import { Card } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import { AssistantHeaderMenu } from './AssistantHeaderMenu';
@@ -43,6 +50,11 @@ import {
 } from './fontSize';
 import { useSpeech } from './useSpeech';
 import { escolherSaudacao } from './saudacao';
+import {
+  buildExpenseSave, duplicateCheckKey, fillExpenseDefaults, normalizeComparable, toExpenseDraft,
+} from './cardDraft';
+import { InstallmentList } from './InstallmentList';
+import { PaymentCard, openExpenseLabel, paymentDifferenceText, type PaymentDraft } from './PaymentCard';
 
 type ChatRole = 'assistant' | 'user';
 
@@ -66,6 +78,10 @@ interface ChatMessage {
    * — nao e uma referencia ao draft ativo, que continua mudando depois.
    */
   registeredDraft?: FinancialAssistantDraft;
+  /** Despesas em aberto oferecidas pelo chip "Pagar despesa"; somem ao escolher. */
+  paymentCandidates?: OpenExpense[];
+  /** Foto do pagamento registrado, como `registeredDraft`. */
+  registeredPayment?: PaymentDraft;
 }
 interface SpeechRecognitionResultLike {
   transcript: string;
@@ -160,6 +176,7 @@ const ABERTURA_PADRAO: FlowAbertura = {
   saudacao: 'Olá! O que vamos fazer hoje?',
   opcoes: [
     { intent: 'register_expense', label: 'Lançar despesa', abertura: 'Beleza! Me conta o que você gastou.' },
+    { intent: 'pay_expense', label: 'Pagar despesa', abertura: 'Qual despesa você pagou?' },
     { intent: 'register_income', label: 'Lançar receita', abertura: 'Boa! Me conta o que você recebeu.' },
     { intent: 'ask', label: 'Consultar', abertura: 'Pode perguntar. O que você quer saber?' },
   ],
@@ -204,20 +221,40 @@ const ASSISTANT_CHIP_CLASS = 'flex items-center gap-1.5 rounded-full border bord
  */
 const INTENT_ICONS: Record<FinancialCopilotIntentHint, ReactNode> = {
   register_expense: <Plus size={15} />,
+  pay_expense: <CircleCheck size={15} />,
   register_income: <Plus size={15} />,
   ask: <MessageCircleMore size={15} />,
 };
 
 /**
  * Cor por intencao dos chips de abertura (menu inicial) — despesa em
- * vermelho, receita em verde, consultar em amarelo. Largura fixa (w-[172px])
- * para os tres ficarem do mesmo tamanho, independente do texto.
+ * vermelho, pagar em azul, receita em verde, consultar em amarelo. Largura
+ * fixa (w-[172px]) para os quatro ficarem do mesmo tamanho, independente do texto.
  */
 const WELCOME_CHIP_CLASS_BY_INTENT: Record<FinancialCopilotIntentHint, string> = {
   register_expense: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:border-red-400 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200 dark:hover:bg-red-900/60',
+  pay_expense: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 shadow-sm transition hover:border-sky-400 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-200 dark:hover:bg-sky-900/60',
   register_income: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-900/60',
   ask: 'flex w-[172px] items-center justify-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200 dark:hover:bg-amber-900/60',
 };
+
+/** Pílulas da linha de situação do card, nas cores do resumo do modal (SummaryLine). */
+const SUMMARY_PILL_CLASS: Record<StatusTone, string> = {
+  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+  danger: 'bg-orange-50 text-amber-700 dark:bg-orange-950/40 dark:text-amber-300',
+  info: 'bg-cyan-50 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200',
+  neutral: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+};
+
+/** "10x de R$ 300,00 · 2 de 10 pagas · 1 vencida": o botão de parcelas do modal, no card. */
+function installmentsButtonLabel(expenseDraft: ExpenseDraft, context: RuleContext): string {
+  const amounts = installmentAmounts(expenseDraft);
+  const paidCount = paidInstallmentCount(expenseDraft);
+  const overdue = overdueOpenCount(expenseDraft, context);
+  return `${amounts.length}x${amounts[0] ? ` de ${formatCents(amounts[0])}` : ''} · ${paidCount} de ${amounts.length} pagas`
+    + (overdue && !expenseDraft.overdueDismissed ? ` · ${overdue} ${overdue === 1 ? 'vencida' : 'vencidas'}` : '');
+}
 
 function formatDraftAmount(value: number | null): string {
   if (!value) return 'Valor não informado';
@@ -263,14 +300,6 @@ function groupMessagesByDay(messages: ChatMessage[]): Array<{ dayLabel: string; 
   return groups;
 }
 
-function normalizeComparable(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
-}
-
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   const browserWindow = window as typeof window & {
     SpeechRecognition?: SpeechRecognitionConstructor;
@@ -302,28 +331,33 @@ function fileToAttachment(file: File): Promise<Attachment> {
   });
 }
 
+/**
+ * `expenseKey`: valor e vencimento da linha que a despesa vai gravar (no
+ * parcelado, a primeira parcela, com o vencimento calculado como no modal).
+ */
 function findDuplicate(
   draft: FinancialAssistantDraft | null,
   incomes: Income[],
   expenses: Expense[],
+  expenseKey: { amount: number; dueDate: string } | null,
 ): string | null {
   if (!draft?.description || !draft.amount) return null;
   const description = normalizeComparable(draft.description);
-  const date = draft.kind === 'expense' ? (draft.dueDate ?? draft.date) : draft.date;
 
   if (draft.kind === 'income') {
     const duplicate = incomes.find((income) => (
       normalizeComparable(income.descricao) === description
       && Math.abs(income.valor - draft.amount!) < 0.01
-      && income.data === date
+      && income.data === draft.date
     ));
     return duplicate ? 'Existe uma receita muito parecida no período selecionado. Confirme antes de salvar.' : null;
   }
 
+  if (!expenseKey) return null;
   const duplicate = expenses.find((expense) => (
     normalizeComparable(expense.descricao) === description
-    && Math.abs(expense.valorFinal - draft.amount!) < 0.01
-    && expense.dataVencimento === date
+    && Math.abs(expense.valorFinal - expenseKey.amount) < 0.01
+    && expense.dataVencimento === expenseKey.dueDate
   ));
   return duplicate ? 'Existe uma despesa muito parecida no período selecionado. Confirme antes de salvar.' : null;
 }
@@ -406,6 +440,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
   const [draft, setDraft] = useState<FinancialAssistantDraft | null>(null);
+  // Lista de parcelas do card aberta (o resumo "10x de ... · N pagas" a abre).
+  const [installmentsOpen, setInstallmentsOpen] = useState(false);
+  // Card de pagamento do chip "Pagar despesa", e o valor/data que a ultima
+  // frase de pagamento trouxe — usados quando a despesa e escolhida num botao.
+  const [payment, setPayment] = useState<PaymentDraft | null>(null);
+  const [paymentHint, setPaymentHint] = useState<{ amountPaid: number | null; paymentDate: string | null } | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -576,10 +616,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       ? (contratoSelecionado?.horas_remotas_saldo_atual ?? null)
       : null;
 
+  // Regras do modal de despesa do desktop (draftRules): o card mostra a
+  // situação, o vencimento calculado e as parcelas como o modal, e grava pela
+  // mesma montagem. Mesmos cartões do modal (queryKeys.cartoes 'familia').
+  const todayIso = getLocalTodayIso();
+  const ruleContext: RuleContext = { todayIso, cards: (cardsQuery.data ?? []).filter((card) => card.ativo) };
+  const expenseDraft = draft?.kind === 'expense' ? toExpenseDraft(draft, categories, todayIso, draftAttachments) : null;
+  const expenseSummary = expenseDraft ? summarizeDraft(expenseDraft, ruleContext) : null;
+  const installmentsSummary = expenseDraft?.billingType === 'installments'
+    ? installmentsButtonLabel(expenseDraft, ruleContext)
+    : null;
+
   const duplicateWarning = findDuplicate(
     draft,
     dashboardQuery.data?.incomes ?? [],
     dashboardQuery.data?.expenses ?? [],
+    expenseDraft ? duplicateCheckKey(expenseDraft, ruleContext) : null,
   );
   const messageGroups = groupMessagesByDay(messages);
 
@@ -600,9 +652,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       : null;
     push('Conta', contaNome);
     push('Descrição', registered.description);
-    push('Valor', formatDraftAmount(registered.amount));
 
     if (registered.kind === 'income') {
+      push('Valor', formatDraftAmount(registered.amount));
       push('Data', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
       push('Cliente', registered.cliente);
       push('Categoria', registered.classificacaoId
@@ -618,20 +670,43 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       if (registered.quantidadeHoras) push('Horas faturadas', String(registered.quantidadeHoras));
       if (registered.replicarAte) push('Replicado até', `${MONTH_NAMES[registered.replicarAte.mes]}/${registered.replicarAte.ano}`);
     } else {
-      push('Vencimento', registered.dueDate ? new Date(registered.dueDate + 'T00:00:00').toLocaleDateString('pt-BR') : null);
-      push('Data da compra', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
+      // O que foi gravado, pelas mesmas regras do salvamento: total e parcela
+      // no parcelado, vencimento efetivo (o digitado ou o calculado).
+      const registeredExpense = toExpenseDraft(registered, categories, todayIso);
+      const installments = registered.billingType === 'parcelas';
+      push(installments ? 'Total' : 'Valor', formatDraftAmount(registered.amount));
+      if (installments) {
+        const amounts = installmentAmounts(registeredExpense);
+        const paidCount = paidInstallmentCount(registeredExpense);
+        push('Parcelas', `${amounts.length}x de ${formatCents(amounts[0] ?? 0)}${paidCount ? ` · ${paidCount} ${paidCount === 1 ? 'paga' : 'pagas'}` : ''}`);
+      }
+      push(installments ? '1º vencimento' : 'Vencimento', isoToBrDate(effectiveDueDate(registeredExpense, ruleContext).date));
+      push('Data da compra', registered.date ? isoToBrDate(registered.date) : null);
       push('Categoria', registered.category);
       push('Pagamento', registered.paymentMethod);
       push('Cartão', registered.cardId
         ? todosCartoes.find((card) => card.id === registered.cardId)?.nome
         : null);
-      if (registered.billingType === 'parcelas') push('Parcelas', `${registered.installments ?? '?'}x`);
       if (registered.billingType === 'mensal') push('Cobrança', 'Recorrente');
-      push('Pago', registered.paid ? 'Sim' : null);
-      if (registered.paid && registered.amountPaid) push('Valor pago', formatDraftAmount(registered.amountPaid));
+      if (!installments && registered.paid) {
+        push('Pago em', registered.paymentDate ? isoToBrDate(registered.paymentDate) : null);
+        push('Valor pago', formatDraftAmount(registered.amountPaid ?? registered.amount));
+      }
       push('Nota fiscal', registered.invoiceNumber);
     }
 
+    return rows;
+  };
+
+  const buildPaymentReceiptRows = (registered: PaymentDraft): Array<{ label: string; value: string }> => {
+    const amountPaid = registered.amountPaid ?? registered.expense.valor;
+    const rows = [
+      { label: 'Despesa', value: openExpenseLabel(registered.expense) },
+      { label: 'Valor pago', value: formatCurrency(amountPaid) },
+      { label: 'Pago em', value: isoToBrDate(registered.paymentDate) },
+    ];
+    const difference = paymentDifferenceText(registered.expense, amountPaid);
+    if (difference) rows.push({ label: 'Diferença', value: difference.text });
     return rows;
   };
 
@@ -650,7 +725,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, draft, isPreparing]);
+  }, [messages, draft, payment, isPreparing]);
 
   // Teclado virtual abrindo/fechando encolhe a viewport sem disparar resize da
   // janela. Duas consequencias, tratadas juntas aqui:
@@ -730,6 +805,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     // correspondente (fluxo editado removendo uma delas).
     const opcao = abertura.opcoes.find((o) => o.intent === nextIntent)
       ?? ABERTURA_PADRAO.opcoes.find((o) => o.intent === nextIntent)!;
+    const aberturaMessageId = newMessageId();
+    if (nextIntent !== 'pay_expense') {
+      setPayment(null);
+      setPaymentHint(null);
+    }
     setMessages((current) => [
       // Escolhida a acao, os chips saem de cena: manter os tres ativos
       // convidaria a trocar de intencao no meio do lancamento.
@@ -743,13 +823,66 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       // A resposta e local: o backend recusa mensagem vazia, e uma ida ao
       // servidor so para devolver texto fixo deixaria o chat mudo no caminho.
       {
-        id: newMessageId(),
+        id: aberturaMessageId,
         role: 'assistant',
         content: opcao.abertura,
         createdAt,
       },
     ]);
+    if (nextIntent === 'pay_expense') void offerOpenExpenses(aberturaMessageId);
     window.setTimeout(() => composerRef.current?.focus(), 0);
+  };
+
+  /** Sai do pagamento: tira os botões e o card de pagamento e devolve o menu. */
+  const leavePayment = (content: string) => {
+    setIntentHint(null);
+    setPayment(null);
+    setPaymentHint(null);
+    setMessages((current) => [
+      ...current.map((item) => item.paymentCandidates ? { ...item, paymentCandidates: undefined } : item),
+      { id: newMessageId(), role: 'assistant', content, createdAt: new Date().toISOString(), showWelcomeActions: true },
+    ]);
+  };
+
+  /**
+   * "Pagar despesa": as vencidas e as do mês viram botões sob a fala do chip.
+   * Escrever o nome também serve (busca no servidor, pelo handleSend).
+   */
+  const offerOpenExpenses = async (messageId: string) => {
+    setIsPreparing(true);
+    try {
+      const accountId = getActiveAccountId();
+      const candidates = await queryClient.fetchQuery({
+        queryKey: queryKeys.despesasEmAberto(accountId),
+        queryFn: () => fetchDespesasEmAberto(accountId),
+        staleTime: 0,
+      });
+      if (candidates.length === 0) {
+        leavePayment('Você não tem despesas em aberto.');
+        return;
+      }
+      setMessages((current) => current.map((item) => item.id === messageId ? { ...item, paymentCandidates: candidates } : item));
+    } catch (requestError) {
+      // Sem a lista, escrever o nome da despesa continua funcionando.
+      setError(requestError instanceof Error ? requestError.message : 'Não foi possível buscar as despesas em aberto.');
+    } finally {
+      setIsPreparing(false);
+    }
+  };
+
+  /** Despesa escolhida num botão: abre o card com o valor e a data que a última frase trouxe. */
+  const choosePaymentCandidate = (candidate: OpenExpense) => {
+    setError(null);
+    setMessages((current) => [
+      ...current.map((item) => item.paymentCandidates ? { ...item, paymentCandidates: undefined } : item),
+      { id: newMessageId(), role: 'user', content: openExpenseLabel(candidate), createdAt: new Date().toISOString() },
+    ]);
+    setDraft(null);
+    setPayment({
+      expense: candidate,
+      amountPaid: paymentHint?.amountPaid ?? null,
+      paymentDate: paymentHint?.paymentDate ?? getLocalTodayIso(),
+    });
   };
 
   const handleFiles = async (files: FileList | null) => {
@@ -802,10 +935,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     const displayedMessage = message || 'Analise os arquivos enviados.';
     const bubbleText = displayLabel ?? displayedMessage;
     setError(null);
+    const wasPaying = intentHint === 'pay_expense';
     setMessages((current) => [
       // Respondida a pergunta, os botoes saem de cena: deixa-los ativos
       // convidaria a responder duas vezes o mesmo campo.
-      ...current.map((item) => item.quickReplies ? { ...item, quickReplies: undefined } : item),
+      ...current.map((item) => item.quickReplies || item.paymentCandidates
+        ? { ...item, quickReplies: undefined, paymentCandidates: undefined }
+        : item),
       {
         id: newMessageId(),
         role: 'user',
@@ -832,11 +968,27 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         voiceMode: askedByVoice,
       });
       setConversationId(result.conversationId);
-      setIntentHint(null);
+      const paymentResult = result.mode === 'payment' ? result.payment : undefined;
+      const candidates = paymentResult?.candidates ?? [];
+      // No pagamento, o que for digitado continua sendo busca de pagamento ate
+      // a despesa ser paga, descartada ou o "Voltar".
+      setIntentHint(candidates.length > 0 ? 'pay_expense' : null);
       setSlotState(result.mode === 'slot' ? result.slotState ?? null : null);
       if (result.mode === 'draft' && result.draft) {
-        setDraft(result.draft);
+        // Datas que o modal do desktop preenche sozinho (compra hoje, "Pago em").
+        setDraft(fillExpenseDefaults(result.draft, getLocalTodayIso()));
+        setInstallmentsOpen(false);
         setDraftAttachments((current) => messageAttachments.length > 0 ? [...current, ...messageAttachments] : current);
+      }
+      const singleCandidate = candidates.length === 1 ? candidates[0] : undefined;
+      if (paymentResult) {
+        setPaymentHint({ amountPaid: paymentResult.amountPaid, paymentDate: paymentResult.paymentDate });
+        // Uma so: o card abre direto. Varias: botoes para escolher.
+        setPayment(singleCandidate ? {
+          expense: singleCandidate,
+          amountPaid: paymentResult.amountPaid,
+          paymentDate: paymentResult.paymentDate ?? getLocalTodayIso(),
+        } : null);
       }
       setMessages((current) => [...current, {
         id: newMessageId(),
@@ -845,6 +997,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         createdAt: new Date().toISOString(),
         cards: result.cards,
         quickReplies: result.quickReplies,
+        paymentCandidates: candidates.length > 1 ? candidates : undefined,
+        // Pagamento que terminou sem despesa (nenhuma em aberto, sem acesso): o menu volta.
+        showWelcomeActions: wasPaying && candidates.length === 0 ? true : undefined,
       }]);
       // A resposta escrita ja esta na tela: a fala e um extra que pode faltar
       // (cota estourada, navegador sem sintese) sem prejudicar o uso.
@@ -861,6 +1016,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     setConversationId(null);
     setMessages([buildInitialMessage(abertura.saudacao)]);
     setDraft(null);
+    setInstallmentsOpen(false);
+    setPayment(null);
+    setPaymentHint(null);
     setDraftAttachments([]);
     setComposer('');
     setAttachments([]);
@@ -884,6 +1042,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         cards: message.payload?.cards,
       })));
       setDraft(null);
+      setInstallmentsOpen(false);
+      setPayment(null);
+      setPaymentHint(null);
       setDraftAttachments([]);
       setIntentHint(null);
       setSlotState(null);
@@ -954,21 +1115,40 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   };
 
   const handleSave = async () => {
-    if (!draft?.description?.trim() || !draft.amount || draft.amount <= 0) {
-      setError('Complete a descrição e o valor antes de salvar.');
-      return;
-    }
+    if (!draft) return;
 
-    const date = draft.kind === 'expense' ? (draft.dueDate ?? draft.date) : draft.date;
-    if (!date) {
-      setError('Informe a data antes de salvar.');
-      return;
-    }
-
-    setError(null);
-    setIsSaving(true);
-    try {
-      if (draft.kind === 'income') {
+    // A despesa valida e monta o que é gravado pelas regras do modal do
+    // desktop (cardDraft → draftRules); a receita segue com a checagem do card.
+    let save: () => Promise<void>;
+    if (draft.kind === 'expense') {
+      const expenseSave = buildExpenseSave(draft, {
+        categories,
+        context: ruleContext,
+        // Sem conta escolhida no card, a despesa entra na conta ativa.
+        accountId: draft.contaId ?? getActiveAccountId(),
+        attachments: draftAttachments,
+      });
+      if (!expenseSave.ok) {
+        setError(expenseSave.error);
+        return;
+      }
+      save = async () => {
+        await createExpense(expenseSave.input);
+        invalidateExpenseQueries(queryClient);
+      };
+    } else {
+      const description = draft.description?.trim();
+      const amount = draft.amount;
+      const date = draft.date;
+      if (!description || !amount || amount <= 0) {
+        setError('Complete a descrição e o valor antes de salvar.');
+        return;
+      }
+      if (!date) {
+        setError('Informe a data antes de salvar.');
+        return;
+      }
+      save = async () => {
         const until = draft.replicarAte ?? null;
         const [receiptYear, receiptMonth] = date.split('-').map(Number);
         // "Repetir até" o próprio mês da receita não repete nada.
@@ -976,9 +1156,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         await createIncome({
           // Sem conta escolhida no card, a receita entra na conta ativa.
           accountId: draft.contaId ?? getActiveAccountId(),
-          description: draft.description.trim(),
+          description,
           categoryId: draft.classificacaoId ?? null,
-          amount: draft.amount,
+          amount,
           receiptDate: date,
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
           // aparecem, entao permanecem vazios aqui. A comissao sai do servidor.
@@ -994,47 +1174,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
             : null,
         });
         invalidateIncomeQueries(queryClient);
-      } else {
-        const suggestedCategory = draft.category
-          ? categories.find((category) => normalizeComparable(category.nome) === normalizeComparable(draft.category!))
-          : undefined;
-        const amount = draft.amount;
-        const fields = {
-          // Sem conta escolhida no card, a despesa entra na conta ativa.
-          accountId: draft.contaId ?? getActiveAccountId(),
-          description: draft.description.trim(),
-          categoryId: suggestedCategory?.id ?? null,
-          paymentMethod: draft.paymentMethod,
-          cardId: draft.paymentMethod === 'debito' || draft.paymentMethod === 'credito' ? draft.cardId ?? null : null,
-          purchaseDate: draft.date ?? date,
-          invoiceNumber: draft.invoiceNumber ?? null,
-          invoiceDate: draft.invoiceDate ?? null,
-          attachments: draftAttachments.length > 0 ? draftAttachments : null,
-        };
-        if (draft.billingType === 'parcelas') {
-          // O valor do card é o de cada parcela; as N "já pagas" são as primeiras, quitadas no vencimento.
-          const paidInstallments = draft.paidInstallments ?? 0;
-          await createExpense({
-            ...fields,
-            billingType: 'installments',
-            installments: installmentDueDates(date, draft.installments ?? 0).map((dueDate, index) => {
-              const paid = index < paidInstallments;
-              return { amount, dueDate, paid, paymentDate: paid ? dueDate : null, amountPaid: paid ? amount : null };
-            }),
-          });
-        } else {
-          await createExpense({
-            ...fields,
-            billingType: draft.billingType === 'mensal' ? 'monthly' : 'single',
-            amount,
-            dueDate: date,
-            paid: draft.paid,
-            paymentDate: null,
-            amountPaid: draft.paid ? (draft.amountPaid ?? amount) : null,
-          });
-        }
-        invalidateExpenseQueries(queryClient);
-      }
+      };
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      await save();
       await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
       // Fechado o lancamento, a conversa volta ao inicio: o menu de acoes
       // reaparece para quem lanca varias despesas seguidas.
@@ -1051,6 +1197,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         registeredDraft: { ...draft },
       }]);
       setDraft(null);
+      setInstallmentsOpen(false);
       setDraftAttachments([]);
       setSlotState(null);
     } catch (saveError) {
@@ -1072,9 +1219,55 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       showWelcomeActions: true,
     }]);
     setDraft(null);
+    setInstallmentsOpen(false);
     setDraftAttachments([]);
     setError(null);
     setLastVoiceTranscript(null);
+    window.setTimeout(() => composerRef.current?.focus(), 0);
+  };
+
+  // Mesma rota e mesmos padrões do "Confirmar Pagamento" do desktop: sem
+  // valor digitado, paga o previsto.
+  const handlePay = async () => {
+    if (!payment) return;
+    const amountPaid = payment.amountPaid ?? payment.expense.valor;
+    if (!Number.isFinite(amountPaid) || amountPaid <= 0) {
+      setError('Informe o valor pago.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payment.paymentDate)) {
+      setError('Informe a data do pagamento.');
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      await pagarDespesa(payment.expense.id, payment.paymentDate, amountPaid);
+      invalidateExpenseQueries(queryClient);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+      setMessages((current) => [...current, {
+        id: newMessageId(),
+        role: 'assistant',
+        content: 'Prontinho, pagamento registrado! Quer fazer mais alguma coisa?',
+        createdAt: new Date().toISOString(),
+        showWelcomeActions: true,
+        registeredPayment: { ...payment, amountPaid },
+      }]);
+      setPayment(null);
+      setPaymentHint(null);
+      setIntentHint(null);
+    } catch (payError) {
+      setError(payError instanceof Error ? payError.message : 'Não foi possível registrar o pagamento.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const discardPayment = () => {
+    if (isSaving) return;
+    setError(null);
+    leavePayment('Tudo bem, não registrei o pagamento. Quer fazer outra coisa? É só escolher uma das opções abaixo');
     window.setTimeout(() => composerRef.current?.focus(), 0);
   };
 
@@ -1313,6 +1506,22 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                     </Card>
                   )}
 
+                  {message.registeredPayment && (
+                    <Card className="mt-2 border-slate-200 p-0 opacity-60 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/40">
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Pagamento registrado</p>
+                      </div>
+                      <div className="px-3.5">
+                        {buildPaymentReceiptRows(message.registeredPayment).map((row) => (
+                          <div key={row.label} className="flex items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-slate-800">
+                            <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">{row.label}</span>
+                            <span className="flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Lembrete discreto do ultimo lancamento — so na
                       saudacao inicial, nunca em reaberturas de sub-fluxo
                       (essas tambem usam showWelcomeActions, mas nao sao a
@@ -1359,6 +1568,32 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                           {quickReply.label}
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Despesas em aberto do "Pagar despesa": tocar abre o card
+                      de pagamento; "Voltar" devolve o menu. */}
+                  {message.paymentCandidates && message.paymentCandidates.length > 0 && (
+                    <div className="mt-2 flex flex-col items-start gap-1.5">
+                      {message.paymentCandidates.map((candidate) => (
+                        <button
+                          key={candidate.id}
+                          type="button"
+                          onClick={() => choosePaymentCandidate(candidate)}
+                          disabled={isPreparing}
+                          className={`${ASSISTANT_CHIP_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                          {openExpenseLabel(candidate)} · {formatCurrency(candidate.valor)} · {candidate.vencida ? 'venceu' : 'vence'} {isoToBrDate(candidate.vencimento).slice(0, 5)}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => leavePayment('Certo. O que vamos fazer? É só escolher uma das opções abaixo')}
+                        disabled={isPreparing}
+                        className="px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:text-slate-200"
+                      >
+                        Voltar
+                      </button>
                     </div>
                   )}
                   </div>
@@ -1426,7 +1661,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </label>
 
                       <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
-                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor</span>
+                        {/* No parcelado o valor é o total, como no modal do desktop. */}
+                        <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {draft.kind === 'expense' && draft.billingType === 'parcelas' ? 'Valor total' : 'Valor'}
+                        </span>
                         <input
                           type="number"
                           min="0"
@@ -1449,6 +1687,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             : updateDraft({ date: event.target.value || null })}
                           className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
                         />
+                        {/* Em branco o vencimento é calculado, como no modal: a
+                            data aparece na linha de situação abaixo. */}
+                        {draft.kind === 'expense' && !draft.dueDate && (
+                          <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">calculado</span>
+                        )}
                       </label>
 
                       {/* Separada do vencimento, como no modal: comprar hoje e
@@ -1522,11 +1765,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 value={draft.billingType ?? 'nao'}
                                 onChange={(event) => {
                                   const billingType = event.target.value as NonNullable<FinancialAssistantDraft['billingType']>;
+                                  const installments = billingType === 'parcelas';
                                   updateDraft({
                                     billingType,
-                                    installments: billingType === 'parcelas' ? draft.installments : null,
-                                    paidInstallments: billingType === 'parcelas' ? draft.paidInstallments : null,
+                                    installments: installments ? (draft.installments ?? MIN_INSTALLMENTS) : null,
+                                    // Parcelas pagas só existem no parcelado.
+                                    installmentPayments: installments ? draft.installmentPayments : undefined,
+                                    overdueDismissed: installments ? draft.overdueDismissed : undefined,
                                   });
+                                  if (!installments) setInstallmentsOpen(false);
                                 }}
                                 className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
@@ -1538,54 +1785,79 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             </span>
                           </label>
 
-                          {draft.billingType === 'parcelas' && (
-                            <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
-                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Parcelas</span>
-                              <span className="flex flex-1 items-center gap-2">
+                          {/* Parcelado: quantas, e o resumo que abre a lista
+                              de parcelas — a grade do modal do desktop. */}
+                          {draft.billingType === 'parcelas' && expenseDraft && (
+                            <>
+                              <div className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
+                                <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Parcelas</span>
                                 <input
                                   type="number"
                                   min="2"
                                   max="360"
                                   value={draft.installments ?? ''}
                                   onChange={(event) => updateDraft({ installments: event.target.value ? Number(event.target.value) : null })}
-                                  className="h-7 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
+                                  placeholder={String(MIN_INSTALLMENTS)}
+                                  aria-label="Quantidade de parcelas"
+                                  className="h-7 w-12 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
                                 />
-                                <span className="text-xs text-slate-500 dark:text-slate-400">vezes ·</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={draft.paidInstallments ?? ''}
-                                  onChange={(event) => updateDraft({ paidInstallments: event.target.value ? Number(event.target.value) : null })}
-                                  className="h-7 w-16 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
-                                />
-                                <span className="text-xs text-slate-500 dark:text-slate-400">já pagas</span>
-                              </span>
-                            </label>
+                                <button
+                                  type="button"
+                                  onClick={() => setInstallmentsOpen((current) => !current)}
+                                  aria-expanded={installmentsOpen}
+                                  className="flex min-w-0 flex-1 items-center justify-end gap-1 text-right text-xs font-semibold text-[#0e7490] dark:text-cyan-300"
+                                >
+                                  <span className="truncate">{installmentsSummary}</span>
+                                  <ChevronDown size={15} className={['shrink-0 transition', installmentsOpen ? 'rotate-180' : ''].join(' ')} />
+                                </button>
+                              </div>
+                              {installmentsOpen && (
+                                <InstallmentList expenseDraft={expenseDraft} context={ruleContext} onChange={updateDraft} />
+                              )}
+                            </>
                           )}
 
-                          <label className="flex items-center gap-3 py-2">
-                            <input
-                              type="checkbox"
-                              checked={draft.paid}
-                              onChange={(event) => updateDraft({ paid: event.target.checked })}
-                              className="h-[18px] w-[18px] accent-[#0891b2]"
-                            />
-                            <span className="text-sm font-semibold text-slate-900 dark:text-white">Esta despesa já foi paga</span>
-                          </label>
+                          {draft.billingType !== 'parcelas' && (
+                            <>
+                              <label className="flex items-center gap-3 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.paid}
+                                  // Como o modal: marcar traz "Pago em" com hoje; desmarcar limpa a data e o valor pago.
+                                  onChange={(event) => updateDraft(event.target.checked
+                                    ? { paid: true, paymentDate: draft.paymentDate ?? getLocalTodayIso() }
+                                    : { paid: false, paymentDate: null, amountPaid: null })}
+                                  className="h-[18px] w-[18px] accent-[#0891b2]"
+                                />
+                                <span className="text-sm font-semibold text-slate-900 dark:text-white">Esta despesa já foi paga</span>
+                              </label>
 
-                          {draft.paid && (
-                            <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
-                              <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor pago</span>
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={draft.amountPaid ?? ''}
-                                onChange={(event) => updateDraft({ amountPaid: event.target.value ? Number(event.target.value) : null })}
-                                placeholder={draft.amount ? String(draft.amount) : ''}
-                                className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
-                              />
-                            </label>
+                              {draft.paid && (
+                                <>
+                                  <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
+                                    <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Valor pago</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={draft.amountPaid ?? ''}
+                                      onChange={(event) => updateDraft({ amountPaid: event.target.value ? Number(event.target.value) : null })}
+                                      placeholder={draft.amount ? String(draft.amount) : ''}
+                                      className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400 dark:text-white"
+                                    />
+                                  </label>
+                                  <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
+                                    <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Pago em</span>
+                                    <input
+                                      type="date"
+                                      value={draft.paymentDate ?? ''}
+                                      onChange={(event) => updateDraft({ paymentDate: event.target.value || null })}
+                                      className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                    />
+                                  </label>
+                                </>
+                              )}
+                            </>
                           )}
 
                           {/* Nota fiscal so em conta PJ, mesmo criterio do
@@ -1840,7 +2112,25 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       )}
                     </div>
 
-                    <p className="px-3.5 pb-3 text-xs text-slate-500 dark:text-slate-400">Toque em qualquer linha para corrigir.</p>
+                    {/* Mesma linha de situação do modal do desktop: situação,
+                        vencimento (o calculado, quando em branco), total e
+                        avisos de juros, desconto e parcelas vencidas. */}
+                    {expenseSummary && (
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 pt-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span className={['rounded-full px-2 py-0.5 font-semibold', SUMMARY_PILL_CLASS[SUMMARY_TONE[expenseSummary.status]]].join(' ')}>
+                          {expenseSummary.status}
+                        </span>
+                        <span>{expenseSummary.dueText}</span>
+                        <span className="tabular-nums text-slate-700 dark:text-slate-200">{expenseSummary.totalText}</span>
+                        {expenseSummary.badges.map((badge) => (
+                          <span key={badge.text} className={['rounded-full px-2 py-0.5 font-semibold', SUMMARY_PILL_CLASS[badge.tone]].join(' ')}>
+                            {badge.text}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="px-3.5 pb-3 pt-2 text-xs text-slate-500 dark:text-slate-400">Toque em qualquer linha para corrigir.</p>
 
                     {duplicateWarning && (
                       <p className="mx-3.5 mb-3 border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
@@ -1871,6 +2161,16 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       </button>
                     </div>
                   </Card>
+                )}
+
+                {payment && (
+                  <PaymentCard
+                    payment={payment}
+                    isSaving={isSaving}
+                    onChange={(patch) => setPayment((current) => current ? { ...current, ...patch } : current)}
+                    onSave={() => void handlePay()}
+                    onDiscard={discardPayment}
+                  />
                 )}
 
                 <div ref={messagesEndRef} />

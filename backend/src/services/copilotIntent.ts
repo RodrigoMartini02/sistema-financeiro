@@ -1,6 +1,8 @@
 import type { CopilotIntent } from './aiProvider';
 
-export type CopilotIntentHint = 'register_expense' | 'register_income' | 'ask';
+// `pay_expense` e desviado antes da inferencia (runFinancialCopilot): pagar nao
+// passa por nenhum dos caminhos de registro ou consulta daqui.
+export type CopilotIntentHint = 'register_expense' | 'register_income' | 'ask' | 'pay_expense';
 
 interface DeterministicCopilotIntentOptions {
   intentHint?: CopilotIntentHint | null;

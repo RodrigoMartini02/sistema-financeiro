@@ -85,6 +85,19 @@ export interface IncomeCreateInput extends IncomeFieldsInput {
 /** Corpo do PUT /incomes/:id: só os campos da própria receita. */
 export type IncomeUpdateInput = IncomeFieldsInput;
 
+/** Despesa em aberto que o chip "Pagar despesa" do assistente oferece (GET /expenses/em-aberto). */
+export interface OpenExpense {
+  id: number;
+  descricao: string;
+  /** Valor previsto da linha (da parcela, quando parcelada). */
+  valor: number;
+  vencimento: string;
+  parcelaAtual: number | null;
+  totalParcelas: number | null;
+  formaPagamento: string | null;
+  vencida: boolean;
+}
+
 export interface Expense {
   id: number;
   descricao: string;

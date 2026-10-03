@@ -151,7 +151,8 @@ export function canReadCatalogList(permissions: PermissionSet, catalog: CatalogN
 /** Opções da abertura do assistente que a pessoa pode seguir. */
 export function allowedAssistantIntents(permissions: PermissionSet): FlowIntent[] {
   const intents: FlowIntent[] = [];
-  if (allows(permissions, 'accessExpenses')) intents.push('register_expense');
+  // Pagar usa as rotas de despesa, como o botão "Pagar" do desktop.
+  if (allows(permissions, 'accessExpenses')) intents.push('register_expense', 'pay_expense');
   if (allows(permissions, 'accessIncomes')) intents.push('register_income');
   intents.push('ask');
   return intents;

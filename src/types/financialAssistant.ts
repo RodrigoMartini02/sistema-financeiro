@@ -1,3 +1,5 @@
+import type { InstallmentPaymentDraft } from '../screens/finance/expense-dialog/draftState';
+
 export type FinancialDraftKind = 'income' | 'expense';
 
 export interface FinancialAssistantDraft {
@@ -15,8 +17,16 @@ export interface FinancialAssistantDraft {
   cardId?: number | null;
   billingType?: 'nao' | 'parcelas' | 'mensal' | null;
   installments?: number | null;
-  paidInstallments?: number | null;
   amountPaid?: number | null;
+  /**
+   * Campos so do card, iguais aos do modal de despesa do desktop: data do
+   * pagamento (ISO) da despesa paga, parcelas pagas por indice (no formato do
+   * modal, dd/mm/aaaa e centavos, para reaproveitar as regras dele) e o
+   * "Deixar em aberto" do aviso de parcelas vencidas.
+   */
+  paymentDate?: string | null;
+  installmentPayments?: Record<number, InstallmentPaymentDraft>;
+  overdueDismissed?: boolean;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
   /**

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { classifyCategory } from './categoryAI';
 import { extractFinancialInfo, extractTextFromImage, extractTextFromPDF, type FinancialInfo } from './ocrService';
 import { extractPixInfo, readPixQRFromImage, type PixInfo } from './pixReader';
-import { getTodayIsoInTimezone } from '../utils/date';
+import { addDaysToIsoDate, getTodayIsoInTimezone } from '../utils/date';
 
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -57,7 +57,6 @@ export interface FinancialAssistantDraft {
   cardId?: number | null;
   billingType?: 'nao' | 'parcelas' | 'mensal' | null;
   installments?: number | null;
-  paidInstallments?: number | null;
   amountPaid?: number | null;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
@@ -298,6 +297,8 @@ function parseDateToken(token: string): string | null {
   const reference = new Date();
 
   if (lower === 'hoje') return getTodayIsoInTimezone();
+  // "Paguei ontem": pagamento costuma ser dito no passado.
+  if (lower === 'ontem') return addDaysToIsoDate(getTodayIsoInTimezone(), -1);
   if (lower === 'amanha' || lower === 'amanhã') {
     reference.setDate(reference.getDate() + 1);
     return formatDatePart(reference);
@@ -329,7 +330,7 @@ function parseDateToken(token: string): string | null {
 }
 
 export function extractDateFromText(text: string): string | null {
-  const token = text.match(/\b(?:hoje|amanh[aã]|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/i);
+  const token = text.match(/\b(?:hoje|ontem|amanh[aã]|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/i);
   if (token?.[0]) return parseDateToken(token[0]);
 
   const dayOnly = text.match(/(?:dia|vence(?:\s+no)?|vencimento(?:\s+no)?)\s+\d{1,2}\b/i);

@@ -116,8 +116,11 @@ export interface FlowNode {
   posicao?: { x: number; y: number };
 }
 
-/** Intencoes que a abertura oferece. Espelha FinancialCopilotIntentHint. */
-export const FLOW_INTENTS = ['register_expense', 'register_income', 'ask'] as const;
+/**
+ * Intencoes que a abertura oferece. Espelha FinancialCopilotIntentHint.
+ * `pay_expense` nao percorre o fluxo guiado: paga uma despesa ja lancada.
+ */
+export const FLOW_INTENTS = ['register_expense', 'register_income', 'ask', 'pay_expense'] as const;
 export type FlowIntent = typeof FLOW_INTENTS[number];
 
 export function isFlowIntent(value: unknown): value is FlowIntent {
