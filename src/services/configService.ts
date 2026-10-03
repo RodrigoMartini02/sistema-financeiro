@@ -1,5 +1,6 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta, Enquadramento } from '../types/config';
+import type { AccountPartnerSaveValue } from './partnersService';
 
 export async function fetchCategorias(accountId?: number | null): Promise<Categoria[]> {
   const id = accountId ?? getActiveAccountId();
@@ -72,8 +73,8 @@ export interface CompanyAccountSaveValues {
   nome_fantasia?: string;
   enquadramento?: Enquadramento;
   data_abertura?: string;
-  /** null limpa o saldo inicial. */
-  aporte_inicial: number | null;
+  /** Lista completa dos sócios, como ficou no modal. Ausente: os sócios não mudam. */
+  socios?: AccountPartnerSaveValue[];
   /** Só na PJ que é o login: o acesso vai junto, no mesmo pedido. */
   email?: string;
   nova_senha?: string;

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, type CustomValidator } from 'express-validator';
-import { eq, or } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { users, accounts } from '../db/schema';
 import { authenticate } from '../middleware/auth';
@@ -12,6 +12,8 @@ import { ensureDefaultCategories } from '../services/defaultCategories';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
 import { ensureUserHasAccount } from '../services/accountBackfill';
 import { companyAccountColumns, readCompanyAccountInput } from '../services/companyAccountInput';
+import { findOwnLoginWithDocument } from '../services/documentConflicts';
+import { pickLoginByDocument } from '../services/loginDocument';
 import { releaseRecoveryAttempt, reserveRecoveryAttempt } from '../services/passwordRecoveryCode';
 import { blockedAccessMessage, wrongCodeMessage } from '../utils/authMessages';
 import { resolveMemberRole } from '../utils/familyVisibility';
@@ -20,6 +22,8 @@ import { sendRequestError } from '../utils/requestInput';
 const router = Router();
 
 const CNPJ_LENGTH = 14;
+/** Acessos com o mesmo documento lidos no login: o próprio e os de colaborador. */
+const LOGIN_CANDIDATES_LIMIT = 10;
 
 function documentDigits(value: unknown): string {
   return String(value ?? '').replace(/\D/g, '');
@@ -86,14 +90,29 @@ router.post(
 
       // O campo "documento" do formulário de login também aceita um email —
       // necessário para membros sem CPF/CNPJ cadastrado (ex.: filho menor de
-      // idade, criado pelo gestor com documento opcional). Login de quem tem
-      // documento continua resolvendo exclusivamente por ele, sem mudança.
+      // idade, criado pelo gestor com documento opcional) e para o colaborador
+      // cujo CPF repete o de outro acesso.
       const isEmailLike = documento.includes('@');
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(isEmailLike ? eq(users.email, documento.toLowerCase()) : eq(users.document, cleanDoc))
-        .limit(1);
+      let user: typeof users.$inferSelect | undefined;
+      if (isEmailLike) {
+        [user] = await db.select().from(users).where(eq(users.email, documento.toLowerCase())).limit(1);
+      } else {
+        // O mesmo CPF/CNPJ pode abrir mais de um acesso (o próprio e logins de
+        // colaborador): pickLoginByDocument escolhe sem sorteio, ou pede o e-mail.
+        const candidates = await db
+          .select()
+          .from(users)
+          .where(eq(users.document, cleanDoc))
+          .orderBy(asc(users.id))
+          .limit(LOGIN_CANDIDATES_LIMIT);
+        const pick = pickLoginByDocument(candidates);
+        if (pick.kind === 'ambiguous') {
+          const documentLabel = cleanDoc.length === CNPJ_LENGTH ? 'CNPJ' : 'CPF';
+          res.status(400).json({ success: false, message: `Este ${documentLabel} tem mais de um acesso. Entre com o e-mail.` });
+          return;
+        }
+        user = pick.kind === 'found' ? pick.user : undefined;
+      }
 
       if (!user) {
         res.status(401).json({ success: false, message: 'CPF, CNPJ ou e-mail não cadastrado' });
@@ -185,14 +204,16 @@ router.post(
         ? { name: company.displayName, lastName: null, telefone: null, dataNascimento: null }
         : { name: nome!, lastName: sobrenome?.trim() || null, telefone: telefone ?? null, dataNascimento: data_nascimento ?? null };
 
-      const existing = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(or(eq(users.email, email!.toLowerCase()), eq(users.document, cleanDoc)))
-        .limit(1);
+      const [emailInUse] = await db.select({ id: users.id }).from(users).where(eq(users.email, email!.toLowerCase())).limit(1);
+      if (emailInUse) {
+        res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado' });
+        return;
+      }
 
-      if (existing.length > 0) {
-        res.status(400).json({ success: false, message: 'Email or document already registered' });
+      // Só outro acesso próprio impede: um login de colaborador com o mesmo
+      // CPF não (é outro login, criado por um gestor).
+      if (await findOwnLoginWithDocument(db, cleanDoc)) {
+        res.status(400).json({ success: false, message: 'Este CPF/CNPJ já está cadastrado' });
         return;
       }
 

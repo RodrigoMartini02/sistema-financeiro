@@ -95,7 +95,7 @@ import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
-import { authenticate, requireActivePlan } from './middleware/auth';
+import { authenticate, requireActivePlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
@@ -128,8 +128,8 @@ app.use('/api/ratings', ratingRoutes);
 app.use('/api/avaliacoes', ratingRoutes);       // PT alias
 app.use('/api/representatives', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes);
 app.use('/api/representantes', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes); // PT alias
-app.use('/api/partners', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);
-app.use('/api/socios', authenticate, requireActivePlan, requireScreenAccess('accessPartners'), partnerRoutes);          // PT alias
+// Sócios: só leitura, só do titular — a gravação vai junto com a conta (POST/PUT /api/contas).
+app.use('/api/partners', authenticate, requireActivePlan, requireTitular, partnerRoutes);
 app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
 app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
 app.use('/api/clientes', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);

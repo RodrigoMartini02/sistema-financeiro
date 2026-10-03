@@ -12,7 +12,6 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     documento: VALID_CNPJ,
     enquadramento: 'LTDA',
     data_abertura: '2020-05-10',
-    aporte_inicial: 1500.5,
     ...overrides,
   };
 }
@@ -28,7 +27,6 @@ test('lê o bloco da empresa: apara os nomes e guarda o CNPJ só com dígitos', 
   assert.equal(input.document, '11222333000181');
   assert.equal(input.enquadramento, 'LTDA');
   assert.equal(input.openingDate, '2020-05-10');
-  assert.equal(input.initialBalance, 1500.5);
 });
 
 test('razão social é obrigatória e respeita o tamanho da coluna', () => {
@@ -70,31 +68,16 @@ test('data de abertura é opcional e precisa ser uma data válida', () => {
   assertRejects(() => readCompanyAccountInput(body({ data_abertura: '10/05/2020' })), 'Data de abertura inválida');
 });
 
-test('saldo inicial: número maior ou igual a zero, com centavos', () => {
-  assert.equal(readCompanyAccountInput(body({ aporte_inicial: 0 })).initialBalance, 0);
-  assert.equal(readCompanyAccountInput(body({ aporte_inicial: 10.555 })).initialBalance, 10.56);
-  assertRejects(() => readCompanyAccountInput(body({ aporte_inicial: -1 })), 'Saldo inicial inválido');
-  assertRejects(() => readCompanyAccountInput(body({ aporte_inicial: '1500' })), 'Saldo inicial inválido');
-  assertRejects(() => readCompanyAccountInput(body({ aporte_inicial: Number.NaN })), 'Saldo inicial inválido');
-  assertRejects(() => readCompanyAccountInput(body({ aporte_inicial: 1e13 })), 'Saldo inicial inválido');
+test('aporte_inicial de cliente antigo é ignorado: a conta não tem mais saldo de abertura', () => {
+  const columns = companyAccountColumns(readCompanyAccountInput(body({ aporte_inicial: 1500.5 })));
+  assert.equal('initialContribution' in columns, false);
+  assert.doesNotThrow(() => readCompanyAccountInput(body({ aporte_inicial: -1 })));
 });
 
 test('nome da conta: nome fantasia ou, sem ele, razão social', () => {
   assert.equal(readCompanyAccountInput(body()).displayName, 'ABC Stores');
   assert.equal(readCompanyAccountInput(body({ nome_fantasia: '' })).displayName, 'Empresa ABC Ltda');
   assert.equal(readCompanyAccountInput(body({ nome_fantasia: undefined, razao_social: 'y'.repeat(150) })).displayName.length, 100);
-});
-
-test('saldo inicial ausente mantém o salvo; null limpa', () => {
-  const absent = readCompanyAccountInput(body({ aporte_inicial: undefined }));
-  assert.equal(absent.initialBalanceSent, false);
-  assert.equal('initialContribution' in companyAccountColumns(absent), false);
-
-  const cleared = readCompanyAccountInput(body({ aporte_inicial: null }));
-  assert.equal(cleared.initialBalanceSent, true);
-  assert.equal(companyAccountColumns(cleared).initialContribution, null);
-
-  assert.equal(companyAccountColumns(readCompanyAccountInput(body())).initialContribution, '1500.50');
 });
 
 test('colunas da conta saem do bloco lido', () => {
@@ -106,7 +89,6 @@ test('colunas da conta saem do bloco lido', () => {
     tradeName: 'ABC Stores',
     enquadramento: null,
     openingDate: null,
-    initialContribution: '1500.50',
   });
 });
 

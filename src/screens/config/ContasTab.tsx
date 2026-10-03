@@ -9,10 +9,11 @@ import {
   fetchMembros, createMembro, deactivateMembro, updateMembro, PendingExpensesError,
   type MembroListItem, type MembroCreateBody, type PendingExpense,
 } from '../../services/membrosService';
-import { queryKeys } from '../../services/queryKeys';
+import { fetchAccountPartners } from '../../services/partnersService';
+import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import type { Conta, Enquadramento } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle, MoneyField } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle, cfgRowStyle, cfgRowIndexStyle } from '../../ui/configTokens';
 import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
@@ -24,8 +25,10 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
+import { buildPartnersPayload, partnerRowFromApi, validatePartnerRows, type PartnerRow } from '../../utils/accountPartners';
 import { formatCPF, formatCNPJ, formatDocumento, formatDocumentoAuto } from '../../utils/document';
 import { updateMe, updateFoto, type UsuarioMe } from '../../services/usuariosService';
+import { AccountPartnersSection } from './AccountPartnersSection';
 
 // Mesma tela e mesmo dado por trás (conta_membros) para os dois tipos de
 // conta — só o termo exibido muda: PF fala em "membro" (da família), PJ em
@@ -125,8 +128,9 @@ function NovoMembroDialog({
 
           <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: CFG.muted }}>
             {onlyCpf
-              ? 'CPF é opcional. Senha com mínimo de 8 caracteres.'
-              : `Documento é opcional — deixe em branco se ${termo.artigo} ${termo.singular} não tiver CPF (ex.: menor de idade). Senha com mínimo de 8 caracteres.`}
+              ? 'CPF é opcional.'
+              : `Documento é opcional — deixe em branco se ${termo.artigo} ${termo.singular} não tiver CPF (ex.: menor de idade).`}
+            {` Se a pessoa já tem conta própria com este CPF, ela entra como ${termo.singular} pelo e-mail. Senha com mínimo de 8 caracteres.`}
           </p>
 
           {error && (
@@ -249,10 +253,6 @@ type ContaDialogValues =
     meDocumento?: string; meTelefone?: string; meDataNascimento?: string;
   });
 
-function initialBalanceOf(conta?: Conta): number | undefined {
-  return conta?.aporte_inicial != null ? Number(conta.aporte_inicial) : undefined;
-}
-
 function ContaDialog({
   open, conta, me, isSaving, error, onClose, onSave, onDelete, onSaveMeFoto,
 }: {
@@ -273,7 +273,6 @@ function ContaDialog({
   // A PJ padrão do titular é o login: o acesso (e-mail, senha e logo) é o da empresa.
   const isLoginCompany = tipo === 'empresa' && !!conta?.eh_padrao && !!me;
   const [enquadramento, setEnquadramento] = useState<Enquadramento | ''>(conta?.enquadramento ?? '');
-  const [saldoInicial, setSaldoInicial] = useState<number | undefined>(() => initialBalanceOf(conta));
   // Documento é controlado para aplicar a máscara a cada tecla. O backend
   // limpa a pontuação ao salvar (accounts.ts), então enviar formatado é seguro.
   const [documento, setDocumento] = useState(() =>
@@ -287,6 +286,36 @@ function ContaDialog({
   const [formError, setFormError] = useState('');
   const confirm = useConfirm();
 
+  // Sócios da conta PJ: na edição vêm do servidor; na Nova conta começam
+  // vazios. null enquanto não carregaram — aí o pedido não leva `socios`, para
+  // não desativar sócio nenhum por engano.
+  const partnersAccountId = tipo === 'empresa' && conta ? conta.id : null;
+  const partnersQuery = useQuery({
+    queryKey: queryKeys.partners(partnersAccountId ?? 0),
+    queryFn: () => fetchAccountPartners(partnersAccountId!),
+    enabled: open && partnersAccountId !== null,
+  });
+  const [partnerRows, setPartnerRows] = useState<PartnerRow[] | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPartnerRows(null);
+      return;
+    }
+    if (tipo === 'empresa' && partnersAccountId === null) {
+      setPartnerRows((rows) => rows ?? []);
+    }
+  }, [open, tipo, partnersAccountId]);
+
+  useEffect(() => {
+    // Só a lista recém-buscada preenche as linhas, uma vez por abertura: uma
+    // nova busca em segundo plano não apaga o que está sendo editado.
+    if (!open || partnersAccountId === null || partnerRows !== null) return;
+    if (partnersQuery.isSuccess && !partnersQuery.isFetching) {
+      setPartnerRows(partnersQuery.data.map(partnerRowFromApi));
+    }
+  }, [open, partnersAccountId, partnerRows, partnersQuery.isSuccess, partnersQuery.isFetching, partnersQuery.data]);
+
   useEffect(() => {
     if (!open) return;
     setMeDocumento(formatCPF(me?.documento ?? ''));
@@ -295,7 +324,6 @@ function ContaDialog({
   useEffect(() => {
     if (!open) return;
     setEnquadramento(conta?.enquadramento ?? '');
-    setSaldoInicial(initialBalanceOf(conta));
     setDocumento(formatDocumento(conta?.documento ?? '', conta?.tipo ?? 'empresa'));
     setFormError('');
   }, [open, conta]);
@@ -320,6 +348,11 @@ function ContaDialog({
         setFormError('CNPJ inválido');
         return;
       }
+      const partnersError = partnerRows ? validatePartnerRows(partnerRows) : null;
+      if (partnersError) {
+        setFormError(partnersError);
+        return;
+      }
       setFormError('');
       onSave({
         tipo,
@@ -328,7 +361,7 @@ function ContaDialog({
         nome_fantasia: (fd.get('nome_fantasia') as string || '').trim() || undefined,
         enquadramento: enquadramento || undefined,
         data_abertura: (fd.get('data_abertura') as string) || undefined,
-        aporte_inicial: saldoInicial || null,
+        ...(partnerRows ? { socios: buildPartnersPayload(partnerRows) } : {}),
         ...(isLoginCompany ? {
           email: (fd.get('email') as string || '').trim(),
           ...(novaSenha ? { nova_senha: novaSenha } : {}),
@@ -394,9 +427,18 @@ function ContaDialog({
     <Dialog open={open} title={conta ? 'Editar conta' : 'Nova conta'} onClose={onClose} size="card" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o overflow do container absorve a diferença entre os
-            tipos de conta. Cresce quando há os dados pessoais do titular (PF
-            padrão) ou o bloco "Acesso" (PJ que é o login). */}
-        <div style={{ flex: 1, minHeight: 0, height: tipo === 'pessoal' && me ? 620 : isLoginCompany ? 470 : 340, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            tipos de conta. A PJ cresce para os sócios; a PF padrão, para os
+            dados pessoais do titular. */}
+        <div style={{ flex: 1, minHeight: 0, height: (tipo === 'pessoal' && me) || isLoginCompany ? 620 : tipo === 'empresa' ? 540 : 340, overflowY: 'auto', overflowX: 'hidden', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {isLoginCompany && me && (
+            <>
+              {/* Logo da PJ que é o login, no topo como a foto da PF; vai na
+                  hora, fora do "Salvar". */}
+              {photoHeader('Logo da empresa', 'Toque no logo para enviar · PNG ou SVG, até 1 MB', 'Enviar logo da empresa', <Briefcase size={22} />)}
+              <div style={cfgDividerStyle} />
+            </>
+          )}
 
           {me && tipo === 'pessoal' && (
             <>
@@ -513,11 +555,18 @@ function ContaDialog({
                     style={fieldInputStyle}
                   />
                 </div>
-                <div>
-                  <label style={labelStyle}>Saldo inicial</label>
-                  <MoneyField value={saldoInicial} onChange={setSaldoInicial} />
-                </div>
               </div>
+
+              <div style={cfgDividerStyle} />
+
+              <AccountPartnersSection
+                rows={partnerRows ?? []}
+                onChange={setPartnerRows}
+                isLoading={partnersAccountId !== null && partnerRows === null && !partnersQuery.isError}
+                loadError={partnersQuery.isError && partnerRows === null
+                  ? 'Não foi possível carregar os sócios. Feche e abra de novo para editá-los.'
+                  : null}
+              />
             </>
           )}
 
@@ -526,8 +575,8 @@ function ContaDialog({
               <div style={cfgDividerStyle} />
 
               {/* Acesso: o login da PJ é a própria empresa. Salvo junto com a
-                  empresa, no mesmo pedido; o logo vai na hora, como a foto. */}
-              {photoHeader('Acesso', 'Toque no logo para enviar · PNG ou SVG, até 1 MB', 'Enviar logo da empresa', <Briefcase size={22} />)}
+                  empresa, no mesmo pedido. */}
+              <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: C.text }}>Acesso</span>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
@@ -1102,8 +1151,15 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
 
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: ContaSaveValues; id?: number; isLoginCompany?: boolean }) => saveConta(v, id),
-    onSuccess: (_conta, { isLoginCompany }) => {
+    onSuccess: (_conta, { v, id, isLoginCompany }) => {
       qc.invalidateQueries({ queryKey: queryKeys.contas });
+      if (v.tipo === 'empresa') {
+        // Os sócios vão no mesmo pedido, e o capital marcado vira receita, na
+        // categoria "Aportes" (criada se faltar).
+        if (id) qc.invalidateQueries({ queryKey: queryKeys.partners(id) });
+        qc.invalidateQueries({ queryKey: ['classificacoes-receita'] });
+        invalidateIncomeQueries(qc);
+      }
       // Na PJ que é o login, o mesmo pedido mudou nome, CNPJ, e-mail e senha do acesso.
       if (isLoginCompany) {
         qc.invalidateQueries({ queryKey: queryKeys.session });

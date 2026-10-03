@@ -58,7 +58,6 @@ export interface RegisterCompanyInput {
   nomeFantasia?: string;
   enquadramento?: Enquadramento;
   dataAbertura?: string;
-  aporteInicial: number | null;
   email: string;
   senha: string;
 }
@@ -73,7 +72,6 @@ export async function registerCompany(input: RegisterCompanyInput): Promise<Logi
       nome_fantasia: input.nomeFantasia || undefined,
       enquadramento: input.enquadramento || undefined,
       data_abertura: input.dataAbertura || undefined,
-      aporte_inicial: input.aporteInicial,
       email: input.email,
       senha: input.senha,
     }),

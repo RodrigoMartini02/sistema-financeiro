@@ -1,15 +1,23 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { and, eq, isNotNull, ne, or } from 'drizzle-orm';
-import { body } from 'express-validator';
 import { db, pool } from '../db/client';
 import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requireTitular } from '../middleware/auth';
-import { isValidCpf, validate, validateDocument } from '../middleware/validation';
+import { isValidCpf, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
+import { findAccountAccessWithDocument } from '../services/documentConflicts';
+import { readMemberUpdateInput, readNewMemberInput } from '../services/memberInput';
 import { validarPeriodo } from '../services/painelCalculos';
+import { sendRequestError } from '../utils/requestInput';
 
 const router = Router();
+
+// Mensagens do cadastro e da edição de membro/colaborador.
+const ACCOUNT_NOT_FOUND_MESSAGE = 'Conta não encontrada';
+const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta conta';
+const ALREADY_HAS_ACCESS_MESSAGE = 'Esta pessoa já tem acesso a esta conta';
+const SAVE_FAILED_MESSAGE = 'Não foi possível salvar agora. Tente de novo em instantes.';
 
 // Resolve a Conta Padrão do gestor autenticado (mesma noção usada em todo o
 // backend: a conta com eh_padrao=true é a que nasceu no cadastro externo).
@@ -59,7 +67,7 @@ async function checkMemberDocument(accountId: number, cleanDoc: string): Promise
   if (account?.type === 'empresa') {
     return isValidCpf(cleanDoc) ? null : 'Informe um CPF válido';
   }
-  return validateDocument(cleanDoc) ? null : 'Invalid CPF/CNPJ';
+  return validateDocument(cleanDoc) ? null : 'CPF/CNPJ inválido';
 }
 
 // GET /api/account-members — lista os membros vinculados à conta.
@@ -125,103 +133,90 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   }
 });
 
-// POST /api/account-members — gestor cria um membro vinculado à própria conta
-router.post(
-  '/',
-  authenticate,
-  requireTitular,
-  [
-    body('nome').notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Invalid email'),
-    body('senha').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-    validate,
-  ],
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { nome, sobrenome, email, senha, documento, telefone, data_nascimento: dataNascimento, conta_id } =
-        req.body as Record<string, string | undefined>;
+// POST /api/account-members — gestor cria um membro vinculado à própria conta.
+// O membro é sempre um login novo. O CPF pode ser de quem já tem conta
+// própria (esse login entra pelo e-mail); só não pode ser de quem já tem
+// acesso a esta mesma conta — e a resposta não revela CPF de outras contas.
+router.post('/', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input = readNewMemberInput(req.body);
+    const { conta_id: contaId } = req.body as Record<string, unknown>;
 
-      const accountId = await resolveAccountIdForGestor(req.user!.id, conta_id);
-      if (!accountId) {
-        res.status(404).json({ success: false, message: 'Account not found' });
+    const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
+    if (!accountId) {
+      res.status(404).json({ success: false, message: ACCOUNT_NOT_FOUND_MESSAGE });
+      return;
+    }
+
+    const [emailExists] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
+    if (emailExists) {
+      res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado' });
+      return;
+    }
+
+    if (input.document) {
+      const documentError = await checkMemberDocument(accountId, input.document);
+      if (documentError) {
+        res.status(400).json({ success: false, message: documentError });
         return;
       }
-
-      const normalizedEmail = email!.toLowerCase();
-      const [emailExists] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalizedEmail)).limit(1);
-      if (emailExists) {
-        res.status(400).json({ success: false, message: 'Email already registered' });
+      if (await findAccountAccessWithDocument(db, accountId, input.document)) {
+        res.status(400).json({ success: false, message: ALREADY_HAS_ACCESS_MESSAGE });
         return;
       }
+    }
 
-      let cleanDoc: string | null = null;
-      if (documento?.trim()) {
-        cleanDoc = documento.replace(/[^\d]+/g, '');
-        const documentError = await checkMemberDocument(accountId, cleanDoc);
-        if (documentError) {
-          res.status(400).json({ success: false, message: documentError });
-          return;
-        }
-        const [docExists] = await db.select({ id: users.id }).from(users).where(eq(users.document, cleanDoc)).limit(1);
-        if (docExists) {
-          res.status(400).json({ success: false, message: 'Document already registered' });
-          return;
-        }
-      }
+    const hashedPassword = await bcrypt.hash(input.password, 10);
 
-      const hashedPassword = await bcrypt.hash(senha!, 10);
-
-      const created = await db.transaction(async (transaction) => {
-        const [member] = await transaction
-          .insert(users)
-          .values({
-            name: nome!,
-            lastName: sobrenome?.trim() || null,
-            email: normalizedEmail,
-            document: cleanDoc,
-            password: hashedPassword,
-            telefone: telefone?.trim() || null,
-            dataNascimento: dataNascimento || null,
-            type: 'membro',
-            status: 'ativo',
-          })
-          .returning({
-            id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document,
-            telefone: users.telefone, dataNascimento: users.dataNascimento, type: users.type, status: users.status,
-          });
-
-        await transaction.insert(accountMembers).values({
-          accountId,
-          userId: member!.id,
+    const created = await db.transaction(async (transaction) => {
+      const [member] = await transaction
+        .insert(users)
+        .values({
+          name: input.name,
+          lastName: input.lastName,
+          email: input.email,
+          document: input.document,
+          password: hashedPassword,
+          telefone: input.telefone,
+          dataNascimento: input.dataNascimento,
+          type: 'membro',
           status: 'ativo',
+        })
+        .returning({
+          id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document,
+          telefone: users.telefone, dataNascimento: users.dataNascimento, type: users.type, status: users.status,
         });
 
-        // Toda permissão nasce restritiva (false) — o gestor libera
-        // explicitamente pela tela de permissões (Fase 3).
-        await transaction.insert(memberPermissions).values({ userId: member!.id });
-
-        // Categorias sao da conta, nao do usuario: o membro usa as mesmas do
-        // gestor. Antes o sistema copiava cada uma para o novo usuario, o que
-        // com a carteira compartilhada geraria duas categorias de mesmo nome
-        // no mesmo relatorio.
-
-        return member;
+      await transaction.insert(accountMembers).values({
+        accountId,
+        userId: member!.id,
+        status: 'ativo',
       });
 
-      res.status(201).json({
-        success: true,
-        message: 'Member created successfully',
-        data: {
-          id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document,
-          telefone: created!.telefone, data_nascimento: created!.dataNascimento, tipo: created!.type, status: created!.status,
-        },
-      });
-    } catch (error) {
-      console.error('Create account member error:', error);
-      res.status(500).json({ success: false, message: 'Failed to create member' });
-    }
-  },
-);
+      // Toda permissão nasce restritiva (false) — o gestor libera
+      // explicitamente pela tela de permissões (Fase 3).
+      await transaction.insert(memberPermissions).values({ userId: member!.id });
+
+      // Categorias sao da conta, nao do usuario: o membro usa as mesmas do
+      // gestor. Antes o sistema copiava cada uma para o novo usuario, o que
+      // com a carteira compartilhada geraria duas categorias de mesmo nome
+      // no mesmo relatorio.
+
+      return member;
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Member created successfully',
+      data: {
+        id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document,
+        telefone: created!.telefone, data_nascimento: created!.dataNascimento, tipo: created!.type, status: created!.status,
+      },
+    });
+  } catch (error) {
+    sendRequestError(res, error, 'Create account member error:', req.user?.id, SAVE_FAILED_MESSAGE);
+  }
+});
 
 // GET /api/account-members/:id/pending — pendências (parcelas futuras +
 // recorrências ativas) do membro que precisam de destino antes da desativação
@@ -396,131 +391,104 @@ router.put(
 // PUT /api/account-members/:id — gestor edita nome/foto/senha de um membro
 // vinculado à própria conta. Poder administrativo: nunca exige a senha
 // atual do membro, diferente de PUT /usuarios/me (o próprio usuário
-// trocando a própria senha).
-router.put(
-  '/:id',
-  authenticate,
-  requireTitular,
-  [
-    body('nome').notEmpty().withMessage('Name is required'),
-    validate,
-  ],
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const memberUserId = parseInt(req.params['id']!);
-      const {
-        nome, sobrenome, foto, nova_senha: novaSenha, conta_id: contaId,
-        email, documento, telefone, data_nascimento: dataNascimento,
-        pais, estado, cidade,
-      } = req.body as Record<string, string | undefined>;
+// trocando a própria senha). O documento segue a regra do cadastro.
+router.put('/:id', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const memberUserId = parseInt(req.params['id']!);
+    const input = readMemberUpdateInput(req.body);
+    const { conta_id: contaId } = req.body as Record<string, unknown>;
 
-      const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
-      if (!accountId) {
-        res.status(404).json({ success: false, message: 'Account not found' });
-        return;
-      }
-
-      const [membership] = await db
-        .select({ id: accountMembers.id })
-        .from(accountMembers)
-        .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
-        .limit(1);
-
-      if (!membership) {
-        res.status(404).json({ success: false, message: 'Member not found in this account' });
-        return;
-      }
-
-      const [current] = await db
-        .select({ email: users.email, document: users.document })
-        .from(users)
-        .where(eq(users.id, memberUserId))
-        .limit(1);
-
-      if (!current) {
-        res.status(404).json({ success: false, message: 'Member not found' });
-        return;
-      }
-
-      const updateData: Partial<typeof users.$inferInsert> = {
-        name: String(nome).trim(),
-        updatedAt: new Date(),
-      };
-      if (sobrenome !== undefined) updateData.lastName = sobrenome?.trim() || null;
-      if (foto !== undefined) updateData.photo = foto as string | null;
-      if (telefone !== undefined) updateData.telefone = telefone || null;
-      if (dataNascimento !== undefined) updateData.dataNascimento = dataNascimento || null;
-      if (pais !== undefined) updateData.country = pais || null;
-      if (estado !== undefined) updateData.state = estado || null;
-      if (cidade !== undefined) updateData.city = cidade || null;
-
-      if (email) {
-        const newEmail = email.toLowerCase();
-        if (newEmail !== current.email) {
-          const [emailInUse] = await db
-            .select({ id: users.id })
-            .from(users)
-            .where(and(eq(users.email, newEmail), ne(users.id, memberUserId)))
-            .limit(1);
-
-          if (emailInUse) {
-            res.status(400).json({ success: false, message: 'Email already in use' });
-            return;
-          }
-        }
-        updateData.email = newEmail;
-      }
-
-      if (documento) {
-        const cleanDoc = documento.replace(/[^\d]+/g, '');
-
-        const documentError = await checkMemberDocument(accountId, cleanDoc);
-        if (documentError) {
-          res.status(400).json({ success: false, message: documentError });
-          return;
-        }
-
-        if (cleanDoc !== current.document) {
-          const [documentInUse] = await db
-            .select({ id: users.id })
-            .from(users)
-            .where(and(eq(users.document, cleanDoc), ne(users.id, memberUserId)))
-            .limit(1);
-
-          if (documentInUse) {
-            res.status(400).json({ success: false, message: 'Document already in use' });
-            return;
-          }
-        }
-
-        updateData.document = cleanDoc;
-      }
-
-      if (novaSenha) {
-        if (novaSenha.length < 8) {
-          res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
-          return;
-        }
-        updateData.password = await bcrypt.hash(novaSenha, 10);
-      }
-
-      const [updated] = await db
-        .update(users)
-        .set(updateData)
-        .where(eq(users.id, memberUserId))
-        .returning({
-          id: users.id, nome: users.name, sobrenome: users.lastName, foto: users.photo, email: users.email, documento: users.document,
-          telefone: users.telefone, data_nascimento: users.dataNascimento,
-          pais: users.country, estado: users.state, cidade: users.city,
-        });
-
-      res.json({ success: true, message: 'Member updated successfully', data: updated });
-    } catch (error) {
-      console.error('Update account member error:', error);
-      res.status(500).json({ success: false, message: 'Failed to update member' });
+    const accountId = await resolveAccountIdForGestor(req.user!.id, contaId != null ? String(contaId) : undefined);
+    if (!accountId) {
+      res.status(404).json({ success: false, message: ACCOUNT_NOT_FOUND_MESSAGE });
+      return;
     }
-  },
-);
+
+    const [membership] = await db
+      .select({ id: accountMembers.id })
+      .from(accountMembers)
+      .where(and(eq(accountMembers.userId, memberUserId), eq(accountMembers.accountId, accountId)))
+      .limit(1);
+
+    if (!membership) {
+      res.status(404).json({ success: false, message: PERSON_NOT_FOUND_MESSAGE });
+      return;
+    }
+
+    const [current] = await db
+      .select({ email: users.email, document: users.document })
+      .from(users)
+      .where(eq(users.id, memberUserId))
+      .limit(1);
+
+    if (!current) {
+      res.status(404).json({ success: false, message: PERSON_NOT_FOUND_MESSAGE });
+      return;
+    }
+
+    const updateData: Partial<typeof users.$inferInsert> = {
+      name: input.name,
+      updatedAt: new Date(),
+    };
+    if (input.lastName !== undefined) updateData.lastName = input.lastName;
+    if (input.photo !== undefined) updateData.photo = input.photo;
+    if (input.telefone !== undefined) updateData.telefone = input.telefone;
+    if (input.dataNascimento !== undefined) updateData.dataNascimento = input.dataNascimento;
+    if (input.country !== undefined) updateData.country = input.country;
+    if (input.state !== undefined) updateData.state = input.state;
+    if (input.city !== undefined) updateData.city = input.city;
+
+    if (input.email !== undefined) {
+      if (input.email !== current.email) {
+        const [emailInUse] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.email, input.email), ne(users.id, memberUserId)))
+          .limit(1);
+
+        if (emailInUse) {
+          res.status(400).json({ success: false, message: 'Este e-mail já está em uso' });
+          return;
+        }
+      }
+      updateData.email = input.email;
+    }
+
+    if (input.document !== undefined) {
+      const documentError = await checkMemberDocument(accountId, input.document);
+      if (documentError) {
+        res.status(400).json({ success: false, message: documentError });
+        return;
+      }
+
+      if (input.document !== current.document
+        && await findAccountAccessWithDocument(db, accountId, input.document, memberUserId)) {
+        res.status(400).json({ success: false, message: ALREADY_HAS_ACCESS_MESSAGE });
+        return;
+      }
+
+      updateData.document = input.document;
+    }
+
+    if (input.newPassword !== undefined) {
+      updateData.password = await bcrypt.hash(input.newPassword, 10);
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, memberUserId))
+      .returning({
+        id: users.id, nome: users.name, sobrenome: users.lastName, foto: users.photo, email: users.email, documento: users.document,
+        telefone: users.telefone, data_nascimento: users.dataNascimento,
+        pais: users.country, estado: users.state, cidade: users.city,
+      });
+
+    res.json({ success: true, message: 'Member updated successfully', data: updated });
+  } catch (error) {
+    sendRequestError(res, error, 'Update account member error:', req.user?.id, SAVE_FAILED_MESSAGE);
+  }
+});
 
 // GET /api/account-members/overview — panorama agregado entre TODAS as
 // contas do dono (PF + PJs). Dono sempre acessa todas as suas contas; membro
@@ -649,7 +617,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
 const PERMISSION_FLAGS: PermissionFlag[] = [
   'accessExpenses', 'accessIncomes', 'accessBudget', 'accessCalendar',
   'accessDashboard', 'accessReports', 'accessNotifications', 'accessAssistant',
-  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives', 'accessPartners',
+  'accessAccounts', 'accessCategories', 'accessCards', 'accessServices', 'accessRepresentatives',
   'accessClients', 'accessContracts', 'accessProductCatalog',
   'accessFamilyEntries', 'editFamilyEntries', 'accessFamilyCards',
   'accessGeneralOverview',

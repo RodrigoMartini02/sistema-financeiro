@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ENQUADRAMENTO_OPTIONS, companyDisplayName, isValidCnpj, parseInitialBalance } from './companyAccount';
+import { ENQUADRAMENTO_OPTIONS, companyDisplayName, isValidCnpj } from './companyAccount';
 
 test('nome da empresa: nome fantasia ou, sem ele, razão social', () => {
   assert.equal(companyDisplayName({ nome_fantasia: ' ABC Stores ', razao_social: 'Empresa ABC Ltda' }), 'ABC Stores');
@@ -18,15 +18,6 @@ test('CNPJ confere os dígitos verificadores', () => {
   assert.equal(isValidCnpj('11111111111111'), false);
   assert.equal(isValidCnpj('529.982.247-25'), false);
   assert.equal(isValidCnpj(''), false);
-});
-
-test('saldo inicial digitado: vírgula ou ponto; vazio ou zero vira null', () => {
-  assert.equal(parseInitialBalance('1.500,50'), 1500.5);
-  assert.equal(parseInitialBalance('1500.5'), 1500.5);
-  assert.equal(parseInitialBalance('R$ 200'), 200);
-  assert.equal(parseInitialBalance(''), null);
-  assert.equal(parseInitialBalance('0,00'), null);
-  assert.equal(parseInitialBalance('abc'), null);
 });
 
 test('enquadramento: a mesma lista que o servidor aceita', () => {

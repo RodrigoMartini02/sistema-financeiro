@@ -62,7 +62,8 @@ export const queryKeys = {
   cartoes: (accountId?: number | null, escopo?: 'familia') => ['cartoes', accountId ?? 'ativa', escopo ?? 'eu'] as const,
   contas: ['contas'] as const,
   representantes: ['representantes'] as const,
-  socios: ['socios'] as const,
+  // Sócios de uma conta PJ (modal da conta): sempre de uma conta específica.
+  partners: (accountId: number) => ['partners', accountId] as const,
   avaliacoes: ['avaliacoes'] as const,
   clientes: ['clientes'] as const,
   contratos: (clienteId: number) => ['contratos', clienteId] as const,

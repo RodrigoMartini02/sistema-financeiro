@@ -93,8 +93,6 @@ export interface Conta {
   documento?: string | null;
   razao_social?: string | null;
   nome_fantasia?: string | null;
-  /** Saldo inicial: decimal do banco, em texto ("1500.00"). */
-  aporte_inicial?: string | null;
   enquadramento?: Enquadramento | null;
   data_abertura?: string | null;
   eh_padrao: boolean;

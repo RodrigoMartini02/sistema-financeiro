@@ -2,7 +2,6 @@
 // conta e no Editar conta. O servidor confere as mesmas regras
 // (backend/src/services/companyAccountInput.ts).
 import type { Enquadramento } from '../types/config';
-import { parseMoney } from '../ui/dialogFormTokens';
 
 export const ENQUADRAMENTO_OPTIONS: { value: Enquadramento; label: string; description: string }[] = [
   { value: 'MEI',    label: 'MEI',    description: 'Microempreendedor Individual' },
@@ -39,10 +38,4 @@ export function isValidCnpj(value: string): boolean {
   const first = cnpjCheckDigit(digits.slice(0, 12));
   const second = cnpjCheckDigit(digits.slice(0, 12) + first);
   return digits.endsWith(`${first}${second}`);
-}
-
-/** Saldo inicial digitado em reais: vazio ou zero fica sem saldo inicial (null). */
-export function parseInitialBalance(text: string): number | null {
-  const value = parseMoney(text);
-  return value ? value : null;
 }

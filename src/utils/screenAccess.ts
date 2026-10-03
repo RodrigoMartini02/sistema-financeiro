@@ -77,6 +77,18 @@ export interface ConfigItemContext {
   accountType: AccountType | null;
 }
 
+/** CPF do dono da plataforma: o único que vê a aba Acessos. */
+const ANALYTICS_ALLOWED_DOCUMENT = '08996441988';
+
+/**
+ * Aba Acessos: o CPF liberado E o tipo admin. Só o CPF não basta: ele pode
+ * repetir num acesso de colaborador, que é outro login criado por um gestor.
+ * O servidor confere a mesma regra (backend/src/routes/analytics.ts).
+ */
+export function isAnalyticsViewer(user: { tipo?: string; documento?: string } | undefined): boolean {
+  return user?.tipo === 'admin' && (user.documento ?? '').replace(/\D/g, '') === ANALYTICS_ALLOWED_DOCUMENT;
+}
+
 const CONFIG_ITEM_FLAG: Partial<Record<ConfigItemId, PermissionFlag>> = {
   contas: 'accessAccounts',
   categorias: 'accessCategories',
@@ -85,11 +97,10 @@ const CONFIG_ITEM_FLAG: Partial<Record<ConfigItemId, PermissionFlag>> = {
   servicos: 'accessServices',
   catalogo: 'accessProductCatalog',
   representantes: 'accessRepresentatives',
-  socios: 'accessPartners',
 };
 
-/** Representantes, sócios, serviços e produtos não existem em conta pessoal. */
-const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'socios', 'servicos', 'catalogo']);
+/** Representantes, serviços e produtos não existem em conta pessoal. */
+const COMPANY_ONLY_ITEMS: ReadonlySet<ConfigItemId> = new Set(['representantes', 'servicos', 'catalogo']);
 
 export function isConfigItemVisible(item: ConfigItemId, permissions: PermissionSet, context: ConfigItemContext): boolean {
   if (item === 'acessos') return context.canViewAnalytics;

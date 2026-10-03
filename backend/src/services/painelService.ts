@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { accounts, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes } from '../db/schema';
+import { cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes } from '../db/schema';
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
@@ -248,9 +248,12 @@ async function buscarClassificacoes(ids: number[]): Promise<Map<number, ItemArvo
   return porId;
 }
 
-/** Saldo inicial da conta + tudo que entrou − tudo que saiu antes do início do período. */
+/**
+ * Tudo que entrou − tudo que saiu antes do início do período. A conta não tem
+ * saldo de abertura: o capital dos sócios só entra quando é lançado como receita.
+ */
 async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
-  const [receitasAntes, despesasAntes, conta] = await Promise.all([
+  const [receitasAntes, despesasAntes] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions(entrada.escopo, entrada.accountId),
       lt(incomes.receiptDate, entrada.periodo.de),
@@ -261,12 +264,8 @@ async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
       ...expenseBaseConditions(entrada.escopo, entrada.accountId),
       lt(expenses.dueDate, entrada.periodo.de),
     )),
-    entrada.accountId
-      ? db.select({ aporte: accounts.initialContribution }).from(accounts).where(eq(accounts.id, entrada.accountId)).limit(1)
-      : Promise.resolve([]),
   ]);
-  const aporteInicial = toNumber(conta[0]?.aporte);
-  return aporteInicial + toNumber(receitasAntes[0]?.total) - toNumber(despesasAntes[0]?.total);
+  return toNumber(receitasAntes[0]?.total) - toNumber(despesasAntes[0]?.total);
 }
 
 /** Categorias usadas e as raízes delas (a pizza agrupa a subcategoria no pai). */
