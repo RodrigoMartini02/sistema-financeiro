@@ -984,3 +984,22 @@ A implementação estará pronta quando:
   1. **Vitrine:** a venda paga gravava o nome do comprador em `receitas.cliente`, coluna que a 0071 apaga. O nome passa para a observação da receita ("Comprador: …"), que a lista de lançamentos já mostra embaixo da descrição. A coluna "Pagamento" deixa de mostrar o comprador. O plano não tinha previsto esse uso da coluna.
   2. **Comissão "única" na receita de contrato:** sai uma vez por contrato e categoria, na primeira receita recebida.
   3. **Horas de contrato público com representante (comissão no lançamento):** a base passa a ser o líquido.
+
+### Etapa 7 — telas novas
+
+- **`src/screens/clients/`:**
+  - `ClientsScreen.tsx`: seção "Clientes", com as abas "Clientes" e "Catálogo de serviços" (cada uma pela sua permissão); indicadores do topo, busca, filtro por tipo, "desativados" e "Novo cliente";
+  - `ClientFormDialog.tsx`: o tipo define os campos; máscaras, conferência de CPF e CNPJ, CEP que preenche o endereço (ViaCEP, como no checkout), "Desativar", "Reativar" e "Excluir";
+  - `ClientPage.tsx`: cabeçalho e as abas "Contratos", "Receitas" e "Dados";
+  - `ContractWizard.tsx` e `ContractWizardSteps.tsx`: contrato em etapas (novo, alteração e aditivo) com a prévia do servidor;
+  - `ContractDetail.tsx`: ficha com reajuste ("Aplicar"/"Dispensar"), empenhos, horas, receitas com "Faturar" e anexos;
+  - `ServiceCatalog.tsx`, `ContractAttachments.tsx` e `clientStyles.ts`.
+- **Serviços e chaves:** `clientsService.ts`, `contractsService.ts`, `serviceCatalogService.ts` e as chaves novas em `queryKeys.ts`; contrato e cliente gravados usam `invalidateIncomeQueries`, que passou a incluir as chaves do módulo.
+- **Utilitários com teste:**
+  - `brazilDocuments.ts`: CPF, CNPJ, telefone, CEP e UFs. `companyAccount.ts` deixou de ter o CNPJ (a conta e o login importam daqui); `storefrontCheckout.ts` reexporta para as telas da vitrine não mudarem; `document.ts` usa as máscaras daqui;
+  - `contractDisplay.ts`;
+  - `contractForm.ts` (novo, fora da lista do plano): o estado das etapas, a conferência de cada etapa e o corpo da API, com as regras do servidor.
+- **`App.tsx`:** a seção `clientes` mostra a `ClientsScreen` dentro de `CONFIG_SCOPE_CLASS`.
+- **Limpeza:** saíram de `dialogFormTokens.tsx` os estilos da tabela de valores do contrato antigo, que ficaram sem uso.
+- **Anexos escolhidos no contrato em etapas** sobem logo depois de salvar. Se algum falhar, a ficha avisa quais.
+- Testes do front: 120/120; `tsc` sem erros.

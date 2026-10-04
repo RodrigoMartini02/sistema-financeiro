@@ -2,7 +2,11 @@
 // entrega e cartão), o total com a taxa de entrega e a contagem regressiva do
 // Pix. A validação final é do servidor (backend/src/services/orderInput.ts);
 // aqui é para o cliente corrigir antes.
+import { BRAZIL_STATES, formatCep, formatCpf, formatPhone, isValidCpf, onlyDigits } from './brazilDocuments';
 import { cartSavings, cartTotal, type CartLine } from './storefrontCart';
+
+// As telas da vitrine continuam importando daqui as máscaras, as UFs e o CPF, que são de brazilDocuments.
+export { BRAZIL_STATES, formatCep, formatCpf, formatPhone, isValidCpf, onlyDigits };
 
 export type CheckoutDeliveryType = 'retirada' | 'entrega';
 
@@ -44,54 +48,6 @@ export interface CheckoutTotals {
 export type CheckoutErrors<T> = Partial<Record<keyof T, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const BRAZIL_STATES = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ',
-  'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
-] as const;
-
-export function onlyDigits(value: string): string {
-  return value.replace(/\D/g, '');
-}
-
-export function formatCpf(value: string): string {
-  const digits = onlyDigits(value).slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-}
-
-export function formatPhone(value: string): string {
-  const digits = onlyDigits(value).slice(0, 11);
-  if (digits.length === 0) return '';
-  if (digits.length <= 2) return `(${digits}`;
-  const number = digits.slice(2);
-  if (number.length <= 4) return `(${digits.slice(0, 2)}) ${number}`;
-  const splitAt = number.length === 9 ? 5 : 4;
-  return `(${digits.slice(0, 2)}) ${number.slice(0, splitAt)}-${number.slice(splitAt)}`;
-}
-
-export function formatCep(value: string): string {
-  const digits = onlyDigits(value).slice(0, 8);
-  return digits.length <= 5 ? digits : `${digits.slice(0, 5)}-${digits.slice(5)}`;
-}
-
-/** CPF com dígitos verificadores (mesma conta do servidor). */
-export function isValidCpf(value: string): boolean {
-  const digits = onlyDigits(value);
-  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
-    return false;
-  }
-  const checkDigit = (length: number) => {
-    const sum = digits
-      .slice(0, length)
-      .split('')
-      .reduce((total, digit, index) => total + Number(digit) * (length + 1 - index), 0);
-    const rest = (sum * 10) % 11;
-    return rest === 10 ? 0 : rest;
-  };
-  return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
-}
 
 export function validateIdentification(data: CheckoutIdentification): CheckoutErrors<CheckoutIdentification> {
   const errors: CheckoutErrors<CheckoutIdentification> = {};

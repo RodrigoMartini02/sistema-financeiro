@@ -19,7 +19,7 @@ import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
-
+import { ClientsScreen } from './screens/clients/ClientsScreen';
 import { CONFIG_SCOPE_CLASS } from './ui/configTokens';
 import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
@@ -192,8 +192,8 @@ function AppContent() {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
       case 'reports':       return <ReportsScreen />;
-      // Temporário durante a reescrita (passo 3 do plano): a tela nova entra no passo 7.
-      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><EmptyState icon={Lock} title="Clientes em reconstrução" /></div>;
+      // A seção usa os tokens das Configurações (`.config-scope`).
+      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientsScreen /></div>;
     }
   };
 

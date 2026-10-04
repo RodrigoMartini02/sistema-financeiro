@@ -25,7 +25,8 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
-import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
+import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
+import { isValidCnpj } from '../../utils/brazilDocuments';
 import { buildPartnersPayload, partnerRowFromApi, validatePartnerRows, type PartnerRow } from '../../utils/accountPartners';
 import {
   catalogOptions, collaboratorRoleLabel, readCollaboratorWorkFields, type CollaboratorWorkFields,
