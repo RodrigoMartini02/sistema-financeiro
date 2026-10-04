@@ -34,16 +34,6 @@ export const firstAccessGuideMessages = {
   // Usu\u00e1rios
   usuariosDesativarExcluir: 'Desativar bloqueia o login e pode ser revertido. Excluir \u00e9 permanente e s\u00f3 o administrador pode fazer.',
 
-  // Clientes/Contratos
-  clientesNovo: 'Clique em Novo cliente para cadastrar uma empresa e depois criar contratos vinculados a ela.',
-  clientesGerarPrevistas: 'Gerar previstas cria as receitas futuras deste contrato a partir da data de in\u00edcio de faturamento.',
-  clientesReajuste: 'O campo Reajuste \u00e9 apenas informativo hoje: IGPM ou IPCA n\u00e3o s\u00e3o aplicados automaticamente ao valor.',
-  clientesRepresentante: 'Vincular um representante ao contrato gera comiss\u00e3o autom\u00e1tica quando receitas dele forem lan\u00e7adas.',
-  clientesServicosVinculo: 'Contratado marca o servi\u00e7o no contrato, Implantado indica que j\u00e1 foi entregue e Faturando libera a cobran\u00e7a mensal.',
-  clientesImplantacao: 'Definir Total e N\u00famero de parcelas aqui gera automaticamente a receita de implanta\u00e7\u00e3o ao salvar o contrato.',
-  clientesHoras: 'O saldo de horas \u00e9 consumido automaticamente quando voc\u00ea lan\u00e7a Horas a faturar em uma receita deste contrato.',
-  clientesEncerrarContrato: 'Encerrar contrato cancela as receitas previstas futuras e marca o contrato como encerrado.',
-
   // Representantes
   representantesNovo: 'Clique em Novo representante para cadastrar algu\u00e9m que recebe comiss\u00e3o sobre receitas.',
   representantesComissoes: 'Configure um percentual de comiss\u00e3o por classifica\u00e7\u00e3o de receita: ele \u00e9 aplicado automaticamente ao lan\u00e7ar receitas dessa classifica\u00e7\u00e3o.',
@@ -52,9 +42,6 @@ export const firstAccessGuideMessages = {
   // Setores e cargos
   setoresNovo: 'Clique em Novo setor para cadastrar uma \u00e1rea da empresa. Depois \u00e9 s\u00f3 escolher o setor no cadastro do colaborador.',
   cargosNovo: 'Clique em Novo cargo para cadastrar uma fun\u00e7\u00e3o da empresa. Depois \u00e9 s\u00f3 escolher o cargo no cadastro do colaborador.',
-
-  // Servi\u00e7os
-  servicosNovo: 'Clique em Novo servi\u00e7o para cadastrar um item reutiliz\u00e1vel em contratos de clientes.',
 
   // Planos
   planosFormasPagamento: 'Escolha entre PIX, Cart\u00e3o ou D\u00e9bito autom\u00e1tico recorrente para assinar o plano.',

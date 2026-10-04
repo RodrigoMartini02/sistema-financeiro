@@ -67,10 +67,6 @@ export const queryKeys = {
   partners: (accountId: number) => ['partners', accountId] as const,
   avaliacoes: ['avaliacoes'] as const,
   clientes: ['clientes'] as const,
-  contratos: (clienteId: number) => ['contratos', clienteId] as const,
-  servicos: ['servicos'] as const,
-  contratosServicos: (contratoId: number) => ['contratos-servicos', contratoId] as const,
-  contratoAnexos: (contratoId: number) => ['contrato-anexos', contratoId] as const,
   contratosAtivos: ['contratos-ativos'] as const,
   contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   // A conta e as pessoas fazem parte da chave: sem isso o React Query serviria

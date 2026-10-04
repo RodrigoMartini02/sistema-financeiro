@@ -82,11 +82,6 @@ import representativeRoutes from './routes/representatives';
 import partnerRoutes from './routes/partners';
 import { jobTitleRoutes, sectorRoutes } from './routes/accountNameCatalog';
 import incomeClassificationRoutes from './routes/income-classifications';
-import clientRoutes from './routes/clients';
-import contractRoutes from './routes/contracts';
-import serviceRoutes from './routes/services';
-import contractServiceRoutes from './routes/contract-services';
-import contractAttachmentRoutes from './routes/contract-attachments';
 import analyticsRoutes from './routes/analytics';
 import reportRoutes from './routes/reports';
 import internalJobsRoutes from './routes/internal-jobs';
@@ -136,11 +131,6 @@ app.use('/api/sectors', authenticate, requireActivePlan, requireCatalogAccess('s
 app.use('/api/job-titles', authenticate, requireActivePlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
 app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
 app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
-app.use('/api/clientes', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
-app.use('/api/contratos', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
-app.use('/api/servicos', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceRoutes);
-app.use('/api/contratos-servicos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractServiceRoutes);
-app.use('/api/contrato-anexos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
 app.use('/api/notificacoes', authenticate, requireActivePlan, requireScreenAccess('accessNotifications'), notificationRoutes);

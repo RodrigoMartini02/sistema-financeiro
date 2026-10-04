@@ -19,7 +19,6 @@ import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
-import { ClientesTab } from './screens/config/ClientesTab';
 
 import { CONFIG_SCOPE_CLASS } from './ui/configTokens';
 import { useAuthSession } from './hooks/useAuthSession';
@@ -193,11 +192,8 @@ function AppContent() {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
       case 'reports':       return <ReportsScreen />;
-      // ClientesTab também é usada dentro do ConfigPanel, que já aplica o
-      // escopo. Aqui ela é tela própria da sidebar, fora do drawer, então
-      // precisa declarar o escopo por conta própria — sem ele as variáveis
-      // --cfg-* não resolvem e os componentes de Configurações perdem cor.
-      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientesTab /></div>;
+      // Temporário durante a reescrita (passo 3 do plano): a tela nova entra no passo 7.
+      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><EmptyState icon={Lock} title="Clientes em reconstrução" /></div>;
     }
   };
 
