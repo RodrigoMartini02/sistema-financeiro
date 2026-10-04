@@ -9,6 +9,12 @@ export const MAX_AMOUNT = 99_999_999.99;
 const MAX_DESCRIPTION_LENGTH = 255;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const BRAZIL_STATES: ReadonlySet<string> = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ',
+  'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+]);
+
 export class RequestInputError extends Error {
   constructor(message: string, readonly status = 400) {
     super(message);
@@ -89,6 +95,23 @@ export function readDescription(value: unknown): string {
     throw new RequestInputError(`Descrição: até ${MAX_DESCRIPTION_LENGTH} caracteres`);
   }
   return description;
+}
+
+/** Só os dígitos do texto (CPF, CNPJ, CEP, telefone); outro tipo vira texto vazio. */
+export function digitsOf(value: unknown): string {
+  return typeof value === 'string' ? value.replace(/\D/g, '') : '';
+}
+
+/** Texto obrigatório aparado. `label` leva o artigo: "Informe o nome", "O nome: até 150 caracteres". */
+export function readRequiredText(value: unknown, label: string, min: number, max: number): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text.length < min) {
+    throw new RequestInputError(`Informe ${label}`);
+  }
+  if (text.length > max) {
+    throw new RequestInputError(`${label[0]!.toUpperCase()}${label.slice(1)}: até ${max} caracteres`);
+  }
+  return text;
 }
 
 /** Texto opcional aparado: vazio vira null. `label` compõe as mensagens ("Cliente inválido"). */

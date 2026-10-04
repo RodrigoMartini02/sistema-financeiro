@@ -3,7 +3,9 @@
 // acesso ao banco: o navegador manda só produto e quantidade — preço, estoque
 // e taxa vêm do banco na criação do pedido.
 import { isValidCpf } from '../middleware/validation';
-import { RequestInputError, readOptionalText, readRecord } from '../utils/requestInput';
+import {
+  BRAZIL_STATES, EMAIL_PATTERN, RequestInputError, digitsOf, readOptionalText, readRecord, readRequiredText,
+} from '../utils/requestInput';
 import { isUuid } from './catalogo';
 import {
   DELIVERY_TYPES, ORDER_PAYMENT_METHODS, ORDER_STATUSES,
@@ -15,11 +17,6 @@ export const MAX_ORDER_ITEM_QUANTITY = 99;
 const MAX_CUSTOMER_NAME = 80;
 const MAX_EMAIL = 150;
 const MAX_NOTE = 300;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const BRAZIL_STATES = new Set([
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ',
-  'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
-]);
 
 export interface OrderItemInput {
   productId: string;
@@ -42,21 +39,6 @@ export interface OrderInput {
   delivery: { type: DeliveryType; address: OrderAddressInput | null };
   payment: { method: OrderPaymentMethod; cardToken: string | null; paymentMethodId: string | null };
   note: string | null;
-}
-
-function digitsOf(value: unknown): string {
-  return typeof value === 'string' ? value.replace(/\D/g, '') : '';
-}
-
-function readRequiredText(value: unknown, label: string, min: number, max: number): string {
-  const text = typeof value === 'string' ? value.trim() : '';
-  if (text.length < min) {
-    throw new RequestInputError(`Informe ${label}`);
-  }
-  if (text.length > max) {
-    throw new RequestInputError(`${label[0]!.toUpperCase()}${label.slice(1)}: até ${max} caracteres`);
-  }
-  return text;
 }
 
 /** Itens repetidos se juntam: o mesmo produto duas vezes vira uma linha só. */

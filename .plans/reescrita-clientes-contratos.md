@@ -887,3 +887,54 @@ A implementação estará pronta quando:
 - **Arquivos temporários:** scripts de roteiro e de tela em `tmpclaude-*`, ignorados pelo git e apagados no fim. Imports estáticos nos testes de tela (uma só cópia do `react-router`).
 - **Aprovação visual:** o passo 10 é obrigatório antes do `/finalizar`. Mostrar os prints e esperar a aprovação.
 - **Várias sessões:** registrar no fim deste plano, a cada etapa concluída, o que foi feito, os commits e os desvios.
+
+## Registro de andamento
+
+### Etapas 1 e 2 — branch, conferência na produção e banco (commit `a78cebdc`)
+
+- Branch `feat/R/clientes-contratos` criada da `main` (`2afc51ce`).
+- **Produção, só lendo (2026-10-04):**
+  - os 2 clientes têm CNPJ com dígito verificador errado. O que está numa conta PJ é copiado pela 0070 e vai pedir a correção do CNPJ na próxima edição. O outro está na conta pessoal de um dono sem PJ: **não é copiado**;
+  - dos 14 serviços, 11 vão para as contas PJ dos donos. Os 3 de um dono sem PJ **não são copiados**;
+  - a 0071 apaga as tabelas antigas, e com elas esses dados. Avisar o usuário no `/finalizar`, antes da 0071.
+- Escritos: a 0070, a 0071, o schema do Drizzle (`modules/contracts/db/schema.ts`), `services/contractTypes.ts` e as colunas novas de `receitas` no Drizzle.
+
+### Etapa 3 — remoção do antigo (commit `d73688dd`)
+
+- Saíram as 5 rotas antigas, as 3 telas, `servicosService.ts`, as dicas `clientes:*` e `servicosNovo`, o item "Catálogo de serviços" e as chaves `contratos`, `servicos`, `contratosServicos` e `contratoAnexos`.
+- Testes: front 106/106 e back 280/280; `tsc` sem erros nos dois.
+
+### Etapa 4 — regras puras com testes
+
+- Arquivos:
+  - `clientInput.ts`: cadastro, situação e filtros da lista;
+  - `contractInput.ts`: contrato, aditivo (início), reajuste e serviço do catálogo;
+  - `contractSchedule.ts`, `contractRetentions.ts`, `contractReadjustment.ts` e `contractCommitments.ts`;
+  - cada um com o seu teste.
+- Testes do back: 324/324; `tsc` sem erros.
+- **Agenda das receitas, como ficou:**
+  - mensalidade: uma por mês do calendário da vigência, no dia do vencimento (o mês do início conta mesmo que o início seja depois do dia);
+  - "sem prazo": até o 12º mês contado do mês atual, ou do início, quando o contrato ainda não começou;
+  - parcelas: partes iguais com os centavos na última, todas no dia da primeira data (dia 31 vira o último dia dos meses curtos);
+  - cada cobrança tem o seu limite:
+    - alteração: a partir do mês atual nas cobranças que já existiam e sem limite nas novas, pulando os meses que têm receita mantida;
+    - aditivo: a partir do mês de início, pulando os meses já faturados ou recebidos pelo anterior;
+    - complemento do "sem prazo": a partir do mês seguinte ao último existente.
+- **Retenções:** a receita guarda bruto e retenções só quando algum percentual do contrato é maior que zero.
+- **Reajuste:**
+  - aplicar ou dispensar grava o aniversário mais recente já alcançado, o que fecha de uma vez os ciclos atrasados;
+  - percentual de 0 a 100, com duas casas.
+
+### Desvios do plano até aqui
+
+1. **Valores fixos da API:** iguais aos do banco, em português, como os status das receitas:
+   - tipo: `pessoa_fisica`, `empresa`, `orgao_publico` (no lugar de `individual`, `company`, `public_entity`);
+   - cobrança: `mensalidade`, `implantacao`, `projeto`;
+   - contrato: `ativo`, `encerrado`.
+   
+   Os nomes dos campos continuam em inglês (`type`, `document`, `sphere`, `agency`…).
+2. **Nome do módulo do empenho:** `contractCommitments.ts`, em inglês, no lugar de `contractEmpenho.ts`.
+3. **Remoção parcial na etapa 3:** as telas que dependem do módulo (lançamento de receita, painel, assistente, checklist, demo) continuam chamando as rotas antigas por um `clientesService.ts` reduzido até a etapa 8. A seção "Clientes" mostra um aviso temporário ("Clientes em reconstrução").
+4. **Campo `client` do Drizzle de `receitas`:** sai nesta entrega (etapa 6), porque a 0071 apaga a coluna.
+5. **Auxiliares de leitura compartilhados:** `digitsOf`, `readRequiredText`, `EMAIL_PATTERN` e `BRAZIL_STATES` saíram de `orderInput.ts` para `utils/requestInput.ts`, para os validadores novos usarem.
+6. **0070 no banco local:** adiada para a etapa 9, com confirmação. Nenhuma etapa antes dela usa o banco.
