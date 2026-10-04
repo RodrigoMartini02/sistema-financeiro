@@ -40,7 +40,6 @@ export const incomes = pgTable(
     productId: varchar('produto_id', { length: 36 }),
     soldQuantity: decimal('quantidade_vendida', { precision: 12, scale: 3 }),
     commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
-    client: varchar('cliente', { length: 100 }),
     classificationId: integer('classificacao_id').references(() => incomeClassifications.id, { onDelete: 'set null' }),
     // Preenchidos só na prevista lançada automaticamente pela classificação
     // fixa: o par é único (não lança o mesmo mês duas vezes).

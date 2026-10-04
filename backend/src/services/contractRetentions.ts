@@ -1,6 +1,7 @@
 // Retenções de tributos na receita de contrato com órgão público, sem banco.
 // Cada tributo é arredondado ao centavo (metade para cima) e o líquido é o
 // bruto menos a soma: é o valor que a empresa recebe e o que conta nos totais.
+import type { Contract } from '../modules/contracts/db/schema';
 import { WITHHOLDING_TAXES, type WithholdingAmounts, type WithholdingRates, type WithholdingTax } from './contractTypes';
 
 export interface WithholdingResult {
@@ -25,6 +26,18 @@ export function ratesFromColumns(columns: Record<WithholdingTax, string | null>)
     }
   }
   return rates;
+}
+
+type WithholdingColumns = Pick<Contract, 'withholdingIr' | 'withholdingPisCofinsCsll' | 'withholdingIss' | 'withholdingInss'>;
+
+/** Percentuais gravados no contrato. */
+export function contractRates(contract: WithholdingColumns): WithholdingRates {
+  return ratesFromColumns({
+    ir: contract.withholdingIr,
+    pisCofinsCsll: contract.withholdingPisCofinsCsll,
+    iss: contract.withholdingIss,
+    inss: contract.withholdingInss,
+  });
 }
 
 /** Algum tributo com percentual acima de zero: só então a receita guarda bruto e retenções. */

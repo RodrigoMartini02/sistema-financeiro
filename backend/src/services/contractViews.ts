@@ -13,10 +13,9 @@ import { addMonthsClamped } from '../utils/date';
 import { listContractAttachments, type ContractAttachmentView } from './contractAttachments';
 import { commitmentBalances, type CommitmentBalance } from './contractCommitments';
 import { hourTypeBalance, usedHoursByType } from './contractHours';
-import { contractRates } from './contractIncomes';
 import { loadContractIndicators } from './contractIndicators';
 import { readjustmentState } from './contractReadjustment';
-import { incomeAmounts } from './contractRetentions';
+import { contractRates, incomeAmounts } from './contractRetentions';
 import {
   BILLED_INCOME_STATUSES, INCOME_STATUS,
   type ChargeKind, type ClientKind, type ContractStatus, type WithholdingAmounts, type WithholdingRates,

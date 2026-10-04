@@ -4,9 +4,10 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { incomes } from '../db/schema';
-import { contractHourTypes, contractHourUsages, contracts } from '../modules/contracts/db/schema';
+import { clients, contractHourTypes, contractHourUsages, contracts } from '../modules/contracts/db/schema';
 import { RequestInputError, roundCents } from '../utils/requestInput';
-import { INCOME_STATUS } from './contractTypes';
+import { contractRates } from './contractRetentions';
+import { INCOME_STATUS, type WithholdingRates } from './contractTypes';
 
 const hoursFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 
@@ -53,6 +54,40 @@ export async function hourTypesWithUsage(executor: Pick<typeof db, 'selectDistin
   return new Set(rows.map((row) => row.hourTypeId));
 }
 
+const HOUR_TYPE_NOT_AVAILABLE = 'Escolha um tipo de hora de contrato ativo desta conta';
+
+export interface HourTypeContract {
+  contractId: number;
+  clientId: number;
+  /** Percentuais de retenção, só no contrato com órgão público. */
+  rates: WithholdingRates;
+}
+
+/** Contrato do tipo de hora, se for contrato ativo da conta. O saldo é conferido ao lançar (consumeContractHours). */
+export async function findHourTypeContract(
+  executor: Pick<typeof db, 'select'>,
+  accountId: number | null,
+  hourTypeId: number,
+): Promise<HourTypeContract> {
+  const [row] = accountId === null
+    ? []
+    : await executor
+      .select({ contract: contracts, clientKind: clients.kind })
+      .from(contractHourTypes)
+      .innerJoin(contracts, eq(contracts.id, contractHourTypes.contractId))
+      .innerJoin(clients, eq(clients.id, contracts.clientId))
+      .where(and(eq(contractHourTypes.id, hourTypeId), eq(contracts.accountId, accountId)))
+      .limit(1);
+  if (!row || row.contract.status !== 'ativo') {
+    throw new RequestInputError(HOUR_TYPE_NOT_AVAILABLE);
+  }
+  return {
+    contractId: row.contract.id,
+    clientId: row.contract.clientId,
+    rates: row.clientKind === 'orgao_publico' ? contractRates(row.contract) : {},
+  };
+}
+
 export interface HourConsumption {
   accountId: number;
   hourTypeId: number;
@@ -83,7 +118,7 @@ export async function consumeContractHours(
     .limit(1)
     .for('update');
   if (!hourType || hourType.status !== 'ativo') {
-    throw new RequestInputError('Escolha um tipo de hora de contrato ativo desta conta');
+    throw new RequestInputError(HOUR_TYPE_NOT_AVAILABLE);
   }
 
   const used = (await usedHoursByType(executor, [hourType.id])).get(hourType.id) ?? 0;

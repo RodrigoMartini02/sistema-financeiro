@@ -397,7 +397,8 @@ async function approveOrder(executor: StockExecutor & Pick<typeof db, 'execute'>
         receiptDate,
         month: mes,
         year: ano,
-        client: order.clienteNome,
+        // Quem comprou aparece embaixo da descrição, na lista de lançamentos.
+        notes: `Comprador: ${order.clienteNome}`,
         classificationId,
         productId: productSale?.productId ?? null,
         soldQuantity: productSale ? String(productSale.quantity) : null,

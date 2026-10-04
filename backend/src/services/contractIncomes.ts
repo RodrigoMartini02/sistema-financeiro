@@ -9,7 +9,7 @@ import { accountMembers, accounts, incomes, type NewIncome } from '../db/schema'
 import { clients, contractCharges, contracts, type Contract, type ContractCharge } from '../modules/contracts/db/schema';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError } from '../utils/requestInput';
-import { incomeAmounts, ratesFromColumns } from './contractRetentions';
+import { contractRates, incomeAmounts } from './contractRetentions';
 import {
   addMonths, buildContractSchedule, competenceOf, scheduledIncomeDescription,
   type ContractScheduleState, type ContractScheduleTerms, type ScheduledIncome,
@@ -41,17 +41,6 @@ export interface IncomeGenerationContext {
   /** Categoria escolhida no contrato para cada cobrança; nula usa a padrão de "Contratos". */
   classifications: Record<ChargeKind, number | null>;
   chargeIds: Partial<Record<ChargeKind, number>>;
-}
-
-type WithholdingColumns = Pick<Contract, 'withholdingIr' | 'withholdingPisCofinsCsll' | 'withholdingIss' | 'withholdingInss'>;
-
-export function contractRates(contract: WithholdingColumns): WithholdingRates {
-  return ratesFromColumns({
-    ir: contract.withholdingIr,
-    pisCofinsCsll: contract.withholdingPisCofinsCsll,
-    iss: contract.withholdingIss,
-    inss: contract.withholdingInss,
-  });
 }
 
 export function chargeIdsByKind(charges: Pick<ContractCharge, 'id' | 'kind'>[]): Partial<Record<ChargeKind, number>> {

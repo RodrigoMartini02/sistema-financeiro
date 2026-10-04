@@ -963,3 +963,24 @@ A implementação estará pronta quando:
   - **Aditivo:** com a mesma data-base, o ciclo de reajuste já tratado continua tratado.
   - **Reajuste:** atualiza a mensalidade, o valor da hora e as mensalidades previstas a partir do mês atual.
   - **Contrato encerrado:** não é alterado, não recebe aditivo nem reajuste; anexos continuam.
+
+### Etapa 6 — integrações no backend
+
+- **Lançamento de receita** (`incomeInput.ts`, `incomeService.ts`, `routes/incomes.ts`):
+  - `client` (texto) virou `clientId`, conferido no cadastro da conta da receita (ativo; o que a receita já tinha continua valendo);
+  - `billableHours` virou `{ hourTypeId, hours }`: grava em `comercial.consumos_hora` na transação da receita, com o tipo de hora travado e o bloqueio acima do saldo; a receita aponta para o contrato e o cliente dele;
+  - horas de contrato com órgão público: o valor digitado é o bruto e a receita vale o líquido;
+  - edição de receita com bruto: o valor editado é o bruto, com as retenções recalculadas; na receita de contrato, o cliente não muda;
+  - `debitContractHours` saiu;
+  - sugestões e duplicata usam `clientId` (as sugestões trazem também o nome atual);
+  - a lista (`GET /incomes`) devolve `cliente_nome`, pelo cadastro.
+- **Recebimento** (`/receber`): a regra saiu da rota para `receiveIncome`, numa transação, com o mesmo pedido de antes. A receita de contrato com representante e sem comissão gera a comissão pelo valor recebido.
+- **"Sem prazo":** `/fixas/processar` (ao abrir o sistema) e a rotina diária (`internal-jobs`, a mesma do alerta de despesas) chamam `topUpOpenEndedContracts`.
+- **Relatórios:** o nome do cliente vem do cadastro (`LEFT JOIN comercial.clientes`, filtrando pela conta).
+- **Categorias** (`income-classifications.ts`): "em contrato ativo" e a contagem de uso olham as três categorias de `comercial.contratos`.
+- **Contrato:** grava a categoria padrão resolvida quando a da cobrança fica vazia (como o módulo antigo fazia).
+- Testes do back: 333/333; `tsc` sem erros.
+- **Desvios desta etapa:**
+  1. **Vitrine:** a venda paga gravava o nome do comprador em `receitas.cliente`, coluna que a 0071 apaga. O nome passa para a observação da receita ("Comprador: …"), que a lista de lançamentos já mostra embaixo da descrição. A coluna "Pagamento" deixa de mostrar o comprador. O plano não tinha previsto esse uso da coluna.
+  2. **Comissão "única" na receita de contrato:** sai uma vez por contrato e categoria, na primeira receita recebida.
+  3. **Horas de contrato público com representante (comissão no lançamento):** a base passa a ser o líquido.

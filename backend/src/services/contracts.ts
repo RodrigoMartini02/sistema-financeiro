@@ -16,12 +16,12 @@ import { removeAttachmentFiles } from './contractAttachments';
 import { commitmentWarning, commitmentYear } from './contractCommitments';
 import { formatHours, hourTypesWithUsage, usedHoursByType } from './contractHours';
 import {
-  cancelPlannedIncomesFrom, chargeIdsByKind, contractRates, countPlannedIncomesFrom, insertScheduledIncomes,
+  cancelPlannedIncomesFrom, chargeIdsByKind, countPlannedIncomesFrom, insertScheduledIncomes,
   loadGenerationContext, planAmendment, planContractUpdate, toDecimal, type Transaction,
 } from './contractIncomes';
 import { assertAmendmentStart, type ContractInput, type HourTypeInput, type ReadjustmentInput } from './contractInput';
 import { latestReachedAnniversary, readjustAmount, readjustmentState } from './contractReadjustment';
-import { incomeAmounts } from './contractRetentions';
+import { contractRates, incomeAmounts } from './contractRetentions';
 import {
   addMonths, buildContractSchedule, competenceOf, scheduledIncomeDescription,
   type ContractScheduleState, type ContractScheduleTerms,
@@ -29,7 +29,7 @@ import {
 import {
   BILLED_INCOME_STATUSES, INCOME_STATUS, type ChargeKind, type WithholdingAmounts, type WithholdingRates,
 } from './contractTypes';
-import { findCatalogClassification } from './incomeClassificationCatalog';
+import { ensureContractIncomeClassification, findCatalogClassification } from './incomeClassificationCatalog';
 
 export const CONTRACT_NOT_FOUND_MESSAGE = 'Contrato não encontrado';
 const INCOME_NOT_FOUND_MESSAGE = 'Receita não encontrada';
@@ -75,7 +75,37 @@ function rateColumn(rates: WithholdingRates, tax: keyof WithholdingRates): strin
   return rate === undefined ? null : rate.toFixed(2);
 }
 
-function contractColumns(input: ContractInput) {
+interface ContractClassifications {
+  monthlyClassificationId: number | null;
+  setupClassificationId: number | null;
+  projectClassificationId: number | null;
+}
+
+/**
+ * Categoria de cada cobrança: a escolhida ou, vazia, a padrão de "Contratos"
+ * (criada se faltar), gravada no contrato como no módulo anterior. Assim
+ * "em contrato ativo" e a contagem de uso das categorias olham só o contrato.
+ */
+async function resolveContractClassifications(
+  executor: Transaction,
+  ownerId: number,
+  input: ContractInput,
+): Promise<ContractClassifications> {
+  const kinds = chargeKindsOf(input);
+  const resolve = async (kind: ChargeKind, chosen: number | null) => {
+    if (chosen !== null || !kinds.has(kind)) {
+      return chosen;
+    }
+    return ensureContractIncomeClassification(executor, ownerId, kind);
+  };
+  return {
+    monthlyClassificationId: await resolve('mensalidade', input.monthlyClassificationId),
+    setupClassificationId: await resolve('implantacao', input.setupClassificationId),
+    projectClassificationId: await resolve('projeto', input.projectClassificationId),
+  };
+}
+
+function contractColumns(input: ContractInput, classifications: ContractClassifications) {
   const publicEntity = input.publicEntity;
   const rates = publicEntity?.withholdings ?? {};
   return {
@@ -86,9 +116,7 @@ function contractColumns(input: ContractInput) {
     endDate: input.endDate,
     dueDay: input.dueDay,
     representativeId: input.representativeId,
-    monthlyClassificationId: input.monthlyClassificationId,
-    setupClassificationId: input.setupClassificationId,
-    projectClassificationId: input.projectClassificationId,
+    ...classifications,
     process: publicEntity?.process ?? null,
     modality: publicEntity?.modality ?? null,
     withholdingIr: rateColumn(rates, 'ir'),
@@ -285,10 +313,11 @@ async function insertContract(
   state: ContractScheduleState,
   today: string,
 ): Promise<number> {
+  const classifications = await resolveContractClassifications(executor, account.ownerId, input);
   const [contract] = await executor
     .insert(contracts)
     .values({
-      ...contractColumns(input),
+      ...contractColumns(input, classifications),
       accountId: account.id,
       ownerId: account.ownerId,
       clientId: client.id,
@@ -416,9 +445,10 @@ export async function updateContract(contractId: number, input: ContractInput, t
       await transaction.delete(incomes).where(inArray(incomes.id, plan.replacedIncomeIds));
     }
 
+    const classifications = await resolveContractClassifications(transaction, contract.ownerId, input);
     await transaction
       .update(contracts)
-      .set({ ...contractColumns(input), updatedAt: new Date() })
+      .set({ ...contractColumns(input, classifications), updatedAt: new Date() })
       .where(eq(contracts.id, contract.id));
     await saveCharges(transaction, contract.id, input, existingCharges);
     await saveHourTypes(transaction, contract.id, input.hourTypes, true);

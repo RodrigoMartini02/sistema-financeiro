@@ -3,17 +3,13 @@
 // antes de chamar o serviço, e por isso pode ser testado isoladamente.
 import { countMonthsUntil } from '../utils/date';
 import {
-  RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId, readOptionalText,
-  readQueryId, readQueryText, readRecord,
+  RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId, readQueryId, readQueryText,
+  readRecord,
 } from '../utils/requestInput';
-
-export const HOUR_TYPES = ['presencial', 'remoto'] as const;
-export type HourType = (typeof HOUR_TYPES)[number];
 
 /** "Repetir até" gera no máximo 3 anos de réplicas. */
 export const MAX_REPLICAS = 36;
 
-const MAX_CLIENT_LENGTH = 100;
 const MAX_PRODUCT_ID_LENGTH = 36;
 /** Maior quantidade que cabe em decimal(12,3). */
 const MAX_QUANTITY = 999_999_999.999;
@@ -30,9 +26,9 @@ export interface IncomeProductSale {
   quantity: number;
 }
 
+/** Horas do banco de horas de um contrato da conta: o tipo de hora diz o contrato. */
 export interface IncomeBillableHours {
-  contractId: number;
-  hourType: HourType;
+  hourTypeId: number;
   hours: number;
 }
 
@@ -41,7 +37,8 @@ export interface IncomeFieldsInput {
   categoryId: number | null;
   amount: number;
   receiptDate: string;
-  client: string | null;
+  /** Cliente do cadastro da conta PJ; nulo sem cliente. */
+  clientId: number | null;
   representativeId: number | null;
   attachments: unknown[] | null;
 }
@@ -62,10 +59,16 @@ export interface IncomeSuggestionsQuery {
   accountId: number | null;
 }
 
+/** Recebimento: data e valor recebidos, os dois opcionais (sem eles, valem os da receita). */
+export interface ReceiveIncomeInput {
+  receivedDate: string | null;
+  receivedAmount: number | null;
+}
+
 export interface IncomeDuplicateQuery {
   description: string;
   amount: number;
-  client: string | null;
+  clientId: number | null;
   accountId: number | null;
   excludeId: number | null;
 }
@@ -76,7 +79,7 @@ function readFields(record: Record<string, unknown>): IncomeFieldsInput {
     categoryId: readOptionalId(record['categoryId'], 'Categoria inválida'),
     amount: readAmount(record['amount'], 'Informe o valor'),
     receiptDate: readIsoDate(record['receiptDate'], 'Data do recebimento inválida'),
-    client: readOptionalText(record['client'], 'Cliente', MAX_CLIENT_LENGTH),
+    clientId: readOptionalId(record['clientId'], 'Cliente inválido'),
     representativeId: readOptionalId(record['representativeId'], 'Representante inválido'),
     attachments: readAttachments(record['attachments']),
   };
@@ -121,15 +124,16 @@ function readProductSale(value: unknown): IncomeProductSale | null {
 function readBillableHours(value: unknown): IncomeBillableHours | null {
   if (value === undefined || value === null) return null;
   const record = readRecord(value, 'Horas a faturar inválidas');
-  const contractId = readOptionalId(record['contractId'], 'Contrato inválido');
-  if (contractId === null) {
-    throw new RequestInputError('Escolha o contrato das horas');
+  const hourTypeId = readOptionalId(record['hourTypeId'], 'Tipo de hora inválido');
+  if (hourTypeId === null) {
+    throw new RequestInputError('Escolha o tipo de hora');
   }
-  const hourType = record['hourType'];
-  if (!HOUR_TYPES.includes(hourType as HourType)) {
-    throw new RequestInputError('Escolha horas presenciais ou remotas');
+  // O banco de horas guarda duas casas.
+  const hours = Math.round(readQuantity(record['hours'], 'Informe a quantidade de horas') * 100) / 100;
+  if (hours <= 0) {
+    throw new RequestInputError('Informe a quantidade de horas');
   }
-  return { contractId, hourType: hourType as HourType, hours: readQuantity(record['hours'], 'Informe a quantidade de horas') };
+  return { hourTypeId, hours };
 }
 
 /** Corpo do POST /incomes. */
@@ -150,6 +154,22 @@ export function readUpdateIncomeInput(body: unknown): UpdateIncomeInput {
   return readFields(readRecord(body, 'Pedido inválido'));
 }
 
+/** Corpo do PUT /incomes/:id/receber: `data_recebimento` e `valor_recebido`, opcionais. */
+export function readReceiveIncomeInput(body: unknown): ReceiveIncomeInput {
+  const record = body === undefined || body === null ? {} : readRecord(body, 'Pedido inválido');
+  const rawDate = record['data_recebimento'];
+  const rawAmount = record['valor_recebido'];
+  return {
+    receivedDate: rawDate === undefined || rawDate === null || rawDate === ''
+      ? null
+      : readIsoDate(rawDate, 'Data do recebimento inválida'),
+    // Vazio ou zero mantém o valor da receita, como antes.
+    receivedAmount: !rawAmount
+      ? null
+      : readAmount(typeof rawAmount === 'string' ? Number(rawAmount) : rawAmount, 'Valor recebido inválido'),
+  };
+}
+
 /** GET /incomes/suggestions?description=&account_id= */
 export function readIncomeSuggestionsQuery(query: Record<string, unknown>): IncomeSuggestionsQuery {
   const description = readQueryText(query['description']);
@@ -159,7 +179,7 @@ export function readIncomeSuggestionsQuery(query: Record<string, unknown>): Inco
   };
 }
 
-/** GET /incomes/duplicate?description=&amount=&client=&account_id=&exclude_id= */
+/** GET /incomes/duplicate?description=&amount=&client_id=&account_id=&exclude_id= */
 export function readIncomeDuplicateQuery(query: Record<string, unknown>): IncomeDuplicateQuery {
   const description = readQueryText(query['description']);
   if (!description) {
@@ -168,7 +188,7 @@ export function readIncomeDuplicateQuery(query: Record<string, unknown>): Income
   return {
     description,
     amount: readAmount(Number(query['amount']), 'Informe o valor'),
-    client: readQueryText(query['client']) || null,
+    clientId: readQueryId(query['client_id'], 'Cliente inválido'),
     accountId: readQueryId(query['account_id'], 'Conta inválida'),
     excludeId: readQueryId(query['exclude_id'], 'Receita inválida'),
   };

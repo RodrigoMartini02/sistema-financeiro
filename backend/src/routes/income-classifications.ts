@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { and, asc, eq, ne, sql } from 'drizzle-orm';
-import { db, pool } from '../db/client';
+import { db } from '../db/client';
 import {
   incomeClassificationFixes,
   incomeClassifications,
@@ -9,6 +9,7 @@ import {
   type IncomeClassificationFix,
 } from '../db/schema';
 import { authenticate } from '../middleware/auth';
+import { contracts } from '../modules/contracts/db/schema';
 import { ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { getTodayIsoInTimezone } from '../utils/date';
 import {
@@ -56,16 +57,19 @@ function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, in
 
 /** Classificações apontadas por contrato ativo da conta: não ligam o automático. */
 async function classificationsInActiveContracts(accountId: number): Promise<Set<number>> {
-  // contratos não tem schema Drizzle; mesma forma de acesso de routes/contracts.ts.
-  const result = await pool.query(
-    `SELECT classificacao_mensalidade_id, classificacao_implantacao_id
-       FROM contratos WHERE conta_id = $1 AND status = 'ativo'`,
-    [accountId],
-  );
+  const rows = await db
+    .select({
+      monthly: contracts.monthlyClassificationId,
+      setup: contracts.setupClassificationId,
+      project: contracts.projectClassificationId,
+    })
+    .from(contracts)
+    .where(and(eq(contracts.accountId, accountId), eq(contracts.status, 'ativo')));
   const ids = new Set<number>();
-  for (const row of result.rows as Array<{ classificacao_mensalidade_id: number | null; classificacao_implantacao_id: number | null }>) {
-    if (row.classificacao_mensalidade_id) ids.add(row.classificacao_mensalidade_id);
-    if (row.classificacao_implantacao_id) ids.add(row.classificacao_implantacao_id);
+  for (const row of rows) {
+    for (const id of [row.monthly, row.setup, row.project]) {
+      if (id !== null) ids.add(id);
+    }
   }
   return ids;
 }
@@ -348,7 +352,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         total: sql<number>`(
           (SELECT COUNT(*) FROM ${incomes} WHERE ${incomes.classificationId} = ${id})
           + (SELECT COUNT(*) FROM comissoes WHERE classificacao_id = ${id})
-          + (SELECT COUNT(*) FROM contratos WHERE classificacao_mensalidade_id = ${id} OR classificacao_implantacao_id = ${id})
+          + (SELECT COUNT(*) FROM ${contracts} WHERE ${contracts.monthlyClassificationId} = ${id}
+             OR ${contracts.setupClassificationId} = ${id} OR ${contracts.projectClassificationId} = ${id})
         )::int`,
       })
       .from(incomeClassifications)
