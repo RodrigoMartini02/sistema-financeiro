@@ -938,3 +938,28 @@ A implementação estará pronta quando:
 4. **Campo `client` do Drizzle de `receitas`:** sai nesta entrega (etapa 6), porque a 0071 apaga a coluna.
 5. **Auxiliares de leitura compartilhados:** `digitsOf`, `readRequiredText`, `EMAIL_PATTERN` e `BRAZIL_STATES` saíram de `orderInput.ts` para `utils/requestInput.ts`, para os validadores novos usarem.
 6. **0070 no banco local:** adiada para a etapa 9, com confirmação. Nenhuma etapa antes dela usa o banco.
+
+### Etapa 5 — backend do módulo
+
+- **Serviços** (`backend/src/services/`):
+  - `clients.ts`: lista com os indicadores dos contratos (só para quem tem "Contratos"), resumo do topo, cadastro, desativar e reativar, exclusão sem vínculos, receitas do cliente (com a regra de visibilidade da família) e troca do nome nas previstas de contrato ao renomear;
+  - `serviceCatalog.ts`: lista com a contagem de contratos, cadastro, renomear, desativar e reativar;
+  - `contracts.ts`: prévia, criar, alterar, encerrar, excluir, aditivo, reajuste e "Faturar";
+  - `contractIncomes.ts`: receitas da agenda, plano da alteração e do aditivo, cancelamento das previstas e complemento do "sem prazo";
+  - `contractViews.ts`: ficha, contratos do cliente, carteira do painel e contratos com horas;
+  - `contractIndicators.ts`, `contractHours.ts` e `contractAttachments.ts`;
+  - regras puras novas, com teste: `contractAlerts.ts` (vencendo e atrasada) e `contractAttachmentType.ts` (tipo pelo conteúdo);
+  - `incomeClassificationCatalog.ts`: `ensureContractIncomeClassification`, que cria "Contratos › Mensalidade/Implantação/Projeto" se faltar;
+  - `incomeClassificationDefaults.ts`: "Projeto" nas padrão de empresa (adiantado da etapa 6, porque o gerador de receitas precisa) e a função morta `canChangeContractSetupClassification` removida.
+- **Rotas:** `modules/contracts/routes/{clients,serviceCatalog,contracts,attachments,index}.ts`, montadas em `/api/clients`, `/api/contracts` e `/api/service-catalog`; `catalogAccess`: a lista aberta de contratos é só `/with-hours`.
+- Testes do back: 332/332; `tsc` sem erros.
+- **Regras decididas na implementação:**
+  - **Autor das receitas geradas:** o dono da conta (titular), como o catálogo da conta.
+  - **Alteração:** refaz a partir do mês atual em todas as cobranças, inclusive nas acrescentadas agora. Canceladas também travam o mês: o mês cancelado não volta.
+  - **Cobrança que sai do contrato:** só sem receita faturada, recebida ou de mês anterior; senão, a mensagem indica o aditivo.
+  - **Tipo de hora:** com horas lançadas não sai, e a quantidade não fica abaixo do já lançado.
+  - **Encerrar:** cancela as previstas a partir do mês seguinte; a do mês atual fica (menos perda que cancelar um mês já trabalhado).
+  - **Excluir contrato:** cancela as previstas (desfaz a comissão de alguma receita de horas) e apaga as receitas restantes, os anexos e o contrato.
+  - **Aditivo:** com a mesma data-base, o ciclo de reajuste já tratado continua tratado.
+  - **Reajuste:** atualiza a mensalidade, o valor da hora e as mensalidades previstas a partir do mês atual.
+  - **Contrato encerrado:** não é alterado, não recebe aditivo nem reajuste; anexos continuam.

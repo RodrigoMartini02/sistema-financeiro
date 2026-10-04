@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RequestInputError } from '../utils/requestInput';
-import { readClientActiveInput, readClientInput, readClientListQuery } from './clientInput';
+import { readActiveInput, readClientInput, readClientListQuery } from './clientInput';
 
 const VALID_CPF = '52998224725';
 const VALID_CNPJ = '11222333000181';
@@ -108,10 +108,10 @@ test('recusa e-mail, telefone, CEP e UF inválidos', () => {
 });
 
 test('desativar e reativar pedem verdadeiro ou falso', () => {
-  assert.equal(readClientActiveInput({ active: false }), false);
-  assert.equal(readClientActiveInput({ active: true }), true);
-  assertRejects(() => readClientActiveInput({ active: 'false' }), 'Situação inválida');
-  assertRejects(() => readClientActiveInput({}), 'Situação inválida');
+  assert.equal(readActiveInput({ active: false }), false);
+  assert.equal(readActiveInput({ active: true }), true);
+  assertRejects(() => readActiveInput({ active: 'false' }), 'Situação inválida');
+  assertRejects(() => readActiveInput({}), 'Situação inválida');
 });
 
 test('filtros da lista: ativos por padrão, tipo e busca opcionais', () => {

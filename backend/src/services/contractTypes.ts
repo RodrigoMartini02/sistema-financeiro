@@ -44,6 +44,18 @@ export const OPEN_ENDED_MONTHS_AHEAD = 12;
 export const EXPIRING_SOON_DAYS = 60;
 export const MAX_INSTALLMENTS = 120;
 
+/** Situações da receita (`receitas.status`) que o módulo usa; 'ativa' é a recebida. */
+export const INCOME_STATUS = {
+  planned: 'prevista',
+  invoiced: 'faturada',
+  received: 'ativa',
+  cancelled: 'cancelada',
+} as const;
+/** Faturada ou recebida: nunca muda numa alteração do contrato e consome o empenho. */
+export const BILLED_INCOME_STATUSES: readonly string[] = [INCOME_STATUS.invoiced, INCOME_STATUS.received];
+/** Prevista ou faturada: ainda a receber (fica atrasada depois do vencimento). */
+export const OPEN_INCOME_STATUSES: readonly string[] = [INCOME_STATUS.planned, INCOME_STATUS.invoiced];
+
 /** Filtro de situação da lista de clientes (`?status=`). */
 export const CLIENT_LIST_STATUSES = ['active', 'inactive'] as const;
 export type ClientListStatus = (typeof CLIENT_LIST_STATUSES)[number];

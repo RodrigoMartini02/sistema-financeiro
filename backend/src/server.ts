@@ -91,6 +91,7 @@ import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
+import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
 import { authenticate, requireActivePlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
@@ -143,6 +144,10 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/catalogo', catalogoRoutes);
+// Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro.
+app.use('/api/clients', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
+app.use('/api/contracts', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
+app.use('/api/service-catalog', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceCatalogRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires

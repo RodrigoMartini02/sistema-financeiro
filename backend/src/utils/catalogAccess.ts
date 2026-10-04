@@ -47,7 +47,8 @@ export const CATALOG_RULES: Record<CatalogName, CatalogRule> = {
   },
   cards: { manageFlag: 'accessCards', listReaders: ['accessExpenses'], listPaths: ['/', '/limites'] },
   clients: { manageFlag: 'accessClients', listReaders: ['accessIncomes'], listPaths: ['/'] },
-  contracts: { manageFlag: 'accessContracts', listReaders: ['accessIncomes'], listPaths: ['/'] },
+  // O lançamento de receita lista só os contratos com banco de horas.
+  contracts: { manageFlag: 'accessContracts', listReaders: ['accessIncomes'], listPaths: ['/with-hours'] },
   representatives: {
     manageFlag: 'accessRepresentatives',
     listReaders: ['accessIncomes', 'accessContracts'],

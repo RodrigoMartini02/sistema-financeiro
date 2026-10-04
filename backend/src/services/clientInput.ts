@@ -152,8 +152,8 @@ export function readClientInput(body: unknown): ClientInput {
   };
 }
 
-/** Corpo do PUT /api/clients/:id/active. */
-export function readClientActiveInput(body: unknown): boolean {
+/** Corpo do PUT /api/clients/:id/active e /api/service-catalog/:id/active. */
+export function readActiveInput(body: unknown): boolean {
   const record = readRecord(body, 'Situação inválida');
   const active = record['active'];
   if (typeof active !== 'boolean') {

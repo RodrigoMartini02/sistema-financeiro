@@ -1,6 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computeWithholdings, hasWithholdings } from './contractRetentions';
+import { computeWithholdings, hasWithholdings, incomeAmounts, ratesFromColumns } from './contractRetentions';
+
+test('valores da receita: com retenção, o líquido vale e o bruto fica ao lado; sem retenção, só o valor', () => {
+  assert.deepEqual(incomeAmounts(4500, { ir: 4.8, iss: 5 }), {
+    gross: 4500,
+    withholdings: { ir: 216, pisCofinsCsll: 0, iss: 225, inss: 0 },
+    net: 4059,
+  });
+  assert.deepEqual(incomeAmounts(4500, { iss: 0 }), { gross: 4500, withholdings: null, net: 4500 });
+});
+
+test('percentuais do banco: coluna nula fica de fora, zero continua', () => {
+  assert.deepEqual(ratesFromColumns({ ir: '4.80', pisCofinsCsll: null, iss: '0.00', inss: null }), { ir: 4.8, iss: 0 });
+});
 
 test('R$ 4.500,00 com IR de 4,80% e ISS de 5,00%: retém R$ 441,00 e o líquido é R$ 4.059,00', () => {
   const result = computeWithholdings(4500, { ir: 4.8, iss: 5 });

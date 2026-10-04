@@ -1,7 +1,7 @@
 // Retenções de tributos na receita de contrato com órgão público, sem banco.
 // Cada tributo é arredondado ao centavo (metade para cima) e o líquido é o
 // bruto menos a soma: é o valor que a empresa recebe e o que conta nos totais.
-import { WITHHOLDING_TAXES, type WithholdingAmounts, type WithholdingRates } from './contractTypes';
+import { WITHHOLDING_TAXES, type WithholdingAmounts, type WithholdingRates, type WithholdingTax } from './contractTypes';
 
 export interface WithholdingResult {
   gross: number;
@@ -15,9 +15,38 @@ function percentOfCents(cents: number, basisPoints: number): number {
   return Math.floor((2 * cents * basisPoints + 10_000) / 20_000);
 }
 
+/** Percentuais como o banco devolve (numeric em texto); coluna nula fica de fora. */
+export function ratesFromColumns(columns: Record<WithholdingTax, string | null>): WithholdingRates {
+  const rates: WithholdingRates = {};
+  for (const tax of WITHHOLDING_TAXES) {
+    const value = columns[tax];
+    if (value !== null) {
+      rates[tax] = Number(value);
+    }
+  }
+  return rates;
+}
+
 /** Algum tributo com percentual acima de zero: só então a receita guarda bruto e retenções. */
 export function hasWithholdings(rates: WithholdingRates): boolean {
   return WITHHOLDING_TAXES.some((tax) => (rates[tax] ?? 0) > 0);
+}
+
+export interface IncomeAmounts {
+  gross: number;
+  /** Nulo quando o contrato não retém nada: a receita não guarda bruto nem retenções. */
+  withholdings: WithholdingAmounts | null;
+  /** O que a receita vale (`valor`): o líquido. */
+  net: number;
+}
+
+/** Valores de uma receita de contrato a partir do bruto. */
+export function incomeAmounts(gross: number, rates: WithholdingRates): IncomeAmounts {
+  if (!hasWithholdings(rates)) {
+    return { gross, withholdings: null, net: gross };
+  }
+  const result = computeWithholdings(gross, rates);
+  return { gross: result.gross, withholdings: result.amounts, net: result.net };
 }
 
 /** Percentual ausente vale 0,00%: sem retenção daquele tributo. */
