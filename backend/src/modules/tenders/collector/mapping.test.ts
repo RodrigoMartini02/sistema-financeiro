@@ -74,6 +74,12 @@ test('valor estimado 0 (sigiloso ou não informado) fica nulo', () => {
   assert.equal(row.estimatedTotalValue, null);
 });
 
+test('valor estimado negativo (erro na origem) fica nulo, sem perder o edital', () => {
+  const [record] = pageRecords('proposta-page.json');
+  assert.equal(mapOk({ ...record, valorTotalEstimado: -1500 }).estimatedTotalValue, null);
+  assert.equal(mapOk({ ...record, valorTotalEstimado: '-0.01' }).estimatedTotalValue, null);
+});
+
 test('situação diferente de 1 é gravada como veio, em número ou texto', () => {
   const suspended = readFixture('record-suspended.json') as Record<string, unknown>;
   assert.equal(mapOk(suspended).situationId, 4);

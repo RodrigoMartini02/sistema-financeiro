@@ -63,10 +63,12 @@ const pncpRecordSchema = z.looseObject({
   objetoCompra: z.string(),
   informacaoComplementar: optionalText,
   srp: z.boolean().nullish(),
+  // Negativo também é aceito aqui e vira nulo no mapeamento: o PNCP já mandou
+  // edital real com valor negativo, e descartá-lo perderia o edital inteiro.
   valorTotalEstimado: z
-    .union([z.number(), z.string().trim().regex(/^\d+(\.\d+)?$/)])
+    .union([z.number(), z.string().trim().regex(/^-?\d+(\.\d+)?$/)])
     .transform(Number)
-    .pipe(z.number().min(0).lt(MAX_ESTIMATED_VALUE))
+    .pipe(z.number().gt(-MAX_ESTIMATED_VALUE).lt(MAX_ESTIMATED_VALUE))
     .nullish(),
   dataPublicacaoPncp: pncpDateTime,
   dataAberturaProposta: pncpDateTime,
@@ -124,7 +126,8 @@ export function mapPncpRecord(raw: unknown): MappedRecord {
   const agencyCnpj = agency?.cnpj ?? null;
   const purchaseYear = record.anoCompra ?? null;
   const purchaseSequence = record.sequencialCompra ?? null;
-  // Valor 0 é orçamento sigiloso ou não informado: fica nulo, e o filtro de valor o deixa de fora.
+  // Valor 0 é orçamento sigiloso ou não informado, e negativo é erro de cadastro na
+  // origem: os dois ficam nulos, e o filtro de valor deixa o edital de fora.
   const estimatedValue = record.valorTotalEstimado ?? 0;
 
   return {

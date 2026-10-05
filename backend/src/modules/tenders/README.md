@@ -137,7 +137,7 @@ SELECT count(*) AS editais,
 ## Decisões de mapeamento e datas
 
 - **Datas do PNCP:** chegam sem fuso, no horário de Brasília. A conexão do coletor fixa `timezone = America/Sao_Paulo`, e o banco grava em `timestamptz`. O cliente devolve as datas como texto.
-- **Valor estimado:** `0` vira nulo, porque é orçamento sigiloso ou não informado. Com filtro de valor, esse edital fica de fora da busca.
+- **Valor estimado:** `0` vira nulo, porque é orçamento sigiloso ou não informado. Valor negativo também vira nulo: é erro de cadastro na origem, e o PNCP já mandou um caso real. Assim o edital não se perde. Com filtro de valor, esses editais ficam de fora da busca.
 - **Textos:** os vazios (`""`) viram nulos e são aparados. Códigos vêm como número ou texto e são aceitos dos dois jeitos.
 - **Registro inválido:** CNPJ sem 14 dígitos, UF fora do padrão, data fora do formato etc. conta como erro na execução, com o número de controle, e não derruba a página.
 - **`hash_payload`:** SHA-256 do JSON com as chaves ordenadas. A mesma resposta em outra ordem dá o mesmo hash.
