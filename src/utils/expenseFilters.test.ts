@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Expense } from '../types/finance';
-import { filterExpenses, getExpenseStatus, type ExpenseFilters, type ExpenseVisibility } from './expenseFilters';
+import {
+  expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable, type ExpenseFilters, type ExpenseVisibility,
+} from './expenseFilters';
 
 const DATES = { today: '2026-10-15', weekAgo: '2026-10-08' };
 const MONTH = 9; // outubro (0-based)
@@ -81,4 +83,19 @@ test('visibilidade: quem paga ou quem cadastrou, se estiver marcado', () => {
   assert.deepEqual(run(items, filters(), onlyBia), [2, 3]);
   const loading: ExpenseVisibility = { meId: null, visibleNames: new Set() };
   assert.deepEqual(run(items, filters(), loading), [1, 2, 3, 4]);
+});
+
+test('pagamento em lote: só a despesa não paga e não cancelada', () => {
+  assert.equal(isBatchSelectable(expense(1)), true);
+  assert.equal(isBatchSelectable(expense(2, { status: 'ativa' })), true);
+  assert.equal(isBatchSelectable(expense(3, { pago: true })), false);
+  assert.equal(isBatchSelectable(expense(4, { status: 'cancelada' })), false);
+});
+
+test('chave dos filtros: a mesma escolha dá o mesmo texto; mudar qualquer filtro muda o texto', () => {
+  const base = expenseFiltersKey(filters({ categoryIds: new Set(['2', '1']) }), new Set(['Bia', 'Ana']));
+  assert.equal(expenseFiltersKey(filters({ categoryIds: new Set(['1', '2']) }), new Set(['Ana', 'Bia'])), base);
+  assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1']) }), new Set(['Ana', 'Bia'])), base);
+  assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1', '2']), paymentMethods: new Set(['pix']) }), new Set(['Ana', 'Bia'])), base);
+  assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1', '2']) }), new Set(['Ana'])), base);
 });
