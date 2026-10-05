@@ -22,7 +22,8 @@ interface CalendarPanelProps {
   footer?: ReactNode;
 }
 
-const DAY_SIZE = 34;
+/** Dia em círculo de tamanho fixo: no painel inferior do celular a casa é mais larga, e o dia não vira oval. */
+const DAY_SIZE = 36;
 
 const navButtonStyle: CSSProperties = {
   display: 'grid', placeItems: 'center', width: 28, height: 28, flex: 'none', padding: 0, border: 'none', borderRadius: 8,
@@ -36,7 +37,7 @@ const headerSelectStyle: CSSProperties = {
 
 function dayStyle({ inMonth, selected, inRange, today }: { inMonth: boolean; selected: boolean; inRange: boolean; today: boolean }): CSSProperties {
   return {
-    width: '100%', height: DAY_SIZE, padding: 0, borderRadius: 999, cursor: 'pointer',
+    width: DAY_SIZE, height: DAY_SIZE, padding: 0, borderRadius: 999, cursor: 'pointer',
     fontSize: 12.5, fontWeight: selected || today ? 700 : 500, fontVariantNumeric: 'tabular-nums',
     border: `1px solid ${today && !selected ? C.primary : 'transparent'}`,
     background: selected ? C.primary : inRange ? C.primarySoft : 'transparent',
