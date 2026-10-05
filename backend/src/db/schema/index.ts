@@ -19,3 +19,4 @@ export * from './expenseAlerts';
 export * from './pushSubscriptions';
 export * from '../../modules/catalogo/db/schema';
 export * from '../../modules/contracts/db/schema';
+export * from '../../modules/tenders/db/schema';
