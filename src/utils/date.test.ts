@@ -30,3 +30,10 @@ test('conversão entre dd/mm/aaaa e ISO recusa data que não existe', () => {
   assert.equal(isoToBrDate(null), '');
   assert.equal(isoToShortBrDate('2026-10-05'), '05/10');
 });
+
+test('data com dígito apagado no meio ("_") fica incompleta: não completa nem converte', () => {
+  assert.equal(completeBrDate('0_/10/2026', '2026-10-05'), '0_/10/2026');
+  assert.equal(completeBrDate('05/__/2026', '2026-10-05'), '05/__/2026');
+  assert.equal(brDateToIso('0_/10/2026'), '');
+  assert.equal(brDateToIso('05/10/__26'), '');
+});
