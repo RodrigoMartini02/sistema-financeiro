@@ -13,7 +13,7 @@ import { getActiveAccountId } from '../../services/apiClient';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
-import { filterExpenses } from '../../utils/expenseFilters';
+import { expensesPaidByPeople, filterExpenses } from '../../utils/expenseFilters';
 import { effectiveExpenseValue } from '../../utils/expenseValue';
 import { canReadCatalogList, movementControls } from '../../utils/screenAccess';
 import { CalendarSubViewToggle, type CalendarSubView } from './calendar/CalendarSubViewToggle';
@@ -129,15 +129,18 @@ export function MovimentacoesScreen() {
   const saldoAnterior = dashboard?.balance.saldoAnterior ?? 0;
   const receitasMes = dashboard?.balance.receitas ?? 0;
   const despesasLancadasMes = dashboard?.balance.despesas ?? 0;
-  // Com filtro ativo, o total de despesas segue a mesma regra da tabela
-  // (filterExpenses), calculado aqui: a tabela não precisa avisar a tela.
-  const filteredExpenses = filters.hasActiveFilters
-    ? filterExpenses(dashboard?.expenses ?? [], filters.state, { meId: meIdStr, visibleNames: nomesVisiveis }, month, year)
-    : null;
-  // Só a "Despesa do mês" segue o filtro, pelo valor efetivo (o pago, quando
-  // paga). Resultado e saldo atual são sempre do mês inteiro, como saldo
-  // anterior e receita, para nenhum card misturar filtrado com não filtrado.
-  const despesasMes = filteredExpenses ? filteredExpenses.reduce((sum, item) => sum + effectiveExpenseValue(item), 0) : despesasLancadasMes;
+  // "Despesa do mês" tem uma conta só, com ou sem filtro: a lista com a mesma
+  // regra da tabela (filterExpenses), somando só as despesas não canceladas
+  // pagas pelas pessoas selecionadas, pelo valor efetivo (o pago, quando paga).
+  // Sem filtro, dá o total do servidor (despesa conta para quem paga).
+  // Resultado e saldo atual são sempre do mês inteiro, como saldo anterior e
+  // receita, para nenhum card misturar filtrado com não filtrado.
+  const visibility = { meId: meIdStr, visibleNames: nomesVisiveis };
+  const expensesInTotal = expensesPaidByPeople(
+    filterExpenses(dashboard?.expenses ?? [], filters.state, visibility, month, year),
+    visibility,
+  );
+  const despesasMes = expensesInTotal.reduce((sum, item) => sum + effectiveExpenseValue(item), 0);
   const resultadoMes = receitasMes - despesasLancadasMes;
   const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
 
@@ -225,7 +228,7 @@ export function MovimentacoesScreen() {
               label="Despesa do mês"
               value={formatCurrency(despesasMes)}
               tone="expense"
-              note={filteredExpenses ? `${filteredExpenses.length} lançamento(s) filtrado(s)` : `${finance.dashboard.data?.expenses.length ?? 0} lançamento(s)`}
+              note={`${expensesInTotal.length} lançamento(s)${filters.hasActiveFilters ? ' filtrado(s)' : ''}`}
             />
             <MovementMetricCard
               label="Resultado do mês"

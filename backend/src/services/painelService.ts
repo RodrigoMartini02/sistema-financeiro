@@ -5,6 +5,7 @@ import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
 import { resolveAccountOwnerId } from '../utils/familyVisibility';
+import { PAYMENT_METHODS } from './expenseInput';
 import {
   ACTIVE_STATUS,
   RECEIVABLE_STATUSES,
@@ -29,6 +30,7 @@ import {
   agregarTipoGasto,
   despesasDoPeriodo,
   fatorMetaProporcional,
+  filtrarDespesasPainel,
   gastoPorCategoriaComRollup,
   janelaComprometido,
   janelaDaSerie,
@@ -45,6 +47,7 @@ import {
   type FatiaPainel,
   type ContasEmAberto,
   type DespesaPainel,
+  type FiltrosDespesaPainel,
   type EmDiaAgregado,
   type FormaPagamentoAgregada,
   type Granularidade,
@@ -63,6 +66,8 @@ export interface PainelEntrada {
   solicitanteId: number;
   /** Pessoas cujos lançamentos entram no painel, já validadas por resolveDashboardScope. */
   escopo: number[];
+  /** Filtros do botão de filtros (categoria, cartão, forma): valem só para as despesas. */
+  filtros: FiltrosDespesaPainel;
   accountId: number | null;
   tipoConta: TipoConta;
   periodo: Periodo;
@@ -116,6 +121,8 @@ export interface PainelResposta {
   empresa: {
     estoqueBaixo: Array<{ id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }>;
   } | null;
+  /** Opções do botão de filtros: formas e cartões das despesas do período, sem os filtros aplicados. */
+  filterOptions: { paymentMethods: string[]; cards: Array<{ id: number; name: string }> };
 }
 
 const LIMITE_ESTOQUE_BAIXO = 20;
@@ -326,6 +333,11 @@ async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaP
   if (entrada.tipoConta !== 'pessoal' || !entrada.podeVerPlanejado) {
     return null;
   }
+  // O teto é por categoria: com filtro de cartão ou de forma o gasto seria só
+  // uma parte da categoria, e a comparação engana.
+  if (entrada.filtros.cardIds.length > 0 || entrada.filtros.paymentMethods.length > 0) {
+    return null;
+  }
 
   const [inicioAno, inicioMes] = entrada.periodo.de.split('-').map(Number);
   const [fimAno, fimMes] = entrada.periodo.ate.split('-').map(Number);
@@ -353,8 +365,10 @@ async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaP
   const gasto = gastoPorCategoriaComRollup(despesasPeriodo, paiDe);
   const fator = fatorMetaProporcional(entrada.periodo);
 
+  const categoriasFiltradas = entrada.filtros.categoryIds;
   return visaoOrcamento.items
     .filter((item) => item.targetAmount !== null)
+    .filter((item) => categoriasFiltradas.length === 0 || categoriasFiltradas.includes(item.categoryId))
     .map((item) => ({
       categoriaId: item.categoryId,
       categoria: item.categoryName,
@@ -363,6 +377,22 @@ async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaP
       gasto: gasto.get(item.categoryId) ?? 0,
     }))
     .sort((a, b) => b.gasto / (b.meta || 1) - a.gasto / (a.meta || 1));
+}
+
+/** Opções do botão de filtros: formas válidas e cartões das despesas do período, antes de qualquer filtro. */
+async function buscarOpcoesDeFiltro(despesasPeriodo: DespesaPainel[]): Promise<PainelResposta['filterOptions']> {
+  const formasValidas = new Set<string>(PAYMENT_METHODS);
+  const paymentMethods = [...new Set(despesasPeriodo
+    .map((despesa) => despesa.formaPagamento)
+    .filter((forma): forma is string => !!forma && formasValidas.has(forma)))].sort();
+  const idsCartoes = [...new Set(despesasPeriodo
+    .map((despesa) => despesa.cartaoId)
+    .filter((id): id is number => id !== null))];
+  if (idsCartoes.length === 0) {
+    return { paymentMethods, cards: [] };
+  }
+  const linhas = await db.select({ id: cards.id, name: cards.name }).from(cards).where(inArray(cards.id, idsCartoes));
+  return { paymentMethods, cards: linhas.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) };
 }
 
 function erroDeTabelaInexistente(error: unknown): boolean {
@@ -415,7 +445,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
 
   // Previstas desde o início do mês do período: a projeção das fixas precisa
   // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
-  const [despesas, receitas, naoPagas, saldoAnterior, previstas, fixas] = await Promise.all([
+  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
@@ -424,6 +454,9 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     buscarFixas(entrada),
   ]);
 
+  // Os filtros do botão (categoria, cartão, forma) valem só para as despesas.
+  const despesas = filtrarDespesasPainel(despesasSemFiltro, entrada.filtros);
+  const naoPagas = filtrarDespesasPainel(naoPagasSemFiltro, entrada.filtros);
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
   const receitasPeriodo = receitasDoPeriodo(receitas, periodo);
   const resumoAtual = resumirPeriodo(despesasPeriodo, receitasPeriodo);
@@ -439,13 +472,14 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const idsCategorias = categoriasAgregadas
     .map((linha) => linha.categoriaId)
     .filter((id): id is number => id !== null);
-  const [nomesPessoas, categoriasPorId, cartoes, planejado, estoqueBaixo, classificacoes] = await Promise.all([
+  const [nomesPessoas, categoriasPorId, cartoes, planejado, estoqueBaixo, classificacoes, filterOptions] = await Promise.all([
     findPeopleNames(entrada.escopo),
     buscarCategorias(idsCategorias),
     montarCartoes(entrada, despesasPeriodo),
     montarPlanejado(entrada, despesasPeriodo),
     entrada.tipoConta === 'empresa' ? buscarEstoqueBaixo(entrada) : Promise.resolve([]),
     buscarClassificacoes(idsClassificacoes),
+    buscarOpcoesDeFiltro(despesasDoPeriodo(despesasSemFiltro, periodo)),
   ]);
   const tipoGasto = agregarTipoGasto(despesasPeriodo);
 
@@ -513,5 +547,6 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       autorNome: nomesPessoas.get(linha.autorId) ?? nomesAutores.get(linha.autorId) ?? '',
     })),
     empresa: entrada.tipoConta === 'empresa' ? { estoqueBaixo } : null,
+    filterOptions,
   };
 }

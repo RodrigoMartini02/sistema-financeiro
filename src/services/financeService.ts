@@ -241,6 +241,9 @@ export async function fetchPainel(filtro: PainelFiltro): Promise<PainelData> {
   else if (filtro.membroId) {
     for (const id of filtro.membroId) q.append('membro_id', String(id));
   }
+  for (const id of filtro.categoryIds ?? []) q.append('category_id', String(id));
+  for (const id of filtro.cardIds ?? []) q.append('card_id', String(id));
+  for (const method of filtro.paymentMethods ?? []) q.append('payment_method', method);
   appendProfile(q);
   return apiRequest<PainelData>(`/financial/painel?${q}`);
 }

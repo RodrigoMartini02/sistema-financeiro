@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Expense } from '../types/finance';
 import {
-  expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable, type ExpenseFilters, type ExpenseVisibility,
+  expenseFiltersKey, expensesPaidByPeople, filterExpenses, getExpenseStatus, isBatchSelectable,
+  type ExpenseFilters, type ExpenseVisibility,
 } from './expenseFilters';
 
 const DATES = { today: '2026-10-15', weekAgo: '2026-10-08' };
@@ -98,4 +99,23 @@ test('chave dos filtros: a mesma escolha dá o mesmo texto; mudar qualquer filtr
   assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1']) }), new Set(['Ana', 'Bia'])), base);
   assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1', '2']), paymentMethods: new Set(['pix']) }), new Set(['Ana', 'Bia'])), base);
   assert.notEqual(expenseFiltersKey(filters({ categoryIds: new Set(['1', '2']) }), new Set(['Ana'])), base);
+});
+
+test('soma das pessoas: só as pagas por elas (dono do cartão) e não canceladas', () => {
+  const items = [
+    expense(1, { pagadorNome: 'Ana', autorNome: 'Ana' }),
+    expense(2, { pagadorNome: 'Ana', autorNome: 'Bia', autorId: 2 }), // Bia comprou no cartão da Ana
+    expense(3, { pagadorNome: 'Bia', autorNome: 'Ana' }), // Ana comprou no cartão da Bia
+    expense(4, { pagadorNome: 'Ana', status: 'cancelada' }),
+  ];
+  const onlyAna: ExpenseVisibility = { meId: '1', visibleNames: new Set(['Ana']) };
+  assert.deepEqual(ids(expensesPaidByPeople(items, onlyAna)), [1, 2]);
+  const onlyBia: ExpenseVisibility = { meId: '2', visibleNames: new Set(['Bia']) };
+  assert.deepEqual(ids(expensesPaidByPeople(items, onlyBia)), [3]);
+  assert.deepEqual(ids(expensesPaidByPeople(items, EVERYONE)), [1, 2, 3]);
+});
+
+test('soma das pessoas: com o usuário ainda carregando, todas as não canceladas entram', () => {
+  const items = [expense(1, { pagadorNome: 'Ana' }), expense(2, { pagadorNome: null }), expense(3, { status: 'cancelada' })];
+  assert.deepEqual(ids(expensesPaidByPeople(items, { meId: null, visibleNames: new Set() })), [1, 2]);
 });

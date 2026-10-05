@@ -3,6 +3,7 @@ import { MotionConfig, motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
+import { fetchCategorias } from '../../services/configService';
 import { fetchPainel } from '../../services/financeService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchMembros } from '../../services/membrosService';
@@ -13,10 +14,14 @@ import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
-import type { PainelPeriodo } from '../../types/finance';
+import { PAYMENT_METHODS, type PainelPeriodo } from '../../types/finance';
+import { categoryFilterNames, categoryFilterOptions } from '../../utils/categorySuggestions';
+import { canReadCatalogList } from '../../utils/screenAccess';
 import { TERMOS } from '../config/ContasTab';
 import { DashboardPeriodFilter, descreverPeriodo, periodoDoAnoAtual } from './DashboardPeriodFilter';
+import { getPaymentMethodLabel } from './entryTable';
 import { firstName } from './memberColors';
+import { AvisoPainelFiltrado } from './painel/AvisoPainelFiltrado';
 import { CardsResumo } from './painel/CardsResumo';
 import { ComoDinheiroSaiu } from './painel/ComoDinheiroSaiu';
 import { DeOndeVeioDinheiro } from './painel/DeOndeVeioDinheiro';
@@ -33,6 +38,9 @@ import { ENTRADA_PAINEL, EsqueletoPainel } from './painel/base';
 import { OndeMaisGastou } from './painel/OndeMaisGastou';
 
 const GRUPO_MEMBROS = 'membros';
+const GRUPO_CATEGORIA = 'categoria';
+const GRUPO_FORMA = 'forma-pagamento';
+const GRUPO_CARTAO = 'cartao';
 const GRUPO_CONTAS = 'contas';
 const OPCAO_TODAS_CONTAS = 'todas';
 
@@ -44,6 +52,10 @@ export function FinanceDashboard() {
   // Pessoas marcadas no filtro, por usuario_id. Vazio só até meQ resolver; o
   // efeito abaixo marca o próprio usuário assim que o id chega.
   const [membroIds, setMembroIds] = useState<Set<string>>(new Set());
+  // Filtros de despesa (como em Lançamentos): valem só para as despesas.
+  const [categoriaIds, setCategoriaIds] = useState<Set<string>>(new Set());
+  const [formasPagamento, setFormasPagamento] = useState<Set<string>>(new Set());
+  const [cartaoIds, setCartaoIds] = useState<Set<string>>(new Set());
   const guiaMes = useFirstAccessGuide('painel:mes-v1');
 
   const accountId = getActiveAccountId();
@@ -56,6 +68,14 @@ export function FinanceDashboard() {
   // Mesma chave usada em AppShell.tsx — cache compartilhado.
   const permissoes = useOwnPermissions();
   const podeVerTodasAsContas = permissoes?.accessGeneralOverview ?? true;
+  // Quem não lê categorias de despesa fica sem o grupo de categoria, como em Lançamentos.
+  const podeLerCategorias = canReadCatalogList(permissoes ?? {}, 'expenseCategories');
+  const categoriasQ = useQuery({
+    queryKey: queryKeys.categorias(accountId),
+    queryFn: () => fetchCategorias(accountId),
+    enabled: podeLerCategorias,
+    staleTime: 5 * 60_000,
+  });
 
   const meId = meQ.data ? String(meQ.data.id) : null;
   // O titular não está em conta_membros (a rota lista só os vinculados): ele
@@ -83,9 +103,16 @@ export function FinanceDashboard() {
     ? undefined
     : todasAsPessoas ? null : [...membroIds].map(Number);
 
+  const filtrosDespesa = {
+    categoryIds: [...categoriaIds].map(Number),
+    cardIds: [...cartaoIds].map(Number),
+    paymentMethods: [...formasPagamento],
+  };
+  const filtrado = categoriaIds.size > 0 || cartaoIds.size > 0 || formasPagamento.size > 0;
+
   const painelQ = useQuery({
-    queryKey: queryKeys.painel(accountId, periodo.de, periodo.ate, membroId),
-    queryFn: () => fetchPainel({ ...periodo, membroId }),
+    queryKey: queryKeys.painel(accountId, periodo.de, periodo.ate, membroId, filtrosDespesa),
+    queryFn: () => fetchPainel({ ...periodo, membroId, ...filtrosDespesa }),
     enabled: meId !== null,
     staleTime: 30_000,
     // Ao trocar período ou pessoas, os gráficos ficam na tela e passam para os
@@ -104,6 +131,18 @@ export function FinanceDashboard() {
   const tipoConta = dados?.tipoConta ?? (localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal');
   const termos = TERMOS[tipoConta];
 
+  // Opções dos filtros de despesa: categorias do catálogo, as quatro formas e os
+  // cartões das despesas do período (mais os marcados, se o período mudou).
+  const opcoesCategoria = categoryFilterOptions(categoriasQ.data ?? []);
+  const cartoesDoPeriodo = dados?.filterOptions?.cards ?? [];
+  const opcoesCartao = [
+    ...cartoesDoPeriodo.map((cartao) => ({ value: String(cartao.id), label: cartao.name })),
+    ...[...cartaoIds]
+      .filter((id) => !cartoesDoPeriodo.some((cartao) => String(cartao.id) === id))
+      .map((id) => ({ value: id, label: `Cartão ${id}` })),
+  ];
+  const opcoesForma = PAYMENT_METHODS.map((forma) => ({ value: forma, label: getPaymentMethodLabel(forma) }));
+
   const grupos: FilterGroup[] = [
     {
       id: GRUPO_MEMBROS,
@@ -112,6 +151,13 @@ export function FinanceDashboard() {
       selected: membroIds,
       onChange: setMembroIds,
     },
+    ...(podeLerCategorias
+      ? [{ id: GRUPO_CATEGORIA, label: 'Categoria', options: opcoesCategoria, selected: categoriaIds, onChange: setCategoriaIds }]
+      : []),
+    { id: GRUPO_FORMA, label: 'Forma de pagamento', options: opcoesForma, selected: formasPagamento, onChange: setFormasPagamento },
+    ...(opcoesCartao.length > 0
+      ? [{ id: GRUPO_CARTAO, label: 'Cartão', options: opcoesCartao, selected: cartaoIds, onChange: setCartaoIds }]
+      : []),
     {
       id: GRUPO_CONTAS,
       label: 'Contas',
@@ -127,12 +173,22 @@ export function FinanceDashboard() {
   ];
   const padrao = periodoDoAnoAtual();
   const periodoEhPadrao = periodo.de === padrao.de && periodo.ate === padrao.ate;
-  const filtrosAtivos = !somenteEu || todasAsContas || !periodoEhPadrao;
+  const filtrosAtivos = !somenteEu || todasAsContas || !periodoEhPadrao || filtrado;
   const limparFiltros = () => {
     setMembroIds(meId ? new Set([meId]) : new Set());
     setTodasAsContas(false);
     setPeriodo(periodoDoAnoAtual());
+    setCategoriaIds(new Set());
+    setFormasPagamento(new Set());
+    setCartaoIds(new Set());
   };
+  // Nomes dos filtros de despesa ligados, para o aviso de painel filtrado.
+  const nomeDe = (opcoes: { value: string; label: string }[], valor: string) => opcoes.find((opcao) => opcao.value === valor)?.label ?? valor;
+  const nomesFiltros = [
+    ...categoryFilterNames(opcoesCategoria, categoriaIds),
+    ...[...formasPagamento].map((forma) => nomeDe(opcoesForma, forma)),
+    ...[...cartaoIds].map((id) => nomeDe(opcoesCartao, id)),
+  ];
 
   const semLancamentos = !!dados && dados.totalLancamentos === 0;
   const anteriorEhMes = !!dados && dados.periodoAnterior.de.endsWith('-01')
@@ -175,6 +231,8 @@ export function FinanceDashboard() {
         )}
       </div>
 
+      {filtrado && <AvisoPainelFiltrado nomes={nomesFiltros} />}
+
       {todasAsContas && podeVerTodasAsContas && <TodasAsContas periodo={periodo} />}
 
       {painelQ.error && <ErrorState title="Não foi possível carregar o painel" description={painelQ.error.message} />}
@@ -188,16 +246,17 @@ export function FinanceDashboard() {
               serie={dados.serie}
               descricaoPeriodo={descreverPeriodo(dados.periodo)}
               anteriorEhMes={anteriorEhMes}
+              filtrado={filtrado}
             />
             {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={dados.periodo} />}
-            <ReceitaDespesa serie={dados.serie} />
-            <DeOndeVeioDinheiro dados={dados} />
+            <ReceitaDespesa serie={dados.serie} somenteDespesas={filtrado} />
+            <DeOndeVeioDinheiro dados={dados} semComprometimento={filtrado} />
             <ComoDinheiroSaiu dados={dados} />
             <EmDiaComContas dados={dados} />
             {dados.planejado && <Planejado itens={dados.planejado} />}
             <Comprometido meses={dados.contasEmAberto.comprometido} />
             {mostrarPessoas && (
-              <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} />
+              <QuemTrouxeQuemGastou pessoas={dados.porPessoa} coresPorPessoa={coresPorPessoa} somenteGastos={filtrado} />
             )}
             <JurosDescontos valores={dados.jurosDescontos} serie={dados.serie} ano={dados.periodo.ate.slice(0, 4)} />
             <OndeMaisGastou

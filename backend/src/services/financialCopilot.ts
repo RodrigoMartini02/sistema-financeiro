@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
 import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
@@ -123,15 +124,18 @@ function isMissingTableError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === '42P01');
 }
 
+/** Despesas do mês que o usuário paga (o dono do cartão, ou quem cadastrou sem cartão), como no Painel. */
+/** Despesas vigentes do mês, de quem paga: a cancelada fica fora de todos os cards. */
 function accountExpenseCondition(userId: number, account: FinancialAccount, month: number, year: number) {
-  const conditions = [eq(expenses.userId, userId), eq(expenses.month, month), eq(expenses.year, year)];
+  const conditions = [eq(expensePayer, userId), eq(expenses.status, ACTIVE_STATUS), eq(expenses.month, month), eq(expenses.year, year)];
   if (account.type === 'pessoal') conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);
   else conditions.push(eq(expenses.accountId, account.id));
   return and(...conditions);
 }
 
-function accountIncomeCondition(userId: number, account: FinancialAccount, month: number, year: number) {
-  const conditions = [eq(incomes.userId, userId), eq(incomes.month, month), eq(incomes.year, year)];
+/** Receitas do mês nos status pedidos: o resumo conta só as recebidas; a lista, também as a receber. */
+function accountIncomeCondition(userId: number, account: FinancialAccount, month: number, year: number, statuses: string[]) {
+  const conditions = [eq(incomes.userId, userId), inArray(incomes.status, statuses), eq(incomes.month, month), eq(incomes.year, year)];
   if (account.type === 'pessoal') conditions.push(or(eq(incomes.accountId, account.id), isNull(incomes.accountId))!);
   else conditions.push(eq(incomes.accountId, account.id));
   return and(...conditions);
@@ -215,7 +219,7 @@ async function buildSummaryCard(userId: number, account: FinancialAccount, month
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount() }).from(expenses)
       .where(accountExpenseCondition(userId, account, month, year)),
-    db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year)),
+    db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year, RECEIVED_INCOME_STATUSES)),
   ]);
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
   const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -260,7 +264,8 @@ async function buildTransactionsCard(input: {
     db.select({ description: expenses.description, amount: effectiveExpenseAmount(), date: expenses.dueDate })
       .from(expenses).where(accountExpenseCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
     db.select({ description: incomes.description, amount: incomes.amount, date: incomes.receiptDate })
-      .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(incomes.receiptDate)).limit(30),
+      .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year, LIVE_INCOME_STATUSES))
+      .orderBy(desc(incomes.receiptDate)).limit(30),
   ]);
   const normalizedSearch = input.searchTerm ? normalizeText(input.searchTerm) : '';
   const records = [

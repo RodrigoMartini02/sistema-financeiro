@@ -37,10 +37,16 @@ interface CardsResumoProps {
   descricaoPeriodo: string;
   /** true quando o período anterior é um mês inteiro — muda só o texto da comparação. */
   anteriorEhMes: boolean;
+  /**
+   * Painel filtrado (categoria, cartão ou forma): só as despesas seguem o
+   * filtro, então resultado, saldo acumulado e comprometimento (que comparam
+   * com a receita inteira) saem. Ficam o que entrou e o que saiu.
+   */
+  filtrado?: boolean;
 }
 
 /** Topo do painel: o resultado do período em destaque e os quatro indicadores ao lado. */
-export function CardsResumo({ resumo, serie, descricaoPeriodo, anteriorEhMes }: CardsResumoProps) {
+export function CardsResumo({ resumo, serie, descricaoPeriodo, anteriorEhMes, filtrado = false }: CardsResumoProps) {
   const cores = useCoresGrafico();
   const guiaComprometimento = useFirstAccessGuide('painel:comprometimento-v1');
   const rotuloAnterior = anteriorEhMes ? 'mês anterior' : 'período anterior';
@@ -49,6 +55,23 @@ export function CardsResumo({ resumo, serie, descricaoPeriodo, anteriorEhMes }: 
   const comprometimento = resumo.entrou > 0 ? (resumo.saiu / resumo.entrou) * 100 : null;
   const situacao = situacaoComprometimento(comprometimento);
   const movimento = resumo.entrou + resumo.saiu;
+
+  if (filtrado) {
+    return (
+      <section className="grid gap-4 sm:grid-cols-2" aria-label="Resumo do período">
+        <Indicador
+          rotulo="Entrou"
+          valor={<NumeroAnimado valor={resumo.entrou} formatar={formatCurrency} />}
+          nota={<NotaVariacao atual={resumo.entrou} anterior={resumo.entrouAnterior} subirEBom rotuloAnterior={rotuloAnterior} />}
+        />
+        <Indicador
+          rotulo="Saiu"
+          valor={<NumeroAnimado valor={resumo.saiu} formatar={formatCurrency} />}
+          nota={<NotaVariacao atual={resumo.saiu} anterior={resumo.saiuAnterior} subirEBom={false} rotuloAnterior={rotuloAnterior} />}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]" aria-label="Resumo do período">

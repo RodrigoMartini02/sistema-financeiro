@@ -7,8 +7,11 @@ import { hasScreenAccess, requireScreenAccess } from '../middleware/permissions'
 import { resolveDashboardScope } from '../utils/dashboardScope';
 import { ACCOUNT_ACCESS_DENIED, canWriteToAccount } from '../utils/accountAccess';
 import { getTodayIsoInTimezone } from '../utils/date';
+import { RequestInputError, readQueryEnumList, readQueryIdList } from '../utils/requestInput';
+import { PAYMENT_METHODS } from '../services/expenseInput';
 import { validarPeriodo } from '../services/painelCalculos';
 import { montarPainel, type TipoConta } from '../services/painelService';
+import type { FiltrosDespesaPainel } from '../services/painelCalculos';
 
 const router = Router();
 
@@ -34,7 +37,19 @@ function lerMembroId(valor: unknown): number | number[] | null | undefined | typ
   return Number.isInteger(id) ? id : MEMBRO_INVALIDO;
 }
 
+const FILTRO_INVALIDO = 'Filtro inválido';
+
+/** Filtros de despesa do botão de filtros, com a mesma leitura dos Relatórios. */
+function lerFiltrosDespesa(query: Request['query']): FiltrosDespesaPainel {
+  return {
+    categoryIds: readQueryIdList(query['category_id'], FILTRO_INVALIDO),
+    cardIds: readQueryIdList(query['card_id'], FILTRO_INVALIDO),
+    paymentMethods: readQueryEnumList(query['payment_method'], PAYMENT_METHODS, FILTRO_INVALIDO),
+  };
+}
+
 // GET /api/financial/painel?de=AAAA-MM-DD&ate=AAAA-MM-DD[&membro_id=...][&conta_id=...]
+//   [&category_id=...][&card_id=...][&payment_method=...]
 router.get('/painel', authenticate, requireActivePlan, requireScreenAccess('accessDashboard'), async (req: Request, res: Response): Promise<void> => {
   try {
     const validacao = validarPeriodo(req.query['de'], req.query['ate']);
@@ -42,6 +57,8 @@ router.get('/painel', authenticate, requireActivePlan, requireScreenAccess('acce
       res.status(400).json({ success: false, message: validacao.mensagem });
       return;
     }
+
+    const filtros = lerFiltrosDespesa(req.query);
 
     const membroId = lerMembroId(req.query['membro_id']);
     if (membroId === MEMBRO_INVALIDO) {
@@ -81,6 +98,7 @@ router.get('/painel', authenticate, requireActivePlan, requireScreenAccess('acce
     const painel = await montarPainel({
       solicitanteId: userId,
       escopo,
+      filtros,
       accountId,
       tipoConta,
       periodo: validacao.periodo,
@@ -90,6 +108,10 @@ router.get('/painel', authenticate, requireActivePlan, requireScreenAccess('acce
 
     res.json({ success: true, data: painel });
   } catch (error) {
+    if (error instanceof RequestInputError) {
+      res.status(error.status).json({ success: false, message: error.message });
+      return;
+    }
     console.error('Painel error:', { userId: req.user?.id, error });
     res.status(500).json({ success: false, message: 'Não foi possível carregar o painel' });
   }

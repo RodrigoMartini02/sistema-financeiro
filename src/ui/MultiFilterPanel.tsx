@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
+import { groupHeaderState, toggleGroupSelection } from '../utils/filterGroupSelection';
 import { Z_DROPDOWN } from './zIndex';
 
 export interface FilterGroupOption {
@@ -71,17 +72,10 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear, topo }: Mu
     group.onChange(next);
   };
 
-  // Marcar/desmarcar o pai aplica o mesmo estado a todas as suas filhas de
-  // uma vez — o valor do pai em si nunca entra no Set retornado, porque
-  // nenhum dado real é filtrado por ele (só as filhas representam algo
-  // selecionável de fato); ele é só um atalho de seleção em lote.
-  const toggleParent = (group: FilterGroup, children: FilterGroupOption[], markAll: boolean) => {
-    const next = new Set(group.selected);
-    for (const child of children) {
-      if (markAll) next.add(child.value);
-      else next.delete(child.value);
-    }
-    group.onChange(next);
+  // O cabeçalho marca e desmarca o pai junto com as filhas: há lançamentos
+  // feitos direto no pai, e marcar o grupo deve trazê-los também.
+  const toggleParent = (group: FilterGroup, parent: FilterGroupOption, children: FilterGroupOption[]) => {
+    group.onChange(toggleGroupSelection(group.selected, parent.value, children.map((child) => child.value)));
   };
 
   // Organiza as opções de um grupo em: soltas (sem parentValue e sem
@@ -209,14 +203,14 @@ export function MultiFilterPanel({ groups, hasActiveFilters, onClear, topo }: Mu
                         ))}
                         {parents.map((parent) => {
                           const children = childrenByParent.get(parent.value)!;
-                          const markedCount = children.filter((c) => group.selected.has(c.value)).length;
+                          const headerState = groupHeaderState(group.selected, parent.value, children.map((child) => child.value));
                           return (
                             <div key={parent.value}>
                               <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:text-slate-100 dark:hover:bg-slate-700">
                                 <ParentCheckbox
-                                  checked={markedCount === children.length}
-                                  indeterminate={markedCount > 0 && markedCount < children.length}
-                                  onChange={() => toggleParent(group, children, markedCount !== children.length)}
+                                  checked={headerState === 'checked'}
+                                  indeterminate={headerState === 'partial'}
+                                  onChange={() => toggleParent(group, parent, children)}
                                 />
                                 {parent.label}
                               </label>

@@ -1,4 +1,5 @@
 import type { Categoria, OpcaoCatalogo } from '../types/config';
+import { groupHeaderState } from './filterGroupSelection';
 
 export interface CategorySuggestionResult {
   id: number;
@@ -45,6 +46,14 @@ function tokenize(value: string): string[] {
 /** Categoria com subcategoria ativa: nunca é selecionável em lançamento/filtro — só as subs. */
 export function hasActiveSubcategory(category: Categoria, categories: Categoria[]): boolean {
   return categories.some((c) => c.parent_id === category.id && c.ativo);
+}
+
+/** Opção do grupo "Categoria" do botão de filtros (mesmo formato do MultiFilterPanel). */
+export interface CategoryFilterOption {
+  value: string;
+  label: string;
+  /** Subcategoria: o pai vira o cabeçalho do grupo, e marcá-lo marca o pai e as subs. */
+  parentValue?: string;
 }
 
 export interface SelectableCategoryGroup<T extends OpcaoCatalogo = Categoria> {
@@ -152,4 +161,47 @@ export function suggestCategoryForDescription(
   }
 
   return null;
+}
+
+/**
+ * Opções do grupo "Categoria" do botão de filtros: cada pai vira cabeçalho das
+ * subcategorias (marcar o grupo marca o pai e as subs, porque há despesas
+ * lançadas direto no pai), e as soltas entram sozinhas.
+ */
+export function categoryFilterOptions<T extends OpcaoCatalogo>(categories: T[]): CategoryFilterOption[] {
+  return groupSelectableCategories(categories)
+    .flatMap((group): CategoryFilterOption[] => (group.parent
+      ? [
+          { value: String(group.parent.id), label: group.parent.nome },
+          ...group.items.map((category) => ({ value: String(category.id), label: category.nome, parentValue: String(group.parent!.id) })),
+        ]
+      : group.items.map((category) => ({ value: String(category.id), label: category.nome }))))
+    .sort((a, b) => compararNomesCatalogo(a.label, b.label));
+}
+
+/**
+ * Nomes das categorias marcadas no botão de filtros, na ordem das opções, para
+ * o aviso de filtro: um grupo inteiro (pai e todas as subs) aparece só com o
+ * nome do pai. Id marcado sem opção (categoria removida) aparece como veio.
+ */
+export function categoryFilterNames(options: CategoryFilterOption[], selected: ReadonlySet<string>): string[] {
+  const childrenByParent = new Map<string, string[]>();
+  for (const option of options) {
+    if (option.parentValue) {
+      childrenByParent.set(option.parentValue, [...(childrenByParent.get(option.parentValue) ?? []), option.value]);
+    }
+  }
+  const wholeGroups = new Set(
+    [...childrenByParent].filter(([parent, children]) => groupHeaderState(selected, parent, children) === 'checked').map(([parent]) => parent),
+  );
+  const names = options
+    .filter((option) => {
+      if (wholeGroups.has(option.value)) {
+        return true;
+      }
+      return selected.has(option.value) && !(option.parentValue && wholeGroups.has(option.parentValue));
+    })
+    .map((option) => option.label);
+  const unknown = [...selected].filter((value) => !options.some((option) => option.value === value));
+  return [...names, ...unknown];
 }

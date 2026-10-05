@@ -1,5 +1,7 @@
-import { pool } from '../db/client';
-import { accountWhere } from '../utils/accountFilter';
+import { and, eq, sql } from 'drizzle-orm';
+import { db } from '../db/client';
+import { expenses, incomes } from '../db/schema';
+import { expenseBaseConditions, incomeBaseConditions, toNumber } from './entryQueries';
 
 export interface BalanceBreakdown {
   previousBalance: number;
@@ -10,60 +12,60 @@ export interface BalanceBreakdown {
   finalBalance: number;
 }
 
+// Despesa entra pelo valor pago, quando paga; senão, pelo previsto. Cada
+// parcela já grava o próprio valor: soma direta, sem dividir por parcelas.
+const expenseValue = sql`CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.amountPaid}, ${expenses.originalAmount}) ELSE ${expenses.originalAmount} END`;
+
+// As despesas contam para quem paga (o dono do cartão, ou quem cadastrou sem
+// cartão), como no Painel e nos Relatórios: expenseBaseConditions. Receita é
+// de quem a lançou.
+
 // Saldo acumulado de tudo que aconteceu ANTES de (year, month): receitas −
 // despesas de todo o histórico anterior. Não há snapshot gravado (tabela
 // `meses`, removida), então este valor é sempre recalculado a partir dos
 // lançamentos reais. A conta não tem saldo de abertura: o capital dos sócios
 // só entra aqui quando é lançado como receita.
 export async function calculatePreviousBalance(userId: number, year: number, month: number, accountId: number | null): Promise<number> {
-  const { clause, params: extra } = accountWhere(accountId, 3);
-  const chave = year * 12 + month;
+  const monthKey = year * 12 + month;
 
-  const [incomes, expenses_] = await Promise.all([
-    pool.query(
-      `SELECT COALESCE(SUM(valor), 0) AS total FROM receitas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}`,
-      [userId, chave, ...extra],
-    ),
-    pool.query(
-      `SELECT COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total FROM despesas WHERE usuario_id = $1 AND (ano * 12 + mes) < $2 AND status = 'ativa'${clause}`,
-      [userId, chave, ...extra],
-    ),
+  const [incomeRows, expenseRows] = await Promise.all([
+    db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
+      ...incomeBaseConditions([userId], accountId),
+      sql`(${incomes.year} * 12 + ${incomes.month}) < ${monthKey}`,
+    )),
+    db.select({ total: sql<string>`COALESCE(SUM(${expenseValue}), 0)` }).from(expenses).where(and(
+      ...expenseBaseConditions([userId], accountId),
+      sql`(${expenses.year} * 12 + ${expenses.month}) < ${monthKey}`,
+    )),
   ]);
 
-  const totalIncomes = parseFloat((incomes.rows[0] as { total: string }).total);
-  const totalExpenses = parseFloat((expenses_.rows[0] as { total: string }).total);
-
-  return totalIncomes - totalExpenses;
+  return toNumber(incomeRows[0]?.total) - toNumber(expenseRows[0]?.total);
 }
 
 // Saldo detalhado de um mês específico: o que veio de antes (calculado em
 // tempo real, sem snapshot) + o que aconteceu no próprio mês.
 export async function calculateBalanceBreakdown(userId: number, year: number, month: number, accountId: number | null): Promise<BalanceBreakdown> {
-  const { clause, params: extra } = accountWhere(accountId, 4);
-
-  const [incomes, expenses_, previousBalance] = await Promise.all([
-    pool.query(
-      `SELECT COALESCE(SUM(valor), 0) AS total FROM receitas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
-      [userId, year, month, ...extra],
-    ),
-    // Cada parcela ja grava o proprio valor individual (digitado direto ou
-    // derivado do preco a vista dividido no formulario) — soma direta, sem
-    // dividir de novo por numero_parcelas. Mesma formula usada no historico.
-    // paid_total soma so as ja pagas, na mesma query — base do Saldo Atual.
-    pool.query(
-      `SELECT
-         COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE valor_original END), 0) AS total,
-         COALESCE(SUM(CASE WHEN pago THEN COALESCE(valor_pago, valor_original) ELSE 0 END), 0) AS paid_total
-       FROM despesas WHERE usuario_id = $1 AND ano = $2 AND mes = $3 AND status = 'ativa'${clause}`,
-      [userId, year, month, ...extra],
-    ),
+  const [incomeRows, expenseRows, previousBalance] = await Promise.all([
+    db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
+      ...incomeBaseConditions([userId], accountId),
+      eq(incomes.year, year),
+      eq(incomes.month, month),
+    )),
+    // O total pago sai na mesma consulta: base do Saldo Atual.
+    db.select({
+      total: sql<string>`COALESCE(SUM(${expenseValue}), 0)`,
+      paidTotal: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.paid} THEN ${expenseValue} ELSE 0 END), 0)`,
+    }).from(expenses).where(and(
+      ...expenseBaseConditions([userId], accountId),
+      eq(expenses.year, year),
+      eq(expenses.month, month),
+    )),
     calculatePreviousBalance(userId, year, month, accountId),
   ]);
 
-  const totalIncomes = parseFloat((incomes.rows[0] as { total: string }).total);
-  const expensesRow = expenses_.rows[0] as { total: string; paid_total: string };
-  const totalExpenses = parseFloat(expensesRow.total);
-  const paidExpenses = parseFloat(expensesRow.paid_total);
+  const totalIncomes = toNumber(incomeRows[0]?.total);
+  const totalExpenses = toNumber(expenseRows[0]?.total);
+  const paidExpenses = toNumber(expenseRows[0]?.paidTotal);
 
   return { previousBalance, totalIncomes, totalExpenses, paidExpenses, finalBalance: previousBalance + totalIncomes - totalExpenses };
 }

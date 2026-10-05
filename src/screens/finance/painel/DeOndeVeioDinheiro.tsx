@@ -5,8 +5,12 @@ import { corDaSituacao, useCoresGrafico } from './coresGrafico';
 import { Pizza } from './graficos/Pizza';
 import { TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, paraFatias, situacaoComprometimento } from './painelFormat';
 
-/** De onde veio o dinheiro: receitas por classificação em destaque e, ao lado, o que se relaciona com elas. */
-export function DeOndeVeioDinheiro({ dados }: { dados: PainelData }) {
+/**
+ * De onde veio o dinheiro: receitas por classificação em destaque e, ao lado, o
+ * que se relaciona com elas. Com o Painel filtrado, o comprometimento previsto
+ * sai: compararia só parte das despesas com a renda inteira.
+ */
+export function DeOndeVeioDinheiro({ dados, semComprometimento = false }: { dados: PainelData; semComprometimento?: boolean }) {
   const cores = useCoresGrafico();
   const { receitas } = dados;
   const saiu = dados.resumo.saiu;
@@ -43,6 +47,7 @@ export function DeOndeVeioDinheiro({ dados }: { dados: PainelData }) {
               vazio="Sem renda no período."
             />
           </CardPainel>
+          {!semComprometimento && (
           <CardPainel className="sm:col-span-2">
             <CabecalhoCard
               titulo="Comprometimento previsto"
@@ -69,6 +74,7 @@ export function DeOndeVeioDinheiro({ dados }: { dados: PainelData }) {
               ] : []}
             />
           </CardPainel>
+          )}
         </div>
       </div>
     </Secao>

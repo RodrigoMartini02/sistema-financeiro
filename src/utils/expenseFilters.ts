@@ -35,6 +35,18 @@ export function getExpenseStatus(item: Expense, today = getLocalTodayIso()): Exp
   return item.dataVencimento < today ? 'atrasada' : 'em_dia';
 }
 
+/**
+ * Despesas que entram na soma das pessoas selecionadas: não canceladas e pagas
+ * por elas (o dono do cartão; sem cartão, quem cadastrou), a mesma regra dos
+ * saldos do servidor. Quem só cadastrou no cartão de outra pessoa continua
+ * vendo o lançamento na lista, mas ele não entra na soma de quem cadastrou.
+ * Com meId ainda carregando, todas entram, como no filtro.
+ */
+export function expensesPaidByPeople(items: readonly Expense[], visibility: ExpenseVisibility): Expense[] {
+  return items.filter((item) => item.status !== 'cancelada'
+    && (visibility.meId == null || (!!item.pagadorNome && visibility.visibleNames.has(item.pagadorNome))));
+}
+
 /** Despesa que pode entrar no pagamento em lote: não paga e não cancelada. */
 export function isBatchSelectable(item: Expense): boolean {
   return !item.pago && item.status !== 'cancelada';
