@@ -8,7 +8,7 @@ import {
 } from '../../services/contractsService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, fieldInputStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { C, dialogFooterStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
 import { InfoBanner } from '../../ui/InfoBanner';
 import { CFG } from '../../ui/configTokens';
 import {
@@ -21,8 +21,8 @@ import { formatCurrency } from '../finance/formatters';
 import { ContractAttachments } from './ContractAttachments';
 import { ContractWizard, type ContractWizardMode } from './ContractWizard';
 import {
-  dangerOutlineButtonStyle, detailLabelStyle, detailRowStyle, errorBoxStyle, fieldErrorStyle, linkButtonStyle, mutedTextStyle,
-  panelStyle, secondaryButtonStyle, sectionTitleStyle, toneBadgeStyle,
+  dangerOutlineButtonStyle, detailLabelStyle, detailRowStyle, errorBoxStyle, fieldErrorStyle, inputStyle, linkButtonStyle,
+  mutedTextStyle, panelStyle, secondaryButtonStyle, sectionTitleStyle, toneBadgeStyle,
 } from './clientStyles';
 
 function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -78,7 +78,7 @@ function ReadjustmentDialog({ contract, onClose, onDone }: { contract: Contract;
               inputMode="decimal"
               placeholder="Ex.: 4,62"
               autoFocus
-              style={error ? { ...fieldInputStyle, borderColor: '#fca5a5' } : fieldInputStyle}
+              style={inputStyle(!!error)}
             />
             {error && <p role="alert" style={fieldErrorStyle}>{error}</p>}
           </div>

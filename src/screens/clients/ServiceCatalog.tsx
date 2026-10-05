@@ -7,8 +7,7 @@ import {
 import { queryKeys } from '../../services/queryKeys';
 import { Dialog } from '../../ui/dialog';
 import {
-  C, dangerButtonStyle, dialogFooterStyle, fieldInputStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle,
-  successOutlineButtonStyle,
+  C, dangerButtonStyle, dialogFooterStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle, successOutlineButtonStyle,
 } from '../../ui/dialogFormTokens';
 import { ConfigListRow } from '../../ui/ConfigListRow';
 import { ConfigSwitch } from '../../ui/ConfigSwitch';
@@ -16,7 +15,7 @@ import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
 import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
 import { EmptyState } from '../../ui/EmptyState';
 import { InfoBanner } from '../../ui/InfoBanner';
-import { errorBoxStyle, fieldErrorStyle } from './clientStyles';
+import { errorBoxStyle, fieldErrorStyle, inputStyle } from './clientStyles';
 
 function ServiceDialog({ open, accountId, service, onClose, onSaved }: {
   open: boolean;
@@ -62,7 +61,7 @@ function ServiceDialog({ open, accountId, service, onClose, onSaved }: {
               placeholder="Ex.: Suporte técnico"
               maxLength={150}
               autoFocus
-              style={nameError ? { ...fieldInputStyle, borderColor: '#fca5a5' } : fieldInputStyle}
+              style={inputStyle(!!nameError)}
             />
             {nameError && <p role="alert" style={fieldErrorStyle}>{nameError}</p>}
           </div>

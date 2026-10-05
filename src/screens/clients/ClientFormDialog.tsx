@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useConfirm } from '../../context/ConfirmContext';
 import {
@@ -16,7 +16,7 @@ import {
   BRAZIL_STATES, formatCep, formatCnpj, formatCpf, formatPhone, isValidCnpj, isValidCpf, onlyDigits,
 } from '../../utils/brazilDocuments';
 import { CLIENT_TYPES, CLIENT_TYPE_LABELS, GOVERNMENT_SPHERES, SPHERE_LABELS, type ClientType } from '../../utils/contractDisplay';
-import { errorBoxStyle, fieldErrorStyle, sectionTitleStyle } from './clientStyles';
+import { errorBoxStyle, fieldErrorStyle, inputStyle, sectionTitleStyle } from './clientStyles';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -96,10 +96,6 @@ function Field({ label, required, error, children }: {
       {error && <p role="alert" style={fieldErrorStyle}>{error}</p>}
     </div>
   );
-}
-
-function inputStyle(invalid: boolean): CSSProperties {
-  return invalid ? { ...fieldInputStyle, borderColor: '#fca5a5' } : fieldInputStyle;
 }
 
 interface ClientFormDialogProps {

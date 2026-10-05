@@ -1021,3 +1021,12 @@ A implementação estará pronta quando:
 - **Demo:** as rotas novas devolvem listas vazias; as receitas da demo usam `cliente_id`.
 - **Limpeza:** saiu `clientesService.ts`, as chaves `clientes`, `contratosAtivos` e `contratosStatusFaturamento` e `getContratosFaturamento`.
 - Testes do front: 121/121; `tsc` e build sem erros.
+
+### Etapa 9 — validação (em andamento)
+
+- **Teste de tela no jsdom** (rede simulada, arquivos `tmpclaude-*`): 15/15.
+  - Cobre: lista, busca e filtro por tipo; cadastro por tipo, com erros no campo, documento repetido e envio só com dígitos; contrato em etapas com a prévia do servidor e a gravação; ficha com retenções, empenho e banco de horas; "Faturar" com o aviso do empenho; reajuste com a prévia (R$ 4.500,00 → R$ 4.707,90); anexo HTML recusado e PDF enviado; horas de contrato público no lançamento de receita (líquido, cliente do contrato, bloqueio acima do saldo e o corpo gravado).
+  - **Defeitos achados e corrigidos:**
+    1. enquanto as permissões carregavam, a seção começava na aba do catálogo e ficava presa nela. Agora começa em "Clientes" e só aparece com as permissões carregadas;
+    2. os campos com erro trocavam só a cor da borda, e o React avisava ao limpar o erro. Agora trocam a borda inteira (`inputStyle` em `clientStyles.ts`).
+- Banco local, só lendo: 0070 e 0071 pendentes. **A aplicar com confirmação:** a 0070, para o roteiro.

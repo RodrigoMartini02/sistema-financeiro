@@ -3,6 +3,8 @@
 // das Configurações e a pílula de contorno para as ações secundárias.
 import type { CSSProperties } from 'react';
 import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
+import { C, fieldInputStyle } from '../../ui/dialogFormTokens';
+import { INVALID_BORDER } from '../finance/entry-dialog/fieldStyles';
 import type { BadgeTone } from '../../utils/contractDisplay';
 
 const TONE_COLORS: Record<BadgeTone, { background: string; color: string }> = {
@@ -92,3 +94,11 @@ export const errorBoxStyle: CSSProperties = {
 
 /** Texto de erro embaixo do campo. */
 export const fieldErrorStyle: CSSProperties = { margin: '4px 0 0', fontSize: 11, fontWeight: 500, color: '#b42318' };
+
+/**
+ * Campo dos modais, com a borda vermelha quando tem erro. Troca a borda
+ * inteira: mexer só na cor sobre a borda completa confunde o React ao limpar o erro.
+ */
+export function inputStyle(invalid: boolean): CSSProperties {
+  return { ...fieldInputStyle, border: `1px solid ${invalid ? INVALID_BORDER : C.borderInput}` };
+}

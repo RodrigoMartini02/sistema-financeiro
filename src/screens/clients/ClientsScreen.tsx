@@ -203,17 +203,22 @@ function ClientList({ accountId, canSeeContracts, onOpen }: {
  * vê só o catálogo; sem "Contratos", a página do cliente não mostra contratos.
  */
 export function ClientsScreen() {
-  const permissions: PermissionSet = useOwnPermissions() ?? {};
+  const ownPermissions = useOwnPermissions();
+  const permissions: PermissionSet = ownPermissions ?? {};
   const accountId = getActiveAccountId();
   const canClients = canManageCatalog(permissions, 'clients');
   const canServices = canManageCatalog(permissions, 'services');
   const canSeeContracts = canManageCatalog(permissions, 'contracts');
   const canSeeIncomes = permissions.accessIncomes === true;
-  const [area, setArea] = useState<Area>(canClients ? 'clients' : 'services');
+  // A escolha da aba só vale com as duas permissões; com uma só, a aba é a dela.
+  const [area, setArea] = useState<Area>('clients');
   const [openClientId, setOpenClientId] = useState<number | null>(null);
 
   if (accountId === null) {
     return <EmptyState icon={Building2} title="Escolha uma conta de empresa" />;
+  }
+  if (!ownPermissions) {
+    return <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>;
   }
   const shownArea: Area = canClients && canServices ? area : canClients ? 'clients' : 'services';
 

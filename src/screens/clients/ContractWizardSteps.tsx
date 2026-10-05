@@ -13,7 +13,7 @@ import { DateCell } from '../finance/entry-dialog/DateCell';
 import { MoneyCell } from '../finance/entry-dialog/MoneyCell';
 import { checkboxStyle } from '../finance/entry-dialog/fieldStyles';
 import { PendingAttachments } from './ContractAttachments';
-import { errorBoxStyle, fieldErrorStyle, secondaryButtonStyle, sectionTitleStyle } from './clientStyles';
+import { errorBoxStyle, fieldErrorStyle, inputStyle, secondaryButtonStyle, sectionTitleStyle } from './clientStyles';
 
 const FIELD_HEIGHT = 32;
 
@@ -40,9 +40,7 @@ function Field({ label, required, error, hint, children }: {
   );
 }
 
-function textInputStyle(invalid: boolean): CSSProperties {
-  return invalid ? { ...fieldInputStyle, borderColor: '#fca5a5' } : fieldInputStyle;
-}
+const textInputStyle = inputStyle;
 
 /** Caixa de marcar com rótulo (sem prazo, implantado, cobranças). */
 function Check({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: ReactNode }) {
