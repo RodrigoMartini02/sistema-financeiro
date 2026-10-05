@@ -257,7 +257,8 @@ export function ContractDetail({ contractId, accountId, backLabel, onBack, onOpe
         </div>
         {contract.description && <p style={{ margin: 0, fontSize: 12.5, color: CFG.textSoft }}>{contract.description}</p>}
         <p style={mutedTextStyle}>
-          <CalendarClock size={12} style={{ verticalAlign: '-2px' }} /> {termLabel(contract.startDate, contract.endDate)} · vencimento dia {contract.dueDay}
+          {/* O reset do Tailwind deixa o svg em bloco; aqui ele fica na linha do texto. */}
+          <CalendarClock size={12} style={{ display: 'inline', verticalAlign: '-2px' }} /> {termLabel(contract.startDate, contract.endDate)} · vencimento dia {contract.dueDay}
           {contract.closedAt && ` · encerrado em ${isoToBrDate(contract.closedAt)}`}
           {contract.representative && ` · representante ${contract.representative.name}`}
         </p>
