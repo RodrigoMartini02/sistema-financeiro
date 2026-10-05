@@ -81,6 +81,11 @@ export interface CartaoFormValues {
   tipo?: CartaoTipo;
   /** Soft delete: o PUT aceita este campo (backend/src/routes/cards.ts). */
   ativo?: boolean;
+  /**
+   * 'AAAA-MM': com o dia de vencimento mudando, as despesas não pagas no
+   * crédito desse mês em diante passam para o dia novo (só no PUT).
+   */
+  vigente_desde?: string;
 }
 
 export type Enquadramento = 'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA';

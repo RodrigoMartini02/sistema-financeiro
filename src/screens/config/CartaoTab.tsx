@@ -4,7 +4,7 @@ import { Plus, CreditCard, Calendar, DollarSign } from 'lucide-react';
 import { fetchCartoes, saveCartao } from '../../services/configService';
 import { fetchMembros } from '../../services/membrosService';
 import { getActiveAccountId } from '../../services/apiClient';
-import { queryKeys } from '../../services/queryKeys';
+import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
 import { Dialog } from '../../ui/dialog';
 import {
@@ -20,6 +20,10 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { MonthYearPicker } from '../finance/MonthYearPicker';
+import { MONTH_NAMES } from '../../types/finance';
+import { getLocalTodayIso } from '../../utils/date';
+import { effectiveMonthParam, nextOpenInvoiceMonth, type MonthOfYear } from '../../utils/cardSchedule';
 
 const TIPO_OPCOES: { value: CartaoTipo; label: string }[] = [
   { value: 'credito', label: 'Crédito' },
@@ -141,6 +145,11 @@ function CartaoDialog({
   const [ultimos4, setUltimos4] = useState(cartao?.numero_cartao ?? '');
   const [limite, setLimite] = useState(cartao?.limite != null ? String(cartao.limite) : '');
   const [vencimento, setVencimento] = useState(cartao?.dia_vencimento != null ? String(cartao.dia_vencimento) : '');
+  // Mudou o dia de vencimento de um cartão salvo: as despesas não pagas da
+  // fatura escolhida em diante passam para o dia novo.
+  const [vigencia, setVigencia] = useState<MonthOfYear>(() => nextOpenInvoiceMonth(getLocalTodayIso(), cartao?.dia_vencimento ?? 1));
+  const vencimentoMudou = cartao?.dia_vencimento != null && vencimento !== '' && Number(vencimento) !== cartao.dia_vencimento;
+  const nomeDoMesDeVigencia = `${MONTH_NAMES[vigencia.month]?.toLowerCase()}/${vigencia.year}`;
 
   const confirm = useConfirm();
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
@@ -162,10 +171,19 @@ function CartaoDialog({
     if (ok) onToggleAtivo();
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (validadeIncompleta) return;
+    // Lido antes do await: depois dele o evento já não aponta para o formulário.
     const fd = new FormData(e.currentTarget);
+    if (vencimentoMudou) {
+      const ok = await confirm({
+        title: 'Mudar o vencimento',
+        message: `As despesas não pagas deste cartão, de ${nomeDoMesDeVigencia} em diante, passam a vencer no dia ${Number(vencimento)}.`,
+        confirmLabel: 'Salvar',
+      });
+      if (!ok) return;
+    }
     onSave({
       nome,
       limite: limite ? Number(limite) : undefined,
@@ -175,6 +193,7 @@ function CartaoDialog({
       numero_cartao: ultimos4 || undefined,
       validade: validade || undefined,
       tipo,
+      vigente_desde: vencimentoMudou ? effectiveMonthParam(vigencia) : undefined,
     });
   };
 
@@ -303,6 +322,22 @@ function CartaoDialog({
               )}
             </div>
 
+            {vencimentoMudou && (
+              <div>
+                <label style={labelStyle}>Vale a partir de</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <MonthYearPicker
+                    month={vigencia.month}
+                    year={vigencia.year}
+                    onChange={(month, year) => setVigencia({ month, year })}
+                  />
+                  <span style={{ flex: '1 1 160px', fontSize: 11, lineHeight: 1.35, color: CFG.muted }}>
+                    As despesas não pagas desse mês em diante passam a vencer no dia {Number(vencimento)}.
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div>
               <label style={labelStyle}>Tipo</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 3, borderRadius: 999, background: CFG.chipBg }}>
@@ -421,7 +456,12 @@ export function CartaoTab() {
   // qualquer conta que o modal de lancamento tenha selecionado.
   const saveMut = useMutation({
     mutationFn: ({ v, id }: { v: CartaoFormValues; id?: number }) => saveCartao(v, id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['cartoes'] }); setDialog({ open: false }); },
+    // O novo vencimento pode ter movido despesas: as telas que dependem delas recarregam.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cartoes'] });
+      invalidateExpenseQueries(qc);
+      setDialog({ open: false });
+    },
   });
 
   // Soft delete: o PUT exige nome e limite, então reenviamos os dados atuais
