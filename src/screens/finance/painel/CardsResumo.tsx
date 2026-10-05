@@ -104,25 +104,24 @@ export function CardsResumo({ resumo, serie, descricaoPeriodo, anteriorEhMes }: 
           nota={<span className="tabular-nums">Anterior {formatCurrency(resumo.saldoAnterior)}</span>}
         />
         <div className="relative">
-          <CardPainel className="h-full gap-2.5">
+          <CardPainel className="h-full gap-2">
             <Rotulo>Comprometimento</Rotulo>
             {comprometimento === null ? (
-              <>
+              <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
                 <span className="text-[22px] font-medium text-slate-900 dark:text-white">—</span>
                 <span className="text-[12.5px] text-slate-500 dark:text-slate-400">Sem receita no período</span>
-              </>
+              </div>
             ) : (
-              <div className="flex items-center gap-3.5">
-                <Medidor percentual={comprometimento} cor={corDaSituacao(situacao.tom, cores)} />
-                <div className="grid gap-1">
-                  <span className="text-[22px] font-medium tabular-nums text-slate-900 dark:text-white">
+              <div className="flex flex-1 items-center justify-center">
+                <Medidor percentual={comprometimento} cor={corDaSituacao(situacao.tom, cores)}>
+                  <span className="text-[19px] font-semibold tabular-nums text-slate-900 dark:text-white">
                     <NumeroAnimado valor={comprometimento} formatar={formatarPercentual} />
                   </span>
-                  <span className={`inline-flex items-center gap-1 text-[12.5px] font-medium ${situacao.classe}`}>
-                    {situacao.tom !== 'income' && <AlertTriangle size={11} aria-hidden="true" />}
+                  <span className={`mt-1 inline-flex items-center gap-0.5 text-[11.5px] font-medium ${situacao.classe}`}>
+                    {situacao.tom !== 'income' && <AlertTriangle size={10} aria-hidden="true" />}
                     {situacao.rotulo}
                   </span>
-                </div>
+                </Medidor>
               </div>
             )}
           </CardPainel>
