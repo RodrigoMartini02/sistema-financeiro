@@ -1,4 +1,5 @@
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { expensePayer } from './entryQueries';
 import { db } from '../db/client';
 import { accountMembers, accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
 import { effectiveExpenseAmount } from '../utils/expenseAmount';
@@ -153,7 +154,8 @@ export async function resolveFinancialAccount(userId: number, requestedAccountId
 // porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
 function expenseAccountCondition(userIds: number[], account: FinancialAccount, deChave: number | null, ateChave: number | null) {
   const conditions = [
-    inArray(expenses.userId, userIds),
+    // Despesa conta para quem paga (o dono do cartao), como no Painel.
+    inArray(expensePayer, userIds),
     // Lancamento cancelado nao entra no teto: o total precisa bater com o que a
     // tela de despesas mostra.
     eq(expenses.status, 'ativa'),

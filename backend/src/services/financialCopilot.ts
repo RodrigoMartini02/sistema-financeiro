@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, isNull, or } from 'drizzle-orm';
+import { expensePayer } from './entryQueries';
 import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
@@ -123,8 +124,9 @@ function isMissingTableError(error: unknown): boolean {
   return Boolean(error && typeof error === 'object' && 'code' in error && (error as { code?: string }).code === '42P01');
 }
 
+/** Despesas do mês que o usuário paga (o dono do cartão, ou quem cadastrou sem cartão), como no Painel. */
 function accountExpenseCondition(userId: number, account: FinancialAccount, month: number, year: number) {
-  const conditions = [eq(expenses.userId, userId), eq(expenses.month, month), eq(expenses.year, year)];
+  const conditions = [eq(expensePayer, userId), eq(expenses.month, month), eq(expenses.year, year)];
   if (account.type === 'pessoal') conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);
   else conditions.push(eq(expenses.accountId, account.id));
   return and(...conditions);

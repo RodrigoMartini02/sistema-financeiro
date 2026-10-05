@@ -6,7 +6,7 @@ import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { getBudgetOverview, type FinancialAccount } from './budgetService';
 import { assertValidRange, describeRange } from './assistantDateRange';
 import type { OpenExpenseRow } from './assistantPayment';
-import { ACTIVE_STATUS } from './entryQueries';
+import { ACTIVE_STATUS, expensePayer } from './entryQueries';
 
 // Consultas do assistente. Cada funcao recebe periodo em datas absolutas (o
 // modelo nunca manda "esse mes") e devolve dado bruto — a redacao da resposta
@@ -34,10 +34,13 @@ function clampLimit(limite: number | undefined, fallback: number): number {
   return Math.min(Math.floor(limite), MAX_ROWS);
 }
 
-/** Despesas do periodo, por data de vencimento. */
+/**
+ * Despesas do periodo, por data de vencimento. Contam para quem paga (o dono do
+ * cartao, ou quem cadastrou sem cartao), como no Painel e nos Relatorios.
+ */
 function expenseRange(scope: QueryScope, inicio: string, fim: string) {
   const conditions = [
-    eq(expenses.userId, scope.userId),
+    eq(expensePayer, scope.userId),
     gte(expenses.dueDate, inicio),
     lte(expenses.dueDate, fim),
   ];
@@ -64,15 +67,24 @@ function incomeRange(scope: QueryScope, inicio: string, fim: string) {
   return and(...conditions);
 }
 
-/** Despesas sem recorte de data — base das consultas de parcelamento. */
+/** Despesas sem recorte de data — base das consultas de parcelamento. Contam para quem paga. */
 function expenseAll(scope: QueryScope) {
-  const conditions = [eq(expenses.userId, scope.userId)];
+  return and(eq(expensePayer, scope.userId), expenseAccountOf(scope));
+}
+
+/**
+ * Despesas que o proprio usuario cadastrou, sem recorte de data: so para o
+ * pagamento pelo assistente, que segue a rota de pagar (so as do autor).
+ */
+function expenseAuthoredAll(scope: QueryScope) {
+  return and(eq(expenses.userId, scope.userId), expenseAccountOf(scope));
+}
+
+function expenseAccountOf(scope: QueryScope) {
   if (scope.account.type === 'pessoal') {
-    conditions.push(or(eq(expenses.accountId, scope.account.id), isNull(expenses.accountId))!);
-  } else {
-    conditions.push(eq(expenses.accountId, scope.account.id));
+    return or(eq(expenses.accountId, scope.account.id), isNull(expenses.accountId));
   }
-  return and(...conditions);
+  return eq(expenses.accountId, scope.account.id);
 }
 
 /** Receitas sem recorte de data — base da consulta de ultimo lancamento. */
@@ -678,7 +690,7 @@ const MAX_OPEN_ROWS = 500;
  */
 export async function despesasEmAberto(scope: QueryScope, ate?: string): Promise<OpenExpenseRow[]> {
   const conditions = [
-    expenseAll(scope)!,
+    expenseAuthoredAll(scope)!,
     or(eq(expenses.paid, false), isNull(expenses.paid))!,
     eq(expenses.status, ACTIVE_STATUS),
   ];
