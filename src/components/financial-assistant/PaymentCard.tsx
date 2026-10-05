@@ -6,6 +6,7 @@ import type { OpenExpense } from '../../types/finance';
 import { formatCurrency } from '../../screens/finance/formatters';
 import { isoToBrDate } from '../../utils/date';
 import { Card } from '../../ui/card';
+import { IsoDateField } from '../../ui/DateField';
 import { Badge } from '../../ui/badge';
 import { CardActions } from './CardActions';
 
@@ -83,11 +84,13 @@ export function PaymentCard({ payment, isSaving, onChange, onSave, onDiscard }: 
         </label>
         <label className="flex items-center gap-3 py-2">
           <span className={LABEL_CLASS}>Pago em</span>
-          <input
-            type="date"
+          <IsoDateField
             value={payment.paymentDate}
-            onChange={(event) => onChange({ paymentDate: event.target.value })}
-            className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+            onChange={(iso) => onChange({ paymentDate: iso })}
+            label="Pago em"
+            required
+            inputClassName="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+            height={32}
           />
         </label>
       </div>

@@ -9,7 +9,8 @@ import {
   installmentGrid, isCreditWithCard, markOverdueAsPaid, overdueOpenCount, paidInstallmentCount, selectedCard,
   type RuleContext,
 } from '../../screens/finance/expense-dialog/draftRules';
-import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../utils/date';
+import { isoToBrDate, isoToShortBrDate } from '../../utils/date';
+import { DateField } from '../../ui/DateField';
 
 export interface InstallmentListPatch {
   installmentPayments?: Record<number, InstallmentPaymentDraft>;
@@ -123,12 +124,13 @@ export function InstallmentList({ expenseDraft, context, onChange }: Installment
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 pl-7">
                   <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                     Pago em
-                    <input
-                      type="date"
-                      value={brDateInputToIso(payment.paymentDate, context.todayIso)}
-                      onChange={(event) => updatePayment(row.index, { paymentDate: isoToBrDate(event.target.value) })}
-                      aria-label={`Data do pagamento da parcela ${row.index + 1}`}
-                      className="h-7 bg-transparent text-sm font-semibold tabular-nums text-slate-900 outline-none dark:text-white"
+                    <DateField
+                      value={payment.paymentDate}
+                      onChange={(text) => updatePayment(row.index, { paymentDate: text })}
+                      todayIso={context.todayIso}
+                      label={`Data do pagamento da parcela ${row.index + 1}`}
+                      inputClassName="h-7 bg-transparent text-sm font-semibold tabular-nums text-slate-900 outline-none dark:text-white"
+                      inputStyle={{ width: 112 }}
                     />
                   </label>
                   <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">

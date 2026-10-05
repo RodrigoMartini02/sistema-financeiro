@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Appointment, AppointmentFormValues } from '../../types/appointments';
+import { IsoDateField } from '../../ui/DateField';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle
 } from '../../ui/dialogFormTokens';
@@ -94,7 +95,13 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
               <label style={labelStyle}>
                 <span>DATA</span><span style={{ color: C.primary }}>*</span>
               </label>
-              <input {...form.register('data')} type="date" style={smallInputStyle} />
+              <Controller
+                control={form.control}
+                name="data"
+                render={({ field }) => (
+                  <IsoDateField value={field.value} onChange={field.onChange} label="Data" required inputStyle={smallInputStyle} />
+                )}
+              />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>HORÁRIO</label>

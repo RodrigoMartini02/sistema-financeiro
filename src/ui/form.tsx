@@ -2,7 +2,8 @@ import { forwardRef, useState, type InputHTMLAttributes, type SelectHTMLAttribut
 import { ChevronDown, Check, Eye, EyeOff } from 'lucide-react';
 
 // Mesma escala de `fieldInputStyle` (dialogFormTokens): 32px, raio 10, 13px.
-const inputBase = [
+/** Classes da caixa do Input, para campos próprios com o mesmo desenho (data). */
+export const inputBase = [
   'h-8 w-full rounded-[10px] border border-[#d8e0e8] bg-white px-2.5 text-[13px] font-medium text-[#0f172a]',
   'placeholder-[#9db0bb] transition-all',
   'focus:outline-none focus:ring-[3px] focus:ring-[rgba(8,145,178,0.12)] focus:border-[#0891b2]',

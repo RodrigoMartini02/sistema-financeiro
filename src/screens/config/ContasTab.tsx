@@ -13,6 +13,7 @@ import { fetchAccountPartners } from '../../services/partnersService';
 import { fetchAccountNames } from '../../services/accountNameCatalogService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import type { Conta, Enquadramento } from '../../types/config';
+import { IsoDateField } from '../../ui/DateField';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgDividerStyle, cfgRowStyle, cfgRowIndexStyle } from '../../ui/configTokens';
@@ -111,7 +112,7 @@ function WorkFieldsSection({ accountId, member, readOnly = false }: {
           <label style={labelStyle}>Data de admissão</label>
           {readOnly
             ? <div style={readOnlyFieldStyle}>{admission ? formatDate(admission) : '—'}</div>
-            : <input key={`adm-${memberKey}`} name="data_admissao" type="date" defaultValue={admission} style={fieldInputStyle} />}
+            : <IsoDateField key={`adm-${memberKey}`} name="data_admissao" defaultValue={admission} label="Data de admissão" inputStyle={fieldInputStyle} />}
         </div>
       </div>
 
@@ -203,7 +204,7 @@ function NovoMembroDialog({
               </div>
               <div>
                 <label style={labelStyle}>Data de nascimento</label>
-                <input name="data_nascimento" type="date" style={fieldInputStyle} />
+                <IsoDateField name="data_nascimento" label="Data de nascimento" inputStyle={fieldInputStyle} />
               </div>
             </div>
           ) : (
@@ -563,7 +564,7 @@ function ContaDialog({
                 </div>
                 <div>
                   <label style={labelStyle}>Data de nascimento</label>
-                  <input name="me_data_nascimento" type="date" defaultValue={me.data_nascimento?.slice(0, 10) ?? ''} style={fieldInputStyle} />
+                  <IsoDateField name="me_data_nascimento" defaultValue={me.data_nascimento?.slice(0, 10) ?? ''} label="Data de nascimento" inputStyle={fieldInputStyle} />
                 </div>
               </div>
 
@@ -637,11 +638,11 @@ function ContaDialog({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
                   <label style={labelStyle}>Data de abertura</label>
-                  <input
+                  <IsoDateField
                     name="data_abertura"
-                    type="date"
                     defaultValue={conta?.data_abertura?.slice(0, 10) ?? ''}
-                    style={fieldInputStyle}
+                    label="Data de abertura"
+                    inputStyle={fieldInputStyle}
                   />
                 </div>
               </div>
@@ -907,12 +908,12 @@ function EditarUsuarioDialog({
             {showPersonalContact ? (
               <div>
                 <label style={labelStyle}>Data de nascimento</label>
-                <input
+                <IsoDateField
                   key={`nasc-${membro?.usuario_id}`}
                   name="data_nascimento"
-                  type="date"
                   defaultValue={membro?.data_nascimento?.slice(0, 10) ?? ''}
-                  style={fieldInputStyle}
+                  label="Data de nascimento"
+                  inputStyle={fieldInputStyle}
                 />
               </div>
             ) : emailField}
