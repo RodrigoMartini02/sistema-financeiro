@@ -197,4 +197,4 @@ Nenhuma pergunta em aberto identificada.
   - `tsc`, 152/152 e build;
   - Agenda no jsdom, 6/6: grava sem duração; 0 mostra a mensagem e não grava; 45 grava 45; data incompleta mostra "Informe a data", com borda vermelha, e não grava; a edição abre com a duração; apagar a duração na edição grava sem ela;
   - datas, 30/30, e telas, 10/10, de novo.
-- **Etapa 5:** print da Agenda com as duas mensagens (`computador-06b-agenda-erros.png`). Aguardando a aprovação visual, junto do plano das datas.
+- **Etapa 5:** print da Agenda com as duas mensagens (`computador-06b-agenda-erros.png`). Aprovado pelo usuário em 2026-10-05, ao seguir para o `/finalizar`, junto do plano das datas.

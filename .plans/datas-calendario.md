@@ -472,4 +472,9 @@ Nenhuma pergunta em aberto identificada.
   - Relatórios;
   - medidor nas situações saudável, atenção, crítico e 1250%, no claro, no escuro e no celular.
 - **Ajuste feito pelos prints:** os dias do calendário viravam ovais no painel inferior do celular. Agora são círculos de 36 px.
-- **Aguardando a aprovação do usuário.**
+- Aprovado pelo usuário em 2026-10-05, ao seguir para o `/finalizar`.
+
+### Etapa 11 — `/finalizar`
+
+- Checks antes do push: front `tsc`, 152/152 e build; back `tsc` e 333/333.
+- Sem migration. Saem com esta branch também os commits do plano `.plans/agenda-duracao-vazia.md`.
