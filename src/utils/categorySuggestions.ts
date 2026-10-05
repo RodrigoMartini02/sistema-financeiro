@@ -47,6 +47,14 @@ export function hasActiveSubcategory(category: Categoria, categories: Categoria[
   return categories.some((c) => c.parent_id === category.id && c.ativo);
 }
 
+/** Opção do grupo "Categoria" do botão de filtros (mesmo formato do MultiFilterPanel). */
+export interface CategoryFilterOption {
+  value: string;
+  label: string;
+  /** Subcategoria: o pai é só cabeçalho, e marcá-lo marca as subs. */
+  parentValue?: string;
+}
+
 export interface SelectableCategoryGroup<T extends OpcaoCatalogo = Categoria> {
   /** null quando a categoria não tem pai nem filhos ativos — item solto, sem agrupamento. */
   parent: T | null;
@@ -152,4 +160,19 @@ export function suggestCategoryForDescription(
   }
 
   return null;
+}
+
+/**
+ * Opções do grupo "Categoria" do botão de filtros: cada pai vira cabeçalho das
+ * subcategorias (marcar o pai marca as subs), e as soltas entram sozinhas.
+ */
+export function categoryFilterOptions<T extends OpcaoCatalogo>(categories: T[]): CategoryFilterOption[] {
+  return groupSelectableCategories(categories)
+    .flatMap((group): CategoryFilterOption[] => (group.parent
+      ? [
+          { value: String(group.parent.id), label: group.parent.nome },
+          ...group.items.map((category) => ({ value: String(category.id), label: category.nome, parentValue: String(group.parent!.id) })),
+        ]
+      : group.items.map((category) => ({ value: String(category.id), label: category.nome }))))
+    .sort((a, b) => compararNomesCatalogo(a.label, b.label));
 }

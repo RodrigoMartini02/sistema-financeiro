@@ -206,6 +206,10 @@ export interface PainelFiltro extends PainelPeriodo {
    * visíveis. Uma lista de ids = exatamente essas pessoas.
    */
   membroId?: number[] | null;
+  /** Filtros de despesa do botão de filtros; vazio não filtra. Receitas nunca são filtradas. */
+  categoryIds?: number[];
+  cardIds?: number[];
+  paymentMethods?: string[];
 }
 
 export type PainelGranularidade = 'semana' | 'mes' | 'ano';
@@ -301,4 +305,6 @@ export interface PainelData {
   empresa: {
     estoqueBaixo: { id: string; nome: string; quantidadeEstoque: number; estoqueMinimo: number }[];
   } | null;
+  /** Opções do botão de filtros: formas e cartões das despesas do período, sem os filtros aplicados. */
+  filterOptions: { paymentMethods: string[]; cards: { id: number; name: string }[] };
 }

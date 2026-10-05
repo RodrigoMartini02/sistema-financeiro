@@ -11,6 +11,17 @@ import type { ContractPreviewTarget, ContractRequest } from './contractsService'
 // membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
 // ordenada e serializada em string para que a mesma combinacao, pedida em
 // qualquer ordem, produza sempre a mesma chave.
+interface PainelExpenseFilters {
+  categoryIds?: number[];
+  cardIds?: number[];
+  paymentMethods?: string[];
+}
+
+function painelFiltersKeyPart({ categoryIds = [], cardIds = [], paymentMethods = [] }: PainelExpenseFilters): string {
+  const sortedNumbers = (values: number[]) => [...values].sort((a, b) => a - b).join(',');
+  return `c:${sortedNumbers(categoryIds)}|k:${sortedNumbers(cardIds)}|f:${[...paymentMethods].sort().join(',')}`;
+}
+
 function membroIdKeyPart(membroId: number | number[] | null | undefined): string | number {
   if (membroId === undefined) return 'eu';
   if (membroId === null) return 'familia';
@@ -77,8 +88,10 @@ export const queryKeys = {
   // especifica) sao escopos diferentes e nao podem colapsar na mesma chave —
   // por isso o sentinela distingue os tres, e a lista e ordenada antes de
   // virar string para nao criar chaves distintas pra mesma combinacao.
-  painel: (accountId: number | null, de: string, ate: string, membroId?: number[] | null) =>
-    ['painel', accountId ?? 'ativa', de, ate, membroIdKeyPart(membroId)] as const,
+  // Os filtros de despesa (categoria, cartão, forma) também entram, em ordem:
+  // sem eles, um painel filtrado apareceria no lugar do inteiro.
+  painel: (accountId: number | null, de: string, ate: string, membroId?: number[] | null, filters: PainelExpenseFilters = {}) =>
+    ['painel', accountId ?? 'ativa', de, ate, membroIdKeyPart(membroId), painelFiltersKeyPart(filters)] as const,
   accountsOverview: (de: string, ate: string) => ['accounts-overview', de, ate] as const,
   // A consulta inteira (período, filtros e pessoas) entra na chave: cada combinação é um relatório diferente.
   reports: (accountId: number | null, query: ReportQuery) => ['reports', accountId ?? 'ativa', query] as const,

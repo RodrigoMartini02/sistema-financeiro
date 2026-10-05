@@ -11,9 +11,11 @@ interface QuemTrouxeQuemGastouProps {
   pessoas: PainelData['porPessoa'];
   /** Cor de cada pessoa (usuario_id) — a mesma usada nas barras de Categorias. */
   coresPorPessoa: Map<number, string>;
+  /** Painel filtrado: só quanto cada pessoa gastou (receitas e saldo não seguem o filtro). */
+  somenteGastos?: boolean;
 }
 
-export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa }: QuemTrouxeQuemGastouProps) {
+export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa, somenteGastos = false }: QuemTrouxeQuemGastouProps) {
   const cores = useCoresGrafico();
   const comCor = pessoas.map((pessoa) => ({
     ...pessoa,
@@ -23,6 +25,20 @@ export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa }: QuemTrouxeQuem
   }));
   const totalReceitas = comCor.reduce((soma, pessoa) => soma + pessoa.receitas, 0);
   const totalDespesas = comCor.reduce((soma, pessoa) => soma + pessoa.despesas, 0);
+  const despesasPorPessoa = (
+    <CardPainel>
+      <CabecalhoCard titulo="Despesas por pessoa" valor={formatCurrency(totalDespesas)} />
+      <Pizza
+        tamanhoMinimo={TAMANHO_PIZZA_MENOR}
+        vazio="Sem despesas no período."
+        fatias={comCor.map((pessoa) => ({ nome: pessoa.nomeCurto, valor: pessoa.despesas, cor: pessoa.cor }))}
+      />
+    </CardPainel>
+  );
+
+  if (somenteGastos) {
+    return <Secao titulo="Quem gastou">{despesasPorPessoa}</Secao>;
+  }
 
   return (
     <Secao titulo="Quem trouxe e quem gastou">
@@ -35,14 +51,7 @@ export function QuemTrouxeQuemGastou({ pessoas, coresPorPessoa }: QuemTrouxeQuem
             fatias={comCor.map((pessoa) => ({ nome: pessoa.nomeCurto, valor: pessoa.receitas, cor: pessoa.cor }))}
           />
         </CardPainel>
-        <CardPainel>
-          <CabecalhoCard titulo="Despesas por pessoa" valor={formatCurrency(totalDespesas)} />
-          <Pizza
-            tamanhoMinimo={TAMANHO_PIZZA_MENOR}
-            vazio="Sem despesas no período."
-            fatias={comCor.map((pessoa) => ({ nome: pessoa.nomeCurto, valor: pessoa.despesas, cor: pessoa.cor }))}
-          />
-        </CardPainel>
+        {despesasPorPessoa}
         <CardPainel>
           <CabecalhoCard titulo="Saldo por pessoa" />
           <Barras

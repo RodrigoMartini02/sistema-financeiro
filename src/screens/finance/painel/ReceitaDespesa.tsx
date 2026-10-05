@@ -4,36 +4,43 @@ import { useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
 import { formatarComSinal, rotuloDoTrecho, trechoFuturo } from './painelFormat';
 
-/** Entradas e saídas por trecho do período; o que ainda vai vencer aparece em cinza. */
-export function ReceitaDespesa({ serie }: { serie: PainelData['serie'] }) {
+/**
+ * Entradas e saídas por trecho do período; o que ainda vai vencer aparece em
+ * cinza. Com o Painel filtrado só as despesas seguem o filtro: o gráfico mostra
+ * só as saídas, sem comparar com a receita inteira.
+ */
+export function ReceitaDespesa({ serie, somenteDespesas = false }: { serie: PainelData['serie']; somenteDespesas?: boolean }) {
   const cores = useCoresGrafico();
-  const temMovimento = serie.pontos.some((ponto) => ponto.receitas > 0 || ponto.despesas > 0);
+  const temMovimento = serie.pontos.some((ponto) => (!somenteDespesas && ponto.receitas > 0) || ponto.despesas > 0);
   const temFuturo = serie.pontos.some((ponto) => trechoFuturo(ponto.inicio) && ponto.despesas > 0);
 
   return (
-    <Secao titulo="Entradas e saídas">
+    <Secao titulo={somenteDespesas ? 'Saídas' : 'Entradas e saídas'}>
       <CardPainel>
         {!temMovimento ? (
           <Vazio>Sem lançamentos no período.</Vazio>
         ) : (
           <>
             <Legenda itens={[
-              { cor: cores.receita, nome: 'Entrou' },
+              ...(somenteDespesas ? [] : [{ cor: cores.receita, nome: 'Entrou' }]),
               { cor: cores.despesa, nome: 'Saiu' },
               ...(temFuturo ? [{ cor: cores.futuro, nome: 'Ainda vai vencer' }] : []),
             ]} />
             <Barras
               altura={240}
               series={[
-                { chave: 'receitas', rotulo: 'Entrou', cor: cores.receita },
+                ...(somenteDespesas ? [] : [{ chave: 'receitas', rotulo: 'Entrou', cor: cores.receita }]),
                 { chave: 'despesas', rotulo: 'Saiu', cor: cores.despesa, corFuturo: cores.futuro },
               ]}
-              pontos={serie.pontos.map((ponto) => ({
-                rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, serie.granularidade),
-                futuro: trechoFuturo(ponto.inicio),
-                valores: { receitas: ponto.receitas, despesas: ponto.despesas },
-              }))}
-              linhasExtras={(ponto) => [['Resultado', formatarComSinal(ponto.valores.receitas! - ponto.valores.despesas!)]]}
+              pontos={serie.pontos.map((ponto) => {
+                const valores: Record<string, number> = somenteDespesas
+                  ? { despesas: ponto.despesas }
+                  : { receitas: ponto.receitas, despesas: ponto.despesas };
+                return { rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, serie.granularidade), futuro: trechoFuturo(ponto.inicio), valores };
+              })}
+              linhasExtras={somenteDespesas
+                ? undefined
+                : (ponto) => [['Resultado', formatarComSinal(ponto.valores.receitas! - ponto.valores.despesas!)]]}
             />
           </>
         )}

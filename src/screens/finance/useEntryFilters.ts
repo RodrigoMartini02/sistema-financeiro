@@ -8,7 +8,7 @@ import { getActiveAccountId } from '../../services/apiClient';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { canReadCatalogList } from '../../utils/screenAccess';
 import type { FilterGroup } from '../../ui/MultiFilterPanel';
-import { compararNomesCatalogo, groupSelectableCategories } from '../../utils/categorySuggestions';
+import { categoryFilterOptions } from '../../utils/categorySuggestions';
 import { TERMOS } from '../config/ContasTab';
 import { getPaymentMethodLabel } from './entryTable';
 import type { EntryType, ExpenseStatus, PaymentDateWindow } from '../../utils/expenseFilters';
@@ -84,14 +84,7 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
       .filter(Boolean) as string[],
   );
 
-  const categoryOptions = groupSelectableCategories(categoriesQ.data ?? [])
-    .flatMap((group) => group.parent
-      ? [
-          { value: String(group.parent.id), label: group.parent.nome },
-          ...group.items.map((category) => ({ value: String(category.id), label: category.nome, parentValue: String(group.parent!.id) })),
-        ]
-      : group.items.map((category) => ({ value: String(category.id), label: category.nome })))
-    .sort((a, b) => compararNomesCatalogo(a.label, b.label));
+  const categoryOptions = categoryFilterOptions(categoriesQ.data ?? []);
 
   const membersAreDefault = meId != null && memberIds.size === 1 && memberIds.has(meId);
   const hasActiveFilters = statuses.size > 0 || categoryIds.size > 0 || selectedPaymentMethods.size > 0
