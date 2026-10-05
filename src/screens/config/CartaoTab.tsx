@@ -21,6 +21,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { MonthYearPicker } from '../finance/MonthYearPicker';
+import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { ColorPicker } from '../../ui/ColorPicker';
 import { DARK_INK, normalizeHex, readableTextColor } from '../../utils/color';
 import { MONTH_NAMES } from '../../types/finance';
@@ -150,6 +151,8 @@ function CartaoDialog({
   const nomeDoMesDeVigencia = `${MONTH_NAMES[vigencia.month]?.toLowerCase()}/${vigencia.year}`;
 
   const confirm = useConfirm();
+  // No celular os campos e o cartão ficam um embaixo do outro: lado a lado, os campos não cabem.
+  const telaDesktop = useTelaDesktop();
   const limiteGuide = useFirstAccessGuide('cartoes:limite-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const validadeGuide = useFirstAccessGuide('cartoes:validade-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
   const fechamentoGuide = useFirstAccessGuide('cartoes:fechamento-vencimento-v1', { enabled: open, layer: GUIDE_LAYER_MODAL });
@@ -200,7 +203,7 @@ function CartaoDialog({
     <Dialog open={open} title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={onClose} size="lg" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
-        <div style={{ flex: 1, minHeight: 0, height: 372, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 214px', gap: 16, alignItems: 'start' }}>
+        <div style={{ flex: 1, minHeight: 0, height: 372, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'grid', gridTemplateColumns: telaDesktop ? 'minmax(0,1fr) 214px' : 'minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px', gap: 10 }}>
@@ -329,6 +332,7 @@ function CartaoDialog({
                     month={vigencia.month}
                     year={vigencia.year}
                     onChange={(month, year) => setVigencia({ month, year })}
+                    placement="top"
                   />
                   <span style={{ flex: '1 1 160px', fontSize: 11, lineHeight: 1.35, color: CFG.muted }}>
                     As despesas não pagas desse mês em diante passam a vencer no dia {Number(vencimento)}.
@@ -370,7 +374,7 @@ function CartaoDialog({
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, ...(telaDesktop ? {} : { width: '100%', maxWidth: 300, justifySelf: 'center' }) }}>
             <CartaoPreview
               nome={nome}
               ultimos4={ultimos4}
