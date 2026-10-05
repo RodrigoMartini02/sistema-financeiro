@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, Repeat, Users } from 'lucide-react';
 import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
@@ -7,7 +7,8 @@ import { GUIDE_LAYER_MODAL } from '../../../context/FirstAccessGuideContext';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchProdutos } from '../../../services/catalogoService';
-import { fetchClientes, fetchContratosAtivos, saveCliente } from '../../../services/clientesService';
+import { fetchClients, type ClientFilters } from '../../../services/clientsService';
+import { fetchContractsWithHours } from '../../../services/contractsService';
 import { createIncome, updateIncome } from '../../../services/financeService';
 import { fetchClassificacoesReceita, saveClassificacaoReceita } from '../../../services/incomeClassificationsService';
 import { invalidateIncomeQueries, queryKeys } from '../../../services/queryKeys';
@@ -18,6 +19,8 @@ import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
+import { CONFIG_SCOPE_CLASS } from '../../../ui/configTokens';
+import { ClientFormDialog } from '../../clients/ClientFormDialog';
 import { collectBatchErrors, initialBatchState, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
 import { HEADER_GRID_CLASS } from '../entry-dialog/fieldStyles';
@@ -25,7 +28,7 @@ import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
   EMPTY_INCOME_MESSAGE, buildIncomeCreateInput, buildIncomeUpdateInput, hasIncomeErrors, incomeErrorMessage,
-  isIncomeDraftFilled, receiptDateIso, validateIncomeDraft, type IncomeRuleContext,
+  isIncomeDraftFilled, receiptDateIso, validateIncomeDraft, type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import {
   createIncomeDraft, incomeDialogReducer, incomeDraftFromIncome,
@@ -39,6 +42,8 @@ import { useIncomeSuggestions } from './useIncomeSuggestions';
 const TOAST_DURATION_MS = 2800;
 const INCOME_NOUN = { singular: 'receita', plural: 'receitas' };
 const GUIDE_CARD_CLASS = 'w-[min(24rem,calc(100vw-2rem))]';
+/** A mesma lista da tela de Clientes (ativos): o cache é o mesmo. */
+const ACTIVE_CLIENTS: ClientFilters = { search: '', type: null, status: 'active' };
 
 interface IncomeDialogProps {
   open: boolean;
@@ -91,7 +96,10 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: readsCompanyList('representatives'), staleTime: 60_000,
   });
   const contractsQuery = useQuery({
-    queryKey: queryKeys.contratosAtivos, queryFn: fetchContratosAtivos, enabled: readsCompanyList('contracts'), staleTime: 60_000,
+    queryKey: queryKeys.contractsWithHours(accountId),
+    queryFn: () => fetchContractsWithHours(accountId!),
+    enabled: readsCompanyList('contracts') && accountId !== null,
+    staleTime: 60_000,
   });
   const productsQuery = useQuery({
     queryKey: queryKeys.catalogoProdutos(accountId),
@@ -100,8 +108,13 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     staleTime: 60_000,
   });
   const clientsQuery = useQuery({
-    queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: readsCompanyList('clients'), staleTime: 60_000,
+    queryKey: queryKeys.clients(accountId, ACTIVE_CLIENTS),
+    queryFn: () => fetchClients(accountId!, ACTIVE_CLIENTS),
+    enabled: readsCompanyList('clients') && accountId !== null,
+    staleTime: 60_000,
   });
+  // "+ cadastrar" do cliente: o cadastro completo abre por cima, e a promessa devolve o cliente gravado.
+  const [clientDialog, setClientDialog] = useState<{ name: string; resolve: (client: ClientOption | null) => void } | null>(null);
 
   const categories = useMemo(() => (categoriesQuery.data ?? []).filter((category) => category.ativo), [categoriesQuery.data]);
   const context: IncomeRuleContext = useMemo(() => ({
@@ -111,7 +124,7 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     // A lista já vem só da conta da receita: vender de uma conta o produto de outra misturaria os estoques.
     products: (productsQuery.data ?? []).filter((product) => product.ativo),
     contracts: contractsQuery.data ?? [],
-    clientNames: (clientsQuery.data ?? []).map((client) => client.nome),
+    clients: (clientsQuery.data ?? []).map((client) => ({ id: client.id, name: client.name })),
   }), [todayIso, isCompany, representativesQuery.data, productsQuery.data, contractsQuery.data, clientsQuery.data, accountId]);
 
   // Histórico já carregado pelas telas (todos os meses em cache), para "Recentes" e a sugestão de categoria.
@@ -155,10 +168,11 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     return created.id;
   };
 
-  const createClient = async (name: string): Promise<string> => {
-    const created = await saveCliente({ nome: name, cnpj: null });
-    await qc.invalidateQueries({ queryKey: queryKeys.clientes });
-    return created.nome;
+  const createClient = (name: string) => new Promise<ClientOption | null>((resolve) => setClientDialog({ name, resolve }));
+
+  const finishClientDialog = (client: ClientOption | null) => {
+    clientDialog?.resolve(client);
+    setClientDialog(null);
   };
 
   const resources: IncomeRowResources = {
@@ -168,7 +182,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     categoryHistory,
     lockReceiptDate: !isEdit && !!presetDate,
     createCategory: canManageCatalog(permissions, 'incomeCategories') ? createCategory : undefined,
-    createClient: canManageCatalog(permissions, 'clients') ? createClient : undefined,
+    createClient: canManageCatalog(permissions, 'clients') && accountId !== null ? createClient : undefined,
+    clientFallbackName: income?.clienteNome ?? null,
   };
 
   const requestClose = () => {
@@ -353,7 +368,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
   } : null;
 
   return (
-    <EntryDialogFrame
+    <>
+      <EntryDialogFrame
       title={isEdit ? 'Editar receita' : 'Nova receita'}
       description="Registre uma entrada financeira"
       onRequestClose={requestClose}
@@ -368,6 +384,22 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
       canSave={toSaveCount > 0}
       saving={state.saving}
       toast={state.toast}
-    />
+      />
+      {clientDialog && accountId !== null && (
+        <div className={CONFIG_SCOPE_CLASS}>
+          <ClientFormDialog
+            open
+            stacked
+            accountId={accountId}
+            initialName={clientDialog.name}
+            onClose={() => finishClientDialog(null)}
+            onSaved={(saved) => {
+              invalidateIncomeQueries(qc);
+              finishClientDialog(saved ? { id: saved.id, name: saved.name } : null);
+            }}
+          />
+        </div>
+      )}
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Produto } from '../../../services/catalogoService';
-import type { ContratoResumo } from '../../../services/clientesService';
+import type { ContractWithHours } from '../../../services/contractsService';
 import type { Representante } from '../../../services/representantesService';
 import type { ClassificacaoReceita } from '../../../types/config';
 import { formatCurrency } from '../formatters';
@@ -9,7 +9,7 @@ import { createIncomeDraft, type IncomeDraft } from './draftState';
 import {
   buildIncomeCreateInput, buildIncomeUpdateInput, calculatedAmountCents, commissionPreview, contractPrefill,
   defaultRepeatUntil, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, productSaleInfo, replicaCount,
-  summarizeIncomeDraft, validateIncomeDraft, type IncomeRuleContext,
+  summarizeIncomeDraft, validateIncomeDraft, withholdingPreview, type IncomeRuleContext,
 } from './draftRules';
 
 const TODAY = '2026-09-29';
@@ -23,9 +23,16 @@ const CANECA: Produto = {
   descontoTipo: null, descontoValor: null, valorFinal: 35, descontoPercentual: null, controlaEstoque: true,
   quantidadeEstoque: '10', estoqueMinimo: null, ativo: true, imagens: [], createdAt: '2026-01-01', updatedAt: '2026-01-01',
 };
-const CONTRATO: ContratoResumo = {
-  id: 8, cliente_nome: 'Empresa XYZ', representante_id: 7,
-  horas_presenciais_valor: 200, horas_presenciais_saldo_atual: 12, horas_remotas_valor: null, horas_remotas_saldo_atual: null,
+const CONTRATO: ContractWithHours = {
+  contractId: 8, number: '12/2026', description: null, clientId: 31, clientName: 'Empresa XYZ', clientType: 'empresa',
+  withholdings: {}, representativeId: 7,
+  hourTypes: [{ id: 21, name: 'Suporte', hourlyRate: 200, quantity: 40, used: 28, balance: 12 }],
+};
+// Órgão público com IR de 4,80% e ISS de 5,00%.
+const PREFEITURA: ContractWithHours = {
+  contractId: 9, number: null, description: null, clientId: 32, clientName: 'Prefeitura', clientType: 'orgao_publico',
+  withholdings: { ir: 4.8, iss: 5 }, representativeId: null,
+  hourTypes: [{ id: 22, name: 'Plantão', hourlyRate: 150, quantity: 40, used: 0, balance: 40 }],
 };
 
 const context: IncomeRuleContext = {
@@ -33,8 +40,8 @@ const context: IncomeRuleContext = {
   isCompany: true,
   representatives: [ANA],
   products: [CANECA],
-  contracts: [CONTRATO],
-  clientNames: ['Empresa XYZ'],
+  contracts: [CONTRATO, PREFEITURA],
+  clients: [{ id: 31, name: 'Empresa XYZ' }, { id: 32, name: 'Prefeitura' }],
 };
 
 function draft(overrides: Partial<IncomeDraft> = {}): IncomeDraft {
@@ -74,18 +81,33 @@ test('resumo: total com as réplicas e os avisos de comissão, estoque e horas',
   const sale = summarizeIncomeDraft(draft({ categoryId: null, productId: 'p-1', soldQuantity: 12 }), context);
   assert.deepEqual(sale?.badges, [{ text: 'estoque insuficiente: há 10', tone: 'danger' }]);
 
-  const hours = summarizeIncomeDraft(draft({ categoryId: null, contractId: 8, hourType: 'presencial', hours: 4 }), context);
-  assert.deepEqual(hours?.badges, [{ text: '4h presenciais · saldo 12h', tone: 'neutral' }]);
+  const hours = summarizeIncomeDraft(draft({ categoryId: null, contractId: 8, hourTypeId: 21, hours: 4 }), context);
+  assert.deepEqual(hours?.badges, [{ text: '4h Suporte · saldo 8h', tone: 'neutral' }]);
+
+  const overBalance = summarizeIncomeDraft(draft({ categoryId: null, contractId: 8, hourTypeId: 21, hours: 13 }), context);
+  assert.deepEqual(overBalance?.badges, [{ text: 'saldo de horas insuficiente: restam 12h', tone: 'danger' }]);
 
   assert.equal(summarizeIncomeDraft(draft({ amountCents: null }), context), null);
 });
 
 test('valor calculado pela venda ou pelas horas, e o que o contrato preenche', () => {
   assert.equal(calculatedAmountCents(draft({ productId: 'p-1', soldQuantity: 2 }), context), 7000);
-  assert.equal(calculatedAmountCents(draft({ contractId: 8, hourType: 'presencial', hours: 1.5 }), context), 30000);
-  assert.equal(calculatedAmountCents(draft({ contractId: 8, hourType: 'remoto', hours: 2 }), context), null);
-  assert.deepEqual(contractPrefill(draft(), CONTRATO), { client: 'Empresa XYZ', representativeId: 7 });
-  assert.deepEqual(contractPrefill(draft({ client: 'Outra', representativeId: 3 }), CONTRATO), {});
+  assert.equal(calculatedAmountCents(draft({ contractId: 8, hourTypeId: 21, hours: 1.5 }), context), 30000);
+  assert.equal(calculatedAmountCents(draft({ contractId: 8, hourTypeId: null, hours: 2 }), context), null);
+  // As horas são do cliente do contrato; o representante só entra se estiver vazio.
+  assert.deepEqual(contractPrefill(draft(), CONTRATO), { clientId: 31, representativeId: 7 });
+  assert.deepEqual(contractPrefill(draft({ clientId: 32, representativeId: 3 }), CONTRATO), { clientId: 31 });
+});
+
+test('horas de contrato com órgão público: o valor digitado é o bruto e a receita vale o líquido', () => {
+  const publicHours = draft({ contractId: 9, hourTypeId: 22, hours: 30, amountCents: 450000, clientId: 32, representativeId: 7 });
+  assert.deepEqual(withholdingPreview(publicHours, context), { grossCents: 450000, withheldCents: 44100, netCents: 405900 });
+  assert.equal(withholdingPreview(draft({ contractId: 8, hourTypeId: 21, hours: 2 }), context), null);
+  const summary = summarizeIncomeDraft(publicHours, context);
+  assert.deepEqual(summary?.badges.at(-1), { text: `líquido ${brl(4059)} · retenções de ${brl(441)}`, tone: 'info' });
+  // A comissão sai do líquido, como no servidor.
+  const commission = commissionPreview(publicHours, context);
+  assert.equal(commission.kind === 'rule' ? commission.amountCents : null, 40590);
 });
 
 test('categoria fixa preenche o valor vazio e o dia, menos com a data travada', () => {
@@ -101,15 +123,18 @@ test('validação aponta os campos e monta a mensagem do rodapé', () => {
   const empty = validateIncomeDraft(draft({ description: ' ', amountCents: null }), context);
   assert.equal(incomeErrorMessage(empty), 'Preencha descrição e valor.');
 
-  const wrongClient = validateIncomeDraft(draft({ client: 'Fulano' }), context);
-  assert.equal(incomeErrorMessage(wrongClient), 'Escolha um cliente do cadastro.');
-  assert.deepEqual(validateIncomeDraft(draft({ client: 'Fulano' }), { ...context, isCompany: false }), {});
+  const wrongClient = validateIncomeDraft(draft({ clientId: 32, contractId: 8, hourTypeId: 21, hours: 2 }), context);
+  assert.equal(incomeErrorMessage(wrongClient), 'Use o cliente do contrato das horas.');
+  assert.deepEqual(validateIncomeDraft(draft({ clientId: 32 }), context), {});
+
+  const overBalance = validateIncomeDraft(draft({ clientId: 31, contractId: 8, hourTypeId: 21, hours: 12.5 }), context);
+  assert.equal(incomeErrorMessage(overBalance), 'Lance no máximo o saldo de horas do contrato.');
 
   const sameMonth = validateIncomeDraft(draft({ repeatUntil: { month: 8, year: 2026 } }), context);
   assert.equal(incomeErrorMessage(sameMonth), 'Escolha em "Repetir até" um mês depois do da receita, em até 36 meses.');
 
   const tooMuch = validateIncomeDraft(draft({ productId: 'p-1', soldQuantity: 11 }), context);
-  const noHours = validateIncomeDraft(draft({ contractId: 8, hourType: 'presencial', hours: null }), context);
+  const noHours = validateIncomeDraft(draft({ contractId: 8, hourTypeId: 21, hours: null }), context);
   assert.equal(incomeErrorMessage({ ...tooMuch, ...noHours }), 'Confira a quantidade do produto vendido e complete as horas a faturar.');
 
   assert.deepEqual(validateIncomeDraft(draft({ receiptDate: '5' }), context), {});
@@ -118,15 +143,15 @@ test('validação aponta os campos e monta a mensagem do rodapé', () => {
 
 test('envio da receita nova: repetir até, produto e horas', () => {
   const input = buildIncomeCreateInput(draft({
-    client: ' Empresa XYZ ', representativeId: 7, repeatUntil: { month: 11, year: 2026 },
-    productId: 'p-1', soldQuantity: 2, contractId: 8, hourType: 'presencial', hours: 3,
+    clientId: 31, representativeId: 7, repeatUntil: { month: 11, year: 2026 },
+    productId: 'p-1', soldQuantity: 2, contractId: 8, hourTypeId: 21, hours: 3,
   }), context, 17);
   assert.deepEqual(input, {
-    description: 'Consultoria', categoryId: 4, amount: 1500, receiptDate: '2026-09-29', client: 'Empresa XYZ',
+    description: 'Consultoria', categoryId: 4, amount: 1500, receiptDate: '2026-09-29', clientId: 31,
     representativeId: 7, attachments: null, accountId: 17,
     repeatUntil: { month: 11, year: 2026 },
     productSale: { productId: 'p-1', quantity: 2 },
-    billableHours: { contractId: 8, hourType: 'presencial', hours: 3 },
+    billableHours: { hourTypeId: 21, hours: 3 },
   });
 
   const simple = buildIncomeCreateInput(draft({ receiptDate: '5' }), context, null);
@@ -144,11 +169,11 @@ test('edição envia só os campos da própria receita', () => {
 });
 
 test('duplicata compara descrição, valor e cliente', () => {
-  assert.deepEqual(incomeDuplicateQuery(draft({ client: 'Empresa XYZ' }), 3), {
-    description: 'Consultoria', amount: 1500, client: 'Empresa XYZ', excludeId: 3,
+  assert.deepEqual(incomeDuplicateQuery(draft({ clientId: 31 }), 3), {
+    description: 'Consultoria', amount: 1500, clientId: 31, excludeId: 3,
   });
   assert.equal(incomeDuplicateQuery(draft({ description: '' }), null), null);
-  assert.equal(incomeDuplicateQuery(draft(), null)?.client, null);
+  assert.equal(incomeDuplicateQuery(draft(), null)?.clientId, null);
 });
 
 test('produto com desconto pré-preenche o valor com o preço final', () => {

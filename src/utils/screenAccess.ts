@@ -19,13 +19,18 @@ function allows(permissions: PermissionSet, flag: PermissionFlag): boolean {
 
 // ── Menu ───────────────────────────────────────────────────────────────────
 
-/** Seções do menu, na ordem dele. Clientes é só de conta empresa (como sempre foi). */
+/**
+ * Seções do menu, na ordem dele. Clientes é só de conta empresa e aparece com
+ * a permissão de Clientes ou a de Serviços (o catálogo de serviços fica nela).
+ */
 export function visibleSections(permissions: PermissionSet, accountType: AccountType | null): AppSection[] {
   const sections: AppSection[] = [];
   if (allows(permissions, 'accessDashboard')) sections.push('painel');
   if (allows(permissions, 'accessExpenses') || allows(permissions, 'accessIncomes')) sections.push('movimentacoes');
   if (allows(permissions, 'accessReports')) sections.push('reports');
-  if (accountType !== 'pessoal' && allows(permissions, 'accessClients')) sections.push('clientes');
+  if (accountType !== 'pessoal' && (allows(permissions, 'accessClients') || allows(permissions, 'accessServices'))) {
+    sections.push('clientes');
+  }
   return sections;
 }
 

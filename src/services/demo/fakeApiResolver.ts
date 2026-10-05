@@ -62,7 +62,7 @@ export function resolveFakeApiRequest(
     db.receitas = db.receitas.map((item) => (item.id === id
       ? {
           ...item, descricao: input.description, valor: input.amount, data_recebimento: input.receiptDate,
-          mes: month! - 1, ano: year!, cliente: input.client, classificacao_id: input.categoryId,
+          mes: month! - 1, ano: year!, cliente_id: input.clientId, classificacao_id: input.categoryId,
           representante_id: input.representativeId,
         }
       : item));
@@ -164,9 +164,15 @@ export function resolveFakeApiRequest(
   // Listas auxiliares sem dado relevante na demo — devolver vazio
   if (matchEndpoint(endpoint, /^\/representantes$/)) return { success: true, data: [] };
   if (matchEndpoint(endpoint, /^\/income-classifications$/)) return [];
-  if (matchEndpoint(endpoint, /^\/clientes$/)) return [];
-  if (matchEndpoint(endpoint, /^\/contratos$/)) return [];
-  if (matchEndpoint(endpoint, /^\/contratos\/faturamento$/)) return [];
+  // Clientes, contratos e catálogo de serviços: a demo não tem cadastro de clientes.
+  if (matchEndpoint(endpoint, /^\/clients$/)) return [];
+  if (matchEndpoint(endpoint, /^\/clients\/summary$/)) {
+    return { monthlyRecurring: 0, expiringContracts: 0, overdueCount: 0, overdueAmount: 0 };
+  }
+  if (matchEndpoint(endpoint, /^\/contracts$/)) return [];
+  if (matchEndpoint(endpoint, /^\/contracts\/with-hours$/)) return [];
+  if (matchEndpoint(endpoint, /^\/contracts\/portfolio$/)) return [];
+  if (matchEndpoint(endpoint, /^\/service-catalog$/)) return [];
 
   // Relatório do período — só período e tipo; os demais filtros não se aplicam na demo
   if (matchEndpoint(endpoint, /^\/reports$/) && method === 'GET') {
@@ -215,8 +221,8 @@ function buildDemoIncomeRows(input: IncomeCreateInput): RawIncomeDemo[] {
     const [year, month] = receiptDate.split('-').map(Number);
     return {
       id: generateId(), descricao: input.description, valor: input.amount, data_recebimento: receiptDate,
-      mes: month! - 1, ano: year!, status: 'ativa', contrato_id: input.billableHours?.contractId ?? null,
-      observacoes: null, cliente: input.client, classificacao_id: input.categoryId, classificacao_nome: null,
+      mes: month! - 1, ano: year!, status: 'ativa', contrato_id: null,
+      observacoes: null, cliente_id: input.clientId, cliente_nome: null, classificacao_id: input.categoryId, classificacao_nome: null,
       representante_id: input.representativeId, representante_nome: null, valor_comissao: null, anexos: null,
     };
   };
@@ -278,7 +284,7 @@ function buildDemoReport(db: DemoFakeDatabase, params: URLSearchParams): Report 
       status: row.status === 'ativa' ? 'received' : row.data_recebimento < today ? 'overdue' : 'expected',
       authorId: DEMO_PERSON.id,
       authorName: DEMO_PERSON.name,
-      client: row.cliente,
+      client: row.cliente_nome,
       representative: row.representante_nome,
       commission: row.valor_comissao,
       amount: row.valor,

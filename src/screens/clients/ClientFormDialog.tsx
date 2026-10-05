@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useConfirm } from '../../context/ConfirmContext';
 import {
@@ -28,10 +28,10 @@ const NAME_LABELS: Record<ClientType, { label: string; placeholder: string }> = 
   orgao_publico: { label: 'Nome do órgão', placeholder: 'Ex.: Prefeitura de Campinas' },
 };
 
-function initialValues(client?: Client): ClientFormValues {
+function initialValues(client?: Client, initialName = ''): ClientFormValues {
   return {
     type: client?.type ?? 'empresa',
-    name: client?.name ?? '',
+    name: client?.name ?? initialName,
     document: client ? (client.type === 'pessoa_fisica' ? formatCpf(client.document) : formatCnpj(client.document)) : '',
     sphere: client?.sphere ?? null,
     agency: client?.agency ?? '',
@@ -107,6 +107,10 @@ interface ClientFormDialogProps {
   accountId: number;
   /** Ausente: cliente novo. */
   client?: Client;
+  /** Cliente novo: o nome já digitado na busca de quem abriu. */
+  initialName?: string;
+  /** Aberto por cima de outro modal (o da receita): o Esc fecha só este. */
+  stacked?: boolean;
   onClose: () => void;
   /** Depois de gravar, desativar, reativar ou excluir (cliente nulo quando excluído). */
   onSaved: (client: Client | null) => void;
@@ -117,9 +121,11 @@ interface ClientFormDialogProps {
  * órgão). Contato e endereço são opcionais. Numa falha ao salvar, o que foi
  * digitado continua no formulário.
  */
-export function ClientFormDialog({ open, accountId, client, onClose, onSaved }: ClientFormDialogProps) {
+export function ClientFormDialog({
+  open, accountId, client, initialName, stacked = false, onClose, onSaved,
+}: ClientFormDialogProps) {
   const confirm = useConfirm();
-  const [values, setValues] = useState<ClientFormValues>(() => initialValues(client));
+  const [values, setValues] = useState<ClientFormValues>(() => initialValues(client, initialName));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
@@ -154,6 +160,19 @@ export function ClientFormDialog({ open, accountId, client, onClose, onSaved }: 
     onError: handleError,
   });
   const busy = saveMutation.isPending || activeMutation.isPending || deleteMutation.isPending;
+
+  // Os dois modais escutam o Esc no documento: este trata antes (captura) e
+  // marca o evento, e o de baixo não fecha junto.
+  useEffect(() => {
+    if (!stacked) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [stacked, onClose]);
 
   const changeType = (type: ClientType) => {
     setValues((current) => ({

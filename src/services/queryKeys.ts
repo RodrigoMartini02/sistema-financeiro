@@ -39,7 +39,7 @@ export function invalidateExpenseQueries(qc: QueryClient) {
 // cliente gravados mexem nas receitas: as telas deles usam a mesma invalidação.
 const INCOME_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'budget-overview', 'budget-overview-range', 'reports',
-  'contratos-ativos', 'contratos-status-faturamento', 'catalogo-produtos', 'income-suggestions', 'income-duplicate',
+  'catalogo-produtos', 'income-suggestions', 'income-duplicate',
   'clients', 'clients-summary', 'client', 'client-incomes', 'contracts', 'contract', 'contract-portfolio',
   'contracts-with-hours',
 ]);
@@ -71,9 +71,6 @@ export const queryKeys = {
   // Sócios de uma conta PJ (modal da conta): sempre de uma conta específica.
   partners: (accountId: number) => ['partners', accountId] as const,
   avaliacoes: ['avaliacoes'] as const,
-  clientes: ['clientes'] as const,
-  contratosAtivos: ['contratos-ativos'] as const,
-  contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   // A conta e as pessoas fazem parte da chave: sem isso o React Query serviria
   // os numeros do escopo anterior ao trocar de conta ou de membro no filtro.
   // undefined ("so eu"), null (todas as pessoas) e uma lista (combinacao

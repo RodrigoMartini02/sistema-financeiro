@@ -28,6 +28,9 @@ test('menu: cada seção com a sua permissão; Clientes só fora da conta pessoa
   assert.deepEqual(visibleSections(ALL, 'pessoal'), ['painel', 'movimentacoes', 'reports']);
   assert.deepEqual(visibleSections(only('accessExpenses'), 'pessoal'), ['movimentacoes']);
   assert.deepEqual(visibleSections(only('accessIncomes', 'accessClients'), 'empresa'), ['movimentacoes', 'clientes']);
+  // O catálogo de serviços fica em Clientes: a permissão de Serviços sozinha já abre o menu.
+  assert.deepEqual(visibleSections(only('accessServices'), 'empresa'), ['clientes']);
+  assert.deepEqual(visibleSections(only('accessServices', 'accessClients'), 'pessoal'), []);
   assert.deepEqual(visibleSections(only('accessDashboard', 'accessReports'), 'empresa'), ['painel', 'reports']);
   assert.deepEqual(visibleSections({}, 'empresa'), []);
 });

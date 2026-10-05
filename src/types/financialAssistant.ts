@@ -39,12 +39,14 @@ export interface FinancialAssistantDraft {
    * conta do lancamento e empresa — em conta PF permanecem null/undefined,
    * igual ao modal de receita do desktop.
    */
-  cliente?: string | null;
+  /** Cliente do cadastro, pelo id. */
+  clienteId?: number | null;
   representanteId?: number | null;
   produtoId?: string | null;
   quantidadeVendida?: number | null;
+  /** Horas a faturar: o contrato e o tipo de hora dele. */
   contratoId?: number | null;
-  tipoHora?: 'presencial' | 'remoto' | null;
+  tipoHoraId?: number | null;
   quantidadeHoras?: number | null;
   /** Receita, PF e PJ: classificacao do catalogo da conta do lancamento. */
   classificacaoId?: number | null;

@@ -1,21 +1,16 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import type { IncomeHourType } from '../../../types/finance';
 import { C, chipStyle } from '../../../ui/dialogFormTokens';
+import { formatHours } from '../../../utils/contractDisplay';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { formatCurrency } from '../formatters';
 import { formatCents } from '../entry-dialog/cents';
 import { INVALID_BORDER, SEPARATOR, fieldStyle } from '../entry-dialog/fieldStyles';
 import {
-  billableHoursInfo, calculatedAmountCents, commissionPreview, contractPrefill, hourRate, productSaleInfo,
+  billableHoursInfo, calculatedAmountCents, commissionPreview, contractPrefill, productSaleInfo, withholdingPreview,
   type IncomeRuleContext,
 } from './draftRules';
 import type { IncomeDraft, IncomeDraftPatch } from './draftState';
-
-const HOUR_TYPES: ReadonlyArray<{ type: IncomeHourType; label: string }> = [
-  { type: 'presencial', label: 'Presencial' },
-  { type: 'remoto', label: 'Remoto' },
-];
 
 const sectionTitleStyle = { fontSize: 12, fontWeight: 600, color: C.text };
 const smallChip = (active: boolean) => chipStyle(active, { h: 26, r: 13, size: 12 });
@@ -39,6 +34,7 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
   const commission = commissionPreview(draft, context);
   const sale = productSaleInfo(draft, context);
   const hours = billableHoursInfo(draft, context);
+  const withholding = withholdingPreview(draft, context);
 
   // Produto e horas preenchem o valor; ele continua editável depois.
   const updateAndRecalculate = (change: Partial<IncomeDraft>) => onUpdate((current) => {
@@ -48,8 +44,8 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
   });
 
   const chooseContract = (contractId: number | null) => onUpdate((current) => {
-    const contract = context.contracts.find((item) => item.id === contractId);
-    return { contractId, hourType: null, hours: null, ...(contract ? contractPrefill(current, contract) : {}) };
+    const contract = context.contracts.find((item) => item.contractId === contractId);
+    return { contractId, hourTypeId: null, hours: null, ...(contract ? contractPrefill(current, contract) : {}) };
   });
 
   return (
@@ -162,36 +158,48 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
             >
               <option value="">Nenhum contrato</option>
               {context.contracts.map((contract) => (
-                <option key={contract.id} value={contract.id}>
-                  {contract.cliente_nome}{contract.numero ? ` — ${contract.numero}` : ''}
+                <option key={contract.contractId} value={contract.contractId}>
+                  {contract.clientName}{contract.number ? ` — ${contract.number}` : ''}
                 </option>
               ))}
             </select>
             {hours && (
               <>
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-                  {HOUR_TYPES.filter(({ type }) => hourRate(hours.contract, type) !== null).map(({ type, label }) => (
-                    <button key={type} type="button" onClick={() => updateAndRecalculate({ hourType: type })} style={smallChip(draft.hourType === type)}>
-                      {label}
+                  {hours.contract.hourTypes.map((hourType) => (
+                    <button
+                      key={hourType.id}
+                      type="button"
+                      onClick={() => updateAndRecalculate({ hourTypeId: hourType.id })}
+                      style={smallChip(draft.hourTypeId === hourType.id)}
+                      title={`Saldo de ${formatHours(hourType.balance)}`}
+                    >
+                      {hourType.name}
                     </button>
                   ))}
                   <input
                     type="number"
-                    min="0.5"
-                    step="0.5"
+                    min="0.25"
+                    step="0.25"
                     value={draft.hours ?? ''}
                     onChange={(event) => updateAndRecalculate({ hours: event.target.value !== '' ? Number(event.target.value) : null })}
-                    disabled={!draft.hourType}
+                    disabled={!draft.hourTypeId}
                     placeholder="Horas"
                     aria-label="Quantidade de horas"
-                    style={{ ...fieldStyle({ disabled: !draft.hourType }), width: 80 }}
+                    style={{ ...fieldStyle({ disabled: !draft.hourTypeId, invalid: hours.overBalance }), width: 80 }}
                   />
                 </div>
-                {draft.hourType && (
+                {hours.hourType && (
+                  <span style={{ fontSize: 12, color: hours.overBalance ? C.danger : C.textSoft }}>
+                    {hours.overBalance
+                      ? `Saldo de horas insuficiente: restam ${formatHours(hours.hourType.balance)}.`
+                      : `${formatCurrency(hours.hourType.hourlyRate)}/h · saldo ${formatHours(hours.hourType.balance)}`
+                        + (hours.totalCents !== null ? ` · ${formatCents(hours.totalCents)}` : '')}
+                  </span>
+                )}
+                {withholding && (
                   <span style={{ fontSize: 12, color: C.textSoft }}>
-                    {hours.rate !== null ? `${formatCurrency(hours.rate)}/h` : 'Sem valor por hora'}
-                    {hours.balance !== null ? ` · saldo ${hours.balance}h` : ''}
-                    {hours.totalCents !== null ? ` · ${formatCents(hours.totalCents)}` : ''}
+                    Contrato com retenções: o valor é o bruto. Entra o líquido de {formatCents(withholding.netCents)} (retidos {formatCents(withholding.withheldCents)}).
                   </span>
                 )}
               </>

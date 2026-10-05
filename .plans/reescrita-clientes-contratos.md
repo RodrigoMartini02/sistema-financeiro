@@ -1003,3 +1003,21 @@ A implementação estará pronta quando:
 - **Limpeza:** saíram de `dialogFormTokens.tsx` os estilos da tabela de valores do contrato antigo, que ficaram sem uso.
 - **Anexos escolhidos no contrato em etapas** sobem logo depois de salvar. Se algum falhar, a ficha avisa quais.
 - Testes do front: 120/120; `tsc` sem erros.
+
+### Etapa 8 — integrações no front
+
+- **Lançamento de receita** (`income-dialog/`):
+  - cliente pelo id (`clientId`), com o nome atual; na edição, um cliente desativado continua aparecendo pelo nome;
+  - "+ cadastrar" abre o cadastro completo por cima do modal de receita, com o nome já digitado. O Esc fecha só o cadastro;
+  - horas: contrato → tipo de hora (nome, valor, saldo) → quantidade, com aviso e bloqueio acima do saldo;
+  - contrato com órgão público: o valor digitado é o bruto; a prévia mostra o líquido e as retenções, e a comissão sai do líquido;
+  - as horas trazem o cliente do contrato; cliente diferente do contrato é recusado ("use o cliente do contrato das horas");
+  - editar receita com retenção abre com o bruto.
+- **Lista de lançamentos e cartão da receita:** nome do cliente pelo cadastro (`cliente_nome`).
+- **Painel PJ:** a carteira usa `/contracts/portfolio`, pelo líquido, só para quem vê contratos.
+- **Assistente:** cliente pelo id e horas por tipo de hora, com o aviso de saldo e de retenções.
+- **Checklist:** conta os clientes da lista nova.
+- **Menu:** "Clientes" aparece com a permissão de Clientes ou a de Serviços (teste atualizado).
+- **Demo:** as rotas novas devolvem listas vazias; as receitas da demo usam `cliente_id`.
+- **Limpeza:** saiu `clientesService.ts`, as chaves `clientes`, `contratosAtivos` e `contratosStatusFaturamento` e `getContratosFaturamento`.
+- Testes do front: 121/121; `tsc` e build sem erros.

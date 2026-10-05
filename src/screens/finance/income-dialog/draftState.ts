@@ -1,4 +1,4 @@
-import type { Attachment, Income, IncomeHourType, IncomeRepeatUntil } from '../../../types/finance';
+import type { Attachment, Income, IncomeRepeatUntil } from '../../../types/finance';
 import { isoToBrDate } from '../../../utils/date';
 import {
   batchReducer, nextDraftKey, type BatchAction, type BatchState, type DraftPatch,
@@ -18,15 +18,15 @@ export interface IncomeDraft {
   receiptDate: string;
   /** "Todo mês até": réplicas mensais até esse mês. */
   repeatUntil: IncomeRepeatUntil | null;
-  /** Conta PJ: nome de um cliente do cadastro; vazio sem cliente. */
-  client: string;
+  /** Conta PJ: cliente do cadastro; nulo sem cliente. */
+  clientId: number | null;
   representativeId: number | null;
   /** Venda de produto do catálogo (só em receita nova). */
   productId: string | null;
   soldQuantity: number | null;
-  /** Horas a faturar de um contrato (só em receita nova). */
+  /** Horas a faturar (só em receita nova): o contrato e o tipo de hora dele. */
   contractId: number | null;
-  hourType: IncomeHourType | null;
+  hourTypeId: number | null;
   hours: number | null;
   attachments: Attachment[];
 }
@@ -42,25 +42,25 @@ export function createIncomeDraft(receiptDate: string): IncomeDraft {
     amountCents: null,
     receiptDate,
     repeatUntil: null,
-    client: '',
+    clientId: null,
     representativeId: null,
     productId: null,
     soldQuantity: null,
     contractId: null,
-    hourType: null,
+    hourTypeId: null,
     hours: null,
     attachments: [],
   };
 }
 
-/** A receita gravada, pronta para editar. */
+/** A receita gravada, pronta para editar. Com retenção, o valor editado é o bruto. */
 export function incomeDraftFromIncome(income: Income): IncomeDraft {
   return {
     ...createIncomeDraft(isoToBrDate(income.data)),
     description: income.descricao,
     categoryId: income.classificacaoId ?? null,
-    amountCents: toCents(income.valor),
-    client: income.cliente ?? '',
+    amountCents: toCents(income.valorBruto ?? income.valor),
+    clientId: income.clienteId ?? null,
     representativeId: income.representanteId ?? null,
     attachments: income.anexos ?? [],
   };
@@ -75,6 +75,8 @@ export interface IncomeDraftErrors {
   repeatUntil?: true;
   product?: true;
   hours?: true;
+  /** Mais horas do que o saldo do tipo de hora. */
+  hoursOverBalance?: true;
 }
 
 export type IncomeDialogState = BatchState<IncomeDraft, IncomeDraftErrors>;
