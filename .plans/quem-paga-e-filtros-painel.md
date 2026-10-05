@@ -288,4 +288,46 @@ Nenhuma pergunta em aberto identificada.
 
 ## Registro de andamento
 
-(vazio: preenchido pela skill `implementar`)
+- **Etapa 1 (branch):** `feat/R/quem-paga-e-filtros-painel` a partir da `main` em `5db6bdfe`.
+- **Etapa 2 (parte 1, backend):** commit `969d5e8f`.
+  - `balanceService` em Drizzle com `expenseBaseConditions` e `incomeBaseConditions`.
+  - `assistantQueries`, `budgetService` e `financialCopilot` somam pelo pagador (`expensePayer`).
+  - **Desvio:** `despesasEmAberto` do assistente continua por autor (`expenseAuthoredAll`), porque é a lista do "Pagar", e pagar segue a checagem de autor de `/expenses/:id/pay`.
+  - **Acréscimo:** commit `65bee57c`, o assistente deixa de somar despesas canceladas (`expenseRange` e `expenseAll` só com `ativa`), como pede a regra "cancelada fora de tudo".
+- **Etapa 3 (parte 1, front):** commit `90dc05a1`.
+  - `expensesPaidByPeople` em `utils/expenseFilters.ts`, com teste.
+  - "Despesa do mês" e a nota contam a mesma lista: não canceladas, pagas pelas pessoas selecionadas, dentro dos filtros.
+- **Etapa 4 (roteiro no banco local):** 18/18; os usuários `*@roteiro-quem-paga.test` foram apagados no fim.
+  - Saldo do mês: A = 360 com a compra de B no cartão dele; B = 20. Saldo anterior de A = -30.
+  - Antes e depois: A 310 → 360, B 70 → 20.
+  - Painel, Relatório, orçamento e assistente dão 360 para A.
+  - O "em aberto" de A não traz a despesa de B; cancelada fora de tudo.
+  - Tempo, no banco local do Rodrigo (507 despesas desde 2025): saldo anterior + mês com mediana de 3,5 ms e pior caso de 58,8 ms.
+- **Etapa 5 (parte 2, backend):** commit `b915831b`.
+  - `readQueryList`, `readQueryEnumList` e `readQueryIdList` em `utils/requestInput.ts`.
+  - **Desvio:** Relatórios passam a usar esses leitores e o `sendRequestError`; os leitores locais saíram, sem mudar o comportamento.
+  - `/financial/painel` com `category_id`, `card_id` e `payment_method`; `filtrarDespesasPainel` com teste; `filterOptions`; Planejado por categoria e nulo com filtro de cartão ou forma.
+  - Roteiro (dentro dos 18):
+    - categoria 150; cartão 260 com Planejado nulo; pix 100;
+    - opções `credito` e `pix` mais o cartão de A;
+    - filtro inválido → 400; cartão de outra conta → 0;
+    - Relatórios iguais.
+- **Etapa 6 (parte 2, front):** commit `5f1398c1`.
+  - Grupos Categoria, Forma de pagamento e Cartão; estado, pedido e chave de cache com os filtros.
+  - Aviso "Painel filtrado"; blocos com filtro (D2 e D3).
+  - **Desvio:** as opções de forma de pagamento são as quatro de `PAYMENT_METHODS` (como em Lançamentos); os cartões vêm de `filterOptions`.
+  - As opções de categoria saem de `categoryFilterOptions`, agora compartilhada com Lançamentos.
+- **Etapa 7 (validação):**
+  - `tsc` do front ok; testes 154/154 (front) e 334/334 (back); build do back ok; `vite build` ok.
+  - Tela no jsdom: 11/11 cenários.
+    - Painel sem filtro e filtrado: aviso, blocos escondidos, só saídas no gráfico, Planejado some com cartão.
+    - "Limpar" volta ao Painel inteiro.
+    - Movimentações: R$ 150,00 com a despesa da Mirian no cartão do Rodrigo e sem a cancelada, igual sem filtro e com "Receita" desmarcada.
+- **Etapa 8 (prints):** 10 prints no Edge, em `tmpclaude-prints/` (7 de computador, 3 de celular).
+  - Tela real com respostas do Painel geradas do banco local, e Movimentações com dados de exemplo.
+  - **Achado para decisão do usuário:** marcar o grupo "Alimentação" no filtro envia só as subcategorias (Academia, subcat). O Painel mostra R$ 1.778,97, e as 58 despesas lançadas direto em "Alimentação" (R$ 4.272,18) ficam de fora. O "Onde mais gastou" mostra Alimentação = R$ 6.051,15. É a regra do botão de filtros, que já vale em Lançamentos e Relatórios.
+  - **Prints aprovados pelo usuário em 2026-10-05.**
+- **Acréscimos aprovados pelo usuário em 2026-10-05**, nesta branch e antes do `/finalizar`. Plano aprovado e salvo em `.plans/categoria-pai-e-receitas-assistente.md`:
+  - categoria pai no filtro (Painel, Lançamentos e Relatórios);
+  - receitas do assistente por status (cancelada nunca; prevista só na projeção).
+- **Falha encontrada na etapa 2:** o copiloto (`financialCopilot`, cards de reserva do chat) passou a somar pelo pagador, mas `accountExpenseCondition` continua sem o filtro de status. Despesa cancelada entra em "Resumo do período", "Gastos por categoria", "Próximos vencimentos" e "Lançamentos". Isso fere a regra "cancelada fora de tudo"; a correção vai junto dos acréscimos.
