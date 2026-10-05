@@ -41,6 +41,8 @@ function clampLimit(limite: number | undefined, fallback: number): number {
 function expenseRange(scope: QueryScope, inicio: string, fim: string) {
   const conditions = [
     eq(expensePayer, scope.userId),
+    // Cancelada fica no banco, fora de toda soma (como no Painel e nos saldos).
+    eq(expenses.status, ACTIVE_STATUS),
     gte(expenses.dueDate, inicio),
     lte(expenses.dueDate, fim),
   ];
@@ -67,9 +69,9 @@ function incomeRange(scope: QueryScope, inicio: string, fim: string) {
   return and(...conditions);
 }
 
-/** Despesas sem recorte de data — base das consultas de parcelamento. Contam para quem paga. */
+/** Despesas vigentes sem recorte de data — base das consultas de parcelamento. Contam para quem paga. */
 function expenseAll(scope: QueryScope) {
-  return and(eq(expensePayer, scope.userId), expenseAccountOf(scope));
+  return and(eq(expensePayer, scope.userId), eq(expenses.status, ACTIVE_STATUS), expenseAccountOf(scope));
 }
 
 /**
