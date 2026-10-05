@@ -1051,3 +1051,16 @@ A implementação estará pronta quando:
 
 - Checks antes do push: front `tsc`, 121/121 e build; back `tsc` e 333/333.
 - Migrations: local sem pendências; produção com 0070 e 0071 pendentes.
+- **Produção (2026-10-05):**
+  - **0070** aplicada fora do modo automático, com a confirmação do usuário. Conferência só lendo:
+    - as 9 tabelas do schema `comercial` existem;
+    - 1 dos 2 clientes e 11 dos 14 serviços foram copiados, para a PJ 19;
+    - "Projeto" ficou sob "Contratos" (dono 16);
+    - `receitas.contrato_id` aponta para `comercial.contratos`.
+  - **Merge** na `main` em `7992eebc`, com o deploy conferido:
+    - o backend novo entrou em cerca de 83 s (sem login, `/api/clients` passou de 404 para 401 e `/api/clientes` de 401 para 404);
+    - o front publicado tem as rotas novas.
+  - **0071 não aplicada.** O usuário decidiu deixar para depois ("está funcional, ainda vou melhorar").
+    - Ela apaga as tabelas antigas (com dados só em `clientes`, 2, e `servicos`, 14) e `receitas.cliente` (vazia em todas as receitas).
+    - Perdem-se 1 cliente (conta pessoal) e 3 serviços de donos sem PJ, que não foram copiados.
+    - Enquanto ela estiver pendente, nenhuma migration a partir da 0072 pode ser aplicada na produção.
