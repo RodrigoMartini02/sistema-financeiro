@@ -6,16 +6,21 @@ interface Props {
   month: number;
   year: number;
   onChange: (month: number, year: number) => void;
+  /** Para onde a lista de meses abre; 'top' dentro de áreas com rolagem (ex.: modal), onde abrir para baixo cortaria. */
+  placement?: 'bottom' | 'top';
 }
 
-export function MonthYearPicker({ month, year, onChange }: Props) {
+export function MonthYearPicker({ month, year, onChange, placement = 'bottom' }: Props) {
   const [open, setOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(year);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setPickerYear(year);
+    // Dentro de uma área com rolagem, a lista aberta fica inteira à vista.
+    const frame = requestAnimationFrame(() => dropdownRef.current?.scrollIntoView?.({ block: 'nearest' }));
 
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -28,6 +33,7 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
     return () => {
+      cancelAnimationFrame(frame);
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
@@ -75,7 +81,13 @@ export function MonthYearPicker({ month, year, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-[240px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <div
+          ref={dropdownRef}
+          className={[
+            'absolute left-0 z-20 w-[240px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900',
+            placement === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
+          ].join(' ')}
+        >
           <div className="mb-2 flex items-center justify-between">
             <button
               type="button"
