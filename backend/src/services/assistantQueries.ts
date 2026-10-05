@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { cards, categories, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
@@ -6,7 +6,8 @@ import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { getBudgetOverview, type FinancialAccount } from './budgetService';
 import { assertValidRange, describeRange } from './assistantDateRange';
 import type { OpenExpenseRow } from './assistantPayment';
-import { ACTIVE_STATUS, expensePayer } from './entryQueries';
+import { isOverdueReceivable, matchesReceivableSituation } from './assistantReceivables';
+import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
 
 // Consultas do assistente. Cada funcao recebe periodo em datas absolutas (o
 // modelo nunca manda "esse mes") e devolve dado bruto — a redacao da resposta
@@ -54,10 +55,15 @@ function expenseRange(scope: QueryScope, inicio: string, fim: string) {
   return and(...conditions);
 }
 
-/** Receitas do periodo, por data de recebimento. */
-function incomeRange(scope: QueryScope, inicio: string, fim: string) {
+/**
+ * Receitas do periodo, por data de recebimento, nos status pedidos: as somas do
+ * que entrou usam so as recebidas; a projecao e as listas, tambem as a receber.
+ * Cancelada nunca entra.
+ */
+function incomeRange(scope: QueryScope, inicio: string, fim: string, statuses: string[]) {
   const conditions = [
     eq(incomes.userId, scope.userId),
+    inArray(incomes.status, statuses),
     gte(incomes.receiptDate, inicio),
     lte(incomes.receiptDate, fim),
   ];
@@ -89,9 +95,9 @@ function expenseAccountOf(scope: QueryScope) {
   return eq(expenses.accountId, scope.account.id);
 }
 
-/** Receitas sem recorte de data — base da consulta de ultimo lancamento. */
+/** Receitas vigentes sem recorte de data — base da consulta de ultimo lancamento. */
 function incomeAll(scope: QueryScope) {
-  const conditions = [eq(incomes.userId, scope.userId)];
+  const conditions = [eq(incomes.userId, scope.userId), inArray(incomes.status, LIVE_INCOME_STATUSES)];
   if (scope.account.type === 'pessoal') {
     conditions.push(or(eq(incomes.accountId, scope.account.id), isNull(incomes.accountId))!);
   } else {
@@ -107,7 +113,7 @@ export async function resumoPeriodo(scope: QueryScope, inicio: string, fim: stri
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), paid: expenses.paid })
       .from(expenses).where(expenseRange(scope, inicio, fim)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicio, fim)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicio, fim, RECEIVED_INCOME_STATUSES)),
   ]);
 
   const entradas = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -137,7 +143,7 @@ export async function saldoAtual(scope: QueryScope) {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount() })
       .from(expenses).where(and(expenseRange(scope, inicioDoAno, hoje), eq(expenses.paid, true))),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioDoAno, hoje)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioDoAno, hoje, RECEIVED_INCOME_STATUSES)),
   ]);
 
   const entradas = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -154,7 +160,7 @@ export async function saudeFinanceira(scope: QueryScope, meses: number) {
   const inicioIso = inicio.toISOString().slice(0, 10);
 
   const [incomeRows, expenseRows, futuras] = await Promise.all([
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioIso, hoje)),
+    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioIso, hoje, RECEIVED_INCOME_STATUSES)),
     db.select({ amount: effectiveExpenseAmount(), recurring: expenses.recurring })
       .from(expenses).where(expenseRange(scope, inicioIso, hoje)),
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate })
@@ -281,8 +287,9 @@ export async function buscarLancamentos(
       descricao: incomes.description,
       amount: incomes.amount,
       data: incomes.receiptDate,
+      status: incomes.status,
     }).from(incomes)
-      .where(and(incomeRange(scope, inicio, fim), sql`lower(${incomes.description}) like ${termo}`))
+      .where(and(incomeRange(scope, inicio, fim, LIVE_INCOME_STATUSES), sql`lower(${incomes.description}) like ${termo}`))
       .orderBy(desc(incomes.receiptDate)).limit(limite),
   ]);
 
@@ -299,7 +306,8 @@ export async function buscarLancamentos(
       descricao: row.descricao,
       valor: asNumber(row.amount),
       data: String(row.data),
-      pago: true,
+      // Para receita, pago = já recebida (prevista e faturada ainda não).
+      pago: row.status === ACTIVE_STATUS,
     })),
   ].sort((left, right) => right.data.localeCompare(left.data)).slice(0, limite);
 
@@ -392,12 +400,20 @@ export async function contasAReceber(scope: QueryScope, inicio: string, fim: str
     descricao: incomes.description,
     amount: incomes.amount,
     data: incomes.receiptDate,
-  }).from(incomes).where(incomeRange(scope, inicio, fim)).orderBy(asc(incomes.receiptDate)).limit(MAX_ROWS);
+    status: incomes.status,
+  }).from(incomes).where(incomeRange(scope, inicio, fim, LIVE_INCOME_STATUSES)).orderBy(asc(incomes.receiptDate)).limit(MAX_ROWS);
 
-  // Receita nao tem status de pagamento no modelo: o que separa e a data.
+  // Separa pelo status (recebida ou a receber) e, entre as a receber, pela data.
   const itens = rows
-    .filter((row) => status === 'todos' || (status === 'aberto' ? String(row.data) >= hoje : String(row.data) < hoje))
-    .map((row) => ({ descricao: row.descricao, valor: asNumber(row.amount), data: String(row.data) }));
+    .map((row) => ({ row, income: { received: row.status === ACTIVE_STATUS, date: String(row.data) } }))
+    .filter(({ income }) => matchesReceivableSituation(income, status, hoje))
+    .map(({ row, income }) => ({
+      descricao: row.descricao,
+      valor: asNumber(row.amount),
+      data: income.date,
+      received: income.received,
+      overdue: isOverdueReceivable(income, hoje),
+    }));
 
   return {
     periodo: describeRange(inicio, fim),
@@ -537,7 +553,7 @@ export async function projecaoSaldo(scope: QueryScope, meses: number) {
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate, paid: expenses.paid })
       .from(expenses).where(expenseRange(scope, hoje, fim)),
     db.select({ amount: incomes.amount, data: incomes.receiptDate })
-      .from(incomes).where(incomeRange(scope, hoje, fim)),
+      .from(incomes).where(incomeRange(scope, hoje, fim, LIVE_INCOME_STATUSES)),
   ]);
 
   const porMes = new Map<string, { entradas: number; saidas: number; realizado: number }>();

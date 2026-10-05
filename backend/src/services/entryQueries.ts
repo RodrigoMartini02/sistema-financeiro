@@ -12,6 +12,10 @@ export const ACTIVE_STATUS = 'ativa';
 export const CANCELLED_STATUS = 'cancelada';
 /** Receita lançada e ainda não recebida (contratos passam por faturada). */
 export const RECEIVABLE_STATUSES = ['prevista', 'faturada'];
+/** Receita que já entrou: as somas do que entrou contam só esta. */
+export const RECEIVED_INCOME_STATUSES = [ACTIVE_STATUS];
+/** Receita vigente: recebida ou a receber. Só a cancelada fica fora. */
+export const LIVE_INCOME_STATUSES = [ACTIVE_STATUS, ...RECEIVABLE_STATUSES];
 
 export function toNumber(value: string | number | null | undefined): number {
   const converted = Number(value ?? 0);

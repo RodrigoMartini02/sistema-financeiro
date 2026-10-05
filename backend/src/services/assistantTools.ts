@@ -187,10 +187,14 @@ export const ASSISTANT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'contas_a_receber',
-    description: 'Receitas previstas ou já recebidas no período.',
+    description: 'Receitas a receber (previstas ou faturadas) e já recebidas no período. Canceladas ficam fora.',
     parameters: {
       ...RANGE_PARAMS,
-      status: { type: 'string', description: 'Situação desejada.', enum: ['aberto', 'vencido', 'todos'] },
+      status: {
+        type: 'string',
+        description: 'aberto: a receber com data de hoje em diante; vencido: a receber com data passada; todos: recebidas e a receber.',
+        enum: ['aberto', 'vencido', 'todos'],
+      },
     },
     required: [],
   },
