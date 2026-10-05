@@ -179,6 +179,7 @@ function CartaoDialog({
         title: 'Mudar o vencimento',
         message: `As despesas não pagas deste cartão, de ${nomeDoMesDeVigencia} em diante, passam a vencer no dia ${Number(vencimento)}.`,
         confirmLabel: 'Salvar',
+        variant: 'default',
       });
       if (!ok) return;
     }
