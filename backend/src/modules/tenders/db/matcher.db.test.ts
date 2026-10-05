@@ -47,12 +47,15 @@ describe('fn_edital_bate (banco local)', { skip: databaseTestsSkipReason }, () =
     });
   });
 
-  test('plural e singular batem pelo radical', async () => {
+  // Plural regular bate pelo radical. Limitação da configuração do escopo (unaccent antes do
+  // radical): -ção/-ções, -ão/-ões e -al/-ais não batem entre si (ver README do módulo).
+  test('plural e singular regulares batem pelo radical', async () => {
     await withRollback(async (tx) => {
       const owner = await createTestAccount(tx, 'radical');
-      const notice = { procurementObject: 'Locação de licenças de uso de software de gestão' };
+      const notice = { procurementObject: 'Locação de licenças de uso de sistema de gestão' };
       assert.equal(await noticeMatches(tx, owner, notice, { terms: ['licença de uso'] }), true);
-      assert.equal(await noticeMatches(tx, owner, notice, { terms: ['softwares'] }), true);
+      assert.equal(await noticeMatches(tx, owner, notice, { terms: ['sistemas'] }), true);
+      assert.equal(await noticeMatches(tx, owner, { procurementObject: 'Prestação de serviços de digitalização' }, { terms: ['serviço'] }), true);
     });
   });
 

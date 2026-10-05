@@ -144,6 +144,19 @@ SELECT count(*) AS editais,
 - **`link_pncp`:** `https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}`.
 - **`link` das notificações:** `/editais/<id>`, a partir do início do app do módulo. A tela completa com `/licitacoes/app` (decisão 24).
 
+## Limitação conhecida da busca: singular × plural
+
+A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes** de reduzir a palavra ao radical, e o radical do português depende do acento em alguns sufixos. Medido no banco local em 05/10/2026:
+
+- **Batem (plural regular):** licença × licenças, sistema × sistemas, serviço × serviços, equipamento × equipamentos.
+- **Não batem:**
+  - -ção × -ções: licitação (`licitaca`) × licitações (`licitaco`), contratação, aquisição, locação, prestação, informação;
+  - -ão × -ões: gestão × gestões;
+  - -al × -ais: material × materiais;
+  - palavra estrangeira: software × softwares.
+
+Até haver decisão em contrário, inclua nas buscas salvas as duas formas quando fizer diferença (ex.: "licitação" e "licitações").
+
 ## OpenAPI do PNCP × escopo
 
 Conferido em 05/10/2026 contra `collector/docs/pncp-openapi.json` (API PNCP CONSULTA 1.0). Não há divergência que mude o coletor:
