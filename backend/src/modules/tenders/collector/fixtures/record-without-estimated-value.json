@@ -1,0 +1,53 @@
+{
+  "orgaoEntidade": {
+    "cnpj": "37115383000153",
+    "razaoSocial": "MINISTERIO DE MINAS E ENERGIA",
+    "poderId": "E",
+    "esferaId": "F"
+  },
+  "valorTotalHomologado": null,
+  "dataInclusao": "2025-07-08T07:15:50",
+  "dataAtualizacao": "2026-09-24T07:03:05",
+  "anoCompra": 2025,
+  "srp": false,
+  "sequencialCompra": 95,
+  "emendaParlamentar": null,
+  "numeroCompra": "91077",
+  "processo": "GEACSF20250100015",
+  "objetoCompra": "Contratação de entidade seguradora para emissão de apólices de seguro garantia judicial destinadas a garantir valores passíveis de serem depositados ou substituir aqueles efetivamente depositados em processos judiciais trabalhista e cível nos quais a INB figure na lide.",
+  "informacaoComplementar": "O Edital e suplementos referentes a esta licitação estarão disponíveis no site da INB (www.inb.gov.br). Para as respostas de esclarecimentos e impugnações deste edital acesse o link: https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/landing?destino=quadro-informativo&compra=11320605910772025",
+  "dataAberturaProposta": "2025-07-08T08:00:00",
+  "dataEncerramentoProposta": "2026-10-27T10:00:00",
+  "dataPublicacaoPncp": "2025-07-08T07:15:50",
+  "dataAtualizacaoGlobal": "2026-09-24T07:03:05",
+  "numeroControlePNCP": "37115383000153-1-000095/2025",
+  "unidadeOrgao": {
+    "ufNome": "Rio de Janeiro",
+    "ufSigla": "RJ",
+    "municipioNome": "Rio de Janeiro",
+    "codigoUnidade": "113206",
+    "nomeUnidade": "INDUSTRIAS NUCLEARES DO BRASIL S/A",
+    "codigoIbge": "3304557"
+  },
+  "orgaoSubRogado": null,
+  "unidadeSubRogada": null,
+  "amparoLegal": {
+    "nome": "Lei 14.133/2021, Art. 28, I",
+    "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+    "codigo": 1
+  },
+  "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/landing?destino=acompanhamento-compra&compra=11320605910772025",
+  "linkProcessoEletronico": null,
+  "justificativaPresencial": null,
+  "tipoInstrumentoConvocatorioCodigo": 1,
+  "valorTotalEstimado": 0,
+  "modalidadeId": 6,
+  "modalidadeNome": "Pregão - Eletrônico",
+  "modoDisputaId": 1,
+  "modoDisputaNome": "Aberto",
+  "tipoInstrumentoConvocatorioNome": "Edital",
+  "fontesOrcamentarias": [],
+  "situacaoCompraId": 1,
+  "situacaoCompraNome": "Divulgada no PNCP",
+  "usuarioNome": "Compras.gov.br"
+}

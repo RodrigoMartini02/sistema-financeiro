@@ -1,0 +1,53 @@
+{
+  "orgaoEntidade": {
+    "cnpj": "04696490000163",
+    "razaoSocial": "SUP. EST. DE LICITACAO",
+    "poderId": "E",
+    "esferaId": "E"
+  },
+  "valorTotalHomologado": null,
+  "dataInclusao": "2025-10-15T07:15:56",
+  "dataAtualizacao": "2026-10-02T07:02:52",
+  "anoCompra": 2025,
+  "srp": false,
+  "sequencialCompra": 263,
+  "emendaParlamentar": null,
+  "numeroCompra": "90359",
+  "processo": "0029061658202374",
+  "objetoCompra": "Constitui o presente Termo de Referência, Contratação de empresa especializada em prestação de serviços por demanda, de segurança eletrônica, por monitoramento de imagens, sistema de alarme e controle de acesso 24 (vinte e quatro) horas, com fornecimento de equipamentos, instalação, configuração, integração, manutenção, operação, ferramentas, mão de obra monitorada por um Centro de Comando de Operações de Segurança e call-center emergencial, bem como serviços de cont",
+  "informacaoComplementar": "Em caso de divergência existente entre as especificações do objeto descrita nos Sistema Eletrônico - Portal de Compras do Governo Federal, e as especificações constantes no ANEXO I deste Edital - Termo de Referência, prevaleceram as últimas. Para as respostas de esclarecimentos e impugnações deste edital acesse o link: https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/landing?destino=quadro-informativo&compra=92537305903592025",
+  "dataAberturaProposta": "2026-09-29T09:00:00",
+  "dataEncerramentoProposta": "2026-10-16T10:00:00",
+  "dataPublicacaoPncp": "2025-10-15T07:15:56",
+  "dataAtualizacaoGlobal": "2026-10-02T07:02:52",
+  "numeroControlePNCP": "04696490000163-1-000263/2025",
+  "unidadeOrgao": {
+    "ufNome": "Rondônia",
+    "ufSigla": "RO",
+    "municipioNome": "Porto Velho",
+    "codigoUnidade": "925373",
+    "nomeUnidade": "SUPERINTEND.ESTAD.DE COMPRAS E LICITAÇÕES-RO",
+    "codigoIbge": "1100205"
+  },
+  "orgaoSubRogado": null,
+  "unidadeSubRogada": null,
+  "amparoLegal": {
+    "nome": "Lei 14.133/2021, Art. 28, I",
+    "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+    "codigo": 1
+  },
+  "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/landing?destino=acompanhamento-compra&compra=92537305903592025",
+  "linkProcessoEletronico": null,
+  "justificativaPresencial": null,
+  "tipoInstrumentoConvocatorioCodigo": 1,
+  "valorTotalEstimado": 56951884.31,
+  "modalidadeId": 6,
+  "modalidadeNome": "Pregão - Eletrônico",
+  "modoDisputaId": 1,
+  "modoDisputaNome": "Aberto",
+  "tipoInstrumentoConvocatorioNome": "Edital",
+  "fontesOrcamentarias": [],
+  "situacaoCompraId": 4,
+  "situacaoCompraNome": "Suspensa",
+  "usuarioNome": "Compras.gov.br"
+}

@@ -9,7 +9,10 @@
     "dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx watch src/server.ts",
     "dev:prod-db": "tsx watch src/server.ts",
     "build": "tsc --noEmit",
-    "test": "tsx --test src/services/*.test.ts src/utils/*.test.ts",
+    "test": "tsx --test src/services/*.test.ts src/utils/*.test.ts src/modules/tenders/**/*.test.ts",
+    "test:tenders-db": "set TENDERS_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/modules/tenders/**/*.db.test.ts",
+    "tenders": "tsx src/modules/tenders/collector/cli.ts",
+    "tenders:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/collector/cli.ts",
     "migrations:status": "tsx scripts/migrations.ts status",
     "migrations:aplicar": "tsx scripts/migrations.ts aplicar",
     "migrations:registrar-existentes": "tsx scripts/migrations.ts registrar-existentes"
@@ -43,7 +46,8 @@
     "sharp": "^0.34.5",
     "tesseract.js": "^7.0.0",
     "tsx": "^4.22.4",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
