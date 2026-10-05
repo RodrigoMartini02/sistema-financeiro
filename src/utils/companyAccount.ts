@@ -17,25 +17,3 @@ export const ENQUADRAMENTO_OPTIONS: { value: Enquadramento; label: string; descr
 export function companyDisplayName(company: { nome_fantasia?: string | null; razao_social?: string | null }): string {
   return company.nome_fantasia?.trim() || company.razao_social?.trim() || '';
 }
-
-function cnpjCheckDigit(digits: string): number {
-  // Pesos de 2 a 9, da direita para a esquerda, recomeçando depois do 9.
-  let sum = 0;
-  for (let index = 0; index < digits.length; index++) {
-    const weight = ((digits.length - 1 - index) % 8) + 2;
-    sum += Number(digits[index]) * weight;
-  }
-  const remainder = sum % 11;
-  return remainder < 2 ? 0 : 11 - remainder;
-}
-
-/** CNPJ com 14 dígitos e os dois dígitos verificadores certos; a pontuação é ignorada. */
-export function isValidCnpj(value: string): boolean {
-  const digits = value.replace(/\D/g, '');
-  if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
-    return false;
-  }
-  const first = cnpjCheckDigit(digits.slice(0, 12));
-  const second = cnpjCheckDigit(digits.slice(0, 12) + first);
-  return digits.endsWith(`${first}${second}`);
-}

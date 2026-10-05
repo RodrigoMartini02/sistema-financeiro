@@ -25,7 +25,8 @@ import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { allowedAssistantIntents, canReadCatalogList } from '../../utils/screenAccess';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
-import { fetchClientes, fetchContratosAtivos } from '../../services/clientesService';
+import { fetchClients, type ClientFilters } from '../../services/clientsService';
+import { fetchContractsWithHours } from '../../services/contractsService';
 import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { fetchRepresentantes } from '../../services/representantesService';
@@ -57,6 +58,9 @@ import { PaymentCard, openExpenseLabel, paymentDifferenceText, type PaymentDraft
 import { CardActions } from './CardActions';
 
 type ChatRole = 'assistant' | 'user';
+
+/** A mesma lista da tela de Clientes (ativos): o cache é o mesmo. */
+const ACTIVE_CLIENTS: ClientFilters = { search: '', type: null, status: 'active' };
 
 interface ChatAttachmentSummary {
   nome: string;
@@ -488,9 +492,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   // Campos de receita exclusivos de conta PJ: mesmas queries do modal de
   // receita do desktop, so habilitadas quando ha o que mostrar.
   const clientesQuery = useQuery({
-    queryKey: queryKeys.clientes,
-    queryFn: () => fetchClientes(),
-    enabled: open && contaEhEmpresa && readsList('clients'),
+    queryKey: queryKeys.clients(contaAtivaId, ACTIVE_CLIENTS),
+    queryFn: () => fetchClients(contaAtivaId!, ACTIVE_CLIENTS),
+    enabled: open && contaEhEmpresa && readsList('clients') && contaAtivaId !== null,
     staleTime: 60_000,
   });
   // Classificacao vale para receita de conta pessoal e empresa: catalogo da
@@ -514,9 +518,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     staleTime: 60_000,
   });
   const contratosAtivosQuery = useQuery({
-    queryKey: queryKeys.contratosAtivos,
-    queryFn: () => fetchContratosAtivos(),
-    enabled: open && contaEhEmpresa && readsList('contracts'),
+    queryKey: queryKeys.contractsWithHours(contaAtivaId),
+    queryFn: () => fetchContractsWithHours(contaAtivaId!),
+    enabled: open && contaEhEmpresa && readsList('contracts') && contaAtivaId !== null,
     staleTime: 60_000,
   });
 
@@ -572,18 +576,17 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const estoqueDisponivel = produtoSelecionado?.controlaEstoque ? Number(produtoSelecionado.quantidadeEstoque) : null;
 
   const contratoSelecionado = draft?.contratoId
-    ? contratosAtivos.find((contrato) => contrato.id === draft.contratoId)
+    ? contratosAtivos.find((contrato) => contrato.contractId === draft.contratoId)
     : null;
-  const valorHoraSelecionado = draft?.tipoHora === 'presencial'
-    ? (contratoSelecionado?.horas_presenciais_valor ?? null)
-    : draft?.tipoHora === 'remoto'
-      ? (contratoSelecionado?.horas_remotas_valor ?? null)
-      : null;
-  const saldoHorasAtual = draft?.tipoHora === 'presencial'
-    ? (contratoSelecionado?.horas_presenciais_saldo_atual ?? null)
-    : draft?.tipoHora === 'remoto'
-      ? (contratoSelecionado?.horas_remotas_saldo_atual ?? null)
-      : null;
+  const tipoHoraSelecionado = draft?.tipoHoraId
+    ? contratoSelecionado?.hourTypes.find((tipo) => tipo.id === draft.tipoHoraId) ?? null
+    : null;
+  const valorHoraSelecionado = tipoHoraSelecionado?.hourlyRate ?? null;
+  const saldoHorasAtual = tipoHoraSelecionado?.balance ?? null;
+  const horasAcimaDoSaldo = saldoHorasAtual !== null && !!draft?.quantidadeHoras && draft.quantidadeHoras > saldoHorasAtual;
+  // Contrato com órgão público: o valor digitado é o bruto, e a receita vale o líquido.
+  const contratoComRetencoes = !!contratoSelecionado
+    && Object.values(contratoSelecionado.withholdings).some((percentual) => (percentual ?? 0) > 0);
 
   // Regras do modal de despesa do desktop (draftRules): o card mostra a
   // situação, o vencimento calculado e as parcelas como o modal, e grava pela
@@ -625,7 +628,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     if (registered.kind === 'income') {
       push('Valor', formatDraftAmount(registered.amount));
       push('Data', registered.date ? new Date(registered.date + 'T00:00:00').toLocaleDateString('pt-BR') : null);
-      push('Cliente', registered.cliente);
+      push('Cliente', registered.clienteId
+        ? clientes.find((cliente) => cliente.id === registered.clienteId)?.name
+        : null);
       push('Categoria', registered.classificacaoId
         ? classificacoes.find((classificacao) => classificacao.id === registered.classificacaoId)?.rotulo
         : null);
@@ -1110,6 +1115,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         setError('Informe a data antes de salvar.');
         return;
       }
+      if (horasAcimaDoSaldo) {
+        setError(`Saldo de horas insuficiente: restam ${saldoHorasAtual}h.`);
+        return;
+      }
       save = async () => {
         const until = draft.replicarAte ?? null;
         const [receiptYear, receiptMonth] = date.split('-').map(Number);
@@ -1124,15 +1133,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           receiptDate: date,
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
           // aparecem, entao permanecem vazios aqui. A comissao sai do servidor.
-          client: draft.cliente?.trim() || null,
+          clientId: draft.clienteId ?? null,
           representativeId: draft.representanteId ?? null,
           attachments: draftAttachments.length > 0 ? draftAttachments : null,
           repeatUntil: repeats ? { month: until.mes, year: until.ano } : null,
           productSale: draft.produtoId && draft.quantidadeVendida
             ? { productId: draft.produtoId, quantity: draft.quantidadeVendida }
             : null,
-          billableHours: draft.contratoId && draft.tipoHora && draft.quantidadeHoras
-            ? { contractId: draft.contratoId, hourType: draft.tipoHora, hours: draft.quantidadeHoras }
+          billableHours: draft.contratoId && draft.tipoHoraId && draft.quantidadeHoras
+            ? { hourTypeId: draft.tipoHoraId, hours: draft.quantidadeHoras }
             : null,
         });
         invalidateIncomeQueries(queryClient);
@@ -1879,12 +1888,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Cliente</span>
                               <span className="relative flex-1">
                                 <select
-                                  value={draft.cliente ?? ''}
-                                  onChange={(event) => updateDraft({ cliente: event.target.value || null })}
+                                  value={draft.clienteId ?? ''}
+                                  onChange={(event) => updateDraft({ clienteId: event.target.value ? Number(event.target.value) : null })}
                                   className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                                 >
                                   <option value="">Sem cliente</option>
-                                  {clientes.map((cliente) => <option key={cliente.id} value={cliente.nome}>{cliente.nome}</option>)}
+                                  {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name}</option>)}
                                 </select>
                                 <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                               </span>
@@ -1967,17 +1976,25 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 <span className="relative flex-1">
                                   <select
                                     value={draft.contratoId ?? ''}
-                                    onChange={(event) => updateDraft({
-                                      contratoId: event.target.value ? Number(event.target.value) : null,
-                                      tipoHora: null,
-                                      quantidadeHoras: null,
-                                    })}
+                                    onChange={(event) => {
+                                      const contrato = contratosAtivos.find((item) => item.contractId === Number(event.target.value));
+                                      // As horas são do cliente do contrato, como no modal de receita.
+                                      updateDraft({
+                                        contratoId: contrato?.contractId ?? null,
+                                        tipoHoraId: null,
+                                        quantidadeHoras: null,
+                                        ...(contrato ? { clienteId: contrato.clientId } : {}),
+                                        ...(contrato && !draft.representanteId && contrato.representativeId
+                                          ? { representanteId: contrato.representativeId }
+                                          : {}),
+                                      });
+                                    }}
                                     className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                                   >
                                     <option value="">Sem contrato</option>
                                     {contratosAtivos.map((contrato) => (
-                                      <option key={contrato.id} value={contrato.id}>
-                                        {contrato.cliente_nome}{contrato.numero ? ` — ${contrato.numero}` : ''}
+                                      <option key={contrato.contractId} value={contrato.contractId}>
+                                        {contrato.clientName}{contrato.number ? ` — ${contrato.number}` : ''}
                                       </option>
                                     ))}
                                   </select>
@@ -1990,27 +2007,24 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                   <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Horas</span>
                                   <span className="relative flex-1">
                                     <select
-                                      value={draft.tipoHora ?? ''}
+                                      value={draft.tipoHoraId ?? ''}
                                       onChange={(event) => updateDraft({
-                                        tipoHora: (event.target.value || null) as FinancialAssistantDraft['tipoHora'],
+                                        tipoHoraId: event.target.value ? Number(event.target.value) : null,
                                         quantidadeHoras: null,
                                       })}
                                       className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                                     >
                                       <option value="">Não faturar horas</option>
-                                      {(contratoSelecionado.horas_presenciais_valor ?? 0) > 0 && (
-                                        <option value="presencial">Presencial</option>
-                                      )}
-                                      {(contratoSelecionado.horas_remotas_valor ?? 0) > 0 && (
-                                        <option value="remoto">Remoto</option>
-                                      )}
+                                      {contratoSelecionado.hourTypes.map((tipo) => (
+                                        <option key={tipo.id} value={tipo.id}>{tipo.name} · saldo {tipo.balance}h</option>
+                                      ))}
                                     </select>
                                     <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                                   </span>
                                 </label>
                               )}
 
-                              {draft.tipoHora && (
+                              {draft.tipoHoraId && (
                                 <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                                   <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Quantidade</span>
                                   <input
@@ -2022,11 +2036,18 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                     className="h-7 flex-1 appearance-none bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none dark:text-white"
                                   />
                                   {valorHoraSelecionado != null && (
-                                    <span className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
-                                      {formatCurrency(valorHoraSelecionado)}/h{saldoHorasAtual != null ? ` · saldo ${saldoHorasAtual}h` : ''}
+                                    <span className={`shrink-0 text-xs ${horasAcimaDoSaldo ? 'text-red-600 dark:text-red-300' : 'text-slate-500 dark:text-slate-400'}`}>
+                                      {horasAcimaDoSaldo
+                                        ? `Saldo insuficiente: restam ${saldoHorasAtual}h`
+                                        : `${formatCurrency(valorHoraSelecionado)}/h${saldoHorasAtual != null ? ` · saldo ${saldoHorasAtual}h` : ''}`}
                                     </span>
                                   )}
                                 </label>
+                              )}
+                              {contratoComRetencoes && (
+                                <p className="border-b border-slate-100 py-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                  Contrato com retenções: o valor informado é o bruto, e a receita entra pelo líquido.
+                                </p>
                               )}
                             </>
                           )}

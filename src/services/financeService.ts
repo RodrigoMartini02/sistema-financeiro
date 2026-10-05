@@ -9,7 +9,8 @@ interface RawIncome {
   data_recebimento: string; mes: number; ano: number;
   status?: string | null;
   contrato_id?: number | null;
-  observacoes?: string | null; cliente?: string | null;
+  observacoes?: string | null;
+  cliente_id?: number | null; cliente_nome?: string | null; valor_bruto?: string | number | null;
   classificacao_id?: number | null; classificacao_nome?: string | null; classificacao_pai_nome?: string | null;
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
@@ -58,7 +59,10 @@ function incomeFromApi(r: RawIncome): Income {
     data: r.data_recebimento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada' | 'prevista' | 'faturada') ?? 'ativa',
     contratoId: r.contrato_id ?? null,
-    observacoes: r.observacoes, cliente: r.cliente,
+    observacoes: r.observacoes,
+    clienteId: r.cliente_id ?? null,
+    clienteNome: r.cliente_nome ?? null,
+    valorBruto: r.valor_bruto != null ? asNumber(r.valor_bruto) : null,
     classificacaoId: r.classificacao_id ?? null,
     classificacaoNome: r.classificacao_nome ?? null,
     classificacaoPai: r.classificacao_pai_nome ?? null,
@@ -225,37 +229,6 @@ export async function fetchDespesasEmAberto(contaId: number | null): Promise<Ope
 export async function moverDespesa(id: number) {
   return apiRequest<void>(`/expenses/${id}/mover`, { method: 'POST' });
 }
-
-export interface ContratoFaturamento {
-  contratoId: number;
-  clienteNome: string;
-  contratoDescricao: string | null;
-  valorMensal: number;
-  receitaId: number | null;
-  receitaStatus: 'ativa' | 'prevista' | 'faturada' | 'cancelada' | null;
-}
-
-export async function getContratosFaturamento(mes: number, ano: number): Promise<ContratoFaturamento[]> {
-  const q = new URLSearchParams({ mes: String(mes), ano: String(ano) });
-  const rows = await apiRequest<Array<{
-    contrato_id: number;
-    cliente_nome: string;
-    contrato_descricao: string | null;
-    valor_mensal: string | number;
-    receita_id: number | null;
-    receita_status: string | null;
-  }>>(`/contratos/faturamento?${q}`);
-
-  return rows.map((r) => ({
-    contratoId: r.contrato_id,
-    clienteNome: r.cliente_nome,
-    contratoDescricao: r.contrato_descricao,
-    valorMensal: asNumber(r.valor_mensal),
-    receitaId: r.receita_id ?? null,
-    receitaStatus: (r.receita_status as ContratoFaturamento['receitaStatus']) ?? null,
-  }));
-}
-
 
 /**
  * Painel financeiro de um período (datas ISO inclusivas). `membroId`:

@@ -6,11 +6,13 @@ import { resolveAccountOwnerId, resolveVisibleUserIds, resolveOwnerForWrite } fr
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
 import { isClassificationAllowed } from '../services/incomeClassificationCatalog';
+import { topUpOpenEndedContracts } from '../services/contractIncomes';
 import { processFixedIncomes } from '../services/fixedIncomes';
 import {
   readCreateIncomeInput,
   readIncomeDuplicateQuery,
   readIncomeSuggestionsQuery,
+  readReceiveIncomeInput,
   readUpdateIncomeInput,
 } from '../services/incomeInput';
 import {
@@ -20,6 +22,7 @@ import {
   findIncomeForUpdate,
   findRecentIncomeDuplicate,
   getIncomeSuggestions,
+  receiveIncome,
   updateIncome,
 } from '../services/incomeService';
 
@@ -52,8 +55,11 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
-      `SELECT r.*, cr.nome AS classificacao_nome, crp.nome AS classificacao_pai_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome
+      // O cliente vem do cadastro da conta da receita: o nome é sempre o atual.
+      `SELECT r.*, cr.nome AS classificacao_nome, crp.nome AS classificacao_pai_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome,
+              cl.nome AS cliente_nome
        FROM receitas r
+       LEFT JOIN comercial.clientes cl ON cl.id = r.cliente_id AND cl.conta_id = r.conta_id
        LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
        LEFT JOIN classificacoes_receita crp ON crp.id = cr.parent_id
        LEFT JOIN representantes rep ON rep.id = r.representante_id
@@ -129,7 +135,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     if (!(await isClassificationAllowed(req.user!.id, current.accountId, input.categoryId))) {
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
-    const updated = await updateIncome(ownerId, incomeId, input);
+    const updated = await updateIncome(ownerId, incomeId, current, input);
     if (!updated) {
       throw new RequestInputError('Receita não encontrada', 404);
     }
@@ -141,52 +147,31 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 
 // POST /api/incomes/fixas/processar — checagem ao abrir o sistema: lança as
 // receitas fixas do mês que a rotina diária ainda não lançou, só das
-// configurações de quem pediu.
+// configurações de quem pediu, e completa as 12 mensalidades à frente dos
+// contratos sem prazo das contas dele.
 router.post('/fixas/processar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await processFixedIncomes({ userId: req.user!.id });
-    res.json({ success: true, data: result });
+    const contractIncomes = await topUpOpenEndedContracts({ userId: req.user!.id });
+    res.json({ success: true, data: { ...result, contractIncomes } });
   } catch (error) {
     console.error('Process fixed incomes error:', error);
     res.status(500).json({ success: false, message: 'Failed to process fixed incomes' });
   }
 });
 
-// PUT /api/incomes/:id/receber
+// PUT /api/incomes/:id/receber — a receita de contrato com representante gera a comissão aqui
 router.put('/:id/receber', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const incomeId = parseInt(req.params['id']!);
-    const donoWrite = await resolveOwnerForWrite('receitas', incomeId, req.user!.id);
-    if (donoWrite === null) {
-      res.status(404).json({ success: false, message: 'Income not found' });
-      return;
+    const { incomeId, ownerId } = await resolveIncomeOwner(req.params['id'], req.user!.id);
+    const input = readReceiveIncomeInput(req.body);
+    const received = await receiveIncome(ownerId, incomeId, input);
+    if (!received) {
+      throw new RequestInputError('Receita prevista não encontrada', 404);
     }
-    const { data_recebimento, valor_recebido } = req.body as Record<string, unknown>;
-
-    const result = await pool.query(
-      `UPDATE receitas
-       SET status = 'ativa',
-           data_recebimento = COALESCE($1, data_recebimento),
-           valor = COALESCE($2, valor)
-       WHERE id = $3 AND usuario_id = $4 AND status IN ('prevista', 'faturada')
-       RETURNING *`,
-      [
-        data_recebimento ?? null,
-        valor_recebido ? parseFloat(String(valor_recebido)) : null,
-        incomeId,
-        donoWrite,
-      ],
-    );
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ success: false, message: 'Predicted income not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Income received', data: result.rows[0] });
+    res.json({ success: true, message: 'Income received', data: received });
   } catch (error) {
-    console.error('Receive income error:', error);
-    res.status(500).json({ success: false, message: 'Failed to receive income' });
+    sendRequestError(res, error, 'Receive income error:', req.user?.id, 'Não foi possível receber a receita. Tente novamente.');
   }
 });
 

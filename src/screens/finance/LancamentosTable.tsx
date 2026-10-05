@@ -841,7 +841,7 @@ function IncomeRow({
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300'].join(' ')}>{categoriaReceita(item) ?? DASH}</td>
       {/* Pagamento — mostra cliente/representante quando é conta empresa, senão traço */}
       <td className={[TD_CLASS, 'text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap'].join(' ')}>
-        {isEmpresa && (item.representanteNome || item.cliente) ? (item.representanteNome ?? item.cliente) : DASH}
+        {isEmpresa && (item.representanteNome || item.clienteNome) ? (item.representanteNome ?? item.clienteNome) : DASH}
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {getFirstName(item.autorNome)}

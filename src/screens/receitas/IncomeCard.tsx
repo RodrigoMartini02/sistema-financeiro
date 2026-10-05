@@ -56,9 +56,9 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
             <span className="flex items-center gap-1 text-blue-700 dark:text-blue-400 font-medium">
               <Tag size={11} className="shrink-0" /> {item.representanteNome}
             </span>
-          ) : item.cliente ? (
+          ) : item.clienteNome ? (
             <span className="flex items-center gap-1">
-              <Tag size={11} className="shrink-0 text-slate-400" /> {item.cliente}
+              <Tag size={11} className="shrink-0 text-slate-400" /> {item.clienteNome}
             </span>
           ) : null)}
         </div>

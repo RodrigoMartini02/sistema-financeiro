@@ -26,7 +26,7 @@ test('quem depende da lista lê só a listagem: nada de detalhe nem escrita', ()
     if (!Array.isArray(readers)) continue;
     for (const flag of readers) {
       const permissions = { [flag]: true };
-      assert.ok(allowed(catalog, permissions, 'GET', '/'), `${catalog} lido por ${flag}`);
+      assert.ok(allowed(catalog, permissions, 'GET', CATALOG_RULES[catalog].listPaths[0]!), `${catalog} lido por ${flag}`);
       assert.equal(allowed(catalog, permissions, 'GET', '/7'), false, `${catalog} detalhe com ${flag}`);
       for (const [method, path] of WRITES) {
         assert.equal(allowed(catalog, permissions, method, path), false, `${catalog} ${method} com ${flag}`);
@@ -44,9 +44,13 @@ test('lançar despesa lê categorias de despesa, cartões e limites; lançar rec
   assert.equal(allowed('clients', expenses, 'GET', '/'), false);
 
   const incomes = { accessIncomes: true };
-  for (const catalog of ['incomeCategories', 'clients', 'contracts', 'representatives', 'products'] as const) {
+  for (const catalog of ['incomeCategories', 'clients', 'representatives', 'products'] as const) {
     assert.ok(allowed(catalog, incomes, 'GET', '/'), catalog);
   }
+  // Dos contratos, só os com banco de horas: a lista do cliente e a ficha pedem a permissão de Contratos.
+  assert.ok(allowed('contracts', incomes, 'GET', '/with-hours'));
+  assert.equal(allowed('contracts', incomes, 'GET', '/'), false);
+  assert.equal(allowed('contracts', incomes, 'GET', '/portfolio'), false);
   assert.equal(allowed('expenseCategories', incomes, 'GET', '/'), false);
   assert.equal(allowed('cards', incomes, 'GET', '/'), false);
   assert.equal(allowed('services', incomes, 'GET', '/'), false);
@@ -75,4 +79,5 @@ test('só GET conta como listagem, e só nos caminhos da lista', () => {
   assert.equal(isCatalogListRequest('cards', 'HEAD', '/'), false);
   assert.equal(isCatalogListRequest('expenseCategories', 'GET', '/stats/usage'), false);
   assert.equal(isCatalogListRequest('contracts', 'GET', '/faturamento'), false);
+  assert.ok(isCatalogListRequest('contracts', 'GET', '/with-hours'));
 });

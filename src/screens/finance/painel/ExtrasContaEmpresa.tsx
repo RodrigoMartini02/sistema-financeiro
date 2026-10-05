@@ -2,9 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { PackageSearch } from 'lucide-react';
 import { Badge } from '../../../ui/badge';
 import { Card } from '../../../ui/card';
+import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
+import { getActiveAccountId } from '../../../services/apiClient';
+import { fetchContractPortfolio } from '../../../services/contractsService';
 import { queryKeys } from '../../../services/queryKeys';
-import { getContratosFaturamento } from '../../../services/financeService';
 import { MONTH_NAMES, type PainelData, type PainelPeriodo } from '../../../types/finance';
+import { canManageCatalog } from '../../../utils/screenAccess';
 import { formatCurrency } from '../formatters';
 import { CabecalhoCard, CardPainel } from './base';
 
@@ -38,20 +41,27 @@ function EstoqueBaixo({ produtos }: { produtos: NonNullable<PainelData['empresa'
   );
 }
 
-/** Carteira de contratos do mês da data final do período (a API de faturamento é mensal, mês base 1). */
+/**
+ * Carteira de contratos do mês da data final do período (mês de 1 a 12): a
+ * mensalidade de cada contrato, pelo líquido em órgão público, e a situação da
+ * receita do mês. Só para quem vê contratos.
+ */
 function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
   const [ano, mes] = periodo.ate.split('-').map(Number);
+  const accountId = getActiveAccountId();
+  const permissions = useOwnPermissions();
   const contratosQ = useQuery({
-    queryKey: queryKeys.contratosStatusFaturamento(mes! - 1, ano!),
-    queryFn: () => getContratosFaturamento(mes!, ano!),
+    queryKey: queryKeys.contractPortfolio(accountId, mes!, ano!),
+    queryFn: () => fetchContractPortfolio(accountId!, mes!, ano!),
+    enabled: accountId !== null && !!permissions && canManageCatalog(permissions, 'contracts'),
     staleTime: 60_000,
   });
   const contratos = contratosQ.data ?? [];
   if (contratos.length === 0) return null;
 
   const somar = (filtro: (status: string | null) => boolean) => contratos
-    .filter((contrato) => filtro(contrato.receitaStatus))
-    .reduce((soma, contrato) => soma + contrato.valorMensal, 0);
+    .filter((contrato) => filtro(contrato.income?.status ?? null))
+    .reduce((soma, contrato) => soma + contrato.monthlyNet, 0);
   const total = somar(() => true);
   const recebido = somar((status) => status === 'ativa');
   const faturado = somar((status) => status === 'faturada');

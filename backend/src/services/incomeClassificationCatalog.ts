@@ -2,7 +2,9 @@ import { and, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accounts, incomeClassifications, type IncomeClassification } from '../db/schema';
 import { canWriteToAccount } from '../utils/accountAccess';
+import type { ChargeKind } from './contractTypes';
 import {
+  CONTRACT_INCOME_CLASSIFICATION,
   getDefaultIncomeClassifications,
   type IncomeClassificationAccountType,
 } from './incomeClassificationDefaults';
@@ -150,7 +152,42 @@ export async function ensureCompanyIncomeClassification(
     VALUES (${ownerId}, 'empresa', ${name})
     ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
   `);
+  return findCompanyClassificationId(executor, ownerId, name);
+}
 
+/**
+ * Subcategoria de "Contratos" da cobrança (Mensalidade, Implantação ou
+ * Projeto) da PJ do dono, criada se faltar, com a raiz. Usada quando o
+ * contrato não escolheu a categoria da cobrança.
+ */
+export async function ensureContractIncomeClassification(
+  executor: Pick<typeof db, 'execute' | 'select'>,
+  ownerId: number,
+  chargeKind: ChargeKind,
+): Promise<number> {
+  const root = CONTRACT_INCOME_CLASSIFICATION.raiz;
+  const name = CONTRACT_INCOME_CLASSIFICATION[chargeKind];
+  await executor.execute(sql`
+    INSERT INTO classificacoes_receita (usuario_id, tipo, nome)
+    VALUES (${ownerId}, 'empresa', ${root})
+    ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
+  `);
+  await executor.execute(sql`
+    INSERT INTO classificacoes_receita (usuario_id, tipo, nome, parent_id)
+    SELECT ${ownerId}, 'empresa', ${name}, id
+      FROM classificacoes_receita
+     WHERE usuario_id = ${ownerId} AND tipo = 'empresa' AND conta_id IS NULL AND LOWER(nome) = LOWER(${root})
+    ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
+  `);
+  return findCompanyClassificationId(executor, ownerId, name);
+}
+
+/** A busca usa o mesmo executor, que enxerga a linha ainda não confirmada da transação. */
+async function findCompanyClassificationId(
+  executor: Pick<typeof db, 'select'>,
+  ownerId: number,
+  name: string,
+): Promise<number> {
   const [classification] = await executor
     .select({ id: incomeClassifications.id })
     .from(incomeClassifications)

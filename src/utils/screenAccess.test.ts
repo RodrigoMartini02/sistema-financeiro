@@ -11,7 +11,7 @@ const ALL: PermissionSet = Object.fromEntries(PERMISSION_FLAGS.map((flag) => [fl
 const only = (...flags: PermissionFlag[]): PermissionSet => Object.fromEntries(flags.map((flag) => [flag, true]));
 
 const CONFIG_ITEMS: ConfigItemId[] = [
-  'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos',
+  'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'catalogo', 'pedidos',
   'representantes', 'setores', 'cargos', 'permissoes', 'acessos', 'integracoes-ia',
 ];
 const owner = (accountType: ConfigItemContext['accountType']): ConfigItemContext => ({
@@ -28,6 +28,9 @@ test('menu: cada seção com a sua permissão; Clientes só fora da conta pessoa
   assert.deepEqual(visibleSections(ALL, 'pessoal'), ['painel', 'movimentacoes', 'reports']);
   assert.deepEqual(visibleSections(only('accessExpenses'), 'pessoal'), ['movimentacoes']);
   assert.deepEqual(visibleSections(only('accessIncomes', 'accessClients'), 'empresa'), ['movimentacoes', 'clientes']);
+  // O catálogo de serviços fica em Clientes: a permissão de Serviços sozinha já abre o menu.
+  assert.deepEqual(visibleSections(only('accessServices'), 'empresa'), ['clientes']);
+  assert.deepEqual(visibleSections(only('accessServices', 'accessClients'), 'pessoal'), []);
   assert.deepEqual(visibleSections(only('accessDashboard', 'accessReports'), 'empresa'), ['painel', 'reports']);
   assert.deepEqual(visibleSections({}, 'empresa'), []);
 });
@@ -50,7 +53,7 @@ test('Movimentações: botões, calendário, Planejamento e o que buscar', () =>
 
 test('Configurações do titular: tudo da conta empresa; na pessoal sem os itens de empresa', () => {
   assert.deepEqual(visibleItems(ALL, owner('empresa')), [
-    'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos',
+    'contas', 'assinatura', 'categorias', 'classificacoes-receita', 'cartoes', 'catalogo', 'pedidos',
     'representantes', 'setores', 'cargos', 'permissoes',
   ]);
   assert.deepEqual(visibleItems(ALL, owner('pessoal')), [
@@ -70,7 +73,7 @@ test('aba Acessos: o CPF liberado só vale para admin', () => {
 
 test('Configurações do membro: cada item com a sua permissão, nunca assinatura nem permissões', () => {
   assert.deepEqual(visibleItems(ALL, member('empresa')), [
-    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'servicos', 'catalogo', 'pedidos', 'representantes', 'setores', 'cargos',
+    'contas', 'categorias', 'classificacoes-receita', 'cartoes', 'catalogo', 'pedidos', 'representantes', 'setores', 'cargos',
   ]);
   assert.deepEqual(visibleItems(only('accessProductCatalog'), member('empresa')), ['catalogo', 'pedidos']);
   assert.deepEqual(visibleItems(only('accessProductCatalog'), member('pessoal')), []);

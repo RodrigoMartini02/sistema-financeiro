@@ -14,6 +14,7 @@ import {
 import { users } from './users';
 import { accounts } from './accounts';
 import { incomeClassificationFixes, incomeClassifications } from './incomeClassifications';
+import type { WithholdingAmounts } from '../../services/contractTypes';
 
 export const incomes = pgTable(
   'receitas',
@@ -39,7 +40,6 @@ export const incomes = pgTable(
     productId: varchar('produto_id', { length: 36 }),
     soldQuantity: decimal('quantidade_vendida', { precision: 12, scale: 3 }),
     commissionAmount: decimal('valor_comissao', { precision: 10, scale: 2 }),
-    client: varchar('cliente', { length: 100 }),
     classificationId: integer('classificacao_id').references(() => incomeClassifications.id, { onDelete: 'set null' }),
     // Preenchidos só na prevista lançada automaticamente pela classificação
     // fixa: o par é único (não lança o mesmo mês duas vezes).
@@ -48,6 +48,16 @@ export const incomes = pgTable(
     representativeId: integer('representante_id'),
     attachments: jsonb('anexos'),
     createdAt: timestamp('data_criacao').defaultNow(),
+    // Cliente do cadastro (comercial.clientes) e, na receita gerada por
+    // contrato, a cobrança e o mês dela: o par (cobrança, competência) é único
+    // entre as não canceladas. FKs no banco (0070), fracas aqui para o schema
+    // do módulo poder referenciar receitas sem import circular.
+    clientId: integer('cliente_id'),
+    chargeId: integer('cobranca_id'),
+    competence: date('competencia'),
+    // Contrato com órgão público: bruto e retenções; `valor` é o líquido.
+    grossAmount: decimal('valor_bruto', { precision: 10, scale: 2 }),
+    withholdings: jsonb('retencoes').$type<WithholdingAmounts>(),
   },
   (table) => ({
     userMonthYearIdx: index('idx_receitas_usuario_mes_ano').on(

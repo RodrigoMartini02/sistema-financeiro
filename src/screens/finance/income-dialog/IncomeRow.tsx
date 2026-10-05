@@ -19,7 +19,7 @@ import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
 import { ClientSelect } from './ClientSelect';
 import {
   fixedCategoryPatch, incomeHelpText, incomeLastAmountText, isIncomeDraftFilled, summarizeIncomeDraft,
-  type IncomeRuleContext,
+  type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import type { IncomeDraft, IncomeDraftErrors, IncomeDraftPatch } from './draftState';
 import { IncomeDetailsPopover } from './IncomeDetailsPopover';
@@ -39,7 +39,9 @@ export interface IncomeRowResources {
   /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
   createCategory?: (name: string) => Promise<number>;
   /** Sem a permissão de Clientes, só escolhe entre os já cadastrados. */
-  createClient?: (name: string) => Promise<string>;
+  createClient?: (name: string) => Promise<ClientOption | null>;
+  /** Edição: nome do cliente da receita, se ele não está mais entre os ativos. */
+  clientFallbackName?: string | null;
 }
 
 interface IncomeRowProps {
@@ -87,8 +89,9 @@ export function IncomeRow({
   const pickMatch = (match: IncomeSuggestionMatch) => onUpdate((current) => {
     const patch: Partial<IncomeDraft> = { description: match.description };
     if (current.amountCents === null && match.amount > 0) patch.amountCents = toCents(match.amount);
-    if (context.isCompany && !current.client.trim() && match.client && context.clientNames.includes(match.client)) {
-      patch.client = match.client;
+    if (context.isCompany && current.clientId === null && match.clientId !== null
+      && context.clients.some((client) => client.id === match.clientId)) {
+      patch.clientId = match.clientId;
     }
     // A receita antiga pode ser de outra conta: só vale a categoria ativa no catálogo desta.
     if (current.categoryId === null && categories.some((category) => category.id === match.categoryId && category.ativo)) {
@@ -107,7 +110,7 @@ export function IncomeRow({
           <DescriptionField
             value={draft.description}
             onChange={(text) => onUpdate({ description: text })}
-            options={matches.map((match) => ({ description: match.description, detail: match.client ?? '', amount: match.amount }))}
+            options={matches.map((match) => ({ description: match.description, detail: match.clientName ?? '', amount: match.amount }))}
             onPick={(index) => pickMatch(matches[index]!)}
             onTab={categorySuggestion ? () => chooseCategory(categorySuggestion.id) : undefined}
             placeholder={isEntry ? 'Ex: Salário mensal' : 'Descrição'}
@@ -130,9 +133,10 @@ export function IncomeRow({
         {context.isCompany && (
           <GridCell label="Cliente" className="col-span-2 lg:col-span-1">
             <ClientSelect
-              value={draft.client}
-              clients={context.clientNames}
-              onChange={(client) => onUpdate({ client })}
+              value={draft.clientId}
+              clients={context.clients}
+              fallbackName={resources.clientFallbackName}
+              onChange={(clientId) => onUpdate({ clientId })}
               onCreate={resources.createClient}
               invalid={!!errors?.client}
             />
@@ -177,7 +181,7 @@ export function IncomeRow({
                 draft={draft}
                 context={context}
                 isEdit={isEdit}
-                invalid={!!errors?.product || !!errors?.hours}
+                invalid={!!errors?.product || !!errors?.hours || !!errors?.hoursOverBalance}
                 onUpdate={onUpdate}
                 guide={guides?.details}
               />

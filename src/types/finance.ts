@@ -33,7 +33,11 @@ export interface Income {
   status?: 'ativa' | 'cancelada' | 'prevista' | 'faturada';
   contratoId?: number | null;
   observacoes?: string | null;
-  cliente?: string | null;
+  /** Cliente do cadastro (conta PJ): o nome é sempre o atual. */
+  clienteId?: number | null;
+  clienteNome?: string | null;
+  /** Contrato com órgão público: o valor antes das retenções (`valor` é o líquido). */
+  valorBruto?: number | null;
   classificacaoId?: number | null;
   classificacaoNome?: string | null;
   classificacaoPai?: string | null; // nome do grupo, quando a classificação é subcategoria
@@ -44,8 +48,6 @@ export interface Income {
   produtoId?: string | null;
   anexos?: Attachment[] | null;
 }
-
-export type IncomeHourType = 'presencial' | 'remoto';
 
 /** "Repetir até": réplicas mensais até este mês (0-11) e ano. */
 export interface IncomeRepeatUntil {
@@ -59,10 +61,9 @@ export interface IncomeProductSale {
   quantity: number;
 }
 
-/** Horas a faturar de um contrato: descontam o saldo de horas do tipo. */
+/** Horas a faturar: o tipo de hora diz o contrato, e as horas descontam o saldo dele. */
 export interface IncomeBillableHours {
-  contractId: number;
-  hourType: IncomeHourType;
+  hourTypeId: number;
   hours: number;
 }
 
@@ -71,7 +72,7 @@ interface IncomeFieldsInput {
   categoryId: number | null;
   amount: number;
   receiptDate: string;
-  client: string | null;
+  clientId: number | null;
   representativeId: number | null;
   attachments: Attachment[] | null;
 }

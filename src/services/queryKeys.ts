@@ -4,6 +4,8 @@ import type { DashboardEntries } from './financeService';
 import type { AccountNameCatalogKind } from './accountNameCatalogService';
 import type { ExpenseDuplicateQuery, ExpenseSuggestionsQuery } from './expenseSuggestionsService';
 import type { IncomeDuplicateQuery, IncomeSuggestionsQuery } from './incomeSuggestionsService';
+import type { ClientFilters } from './clientsService';
+import type { ContractPreviewTarget, ContractRequest } from './contractsService';
 
 // undefined ("so eu"), null ("familia") e uma lista (combinacao especifica de
 // membros, filtro sanduiche do Painel) sao escopos diferentes. A lista e
@@ -33,10 +35,13 @@ export function invalidateExpenseQueries(qc: QueryClient) {
 }
 
 // Uma receita gravada pode cair em vários meses (Repetir até), baixar o estoque,
-// descontar horas de contrato e gerar a despesa de comissão.
+// descontar horas de contrato e gerar a despesa de comissão. Contrato e
+// cliente gravados mexem nas receitas: as telas deles usam a mesma invalidação.
 const INCOME_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'budget-overview', 'budget-overview-range', 'reports',
-  'contratos-ativos', 'contratos-status-faturamento', 'catalogo-produtos', 'income-suggestions', 'income-duplicate',
+  'catalogo-produtos', 'income-suggestions', 'income-duplicate',
+  'clients', 'clients-summary', 'client', 'client-incomes', 'contracts', 'contract', 'contract-portfolio',
+  'contracts-with-hours',
 ]);
 
 export function invalidateIncomeQueries(qc: QueryClient) {
@@ -66,13 +71,6 @@ export const queryKeys = {
   // Sócios de uma conta PJ (modal da conta): sempre de uma conta específica.
   partners: (accountId: number) => ['partners', accountId] as const,
   avaliacoes: ['avaliacoes'] as const,
-  clientes: ['clientes'] as const,
-  contratos: (clienteId: number) => ['contratos', clienteId] as const,
-  servicos: ['servicos'] as const,
-  contratosServicos: (contratoId: number) => ['contratos-servicos', contratoId] as const,
-  contratoAnexos: (contratoId: number) => ['contrato-anexos', contratoId] as const,
-  contratosAtivos: ['contratos-ativos'] as const,
-  contratosStatusFaturamento: (mes: number, ano: number) => ['contratos-status-faturamento', mes, ano] as const,
   // A conta e as pessoas fazem parte da chave: sem isso o React Query serviria
   // os numeros do escopo anterior ao trocar de conta ou de membro no filtro.
   // undefined ("so eu"), null (todas as pessoas) e uma lista (combinacao
@@ -127,4 +125,20 @@ export const queryKeys = {
   storefrontOrdersAll: ['storefront-orders'] as const,
   storefrontOrder: (orderId: string) => ['storefront-order', orderId] as const,
   movimentacoesEstoque: (produtoId: string) => ['movimentacoes-estoque', produtoId] as const,
+  // Clientes, contratos e catálogo de serviços de uma conta PJ.
+  clients: (accountId: number | null, filters: ClientFilters) => ['clients', accountId ?? 'nenhuma', filters] as const,
+  clientsSummary: (accountId: number | null) => ['clients-summary', accountId ?? 'nenhuma'] as const,
+  client: (id: number) => ['client', id] as const,
+  clientIncomes: (id: number) => ['client-incomes', id] as const,
+  contracts: (accountId: number | null, clientId: number) => ['contracts', accountId ?? 'nenhuma', clientId] as const,
+  contract: (id: number) => ['contract', id] as const,
+  // A prévia depende de tudo o que foi digitado: cada combinação é uma prévia.
+  contractPreview: (target: ContractPreviewTarget, body: ContractRequest) => ['contract-preview', target, body] as const,
+  // O prefixo invalida as duas listas (com e sem os desativados).
+  serviceCatalog: (accountId: number | null, includeInactive: boolean) =>
+    ['service-catalog', accountId ?? 'nenhuma', includeInactive] as const,
+  serviceCatalogAll: ['service-catalog'] as const,
+  contractPortfolio: (accountId: number | null, month: number, year: number) =>
+    ['contract-portfolio', accountId ?? 'nenhuma', month, year] as const,
+  contractsWithHours: (accountId: number | null) => ['contracts-with-hours', accountId ?? 'nenhuma'] as const,
 };

@@ -21,10 +21,12 @@ const PERSONAL_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassificat
   { nome: 'Outros', subcategorias: [] },
 ];
 
+/** Raiz das receitas geradas por contrato e a subcategoria de cada cobrança. */
 export const CONTRACT_INCOME_CLASSIFICATION = {
   raiz: 'Contratos',
   mensalidade: 'Mensalidade',
   implantacao: 'Implantação',
+  projeto: 'Projeto',
 } as const;
 
 /** Onde entra o capital inicial dos sócios lançado como receita (modal da conta PJ). */
@@ -36,7 +38,11 @@ export const SALES_INCOME_CLASSIFICATION = 'Vendas';
 const BUSINESS_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassification[] = [
   {
     nome: CONTRACT_INCOME_CLASSIFICATION.raiz,
-    subcategorias: [CONTRACT_INCOME_CLASSIFICATION.mensalidade, CONTRACT_INCOME_CLASSIFICATION.implantacao],
+    subcategorias: [
+      CONTRACT_INCOME_CLASSIFICATION.mensalidade,
+      CONTRACT_INCOME_CLASSIFICATION.implantacao,
+      CONTRACT_INCOME_CLASSIFICATION.projeto,
+    ],
   },
   { nome: 'Serviços', subcategorias: [] },
   { nome: SALES_INCOME_CLASSIFICATION, subcategorias: [] },
@@ -50,16 +56,4 @@ export function getDefaultIncomeClassifications(
   accountType: IncomeClassificationAccountType,
 ): readonly DefaultIncomeClassification[] {
   return accountType === 'empresa' ? BUSINESS_DEFAULT_INCOME_CLASSIFICATIONS : PERSONAL_DEFAULT_INCOME_CLASSIFICATIONS;
-}
-
-/**
- * A classificação de implantação do contrato não muda depois que a receita de
- * implantação foi gerada: é por ela que o contrato sabe que já gerou a sua.
- */
-export function canChangeContractSetupClassification(
-  setupAlreadyGenerated: boolean,
-  currentId: number | null,
-  nextId: number | null,
-): boolean {
-  return !setupAlreadyGenerated || currentId === nextId;
 }

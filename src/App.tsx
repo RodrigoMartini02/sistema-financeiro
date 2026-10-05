@@ -19,8 +19,7 @@ import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
-import { ClientesTab } from './screens/config/ClientesTab';
-
+import { ClientsScreen } from './screens/clients/ClientsScreen';
 import { CONFIG_SCOPE_CLASS } from './ui/configTokens';
 import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
@@ -193,11 +192,8 @@ function AppContent() {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
       case 'reports':       return <ReportsScreen />;
-      // ClientesTab também é usada dentro do ConfigPanel, que já aplica o
-      // escopo. Aqui ela é tela própria da sidebar, fora do drawer, então
-      // precisa declarar o escopo por conta própria — sem ele as variáveis
-      // --cfg-* não resolvem e os componentes de Configurações perdem cor.
-      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientesTab /></div>;
+      // A seção usa os tokens das Configurações (`.config-scope`).
+      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientsScreen /></div>;
     }
   };
 

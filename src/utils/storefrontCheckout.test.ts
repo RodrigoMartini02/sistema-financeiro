@@ -1,27 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  checkoutTotals, formatCardExpiry, formatCardNumber, formatCep, formatCountdown, formatCpf, formatPhone, hasErrors,
-  isValidCpf, parseCardExpiry, validateAddress, validateCard, validateIdentification,
+  checkoutTotals, formatCardExpiry, formatCardNumber, formatCountdown, hasErrors, parseCardExpiry, validateAddress,
+  validateCard, validateIdentification,
 } from './storefrontCheckout';
 import type { CartLine } from './storefrontCart';
-
-test('máscaras de CPF, telefone e CEP enquanto digita', () => {
-  assert.equal(formatCpf('52998224725'), '529.982.247-25');
-  assert.equal(formatCpf('5299'), '529.9');
-  assert.equal(formatPhone('11987654321'), '(11) 98765-4321');
-  assert.equal(formatPhone('1134567890'), '(11) 3456-7890');
-  assert.equal(formatPhone('119'), '(11) 9');
-  assert.equal(formatCep('01310100'), '01310-100');
-  assert.equal(formatCep('013'), '013');
-});
-
-test('CPF com dígitos verificadores', () => {
-  assert.equal(isValidCpf('529.982.247-25'), true);
-  assert.equal(isValidCpf('529.982.247-24'), false);
-  assert.equal(isValidCpf('111.111.111-11'), false);
-  assert.equal(isValidCpf('123'), false);
-});
 
 test('identificação: nome, e-mail, telefone e CPF', () => {
   const ok = validateIdentification({ nome: 'Maria', email: 'maria@email.com', telefone: '(11) 98765-4321', cpf: '529.982.247-25' });

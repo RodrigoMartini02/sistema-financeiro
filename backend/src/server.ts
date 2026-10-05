@@ -82,11 +82,6 @@ import representativeRoutes from './routes/representatives';
 import partnerRoutes from './routes/partners';
 import { jobTitleRoutes, sectorRoutes } from './routes/accountNameCatalog';
 import incomeClassificationRoutes from './routes/income-classifications';
-import clientRoutes from './routes/clients';
-import contractRoutes from './routes/contracts';
-import serviceRoutes from './routes/services';
-import contractServiceRoutes from './routes/contract-services';
-import contractAttachmentRoutes from './routes/contract-attachments';
 import analyticsRoutes from './routes/analytics';
 import reportRoutes from './routes/reports';
 import internalJobsRoutes from './routes/internal-jobs';
@@ -96,6 +91,7 @@ import assistantRoutes from './routes/assistant';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
+import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
 import { authenticate, requireActivePlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
@@ -136,11 +132,6 @@ app.use('/api/sectors', authenticate, requireActivePlan, requireCatalogAccess('s
 app.use('/api/job-titles', authenticate, requireActivePlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
 app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
 app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
-app.use('/api/clientes', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
-app.use('/api/contratos', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
-app.use('/api/servicos', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceRoutes);
-app.use('/api/contratos-servicos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractServiceRoutes);
-app.use('/api/contrato-anexos', authenticate, requireActivePlan, requireScreenAccess('accessContracts'), contractAttachmentRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/internal-jobs', internalJobsRoutes);
 app.use('/api/notificacoes', authenticate, requireActivePlan, requireScreenAccess('accessNotifications'), notificationRoutes);
@@ -153,6 +144,10 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/catalogo', catalogoRoutes);
+// Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro.
+app.use('/api/clients', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
+app.use('/api/contracts', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
+app.use('/api/service-catalog', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceCatalogRoutes);
 
 // ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires

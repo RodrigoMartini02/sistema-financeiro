@@ -215,7 +215,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 }
 
 const CONFIG_ITEM_IDS: ConfigItemId[] = [
-  'contas', 'assinatura', 'categorias', 'cartoes', 'servicos', 'catalogo', 'pedidos',
+  'contas', 'assinatura', 'categorias', 'cartoes', 'catalogo', 'pedidos',
   'representantes', 'setores', 'cargos', 'usuarios', 'acessos', 'integracoes-ia',
 ];
 

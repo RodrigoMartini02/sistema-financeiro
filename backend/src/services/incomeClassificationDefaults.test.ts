@@ -3,7 +3,6 @@ import test from 'node:test';
 import {
   CAPITAL_INCOME_CLASSIFICATION,
   CONTRACT_INCOME_CLASSIFICATION,
-  canChangeContractSetupClassification,
   getDefaultIncomeClassifications,
 } from './incomeClassificationDefaults';
 
@@ -31,7 +30,7 @@ test('a lista da empresa traz as classificações que o contrato usa', () => {
   assert.ok(contratos);
   assert.deepEqual(
     [...contratos.subcategorias],
-    [CONTRACT_INCOME_CLASSIFICATION.mensalidade, CONTRACT_INCOME_CLASSIFICATION.implantacao],
+    [CONTRACT_INCOME_CLASSIFICATION.mensalidade, CONTRACT_INCOME_CLASSIFICATION.implantacao, CONTRACT_INCOME_CLASSIFICATION.projeto],
   );
   assert.equal(todosOsNomes('pessoal').includes(CONTRACT_INCOME_CLASSIFICATION.raiz), false);
 });
@@ -39,12 +38,6 @@ test('a lista da empresa traz as classificações que o contrato usa', () => {
 test('a lista da empresa traz "Aportes", onde entra o capital dos sócios; a pessoal não', () => {
   assert.ok(getDefaultIncomeClassifications('empresa').some((item) => item.nome === CAPITAL_INCOME_CLASSIFICATION));
   assert.equal(todosOsNomes('pessoal').includes(CAPITAL_INCOME_CLASSIFICATION), false);
-});
-
-test('classificação de implantação trava depois de gerada a implantação', () => {
-  assert.equal(canChangeContractSetupClassification(false, 1, 2), true);
-  assert.equal(canChangeContractSetupClassification(true, 1, 1), true);
-  assert.equal(canChangeContractSetupClassification(true, 1, 2), false);
 });
 
 test('PF: salário é subcategoria de "Emprego" e "Vendas" virou "Comissões"; PJ mantém "Vendas"', () => {

@@ -3,7 +3,9 @@ import { apiRequest, getActiveAccountId } from './apiClient';
 export interface IncomeSuggestionMatch {
   description: string;
   amount: number;
-  client: string | null;
+  clientId: number | null;
+  /** Nome atual do cliente do cadastro. */
+  clientName: string | null;
   categoryId: number | null;
 }
 
@@ -21,7 +23,7 @@ export interface IncomeSuggestionsQuery {
 export interface IncomeDuplicateQuery {
   description: string;
   amount: number;
-  client: string | null;
+  clientId: number | null;
   /** Na edição, a própria receita não conta. */
   excludeId: number | null;
 }
@@ -42,7 +44,7 @@ export async function fetchIncomeSuggestions(query: IncomeSuggestionsQuery): Pro
 /** Receita igual lançada nos últimos 7 dias na conta ativa, ou null. */
 export async function fetchIncomeDuplicate(query: IncomeDuplicateQuery): Promise<{ createdAt: string } | null> {
   const params = withActiveAccount(new URLSearchParams({ description: query.description, amount: query.amount.toFixed(2) }));
-  if (query.client) params.set('client', query.client);
+  if (query.clientId !== null) params.set('client_id', String(query.clientId));
   if (query.excludeId !== null) params.set('exclude_id', String(query.excludeId));
   const raw = await apiRequest<{ duplicate: { createdAt: string } | null } | undefined>(`/incomes/duplicate?${params}`);
   return raw?.duplicate ?? null;

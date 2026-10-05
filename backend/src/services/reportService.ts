@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
-import { cards, categories, expenses, incomeClassifications, incomes, representatives } from '../db/schema';
+import { cards, categories, clients, expenses, incomeClassifications, incomes, representatives } from '../db/schema';
 import { addDaysToIsoDate } from '../utils/date';
 import {
   ACTIVE_STATUS,
@@ -208,7 +208,7 @@ async function loadIncomes(input: ReportInput) {
     receiptDate: incomes.receiptDate,
     status: incomes.status,
     authorId: incomes.userId,
-    client: incomes.client,
+    client: clients.name,
     representative: representatives.name,
     commission: incomes.commissionAmount,
     amount: incomes.amount,
@@ -217,6 +217,7 @@ async function loadIncomes(input: ReportInput) {
     .leftJoin(incomeClassifications, eq(incomeClassifications.id, incomes.classificationId))
     .leftJoin(incomeCategoryGroup, eq(incomeCategoryGroup.id, incomeClassifications.parentId))
     .leftJoin(representatives, eq(representatives.id, incomes.representativeId))
+    .leftJoin(clients, and(eq(clients.id, incomes.clientId), eq(clients.accountId, incomes.accountId)))
     .where(and(
       ...incomeBaseConditions(input.scope, input.accountId, [ACTIVE_STATUS, ...RECEIVABLE_STATUSES]),
       gte(incomes.receiptDate, input.period.start),

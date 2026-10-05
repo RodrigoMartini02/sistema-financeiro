@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCartoes, fetchCategorias } from '../services/configService';
 import { getActiveAccountId } from '../services/apiClient';
-import { fetchClientes } from '../services/clientesService';
+import { fetchClients, type ClientFilters } from '../services/clientsService';
 import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
 import type { ConfigItemId } from '../layout/ConfigPanel';
@@ -12,6 +12,8 @@ import { useFirstAccessGuideCoordinator } from '../context/FirstAccessGuideConte
 export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 'clientes' };
 
 const STORAGE_PREFIX = 'fingerence:onboarding-checklist';
+/** A mesma lista da tela de Clientes (ativos): o cache é o mesmo. */
+const ACTIVE_CLIENTS: ClientFilters = { search: '', type: null, status: 'active' };
 
 function isEmpresaConta() {
   if (typeof window === 'undefined') {
@@ -67,7 +69,11 @@ export function useOnboardingChecklist(enabled: boolean) {
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes(), enabled: canQuery });
   const accountId = getActiveAccountId();
   const categoriasQuery = useQuery({ queryKey: queryKeys.categorias(accountId), queryFn: () => fetchCategorias(accountId), enabled: canQuery });
-  const clientesQuery = useQuery({ queryKey: queryKeys.clientes, queryFn: fetchClientes, enabled: canQuery && isEmpresa });
+  const clientesQuery = useQuery({
+    queryKey: queryKeys.clients(accountId, ACTIVE_CLIENTS),
+    queryFn: () => fetchClients(accountId!, ACTIVE_CLIENTS),
+    enabled: canQuery && isEmpresa && accountId !== null,
+  });
   const representantesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: canQuery && isEmpresa });
 
   useEffect(() => {
@@ -97,7 +103,7 @@ export function useOnboardingChecklist(enabled: boolean) {
         {
           id: 'cliente',
           label: 'Cadastrar um cliente',
-          description: 'Necessário para vincular receitas a contratos e faturamento.',
+          description: 'Necessário para os contratos e para ligar as receitas a quem pagou.',
           done: (clientesQuery.data?.length ?? 0) > 0,
           target: { kind: 'clientes' },
         },

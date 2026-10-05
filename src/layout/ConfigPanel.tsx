@@ -16,7 +16,6 @@ import { ContasTab } from '../screens/config/ContasTab';
 import { CategoriasTab } from '../screens/config/CategoriasTab';
 import { ClassificacoesReceitaTab } from '../screens/config/ClassificacoesReceitaTab';
 import { CartaoTab } from '../screens/config/CartaoTab';
-import { ServicosTab } from '../screens/config/ServicosTab';
 import { RepresentantesTab } from '../screens/config/RepresentantesTab';
 import { AccountNameCatalogTab } from '../screens/config/AccountNameCatalogTab';
 import { PermissoesTab } from '../screens/config/PermissoesTab';
@@ -27,7 +26,7 @@ import { PedidosTab } from '../screens/config/PedidosTab';
 
 export type ConfigItemId =
   | 'contas' | 'assinatura'
-  | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'servicos' | 'representantes' | 'setores' | 'cargos' | 'usuarios' | 'permissoes'
+  | 'categorias' | 'classificacoes-receita' | 'cartoes' | 'representantes' | 'setores' | 'cargos' | 'usuarios' | 'permissoes'
   | 'acessos' | 'integracoes-ia' | 'catalogo' | 'pedidos';
 
 type ConfigGroupLabel = 'Geral' | 'Finanças' | 'Pessoas' | 'Avançado';
@@ -41,7 +40,6 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
   { id: 'categorias',     label: 'Categorias Despesas', icon: Tag,        group: 'Finanças' },
   { id: 'classificacoes-receita', label: 'Categorias Receitas', icon: HandCoins, group: 'Finanças' },
   { id: 'cartoes',        label: 'Cartões',        icon: CreditCard, group: 'Finanças' },
-  { id: 'servicos',       label: 'Catálogo de serviços', icon: Layers, group: 'Finanças' },
   { id: 'catalogo',       label: 'Produtos e estoque', icon: ShoppingBag, group: 'Finanças' },
   { id: 'pedidos',        label: 'Pedidos',        icon: ReceiptText, group: 'Finanças' },
   { id: 'representantes', label: 'Representantes', icon: UserCheck,  group: 'Pessoas' },
@@ -173,7 +171,6 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
           {current.id === 'categorias' && <CategoriasTab />}
           {current.id === 'classificacoes-receita' && <ClassificacoesReceitaTab />}
           {current.id === 'cartoes' && <CartaoTab />}
-          {current.id === 'servicos' && <ServicosTab />}
           {current.id === 'catalogo' && <CatalogoTab />}
           {current.id === 'pedidos' && <PedidosTab />}
           {current.id === 'representantes' && <RepresentantesTab />}

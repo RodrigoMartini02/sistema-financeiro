@@ -9,7 +9,8 @@ import type { Enquadramento } from '../../types/config';
 import { Button } from '../../ui/button';
 import { Field, Input, PasswordInput, Select, ToggleGroup } from '../../ui/form';
 import { TermosModal } from './TermosModal';
-import { ENQUADRAMENTO_OPTIONS, isValidCnpj } from '../../utils/companyAccount';
+import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
+import { isValidCnpj } from '../../utils/brazilDocuments';
 import { formatDocumento } from '../../utils/document';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
