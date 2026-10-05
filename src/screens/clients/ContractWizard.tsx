@@ -15,7 +15,7 @@ import {
   WIZARD_STEP_LABELS, contractRequestBody, draftFromContract, emptyContractDraft, firstInvalidStep, validateStep, wizardSteps,
   type ContractDraft, type DraftErrors, type WizardStep,
 } from '../../utils/contractForm';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
 import { formatCurrency } from '../finance/formatters';
 import { ChargesStep, OptionsStep, PublicEntityStep, TermStep } from './ContractWizardSteps';
 import { errorBoxStyle, secondaryButtonStyle } from './clientStyles';
@@ -113,11 +113,12 @@ function PreviewStep({ target, draft, publicEntity, mode, startDate }: {
           Nenhuma receita prevista nova. O banco de horas é lançado nas receitas, conforme o uso.
         </p>
       ) : (
+        // No celular o vencimento vai para baixo da descrição, para os valores caberem sem rolar.
         <div style={{ overflowX: 'auto', borderRadius: 10, border: `1px solid ${C.border}` }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: C.text }}>
             <thead>
               <tr style={{ background: C.panelBg, color: C.textSoft, textAlign: 'left' }}>
-                <th style={{ padding: '7px 10px', fontWeight: 600 }}>Vencimento</th>
+                <th className="hidden sm:table-cell" style={{ padding: '7px 10px', fontWeight: 600 }}>Vencimento</th>
                 <th style={{ padding: '7px 10px', fontWeight: 600 }}>Descrição</th>
                 <th style={{ padding: '7px 10px', fontWeight: 600, textAlign: 'right' }}>{withholdings ? 'Bruto' : 'Valor'}</th>
                 {withholdings && <th style={{ padding: '7px 10px', fontWeight: 600, textAlign: 'right' }}>Líquido</th>}
@@ -126,10 +127,15 @@ function PreviewStep({ target, draft, publicEntity, mode, startDate }: {
             <tbody>
               {preview.incomes.map((income) => (
                 <tr key={`${income.chargeKind}-${income.competence}`} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                    {income.dueDate.slice(8, 10)}/{income.dueDate.slice(5, 7)}/{income.dueDate.slice(0, 4)}
+                  <td className="hidden sm:table-cell" style={{ padding: '6px 10px', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {isoToBrDate(income.dueDate)}
                   </td>
-                  <td style={{ padding: '6px 10px', minWidth: 180 }}>{income.description}</td>
+                  <td className="sm:min-w-[180px]" style={{ padding: '6px 10px' }}>
+                    {income.description}
+                    <span className="block sm:hidden" style={{ fontSize: 11, color: C.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                      {isoToBrDate(income.dueDate)}
+                    </span>
+                  </td>
                   <td style={{ padding: '6px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(income.grossAmount)}
                   </td>
