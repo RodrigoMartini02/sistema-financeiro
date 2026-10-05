@@ -35,6 +35,23 @@ export function getExpenseStatus(item: Expense, today = getLocalTodayIso()): Exp
   return item.dataVencimento < today ? 'atrasada' : 'em_dia';
 }
 
+/** Despesa que pode entrar no pagamento em lote: não paga e não cancelada. */
+export function isBatchSelectable(item: Expense): boolean {
+  return !item.pago && item.status !== 'cancelada';
+}
+
+/**
+ * Texto que muda quando qualquer filtro muda; a seleção em lote recomeça com ele.
+ * Os conjuntos entram em ordem, então a mesma escolha sempre dá o mesmo texto,
+ * mesmo vindo de um Set novo a cada render.
+ */
+export function expenseFiltersKey(filters: ExpenseFilters, visibleNames: ReadonlySet<string>): string {
+  const sortedValues = (values: ReadonlySet<string>) => [...values].sort().join(',');
+  return [
+    filters.types, filters.statuses, filters.categoryIds, filters.paymentMethods, filters.cardIds, filters.paymentDates, visibleNames,
+  ].map(sortedValues).join('|');
+}
+
 export function filterExpenses(
   expenses: readonly Expense[],
   filters: ExpenseFilters,

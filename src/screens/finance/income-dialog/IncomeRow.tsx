@@ -8,7 +8,7 @@ import { isoToBrDate } from '../../../utils/date';
 import { suggestIncomeClassificationForDescription } from '../../../utils/incomeClassificationSuggestions';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
-import { DateCell } from '../entry-dialog/DateCell';
+import { DateField } from '../../../ui/DateField';
 import { DescriptionField } from '../entry-dialog/DescriptionField';
 import { ellipsisStyle, fieldStyle } from '../entry-dialog/fieldStyles';
 import {
@@ -148,7 +148,7 @@ export function IncomeRow({
         </GridCell>
 
         <GridCell label="Recebido em" required>
-          <DateCell
+          <DateField
             label="Data do recebimento"
             value={draft.receiptDate}
             onChange={(text) => onUpdate({ receiptDate: text })}

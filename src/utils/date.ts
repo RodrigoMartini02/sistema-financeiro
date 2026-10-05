@@ -37,6 +37,8 @@ export function isoToShortBrDate(iso: string): string {
 
 /** 05/10/2026 → 2026-10-05. Vazio quando o texto está incompleto ou a data não existe (30/02). */
 export function brDateToIso(text: string): string {
+  // "_" é dígito apagado no meio pelo campo de data: a data está incompleta.
+  if (text.includes('_')) return '';
   const digits = text.replace(/\D/g, '');
   if (digits.length !== 8) return '';
   const day = Number(digits.slice(0, 2));
@@ -56,20 +58,14 @@ export function brDateInputToIso(text: string, todayIso: string): string {
   return brDateToIso(completeBrDate(text, todayIso));
 }
 
-/** Máscara durante a digitação: só dígitos, no formato dd/mm/aaaa. */
-export function maskBrDate(text: string): string {
-  const digits = text.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
 /**
  * Complemento ao sair do campo: "5" vira dia 05 do mês e do ano de hoje, "0510"
  * vira 05/10 do ano de hoje e "051026" vira 05/10/2026. Outros tamanhos ficam
  * como foram digitados — a validação é que aponta a data incompleta.
  */
 export function completeBrDate(text: string, todayIso: string): string {
+  // Com dígito apagado no meio ("0_/10/2026"), completar mudaria o sentido dos outros dígitos.
+  if (text.includes('_')) return text;
   const digits = text.replace(/\D/g, '');
   if (!digits) return '';
   const currentMonth = todayIso.slice(5, 7);

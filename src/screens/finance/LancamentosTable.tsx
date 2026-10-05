@@ -21,7 +21,10 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
 import { getLocalTodayIso } from '../../utils/date';
-import { filterExpenses, getExpenseStatus, type EntryType, type ExpenseStatus, type PaymentDateWindow } from '../../utils/expenseFilters';
+import {
+  expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable,
+  type EntryType, type ExpenseFilters, type ExpenseStatus, type PaymentDateWindow,
+} from '../../utils/expenseFilters';
 import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
 import { formatDiferenca } from '../despesas/expenseStatus';
 import { ExpenseCard } from '../despesas/ExpenseCard';
@@ -312,16 +315,11 @@ export function LancamentosTable({
     return !!autorNome && nomesVisiveis.has(autorNome);
   };
 
-  const expensesFiltered = filterExpenses(
-    allExpenses,
-    {
-      types: filtroTipo, statuses: filtroStatus, categoryIds: filtroCategoria,
-      paymentMethods: filtroFormaPag, cardIds: filtroCartao, paymentDates: filtroDataPag,
-    },
-    { meId: meIdStr, visibleNames: nomesVisiveis },
-    month,
-    year,
-  );
+  const appliedFilters: ExpenseFilters = {
+    types: filtroTipo, statuses: filtroStatus, categoryIds: filtroCategoria,
+    paymentMethods: filtroFormaPag, cardIds: filtroCartao, paymentDates: filtroDataPag,
+  };
+  const expensesFiltered = filterExpenses(allExpenses, appliedFilters, { meId: meIdStr, visibleNames: nomesVisiveis }, month, year);
 
   const incomesFiltered = filtroTipo.has('receita')
     ? allIncomes.filter((i) => passaFiltroMembro(i.autorNome))
@@ -371,18 +369,21 @@ export function LancamentosTable({
     onDataLoaded({ formas, cartoes });
   }, [dashboardData, onDataLoaded]);
 
-  useEffect(() => { setSelecionadas(new Set()); }, [month, year]);
+  // Mudou o mês ou qualquer filtro: a seleção em lote recomeça. A chave é texto,
+  // estável entre renders (nomesVisiveis é um Set novo a cada render).
+  const filtersKey = expenseFiltersKey(appliedFilters, nomesVisiveis);
+  useEffect(() => { setSelecionadas(new Set()); }, [month, year, filtersKey]);
 
-  const unpaidExpensesFiltered = expensesFiltered.filter((i) => !i.pago);
-  const unpaidChaves = new Set(unpaidExpensesFiltered.map((i) => `despesa-${i.id}`));
-  const allSelected = unpaidChaves.size > 0 && [...unpaidChaves].every((c) => selecionadas.has(c));
+  const selectableExpenses = expensesFiltered.filter(isBatchSelectable);
+  const selectableKeys = new Set(selectableExpenses.map((i) => `despesa-${i.id}`));
+  const allSelected = selectableKeys.size > 0 && [...selectableKeys].every((c) => selecionadas.has(c));
   const hasMovableItem = expensesFiltered.some((item) => !item.pago && item.status !== 'cancelada');
 
   const filterGuide = useFirstAccessGuide('despesas:filtros-v1', {
     enabled: !finance.dashboard.isLoading && combined.length > 0,
   });
   const loteGuide = useFirstAccessGuide('despesas:lote-v1', {
-    enabled: selecionadas.size === 0 && unpaidExpensesFiltered.length > 0,
+    enabled: selecionadas.size === 0 && selectableExpenses.length > 0,
   });
   const pagarSelecionadasGuide = useFirstAccessGuide('despesas:pagar-selecionadas-v1', {
     enabled: selecionadas.size > 0,
@@ -395,7 +396,7 @@ export function LancamentosTable({
     if (allSelected) {
       setSelecionadas(new Set());
     } else {
-      setSelecionadas(new Set(unpaidChaves));
+      setSelecionadas(new Set(selectableKeys));
     }
   }
 
@@ -407,7 +408,7 @@ export function LancamentosTable({
     });
   }
 
-  const selecionadasExpenses = expensesFiltered.filter((i) => selecionadas.has(`despesa-${i.id}`) && !i.pago);
+  const selecionadasExpenses = expensesFiltered.filter((i) => selecionadas.has(`despesa-${i.id}`) && isBatchSelectable(i));
 
   return (
     <>
@@ -483,7 +484,7 @@ export function LancamentosTable({
             )
           ) : (
             <div className="relative flex min-h-0 flex-1 flex-col">
-              {loteGuide.isVisible && selecionadas.size === 0 && unpaidExpensesFiltered.length > 0 && (
+              {loteGuide.isVisible && selecionadas.size === 0 && selectableExpenses.length > 0 && (
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
@@ -562,8 +563,8 @@ export function LancamentosTable({
                           type="checkbox"
                           checked={allSelected}
                           onChange={toggleSelectAll}
-                          disabled={unpaidChaves.size === 0}
-                          title="Selecionar todas as despesas não pagas"
+                          disabled={selectableKeys.size === 0}
+                          title="Selecionar todas as despesas pendentes"
                           className="rounded accent-[#0EC4D8] cursor-pointer disabled:opacity-40"
                         />
                       </th>
@@ -707,7 +708,7 @@ function ExpenseRow({
       ].join(' ')}
     >
       <td className="px-2 py-1.5 text-center">
-        {!item.pago && (
+        {isBatchSelectable(item) && (
           <input
             type="checkbox"
             checked={selecionada}

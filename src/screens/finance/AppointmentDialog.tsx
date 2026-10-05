@@ -1,25 +1,21 @@
 import { useEffect } from 'react';
-import { useForm, type Resolver } from 'react-hook-form';
-import { z } from 'zod';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Appointment, AppointmentFormValues } from '../../types/appointments';
+import { IsoDateField } from '../../ui/DateField';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle
 } from '../../ui/dialogFormTokens';
+import { appointmentFormSchema, type AppointmentFormData } from '../../utils/appointmentForm';
 import { getLocalTodayIso } from '../../utils/date';
 
-const schema = z.object({
-  titulo:          z.string().min(1, 'Informe o título'),
-  data:             z.string().min(10, 'Informe a data'),
-  hora:             z.string().optional(),
-  duracao_minutos:  z.coerce.number().int().min(1).optional(),
-  local:            z.string().optional(),
-  descricao:        z.string().optional(),
-});
-
-type FormData = z.infer<typeof schema>;
-
 const todayIso = getLocalTodayIso;
+
+/** Motivo embaixo do campo recusado: o botão nunca fica sem resposta. */
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <div style={{ fontSize: 12, color: C.danger }}>{message}</div>;
+}
 
 interface Props {
   open: boolean;
@@ -34,8 +30,8 @@ interface Props {
 export function AppointmentDialog({ open, appointment, presetDate, isSaving, error, onClose, onSave }: Props) {
   const isEditing = !!appointment;
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(schema) as Resolver<FormData>,
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentFormSchema) as Resolver<AppointmentFormData>,
     defaultValues: {
       titulo: '', data: presetDate ?? todayIso(), hora: undefined,
       duracao_minutos: undefined, local: undefined, descricao: undefined,
@@ -54,7 +50,7 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
     });
   }, [appointment, open, presetDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: AppointmentFormData) => {
     await onSave({
       titulo: data.titulo,
       data: data.data,
@@ -75,16 +71,15 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
       onClose={onClose}
       size="md"
     >
-      <form onSubmit={submitForm}>
+      {/* Sem a validação do navegador: o balão dele (min=1) barrava o envio antes das mensagens do formulário. */}
+      <form onSubmit={submitForm} noValidate>
         <div style={cardStyle}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={labelStyle}>
               <span>TÍTULO</span><span style={{ color: C.primary }}>*</span>
             </label>
             <input {...form.register('titulo')} placeholder="Ex: Reunião com cliente" autoFocus style={fieldInputStyle} />
-            {form.formState.errors.titulo?.message && (
-              <div style={{ fontSize: 12, color: C.danger }}>{form.formState.errors.titulo.message}</div>
-            )}
+            <FieldError message={form.formState.errors.titulo?.message} />
           </div>
         </div>
 
@@ -94,7 +89,21 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
               <label style={labelStyle}>
                 <span>DATA</span><span style={{ color: C.primary }}>*</span>
               </label>
-              <input {...form.register('data')} type="date" style={smallInputStyle} />
+              <Controller
+                control={form.control}
+                name="data"
+                render={({ field, fieldState }) => (
+                  <IsoDateField
+                    value={field.value}
+                    onChange={field.onChange}
+                    label="Data"
+                    required
+                    invalid={!!fieldState.error}
+                    inputStyle={smallInputStyle}
+                  />
+                )}
+              />
+              <FieldError message={form.formState.errors.data?.message} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>HORÁRIO</label>
@@ -103,6 +112,7 @@ export function AppointmentDialog({ open, appointment, presetDate, isSaving, err
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DURAÇÃO (MIN)</label>
               <input {...form.register('duracao_minutos')} type="number" min={1} placeholder="60" style={{ ...smallInputStyle, width: 110 }} />
+              <FieldError message={form.formState.errors.duracao_minutos?.message} />
             </div>
           </div>
         </div>

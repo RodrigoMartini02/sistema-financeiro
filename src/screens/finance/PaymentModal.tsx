@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck } from 'lucide-react';
+import { IsoDateField } from '../../ui/DateField';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, dialogFooterStyle, MoneyField } from '../../ui/dialogFormTokens';
 import type { Expense } from '../../types/finance';
@@ -32,7 +33,8 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
 
   function handleConfirm() {
     const vp = valorPago ?? valorSugerido;
-    if (!Number.isFinite(vp) || vp <= 0) return;
+    // Data incompleta no campo chega vazia: não confirma sem data.
+    if (!dataPagamento || !Number.isFinite(vp) || vp <= 0) return;
     onConfirm(dataPagamento, vp);
   }
 
@@ -49,11 +51,12 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
           <div className="grid grid-cols-1 gap-y-3 sm:grid-cols-2" style={{ ...cardStyle, columnGap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DATA DE PAGAMENTO</label>
-              <input
-                type="date"
+              <IsoDateField
                 value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.target.value)}
-                style={{ ...fieldInputStyle, fontSize: 14 }}
+                onChange={setDataPagamento}
+                label="Data de pagamento"
+                required
+                inputStyle={{ ...fieldInputStyle, fontSize: 14 }}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -96,9 +99,11 @@ export function PaymentModal({ open, expense, onClose, onConfirm }: PaymentModal
           <button
             type="button"
             onClick={handleConfirm}
+            disabled={!dataPagamento}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600,
-              border: 'none', cursor: 'pointer', background: C.success, color: '#fff',
+              border: 'none', cursor: dataPagamento ? 'pointer' : 'not-allowed', background: C.success, color: '#fff',
+              opacity: dataPagamento ? 1 : 0.5,
             }}
           >
             <CircleCheck size={16} />

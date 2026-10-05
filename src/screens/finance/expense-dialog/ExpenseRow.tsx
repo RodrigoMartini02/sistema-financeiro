@@ -9,7 +9,7 @@ import { suggestCategoryForDescription, type CategoryHistoryEntry } from '../../
 import { isoToBrDate } from '../../../utils/date';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
-import { DateCell } from '../entry-dialog/DateCell';
+import { DateField } from '../../../ui/DateField';
 import { DescriptionField } from '../entry-dialog/DescriptionField';
 import { SEPARATOR, checkboxStyle, ellipsisStyle, fieldStyle } from '../entry-dialog/fieldStyles';
 import {
@@ -71,7 +71,7 @@ function InvoiceFields({ draft, todayIso, invalid, onUpdate }: {
           aria-label="Número da nota fiscal"
           style={fieldStyle()}
         />
-        <DateCell
+        <DateField
           label="Data de emissão da nota fiscal"
           value={draft.invoiceDate}
           onChange={(text) => onUpdate({ invoiceDate: text })}
@@ -222,7 +222,7 @@ export function ExpenseRow({
         </GridCell>
 
         <GridCell label="Compra">
-          <DateCell
+          <DateField
             label="Data da compra"
             value={draft.purchaseDate}
             onChange={(text) => onUpdate({ purchaseDate: text })}
@@ -235,7 +235,7 @@ export function ExpenseRow({
         </GridCell>
 
         <GridCell label={installments ? '1ª vence' : 'Vencimento'}>
-          <DateCell
+          <DateField
             label="Vencimento"
             value={draft.dueDate}
             onChange={(text) => onUpdate({ dueDate: text })}
@@ -265,7 +265,7 @@ export function ExpenseRow({
                 >
                   {draft.paid ? '✓' : ''}
                 </button>
-                <DateCell
+                <DateField
                   label="Data do pagamento"
                   value={draft.paymentDate}
                   onChange={(text) => onUpdate({ paymentDate: text })}

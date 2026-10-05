@@ -9,7 +9,7 @@ import { CHARGE_LABELS, WITHHOLDING_LABELS, WITHHOLDING_TAXES, type ChargeKind }
 import {
   MAX_DUE_DAY, emptyCommitment, emptyHourType, type ContractDraft, type DraftErrors, type InstallmentDraft,
 } from '../../utils/contractForm';
-import { DateCell } from '../finance/entry-dialog/DateCell';
+import { DateField } from '../../ui/DateField';
 import { MoneyCell } from '../finance/entry-dialog/MoneyCell';
 import { checkboxStyle } from '../finance/entry-dialog/fieldStyles';
 import { PendingAttachments } from './ContractAttachments';
@@ -85,10 +85,10 @@ export function TermStep({ draft, errors, onChange, todayIso }: StepProps) {
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-[150px_150px_auto]">
         <Field label="Início" required error={errors.startDate}>
-          <DateCell value={draft.startDate} onChange={(startDate) => onChange({ startDate })} todayIso={todayIso} label="Início" invalid={!!errors.startDate} height={FIELD_HEIGHT} />
+          <DateField value={draft.startDate} onChange={(startDate) => onChange({ startDate })} todayIso={todayIso} label="Início" invalid={!!errors.startDate} height={FIELD_HEIGHT} />
         </Field>
         <Field label="Fim" error={errors.endDate}>
-          <DateCell
+          <DateField
             value={draft.openEnded ? '' : draft.endDate}
             onChange={(endDate) => onChange({ endDate, openEnded: false })}
             todayIso={todayIso}
@@ -120,7 +120,7 @@ export function TermStep({ draft, errors, onChange, todayIso }: StepProps) {
           error={errors.readjustmentBaseDate}
           hint="Vazio: o início do contrato. A cada aniversário aparece o aviso de reajuste."
         >
-          <DateCell
+          <DateField
             value={draft.readjustmentBaseDate}
             onChange={(readjustmentBaseDate) => onChange({ readjustmentBaseDate })}
             todayIso={todayIso}
@@ -164,7 +164,7 @@ function InstallmentCard({ kind, label, description, value, errors, onChange, to
             />
           </Field>
           <Field label="1ª parcela" required error={errors[`${kind}.firstDate`]}>
-            <DateCell value={value.firstDate} onChange={(firstDate) => onChange({ ...value, firstDate })} todayIso={todayIso} label={`${label}: primeira parcela`} invalid={!!errors[`${kind}.firstDate`]} height={FIELD_HEIGHT} />
+            <DateField value={value.firstDate} onChange={(firstDate) => onChange({ ...value, firstDate })} todayIso={todayIso} label={`${label}: primeira parcela`} invalid={!!errors[`${kind}.firstDate`]} height={FIELD_HEIGHT} />
           </Field>
         </div>
       ) : (

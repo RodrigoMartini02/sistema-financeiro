@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck, AlertCircle } from 'lucide-react';
+import { IsoDateField } from '../../ui/DateField';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
 import { pagarDespesa } from '../../services/financeService';
@@ -109,11 +110,12 @@ export function BatchPaymentModal({ open, expenses, onClose, onSuccess }: BatchP
           <div style={cardStyle}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label style={labelStyle}>DATA DE PAGAMENTO</label>
-              <input
-                type="date"
+              <IsoDateField
                 value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.target.value)}
-                style={{ ...fieldInputStyle, fontSize: 14 }}
+                onChange={setDataPagamento}
+                label="Data de pagamento"
+                required
+                inputStyle={{ ...fieldInputStyle, fontSize: 14 }}
               />
             </div>
           </div>

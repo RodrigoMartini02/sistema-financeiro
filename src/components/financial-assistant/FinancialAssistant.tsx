@@ -42,6 +42,7 @@ import {
 } from '../../screens/finance/expense-dialog/draftRules';
 import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
 import { Card } from '../../ui/card';
+import { IsoDateField } from '../../ui/DateField';
 import { Badge } from '../../ui/badge';
 import { AssistantHeaderMenu } from './AssistantHeaderMenu';
 import {
@@ -1649,13 +1650,14 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                         <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {draft.kind === 'expense' ? 'Vencimento' : 'Data'}
                         </span>
-                        <input
-                          type="date"
+                        <IsoDateField
                           value={(draft.kind === 'expense' ? draft.dueDate : draft.date) ?? ''}
-                          onChange={(event) => draft.kind === 'expense'
-                            ? updateDraft({ dueDate: event.target.value || null })
-                            : updateDraft({ date: event.target.value || null })}
-                          className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                          onChange={(iso) => draft.kind === 'expense'
+                            ? updateDraft({ dueDate: iso || null })
+                            : updateDraft({ date: iso || null })}
+                          label={draft.kind === 'expense' ? 'Vencimento' : 'Data'}
+                          inputClassName="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                          height={32}
                         />
                         {/* Em branco o vencimento é calculado, como no modal: a
                             data aparece na linha de situação abaixo. */}
@@ -1670,11 +1672,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                       {draft.kind === 'expense' && (
                         <label className="flex items-center gap-3 border-b border-slate-100 py-2 dark:border-slate-800">
                           <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Data da compra</span>
-                          <input
-                            type="date"
+                          <IsoDateField
                             value={draft.date ?? ''}
-                            onChange={(event) => updateDraft({ date: event.target.value || null })}
-                            className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                            onChange={(iso) => updateDraft({ date: iso || null })}
+                            label="Data da compra"
+                            inputClassName="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                            height={32}
                           />
                         </label>
                       )}
@@ -1818,11 +1821,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                   </label>
                                   <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
                                     <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Pago em</span>
-                                    <input
-                                      type="date"
+                                    <IsoDateField
                                       value={draft.paymentDate ?? ''}
-                                      onChange={(event) => updateDraft({ paymentDate: event.target.value || null })}
-                                      className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                      onChange={(iso) => updateDraft({ paymentDate: iso || null })}
+                                      label="Pago em"
+                                      inputClassName="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                      height={32}
                                     />
                                   </label>
                                 </>
@@ -1847,11 +1851,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
 
                               <label className="flex items-center gap-3 border-t border-slate-100 py-2 dark:border-slate-800">
                                 <span className="w-[92px] shrink-0 text-xs font-semibold text-slate-500 dark:text-slate-400">Emissão</span>
-                                <input
-                                  type="date"
+                                <IsoDateField
                                   value={draft.invoiceDate ?? ''}
-                                  onChange={(event) => updateDraft({ invoiceDate: event.target.value || null })}
-                                  className="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                  onChange={(iso) => updateDraft({ invoiceDate: iso || null })}
+                                  label="Emissão da nota fiscal"
+                                  inputClassName="h-7 flex-1 bg-transparent text-base font-bold tabular-nums text-slate-900 outline-none transition dark:text-white"
+                                  height={32}
                                 />
                               </label>
                             </>

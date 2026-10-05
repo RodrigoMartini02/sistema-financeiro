@@ -7,7 +7,8 @@ import {
 import { consumeAuthOrigin } from '../../services/session';
 import type { Enquadramento } from '../../types/config';
 import { Button } from '../../ui/button';
-import { Field, Input, PasswordInput, Select, ToggleGroup } from '../../ui/form';
+import { IsoDateField } from '../../ui/DateField';
+import { Field, Input, PasswordInput, Select, ToggleGroup, inputBase } from '../../ui/form';
 import { TermosModal } from './TermosModal';
 import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
 import { isValidCnpj } from '../../utils/brazilDocuments';
@@ -324,7 +325,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
                   </Select>
                 </Field>
                 <Field label="Data de abertura da empresa">
-                  <Input name="data_abertura" type="date" />
+                  <IsoDateField name="data_abertura" label="Data de abertura da empresa" inputClassName={inputBase} height={32} />
                 </Field>
               </Fragment>
             ) : (
@@ -333,7 +334,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
                 <Field label="Sobrenome"><Input name="sobrenome" /></Field>
                 {documentoField}
                 <Field label="Data de nascimento">
-                  <Input name="data_nascimento" type="date" />
+                  <IsoDateField name="data_nascimento" label="Data de nascimento" inputClassName={inputBase} height={32} />
                 </Field>
                 <Field label="Telefone">
                   <Input name="telefone" placeholder="(00) 00000-0000" />
