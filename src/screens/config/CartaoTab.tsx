@@ -21,6 +21,8 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
 import { useConfirm } from '../../context/ConfirmContext';
 import { MonthYearPicker } from '../finance/MonthYearPicker';
+import { ColorPicker } from '../../ui/ColorPicker';
+import { DARK_INK, normalizeHex, readableTextColor } from '../../utils/color';
 import { MONTH_NAMES } from '../../types/finance';
 import { getLocalTodayIso } from '../../utils/date';
 import { effectiveMonthParam, nextOpenInvoiceMonth, type MonthOfYear } from '../../utils/cardSchedule';
@@ -31,16 +33,8 @@ const TIPO_OPCOES: { value: CartaoTipo; label: string }[] = [
   { value: 'ambos', label: 'Ambos' },
 ];
 
-const COR_OPCOES = [
-  { value: '#1e40af', label: 'Azul' },
-  { value: '#065f46', label: 'Verde escuro' },
-  { value: '#7c2d12', label: 'Marrom' },
-  { value: '#4c1d95', label: 'Roxo' },
-  { value: '#831843', label: 'Rosa escuro' },
-  { value: '#134e4a', label: 'Teal escuro' },
-  { value: '#1e293b', label: 'Grafite' },
-  { value: '#b45309', label: 'Dourado' },
-];
+/** Cor de um cartão novo; depois, qualquer cor pelo seletor. */
+const DEFAULT_CARD_COLOR = '#1e40af';
 
 const TIPO_LABEL: Record<string, string> = {
   credito: 'CRÉDITO',
@@ -74,6 +68,10 @@ function CartaoPreview({
   tipo?: string | null;
   cor: string;
 }) {
+  const ink = readableTextColor(normalizeHex(cor) ?? DEFAULT_CARD_COLOR);
+  const darkInk = ink === DARK_INK;
+  // Detalhes do cartão (chip, selo, círculo): brancos em cor escura, escuros em cor clara.
+  const tint = (lightAlpha: number, darkAlpha = lightAlpha) => (darkInk ? `rgba(15,23,42,${darkAlpha})` : `rgba(255,255,255,${lightAlpha})`);
   return (
     <div
       style={{
@@ -85,20 +83,20 @@ function CartaoPreview({
     >
       <div style={{
         position: 'absolute', top: '-40%', right: '-20%', width: 150, height: 150,
-        borderRadius: '50%', background: 'rgba(255,255,255,.07)',
+        borderRadius: '50%', background: tint(0.07, 0.05),
       }} />
 
       <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{
-          width: 26, height: 19, borderRadius: 5, background: 'rgba(255,255,255,.32)',
+          width: 26, height: 19, borderRadius: 5, background: tint(0.32, 0.14),
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ width: 14, height: 9, borderRadius: 2, border: '1px solid rgba(255,255,255,.6)' }} />
+          <div style={{ width: 14, height: 9, borderRadius: 2, border: `1px solid ${tint(0.6, 0.45)}` }} />
         </div>
         {tipo && (
           <span style={{
-            fontSize: 8.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.1em', color: '#fff',
-            background: 'rgba(255,255,255,.22)', padding: '4px 6px', borderRadius: 999,
+            fontSize: 8.5, fontWeight: 700, lineHeight: 1, letterSpacing: '.1em', color: ink,
+            background: tint(0.22, 0.1), padding: '4px 6px', borderRadius: 999,
           }}>
             {TIPO_LABEL[tipo] ?? tipo.toUpperCase()}
           </span>
@@ -106,21 +104,21 @@ function CartaoPreview({
       </div>
 
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <span className={CFG_MONO_CLASS} style={{ fontSize: 12.5, fontWeight: 500, letterSpacing: '.08em', color: '#fff' }}>
+        <span className={CFG_MONO_CLASS} style={{ fontSize: 12.5, fontWeight: 500, letterSpacing: '.08em', color: ink }}>
           •••• {ultimos4 || '0000'}
         </span>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
           <span style={{
-            fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: '#fff',
+            fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, color: ink,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {nome || 'Nome do cartão'}
           </span>
-          <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: tint(0.92, 0.85), whiteSpace: 'nowrap' }}>
             Venc. {vencimento || '—'}
           </span>
         </div>
-        <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(255,255,255,.92)' }}>
+        <span style={{ fontSize: 10, fontWeight: 500, color: tint(0.92, 0.85) }}>
           Limite {formatLimite(limite)}
         </span>
       </div>
@@ -138,7 +136,7 @@ function CartaoDialog({
   onSave: (v: CartaoFormValues) => void;
   onToggleAtivo?: () => void;
 }) {
-  const [cor, setCor] = useState(cartao?.cor ?? COR_OPCOES[0].value);
+  const [cor, setCor] = useState(cartao?.cor ?? DEFAULT_CARD_COLOR);
   const [tipo, setTipo] = useState<CartaoTipo | undefined>(cartao?.tipo ?? undefined);
   const [validade, setValidade] = useState(cartao?.validade ?? '');
   const [nome, setNome] = useState(cartao?.nome ?? '');
@@ -201,7 +199,7 @@ function CartaoDialog({
     <Dialog open={open} title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={onClose} size="lg" scrollBody={false}>
       <form style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }} onSubmit={handleSubmit}>
         {/* Altura fixa: o modal não muda de tamanho entre criação e edição. */}
-        <div style={{ flex: 1, minHeight: 0, height: 306, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 214px', gap: 16, alignItems: 'start' }}>
+        <div style={{ flex: 1, minHeight: 0, height: 372, overflowY: 'auto', overflowX: 'hidden', padding: 14, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 214px', gap: 16, alignItems: 'start' }}>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px', gap: 10 }}>
@@ -364,29 +362,6 @@ function CartaoDialog({
               </div>
             </div>
 
-            <div>
-              <label style={labelStyle}>Cor do cartão</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {COR_OPCOES.map((c) => (
-                  <button
-                    key={c.value}
-                    type="button"
-                    onClick={() => setCor(c.value)}
-                    title={c.label}
-                    aria-label={c.label}
-                    style={{
-                      width: 24, height: 24, borderRadius: '50%', border: 'none', padding: 0,
-                      background: c.value, cursor: 'pointer',
-                      boxShadow: cor === c.value
-                        ? `0 0 0 2px #fff, 0 0 0 4px ${CFG.primary}`
-                        : '0 0 0 1px #e2e8f0',
-                      transition: 'box-shadow .13s ease',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
             {error && (
               <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
                 {error}
@@ -406,6 +381,10 @@ function CartaoDialog({
             <span style={{ fontSize: 10.5, fontWeight: 500, lineHeight: 1.4, color: CFG.muted, textAlign: 'center' }}>
               Pré-visualização
             </span>
+            <div style={{ marginTop: 4 }}>
+              <label style={labelStyle}>Cor do cartão</label>
+              <ColorPicker value={cor} onChange={setCor} label="Cor do cartão" />
+            </div>
           </div>
         </div>
 
