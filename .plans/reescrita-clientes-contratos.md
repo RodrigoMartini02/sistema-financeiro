@@ -1035,3 +1035,19 @@ A implementação estará pronta quando:
 - **Roteiro de ponta a ponta** (backend na porta 3016 com o banco local; usuários `*@roteiro-clientes.test` apagados no fim): **39/39**, antes e depois da 0071, sem erro no log do servidor.
   - Cobre todos os critérios de aceite: isolamento entre PJs (também pelo id), conta pessoal, só "Serviços", sem "Contratos"; documento inválido, repetido e órgão público sem esfera; 12 previstas no dia 10; salvar de novo sem duplicar; alterar preservando faturada e recebida; "sem prazo" com 12 à frente e o complemento ao abrir o sistema; encerrar; excluir com e sem faturada; implantação 333,33/333,33/333,34; projeto em "Contratos › Projeto"; horas 40 → 35 → 40 e o bloqueio; retenções (bruto 4.500,00, retenções 441,00, líquido 4.059,00, recebido 4.059,00); aviso do empenho; comissão só no recebimento e a manual no lançamento; reajuste 4,62% (4.707,90) e 0,00%; aditivo a partir de março; renomear refletindo nas receitas e no relatório; desativar e excluir; anexos (PDF aceito e devolvido como PDF, HTML disfarçado e 25 MB recusados, arquivo apagado ao remover); carteira do painel; resumo do topo; "em contrato ativo"; falha ao salvar sem gravar nada; receita sem cliente.
 - **Verificações finais:** back `tsc` e 333/333; front `tsc`, 121/121 e build.
+
+### Etapa 10 — aprovação visual
+
+- **Prints** (HTML do jsdom com o CSS do build, abertos no Edge; celular = quadro de 390 px): 16 no computador e 10 no celular. Cobrem lista, os três cadastros (órgão público com erros), catálogo, as três abas do cliente, as cinco etapas do contrato, a ficha, o reajuste e o lançamento de receita com horas e retenções.
+- **Defeitos achados nos prints e corrigidos:**
+  1. no celular, a lista de clientes e a ficha do contrato ficavam mais largas que a tela: a coluna das páginas crescia com os textos cortados por reticências. Agora a coluna é `minmax(0, 1fr)` (`stackStyle` em `clientStyles.ts`), e a seta da linha do cliente fica sempre na ponta (commit `2af41f5d`);
+  2. o ícone do período do contrato saía numa linha própria, porque o reset do Tailwind deixa o `svg` em bloco (commit `6f6b9491`);
+  3. na prévia do contrato, no celular, os valores só apareciam rolando para o lado. Agora o vencimento fica embaixo da descrição (commit `43b153d2`).
+- **Ajuste de leitura:** a aba "Dados" do cliente em duas colunas no computador (commit `2af41f5d`).
+- Aprovado pelo usuário em 2026-10-05, ao seguir para o `/finalizar`.
+- Testes do front: 121/121 e 15/15 de tela; `tsc` e build sem erros.
+
+### Etapa 11 — `/finalizar`
+
+- Checks antes do push: front `tsc`, 121/121 e build; back `tsc` e 333/333.
+- Migrations: local sem pendências; produção com 0070 e 0071 pendentes.
