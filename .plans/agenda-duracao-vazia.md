@@ -181,4 +181,20 @@ Nenhuma pergunta em aberto identificada.
 
 ## Registro de andamento
 
-(vazio: preenchido pela skill `implementar`)
+### Etapas 1 a 5 (2026-10-05)
+
+- Branch `feat/R/datas-calendario` (a mesma do plano das datas).
+- **Etapa 2** (commit `37d686e4`):
+  - `src/utils/appointmentForm.ts`: `appointmentFormSchema`, `AppointmentFormData` e `DURATION_MESSAGE`;
+  - duração vazia ou nula vira `undefined` (`z.preprocess`) antes de converter;
+  - teste com 5 casos.
+- **Etapa 3** (commit `9a09fa15`):
+  - o `AppointmentDialog` usa o esquema novo;
+  - `FieldError` mostra o motivo embaixo de Título, Data e Duração;
+  - a Data recebe `invalid` do `fieldState`.
+- **Desvio do plano:** o formulário ganhou `noValidate`. O `min={1}` do campo de duração fazia o navegador barrar o envio com o balão dele, antes da validação do formulário; o teste de tela mostrou que a mensagem não aparecia com 0.
+- **Etapa 4:**
+  - `tsc`, 152/152 e build;
+  - Agenda no jsdom, 6/6: grava sem duração; 0 mostra a mensagem e não grava; 45 grava 45; data incompleta mostra "Informe a data", com borda vermelha, e não grava; a edição abre com a duração; apagar a duração na edição grava sem ela;
+  - datas, 30/30, e telas, 10/10, de novo.
+- **Etapa 5:** print da Agenda com as duas mensagens (`computador-06b-agenda-erros.png`). Aguardando a aprovação visual, junto do plano das datas.
