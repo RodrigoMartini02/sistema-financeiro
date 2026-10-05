@@ -11,6 +11,7 @@ import { downloadReportPdf, fetchReport } from '../../services/reportsService';
 import type {
   Report, ReportEntryType, ReportExpenseStatus, ReportPaymentDateWindow, ReportQuery,
 } from '../../types/reports';
+import { DateRangeField } from '../../ui/DateRangeField';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { ErrorState } from '../../ui/states';
 import { formatCurrency } from '../finance/formatters';
@@ -138,24 +139,7 @@ export function ReportsScreen() {
           ))}
         </div>
 
-        <label className={[PILL, PILL_IDLE, 'gap-1.5 tabular-nums'].join(' ')}>
-          <span className="text-slate-400">De</span>
-          <input
-            type="date"
-            value={period.start}
-            onChange={(event) => setPeriod((current) => ({ ...current, start: event.target.value }))}
-            className="bg-transparent text-[13px] outline-none"
-          />
-        </label>
-        <label className={[PILL, PILL_IDLE, 'gap-1.5 tabular-nums'].join(' ')}>
-          <span className="text-slate-400">Até</span>
-          <input
-            type="date"
-            value={period.end}
-            onChange={(event) => setPeriod((current) => ({ ...current, end: event.target.value }))}
-            className="bg-transparent text-[13px] outline-none"
-          />
-        </label>
+        <DateRangeField value={period} onChange={setPeriod} className={[PILL, PILL_IDLE].join(' ')} />
 
         <div className="relative">
           <button
