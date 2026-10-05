@@ -21,7 +21,7 @@ import { ClientFormDialog } from './ClientFormDialog';
 import { ClientPage } from './ClientPage';
 import { ServiceCatalog } from './ServiceCatalog';
 import {
-  errorBoxStyle, linkButtonStyle, rowSubtitleStyle, rowTitleStyle, tabStyle, toneBadgeStyle, wrapRowStyle,
+  errorBoxStyle, linkButtonStyle, rowSubtitleStyle, rowTitleStyle, stackStyle, tabStyle, toneBadgeStyle, wrapRowStyle,
 } from './clientStyles';
 
 type Area = 'clients' | 'services';
@@ -68,29 +68,32 @@ function ClientRow({ client, index, onOpen }: { client: ClientListItem; index: n
     <button
       type="button"
       onClick={onOpen}
-      style={wrapRowStyle}
+      style={{ ...wrapRowStyle, flexWrap: 'nowrap' }}
       onMouseEnter={(event) => { event.currentTarget.style.borderColor = CFG.primary; }}
       onMouseLeave={(event) => { event.currentTarget.style.borderColor = CFG.border; }}
     >
       <span className={CFG_MONO_CLASS} style={{ flex: 'none', width: 20, fontSize: 10.5, color: CFG.faint }}>
         {String(index + 1).padStart(2, '0')}
       </span>
-      <span style={{ flex: '1 1 200px', minWidth: 0 }}>
-        <p style={rowTitleStyle}>{client.name}</p>
-        <p style={rowSubtitleStyle}>{subtitle}</p>
+      {/* No celular as etiquetas descem para baixo do nome e a seta continua na ponta. */}
+      <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px 10px', flex: 1, minWidth: 0 }}>
+        <span style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <p style={rowTitleStyle}>{client.name}</p>
+          <p style={rowSubtitleStyle}>{subtitle}</p>
+        </span>
+        <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+          {contracts && contracts.monthlyAmount > 0 && (
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: CFG.text, fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(contracts.monthlyAmount)}/mês
+            </span>
+          )}
+          <span style={toneBadgeStyle('neutral')}>{CLIENT_TYPE_LABELS[client.type]}</span>
+          {contracts?.expiringSoon && <span style={toneBadgeStyle('warn')}>Contrato vencendo</span>}
+          {contracts?.overdue && <span style={toneBadgeStyle('danger')}>Receita atrasada</span>}
+          {contracts?.readjustmentAvailable && <span style={toneBadgeStyle('info')}>Reajuste disponível</span>}
+        </span>
       </span>
-      <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-        {contracts && contracts.monthlyAmount > 0 && (
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: CFG.text, fontVariantNumeric: 'tabular-nums' }}>
-            {formatCurrency(contracts.monthlyAmount)}/mês
-          </span>
-        )}
-        <span style={toneBadgeStyle('neutral')}>{CLIENT_TYPE_LABELS[client.type]}</span>
-        {contracts?.expiringSoon && <span style={toneBadgeStyle('warn')}>Contrato vencendo</span>}
-        {contracts?.overdue && <span style={toneBadgeStyle('danger')}>Receita atrasada</span>}
-        {contracts?.readjustmentAvailable && <span style={toneBadgeStyle('info')}>Reajuste disponível</span>}
-        <ChevronRight size={13} strokeWidth={2.2} style={{ color: '#94a3b8' }} />
-      </span>
+      <ChevronRight size={13} strokeWidth={2.2} style={{ flex: 'none', color: '#94a3b8' }} />
     </button>
   );
 }
@@ -128,7 +131,7 @@ function ClientList({ accountId, canSeeContracts, onOpen }: {
   const countLabel = `${clients.length} cliente${clients.length === 1 ? '' : 's'} ${showInactive ? 'desativado' : 'ativo'}${clients.length === 1 ? '' : 's'}`;
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={stackStyle(10)}>
       {canSeeContracts && !showInactive && <SummaryCards accountId={accountId} />}
 
       <ListToolbar
@@ -236,7 +239,7 @@ export function ClientsScreen() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div style={stackStyle(12)}>
       {canClients && canServices && (
         <div role="tablist" aria-label="Clientes" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <button type="button" role="tab" aria-selected={shownArea === 'clients'} onClick={() => setArea('clients')} style={tabStyle(shownArea === 'clients')}>

@@ -42,6 +42,14 @@ export const sectionTitleStyle: CSSProperties = {
   margin: 0, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: CFG.faint,
 };
 
+/**
+ * Coluna das páginas e listas. Com minmax(0, 1fr) a coluna não cresce com um
+ * texto que corta com reticências, e a página cabe na largura do celular.
+ */
+export function stackStyle(gap: number): CSSProperties {
+  return { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap };
+}
+
 /** Cartão de bloco das páginas (cliente, contrato). */
 export const panelStyle: CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 14px', borderRadius: 14,

@@ -118,7 +118,7 @@ export function ServiceCatalog({ accountId }: { accountId: number }) {
   };
 
   return (
-    <div className="grid gap-2.5">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5">
       <ConfigTabHeader
         filters={
           <ConfigSwitch

@@ -22,7 +22,7 @@ import { ContractAttachments } from './ContractAttachments';
 import { ContractWizard, type ContractWizardMode } from './ContractWizard';
 import {
   dangerOutlineButtonStyle, detailLabelStyle, detailRowStyle, errorBoxStyle, fieldErrorStyle, inputStyle, linkButtonStyle,
-  mutedTextStyle, panelStyle, secondaryButtonStyle, sectionTitleStyle, toneBadgeStyle,
+  mutedTextStyle, panelStyle, secondaryButtonStyle, sectionTitleStyle, stackStyle, toneBadgeStyle,
 } from './clientStyles';
 
 function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -191,7 +191,7 @@ export function ContractDetail({ contractId, accountId, backLabel, onBack, onOpe
   }
   if (contractQuery.isError || !contractQuery.data) {
     return (
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={stackStyle(10)}>
         <button type="button" style={linkButtonStyle} onClick={onBack}><ArrowLeft size={13} /> {backLabel}</button>
         <div role="alert" style={errorBoxStyle}>
           {contractQuery.error?.message ?? 'Não foi possível carregar o contrato.'}{' '}
@@ -240,7 +240,7 @@ export function ContractDetail({ contractId, accountId, backLabel, onBack, onOpe
   };
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={stackStyle(10)}>
       <div>
         <button type="button" style={linkButtonStyle} onClick={onBack}><ArrowLeft size={13} /> {backLabel}</button>
       </div>
@@ -299,7 +299,7 @@ export function ContractDetail({ contractId, accountId, backLabel, onBack, onOpe
         </InfoBanner>
       )}
 
-      <div className="grid gap-2.5 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5 lg:grid-cols-2">
         <Panel title="Cobranças">
           {contract.monthlyFee !== null && (
             <Row label={CHARGE_LABELS.mensalidade}>

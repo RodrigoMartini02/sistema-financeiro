@@ -17,7 +17,7 @@ import { ContractDetail } from './ContractDetail';
 import { ContractWizard } from './ContractWizard';
 import {
   detailLabelStyle, detailRowStyle, errorBoxStyle, linkButtonStyle, mutedTextStyle, panelStyle, rowSubtitleStyle,
-  rowTitleStyle, secondaryButtonStyle, tabStyle, toneBadgeStyle, wrapRowStyle,
+  rowTitleStyle, secondaryButtonStyle, stackStyle, tabStyle, toneBadgeStyle, wrapRowStyle,
 } from './clientStyles';
 
 type ClientTab = 'contracts' | 'incomes' | 'data';
@@ -80,7 +80,7 @@ function ContractsTab({ client, accountId, todayIso, onOpen }: {
   const contracts = contractsQuery.data ?? [];
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div style={stackStyle(8)}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <p style={{ ...mutedTextStyle, flex: 1 }}>
           {contracts.length} contrato{contracts.length === 1 ? '' : 's'}
@@ -122,7 +122,7 @@ function IncomesTab({ client, todayIso }: { client: Client; todayIso: string }) 
   const incomesQuery = useQuery({ queryKey: queryKeys.clientIncomes(client.id), queryFn: () => fetchClientIncomes(client.id) });
   const incomes = incomesQuery.data ?? [];
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div style={stackStyle(8)}>
       {incomesQuery.isLoading && <Loading text="Carregando as receitas..." />}
       {incomesQuery.isError && <LoadError message={incomesQuery.error.message} onRetry={() => void incomesQuery.refetch()} />}
       {incomesQuery.isSuccess && incomes.length === 0 && (
@@ -175,8 +175,9 @@ function DataTab({ client }: { client: Client }) {
     [client.city, client.state].filter(Boolean).join(' - '),
     client.zipCode ? formatCep(client.zipCode) : null,
   ].filter(Boolean).join(' · ');
+  // Duas colunas no computador, para o valor não ficar longe do rótulo.
   return (
-    <section style={panelStyle}>
+    <section className="grid-cols-[minmax(0,1fr)] lg:grid-cols-2" style={{ ...panelStyle, display: 'grid', gap: '10px 32px' }}>
       <DataRow label="Tipo">{CLIENT_TYPE_LABELS[client.type]}</DataRow>
       <DataRow label={client.type === 'pessoa_fisica' ? 'CPF' : 'CNPJ'}>
         <span className={CFG_MONO_CLASS}>{formatDocument(client.document)}</span>
@@ -217,7 +218,7 @@ export function ClientPage({ clientId, accountId, canSeeContracts, canSeeIncomes
   if (clientQuery.isLoading) return <Loading text="Carregando o cliente..." />;
   if (clientQuery.isError || !clientQuery.data) {
     return (
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div style={stackStyle(10)}>
         <div><button type="button" style={linkButtonStyle} onClick={onBack}><ArrowLeft size={13} /> Clientes</button></div>
         <LoadError message={clientQuery.error?.message ?? 'Não foi possível carregar o cliente.'} onRetry={() => void clientQuery.refetch()} />
       </div>
@@ -246,7 +247,7 @@ export function ClientPage({ clientId, accountId, canSeeContracts, canSeeIncomes
   const contact = [client.contactName, client.contactPhone ? formatPhone(client.contactPhone) : null, client.contactEmail].filter(Boolean).join(' · ');
 
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
+    <div style={stackStyle(10)}>
       <div><button type="button" style={linkButtonStyle} onClick={onBack}><ArrowLeft size={13} /> Clientes</button></div>
 
       <section style={panelStyle}>
