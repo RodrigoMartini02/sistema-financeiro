@@ -455,3 +455,55 @@ Com a aprovação do plano (04/10/2026), valem os padrões das perguntas 1, 2 e 
 - Deletar tudo que está na seção "O que será removido" — não ocultar. (Nesta implementação, nada.)
 - Atualizar testes conforme descrito.
 - Ao fim da Fase 1, parar, relatar os números da medição e aguardar aprovação.
+
+---
+
+## Registro de andamento
+
+### Fase 1 — 05/10/2026
+
+- **Passo 0:**
+  - Worktree e branch `feat/R/licitacoes` criados pela sessão de planejamento (commit `4fb72c6e`: escopo, reconhecimento e plano).
+  - `.env.dev` copiado para o worktree, com `TENDERS_COLLECTOR_DATABASE_URL` apontando para o banco local (confirmado pelo usuário).
+  - Cópias soltas do plano apagadas da pasta principal (confirmado).
+- **Passos 1 a 9:** escritos pela sessão de planejamento (13:39 a 13:57), revistos contra o plano nesta sessão, sem divergências.
+  - Commits: `e035ecbc` (migrations), `19bb77a1` (schema Drizzle e domínios) e `da5b91f5` (coletor).
+- **Passo 10, testes:**
+  - 28 testes sem banco e 20 de banco (`11f32396` e `d38eeb83`).
+  - Os testes de banco da regra de busca e das notificações foram acrescentados nesta sessão.
+- **Passo 11, README:** `2d3e3878`.
+- **Migrations:** 0072, 0073 e 0074 aplicadas só no banco **local** (confirmado), que ficou com 68 de 68.
+- **Correção:** `b430f9de`. O PNCP mandou um edital real com valor estimado negativo, e ele era descartado. Agora o valor vira nulo e o edital entra.
+- **Validação:**
+  - Tipos ok.
+  - Testes do backend 370/370 com `DOTENV_CONFIG_PATH=../.env.dev`. Sem ele, 4 testes antigos falham por falta de `DATABASE_URL` no worktree.
+  - `test:tenders-db`: 20/20.
+  - **Varredura 1**, com o intervalo padrão do escopo (400 ms): PARCIAL em 2 min, com 1.617 editais. O PNCP respondeu HTTP 429 depois de umas 10 páginas, e as esperas de 1, 2, 4 e 8 s não bastaram.
+  - **Limite do PNCP**, sondado sem cabeçalho de limite nem `Retry-After`: a 1 s, o 429 veio depois de 7 requisições; a 4 s e a 6 s, nenhum 429.
+  - **Varredura 2**, com `PNCP_REQUEST_INTERVAL_MS=4000` na linha de comando: 40 min, 492 requisições, 24.490 lidos, 22.884 novos e 1 erro (o valor negativo).
+  - **Varredura 3**, já com a correção: SUCESSO em 43 min, 496 requisições, 24.705 lidos, 56 atualizados e 0 erros.
+    - **Novos:** 248, dos quais 232 publicados nos últimos 2 dias.
+    - **Duplicidade:** nenhuma (24.749 editais = 24.749 números de controle distintos).
+  - **Duas coletas ao mesmo tempo:** a segunda saiu sem coletar ("coleta já em execução").
+  - **Lembretes, limpeza, reprocessamento e `status`:** SUCESSO.
+  - **Incremental real** (ontem e hoje, intervalo de 4 s): SUCESSO em 19 min.
+    - Números: 255 requisições, 12.506 lidos, 2.431 novos, 64 atualizados, 3.966 ignorados por já estarem encerrados e 0 erros.
+    - Dos novos, 2.313 não têm data de encerramento de proposta; 2.348 dos novos são da modalidade 8 (dispensas sem disputa). A varredura não os traz, porque o endpoint `proposta` só lista propostas abertas (ver achado 3).
+- **Medição:**
+  - Depois da carga: 24.501 editais; tabela 70,1 MB + índices 26,6 MB = 96,7 MB, ou 4,04 KB por edital.
+  - Depois de uma nova varredura: 109,8 MB, ou 4,54 KB por edital, por causa das versões antigas das linhas regravadas.
+  - Por modalidade: 6 = 17.139, 4 = 3.882, 8 = 3.457 e 7 = 271.
+- **Projeção de 12 meses (decisão 21):**
+  - Publicações dos últimos 30 dias: 8 = 55.368, 6 = 31.615, 4 = 4.872 e 7 = 662, total de 92.517.
+  - Isso dá cerca de 1,11 milhão de editais por ano × 4,0 a 4,5 KB ≈ **4,3 a 4,8 GB**.
+  - Sem a modalidade 8 (dispensa): cerca de 446 mil por ano, ≈ 1,7 a 1,9 GB.
+  - A comparação com o espaço livre do Postgres no Render continua pendente (pergunta 6).
+- **Achados que entram no começo do plano da Fase 2** (decisão do usuário):
+  1. **Ritmo do PNCP:** o padrão de `PNCP_REQUEST_INTERVAL_MS` passa de 400 para 4000, com uma espera maior em 429 sem `Retry-After`.
+  2. **Singular × plural na busca:** -ção/-ções, -ão/-ões e -al/-ais não batem entre si, porque a configuração tira o acento antes de reduzir ao radical. Proposta: variantes de singular e plural em `fn_tsquery_termos`, sem refazer o índice.
+  3. **Editais sem prazo de proposta (a decidir):** a incremental grava as dispensas sem disputa, cerca de 1.150 por dia, que não têm data de encerramento. Isso causa três problemas:
+     - a regra de busca as trata como abertas e gera NOVO_EDITAL sem utilidade;
+     - a limpeza nunca as apaga;
+     - elas são grande parte do volume projetado.
+     Proposta: a incremental ignora registros sem `dataEncerramentoProposta`, como a varredura, e a limpeza remove os antigos sem prazo pela data de publicação.
+- **Encerramento:** o `/finalizar` da Fase 1 envia a branch sem merge em `main` (decisão do usuário). O merge fica para quando o módulo for para produção.
