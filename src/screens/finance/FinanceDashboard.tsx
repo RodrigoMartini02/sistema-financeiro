@@ -15,7 +15,7 @@ import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessa
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { PAYMENT_METHODS, type PainelPeriodo } from '../../types/finance';
-import { categoryFilterOptions } from '../../utils/categorySuggestions';
+import { categoryFilterNames, categoryFilterOptions } from '../../utils/categorySuggestions';
 import { canReadCatalogList } from '../../utils/screenAccess';
 import { TERMOS } from '../config/ContasTab';
 import { DashboardPeriodFilter, descreverPeriodo, periodoDoAnoAtual } from './DashboardPeriodFilter';
@@ -185,7 +185,7 @@ export function FinanceDashboard() {
   // Nomes dos filtros de despesa ligados, para o aviso de painel filtrado.
   const nomeDe = (opcoes: { value: string; label: string }[], valor: string) => opcoes.find((opcao) => opcao.value === valor)?.label ?? valor;
   const nomesFiltros = [
-    ...[...categoriaIds].map((id) => nomeDe(opcoesCategoria, id)),
+    ...categoryFilterNames(opcoesCategoria, categoriaIds),
     ...[...formasPagamento].map((forma) => nomeDe(opcoesForma, forma)),
     ...[...cartaoIds].map((id) => nomeDe(opcoesCartao, id)),
   ];

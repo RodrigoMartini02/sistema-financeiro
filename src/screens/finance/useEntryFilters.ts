@@ -16,7 +16,7 @@ import type { EntryType, ExpenseStatus, PaymentDateWindow } from '../../utils/ex
 export interface EntryFilterState {
   types: Set<EntryType>;
   statuses: Set<ExpenseStatus>;
-  /** Ids das categorias (subcategorias; marcar o grupo marca as subs). */
+  /** Ids das categorias; marcar o grupo marca o pai e as subcategorias. */
   categoryIds: Set<string>;
   paymentMethods: Set<string>;
   cardIds: Set<string>;
