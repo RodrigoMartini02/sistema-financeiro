@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { after, describe, test } from 'node:test';
 import { asc, eq, inArray, sql } from 'drizzle-orm';
 import { tenderEnabledAccounts, tenderNotices, tenderNotifications } from '../db/schema';
@@ -194,9 +195,12 @@ describe('notificações do coletor (banco local)', { skip: databaseTestsSkipRea
   test('reprocessamento: só editais coletados desde a data e sem duplicar', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'reprocessar');
-      await insertSavedSearch(tx, { accountId: account.accountId, userId: account.ownerId, terms: ['saúde'] });
-      const recent = await insertTestNotice(tx, { procurementObject: 'Sistema de gestão em saúde' });
-      const old = await insertTestNotice(tx, { procurementObject: 'Software de saúde da família' });
+      // Termo que só os editais do teste têm: o reprocessamento olha todos os editais
+      // coletados desde a data, inclusive os de uma coleta real no banco local.
+      const token = `zqxreprocesso${randomUUID().slice(0, 8).replaceAll('-', '')}`;
+      await insertSavedSearch(tx, { accountId: account.accountId, userId: account.ownerId, terms: [token] });
+      const recent = await insertTestNotice(tx, { procurementObject: `Sistema de gestão em saúde ${token}` });
+      const old = await insertTestNotice(tx, { procurementObject: `Software de saúde da família ${token}` });
       await tx.update(tenderNotices).set({ firstCollectedAt: sql`now() - interval '40 days'` }).where(eq(tenderNotices.id, old));
 
       const since = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
