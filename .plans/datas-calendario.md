@@ -411,4 +411,65 @@ Nenhuma pergunta em aberto identificada.
 
 ## Registro de andamento
 
-(vazio: preenchido pela skill `implementar`)
+### Etapas 1 a 8 (2026-10-05)
+
+- Branch `feat/R/datas-calendario` criada da `main` (`7992eebc`).
+- **Commits por etapa:**
+
+| Etapa | Commit | O que entrou |
+| --- | --- | --- |
+| 2 | `a644856a` | seleção em lote (com o plano) |
+| 3 | `104e69a3` | regras puras |
+| 4 | `123f6785` | componentes |
+| 5 | `ef92c666` | datas digitadas |
+| 6 | `9b52fe9d` | datas do navegador |
+| 7 | `259046b6` | períodos |
+| 8 | `82a8f0dd` | medidor |
+| 10 | `8f6bcc16` | ajuste dos dias do calendário em círculo |
+
+- **Seleção em lote:**
+  - `isBatchSelectable` e `expenseFiltersKey` em `utils/expenseFilters.ts`, com teste;
+  - a chave em texto inclui as pessoas (`nomesVisiveis`), que mudam o que aparece.
+- **Regras puras:**
+  - `utils/dateEditing.ts` (`applyDateEdit`, `normalizeDateText`, `normalizePastedDate`, `hasEmptyDigit`), 15 testes;
+  - `utils/calendarGrid.ts` (grade, teclado, período, anos), 9 testes;
+  - `brDateToIso` e `completeBrDate` não mexem em data com "_".
+- **Componentes:**
+  - `ui/CalendarPanel.tsx`, `ui/DateField.tsx` (`DateField` e `IsoDateField`) e `ui/DateRangeField.tsx`;
+  - o ícone fica compacto (12 px) nas caixas abaixo de 32 px e com 14 px nos formulários.
+- **Grades:**
+  - na despesa, Compra e Vencimento passam a `minmax(90px,100px)` e Pago em a `minmax(114px,128px)`;
+  - na receita, Recebido em passa a `minmax(90px,108px)` (pessoal) e `minmax(90px,104px)` (empresa).
+- **Desvios do plano:**
+  1. **Pagamento avulso** (`PaymentModal`): passou a não confirmar sem data. Com a digitação, a data incompleta chega vazia, e antes o botão mandaria a data vazia.
+  2. **`inputBase`** do `ui/form.tsx` passou a ser exportado, para o cadastro (`LoginPage`) usar a mesma caixa do `Input`.
+  3. **Assistente:** a lista de parcelas (`InstallmentList`) usa o `DateField` com o texto do rascunho direto, sem a conversão de ida e volta para ISO.
+
+### Etapa 9 — validação
+
+- **Checks:** front `tsc`, 147/147 e build; back `tsc` (sem mudança).
+- **Teste de tela no jsdom** (arquivos `tmpclaude-*`):
+  - **componentes, 30/30:**
+    - digitação pelo `beforeinput` (do zero, no meio, "_", seleção, colar, completar);
+    - calendário (foco, setas, PageDown, listas de mês e ano, Hoje, Limpar, Esc, painel inferior);
+    - `IsoDateField` em formulário (FormData em ISO, vazio com data incompleta, borda vermelha) e controlado;
+    - período com dois cliques (invertido) e digitado (aplica ao sair; início depois do fim não aplica);
+  - **telas, 10/10:**
+    - Lançamentos: cancelada e paga sem checkbox; marcar todas pega 2; mudar o filtro zera; com filtro pega 1. Sem loop de renderização com `nomesVisiveis` novo a cada render;
+    - Agenda grava a data digitada em ISO;
+    - pagamento bloqueado com data incompleta e confirmado em ISO;
+    - Painel sem "Aplicar", com dois cliques aplicando.
+- **Achado fora do plano:** a Agenda não grava sem a duração preenchida. Já acontece no código antigo: a duração vazia é recusada pela validação (`z.coerce.number().min(1)`) sem mensagem. Relatado ao usuário, não corrigido.
+
+### Etapa 10 — prints
+
+- **Quadros:** computador com 1280 px e, nos modais de lançamento, também com 1040 px; celular num quadro de 390 px.
+- **Telas:**
+  - despesa com o calendário aberto; despesa e receita fechadas;
+  - pagamento com o calendário e com a data incompleta;
+  - Agenda;
+  - período do Painel no meio da escolha;
+  - Relatórios;
+  - medidor nas situações saudável, atenção, crítico e 1250%, no claro, no escuro e no celular.
+- **Ajuste feito pelos prints:** os dias do calendário viravam ovais no painel inferior do celular. Agora são círculos de 36 px.
+- **Aguardando a aprovação do usuário.**
