@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  SEM_FILTROS_DESPESA,
+  filtrarDespesasPainel,
+  temFiltroDeDespesa,
   agregarContasEmAberto,
   agregarEmDia,
   agregarFormasPagamento,
@@ -345,4 +348,21 @@ test('categorias: só as compras cadastradas por outra pessoa no cartão de quem
     { categoriaId: 10, autorId: 15, total: 52 },
     { categoriaId: null, autorId: 15, total: 5 },
   ]);
+});
+
+test('filtros de despesa do Painel: categoria, cartão e forma, combinados e vazios', () => {
+  const despesas = [
+    despesa({ categoriaId: 1, cartaoId: 7, formaPagamento: 'credito', valorOriginal: 10 }),
+    despesa({ categoriaId: 2, cartaoId: null, formaPagamento: 'pix', valorOriginal: 20 }),
+    despesa({ categoriaId: 1, cartaoId: null, formaPagamento: 'pix', valorOriginal: 30 }),
+    despesa({ categoriaId: null, cartaoId: 8, formaPagamento: null, valorOriginal: 40 }),
+  ];
+  const valores = (lista: DespesaPainel[]) => lista.map((item) => item.valorOriginal);
+  assert.deepEqual(valores(filtrarDespesasPainel(despesas, SEM_FILTROS_DESPESA)), [10, 20, 30, 40]);
+  assert.deepEqual(valores(filtrarDespesasPainel(despesas, { ...SEM_FILTROS_DESPESA, categoryIds: [1] })), [10, 30]);
+  assert.deepEqual(valores(filtrarDespesasPainel(despesas, { ...SEM_FILTROS_DESPESA, cardIds: [7, 8] })), [10, 40]);
+  assert.deepEqual(valores(filtrarDespesasPainel(despesas, { ...SEM_FILTROS_DESPESA, paymentMethods: ['pix'] })), [20, 30]);
+  assert.deepEqual(valores(filtrarDespesasPainel(despesas, { categoryIds: [1], cardIds: [], paymentMethods: ['pix'] })), [30]);
+  assert.equal(temFiltroDeDespesa(SEM_FILTROS_DESPESA), false);
+  assert.equal(temFiltroDeDespesa({ ...SEM_FILTROS_DESPESA, cardIds: [7] }), true);
 });

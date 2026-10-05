@@ -37,6 +37,30 @@ export function sendRequestError(
   res.status(500).json({ success: false, message: fallbackMessage });
 }
 
+/** Parâmetro repetível da URL (`?x=a&x=b`) como lista; ausente vira lista vazia. */
+export function readQueryList(value: unknown): string[] {
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : [value]).map(String).filter((item) => item.length > 0);
+}
+
+/** Lista de valores conhecidos; qualquer outro valor recusa o pedido com a mensagem. */
+export function readQueryEnumList<T extends string>(value: unknown, allowed: readonly T[], message: string): T[] {
+  const items = readQueryList(value);
+  if (!items.every((item) => (allowed as readonly string[]).includes(item))) {
+    throw new RequestInputError(message);
+  }
+  return items as T[];
+}
+
+/** Lista de ids inteiros positivos; qualquer outro valor recusa o pedido com a mensagem. */
+export function readQueryIdList(value: unknown, message: string): number[] {
+  const ids = readQueryList(value).map(Number);
+  if (!ids.every((id) => Number.isInteger(id) && id > 0)) {
+    throw new RequestInputError(message);
+  }
+  return ids;
+}
+
 export function readRecord(value: unknown, message: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new RequestInputError(message);

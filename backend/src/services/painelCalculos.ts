@@ -56,6 +56,36 @@ const DIAS_PROXIMOS_VENCIMENTOS = 30;
 
 const FORMA_NAO_INFORMADA = 'nao_informada';
 
+/** Filtros de despesa do Painel (o botão de filtros); lista vazia não filtra. Receitas nunca são filtradas. */
+export interface FiltrosDespesaPainel {
+  categoryIds: number[];
+  cardIds: number[];
+  paymentMethods: string[];
+}
+
+export const SEM_FILTROS_DESPESA: FiltrosDespesaPainel = { categoryIds: [], cardIds: [], paymentMethods: [] };
+
+export function temFiltroDeDespesa(filtros: FiltrosDespesaPainel): boolean {
+  return filtros.categoryIds.length > 0 || filtros.cardIds.length > 0 || filtros.paymentMethods.length > 0;
+}
+
+/**
+ * Despesas dentro dos filtros, com a mesma regra dos Relatórios: categoria,
+ * cartão e forma de pagamento exatos. Despesa sem categoria, sem cartão ou sem
+ * forma informada fica fora do filtro correspondente.
+ */
+export function filtrarDespesasPainel<T extends Pick<DespesaPainel, 'categoriaId' | 'cartaoId' | 'formaPagamento'>>(
+  despesas: T[],
+  filtros: FiltrosDespesaPainel,
+): T[] {
+  if (!temFiltroDeDespesa(filtros)) return despesas;
+  return despesas.filter((despesa) => (
+    (filtros.categoryIds.length === 0 || (despesa.categoriaId !== null && filtros.categoryIds.includes(despesa.categoriaId)))
+    && (filtros.cardIds.length === 0 || (despesa.cartaoId !== null && filtros.cardIds.includes(despesa.cartaoId)))
+    && (filtros.paymentMethods.length === 0 || (despesa.formaPagamento !== null && filtros.paymentMethods.includes(despesa.formaPagamento)))
+  ));
+}
+
 // ---------------------------------------------------------------------------
 // Datas
 
