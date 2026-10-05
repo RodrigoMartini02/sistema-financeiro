@@ -1,16 +1,28 @@
 import { Router, Request, Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { cards } from '../db/schema';
+import { cards, expenses } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { getCardLimits } from '../services/cardLimitService';
+import { moveDueDateToDay, parseEffectiveMonth } from '../services/cardDueDate';
+import { ACTIVE_STATUS } from '../services/entryQueries';
+import type { PaymentMethod } from '../services/expenseInput';
 
 const router = Router();
 const VALIDADE_REGEX = /^\d{2}\/\d{2}$/;
 const TIPOS_VALIDOS = ['credito', 'debito', 'ambos'];
+const COR_REGEX = /^#[0-9a-fA-F]{6}$/;
+const INVALID_COLOR = 'Cor inválida';
+const INVALID_EFFECTIVE_MONTH = 'Mês de vigência inválido';
+// Só o crédito tem fatura: o débito de um cartão "ambos" vence na data da compra.
+const CREDIT_PAYMENT_METHOD: PaymentMethod = 'credito';
+
+function isInvalidColor(cor: unknown): boolean {
+  return cor !== undefined && cor !== null && !COR_REGEX.test(String(cor));
+}
 
 // GET /api/cards
 router.get('/', authenticate, async (req: Request, res: Response): Promise<void> => {
@@ -121,6 +133,10 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: 'Tipo must be one of: credito, debito, ambos' });
       return;
     }
+    if (isInvalidColor(cor)) {
+      res.status(400).json({ success: false, message: INVALID_COLOR });
+      return;
+    }
 
     const accountId = conta_id ? parseInt(String(conta_id)) : null;
     if (!(await canWriteToAccount(accountId, req.user!.id))) {
@@ -171,7 +187,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const cardId = parseInt(req.params['id']!);
-    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo } =
+    const { nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo, vigente_desde } =
       req.body as Record<string, string | number | boolean | undefined>;
 
     if (isNaN(cardId)) {
@@ -194,12 +210,23 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, message: 'Tipo must be one of: credito, debito, ambos' });
       return;
     }
+    if (isInvalidColor(cor)) {
+      res.status(400).json({ success: false, message: INVALID_COLOR });
+      return;
+    }
+    // Vigência (AAAA-MM): de qual fatura em diante o novo dia de vencimento vale
+    // para as despesas já lançadas. Sem ela, só o cartão muda.
+    const effectiveFrom = vigente_desde === undefined || vigente_desde === null ? null : parseEffectiveMonth(vigente_desde);
+    if (vigente_desde !== undefined && vigente_desde !== null && !effectiveFrom) {
+      res.status(400).json({ success: false, message: INVALID_EFFECTIVE_MONTH });
+      return;
+    }
     if (!(await canWriteToAccount(conta_id ? parseInt(String(conta_id)) : null, req.user!.id))) {
       res.status(400).json({ success: false, message: ACCOUNT_ACCESS_DENIED });
       return;
     }
 
-    const [existing] = await db.select({ id: cards.id, name: cards.name, userId: cards.userId }).from(cards)
+    const [existing] = await db.select({ id: cards.id, name: cards.name, userId: cards.userId, dueDay: cards.dueDay }).from(cards)
       .where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id))).limit(1);
 
     if (!existing) {
@@ -216,16 +243,61 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const result = await pool.query(
-      `UPDATE cartoes
-       SET nome = $1, limite = $2, dia_fechamento = $3, dia_vencimento = $4, cor = $5,
-           ativo = $6, validade = $7, conta_id = $8, tipo = $9, data_atualizacao = CURRENT_TIMESTAMP
-       WHERE id = $10 AND usuario_id = $11
-       RETURNING id, nome, limite, dia_fechamento, dia_vencimento, cor, ativo, validade, conta_id, tipo, data_criacao, data_atualizacao`,
-      [String(nome).trim(), parseFloat(String(limite)), parseInt(String(dia_fechamento)) || 1, parseInt(String(dia_vencimento)) || 1, cor ?? '#3498db', ativo !== undefined ? ativo : true, validade ?? null, conta_id ? parseInt(String(conta_id)) : null, tipo ?? null, cardId, req.user!.id],
-    );
+    const newDueDay = parseInt(String(dia_vencimento)) || 1;
+    // Cartão e despesas mudam juntos (ou nada muda).
+    const { card, updatedExpenses } = await db.transaction(async (transaction) => {
+      const [updatedCard] = await transaction.update(cards)
+        .set({
+          name: String(nome).trim(),
+          limit: String(parseFloat(String(limite))),
+          closingDay: parseInt(String(dia_fechamento)) || 1,
+          dueDay: newDueDay,
+          color: cor === undefined || cor === null ? '#3498db' : String(cor),
+          active: ativo === undefined ? true : ativo === true || ativo === 'true',
+          expiration: validade ? String(validade) : null,
+          accountId: conta_id ? parseInt(String(conta_id)) : null,
+          type: tipo ? String(tipo) : null,
+          updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id)))
+        .returning({
+          id: cards.id, nome: cards.name, limite: cards.limit, dia_fechamento: cards.closingDay, dia_vencimento: cards.dueDay,
+          cor: cards.color, ativo: cards.active, validade: cards.expiration, conta_id: cards.accountId, tipo: cards.type,
+          data_criacao: cards.createdAt, data_atualizacao: cards.updatedAt,
+        });
 
-    res.json({ success: true, message: 'Card updated', data: result.rows[0] });
+      if (!effectiveFrom || existing.dueDay === newDueDay) {
+        return { card: updatedCard, updatedExpenses: 0 };
+      }
+
+      // Despesas no crédito deste cartão (de quem quer que tenha lançado: a fatura
+      // é do dono), ativas e não pagas, da fatura do mês de vigência em diante.
+      // Cada uma fica na mesma fatura: só o dia de vencimento muda.
+      const affected = await transaction.select({ id: expenses.id, dueDate: expenses.dueDate }).from(expenses)
+        .where(and(
+          eq(expenses.cardId, cardId),
+          eq(expenses.paymentMethod, CREDIT_PAYMENT_METHOD),
+          eq(expenses.status, ACTIVE_STATUS),
+          or(eq(expenses.paid, false), isNull(expenses.paid)),
+          gte(expenses.dueDate, effectiveFrom),
+        ));
+      const idsByDueDate = new Map<string, number[]>();
+      for (const expense of affected) {
+        const dueDate = moveDueDateToDay(String(expense.dueDate), newDueDay);
+        if (dueDate !== String(expense.dueDate)) {
+          idsByDueDate.set(dueDate, [...(idsByDueDate.get(dueDate) ?? []), expense.id]);
+        }
+      }
+      // Uma atualização por data nova (no máximo uma por mês), não uma por despesa.
+      let updatedCount = 0;
+      for (const [dueDate, ids] of idsByDueDate) {
+        await transaction.update(expenses).set({ dueDate }).where(inArray(expenses.id, ids));
+        updatedCount += ids.length;
+      }
+      return { card: updatedCard, updatedExpenses: updatedCount };
+    });
+
+    res.json({ success: true, message: 'Card updated', data: { ...card, despesas_atualizadas: updatedExpenses } });
   } catch (error) {
     console.error('Update card error:', error);
     res.status(500).json({ success: false, message: 'Failed to update card' });
