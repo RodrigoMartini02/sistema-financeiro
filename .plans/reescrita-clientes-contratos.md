@@ -1022,11 +1022,16 @@ A implementação estará pronta quando:
 - **Limpeza:** saiu `clientesService.ts`, as chaves `clientes`, `contratosAtivos` e `contratosStatusFaturamento` e `getContratosFaturamento`.
 - Testes do front: 121/121; `tsc` e build sem erros.
 
-### Etapa 9 — validação (em andamento)
+### Etapa 9 — validação
 
 - **Teste de tela no jsdom** (rede simulada, arquivos `tmpclaude-*`): 15/15.
   - Cobre: lista, busca e filtro por tipo; cadastro por tipo, com erros no campo, documento repetido e envio só com dígitos; contrato em etapas com a prévia do servidor e a gravação; ficha com retenções, empenho e banco de horas; "Faturar" com o aviso do empenho; reajuste com a prévia (R$ 4.500,00 → R$ 4.707,90); anexo HTML recusado e PDF enviado; horas de contrato público no lançamento de receita (líquido, cliente do contrato, bloqueio acima do saldo e o corpo gravado).
   - **Defeitos achados e corrigidos:**
     1. enquanto as permissões carregavam, a seção começava na aba do catálogo e ficava presa nela. Agora começa em "Clientes" e só aparece com as permissões carregadas;
     2. os campos com erro trocavam só a cor da borda, e o React avisava ao limpar o erro. Agora trocam a borda inteira (`inputStyle` em `clientStyles.ts`).
-- Banco local, só lendo: 0070 e 0071 pendentes. **A aplicar com confirmação:** a 0070, para o roteiro.
+- **Banco local** (com a confirmação do usuário em 2026-10-05):
+  - 0070 aplicada. Cópia conferida: o cliente antigo (conta pessoal 17) foi para a PJ 18 do dono; os 3 serviços também; "Projeto" entrou sob "Contratos"; `receitas.contrato_id` aponta para `comercial.contratos`;
+  - depois do roteiro, 0071 aplicada: saíram as tabelas antigas e `receitas.cliente`. Nenhuma migration pendente no local.
+- **Roteiro de ponta a ponta** (backend na porta 3016 com o banco local; usuários `*@roteiro-clientes.test` apagados no fim): **39/39**, antes e depois da 0071, sem erro no log do servidor.
+  - Cobre todos os critérios de aceite: isolamento entre PJs (também pelo id), conta pessoal, só "Serviços", sem "Contratos"; documento inválido, repetido e órgão público sem esfera; 12 previstas no dia 10; salvar de novo sem duplicar; alterar preservando faturada e recebida; "sem prazo" com 12 à frente e o complemento ao abrir o sistema; encerrar; excluir com e sem faturada; implantação 333,33/333,33/333,34; projeto em "Contratos › Projeto"; horas 40 → 35 → 40 e o bloqueio; retenções (bruto 4.500,00, retenções 441,00, líquido 4.059,00, recebido 4.059,00); aviso do empenho; comissão só no recebimento e a manual no lançamento; reajuste 4,62% (4.707,90) e 0,00%; aditivo a partir de março; renomear refletindo nas receitas e no relatório; desativar e excluir; anexos (PDF aceito e devolvido como PDF, HTML disfarçado e 25 MB recusados, arquivo apagado ao remover); carteira do painel; resumo do topo; "em contrato ativo"; falha ao salvar sem gravar nada; receita sem cliente.
+- **Verificações finais:** back `tsc` e 333/333; front `tsc`, 121/121 e build.
