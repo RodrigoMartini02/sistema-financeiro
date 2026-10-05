@@ -3,7 +3,7 @@ import { C, formatMoney } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { isoToBrDate } from '../../../utils/date';
 import { formatCurrency } from '../formatters';
-import { DateCell } from '../entry-dialog/DateCell';
+import { DateField } from '../../../ui/DateField';
 import {
   defaultInstallmentAmount, installmentGrid, installmentMismatch, isCreditWithCard, markOverdueAsPaid,
   overdueOpenCount, paidInstallmentCount, selectedCard, type RuleContext,
@@ -185,7 +185,7 @@ export function InstallmentsPopover({ draft, context, onUpdate }: InstallmentsPo
                       </div>
                       {!credit && (
                         <>
-                          <DateCell
+                          <DateField
                             label={`Data do pagamento da parcela ${row.index + 1}`}
                             value={payment?.paymentDate ?? ''}
                             onChange={(text) => updatePayment(row.index, { paymentDate: text })}

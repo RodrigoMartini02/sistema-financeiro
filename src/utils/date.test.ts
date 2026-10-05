@@ -1,15 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { brDateToIso, completeBrDate, isoToBrDate, isoToShortBrDate, maskBrDate } from './date';
-
-test('máscara põe as barras enquanto digita e ignora o que não é dígito', () => {
-  assert.equal(maskBrDate('0'), '0');
-  assert.equal(maskBrDate('051'), '05/1');
-  assert.equal(maskBrDate('0510'), '05/10');
-  assert.equal(maskBrDate('05102026'), '05/10/2026');
-  assert.equal(maskBrDate('05/10/2026999'), '05/10/2026');
-  assert.equal(maskBrDate('ab05c'), '05');
-});
+import { brDateToIso, completeBrDate, isoToBrDate, isoToShortBrDate } from './date';
 
 test('complemento usa o mês e o ano de hoje no que faltar', () => {
   assert.equal(completeBrDate('5', '2026-09-29'), '05/09/2026');

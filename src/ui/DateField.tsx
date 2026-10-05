@@ -11,9 +11,9 @@ import { FloatingPanel } from './FloatingPanel';
 /** Borda da data inválida e fundo do campo desabilitado, os mesmos dos modais de lançamento. */
 const INVALID_BORDER = '#fca5a5';
 const DISABLED_BACKGROUND = '#f1f5f9';
-/** Espaço do ícone do calendário dentro da caixa. */
-const CALENDAR_BUTTON_SPACE = 24;
 const CALENDAR_WIDTH = 276;
+/** Caixas a partir desta altura (formulários) usam o ícone maior. */
+const TALL_FIELD_HEIGHT = 32;
 
 /** Caixa padrão: a da grade dos modais de lançamento (28px, cantos de 8px, 12px). */
 function defaultBoxStyle(height: number): CSSProperties {
@@ -24,11 +24,18 @@ function defaultBoxStyle(height: number): CSSProperties {
   };
 }
 
-const calendarButtonStyle: CSSProperties = {
-  position: 'absolute', top: '50%', right: 3, transform: 'translateY(-50%)',
-  display: 'grid', placeItems: 'center', width: 20, height: 20, padding: 0,
-  border: 'none', borderRadius: 6, background: 'transparent',
-};
+/** Ícone do calendário dentro da caixa, à direita; compacto nas grades dos modais de lançamento. */
+function calendarButtonSize(boxHeight: number): { icon: number; button: number } {
+  return boxHeight >= TALL_FIELD_HEIGHT ? { icon: 14, button: 22 } : { icon: 12, button: 18 };
+}
+
+function calendarButtonStyle(size: number): CSSProperties {
+  return {
+    position: 'absolute', top: '50%', right: 2, transform: 'translateY(-50%)',
+    display: 'grid', placeItems: 'center', width: size, height: size, padding: 0,
+    border: 'none', borderRadius: 6, background: 'transparent',
+  };
+}
 
 export interface DateFieldProps {
   /** dd/mm/aaaa; incompleta enquanto se digita. */
@@ -141,6 +148,8 @@ export function DateField({
         ...(disabled ? { background: DISABLED_BACKGROUND, cursor: 'not-allowed' } : {}),
       };
 
+  const iconSize = calendarButtonSize(typeof boxStyle.height === 'number' ? boxStyle.height : height);
+
   return (
     <div style={{ position: 'relative', minWidth: 0, width: boxStyle.width ?? '100%' }}>
       <input
@@ -159,7 +168,7 @@ export function DateField({
         aria-label={label}
         aria-invalid={invalid || undefined}
         className={inputClassName}
-        style={{ ...boxStyle, width: '100%', ...(hideCalendarButton ? {} : { paddingRight: CALENDAR_BUTTON_SPACE }) }}
+        style={{ ...boxStyle, width: '100%', ...(hideCalendarButton ? {} : { paddingRight: iconSize.button + 3 }) }}
       />
       {!hideCalendarButton && (
         <button
@@ -170,9 +179,9 @@ export function DateField({
           aria-label={`Abrir o calendário: ${label}`}
           aria-haspopup="dialog"
           aria-expanded={calendarOpen}
-          style={{ ...calendarButtonStyle, color: disabled ? C.placeholder : C.textFaint, cursor: disabled ? 'not-allowed' : 'pointer' }}
+          style={{ ...calendarButtonStyle(iconSize.button), color: disabled ? C.placeholder : C.textFaint, cursor: disabled ? 'not-allowed' : 'pointer' }}
         >
-          <CalendarDays size={13} />
+          <CalendarDays size={iconSize.icon} />
         </button>
       )}
       <FloatingPanel

@@ -58,14 +58,6 @@ export function brDateInputToIso(text: string, todayIso: string): string {
   return brDateToIso(completeBrDate(text, todayIso));
 }
 
-/** Máscara durante a digitação: só dígitos, no formato dd/mm/aaaa. */
-export function maskBrDate(text: string): string {
-  const digits = text.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
 /**
  * Complemento ao sair do campo: "5" vira dia 05 do mês e do ano de hoje, "0510"
  * vira 05/10 do ano de hoje e "051026" vira 05/10/2026. Outros tamanhos ficam
