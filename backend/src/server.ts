@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import path from 'path';
-import { testConnection } from './db/client';
+import { pool, testConnection } from './db/client';
 
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../.env') });
 
@@ -92,7 +92,8 @@ import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
 import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
-import { authenticate, requireActivePlan, requireTitular } from './middleware/auth';
+import { createTendersRoutes, tendersApiDepsFromPool } from './modules/tenders/routes';
+import { authenticate, requireActivePlan, requireAdmin, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
@@ -148,6 +149,10 @@ app.use('/api/catalogo', catalogoRoutes);
 app.use('/api/clients', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
 app.use('/api/contracts', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
 app.use('/api/service-catalog', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceCatalogRoutes);
+// Licitações: trava própria (conta habilitada + acesso por pessoa, dentro do roteador), sem requireActivePlan.
+const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool));
+app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);
+app.use('/api/tenders', authenticate, tendersApi.routes);
 
 // ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires
