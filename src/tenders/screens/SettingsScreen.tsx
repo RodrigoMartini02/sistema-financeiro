@@ -28,7 +28,7 @@ export function SettingsScreen() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl">
+    <section>
       <Tabs tabs={tabs} active={active} onChange={setChosen} label="Configurações do módulo" idPrefix={idPrefix} />
       <TabPanel idPrefix={idPrefix} tabId={active}>
         {active === 'equipe' ? <TeamList /> : <CollectionPanel />}

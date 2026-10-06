@@ -86,7 +86,7 @@ export function TrackingScreen() {
   }
 
   return (
-    <section className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4">
+    <section className="grid grid-cols-1 gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Editais acompanhados pela conta. {isDesktop && !showTable ? 'Arraste um card para mudar o status, ou use “Mover para…”.' : 'Use “Mover para…” para mudar o status.'}

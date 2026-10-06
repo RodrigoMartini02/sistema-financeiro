@@ -78,7 +78,7 @@ export function AdminAccountsScreen() {
     content = <EmptyState icon={Search} title="Nenhuma conta encontrada para essa busca." />;
   } else {
     content = (
-      <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
         {visible.map((account) => (
           <li key={account.accountId}>
             <ToggleRow
@@ -95,7 +95,7 @@ export function AdminAccountsScreen() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl">
+    <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           {accounts.data
