@@ -1,32 +1,39 @@
-# Módulo de Licitações — coletor
+# Módulo de Licitações — coletor e API
 
 O coletor traz do **PNCP** (Portal Nacional de Contratações Públicas) as licitações com recebimento de propostas em aberto e grava tudo no schema `licitacoes` do banco do FINGERENCE. Ele também gera as notificações do módulo (novo edital, edital alterado e prazos).
 
 Ele roda fora do serviço web, como CLI agendado (Render Cron Job). Se ele falhar ou o PNCP ficar fora do ar, o FINGERENCE continua funcionando.
 
+A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e serve o app do módulo.
+
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- plano: `.plans/licitacoes-plano.md`;
-- migrations `backend/drizzle/0072` a `0074`.
+- planos: `.plans/licitacoes-plano.md` (geral) e `.plans/licitacoes-fase2-plano.md` (API);
+- migrations `backend/drizzle/0072` a `0077`.
 
 ## Estrutura
 
 ```
 backend/src/modules/tenders/
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
-├── db/matcher.db.test.ts   testes da função de busca (banco local)
+├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
-└── collector/
-    ├── docs/pncp-openapi.json   OpenAPI do PNCP (baixado em 05/10/2026)
-    ├── fixtures/                respostas reais do PNCP
-    ├── config.ts                variáveis de ambiente (zod)
-    ├── database.ts              conexão própria (pool de 3, fuso de Brasília)
-    ├── pncpClient.ts            fetch, retry com backoff, paginação
-    ├── mapping.ts               registro do PNCP → linha de licitacoes.edital
-    ├── repository.ts            upsert por página, lock, execuções, limpeza
-    ├── notifications.ts         NOVO_EDITAL, EDITAL_ALTERADO, PRAZO_3D, PRAZO_1D
-    ├── runs.ts                  varredura, incremental, lembretes, limpeza
-    └── cli.ts                   comandos
+├── tenders.http            coleção de requisições da API (REST Client)
+├── collector/
+│   ├── docs/pncp-openapi.json       OpenAPI da API de Consultas do PNCP (05/10/2026)
+│   ├── docs/pncp-api-openapi.json   OpenAPI da API principal do PNCP (itens e arquivos, 05/10/2026)
+│   ├── fixtures/                    respostas reais do PNCP
+│   ├── config.ts                    variáveis de ambiente (zod)
+│   ├── database.ts                  conexão própria (pool de 3, fuso de Brasília)
+│   ├── pncpClient.ts                fetch, retry com backoff, paginação, itens e arquivos
+│   ├── mapping.ts                   registro do PNCP → linha de licitacoes.edital
+│   ├── repository.ts                upsert por página, lock, execuções, limpeza
+│   ├── notifications.ts             NOVO_EDITAL, EDITAL_ALTERADO, PRAZO_3D, PRAZO_1D
+│   ├── runs.ts                      varredura, incremental, lembretes, limpeza
+│   └── cli.ts                       comandos
+├── middleware/             trava do módulo (conta e acesso) e limite por usuário
+├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...)
+└── routes/                 rotas Express e validações (express-validator)
 ```
 
 ## Variáveis de ambiente
@@ -39,12 +46,17 @@ backend/src/modules/tenders/
 | `PNCP_STATES` | vazio (todas) | Restringe as UFs (ex.: `MA,PI`), se o volume for alto. |
 | `PNCP_HORIZON_DAYS` | `60` | Varredura: `dataFinal` = hoje (Brasília) + N dias. |
 | `PNCP_PAGE_SIZE` | `50` | 10 a 50 (limites da API). |
-| `PNCP_REQUEST_INTERVAL_MS` | `400` | Pausa entre requisições. |
+| `PNCP_REQUEST_INTERVAL_MS` | `4000` | Pausa entre requisições. Medido na Fase 1: a 400 ms e a 1 s o PNCP responde 429 depois de poucas páginas; a 4 s, nenhum 429 numa varredura inteira. |
 | `PNCP_TIMEOUT_S` | `30` | Tempo máximo de cada requisição. |
 | `PNCP_MAX_ATTEMPTS` | `5` | Tentativas em timeout, erro de rede, 429 e 5xx. |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
+
+**Esperas entre tentativas:**
+- 429 sem `Retry-After`: 30 s, 60 s e depois 2 min (o PNCP não informa o limite e continua recusando por mais de 18 s);
+- 5xx, tempo esgotado e erro de rede: 1, 2, 4 e 8 s, com até 25% de variação;
+- `Retry-After` informado: o valor dele, até 2 min.
 
 ## Comandos
 
@@ -52,7 +64,7 @@ O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido
 npm --prefix backend run tenders -- sweep                     # varredura completa (endpoint proposta)
 npm --prefix backend run tenders -- incremental               # publicadas e atualizadas de ontem a hoje
 npm --prefix backend run tenders -- deadline-reminders        # lembretes de prazo (PRAZO_3D e PRAZO_1D)
-npm --prefix backend run tenders -- cleanup                   # retenção de 12 meses
+npm --prefix backend run tenders -- cleanup                   # encerrados há 12 meses e editais sem prazo
 npm --prefix backend run tenders -- status                    # última execução de cada tipo e totais
 npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2   # depuração
@@ -94,7 +106,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA licitacoes TO licitacoes_coletor;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA licitacoes TO licitacoes_coletor;
 ```
 
-- Rodar depois das migrations 0072 a 0074. Os `GRANT ... ON ALL` valem para o que já existe; tabelas criadas depois exigem novo `GRANT`.
+- Rodar depois das migrations 0072 a 0077. Os `GRANT ... ON ALL` valem para o que já existe; tabelas criadas depois exigem novo `GRANT`.
 - O usuário do backend é o dono das tabelas e já tem todas as permissões.
 - No banco local, o coletor pode usar o mesmo usuário do `.env.dev`.
 
@@ -109,9 +121,17 @@ npm --prefix backend run test:tenders-db
 - **Onde:** só no banco local, e se recusa a rodar se a URL não for `localhost:5433/sistema_financas_dev`.
 - **Isolamento:** cada teste roda numa transação desfeita no fim, então nada fica gravado.
 - **O que cobre:**
-  - upsert e trava;
-  - `fn_edital_bate`: acento, plural, E/OU, exclusão, valores, edital sem valor, encerrado, situação, UF, modalidade, órgão, município e SRP;
-  - notificações: sem duplicidade, sem retroativa, só conta habilitada, destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas.
+  - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo);
+  - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
+  - notificações: sem duplicidade, sem retroativa, só conta habilitada, destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
+  - API:
+    - travas: conta não habilitada, inativa ou alheia dá 404, e colaborador sem acesso dá 403;
+    - isolamento entre contas e entre pessoas da mesma conta;
+    - busca: filtros, ordenações, paginação e paridade com a busca salva;
+    - buscas salvas: validações, limite de 50 e prévia;
+    - acompanhamento e histórico, notificações, painel e equipe;
+    - itens e arquivos do PNCP com cache;
+    - rotas por HTTP (`routes/routes.db.test.ts`).
 
 ## Como medir o volume
 
@@ -140,22 +160,79 @@ SELECT count(*) AS editais,
 - **Valor estimado:** `0` vira nulo, porque é orçamento sigiloso ou não informado. Valor negativo também vira nulo: é erro de cadastro na origem, e o PNCP já mandou um caso real. Assim o edital não se perde. Com filtro de valor, esses editais ficam de fora da busca.
 - **Textos:** os vazios (`""`) viram nulos e são aparados. Códigos vêm como número ou texto e são aceitos dos dois jeitos.
 - **Registro inválido:** CNPJ sem 14 dígitos, UF fora do padrão, data fora do formato etc. conta como erro na execução, com o número de controle, e não derruba a página.
+- **Edital sem prazo de proposta** (sem `dataEncerramentoProposta`, como a dispensa sem disputa): não recebe proposta e fica fora da coleta, na varredura e na incremental. A execução conta os ignorados em `detalhes.skippedWithoutDeadline`. A limpeza apaga os que já estavam gravados, salvo os acompanhados ou com notificação não lida. Por isso, modalidades sem prazo (ex.: credenciamento) não entram no módulo.
 - **`hash_payload`:** SHA-256 do JSON com as chaves ordenadas. A mesma resposta em outra ordem dá o mesmo hash.
 - **`link_pncp`:** `https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}`.
 - **`link` das notificações:** `/editais/<id>`, a partir do início do app do módulo. A tela completa com `/licitacoes/app` (decisão 24).
 
-## Limitação conhecida da busca: singular × plural
+## Singular e plural na busca (migrations 0075 e 0077)
 
-A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes** de reduzir a palavra ao radical, e o radical do português depende do acento em alguns sufixos. Medido no banco local em 05/10/2026:
+A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes** de reduzir a palavra ao radical, e o radical do português depende do acento em alguns sufixos. Medido no banco local em 05/10/2026, sem ajuste:
 
-- **Batem (plural regular):** licença × licenças, sistema × sistemas, serviço × serviços, equipamento × equipamentos.
-- **Não batem:**
-  - -ção × -ções: licitação (`licitaca`) × licitações (`licitaco`), contratação, aquisição, locação, prestação, informação;
-  - -ão × -ões: gestão × gestões;
-  - -al × -ais: material × materiais;
+- **Batiam (plural regular):** licença × licenças, sistema × sistemas, serviço × serviços, computador × computadores.
+- **Não batiam:**
+  - -ção × -ções: licitação (`licitaca`) × licitações (`licitaco`);
+  - -ão × -ões/-ães: gestão × gestões, pão × pães;
+  - -al × -ais, -el × -éis, -ol × -óis, -il × -is: material × materiais, papel × papéis, farol × faróis, barril × barris;
+  - -m × -ns: item × itens, bem × bens;
   - palavra estrangeira: software × softwares.
 
-Até haver decisão em contrário, inclua nas buscas salvas as duas formas quando fizer diferença (ex.: "licitação" e "licitações").
+**Como funciona:**
+- `licitacoes.fn_tsquery_termos` monta cada termo também com a outra forma de cada palavra (`licitacoes.fn_variantes_palavra`). As frases alternativas entram com OU, cada uma pelo `phraseto_tsquery`, que mantém a ordem e as palavras de ligação.
+- Só vira alternativa a forma de radical diferente do original. No máximo 16 frases por termo.
+- Vale para termos e exclusões, na busca da tela, nas buscas salvas e nas notificações.
+- Só a consulta muda: a coluna `busca_tsv` e o índice continuam iguais.
+- Conferido com 49 pares de singular e plural de licitação.
+- **Efeito colateral raro:** uma forma gerada pode coincidir com outra palavra e trazer um resultado a mais.
+
+## API (`/api/tenders`)
+
+Coleção completa em `tenders.http`. Montagem no `server.ts`:
+
+- `/api/tenders/admin`, com `authenticate` + `requireAdmin`. Hoje só `PUT /accounts/:accountId { active }`.
+- `/api/tenders`, com `authenticate` e a trava do módulo dentro do roteador (`middleware/tenderAccess.ts`).
+- Nenhuma das duas usa `requireActivePlan`: o módulo não depende do plano do app de finanças.
+
+**Conta da requisição:**
+- `accountId` na query string, opcional.
+- **Colaborador** (membro ativo de uma conta): sempre a conta do vínculo; outro `accountId` dá 404.
+- **Titular:** a conta pedida, se for dele. Sem `accountId`, vale a habilitada marcada como padrão (`eh_padrao`); se nenhuma for padrão, a de menor id.
+- **Recusas:**
+  - conta não habilitada, desabilitada, inativa ou de outra pessoa: 404, igual à rota inexistente;
+  - colaborador sem linha em `acesso_membro`: 403.
+
+**Convenções:**
+- Envelope `{ success, data }`. Listas paginadas: `{ items, page, perPage, total, totalPages }`, com 20 por página e no máximo 100.
+- Validação: 400 `{ success: false, message: 'Validation error', errors: [{ field, message }] }`.
+- Datas em ISO 8601 com o fuso de Brasília (`2026-10-20T09:30:00-03:00`).
+
+**Regras que completam o escopo:**
+- **Busca da tela:**
+  - `q` aceita até 500 caracteres: aspas = frase e `-palavra` = exclusão; o modo padrão é E. Termos com menos de 2 caracteres são ignorados.
+  - Os critérios em comum com a busca salva passam pela mesma função do banco (`fn_edital_atende_criterios`), e "só abertos" usa `fn_edital_aberto`.
+  - A resposta traz `parsedQuery`, para "Salvar esta busca".
+- **Busca salva:** tem `includeWithoutValue`. Com faixa de valor, o edital sem valor só entra com a opção ligada.
+- **Acompanhamento:**
+  - o histórico é gravado na mesma transação, só quando o status ou a observação mudam;
+  - a remoção fica no histórico como `REMOVIDO`.
+- **Painel:**
+  - "Novos hoje": coletados hoje que batem com alguma busca salva ativa do usuário;
+  - "Encerrando em 7 dias": acompanhados da conta como ANALISAR ou PARTICIPAR.
+- **Itens e arquivos:**
+  - vêm da API principal do PNCP, com cache de 24 h em `cache_detalhe`;
+  - na hora do pedido da tela: 10 s por tentativa, uma repetição curta e sem espera longa;
+  - se o PNCP falhar, volta a cópia guardada com `stale: true`; sem cópia, 503;
+  - compra que o PNCP ainda não tem (HTTP 404, ex.: publicada há minutos) volta vazia com `foundOnPncp: false` e não vai para o cache;
+  - até 2 páginas de 500 itens; acima disso, `hasMore`.
+- **Limite de taxa:**
+  - prévia da busca salva: 60 por minuto por usuário, em memória;
+  - é por usuário porque o servidor não configura `trust proxy`.
+- **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
+
+**Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):
+- busca: 4 a 17 ms, com o índice GIN;
+- 50 buscas salvas com `openCount`: 271 ms;
+- painel completo: 547 ms.
 
 ## OpenAPI do PNCP × escopo
 

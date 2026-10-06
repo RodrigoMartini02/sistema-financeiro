@@ -256,7 +256,9 @@ O módulo é novo e não substitui nada no FINGERENCE. O Disparo de Notificaçõ
 4. Projeção de 12 meses (decisão 21 do escopo): para cada modalidade, uma requisição à consulta `publicacao` dos últimos 30 dias, lendo `totalRegistros`. Somar, multiplicar por 12 e pelo tamanho médio de cada edital (tabela e índices ÷ registros). Comparar com o espaço livre do Postgres no Render, quando informado (pergunta 6).
 5. Relatar os números e a projeção, parar para o aceite da Fase 1 e depois rodar `/finalizar`. O commit e o push vão para `feat/R/licitacoes`, e a skill pergunta sobre o merge.
 
-### Fase 2 — API (tarefas; plano detalhado antes de implementar)
+### Fase 2 — API (plano detalhado: `.plans/licitacoes-fase2-plano.md`, aprovado em 05/10/2026)
+
+O plano detalhado começa pelos ajustes da Fase 1 (ritmo do PNCP, singular e plural, edital sem prazo) e tirou a exportação do módulo (tarefa 10 abaixo).
 
 1. `requireTenderAccess` e resolução da conta: colaborador ativo usa a conta do vínculo; titular usa a conta informada, validada como dele e habilitada. Conta não habilitada responde 404; colaborador sem acesso, 403.
 2. Montar `/api/tenders` em `server.ts` com `authenticate` + `requireTenderAccess`, sem `requireActivePlan`.
@@ -270,7 +272,7 @@ O módulo é novo e não substitui nada no FINGERENCE. O Disparo de Notificaçõ
 7. Notificações: lista, contagem, marcar como lida e marcar todas. O `link` volta como está gravado (`/editais/<id>`).
 8. Painel, domínios, status e histórico da coleta.
 9. `GET /access`, equipe (`GET` e `PUT /team/:userId`) e habilitação de conta (`requireAdmin`).
-10. Exportação CSV/XLSX, com limite de 5.000 linhas e biblioteca XLSX compatível com Node 22.17. Limite de taxa na exportação e na prévia, no padrão de `middleware/validation.ts`.
+10. ~~Exportação CSV/XLSX~~: saiu do módulo (decisão do plano da Fase 2). Fica o limite de taxa na prévia, no padrão de `middleware/validation.ts`.
 11. Testes: serviços, banco local, travas, isolamento entre contas e usuários e paridade busca avulsa × salva. Coleção `.http` com todas as rotas.
 
 ### Fase 3 — App do módulo (tarefas; plano detalhado antes de implementar)
@@ -507,3 +509,47 @@ Com a aprovação do plano (04/10/2026), valem os padrões das perguntas 1, 2 e 
      - elas são grande parte do volume projetado.
      Proposta: a incremental ignora registros sem `dataEncerramentoProposta`, como a varredura, e a limpeza remove os antigos sem prazo pela data de publicação.
 - **Encerramento:** o `/finalizar` da Fase 1 envia a branch sem merge em `main` (decisão do usuário). O merge fica para quando o módulo for para produção.
+
+### Fase 2 — 05/10/2026
+
+Plano: `.plans/licitacoes-fase2-plano.md`. Decisões:
+- 1: edital sem prazo fora da coleta;
+- 2: `accountId` na URL;
+- 3: exportação retirada;
+- 4: "incluir sem valor" na busca salva;
+- 5: base dos cards do Início.
+
+- **Ajustes da Fase 1:**
+  - Ritmo do PNCP: padrão de 4000 ms. No 429 sem `Retry-After`, esperas de 30 s, 60 s e até 2 min.
+  - Edital sem prazo: fora da varredura e da incremental. A limpeza apaga os já gravados; no banco local saíram 2.313, e ficaram 24.867 editais, 24.755 abertos.
+  - Singular e plural: migrations 0075 (variantes em `fn_tsquery_termos`) e 0077 (ajuste para palavra estrangeira com -s, como softwares/software). Conferido com 49 pares no banco local.
+- **Regra única (0076):** `fn_edital_atende_criterios` + `fn_edital_aberto`, com `fn_edital_bate` juntando as duas. A busca salva ganhou `incluir_sem_valor`.
+- **Migrations:** 0075, 0076 e 0077 aplicadas só no banco **local** (confirmado). `migrations:status` local: 71 de 71, nenhuma pendente.
+- **API:** `/api/tenders` montada no `server.ts`.
+  - O roteador aplica a trava do módulo.
+  - O admin usa `/api/tenders/admin`.
+  - Nenhuma das duas usa `requireActivePlan`.
+  - Coleção em `backend/src/modules/tenders/tenders.http`.
+- **Achado:** o PNCP responde 404 ("Contratação não cadastrada") para compra publicada há minutos. A API devolve lista vazia com `foundOnPncp: false`, sem guardar no cache.
+- **Testes:**
+  - backend: 403 de 403, com `DOTENV_CONFIG_PATH=../.env.dev`;
+  - `test:tenders-db`: 67 de 67, depois da 0077 (antes dela, o par softwares → software falhava).
+  - Cobertura:
+    - travas e isolamento;
+    - paridade busca da tela × busca salva;
+    - buscas salvas, acompanhamento e histórico;
+    - notificações, painel e equipe;
+    - itens e arquivos com cache;
+    - rotas por HTTP.
+- **Desempenho no banco local** (com cerca de 25 mil editais abertos):
+  - busca: 4 a 17 ms, com índice GIN (conferido com `EXPLAIN ANALYZE`);
+  - 50 buscas salvas com `openCount`: 271 ms;
+  - painel: 547 ms.
+- **Coleção rodada contra o backend local:**
+  - todas as rotas responderam;
+  - itens e arquivos vieram do PNCP de verdade;
+  - os 404 esperados apareceram (notificação e colaborador inexistentes).
+- **Dados de teste no banco local:**
+  - conta 18 (`adc`, do usuário 1) habilitada no módulo;
+  - as buscas salvas criadas pela coleção foram apagadas;
+  - ficaram 2 linhas de histórico do edital 19581 e o cache de itens e arquivos dele.

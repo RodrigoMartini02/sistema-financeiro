@@ -1,6 +1,18 @@
 # ESCOPO TÉCNICO — Módulo de Licitações no FINGERENCE
 
 > Documento de referência para execução no Claude Code.
+> Versão 1.3 — 05/10/2026. Decisões do plano da Fase 2 (`.plans/licitacoes-fase2-plano.md`):
+>
+> - **Ajustes da Fase 1:**
+>   - consultas ao PNCP a cada 4 s;
+>   - singular e plural na busca;
+>   - edital sem prazo de proposta fora da coleta.
+> - **Conta do titular:** informada por `accountId`.
+> - **Busca salva:** ganha "incluir sem valor".
+> - **Cards do Início:** base definida.
+> - **Exportação CSV/XLSX:** saiu do módulo.
+> - **Filtro de órgão:** só por CNPJ.
+>
 > Versão 1.2 — 05/10/2026. Endereços do app sob `/licitacoes/app`, link das notificações a partir do início do sistema, presença pública e projeção de volume (decisões 21 a 25).
 > Versão 1.1 — 04/10/2026. Adapta a v1.0 (escrita para o repositório `notificacoes-comercial`) à decisão de construir o módulo dentro do FINGERENCE.
 > Reconhecimento: `.plans/licitacoes-reconhecimento.md`.
@@ -49,7 +61,7 @@ Todo o trabalho do módulo acontece num branch próprio (`feat/R/licitacoes`), s
 O FINGERENCE ganha um segundo módulo, **Licitações**, com app próprio e o mesmo login, contas e banco. O módulo:
 
 - Coleta automaticamente as licitações com recebimento de propostas em aberto no **PNCP** (Portal Nacional de Contratações Públicas).
-- Permite busca com filtros, buscas salvas, acompanhamento de editais e exportação.
+- Permite busca com filtros, buscas salvas e acompanhamento de editais.
 - Gera **notificações dentro do módulo** quando surge edital aderente a uma busca salva e quando um prazo acompanhado está próximo.
 
 Primeiro uso: interno, pela equipe da empresa que participa de licitações (software de gestão pública: gestão tributária/administrativa, GED/digitalização, saúde). Os dados são separados por conta desde o início, para que o módulo possa depois ser oferecido a outras contas PJ (a venda fica fora desta versão: seção 15).
@@ -235,7 +247,7 @@ Dependências: `pg` e `drizzle-orm` (já existentes); `zod` no backend para vali
 | `PNCP_STATES` | vazio (todas) | Limitar UFs na coleta, se o volume for alto |
 | `PNCP_HORIZON_DAYS` | `60` | `dataFinal` da varredura = hoje + N dias |
 | `PNCP_PAGE_SIZE` | `50` | |
-| `PNCP_REQUEST_INTERVAL_MS` | `400` | Pausa entre requisições |
+| `PNCP_REQUEST_INTERVAL_MS` | `4000` | Pausa entre requisições (v1.3: a 400 ms o PNCP responde 429; a 4 s, não) |
 | `PNCP_TIMEOUT_S` | `30` | |
 | `PNCP_MAX_ATTEMPTS` | `5` | |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | |
@@ -257,6 +269,8 @@ Dependências: `pg` e `drizzle-orm` (já existentes); `zod` no backend para vali
 2. Para cada modalidade: `/v1/contratacoes/atualizacao` com o mesmo período.
 3. Upsert igual à varredura. Ignorar registros cujo `data_encerramento_proposta` já passou.
 
+**Edital sem prazo de proposta** (v1.3): registro sem `dataEncerramentoProposta` não recebe proposta (ex.: dispensa sem disputa, cerca de 1.150 por dia) e fica fora da varredura e da incremental. A limpeza (6.7) apaga os que já estavam gravados.
+
 **Após cada execução** (varredura ou incremental):
 
 1. Gerar notificações de **novo edital** para os IDs novos (seção 7.4).
@@ -265,7 +279,7 @@ Dependências: `pg` e `drizzle-orm` (já existentes); `zod` no backend para vali
 
 ### 6.4 Robustez
 
-- **Retry** em timeout, erro de conexão, HTTP 429 e 5xx: até `PNCP_MAX_ATTEMPTS`, backoff exponencial com jitter (1s, 2s, 4s, 8s…). HTTP 4xx (exceto 429) não repete: registrar e seguir.
+- **Retry** em timeout, erro de conexão, HTTP 429 e 5xx: até `PNCP_MAX_ATTEMPTS`, backoff exponencial com jitter (1s, 2s, 4s, 8s…); no 429 sem `Retry-After`, 30 s, 60 s e até 2 min (v1.3). HTTP 4xx (exceto 429) não repete: registrar e seguir.
 - **Respeitar `Retry-After`** quando presente.
 - **Lock de execução** com `pg_try_advisory_lock` para impedir duas coletas simultâneas.
 - **Falha parcial não aborta tudo:** erro numa modalidade/página é registrado e a coleta segue. Status final `PARCIAL`.
@@ -299,7 +313,7 @@ A varredura não deve rodar dentro do serviço web (padrão `internal-jobs`), po
 
 ### 6.7 Retenção
 
-Comando `cleanup` (semanal): apagar editais com encerramento há mais de 12 meses **que não tenham acompanhamento em nenhuma conta nem notificações não lidas**. Editais acompanhados são mantidos.
+Comando `cleanup` (semanal): apagar editais com encerramento há mais de 12 meses, e os sem prazo de proposta (v1.3), **que não tenham acompanhamento em nenhuma conta nem notificações não lidas**. Editais acompanhados são mantidos.
 
 ---
 
@@ -409,6 +423,7 @@ CREATE TABLE licitacoes.busca_salva (
   modalidades       SMALLINT[] NOT NULL DEFAULT '{}',
   valor_min         NUMERIC(18,2),
   valor_max         NUMERIC(18,2),
+  incluir_sem_valor BOOLEAN NOT NULL DEFAULT false,  -- v1.3 (migration 0076)
   apenas_srp        BOOLEAN,                   -- NULL = indiferente
   notificar         BOOLEAN NOT NULL DEFAULT true,
   ativa             BOOLEAN NOT NULL DEFAULT true,
@@ -526,9 +541,16 @@ RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
 $$;
 ```
 
-**Busca avulsa (proposta da Fase 0, confirmar no plano da Fase 2):** a busca da tela usa os mesmos componentes da busca salva. O texto `q` é convertido em termos (aspas = frase), exclusões (`-termo`) e modo (`E` por padrão, com opção `OU` na tela), e a condição é montada pela mesma `fn_tsquery_termos`. Assim, "Salvar esta busca" representa qualquer busca avulsa. Criar teste que garanta que uma busca avulsa e a mesma busca salva retornam o mesmo resultado.
+**Busca avulsa (confirmada no plano da Fase 2):** a busca da tela usa os mesmos componentes da busca salva. O texto `q` é convertido em termos (aspas = frase), exclusões (`-termo`) e modo (`E` por padrão, com opção `OU` na tela), e a condição é montada pela mesma `fn_tsquery_termos`. Assim, "Salvar esta busca" representa qualquer busca avulsa. Criar teste que garanta que uma busca avulsa e a mesma busca salva retornam o mesmo resultado.
 
-Regra para edital **sem valor estimado** (sigiloso ou não informado): com filtro de valor ativo, ele **não** entra no resultado, mas a tela de busca oferece a opção "Incluir editais sem valor informado".
+Regra para edital **sem valor estimado** (sigiloso ou não informado): com filtro de valor ativo, ele **não** entra no resultado, salvo com a opção "Incluir editais sem valor informado". A opção existe na tela de busca e, desde a v1.3, também na busca salva (`incluir_sem_valor`).
+
+**v1.3: o que a implementação da Fase 2 mudou nas funções (migrations 0075 a 0077):**
+- **Regra dividida em duas partes:**
+  - `fn_edital_atende_criterios(e, consulta, exclusao, ufs, municipios, orgaos, modalidades, valor_min, valor_max, incluir_sem_valor, apenas_srp)` decide os critérios;
+  - `fn_edital_aberto(e)` decide "prazo não vencido e situação 1".
+  - `fn_edital_bate(e, b)`, com a mesma assinatura, junta as duas. A busca da tela usa as mesmas partes, então a paridade vem da construção.
+- **Singular e plural:** `fn_tsquery_termos` monta cada termo também com a outra forma de cada palavra (licitação/licitações, material/materiais, item/itens, software/softwares…). Só a consulta muda; o índice continua o mesmo.
 
 ### 7.4 Geração de notificações (SQL chamado pelo coletor)
 
@@ -583,7 +605,13 @@ Convenções do FINGERENCE:
 - Validação com `express-validator` + `validate`. Erro: HTTP 400 com `{ success: false, message: 'Validation error', errors: [{ field, message }] }`.
 - Campos de request e response em inglês (camelCase). Valores de domínio iguais aos do banco (ex.: `ANALISAR`).
 
-**Conta da requisição:** sempre derivada no servidor. Colaborador ativo: a conta do vínculo (`conta_membros`). Titular: a conta informada pelo app (o mecanismo é definido no plano da Fase 2), validada como sendo dele e habilitada.
+**Conta da requisição:** sempre derivada no servidor.
+- **Colaborador ativo:** a conta do vínculo (`conta_membros`).
+- **Titular:** a conta informada pelo app, validada como sendo dele e habilitada.
+- **Mecanismo (v1.3):**
+  - `accountId` na query string de qualquer pedido;
+  - sem ele, vale a conta habilitada do titular marcada como padrão; se nenhuma for padrão, a mais antiga;
+  - colaborador que informar outra conta recebe 404.
 
 ### 8.1 Editais
 
@@ -596,7 +624,8 @@ Convenções do FINGERENCE:
 | `PUT /api/tenders/notices/:id/tracking` | `{ status, note }`: cria ou altera o acompanhamento da conta, grava histórico |
 | `DELETE /api/tenders/notices/:id/tracking` | Remove o acompanhamento da conta (grava histórico) |
 | `GET /api/tenders/notices/:id/history` | Histórico do acompanhamento da conta |
-| `GET /api/tenders/notices/export` | Mesmos filtros da busca + `format=csv\|xlsx`, limite de 5.000 linhas |
+
+A exportação (`GET /api/tenders/notices/export`, CSV/XLSX) saiu do módulo na v1.3 (decisão do plano da Fase 2).
 
 **Parâmetros da busca** (`GET /notices`):
 
@@ -621,6 +650,8 @@ Convenções do FINGERENCE:
 
 Cada item retorna também `highlightedExcerpt`: trecho do objeto com os termos marcados (`ts_headline`, marcadores `<<` e `>>`). O front converte em destaque **sem** usar `dangerouslySetInnerHTML`.
 
+v1.3: a resposta traz `parsedQuery` (`terms`, `excludedTerms` e `termsMode` entendidos de `q`, ou da busca salva), para "Salvar esta busca" gravar o mesmo conteúdo.
+
 ### 8.2 Buscas salvas
 
 | Método e rota | Descrição |
@@ -634,6 +665,8 @@ Cada item retorna também `highlightedExcerpt`: trecho do objeto com os termos m
 | `POST /api/tenders/saved-searches/preview` | Recebe filtros, devolve contagem e 5 primeiros resultados (para o formulário) |
 
 Validações: `name` obrigatório (máx. 120); ao menos um critério além do nome; `minValue <= maxValue`; máximo 30 termos; cada termo com 2 a 80 caracteres; máximo 50 buscas por usuário em cada conta.
+
+v1.3: a busca salva aceita `includeWithoutValue` (padrão `false`), com a mesma regra da busca da tela.
 
 ### 8.3 Notificações
 
@@ -692,6 +725,9 @@ Rotas do app (base `/licitacoes/app`): `/licitacoes/app` (Início), `/licitacoes
 **Início (`/licitacoes/app`)**
 
 - Cards de indicadores: Novos hoje · Encerrando em 7 dias · Em análise · Vou participar.
+  - **Novos hoje** (v1.3): editais abertos coletados hoje que batem com alguma busca salva ativa do usuário.
+  - **Encerrando em 7 dias** (v1.3): editais acompanhados pela conta (Analisar ou Vou participar) com prazo nos próximos 7 dias.
+  - **Em análise** e **Vou participar**: acompanhamentos da conta com edital ainda aberto.
 - Lista "Encerrando em breve" (editais acompanhados pela conta, ordenados por prazo, com contagem regressiva).
 - Gráfico de barras horizontais: editais abertos por UF (top 10), com base nas buscas salvas do usuário.
 - Lista "Minhas buscas salvas" com o total de abertos em cada uma e atalho para abrir.
@@ -700,10 +736,10 @@ Rotas do app (base `/licitacoes/app`): `/licitacoes/app` (Início), `/licitacoes
 **Buscar (`/licitacoes/app/buscar`)**
 
 - Campo de busca grande no topo (palavras-chave, com dica de sintaxe: aspas e `-exclusão`) e seletor "todas as palavras / qualquer palavra".
-- Painel de filtros à esquerda (painel deslizante no celular): UF (multi), Município (combobox com busca), Modalidade (multi), Valor estimado (mín./máx. com máscara BRL + "incluir sem valor"), Publicação (período), Encerramento (período + atalhos "próximos 7/15/30 dias"), Status de acompanhamento, Órgão (CNPJ ou nome).
+- Painel de filtros à esquerda (painel deslizante no celular): UF (multi), Município (combobox com busca), Modalidade (multi), Valor estimado (mín./máx. com máscara BRL + "incluir sem valor"), Publicação (período), Encerramento (período + atalhos "próximos 7/15/30 dias"), Status de acompanhamento, Órgão (CNPJ; a busca por nome ficou fora na v1.3).
 - **Filtros ativos como chips removíveis** acima dos resultados + "Limpar tudo".
 - **Estado dos filtros na URL** (link compartilhável, botão voltar funciona).
-- Barra de resultados: total encontrado, ordenação, alternância **cards/tabela**, botão **Salvar esta busca**, botão **Exportar**.
+- Barra de resultados: total encontrado, ordenação, alternância **cards/tabela** e botão **Salvar esta busca**. O botão Exportar saiu na v1.3.
 - Card de resultado:
   - Objeto (2 linhas, termos destacados): clique abre o detalhe.
   - Órgão · Município/UF.
@@ -727,7 +763,7 @@ Rotas do app (base `/licitacoes/app`): `/licitacoes/app` (Início), `/licitacoes
 **Buscas salvas (`/licitacoes/app/buscas`)**
 
 - Lista em cards: nome, resumo dos critérios, total de abertos hoje, interruptores "Ativa" e "Notificar", ações (abrir resultados, editar, duplicar, excluir com confirmação).
-- Formulário (página ou modal grande): nome, termos (input de tags), modo E/OU, termos de exclusão (tags), UFs, municípios, órgãos, modalidades, faixa de valor, SRP (indiferente/sim/não). **Prévia ao vivo** (debounce 500ms): "X editais abertos batem com esta busca" + 5 primeiros.
+- Formulário (página ou modal grande): nome, termos (input de tags), modo E/OU, termos de exclusão (tags), UFs, municípios, órgãos, modalidades, faixa de valor com "incluir sem valor" (v1.3), SRP (indiferente/sim/não). **Prévia ao vivo** (debounce 500ms): "X editais abertos batem com esta busca" + 5 primeiros.
 
 **Acompanhamento (`/licitacoes/app/acompanhamento`)**
 
@@ -766,7 +802,7 @@ Fora deste escopo. O Disparo continua no app atual (repositório `notificacoes-c
 - Consultas SQL sempre parametrizadas.
 - Conteúdo vindo do PNCP exibido como texto puro; links externos com `rel="noopener noreferrer"` e `target="_blank"`.
 - Download de arquivos: o front abre o link original do PNCP (sem proxy de arquivo nesta versão).
-- Limite de taxa nas rotas de exportação e prévia, seguindo o padrão do limitador de `backend/src/middleware/validation.ts`.
+- Limite de taxa na prévia da busca salva, seguindo o padrão do limitador de `backend/src/middleware/validation.ts`. É por usuário, porque o servidor não configura `trust proxy`. A exportação saiu na v1.3.
 - O código das telas fica numa entrada própria do front: quem só usa o app de finanças não baixa esse código.
 
 ---
@@ -789,7 +825,7 @@ Todos com `node --test` via `tsx`, no padrão do repositório. Testes que depend
 
 **API**
 
-- Filtros e ordenações; paginação; validações; exportação.
+- Filtros e ordenações; paginação; validações.
 - Travas: conta não habilitada (404), colaborador sem acesso (403), titular de outra conta (404).
 - Isolamento entre contas e entre usuários da mesma conta.
 - Paridade busca avulsa × busca salva.
@@ -839,7 +875,7 @@ Modalidades: 6 e 8. UFs: a definir.
 - [ ] Rotas das seções 8.1 a 8.4, com validação, paginação e o envelope do projeto.
 - [ ] `requireTenderAccess` e conta derivada no servidor.
 - [ ] Habilitação de conta (admin) e acesso da equipe (titular).
-- [ ] Exportação CSV/XLSX (biblioteca XLSX decidida no plano, compatível com Node 22.17).
+- [x] ~~Exportação CSV/XLSX~~: saiu do módulo na v1.3 (decisão do plano da Fase 2).
 - [ ] Testes de API, incluindo travas, isolamento entre contas e usuários e paridade busca avulsa × salva.
 - **Aceite:** coleção de requisições (arquivo `.http`) cobrindo todas as rotas; testes passando.
 
@@ -852,7 +888,7 @@ Modalidades: 6 e 8. UFs: a definir.
 
 ### Fase 4 — Telas do módulo
 - [ ] Início, Buscar, Detalhe, Buscas salvas, Acompanhamento, Notificações e Configurações (9.4).
-- [ ] Filtros sincronizados com a URL; exportação; prévia de busca salva.
+- [ ] Filtros sincronizados com a URL; prévia de busca salva.
 - [ ] Testes de lógica e smoke no navegador.
 - **Aceite:** fluxo do smoke funcionando com dados reais; notificação gerada pelo coletor aparece no sino e abre o edital.
 
@@ -863,6 +899,8 @@ A Fase 5 da v1.0 (migração do Disparo) saiu deste escopo (seção 10).
 ## 15. Fora do escopo desta versão
 
 - Notificações por e-mail, WhatsApp ou push (a infraestrutura de Web Push do FINGERENCE pode ser usada numa versão futura).
+- Exportação dos resultados em CSV ou XLSX (saiu na v1.3; pode voltar quando houver necessidade).
+- Busca de órgão por nome no filtro da tela Buscar (v1.3: o filtro é por CNPJ).
 - Classificação de relevância por IA.
 - Fontes além do PNCP (plataformas privadas de pregão, portais municipais próprios).
 - Resultados de licitações (vencedores, preços homologados) e análise de concorrência.
