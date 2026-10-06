@@ -1,11 +1,11 @@
 import { Compass, Construction, Lock } from 'lucide-react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '../../ui/EmptyState';
 import { useTenderAccess } from '../hooks/useTenderAccess';
 import { canOpenSettings } from '../utils/navigation';
 
-// Páginas provisórias da Fase 3: cada rota existe e abre dentro da moldura; as
-// telas de verdade chegam na Fase 4.
+// Páginas provisórias da Fase 3 para as rotas que ainda não têm a tela de
+// verdade (Acompanhamento, Notificações e Configurações, na Parte 4B).
 
 const UNDER_CONSTRUCTION = 'Esta tela está em construção.';
 
@@ -18,32 +18,6 @@ export function PlaceholderScreen({ title }: { title: string }) {
     <section>
       <PageTitle title={title} />
       <EmptyState icon={Construction} title={UNDER_CONSTRUCTION} />
-    </section>
-  );
-}
-
-/** Buscar: mostra o termo da busca rápida (`?q=`). */
-export function SearchPlaceholderScreen() {
-  const [params] = useSearchParams();
-  const query = params.get('q')?.trim();
-  return (
-    <section>
-      <PageTitle title="Buscar" />
-      <EmptyState
-        icon={Construction}
-        title={UNDER_CONSTRUCTION}
-        description={query ? `Termo recebido da busca rápida: "${query}"` : undefined}
-      />
-    </section>
-  );
-}
-
-export function NoticePlaceholderScreen() {
-  const { id } = useParams();
-  return (
-    <section>
-      <PageTitle title="Edital" />
-      <EmptyState icon={Construction} title={UNDER_CONSTRUCTION} description={id ? `Edital ${id}` : undefined} />
     </section>
   );
 }

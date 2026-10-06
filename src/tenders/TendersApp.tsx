@@ -4,13 +4,11 @@ import { LoadingState } from '../ui/states';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
-import {
-  NoticePlaceholderScreen,
-  NotFoundScreen,
-  PlaceholderScreen,
-  SearchPlaceholderScreen,
-  SettingsPlaceholderScreen,
-} from './screens/PlaceholderScreens';
+import { HomeScreen } from './screens/HomeScreen';
+import { NoticeScreen } from './screens/NoticeScreen';
+import { NotFoundScreen, PlaceholderScreen, SettingsPlaceholderScreen } from './screens/PlaceholderScreens';
+import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
+import { SearchScreen } from './screens/SearchScreen';
 import { TendersLoginScreen } from './screens/TendersLoginScreen';
 import { NETWORK_ERROR_MESSAGE } from './services/tendersApiError';
 import { resolveGateState } from './utils/gateState';
@@ -51,10 +49,10 @@ export function TendersApp() {
   return (
     <Routes>
       <Route element={<TendersShell access={access.data} />}>
-        <Route index element={<PlaceholderScreen title="Início" />} />
-        <Route path="buscar" element={<SearchPlaceholderScreen />} />
-        <Route path="editais/:id" element={<NoticePlaceholderScreen />} />
-        <Route path="buscas" element={<PlaceholderScreen title="Buscas salvas" />} />
+        <Route index element={<HomeScreen />} />
+        <Route path="buscar" element={<SearchScreen />} />
+        <Route path="editais/:id" element={<NoticeScreen />} />
+        <Route path="buscas" element={<SavedSearchesScreen />} />
         <Route path="acompanhamento" element={<PlaceholderScreen title="Acompanhamento" />} />
         <Route path="notificacoes" element={<PlaceholderScreen title="Notificações" />} />
         <Route path="configuracoes" element={<SettingsPlaceholderScreen />} />

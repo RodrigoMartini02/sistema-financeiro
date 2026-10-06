@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { AppProvider } from '../context/AppContext';
+import { ConfirmProvider } from '../context/ConfirmContext';
 import { TendersApp } from './TendersApp';
 import { TENDERS_APP_BASE, appAddressFor } from './utils/modulePaths';
 import '../styles/globals.css';
@@ -27,9 +28,11 @@ createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <BrowserRouter basename={TENDERS_APP_BASE}>
-          <TendersApp />
-        </BrowserRouter>
+        <ConfirmProvider>
+          <BrowserRouter basename={TENDERS_APP_BASE}>
+            <TendersApp />
+          </BrowserRouter>
+        </ConfirmProvider>
       </AppProvider>
     </QueryClientProvider>
   </React.StrictMode>,
