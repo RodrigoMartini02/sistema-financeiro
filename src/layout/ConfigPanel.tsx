@@ -8,6 +8,8 @@ import { Drawer } from '../ui/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
 import { fetchMe } from '../services/usuariosService';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
+import { usePlanFeatures } from '../hooks/usePlanFeatures';
+import { PremiumUpsell } from '../components/PremiumUpsell';
 import {
   isAnalyticsViewer, isConfigItemVisible, type AccountType, type ConfigItemContext, type PermissionSet,
 } from '../utils/screenAccess';
@@ -51,6 +53,10 @@ const ITEMS: { id: ConfigItemId; label: string; icon: React.ElementType; group: 
 ];
 
 const GROUP_ORDER: ConfigGroupLabel[] = ['Geral', 'Finanças', 'Pessoas', 'Avançado'];
+
+// Telas do Premium: no Starter, abrem o aviso com o caminho para a assinatura
+// (a API recusa com PLAN_UPGRADE_REQUIRED).
+const PREMIUM_CONFIG_ITEMS: ConfigItemId[] = ['catalogo', 'pedidos', 'setores', 'cargos', 'permissoes'];
 
 /** Quem vê o painel: tipo de usuário e documento do cadastro, e o tipo da conta ativa. */
 export function configItemContext(
@@ -110,6 +116,9 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
   const visibleItems = ITEMS.filter((item) => isConfigItemVisible(item.id, permissions, context));
 
   const current = visibleItems.find((item) => item.id === activeItem) ?? visibleItems[0] ?? ITEMS[0]!;
+  const { premium } = usePlanFeatures({ enabled: open });
+  const lockedByPlan = !premium && PREMIUM_CONFIG_ITEMS.includes(current.id);
+  const openSubscription = () => setActiveItem('assinatura');
 
   // Agrupamento puramente visual, aplicado sobre a lista já filtrada:
   // grupos sem itens visíveis não renderizam cabeçalho.
@@ -166,19 +175,30 @@ export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChang
               quando o ativo deixa de existir para a conta. Sem isso, trocar de
               conta empresa para pessoal com o catalogo aberto continuaria
               renderizando uma tela que o menu ja escondeu. */}
-          {current.id === 'contas' && <ContasTab isGestor={isGestor} meId={me?.id} me={me} />}
-          {current.id === 'assinatura' && <PlanosScreen embedded />}
-          {current.id === 'categorias' && <CategoriasTab />}
-          {current.id === 'classificacoes-receita' && <ClassificacoesReceitaTab />}
-          {current.id === 'cartoes' && <CartaoTab />}
-          {current.id === 'catalogo' && <CatalogoTab />}
-          {current.id === 'pedidos' && <PedidosTab />}
-          {current.id === 'representantes' && <RepresentantesTab />}
-          {current.id === 'setores' && <AccountNameCatalogTab key="sectors" kind="sectors" />}
-          {current.id === 'cargos' && <AccountNameCatalogTab key="job-titles" kind="job-titles" />}
-          {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
-          {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
-          {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
+          {lockedByPlan ? (
+            <PremiumUpsell
+              description="Produtos, estoque, vitrine, pedidos, equipe e outras contas estão no plano Premium."
+              onSubscribe={isGestor ? openSubscription : undefined}
+            />
+          ) : (
+            <>
+              {current.id === 'contas' && (
+                <ContasTab isGestor={isGestor} meId={me?.id} me={me} onUpgrade={isGestor ? openSubscription : undefined} />
+              )}
+              {current.id === 'assinatura' && <PlanosScreen embedded />}
+              {current.id === 'categorias' && <CategoriasTab />}
+              {current.id === 'classificacoes-receita' && <ClassificacoesReceitaTab />}
+              {current.id === 'cartoes' && <CartaoTab />}
+              {current.id === 'catalogo' && <CatalogoTab />}
+              {current.id === 'pedidos' && <PedidosTab />}
+              {current.id === 'representantes' && <RepresentantesTab />}
+              {current.id === 'setores' && <AccountNameCatalogTab key="sectors" kind="sectors" />}
+              {current.id === 'cargos' && <AccountNameCatalogTab key="job-titles" kind="job-titles" />}
+              {current.id === 'permissoes' && <PermissoesTab contaTipo={contaTipo === 'empresa' ? 'empresa' : 'pessoal'} />}
+              {current.id === 'acessos' && canViewAnalytics && <AcessosTab />}
+              {current.id === 'integracoes-ia' && isAdmin && <IntegracoesIaTab />}
+            </>
+          )}
         </div>
       </div>
     </Drawer>

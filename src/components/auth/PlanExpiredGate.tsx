@@ -1,29 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../services/queryKeys';
+import type { PlanoStatus } from '../../services/planosService';
 import { PlanosScreen } from '../../screens/planos/PlanosScreen';
-
-/** Resposta de GET /planos/status. Para membro ativo, é o plano do titular da conta. */
-export interface PlanoStatus {
-  status: 'trial' | 'ativo' | 'expirado';
-  plano_tipo: string | null;
-  plano_expiracao: string | null;
-  dias_restantes_trial: number | null;
-  /** O plano é do titular: o membro não assina nem paga. */
-  isAccountMember?: boolean;
-}
+import type { PlanGateReason } from '../../utils/planFeatures';
 
 /**
- * Tela de bloqueio quando o plano que vale para a pessoa venceu. O titular
- * escolhe um plano ali mesmo; o membro, que usa o plano do titular, só é
- * orientado a pedir a renovação.
+ * Tela de bloqueio quando o plano que vale para a pessoa não libera o app. O
+ * titular escolhe um plano ali mesmo; o membro, que usa o plano do titular, só
+ * é orientado a pedir a renovação ou o Premium.
  */
-export function PlanExpiredGate({ planStatus }: { planStatus: PlanoStatus }) {
+export function PlanExpiredGate({ planStatus, reason = 'expired' }: { planStatus: PlanoStatus; reason?: PlanGateReason }) {
   const queryClient = useQueryClient();
   const isAccountMember = planStatus.isAccountMember === true;
   const trialExpired = !planStatus.plano_tipo;
-  const title = isAccountMember
-    ? 'Plano da conta vencido'
-    : trialExpired ? 'Período de teste encerrado' : 'Plano vencido';
+  const title = reason === 'teamNotInPlan'
+    ? 'Plano da conta sem equipe'
+    : isAccountMember
+      ? 'Plano da conta vencido'
+      : trialExpired ? 'Período de teste encerrado' : 'Plano vencido';
+  const memberMessage = reason === 'teamNotInPlan'
+    ? 'O plano da conta não inclui equipe. Peça ao titular para assinar o Premium. Seus dados estão preservados.'
+    : 'O plano da conta venceu. Peça ao titular para renovar. Seus dados estão preservados.';
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col overflow-auto bg-white">
@@ -44,9 +41,7 @@ export function PlanExpiredGate({ planStatus }: { planStatus: PlanoStatus }) {
       </div>
       <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
         {isAccountMember ? (
-          <p className="text-center text-sm text-slate-500">
-            O plano da conta venceu. Peça ao titular para renovar. Seus dados estão preservados.
-          </p>
+          <p className="text-center text-sm text-slate-500">{memberMessage}</p>
         ) : (
           <>
             <p className="mb-8 text-center text-sm text-slate-500">

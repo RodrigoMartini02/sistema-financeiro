@@ -5,12 +5,16 @@ import { ipRateLimiter } from '../../../middleware/validation';
 import { getStorePublicKey } from '../../../services/mercadoPagoAccounts';
 import { readOrderInput } from '../../../services/orderInput';
 import { createOrder, getPublicOrder, syncOrderPayment } from '../../../services/orders';
-import { findPublicStorefront, isPublicProductImage, listPublicProducts } from '../../../services/storefront';
+import { getPlanStatusForUser } from '../../../services/plan-lifecycle';
+import {
+  findPublicStorefront, isPublicProductImage, listPublicProducts, type PublicStorefront,
+} from '../../../services/storefront';
 import { sendRequestError } from '../../../utils/requestInput';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
 const STORE_NOT_FOUND_MESSAGE = 'Loja não encontrada';
+const STORE_UNAVAILABLE_MESSAGE = 'Loja indisponível';
 const IMAGE_NOT_FOUND_MESSAGE = 'Imagem não encontrada';
 /** O nome do arquivo da imagem é único e nunca é reaproveitado: o navegador pode guardá-la de vez. */
 const IMMUTABLE_IMAGE_CACHE = 'public, max-age=31536000, immutable';
@@ -25,6 +29,15 @@ const orderRateLimiter = ipRateLimiter({
 });
 
 const router = Router();
+
+/**
+ * A vitrine é do Premium: sem ele (Starter ou plano vencido), a loja sai do ar.
+ * Pedidos já feitos e o aviso de pagamento deles continuam funcionando.
+ */
+async function isStorefrontOpen(storefront: PublicStorefront): Promise<boolean> {
+  const ownerPlan = await getPlanStatusForUser(storefront.ownerId);
+  return ownerPlan?.premiumFeatures === true;
+}
 
 // POST /api/catalogo/public/mercado-pago/webhook?pedido=<id> — aviso do Mercado
 // Pago sobre o pagamento de um pedido. Responde na hora; o corpo só informa
@@ -46,6 +59,10 @@ router.get('/:storefront', async (req: Request, res: Response): Promise<void> =>
     const storefront = await findPublicStorefront(req.params['storefront'] ?? '');
     if (!storefront) {
       res.status(404).json({ success: false, message: STORE_NOT_FOUND_MESSAGE });
+      return;
+    }
+    if (!(await isStorefrontOpen(storefront))) {
+      res.status(404).json({ success: false, message: STORE_UNAVAILABLE_MESSAGE });
       return;
     }
 
@@ -111,6 +128,10 @@ router.post('/:storefront/pedidos', orderRateLimiter, async (req: Request, res: 
     const storefront = await findPublicStorefront(req.params['storefront'] ?? '');
     if (!storefront) {
       res.status(404).json({ success: false, message: STORE_NOT_FOUND_MESSAGE });
+      return;
+    }
+    if (!(await isStorefrontOpen(storefront))) {
+      res.status(404).json({ success: false, message: STORE_UNAVAILABLE_MESSAGE });
       return;
     }
     res.status(201).json({ success: true, data: await createOrder(storefront, input) });

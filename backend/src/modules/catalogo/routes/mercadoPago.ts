@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../../../middleware/auth';
+import { authenticate, requireActivePlan, requirePremiumPlan } from '../../../middleware/auth';
 import { requireScreenAccess } from '../../../middleware/permissions';
 import {
   buildConnectUrl, completeConnection, disconnectMercadoPago, getConnectionStatus,
@@ -19,6 +19,9 @@ function returnToApp(res: Response, result: 'conectado' | 'erro'): void {
 }
 
 const router = Router();
+
+// Rotas autenticadas da vitrine: plano ativo e Premium (o /callback fica livre).
+const premiumAccess = [authenticate, requireActivePlan, requirePremiumPlan, requireScreenAccess('accessProductCatalog')];
 
 // GET /api/catalogo/mercado-pago/callback?code=&state= — volta da autorização
 // no Mercado Pago (pública: quem identifica a conta é o "state" assinado).
@@ -43,7 +46,7 @@ async function readAccount(req: Request) {
 }
 
 // GET /api/catalogo/mercado-pago/status?conta_id=
-router.get('/status', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+router.get('/status', ...premiumAccess, async (req: Request, res: Response): Promise<void> => {
   try {
     const account = await readAccount(req);
     res.json({ success: true, data: await getConnectionStatus(account.id) });
@@ -53,7 +56,7 @@ router.get('/status', authenticate, requireScreenAccess('accessProductCatalog'),
 });
 
 // GET /api/catalogo/mercado-pago/connect?conta_id= — endereço da autorização
-router.get('/connect', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+router.get('/connect', ...premiumAccess, async (req: Request, res: Response): Promise<void> => {
   try {
     const account = await readAccount(req);
     res.json({ success: true, data: { url: buildConnectUrl(account.id, req.user!.id) } });
@@ -63,7 +66,7 @@ router.get('/connect', authenticate, requireScreenAccess('accessProductCatalog')
 });
 
 // DELETE /api/catalogo/mercado-pago?conta_id=
-router.delete('/', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
+router.delete('/', ...premiumAccess, async (req: Request, res: Response): Promise<void> => {
   try {
     const account = await readAccount(req);
     await disconnectMercadoPago(account.id);

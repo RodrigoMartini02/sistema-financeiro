@@ -3,6 +3,7 @@ import { PackageSearch } from 'lucide-react';
 import { Badge } from '../../../ui/badge';
 import { Card } from '../../../ui/card';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
+import { usePlanFeatures } from '../../../hooks/usePlanFeatures';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchContractPortfolio } from '../../../services/contractsService';
 import { queryKeys } from '../../../services/queryKeys';
@@ -44,16 +45,17 @@ function EstoqueBaixo({ produtos }: { produtos: NonNullable<PainelData['empresa'
 /**
  * Carteira de contratos do mês da data final do período (mês de 1 a 12): a
  * mensalidade de cada contrato, pelo líquido em órgão público, e a situação da
- * receita do mês. Só para quem vê contratos.
+ * receita do mês. Só para quem vê contratos, e contratos são do Premium.
  */
 function CarteiraDeContratos({ periodo }: { periodo: PainelPeriodo }) {
   const [ano, mes] = periodo.ate.split('-').map(Number);
   const accountId = getActiveAccountId();
   const permissions = useOwnPermissions();
+  const { premium } = usePlanFeatures();
   const contratosQ = useQuery({
     queryKey: queryKeys.contractPortfolio(accountId, mes!, ano!),
     queryFn: () => fetchContractPortfolio(accountId!, mes!, ano!),
-    enabled: accountId !== null && !!permissions && canManageCatalog(permissions, 'contracts'),
+    enabled: premium && accountId !== null && !!permissions && canManageCatalog(permissions, 'contracts'),
     staleTime: 60_000,
   });
   const contratos = contratosQ.data ?? [];

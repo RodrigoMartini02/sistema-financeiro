@@ -5,7 +5,7 @@ import { db, pool } from '../db/client';
 import {
   users, accounts, accountMembers, expenses, memberPermissions, sectors, jobTitles, type AccountNameCatalogTable,
 } from '../db/schema';
-import { authenticate, requireTitular } from '../middleware/auth';
+import { authenticate, requirePremiumPlan, requireTitular } from '../middleware/auth';
 import { isValidCpf, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
 import { findAccountAccessWithDocument } from '../services/documentConflicts';
@@ -191,7 +191,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // O membro é sempre um login novo. O CPF pode ser de quem já tem conta
 // própria (esse login entra pelo e-mail); só não pode ser de quem já tem
 // acesso a esta mesma conta — e a resposta não revela CPF de outras contas.
-router.post('/', authenticate, requireTitular, async (req: Request, res: Response): Promise<void> => {
+// Membros e colaboradores são do Premium.
+router.post('/', authenticate, requireTitular, requirePremiumPlan, async (req: Request, res: Response): Promise<void> => {
   try {
     const input = readNewMemberInput(req.body);
     const { conta_id: contaId } = req.body as Record<string, unknown>;
