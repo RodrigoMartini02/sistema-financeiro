@@ -25,10 +25,11 @@ import type {
   DetailCacheType,
   SearchTermsMode,
   TenderNotificationType,
+  TrackingHistoryStatus,
   TrackingStatus,
 } from '../domains';
 
-// Tabelas do módulo de Licitações (migrations 0072 a 0074). Funções de busca,
+// Tabelas do módulo de Licitações (migrations 0072 a 0076). Funções de busca,
 // configuração de texto e a coluna gerada busca_tsv existem só nas migrations.
 export const tendersSchema = pgSchema('licitacoes');
 
@@ -141,6 +142,8 @@ export const tenderSavedSearches = tendersSchema.table(
     modalities: smallint('modalidades').array().notNull().default(sql`'{}'`),
     minValue: numeric('valor_min', { precision: 18, scale: 2 }),
     maxValue: numeric('valor_max', { precision: 18, scale: 2 }),
+    // Com faixa de valor, edital sem valor estimado só entra com a opção ligada (migration 0076).
+    includeWithoutValue: boolean('incluir_sem_valor').default(false).notNull(),
     // NULL = indiferente
     onlyPriceRegistration: boolean('apenas_srp'),
     notify: boolean('notificar').default(true).notNull(),
@@ -176,8 +179,8 @@ export const tenderTrackingHistory = tendersSchema.table(
     id: bigserial('id', { mode: 'number' }).primaryKey(),
     accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
     noticeId: bigint('edital_id', { mode: 'number' }).notNull().references(() => tenderNotices.id, { onDelete: 'cascade' }),
-    previousStatus: varchar('status_anterior', { length: 20 }).$type<TrackingStatus>(),
-    newStatus: varchar('status_novo', { length: 20 }).$type<TrackingStatus>().notNull(),
+    previousStatus: varchar('status_anterior', { length: 20 }).$type<TrackingHistoryStatus>(),
+    newStatus: varchar('status_novo', { length: 20 }).$type<TrackingHistoryStatus>().notNull(),
     note: text('observacao'),
     userId: integer('usuario_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestampWithZone('criado_em').defaultNow().notNull(),

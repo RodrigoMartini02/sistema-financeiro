@@ -41,8 +41,25 @@ export type BrazilianState = (typeof BRAZILIAN_STATES)[number];
 export const TRACKING_STATUSES = ['ANALISAR', 'PARTICIPAR', 'DESCARTADO'] as const;
 export type TrackingStatus = (typeof TRACKING_STATUSES)[number];
 
+/** Status gravado no histórico quando o acompanhamento é removido da conta. */
+export const TRACKING_REMOVED = 'REMOVIDO';
+export type TrackingHistoryStatus = TrackingStatus | typeof TRACKING_REMOVED;
+
+/** Filtro de acompanhamento na busca: os status e "sem acompanhamento" (SEM). */
+export const TRACKING_FILTER_NONE = 'SEM';
+export const TRACKING_FILTERS = [...TRACKING_STATUSES, TRACKING_FILTER_NONE] as const;
+export type TrackingFilter = (typeof TRACKING_FILTERS)[number];
+
 export const SEARCH_TERMS_MODES = ['OU', 'E'] as const;
 export type SearchTermsMode = (typeof SEARCH_TERMS_MODES)[number];
+
+/** Ordenações da busca de editais; `relevance` só com termos. */
+export const NOTICE_SORTS = ['closingAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
+export type NoticeSort = (typeof NOTICE_SORTS)[number];
+
+/** Papel da pessoa no módulo, dentro da conta da requisição. */
+export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
+export type TenderRole = (typeof TENDER_ROLES)[number];
 
 export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
