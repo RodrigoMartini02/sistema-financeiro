@@ -1,0 +1,178 @@
+# Coleção de requisições da API do módulo de Licitações (/api/tenders).
+# Uso: extensão REST Client do VS Code, com o backend local (npm run dev).
+#
+# 1. Faça login (primeira requisição) e cole o token em @token.
+# 2. O admin da plataforma habilita a conta no módulo ("Admin" no fim).
+# 3. @accountId é opcional para o titular (sem ele, vale a conta habilitada padrão);
+#    o colaborador sempre usa a conta do vínculo.
+#
+# Respostas: { success, data }; listas paginadas em data: { items, page, perPage, total, totalPages }.
+# Erro de validação: 400 { success: false, message: 'Validation error', errors: [{ field, message }] }.
+# Conta sem o módulo: 404 igual a rota inexistente. Colaborador sem acesso: 403.
+
+@host = http://localhost:3010
+@baseUrl = {{host}}/api/tenders
+@token = cole-aqui-o-token
+@accountId = 18
+@noticeId = 1
+
+### Login (pegue data.token da resposta)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "documento": "seu-cpf", "senha": "sua-senha" }
+
+### Acesso: conta, papel, permissões e contas habilitadas do titular
+GET {{baseUrl}}/access?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Busca: palavras, "frase exata" e -exclusão (modo E por padrão)
+# @name search
+GET {{baseUrl}}/notices?accountId={{accountId}}&q=software "gestão tributária" -impressora&termsMode=OU&sort=closingAsc&page=1&perPage=20
+Authorization: Bearer {{token}}
+
+### Busca: filtros de UF, município, órgão, modalidade, valor e datas
+GET {{baseUrl}}/notices?accountId={{accountId}}&state=MA&state=PI&modality=6&modality=8&minValue=10000&maxValue=500000&includeWithoutValue=true&publishedFrom=2026-10-01&closingTo=2026-12-31
+Authorization: Bearer {{token}}
+
+### Busca: acompanhamento (ANALISAR, PARTICIPAR, DESCARTADO, SEM), encerrados e ordenação
+GET {{baseUrl}}/notices?accountId={{accountId}}&trackingStatus=ANALISAR&trackingStatus=SEM&hideDiscarded=false&openOnly=false&sort=publishedDesc
+Authorization: Bearer {{token}}
+
+### Busca: relevância (só com termos)
+GET {{baseUrl}}/notices?accountId={{accountId}}&q=sistema de gestão&sort=relevance
+Authorization: Bearer {{token}}
+
+### Detalhe do edital (acompanhamento da conta e buscas salvas que batem)
+GET {{baseUrl}}/notices/{{noticeId}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Itens da compra (PNCP, cache de 24 h)
+GET {{baseUrl}}/notices/{{noticeId}}/items?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Arquivos do edital (PNCP, cache de 24 h)
+GET {{baseUrl}}/notices/{{noticeId}}/files?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Acompanhar (status: ANALISAR, PARTICIPAR ou DESCARTADO)
+PUT {{baseUrl}}/notices/{{noticeId}}/tracking?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "status": "PARTICIPAR", "note": "Conferir documentação de habilitação" }
+
+### Histórico do acompanhamento
+GET {{baseUrl}}/notices/{{noticeId}}/history?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Remover o acompanhamento (fica REMOVIDO no histórico)
+DELETE {{baseUrl}}/notices/{{noticeId}}/tracking?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Buscas salvas do usuário na conta, com openCount
+GET {{baseUrl}}/saved-searches?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Prévia do formulário (contagem e 5 primeiros; até 60 por minuto)
+POST {{baseUrl}}/saved-searches/preview?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "terms": ["digitalização", "gestão eletrônica de documentos", "GED"], "termsMode": "OU", "states": ["MA"] }
+
+### Criar busca salva
+# @name createSearch
+POST {{baseUrl}}/saved-searches?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "GED e digitalização",
+  "terms": ["digitalização", "gestão eletrônica de documentos", "GED"],
+  "termsMode": "OU",
+  "excludedTerms": ["impressora"],
+  "states": ["MA", "PI"],
+  "modalities": [6, 8],
+  "minValue": 10000,
+  "maxValue": null,
+  "includeWithoutValue": true,
+  "priceRegistration": null,
+  "notify": true
+}
+
+### Alterar busca salva (notify e active ausentes são mantidos)
+PUT {{baseUrl}}/saved-searches/{{createSearch.response.body.data.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "GED e digitalização (MA)", "terms": ["digitalização", "GED"], "termsMode": "OU", "states": ["MA"] }
+
+### Pausar ou desligar o aviso
+PATCH {{baseUrl}}/saved-searches/{{createSearch.response.body.data.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "active": false }
+
+### Abrir os resultados de uma busca salva
+GET {{baseUrl}}/notices?accountId={{accountId}}&savedSearchId={{createSearch.response.body.data.id}}
+Authorization: Bearer {{token}}
+
+### Duplicar ("Cópia de ...")
+POST {{baseUrl}}/saved-searches/{{createSearch.response.body.data.id}}/duplicate?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Excluir busca salva
+DELETE {{baseUrl}}/saved-searches/{{createSearch.response.body.data.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Notificações (unreadOnly, type, paginação)
+GET {{baseUrl}}/notifications?accountId={{accountId}}&unreadOnly=true&type=NOVO_EDITAL&page=1&perPage=20
+Authorization: Bearer {{token}}
+
+### Contagem de não lidas (sino, a cada 60 s)
+GET {{baseUrl}}/notifications/count?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Marcar uma como lida
+PATCH {{baseUrl}}/notifications/1/read?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Marcar todas como lidas
+POST {{baseUrl}}/notifications/mark-all-read?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Painel (Início)
+GET {{baseUrl}}/dashboard?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Listas dos filtros (modalidades, situações, UFs, status e municípios com edital aberto)
+GET {{baseUrl}}/domains?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Status da coleta (última de cada tipo e próxima prevista)
+GET {{baseUrl}}/collection/status?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Histórico de execuções da coleta (titular ou admin)
+GET {{baseUrl}}/collection/runs?accountId={{accountId}}&page=1&perPage=20
+Authorization: Bearer {{token}}
+
+### Equipe: colaboradores da conta e acesso ao módulo (titular)
+GET {{baseUrl}}/team?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Conceder ou retirar o acesso de um colaborador (titular)
+PUT {{baseUrl}}/team/2?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "hasAccess": true }
+
+### Admin da plataforma: habilitar ou desabilitar o módulo numa conta
+PUT {{baseUrl}}/admin/accounts/{{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "active": true }

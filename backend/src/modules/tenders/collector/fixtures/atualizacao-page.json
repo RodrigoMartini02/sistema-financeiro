@@ -1,0 +1,182 @@
+{
+  "data": [
+    {
+      "orgaoEntidade": {
+        "cnpj": "00394452000103",
+        "razaoSocial": "COMANDO DO EXERCITO",
+        "poderId": "E",
+        "esferaId": "F"
+      },
+      "valorTotalHomologado": 679822.2,
+      "dataInclusao": "2026-09-15T04:03:02",
+      "dataAtualizacao": "2026-09-15T04:03:02",
+      "unidadeOrgao": {
+        "ufNome": "Paraná",
+        "ufSigla": "PR",
+        "municipioNome": "Curitiba",
+        "codigoUnidade": "160224",
+        "nomeUnidade": "PARQUE REGIONAL DE MANUTENCAO/5",
+        "codigoIbge": "4106902"
+      },
+      "orgaoSubRogado": null,
+      "unidadeSubRogada": null,
+      "amparoLegal": {
+        "nome": "Lei 14.133/2021, Art. 28, I",
+        "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+        "codigo": 1
+      },
+      "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras/acompanhamento-compra?compra=16022405000882026",
+      "linkProcessoEletronico": "https://www.gov.br/compras/pt-br",
+      "justificativaPresencial": null,
+      "anoCompra": 2026,
+      "srp": true,
+      "sequencialCompra": 19948,
+      "emendaParlamentar": null,
+      "numeroCompra": "88",
+      "processo": "64618.003321/2026-38",
+      "objetoCompra": "Contratação de empresa especializada para prestação de serviços de manutenção corretiva e recuperação de viaturas, componentes, sistemas e equipamentos do Parque Regional de Manutenção/5, abrangendo serviços de retífica de motores, manutenção de sistemas de injeção, transmissão, direção hidráulica e demais componentes, conforme especificações e normas técnicas aplicáveis.",
+      "informacaoComplementar": null,
+      "dataAberturaProposta": "2026-09-15T08:00:00",
+      "dataEncerramentoProposta": "2026-09-29T10:00:00",
+      "dataPublicacaoPncp": "2026-09-15T04:03:02",
+      "dataAtualizacaoGlobal": "2026-10-04T10:13:49",
+      "numeroControlePNCP": "00394452000103-1-019948/2026",
+      "valorTotalEstimado": 4861416.36,
+      "modalidadeId": 6,
+      "modalidadeNome": "Pregão - Eletrônico",
+      "modoDisputaId": 1,
+      "modoDisputaNome": "Aberto",
+      "tipoInstrumentoConvocatorioCodigo": 1,
+      "tipoInstrumentoConvocatorioNome": "Edital",
+      "fontesOrcamentarias": [
+        {
+          "codigo": 4,
+          "nome": "Federal",
+          "descricao": "Recurso orçamentário federal disponível e devidamente vinculado à despesa que será realizada.",
+          "dataInclusao": "2026-09-15T04:03:02"
+        }
+      ],
+      "situacaoCompraId": 1,
+      "situacaoCompraNome": "Divulgada no PNCP",
+      "usuarioNome": "Compras.gov.br"
+    },
+    {
+      "orgaoEntidade": {
+        "cnpj": "00394429000100",
+        "razaoSocial": "COMANDO DA AERONAUTICA",
+        "poderId": "E",
+        "esferaId": "F"
+      },
+      "valorTotalHomologado": 2512062.57,
+      "dataInclusao": "2026-08-27T04:02:05",
+      "dataAtualizacao": "2026-08-27T04:02:05",
+      "unidadeOrgao": {
+        "ufNome": "São Paulo",
+        "ufSigla": "SP",
+        "municipioNome": "Pirassununga",
+        "codigoUnidade": "120060",
+        "nomeUnidade": "ACADEMIA DA FORCA AEREA",
+        "codigoIbge": "3539301"
+      },
+      "orgaoSubRogado": null,
+      "unidadeSubRogada": null,
+      "amparoLegal": {
+        "nome": "Lei 14.133/2021, Art. 28, I",
+        "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+        "codigo": 1
+      },
+      "linkSistemaOrigem": "https://cnetmobile.estaleiro.serpro.gov.br/comprasnet-web/public/compras/acompanhamento-compra?compra=12006005000502026",
+      "linkProcessoEletronico": "https://www2.fab.mil.br/licitacoesecontratos/index.php/inteiro-teor",
+      "justificativaPresencial": null,
+      "anoCompra": 2026,
+      "srp": false,
+      "sequencialCompra": 2111,
+      "emendaParlamentar": null,
+      "numeroCompra": "50",
+      "processo": "67511.000250/2026-06",
+      "objetoCompra": "AQUISIÇÃO DE INSUMOS DE RAÇÃO ANIMAL PARA A FAZENDA DE AERONÁUTICA (FAYS)",
+      "informacaoComplementar": null,
+      "dataAberturaProposta": "2026-08-27T08:00:00",
+      "dataEncerramentoProposta": "2026-09-09T09:00:00",
+      "dataPublicacaoPncp": "2026-08-27T04:02:05",
+      "dataAtualizacaoGlobal": "2026-10-04T10:13:59",
+      "numeroControlePNCP": "00394429000100-1-002111/2026",
+      "valorTotalEstimado": 3808237.04,
+      "modalidadeId": 6,
+      "modalidadeNome": "Pregão - Eletrônico",
+      "modoDisputaId": 3,
+      "modoDisputaNome": "Aberto-Fechado",
+      "tipoInstrumentoConvocatorioCodigo": 1,
+      "tipoInstrumentoConvocatorioNome": "Edital",
+      "fontesOrcamentarias": [
+        {
+          "codigo": 4,
+          "nome": "Federal",
+          "descricao": "Recurso orçamentário federal disponível e devidamente vinculado à despesa que será realizada.",
+          "dataInclusao": "2026-08-27T04:02:06"
+        }
+      ],
+      "situacaoCompraId": 1,
+      "situacaoCompraNome": "Divulgada no PNCP",
+      "usuarioNome": "Compras.gov.br"
+    },
+    {
+      "orgaoEntidade": {
+        "cnpj": "22812960000199",
+        "razaoSocial": "MUNICIPIO DE APUI",
+        "poderId": "N",
+        "esferaId": "M"
+      },
+      "valorTotalHomologado": 2424235,
+      "dataInclusao": "2026-09-21T13:49:39",
+      "dataAtualizacao": "2026-10-04T10:43:32",
+      "unidadeOrgao": {
+        "ufNome": "Amazonas",
+        "ufSigla": "AM",
+        "municipioNome": "Apuí",
+        "codigoUnidade": "4396",
+        "nomeUnidade": "Prefeitura Municipal de Apuí",
+        "codigoIbge": "1300144"
+      },
+      "orgaoSubRogado": null,
+      "unidadeSubRogada": null,
+      "amparoLegal": {
+        "nome": "Lei 14.133/2021, Art. 28, I",
+        "descricao": "pregão: modalidade de licitação obrigatória para aquisição de bens e serviços comuns",
+        "codigo": 1
+      },
+      "linkSistemaOrigem": "https://www.portaldecompraspublicas.com.br/processos/AM/Prefeitura-Municipal-de-Apui-2445/PE-007-2026-2026-510631",
+      "linkProcessoEletronico": null,
+      "justificativaPresencial": "",
+      "anoCompra": 2026,
+      "srp": false,
+      "sequencialCompra": 65,
+      "emendaParlamentar": null,
+      "numeroCompra": "007",
+      "processo": "037",
+      "objetoCompra": "[Portal de Compras Públicas] - CONTRATAÇÃO DE AGÊNCIA DE VIAGEM VIA TERRESTRE INTERMUNICIPAL E INTERESTADUAL",
+      "informacaoComplementar": "",
+      "dataAberturaProposta": "2026-09-11T11:40:00",
+      "dataEncerramentoProposta": "2026-09-25T11:40:00",
+      "dataPublicacaoPncp": "2026-09-21T13:49:39",
+      "dataAtualizacaoGlobal": "2026-10-04T10:44:45",
+      "numeroControlePNCP": "22812960000199-1-000065/2026",
+      "valorTotalEstimado": 2424235,
+      "modalidadeId": 6,
+      "modalidadeNome": "Pregão - Eletrônico",
+      "modoDisputaId": 1,
+      "modoDisputaNome": "Aberto",
+      "tipoInstrumentoConvocatorioCodigo": 1,
+      "tipoInstrumentoConvocatorioNome": "Edital",
+      "fontesOrcamentarias": [],
+      "situacaoCompraId": 1,
+      "situacaoCompraNome": "Divulgada no PNCP",
+      "usuarioNome": "ECustomize Consultoria em Software S.A"
+    }
+  ],
+  "totalRegistros": 2462,
+  "totalPaginas": 50,
+  "numeroPagina": 1,
+  "paginasRestantes": 49,
+  "empty": false
+}
