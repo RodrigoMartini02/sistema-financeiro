@@ -1,4 +1,13 @@
-import type { NoticeSort, SearchTermsMode, TrackingFilter, TrackingHistoryStatus, TrackingStatus } from '../types';
+import type {
+  CollectionRunStatus,
+  CollectionRunType,
+  NoticeSort,
+  SearchTermsMode,
+  TenderNotificationType,
+  TrackingFilter,
+  TrackingHistoryStatus,
+  TrackingStatus,
+} from '../types';
 import { formatIsoDate } from './dates';
 import { formatMoneyValue } from './money';
 
@@ -38,6 +47,28 @@ export const NOTICE_SORT_LABELS: Record<NoticeSort, string> = {
 export const TERMS_MODE_LABELS: Record<SearchTermsMode, string> = {
   E: 'Todas as palavras',
   OU: 'Qualquer palavra',
+};
+
+export const NOTIFICATION_TYPE_LABELS: Record<TenderNotificationType, string> = {
+  NOVO_EDITAL: 'Novo edital',
+  EDITAL_ALTERADO: 'Edital alterado',
+  PRAZO_3D: 'Prazo em até 3 dias',
+  PRAZO_1D: 'Prazo em até 1 dia',
+};
+
+export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {
+  VARREDURA: 'Varredura',
+  INCREMENTAL: 'Incremental',
+  LEMBRETES: 'Lembretes de prazo',
+  LIMPEZA: 'Limpeza',
+  MANUAL: 'Manual',
+};
+
+export const RUN_STATUS_LABELS: Record<CollectionRunStatus, string> = {
+  EXECUTANDO: 'Executando',
+  SUCESSO: 'Sucesso',
+  PARCIAL: 'Parcial',
+  FALHA: 'Falha',
 };
 
 /** CNPJ com pontuação (00.000.000/0000-00); fora de 14 dígitos, como veio. */

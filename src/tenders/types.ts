@@ -258,3 +258,72 @@ export interface AccountEnabledChange {
   active: boolean;
   changedAt: string | null;
 }
+
+export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
+export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
+
+export interface TenderNotification {
+  id: number;
+  type: TenderNotificationType;
+  title: string;
+  message: string | null;
+  /** Caminho a partir do início do app do módulo (ex.: /editais/123). */
+  link: string;
+  noticeId: number | null;
+  savedSearchId: number | null;
+  readAt: string | null;
+  createdAt: string | null;
+}
+
+export interface NotificationFilters {
+  unreadOnly: boolean;
+  type: TenderNotificationType | null;
+  page: number;
+  perPage: number;
+}
+
+export const COLLECTION_RUN_TYPES = ['VARREDURA', 'INCREMENTAL', 'LEMBRETES', 'LIMPEZA', 'MANUAL'] as const;
+export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
+/** Execuções com horário na agenda (a manual não tem). */
+export type ScheduledRunType = Exclude<CollectionRunType, 'MANUAL'>;
+
+export const COLLECTION_RUN_STATUSES = ['EXECUTANDO', 'SUCESSO', 'PARCIAL', 'FALHA'] as const;
+export type CollectionRunStatus = (typeof COLLECTION_RUN_STATUSES)[number];
+
+/** Detalhes da execução: até 50 erros guardados e o total dos que ficaram de fora. */
+export interface CollectionRunDetails {
+  errors?: Array<Record<string, unknown>>;
+  omittedErrors?: number;
+  [key: string]: unknown;
+}
+
+export interface CollectionRun {
+  id: number;
+  type: CollectionRunType;
+  status: CollectionRunStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  requestCount: number;
+  recordsRead: number;
+  newCount: number;
+  updatedCount: number;
+  notificationCount: number;
+  errorCount: number;
+  details: CollectionRunDetails;
+}
+
+export interface CollectionStatus {
+  /** A execução mais recente de cada tipo. */
+  latestRuns: CollectionRun[];
+  /** Próxima execução prevista pela agenda, em ISO com o fuso de Brasília. */
+  nextRuns: Record<ScheduledRunType, string>;
+  totals: { notices: number; openNotices: number };
+}
+
+export interface TeamMember {
+  userId: number;
+  name: string;
+  email: string;
+  hasAccess: boolean;
+  grantedAt: string | null;
+}

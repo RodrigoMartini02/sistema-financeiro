@@ -1,6 +1,11 @@
 # Plano de Implementação: Licitações — Fase 4 (telas do módulo)
 
 > **Status:** aprovado em 05/10/2026, em **duas partes** (decisão 1): a 4A e a 4B. Cada parte começa com o próprio `/implementar` e termina com conferência e `/finalizar`, que envia o branch sem merge.
+>
+> **Atualização de 06/10/2026 (aprovada pelo usuário):**
+> - O módulo foi para a produção em 06/10, então a 4B foi feita na branch `feat/R/licitacoes-fase4b`, criada a partir da `main`, e não mais no worktree.
+> - O código que já estava escrito, sem commit, no worktree foi trazido para essa branch.
+> - Depois do aceite, o `/finalizar` faz o merge em `main`.
 
 ## Origem
 

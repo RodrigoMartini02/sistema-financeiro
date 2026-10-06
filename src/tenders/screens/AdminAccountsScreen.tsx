@@ -11,7 +11,7 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { AccountEnabledChange, AdminTenderAccount } from '../types';
 import { ACCOUNT_TYPE_LABELS, filterAdminAccounts } from '../utils/adminAccounts';
-import { NotFoundScreen } from './PlaceholderScreens';
+import { NotFoundScreen } from './NotFoundScreen';
 
 interface EnabledChange {
   accountId: number;

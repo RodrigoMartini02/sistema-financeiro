@@ -17,6 +17,12 @@ export const tendersQueryKeys = {
   savedSearchPreview: (body: string) => ['tenders', 'saved-search-preview', body] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   domains: ['tenders', 'domains'] as const,
+  /** Prefixo das notificações: listas e contador do sino. */
+  notifications: ['tenders', 'notifications'] as const,
+  notificationList: (apiQuery: string) => ['tenders', 'notifications', 'list', apiQuery] as const,
+  team: ['tenders', 'team'] as const,
+  collectionStatus: ['tenders', 'collection', 'status'] as const,
+  collectionRuns: (page: number, perPage: number) => ['tenders', 'collection', 'runs', page, perPage] as const,
   // Tela "Contas habilitadas" (admin da plataforma).
   adminAccounts: ['tenders', 'admin', 'accounts'] as const,
 };

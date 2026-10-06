@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bookmark, Circle, CircleCheck, ExternalLink, FileSearch, Maximize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -18,6 +18,7 @@ import { NoticeBadges } from './NoticeBadges';
 import { NoticeFilesTab, NoticeItemsTab } from './NoticePncpTabs';
 import { NoticeTrackingTab } from './NoticeTrackingTab';
 import { TrackingStatusPill } from './Pill';
+import { TabPanel, Tabs } from './Tabs';
 
 // Detalhe do edital (escopo, seção 9.4): no painel lateral de Buscar e na
 // rota própria /editais/:id.
@@ -85,50 +86,6 @@ function NoticeTimeline({ notice }: { notice: NoticeDetail }) {
         );
       })}
     </ol>
-  );
-}
-
-function DetailTabs({ active, onChange, idPrefix }: { active: TabId; onChange: (tab: TabId) => void; idPrefix: string }) {
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-    event.preventDefault();
-    const nextIndex = (index + (event.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length;
-    const nextTab = TABS[nextIndex];
-    if (!nextTab) return;
-    onChange(nextTab.id);
-    refs.current[nextIndex]?.focus();
-  };
-  return (
-    <div role="tablist" aria-label="Partes do edital" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-slate-700">
-      {TABS.map((tab, index) => {
-        const selected = tab.id === active;
-        return (
-          <button
-            key={tab.id}
-            ref={(element) => {
-              refs.current[index] = element;
-            }}
-            id={`${idPrefix}-tab-${tab.id}`}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={`${idPrefix}-panel-${tab.id}`}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(tab.id)}
-            onKeyDown={(event) => handleKeyDown(event, index)}
-            className={[
-              'whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600',
-              selected
-                ? 'border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300'
-                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200',
-            ].join(' ')}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -226,13 +183,13 @@ export function NoticeDetailContent({ notice, inDrawer }: NoticeDetailContentPro
       </section>
 
       <div>
-        <DetailTabs active={tab} onChange={setTab} idPrefix={idPrefix} />
-        <div role="tabpanel" id={`${idPrefix}-panel-${tab}`} aria-labelledby={`${idPrefix}-tab-${tab}`} tabIndex={0} className="pt-4 focus:outline-none">
+        <Tabs tabs={TABS} active={tab} onChange={setTab} label="Partes do edital" idPrefix={idPrefix} />
+        <TabPanel idPrefix={idPrefix} tabId={tab}>
           {tab === 'resumo' && <SummaryTab notice={notice} />}
           {tab === 'itens' && <NoticeItemsTab noticeId={notice.id} />}
           {tab === 'arquivos' && <NoticeFilesTab noticeId={notice.id} />}
           {tab === 'acompanhamento' && <NoticeTrackingTab notice={notice} />}
-        </div>
+        </TabPanel>
       </div>
     </article>
   );
