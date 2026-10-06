@@ -130,7 +130,7 @@ npm --prefix backend run test:tenders-db
 - **Onde:** só no banco local, e se recusa a rodar se a URL não for `localhost:5433/sistema_financas_dev`.
 - **Isolamento:** cada teste roda numa transação desfeita no fim, então nada fica gravado.
 - **O que cobre:**
-  - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo);
+  - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta habilitada, destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
   - API:
@@ -139,6 +139,7 @@ npm --prefix backend run test:tenders-db
     - busca: filtros, ordenações, paginação e paridade com a busca salva;
     - buscas salvas: validações, limite de 50 e prévia;
     - acompanhamento e histórico, notificações, painel e equipe;
+    - favoritos: de cada pessoa, sem duplicar, na busca, no detalhe e no filtro `favoritesOnly`;
     - itens e arquivos do PNCP com cache;
     - rotas por HTTP (`routes/routes.db.test.ts`).
 
@@ -169,7 +170,7 @@ SELECT count(*) AS editais,
 - **Valor estimado:** `0` vira nulo, porque é orçamento sigiloso ou não informado. Valor negativo também vira nulo: é erro de cadastro na origem, e o PNCP já mandou um caso real. Assim o edital não se perde. Com filtro de valor, esses editais ficam de fora da busca.
 - **Textos:** os vazios (`""`) viram nulos e são aparados. Códigos vêm como número ou texto e são aceitos dos dois jeitos.
 - **Registro inválido:** CNPJ sem 14 dígitos, UF fora do padrão, data fora do formato etc. conta como erro na execução, com o número de controle, e não derruba a página.
-- **Edital sem prazo de proposta** (sem `dataEncerramentoProposta`, como a dispensa sem disputa): não recebe proposta e fica fora da coleta, na varredura e na incremental. A execução conta os ignorados em `detalhes.skippedWithoutDeadline`. A limpeza apaga os que já estavam gravados, salvo os acompanhados ou com notificação não lida. Por isso, modalidades sem prazo (ex.: credenciamento) não entram no módulo.
+- **Edital sem prazo de proposta** (sem `dataEncerramentoProposta`, como a dispensa sem disputa): não recebe proposta e fica fora da coleta, na varredura e na incremental. A execução conta os ignorados em `detalhes.skippedWithoutDeadline`. A limpeza apaga os que já estavam gravados, salvo os acompanhados, os favoritados ou com notificação não lida. Por isso, modalidades sem prazo (ex.: credenciamento) não entram no módulo.
 - **`hash_payload`:** SHA-256 do JSON com as chaves ordenadas. A mesma resposta em outra ordem dá o mesmo hash.
 - **`link_pncp`:** `https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}`.
 - **`link` das notificações:** `/editais/<id>`, a partir do início do app do módulo. A tela completa com `/licitacoes/app` (decisão 24).
@@ -227,6 +228,11 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
 - **Acompanhamento:**
   - o histórico é gravado na mesma transação, só quando o status ou a observação mudam;
   - a remoção fica no histórico como `REMOVIDO`.
+- **Favoritos** (tabela `licitacoes.favorito`, migration 0078):
+  - `PUT /notices/:id/favorite` favorita e `DELETE /notices/:id/favorite` tira dos favoritos, para a pessoa logada na conta da requisição. As duas são idempotentes; edital inexistente dá 404;
+  - a busca e o detalhe trazem `isFavorite`, e `favoritesOnly=true` na busca traz só os favoritos da pessoa;
+  - o favorito é só da pessoa: ninguém vê o de outra, nem na mesma conta;
+  - a limpeza da coleta não apaga edital favoritado.
 - **Painel:**
   - "Novos hoje": coletados hoje que batem com alguma busca salva ativa do usuário;
   - "Encerrando em 7 dias": acompanhados da conta como ANALISAR ou PARTICIPAR.
@@ -272,6 +278,8 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 
 Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Detalhe e Buscas salvas; a Parte 4B traz Acompanhamento, Notificações e Configurações.
 
+As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Buscar e no formulário de Busca salva (plano `.plans/licitacoes-usabilidade-favoritos.md`).
+
 **Contas habilitadas (`/admin/contas`)** (plano `.plans/licitacoes-acesso-rotina-diaria.md`):
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
 - busca por conta, dono ou e-mail;
@@ -283,13 +291,15 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
   - **prazo mínimo:** por padrão, só aparecem os editais que encerram a partir de hoje + 3 dias (contados por dia), porque com menos não dá tempo de preparar a proposta;
     - o filtro "Incluir os que encerram em menos de 3 dias" (`prazoCurto=1`) traz os demais;
     - a barra de resultados avisa quantos ficaram de fora, com "Mostrar";
-    - a regra não vale sem "Só editais abertos", com filtro de acompanhados (Analisar, Vou participar ou Descartado) nem com período de encerramento que termina antes do mínimo;
+    - a regra não vale sem "Só editais abertos", com filtro de acompanhados (Analisar, Vou participar ou Descartado), com "Só favoritos" nem com período de encerramento que termina antes do mínimo;
     - num período escolhido, só o início sobe para o mínimo;
   - filtros na URL, para o link ser compartilhável e o voltar do navegador funcionar;
   - chips removíveis e "Limpar tudo";
   - cards ou tabela, com a opção compacta guardada no navegador;
-  - ações rápidas e "Salvar esta busca".
-- **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`. Itens e arquivos do PNCP só são pedidos quando a aba abre.
+  - ações rápidas, coração de favorito e "Salvar esta busca";
+  - filtro "Só favoritos" (`favoritos=1`).
+- **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
+- **Favoritos (`/favoritos`):** todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento, paginados. O coração fica no card, na tabela e no detalhe.
 - **Buscas salvas (`/buscas`):**
   - cards com o resumo dos critérios, os abertos agora e os interruptores Ativa e Notificar;
   - editar, duplicar e excluir, com confirmação;
@@ -299,7 +309,7 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
   - arrastar e soltar no desktop e "Mover para…" em cada card, para o teclado e o celular; a mudança mantém a observação gravada;
   - tabela com filtro por status, só no desktop; a escolha entre quadro e tabela fica guardada no navegador.
 - **Notificações:**
-  - sino com as 10 mais recentes, "Marcar todas como lidas" e "Ver todas";
+  - o sino abre um painel lateral à direita, no visual do painel de notificações do app de finanças, com as 10 mais recentes, "Marcar todas como lidas" e "Ver todas";
   - página `/notificacoes`, paginada, com filtro por tipo e por não lidas;
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).
 - **Configurações (`/configuracoes`):**
@@ -317,6 +327,7 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
 | `abertos=0`, `descartados=1` | `openOnly=false`, `hideDiscarded=false` | |
 | `prazoCurto=1` | sem `closingFrom` mínimo | sem ele, o front envia `closingFrom` = hoje + 3 dias (salvo as exceções da regra) |
 | `acompanhamento` | `trackingStatus` | `analisar`, `participar`, `descartado` ou `sem` |
+| `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa; sem prazo mínimo |
 | `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
 | `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |
 
