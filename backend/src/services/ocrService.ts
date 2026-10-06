@@ -121,15 +121,3 @@ export async function extractTextFromPDF(filePath: string): Promise<string> {
   const data = await pdfParse(buffer);
   return data.text;
 }
-
-export async function preprocessImage(inputPath: string, outputPath: string): Promise<string> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Jimp = require('jimp') as { read: (path: string) => Promise<{ greyscale: () => { contrast: (v: number) => { normalize: () => { writeAsync: (p: string) => Promise<void> } } } }> };
-    const img = await Jimp.read(inputPath);
-    await img.greyscale().contrast(0.2).normalize().writeAsync(outputPath);
-    return outputPath;
-  } catch {
-    return inputPath;
-  }
-}
