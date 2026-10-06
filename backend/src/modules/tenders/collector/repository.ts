@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { and, count, desc, eq, getTableColumns, inArray, isNull, lt, notExists, sql } from 'drizzle-orm';
+import { and, count, desc, eq, getTableColumns, inArray, isNull, lt, notExists, or, sql } from 'drizzle-orm';
 import {
   tenderCollectionRuns,
   tenderNotices,
@@ -165,13 +165,18 @@ export async function readCollectionStatus(db: TendersDb) {
 }
 
 /**
- * Retenção: apaga editais encerrados há mais de `retentionMonths` meses que não
- * tenham acompanhamento em nenhuma conta nem notificação não lida.
+ * Retenção: apaga editais encerrados há mais de `retentionMonths` meses e
+ * editais sem prazo de proposta (a coleta não os grava mais; os anteriores
+ * saem aqui), desde que não tenham acompanhamento em nenhuma conta nem
+ * notificação não lida.
  */
 export async function deleteExpiredNotices(db: TendersDb, retentionMonths: number): Promise<number> {
   const result = await db.delete(tenderNotices).where(
     and(
-      lt(tenderNotices.proposalClosesAt, sql`now() - make_interval(months => ${retentionMonths})`),
+      or(
+        lt(tenderNotices.proposalClosesAt, sql`now() - make_interval(months => ${retentionMonths})`),
+        isNull(tenderNotices.proposalClosesAt),
+      ),
       notExists(
         db
           .select({ found: sql`1` })

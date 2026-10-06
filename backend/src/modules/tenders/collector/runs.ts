@@ -145,8 +145,27 @@ function queriesByModalityAndState(
   );
 }
 
-function isProposalClosed(row: TenderNoticeRow, nowInBrasilia: string): boolean {
-  return typeof row.proposalClosesAt === 'string' && row.proposalClosesAt <= nowInBrasilia;
+/** Por que a coleta não grava um registro: sem prazo de proposta ou já encerrado. */
+export type NoticeSkipReason = 'withoutDeadline' | 'closed';
+
+const SKIP_DETAIL_KEYS: Record<NoticeSkipReason, string> = {
+  withoutDeadline: 'skippedWithoutDeadline',
+  closed: 'skippedClosed',
+};
+
+/**
+ * Registro que a coleta não grava. Sem data de encerramento de proposta, o
+ * edital não recebe proposta (ex.: dispensa sem disputa): fica sempre de fora.
+ * Já encerrado: só a incremental ignora (a varredura só traz abertos).
+ */
+export function noticeSkipReason(row: TenderNoticeRow, nowInBrasilia: string, skipClosed: boolean): NoticeSkipReason | null {
+  if (!row.proposalClosesAt) {
+    return 'withoutDeadline';
+  }
+  if (skipClosed && row.proposalClosesAt <= nowInBrasilia) {
+    return 'closed';
+  }
+  return null;
 }
 
 /**
@@ -162,7 +181,7 @@ async function collectQuery(
   options: { skipClosed: boolean; maxPages?: number },
 ): Promise<void> {
   const nowInBrasilia = brasiliaDateTime(context.now());
-  let skippedClosed = 0;
+  const skipped: Record<NoticeSkipReason, number> = { withoutDeadline: 0, closed: 0 };
 
   try {
     for await (const page of context.pncp.pages(query.endpoint, query.params, { maxPages: options.maxPages })) {
@@ -174,8 +193,9 @@ async function collectQuery(
           tally.addError({ kind: 'record', controlNumber: mapped.controlNumber, reason: mapped.reason });
           continue;
         }
-        if (options.skipClosed && isProposalClosed(mapped.row, nowInBrasilia)) {
-          skippedClosed += 1;
+        const skipReason = noticeSkipReason(mapped.row, nowInBrasilia, options.skipClosed);
+        if (skipReason) {
+          skipped[skipReason] += 1;
           continue;
         }
         rows.push(mapped.row);
@@ -203,9 +223,12 @@ async function collectQuery(
     context.logger.warn('Consulta ao PNCP interrompida', { endpoint: query.endpoint, params: query.params, error });
   }
 
-  if (skippedClosed > 0) {
-    const previous = typeof tally.details['skippedClosed'] === 'number' ? tally.details['skippedClosed'] : 0;
-    tally.details['skippedClosed'] = previous + skippedClosed;
+  for (const reason of Object.keys(skipped) as NoticeSkipReason[]) {
+    if (skipped[reason] > 0) {
+      const key = SKIP_DETAIL_KEYS[reason];
+      const previous = typeof tally.details[key] === 'number' ? tally.details[key] : 0;
+      tally.details[key] = previous + skipped[reason];
+    }
   }
 }
 
@@ -214,7 +237,7 @@ export function sweepFinalDate(now: Date, horizonDays: number): string {
   return toPncpDate(addCalendarDays(brasiliaDate(now), horizonDays));
 }
 
-/** Varredura: todas as contratações com proposta em aberto, por modalidade (e UF). */
+/** Varredura: todas as contratações com proposta em aberto e com prazo, por modalidade (e UF). */
 export function runSweep(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(context, 'VARREDURA', COLLECTOR_LOCK_KEYS.collection, async (tally) => {
     const dataFinal = sweepFinalDate(context.now(), context.config.pncp.horizonDays);
@@ -225,7 +248,7 @@ export function runSweep(context: CollectorContext): Promise<RunOutcome> {
   });
 }
 
-/** Incremental: publicadas e atualizadas de ontem a hoje (Brasília), ignorando as já encerradas. */
+/** Incremental: publicadas e atualizadas de ontem a hoje (Brasília), ignorando as encerradas e as sem prazo. */
 export function runIncremental(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(context, 'INCREMENTAL', COLLECTOR_LOCK_KEYS.collection, async (tally) => {
     const today = brasiliaDate(context.now());
@@ -269,7 +292,10 @@ export function runDeadlineReminders(context: CollectorContext): Promise<RunOutc
   });
 }
 
-/** Retenção semanal: editais encerrados há mais de 12 meses, sem acompanhamento nem notificação não lida. */
+/**
+ * Retenção semanal: editais encerrados há mais de 12 meses e editais sem prazo
+ * de proposta, desde que sem acompanhamento nem notificação não lida.
+ */
 export function runCleanup(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(context, 'LIMPEZA', COLLECTOR_LOCK_KEYS.maintenance, async (tally) => {
     tally.details['retentionMonths'] = NOTICE_RETENTION_MONTHS;

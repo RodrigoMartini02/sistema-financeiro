@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
-import { eq } from 'drizzle-orm';
-import { tenderNotices } from '../db/schema';
+import { eq, inArray } from 'drizzle-orm';
+import { tenderNotices, tenderNotifications } from '../db/schema';
 import {
   buildNoticeRow,
   closeLocalTestDatabase,
+  createTestAccount,
   databaseTestsSkipReason,
+  insertTestNotice,
   localTestPool,
+  trackNotice,
   withRollback,
 } from './dbTestSupport';
-import { COLLECTOR_LOCK_KEYS, tryAcquireCollectorLock, upsertNoticePage } from './repository';
+import { COLLECTOR_LOCK_KEYS, deleteExpiredNotices, tryAcquireCollectorLock, upsertNoticePage } from './repository';
 
 describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
@@ -65,6 +68,48 @@ describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReaso
         .from(tenderNotices)
         .where(eq(tenderNotices.pncpControlNumber, row.pncpControlNumber));
       assert.equal(stored?.procurementObject, 'Versão mais nova');
+    });
+  });
+
+  test('limpeza: apaga encerrados há mais de 12 meses e os sem prazo, menos acompanhados ou com notificação não lida', async () => {
+    await withRollback(async (tx) => {
+      const { accountId, ownerId } = await createTestAccount(tx, 'limpeza');
+      const withoutDeadline = await insertTestNotice(tx, { proposalClosesAt: null });
+      const withoutDeadlineTracked = await insertTestNotice(tx, { proposalClosesAt: null });
+      const withoutDeadlineUnread = await insertTestNotice(tx, { proposalClosesAt: null });
+      const withoutDeadlineRead = await insertTestNotice(tx, { proposalClosesAt: null });
+      const closedLongAgo = await insertTestNotice(tx, { proposalClosesAt: '2025-08-01T10:00:00' });
+      const closedRecently = await insertTestNotice(tx, { proposalClosesAt: '2026-09-01T10:00:00' });
+      const open = await insertTestNotice(tx, { proposalClosesAt: '2099-01-01T10:00:00' });
+
+      await trackNotice(tx, { accountId, noticeId: withoutDeadlineTracked, status: 'ANALISAR', userId: ownerId });
+      const notification = { accountId, userId: ownerId, type: 'NOVO_EDITAL' as const, title: 'Novo edital: teste' };
+      await tx.insert(tenderNotifications).values([
+        { ...notification, link: `/editais/${withoutDeadlineUnread}`, noticeId: withoutDeadlineUnread },
+        { ...notification, link: `/editais/${withoutDeadlineRead}`, noticeId: withoutDeadlineRead, readAt: '2026-10-01T10:00:00' },
+      ]);
+
+      const removed = await deleteExpiredNotices(tx, 12);
+      assert.ok(removed >= 3, 'ao menos os três editais de teste sem proteção');
+
+      const remaining = await tx
+        .select({ id: tenderNotices.id })
+        .from(tenderNotices)
+        .where(
+          inArray(tenderNotices.id, [
+            withoutDeadline,
+            withoutDeadlineTracked,
+            withoutDeadlineUnread,
+            withoutDeadlineRead,
+            closedLongAgo,
+            closedRecently,
+            open,
+          ]),
+        );
+      assert.deepEqual(
+        remaining.map((row) => row.id).sort((a, b) => a - b),
+        [withoutDeadlineTracked, withoutDeadlineUnread, closedRecently, open].sort((a, b) => a - b),
+      );
     });
   });
 

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import { PncpClient, PncpRequestError, type PncpClientOptions, type PncpPage } from './pncpClient';
 
@@ -122,6 +124,28 @@ test('HTTP 429 respeita Retry-After em segundos', async () => {
   assert.deepEqual(sleeps, [3000]);
 });
 
+test('HTTP 429 sem Retry-After espera 30 s, 60 s e depois no máximo 2 min', async () => {
+  const tooManyRequests = () => new Response('limite', { status: 429 });
+  const { client, sleeps } = createFakeClient([
+    tooManyRequests(),
+    tooManyRequests(),
+    tooManyRequests(),
+    tooManyRequests(),
+    pageResponse(1, 0),
+  ]);
+  await client.fetchPage('proposta', {}, 1);
+  assert.deepEqual(sleeps, [30_000, 60_000, 120_000, 120_000]);
+});
+
+test('Retry-After acima de 2 min fica em 2 min', async () => {
+  const { client, sleeps } = createFakeClient([
+    new Response('limite', { status: 429, headers: { 'retry-after': '600' } }),
+    pageResponse(1, 0),
+  ]);
+  await client.fetchPage('proposta', {}, 1);
+  assert.deepEqual(sleeps, [120_000]);
+});
+
 test('Retry-After como data HTTP vira espera até a data', async () => {
   const now = Date.parse('2026-10-05T12:00:00Z');
   const { client, sleeps } = createFakeClient(
@@ -174,4 +198,52 @@ test('resposta fora do formato de página é repetida', async () => {
   const page = await client.fetchPage('proposta', {}, 1);
   assert.equal(page.pageNumber, 1);
   assert.deepEqual(sleeps, [1000]);
+});
+
+const purchase = { agencyCnpj: '46634184000142', year: 2026, sequence: 129 };
+const detailOptions = { baseUrl: 'https://pncp.example/api/pncp', pageSize: 500 };
+
+function listResponse(records: unknown[]): Response {
+  return new Response(JSON.stringify(records), { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
+test('itens e arquivos: endereço da compra na API principal e lista devolvida como veio', async () => {
+  const { client, requestedUrls } = createFakeClient(
+    [listResponse([{ numeroItem: 1 }, { numeroItem: 2 }]), listResponse([{ sequencialDocumento: 1 }])],
+    detailOptions,
+  );
+  assert.deepEqual(await client.fetchDetailList('itens', purchase, 1), [{ numeroItem: 1 }, { numeroItem: 2 }]);
+  assert.deepEqual(await client.fetchDetailList('arquivos', purchase, 2), [{ sequencialDocumento: 1 }]);
+  assert.deepEqual(requestedUrls, [
+    'https://pncp.example/api/pncp/v1/orgaos/46634184000142/compras/2026/129/itens?pagina=1&tamanhoPagina=500',
+    'https://pncp.example/api/pncp/v1/orgaos/46634184000142/compras/2026/129/arquivos?pagina=2&tamanhoPagina=500',
+  ]);
+});
+
+test('compra que o PNCP não conhece (HTTP 404) volta null, sem repetir', async () => {
+  // Resposta real de uma dispensa publicada minutos antes (05/10/2026).
+  const notFound = readFileSync(path.join(__dirname, 'fixtures', 'pncp-compra-nao-encontrada.json'), 'utf8');
+  const { client, requestedUrls, sleeps } = createFakeClient([new Response(notFound, { status: 404 })], detailOptions);
+  assert.equal(await client.fetchDetailList('itens', purchase, 1), null);
+  assert.equal(requestedUrls.length, 1);
+  assert.deepEqual(sleeps, []);
+});
+
+test('lista: HTTP 503 e resposta que não é lista são repetidos; 204 é lista vazia', async () => {
+  const { client, sleeps } = createFakeClient(
+    [new Response('', { status: 503 }), new Response('{"inesperado":true}', { status: 200 }), new Response(null, { status: 204 })],
+    detailOptions,
+  );
+  assert.deepEqual(await client.fetchDetailList('arquivos', purchase, 1), []);
+  assert.deepEqual(sleeps, [1000, 2000]);
+});
+
+test('lista: espera curta configurável no 429, para o pedido da tela', async () => {
+  const { client, sleeps } = createFakeClient([new Response('limite', { status: 429 }), listResponse([])], {
+    ...detailOptions,
+    rateLimitBackoffMs: 1_000,
+    maxRetryDelayMs: 2_000,
+  });
+  assert.deepEqual(await client.fetchDetailList('itens', purchase, 1), []);
+  assert.deepEqual(sleeps, [1_000]);
 });

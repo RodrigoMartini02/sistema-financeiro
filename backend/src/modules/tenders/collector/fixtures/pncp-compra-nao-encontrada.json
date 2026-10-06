@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-10-05T20:05:09.211-03:00",
+  "status": "404",
+  "error": "404 NOT_FOUND",
+  "message": "Contratação não cadastrada.",
+  "path": "/pncp-api/v1/orgaos/46363933000144/compras/2026/316/itens"
+}

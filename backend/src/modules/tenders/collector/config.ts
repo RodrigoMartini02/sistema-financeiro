@@ -61,7 +61,9 @@ const collectorEnvSchema = z.object({
     .pipe(z.array(z.enum(BRAZILIAN_STATES))),
   PNCP_HORIZON_DAYS: z.coerce.number().int().min(1).max(365).default(60),
   PNCP_PAGE_SIZE: z.coerce.number().int().min(10).max(50).default(50),
-  PNCP_REQUEST_INTERVAL_MS: z.coerce.number().int().min(0).max(60_000).default(400),
+  // Medido na Fase 1: a 400 ms e a 1 s o PNCP responde 429 depois de poucas
+  // requisições; a 4 s, nenhum 429 numa varredura inteira.
+  PNCP_REQUEST_INTERVAL_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
   PNCP_TIMEOUT_S: z.coerce.number().int().min(1).max(300).default(30),
   PNCP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
