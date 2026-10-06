@@ -268,9 +268,9 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 - 50 buscas salvas com `openCount`: 271 ms;
 - painel completo: 547 ms.
 
-### Telas (Fase 4, Parte 4A)
+### Telas (Fase 4)
 
-Plano: `.plans/licitacoes-fase4-plano.md`. Acompanhamento, Notificações e Configurações seguem provisórias até a Parte 4B.
+Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Detalhe e Buscas salvas; a Parte 4B traz Acompanhamento, Notificações e Configurações.
 
 **Contas habilitadas (`/admin/contas`)** (plano `.plans/licitacoes-acesso-rotina-diaria.md`):
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
@@ -289,6 +289,17 @@ Plano: `.plans/licitacoes-fase4-plano.md`. Acompanhamento, Notificações e Conf
   - cards com o resumo dos critérios, os abertos agora e os interruptores Ativa e Notificar;
   - editar, duplicar e excluir, com confirmação;
   - formulário com prévia ao vivo (500 ms sem digitar).
+- **Acompanhamento (`/acompanhamento`):**
+  - quadro com as colunas Analisar, Vou participar e Descartado (até 100 por coluna, inclusive os encerrados), ordenadas pelo prazo;
+  - arrastar e soltar no desktop e "Mover para…" em cada card, para o teclado e o celular; a mudança mantém a observação gravada;
+  - tabela com filtro por status, só no desktop; a escolha entre quadro e tabela fica guardada no navegador.
+- **Notificações:**
+  - sino com as 10 mais recentes, "Marcar todas como lidas" e "Ver todas";
+  - página `/notificacoes`, paginada, com filtro por tipo e por não lidas;
+  - o clique marca como lida e abre o `link` gravado (relativo à base do app).
+- **Configurações (`/configuracoes`):**
+  - **Equipe** (só o titular): o acesso de cada colaborador ativo da conta;
+  - **Coleta** (titular ou admin): última varredura e último incremental, próxima execução prevista e o histórico paginado, com os erros de cada execução.
 
 **Parâmetros da URL de Buscar** (em português; os padrões ficam fora):
 

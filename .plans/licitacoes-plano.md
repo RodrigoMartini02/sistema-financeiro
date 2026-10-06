@@ -621,3 +621,32 @@ Plano: `.plans/licitacoes-fase4-plano.md`. Só front; a API e o banco não mudar
   - a tabela não cabia ao lado do painel em 1366 px: ficou com quatro colunas, os selos sob o objeto e o painel mais estreito;
   - outros ajustes: rolagem fantasma nas abas, "Remover acompanhamento" sem o vermelho, alternâncias esticadas no formulário e caixas de seleção claras no tema escuro.
 - **Produção:** nada. A Parte 4B (Acompanhamento, Notificações e Configurações) vem num `/implementar` seguinte.
+
+### Fase 4, Parte 4B — 06/10/2026
+
+Plano: `.plans/licitacoes-fase4-plano.md`. Só front; a API e o banco não mudaram. Feita na branch `feat/R/licitacoes-fase4b`, a partir da `main`, porque o módulo já estava em produção. O código escrito antes, sem commit, no worktree foi trazido para ela.
+
+- **Telas:**
+  - Acompanhamento: quadro com arrastar e "Mover para…", mais a tabela com filtro;
+  - Notificações: painel no sino e página com filtros;
+  - Configurações: Equipe e Coleta.
+- **Base:**
+  - tipos de notificações, execuções e equipe;
+  - serviços e query keys;
+  - abas acessíveis (`Tabs`), reaproveitadas no Detalhe do edital;
+  - a tela "Página não encontrada" saiu das provisórias, que deixaram de existir.
+- **Checks:**
+  - testes do front: 229 de 229;
+  - tipos do front: 0 erro;
+  - build ok, com o pacote `tenders` em 207,6 kB (46,7 kB com gzip);
+  - testes do backend: 414 de 414, como regressão.
+- **Conferência no navegador** (Edge sem janela, backend e front locais, banco local): 36 conferências automáticas ok e 16 prints.
+  - **Roteiro do escopo:**
+    - quadro (menu mantendo a observação, e arrastar), tabela com filtro;
+    - buscar → abrir edital → "Vou participar";
+    - busca salva com aviso → notificações geradas pelo coletor no banco local (`reprocess-notifications`) → sino → clique abre o edital e marca como lida;
+    - página de notificações com filtros e "Marcar todas como lidas".
+  - **Outras telas:** Configurações (liberar o acesso de um colaborador de teste, Coleta) e Contas habilitadas.
+  - **Aparência:** celular (quadro sem rolagem lateral, painel do sino dentro da tela) e tema escuro, sem erro no console.
+  - Os dados de teste foram removidos no fim.
+- **Achado:** a aba Coleta mostra a próxima execução pela agenda antiga (`COLLECTION_SCHEDULE` na API), com varredura às 03:00 e incremental a cada 2 h. A produção roda a rotina diária às 06:00, sem incremental. Fica para decisão do usuário.
