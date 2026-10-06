@@ -15,6 +15,7 @@ import { requesterOf, uniqueToken, type TestAccount } from './apiTestSupport';
 import {
   criteriaOnlyFilters,
   EMPTY_CRITERIA,
+  numberGroupsOf,
   searchNotices,
   type NoticeCriteria,
   type NoticeSearchFilters,
@@ -217,6 +218,49 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
 
   // Paridade (escopo, seção 7.3): a busca da tela, com os mesmos critérios de
   // uma busca salva, traz os mesmos editais que licitacoes.fn_edital_bate.
+  test('número: todos os grupos num mesmo campo (número + ano, processo + ano ou controle PNCP); ano da compra', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'busca-numero');
+      const token = uniqueToken();
+      // CNPJ fictício no controle PNCP (único); o termo da busca isola os editais do teste.
+      const fakeCnpj = () => `9${String(Math.floor(Math.random() * 1e13)).padStart(13, '0')}`;
+      const controlA = `${fakeCnpj()}-1-004267/2026`;
+      const noticeA = await insertTestNotice(tx, {
+        procurementObject: `Aquisição A ${token}`,
+        purchaseNumber: 'PE 352/26',
+        purchaseYear: 2026,
+        processNumber: 'SEI-080001/003961/2026',
+        pncpControlNumber: controlA,
+      });
+      const noticeB = await insertTestNotice(tx, {
+        procurementObject: `Aquisição B ${token}`,
+        purchaseNumber: '61',
+        purchaseYear: 2025,
+        processNumber: '154.00015971/2026-66',
+        pncpControlNumber: `${fakeCnpj()}-1-000061/2025`,
+      });
+      const noticeC = await insertTestNotice(tx, {
+        procurementObject: `Aquisição C ${token}`,
+        purchaseNumber: '352',
+        purchaseYear: 2025,
+        processNumber: '99',
+        pncpControlNumber: `${fakeCnpj()}-1-000352/2025`,
+      });
+      const byNumber = async (text: string, purchaseYear: number | null = null) =>
+        (await idsOf(tx, requesterOf(account), filtersFor(token, { numberGroups: numberGroupsOf(text), purchaseYear }))).sort();
+
+      assert.deepEqual(await byNumber('352/2026'), [noticeA], 'número da compra com o ano da compra');
+      assert.deepEqual(await byNumber('PE 352/26'), [noticeA], 'como o órgão escreveu');
+      assert.deepEqual(await byNumber('00015971/2026'), [noticeB], 'parte do processo, sem os zeros à esquerda');
+      assert.deepEqual(await byNumber(controlA), [noticeA], 'controle PNCP completo');
+      assert.deepEqual(await byNumber('352/2025'), [noticeC], 'outro ano, outro edital');
+      assert.deepEqual(await byNumber('352/3961'), [], 'grupos em campos diferentes não contam');
+      assert.deepEqual(await byNumber('352'), [noticeA, noticeC].sort());
+      assert.deepEqual(await byNumber('352', 2026), [noticeA], 'número e ano juntos');
+      assert.deepEqual((await idsOf(tx, requesterOf(account), filtersFor(token, { purchaseYear: 2025 }))).sort(), [noticeB, noticeC].sort());
+    });
+  });
+
   test('paridade: busca da tela × busca salva com os mesmos critérios', async () => {
     await withRollback(async (tx) => {
       const account: TestAccount = await createTestAccount(tx, 'busca-paridade');

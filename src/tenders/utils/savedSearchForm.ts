@@ -172,6 +172,9 @@ export const LEFT_OUT_LABELS = {
   closing: 'período de encerramento',
   closedNotices: 'editais encerrados',
   tracking: 'filtro de acompanhamento',
+  favorites: 'só favoritos',
+  number: 'número',
+  purchaseYear: 'ano da compra',
 } as const;
 
 /**
@@ -201,6 +204,9 @@ export function searchStateToForm(
   if (state.closingFrom || state.closingTo) leftOut.push(LEFT_OUT_LABELS.closing);
   if (!state.openOnly) leftOut.push(LEFT_OUT_LABELS.closedNotices);
   if (state.trackingStatuses.length > 0 || !state.hideDiscarded) leftOut.push(LEFT_OUT_LABELS.tracking);
+  if (state.favoritesOnly) leftOut.push(LEFT_OUT_LABELS.favorites);
+  if (state.number) leftOut.push(LEFT_OUT_LABELS.number);
+  if (state.purchaseYear !== null) leftOut.push(LEFT_OUT_LABELS.purchaseYear);
   return { values, leftOut };
 }
 

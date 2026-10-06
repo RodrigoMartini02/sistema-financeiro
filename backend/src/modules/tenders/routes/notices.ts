@@ -29,7 +29,7 @@ export function noticeRoutes(deps: TendersApiDeps): Router {
 
   // GET /api/tenders/notices?q=&termsMode=&state=&municipalityCode=&agencyCnpj=&modality=&minValue=&maxValue=
   //   &includeWithoutValue=&publishedFrom=&publishedTo=&closingFrom=&closingTo=&openOnly=&trackingStatus=
-  //   &hideDiscarded=&favoritesOnly=&savedSearchId=&sort=&page=&perPage=
+  //   &hideDiscarded=&favoritesOnly=&number=&purchaseYear=&savedSearchId=&sort=&page=&perPage=
   router.get(
     '/',
     [...noticeSearchValidators, validate],

@@ -318,6 +318,33 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
+  test('busca por número e ano por HTTP; número sem dígito, longo demais ou ano fora da faixa: 400', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-numero');
+      const token = uniqueToken();
+      const noticeId = await insertTestNotice(tx, {
+        procurementObject: `Número http ${token}`,
+        purchaseNumber: 'PE 352/26',
+        purchaseYear: 2026,
+        proposalClosesAt: '2099-11-20T09:30:00',
+      });
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+        const search = (params: string) => call<SearchData>('GET', `/api/tenders/notices?q=${encodeURIComponent(token)}&${params}`, { as });
+        const found = await search(`number=${encodeURIComponent('PE 352/2026')}&purchaseYear=2026`);
+        assert.equal(found.status, 200);
+        assert.deepEqual(found.body.data.items.map((item) => item.id), [noticeId]);
+        assert.equal((await search('number=352%2F2025')).body.data.total, 0);
+        assert.equal((await search('purchaseYear=2025')).body.data.total, 0);
+
+        assert.equal((await search('number=PE')).status, 400);
+        assert.equal((await search(`number=${'1'.repeat(61)}`)).status, 400);
+        assert.equal((await search('purchaseYear=1999')).status, 400);
+        assert.equal((await search('purchaseYear=dois')).status, 400);
+      });
+    });
+  });
+
   test('prévia limitada por usuário', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'http-previa');

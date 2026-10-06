@@ -19,6 +19,10 @@ export const MAX_STATES = BRAZILIAN_STATES.length;
 export const MAX_MUNICIPALITIES = 100;
 export const MAX_AGENCIES = 50;
 export const MAX_MODALITIES = TENDER_MODALITY_IDS.length;
+/** "Número, processo ou controle PNCP" da busca. */
+export const MAX_NUMBER_LENGTH = 60;
+export const MIN_PURCHASE_YEAR = 2000;
+export const MAX_PURCHASE_YEAR = 2100;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Valor em reais: até 16 dígitos inteiros e 2 decimais, com ponto (numeric(18,2)). */
@@ -74,6 +78,19 @@ function listQuery(
     .withMessage(message);
 }
 
+/** Número, processo ou controle PNCP: texto curto com ao menos um dígito (a busca compara só os dígitos). */
+function numberQuery(): ValidationChain {
+  const message = `Número: até ${MAX_NUMBER_LENGTH} caracteres, com ao menos um dígito`;
+  return query('number')
+    .optional()
+    .isString()
+    .withMessage(message)
+    .isLength({ max: MAX_NUMBER_LENGTH })
+    .withMessage(message)
+    .matches(/\d/)
+    .withMessage(message);
+}
+
 /** Filtros da busca de editais (`GET /notices`), seção 8.1 do escopo. */
 export const noticeSearchValidators: ValidationChain[] = [
   query('q').optional().isString().isLength({ max: MAX_SEARCH_TEXT_LENGTH }).withMessage(`Busca com até ${MAX_SEARCH_TEXT_LENGTH} caracteres`),
@@ -92,6 +109,11 @@ export const noticeSearchValidators: ValidationChain[] = [
   listQuery('trackingStatus', (item) => (TRACKING_FILTERS as readonly string[]).includes(item), 'Status de acompanhamento inválido', TRACKING_FILTERS.length, (item) => item.toUpperCase()),
   booleanQuery('hideDiscarded'),
   booleanQuery('favoritesOnly'),
+  numberQuery(),
+  query('purchaseYear')
+    .optional()
+    .isInt({ min: MIN_PURCHASE_YEAR, max: MAX_PURCHASE_YEAR })
+    .withMessage(`Ano inválido (de ${MIN_PURCHASE_YEAR} a ${MAX_PURCHASE_YEAR})`),
   query('savedSearchId').optional().isInt({ min: 1 }).withMessage('Busca salva inválida'),
   query('sort').optional().isIn([...NOTICE_SORTS]).withMessage('Ordenação inválida'),
   ...paginationQuery(),

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { ToggleRow } from '../../ui/form';
+import { Select, ToggleRow, inputBase } from '../../ui/form';
 import type { DomainLookups } from '../hooks/useDomainLists';
 import { TRACKING_FILTERS, type DomainLists } from '../types';
 import { TRACKING_FILTER_LABELS, formatCnpj } from '../utils/labels';
@@ -8,12 +8,15 @@ import { MAX_AGENCIES, MAX_MUNICIPALITIES, VALUE_RANGE_MESSAGE } from '../utils/
 import { formatIsoDate } from '../utils/dates';
 import {
   CLOSING_SHORTCUT_DAYS,
+  MAX_NUMBER_LENGTH,
   MIN_DAYS_TO_CLOSE,
   activeClosingShortcut,
   closingWithinDays,
   isValidCnpj,
+  isValidNumberSearch,
   minimumClosingDate,
   normalizeCnpj,
+  purchaseYearOptions,
   withFilters,
   type SearchState,
 } from '../utils/searchFilters';
@@ -25,6 +28,7 @@ import { MunicipalityPicker } from './MunicipalityPicker';
 import { TagInput } from './TagInput';
 
 const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
+const NUMBER_MESSAGE = 'Informe ao menos um número.';
 
 function FilterSection({ title, children, error }: { title: string; children: ReactNode; error?: string | null }) {
   const headingId = useId();
@@ -69,12 +73,18 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
   const [maxDraft, setMaxDraft] = useState<number | null>(() => decimalToReais(state.maxValue));
   const [publishedError, setPublishedError] = useState<string | null>(null);
   const [closingError, setClosingError] = useState<string | null>(null);
+  const [numberDraft, setNumberDraft] = useState(state.number);
+  const [numberError, setNumberError] = useState<string | null>(null);
 
   // Filtro trocado de fora (chip, Limpar tudo): os rascunhos acompanham.
   useEffect(() => setMinDraft(decimalToReais(state.minValue)), [state.minValue]);
   useEffect(() => setMaxDraft(decimalToReais(state.maxValue)), [state.maxValue]);
   useEffect(() => setPublishedError(null), [state.publishedFrom, state.publishedTo]);
   useEffect(() => setClosingError(null), [state.closingFrom, state.closingTo]);
+  useEffect(() => {
+    setNumberDraft(state.number);
+    setNumberError(null);
+  }, [state.number]);
 
   const valueError = minDraft !== null && maxDraft !== null && minDraft > maxDraft ? VALUE_RANGE_MESSAGE : null;
   const hasValueRange = state.minValue !== null || state.maxValue !== null;
@@ -96,6 +106,17 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
     update({ publishedFrom, publishedTo });
   };
 
+  // O número vale ao sair do campo ou com Enter; vazio tira o filtro.
+  const commitNumber = () => {
+    const number = numberDraft.trim();
+    if (number !== '' && !isValidNumberSearch(number)) {
+      setNumberError(NUMBER_MESSAGE);
+      return;
+    }
+    setNumberError(null);
+    if (number !== state.number) update({ number });
+  };
+
   const commitClosing = (closingFrom: string | null, closingTo: string | null) => {
     if (closingFrom && closingTo && closingFrom > closingTo) {
       setClosingError(DATE_ORDER_MESSAGE);
@@ -109,6 +130,35 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
 
   return (
     <div className="grid grid-cols-1 gap-5">
+      <FilterSection title="Número e ano" error={numberError}>
+        <input
+          type="text"
+          aria-label="Número, processo ou controle PNCP"
+          aria-invalid={Boolean(numberError) || undefined}
+          value={numberDraft}
+          maxLength={MAX_NUMBER_LENGTH}
+          onChange={(event) => setNumberDraft(event.target.value)}
+          onBlur={commitNumber}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur();
+          }}
+          placeholder="Número, processo ou controle PNCP"
+          className={`${inputBase} ${numberError ? '!border-red-400' : ''}`}
+        />
+        <Select
+          aria-label="Ano da compra"
+          value={state.purchaseYear === null ? '' : String(state.purchaseYear)}
+          onChange={(event) => update({ purchaseYear: event.target.value ? Number(event.target.value) : null })}
+        >
+          <option value="">Qualquer ano</option>
+          {purchaseYearOptions(todayIso, state.purchaseYear).map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </Select>
+      </FilterSection>
+
       {locked && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
           Termos, local, modalidade, valor e órgão vêm da busca salva. Para mudar, edite a busca em Buscas salvas ou saia dela
