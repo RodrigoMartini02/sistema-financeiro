@@ -119,6 +119,8 @@ export const queryKeys = {
     ['budget-overview-range', deMes, deAno, ateMes, ateAno] as const,
   copilotConversations: ['copilot-conversations'] as const,
   aiIntegrations: ['ai-integrations'] as const,
+  // Acesso ao módulo de Licitações (atalho do menu): é da pessoa, não da conta ativa.
+  tendersAccess: ['tenders-access'] as const,
   assistantUltimosLancamentos: (accountId?: number | null) => ['assistant-ultimos-lancamentos', accountId ?? 'ativa'] as const,
   despesasEmAberto: (accountId?: number | null) => ['despesas-em-aberto', accountId ?? 'ativa'] as const,
   // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so

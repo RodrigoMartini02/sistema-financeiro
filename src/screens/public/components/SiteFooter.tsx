@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { destinationForAuthOrigin } from '../../../utils/authOrigin';
 
 interface SiteFooterProps {
   onOpenTermos?: () => void;
@@ -37,6 +38,8 @@ export function SiteFooter({ onOpenTermos, onOpenPrivacidade, tone = 'dark' }: S
         </div>
 
         <div className={['flex flex-wrap items-center gap-5 text-[11px] uppercase tracking-[0.14em]', isLight ? 'text-slate-500' : 'text-site-textMuted'].join(' ')}>
+          {/* Outro app (entrada própria, tenders.html): link comum, não o Link do roteador. */}
+          <a href={destinationForAuthOrigin('tenders')} className={legalLinkClass}>Conheça também: Licitações</a>
           {onOpenPrivacidade ? (
             <button type="button" onClick={onOpenPrivacidade} className={legalLinkClass}>Privacidade</button>
           ) : (

@@ -1,4 +1,4 @@
-import { Bell, Bookmark, ClipboardList, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
+import { Bell, Bookmark, Building2, ClipboardList, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 
@@ -14,6 +14,7 @@ const ICONS: Record<TendersRouteKey, LucideIcon> = {
   acompanhamento: ClipboardList,
   notificacoes: Bell,
   configuracoes: Settings,
+  contas: Building2,
 };
 
 interface TendersSidebarProps {

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import {
-  AlertTriangle, BarChart3, Bell, Building2, LayoutDashboard,
+  AlertTriangle, BarChart3, Bell, Building2, Gavel, LayoutDashboard,
   Moon, Settings, Sun, Wallet, X,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,8 @@ import { getActiveAccountId } from '../services/apiClient';
 import { processarReceitasFixas } from '../services/financeService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { queryKeys } from '../services/queryKeys';
+import { fetchTendersAccess } from '../services/tendersService';
+import { destinationForAuthOrigin } from '../utils/authOrigin';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTelaDesktop } from '../hooks/useTelaDesktop';
@@ -267,6 +269,18 @@ export function AppShell({
     staleTime: 60_000,
   });
   const naoLidasCount = notifications.filter((item) => item.status === 'pending').length;
+
+  // Atalho para o módulo de Licitações: só aparece quando o servidor libera o
+  // acesso (conta habilitada ou colaborador liberado). Sem acesso, a rota
+  // responde 404/403 e o atalho simplesmente não aparece.
+  const tendersAccess = useQuery({
+    queryKey: queryKeys.tendersAccess,
+    queryFn: fetchTendersAccess,
+    enabled: !isDemoMode,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+  const showTendersShortcut = !isDemoMode && tendersAccess.isSuccess;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
     const item = isDemoMode ? undefined : readConfigParam();
@@ -359,6 +373,19 @@ export function AppShell({
             );
           })}
         </div>
+
+        {showTendersShortcut && (
+          <div className="mt-4 shrink-0">
+            <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">{'Módulos'}</p>
+            <a
+              href={destinationForAuthOrigin('tenders')}
+              className="relative flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
+            >
+              <Gavel size={17} />
+              <span className="flex-1 text-left">{'Licitações'}</span>
+            </a>
+          </div>
+        )}
 
         {!isDemoMode && hasConfigItems && (
         <div className="mt-4 flex flex-col">

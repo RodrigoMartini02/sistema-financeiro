@@ -63,6 +63,8 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
           permissions: {
             manageTeam: access.role === 'TITULAR',
             viewCollectionRuns: access.role === 'TITULAR' || access.isPlatformAdmin,
+            // Tela "Contas habilitadas": só o admin da plataforma (as rotas de admin conferem de novo).
+            manageEnabledAccounts: access.isPlatformAdmin,
           },
           accounts: access.availableAccounts,
         },
