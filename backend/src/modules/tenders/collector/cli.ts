@@ -1,10 +1,8 @@
 import { parseArgs } from 'node:util';
 import * as dotenv from 'dotenv';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
-import { CollectorConfigError, databaseHost, loadCollectorConfig } from './config';
-import { createCollectorDatabase } from './database';
-import { createCollectorLogger, errorMessage } from './logger';
-import { PncpClient } from './pncpClient';
+import { CollectorConfigError, databaseHost } from './config';
+import { errorMessage } from './logger';
 import {
   readStatus,
   runCleanup,
@@ -16,6 +14,7 @@ import {
   type CollectorContext,
   type RunOutcome,
 } from './runs';
+import { createCollectorRuntime } from './runtime';
 
 // Comandos do coletor (Render Cron Jobs e depuração):
 //   npm --prefix backend run tenders -- sweep | incremental | deadline-reminders | cleanup | status
@@ -174,23 +173,16 @@ async function main(): Promise<void> {
   }
 
   const command = parseCliArgs(process.argv.slice(2));
-  const config = loadCollectorConfig(process.env);
-  const logger = createCollectorLogger(config.logLevel);
-  logger.info('Coletor de licitações', { command: command.name, database: databaseHost(config.databaseUrl) });
-
-  const { pool, db } = createCollectorDatabase(config.databaseUrl, logger);
-  const pncp = new PncpClient({
-    ...config.pncp,
-    onRetry: (info) => logger.warn('Nova tentativa no PNCP', { ...info }),
-  });
+  const { context, close } = createCollectorRuntime(process.env);
+  context.logger.info('Coletor de licitações', { command: command.name, database: databaseHost(context.config.databaseUrl) });
 
   try {
-    const outcome = await runCommand({ db, pool, pncp, config, logger, now: () => new Date() }, command);
+    const outcome = await runCommand(context, command);
     if (outcome && !outcome.skipped && outcome.status === 'FALHA') {
       process.exitCode = 1;
     }
   } finally {
-    await pool.end();
+    await close();
   }
 }
 

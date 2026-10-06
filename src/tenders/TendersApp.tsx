@@ -3,6 +3,7 @@ import { getToken } from '../services/session';
 import { LoadingState } from '../ui/states';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
+import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
 import { GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
 import { HomeScreen } from './screens/HomeScreen';
 import { NoticeScreen } from './screens/NoticeScreen';
@@ -56,6 +57,7 @@ export function TendersApp() {
         <Route path="acompanhamento" element={<PlaceholderScreen title="Acompanhamento" />} />
         <Route path="notificacoes" element={<PlaceholderScreen title="Notificações" />} />
         <Route path="configuracoes" element={<SettingsPlaceholderScreen />} />
+        <Route path="admin/contas" element={<AdminAccountsScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
     </Routes>

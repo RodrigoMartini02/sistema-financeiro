@@ -238,3 +238,23 @@ export interface DomainLists {
   notificationTypes: string[];
   municipalities: Municipality[];
 }
+
+/** Conta na tela "Contas habilitadas" (GET /api/tenders/admin/accounts, só admin da plataforma). */
+export interface AdminTenderAccount {
+  accountId: number;
+  accountName: string;
+  accountType: 'pessoal' | 'empresa';
+  ownerName: string;
+  ownerEmail: string;
+  enabled: boolean;
+  /** Última mudança da habilitação; null se a conta nunca foi habilitada. */
+  changedAt: string | null;
+}
+
+/** Resposta de PUT /api/tenders/admin/accounts/:accountId. */
+export interface AccountEnabledChange {
+  accountId: number;
+  accountName: string;
+  active: boolean;
+  changedAt: string | null;
+}

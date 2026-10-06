@@ -13,6 +13,7 @@
     "test:tenders-db": "set TENDERS_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/modules/tenders/**/*.db.test.ts",
     "tenders": "tsx src/modules/tenders/collector/cli.ts",
     "tenders:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/collector/cli.ts",
+    "daily-jobs": "tsx scripts/dailyJobs.ts",
     "migrations:status": "tsx scripts/migrations.ts status",
     "migrations:aplicar": "tsx scripts/migrations.ts aplicar",
     "migrations:registrar-existentes": "tsx scripts/migrations.ts registrar-existentes"

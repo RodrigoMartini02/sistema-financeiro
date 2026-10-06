@@ -34,9 +34,9 @@ test('entrada no módulo: cada situação de sessão e de /access', () => {
 });
 
 test('menu: Configurações só para quem administra o módulo', () => {
-  const titular = { manageTeam: true, viewCollectionRuns: true };
-  const admin = { manageTeam: false, viewCollectionRuns: true };
-  const colaborador = { manageTeam: false, viewCollectionRuns: false };
+  const titular = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const admin = { manageTeam: false, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const colaborador = { manageTeam: false, viewCollectionRuns: false, manageEnabledAccounts: false };
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), [
     'inicio',
     'buscar',
@@ -48,6 +48,14 @@ test('menu: Configurações só para quem administra o módulo', () => {
   assert.equal(canOpenSettings(admin), true);
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'configuracoes'), false);
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'edital'), false, 'o edital abre pela lista');
+});
+
+test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', () => {
+  const titularAdmin = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const titular = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  assert.equal(menuRoutes(titularAdmin).at(-1)?.key, 'contas');
+  assert.equal(menuRoutes(titular).some((route) => route.key === 'contas'), false);
+  assert.equal(routeForPath('/admin/contas')?.title, 'Contas habilitadas');
 });
 
 test('título da barra pela rota; rota desconhecida não tem título de menu', () => {

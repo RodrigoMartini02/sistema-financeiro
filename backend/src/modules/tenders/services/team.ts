@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { accountMembers } from '../../../db/schema/accountMembers';
 import { accounts } from '../../../db/schema/accounts';
 import { users } from '../../../db/schema/users';
@@ -117,4 +117,40 @@ export async function setAccountEnabled(
     active: saved?.active ?? active,
     changedAt: toBrasiliaIso(saved?.enabledAt),
   };
+}
+
+export interface TenderAccountAdminView {
+  accountId: number;
+  accountName: string;
+  accountType: 'pessoal' | 'empresa';
+  ownerName: string;
+  ownerEmail: string;
+  /** Habilitada no módulo agora (conta sem linha em conta_habilitada: false). */
+  enabled: boolean;
+  /** Última mudança da habilitação; null se a conta nunca foi habilitada. */
+  changedAt: string | null;
+}
+
+/**
+ * Contas ativas da plataforma e a habilitação de cada uma no módulo (tela do
+ * admin). Ordem: habilitadas primeiro, depois PJ, depois o nome da conta.
+ */
+export async function listAccountsForTenders(db: TendersDb): Promise<TenderAccountAdminView[]> {
+  const enabled = sql<boolean>`coalesce(${tenderEnabledAccounts.active}, false)`;
+  const rows = await db
+    .select({
+      accountId: accounts.id,
+      accountName: accounts.name,
+      accountType: accounts.type,
+      ownerName: users.name,
+      ownerEmail: users.email,
+      enabled,
+      changedAt: tenderEnabledAccounts.enabledAt,
+    })
+    .from(accounts)
+    .innerJoin(users, eq(users.id, accounts.userId))
+    .leftJoin(tenderEnabledAccounts, eq(tenderEnabledAccounts.accountId, accounts.id))
+    .where(sql`coalesce(${accounts.active}, true)`)
+    .orderBy(desc(enabled), desc(eq(accounts.type, 'empresa')), asc(accounts.name), asc(accounts.id));
+  return rows.map((row) => ({ ...row, changedAt: toBrasiliaIso(row.changedAt) }));
 }

@@ -11,7 +11,7 @@ import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
 import type { SavedSearchView } from '../services/savedSearches';
-import type { EnabledAccountView, TeamMemberView } from '../services/team';
+import type { EnabledAccountView, TeamMemberView, TenderAccountAdminView } from '../services/team';
 import { createTendersRoutes } from './index';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 
@@ -34,7 +34,7 @@ interface ApiResponse<T> {
 interface AccessData {
   account: TenderAccount;
   role: string;
-  permissions: { manageTeam: boolean; viewCollectionRuns: boolean };
+  permissions: { manageTeam: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
 }
 
 type SearchData = Paginated<NoticeListItem> & {
@@ -173,7 +173,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(access.status, 200);
         assert.equal(access.body.success, true);
         assert.equal(access.body.data.role, 'TITULAR');
-        assert.deepEqual(access.body.data.permissions, { manageTeam: true, viewCollectionRuns: true });
+        assert.deepEqual(access.body.data.permissions, { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false });
 
         const search = await call<SearchData>('GET', `/api/tenders/notices?q=${encodeURIComponent(`${token} licitação`)}&state=MA`, { as });
         assert.equal(search.status, 200);
@@ -247,7 +247,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const as = { id: member, type: 'membro' as const };
         const access = await call<AccessData>('GET', '/api/tenders/access', { as });
         assert.equal(access.body.data.role, 'COLABORADOR');
-        assert.deepEqual(access.body.data.permissions, { manageTeam: false, viewCollectionRuns: false });
+        assert.deepEqual(access.body.data.permissions, { manageTeam: false, viewCollectionRuns: false, manageEnabledAccounts: false });
         assert.equal((await call('GET', '/api/tenders/notices', { as })).status, 200);
         assert.equal((await call('GET', '/api/tenders/team', { as })).status, 403);
         assert.equal((await call('PUT', `/api/tenders/team/${member}`, { as, body: { hasAccess: true } })).status, 403);
@@ -266,6 +266,13 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const titular = { id: client.ownerId, type: 'titular' as const };
         const platformAdmin = { id: admin.ownerId, type: 'admin' as const };
         assert.equal((await call('GET', '/api/tenders/access', { as: titular })).status, 404);
+
+        const adminAccess = await call<AccessData>('GET', '/api/tenders/access', { as: platformAdmin });
+        assert.equal(adminAccess.body.data.permissions.manageEnabledAccounts, true);
+        assert.equal((await call('GET', '/api/tenders/admin/accounts', { as: titular })).status, 403);
+        const listed = await call<TenderAccountAdminView[]>('GET', '/api/tenders/admin/accounts', { as: platformAdmin });
+        assert.equal(listed.status, 200);
+        assert.equal(listed.body.data.find((row) => row.accountId === client.accountId)?.enabled, false);
 
         assert.equal((await call('PUT', `/api/tenders/admin/accounts/${client.accountId}`, { as: titular, body: { active: true } })).status, 403);
         assert.equal((await call('PUT', `/api/tenders/admin/accounts/${client.accountId}`, { as: platformAdmin, body: {} })).status, 400);

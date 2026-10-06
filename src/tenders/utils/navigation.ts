@@ -8,7 +8,8 @@ export type TendersRouteKey =
   | 'buscas'
   | 'acompanhamento'
   | 'notificacoes'
-  | 'configuracoes';
+  | 'configuracoes'
+  | 'contas';
 
 export interface TendersRoute {
   key: TendersRouteKey;
@@ -18,16 +19,19 @@ export interface TendersRoute {
   inMenu: boolean;
   /** Só para quem administra o módulo na conta (titular ou admin). */
   restricted: boolean;
+  /** Só para o admin da plataforma (habilitação de contas). */
+  platformAdminOnly: boolean;
 }
 
 export const TENDERS_ROUTES: readonly TendersRoute[] = [
-  { key: 'inicio', path: '/', title: 'Início', inMenu: true, restricted: false },
-  { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false },
-  { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false },
-  { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false },
-  { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, restricted: false },
-  { key: 'notificacoes', path: '/notificacoes', title: 'Notificações', inMenu: true, restricted: false },
-  { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: true, restricted: true },
+  { key: 'inicio', path: '/', title: 'Início', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
+  { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'notificacoes', path: '/notificacoes', title: 'Notificações', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: true, restricted: true, platformAdminOnly: false },
+  { key: 'contas', path: '/admin/contas', title: 'Contas habilitadas', inMenu: true, restricted: false, platformAdminOnly: true },
 ];
 
 export const NOT_FOUND_TITLE = 'Página não encontrada';
@@ -36,6 +40,8 @@ export const NOT_FOUND_TITLE = 'Página não encontrada';
 export interface TendersPermissions {
   manageTeam: boolean;
   viewCollectionRuns: boolean;
+  /** Habilitar e desabilitar contas no módulo: só o admin da plataforma. */
+  manageEnabledAccounts: boolean;
 }
 
 /** Configurações do módulo: equipe (titular) e coleta (titular ou admin). */
@@ -44,7 +50,12 @@ export function canOpenSettings(permissions: TendersPermissions): boolean {
 }
 
 export function menuRoutes(permissions: TendersPermissions): TendersRoute[] {
-  return TENDERS_ROUTES.filter((route) => route.inMenu && (!route.restricted || canOpenSettings(permissions)));
+  return TENDERS_ROUTES.filter(
+    (route) =>
+      route.inMenu &&
+      (!route.restricted || canOpenSettings(permissions)) &&
+      (!route.platformAdminOnly || permissions.manageEnabledAccounts),
+  );
 }
 
 /** Rota do caminho (relativo à base), para o título da barra; desconhecido: null. */

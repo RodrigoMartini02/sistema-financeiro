@@ -2,6 +2,8 @@
 // Itens e arquivos do PNCP ficam fora de `notices`: mudar o acompanhamento
 // invalida a busca, o edital e o histórico, mas não busca o PNCP de novo.
 export const tendersQueryKeys = {
+  // Prefixo de todas as chaves do módulo: trocar a conta em uso invalida tudo.
+  all: ['tenders'] as const,
   access: ['tenders', 'access'] as const,
   unreadNotificationsCount: ['tenders', 'notifications', 'count'] as const,
   planStatus: ['tenders', 'plan-status'] as const,
@@ -15,4 +17,6 @@ export const tendersQueryKeys = {
   savedSearchPreview: (body: string) => ['tenders', 'saved-search-preview', body] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   domains: ['tenders', 'domains'] as const,
+  // Tela "Contas habilitadas" (admin da plataforma).
+  adminAccounts: ['tenders', 'admin', 'accounts'] as const,
 };

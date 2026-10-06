@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../../../middleware/validation';
 import { createRequireTenderAccess } from '../middleware/tenderAccess';
-import { setAccountEnabled } from '../services/team';
+import { listAccountsForTenders, setAccountEnabled } from '../services/team';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 import { noticeRoutes } from './notices';
@@ -29,6 +29,14 @@ export function createTendersRoutes(deps: TendersApiDeps): { routes: Router; adm
   routes.use(overviewRoutes(deps));
 
   const adminRoutes = Router();
+  // GET /api/tenders/admin/accounts: contas ativas da plataforma e a habilitação de cada uma.
+  adminRoutes.get(
+    '/accounts',
+    tenderRoute('Tender accounts list failed:', 'Não foi possível carregar as contas agora.', async (_req, res) => {
+      res.json({ success: true, data: await listAccountsForTenders(deps.db) });
+    }),
+  );
+
   // PUT /api/tenders/admin/accounts/:accountId { active }: habilita ou desabilita o módulo numa conta.
   adminRoutes.put(
     '/accounts/:accountId',
