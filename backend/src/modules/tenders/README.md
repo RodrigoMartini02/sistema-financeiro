@@ -229,7 +229,7 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - é por usuário porque o servidor não configura `trust proxy`.
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
-## App do módulo (front, Fase 3)
+## App do módulo (front, Fases 3 e 4)
 
 O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
 
@@ -254,6 +254,37 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 - busca: 4 a 17 ms, com o índice GIN;
 - 50 buscas salvas com `openCount`: 271 ms;
 - painel completo: 547 ms.
+
+### Telas (Fase 4, Parte 4A)
+
+Plano: `.plans/licitacoes-fase4-plano.md`. Acompanhamento, Notificações e Configurações seguem provisórias até a Parte 4B.
+
+- **Início (`/`):** os quatro indicadores (cada um abre a lista correspondente em Buscar), "Encerrando em breve", editais abertos por UF e "Minhas buscas salvas", com o rodapé da última coleta (âmbar se ela falhou).
+- **Buscar (`/buscar`):**
+  - filtros na URL, para o link ser compartilhável e o voltar do navegador funcionar;
+  - chips removíveis e "Limpar tudo";
+  - cards ou tabela, com a opção compacta guardada no navegador;
+  - ações rápidas e "Salvar esta busca".
+- **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`. Itens e arquivos do PNCP só são pedidos quando a aba abre.
+- **Buscas salvas (`/buscas`):**
+  - cards com o resumo dos critérios, os abertos agora e os interruptores Ativa e Notificar;
+  - editar, duplicar e excluir, com confirmação;
+  - formulário com prévia ao vivo (500 ms sem digitar).
+
+**Parâmetros da URL de Buscar** (em português; os padrões ficam fora):
+
+| URL | API | Observação |
+| --- | --- | --- |
+| `q`, `modo=ou` | `q`, `termsMode` | o modo E é o padrão |
+| `uf`, `municipio`, `orgao`, `modalidade` | `state`, `municipalityCode`, `agencyCnpj`, `modality` | repetíveis |
+| `valorMin`, `valorMax`, `semValor=1` | `minValue`, `maxValue`, `includeWithoutValue` | decimal com ponto |
+| `publicacaoDe`, `publicacaoAte`, `encerramentoDe`, `encerramentoAte` | `publishedFrom` … `closingTo` | AAAA-MM-DD |
+| `abertos=0`, `descartados=1` | `openOnly=false`, `hideDiscarded=false` | |
+| `acompanhamento` | `trackingStatus` | `analisar`, `participar`, `descartado` ou `sem` |
+| `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
+| `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |
+
+**Observação do acompanhamento:** o `PUT /notices/:id/tracking` grava o status e a observação juntos, e a observação ausente vira vazia. Por isso a ação rápida da lista lê o edital antes de gravar e reenvia a observação atual.
 
 ## OpenAPI do PNCP × escopo
 

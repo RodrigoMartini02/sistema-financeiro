@@ -290,7 +290,7 @@ O plano detalhado começa pelos ajustes da Fase 1 (ritmo do PNCP, singular e plu
 
 ### Fase 4 — Telas (tarefas; plano detalhado antes de implementar)
 
-1. Início, Buscar (filtros ↔ URL, chips, cards/tabela, salvar busca, exportar), Detalhe (painel e rota própria `/licitacoes/app/editais/:id`, abas sob demanda) e Buscas salvas (formulário com prévia, debounce de 500ms).
+1. Início, Buscar (filtros ↔ URL, chips, cards/tabela, salvar busca; a exportação saiu na Fase 2), Detalhe (painel e rota própria `/licitacoes/app/editais/:id`, abas sob demanda) e Buscas salvas (formulário com prévia, debounce de 500ms).
 2. Acompanhamento (quadro com arrastar e soltar nativo e alternativa por menu, mais tabela), Notificações (painel e página; abrem o edital juntando a base `/licitacoes/app` ao link gravado) e Configurações (Equipe e Coleta).
 3. Contagem regressiva (âmbar abaixo de 7 dias, vermelho abaixo de 2) e destaque `<<`/`>>` sem `dangerouslySetInnerHTML`.
 4. Testes de lógica e smoke no navegador com a skill `run`.
@@ -590,3 +590,34 @@ Plano: `.plans/licitacoes-fase3-plano.md`. Só front; o backend não mudou.
 - **Correção durante a conferência:** o cartão "em construção" ficava branco no tema escuro. O conteúdo passou a usar os tokens de `.config-scope`, o mesmo padrão da tela de Clientes.
 - **Não conferido:** o login de verdade pelo módulo, porque não há senha de usuário local disponível. O destino depois do login tem teste de unidade.
 - **Produção:** nada. As regras de reescrita da hospedagem estão no README do módulo, para a ida à produção.
+
+### Fase 4, Parte 4A — 05/10/2026
+
+Plano: `.plans/licitacoes-fase4-plano.md`. Só front; a API e o banco não mudaram.
+
+- **Telas:**
+  - Início com indicadores, prazos, editais por UF e buscas salvas;
+  - Buscar com filtros na URL, chips, cards ou tabela (compacta guardada no navegador), ações rápidas e "Salvar esta busca";
+  - Detalhe no painel lateral (`?edital=`) e em `/editais/:id`, com itens e arquivos do PNCP sob demanda e o acompanhamento com histórico;
+  - Buscas salvas com interruptores, duplicar, excluir com confirmação e formulário com prévia ao vivo.
+- **Base:** tipos, serviços e query keys da 4A; utilitários com testes (filtros ↔ URL, chips, contagem regressiva, destaque, busca salva, valores e datas); o erro 400 da API traz os campos para o formulário.
+- **Achado na API:** o PUT do acompanhamento troca o status e a observação juntos. A ação rápida da lista lê o edital antes de gravar, para não apagar a observação, e o roteiro confere isso.
+- **Checks:**
+  - testes do front: 217 de 217, sendo 31 novos;
+  - tipos do front: 0 erro;
+  - build ok, com o código do módulo só no pacote `tenders` (110 kB, 29,5 kB com gzip);
+  - testes do backend: 403 de 403, como regressão.
+- **Conferência no navegador** (Edge sem janela, backend e front locais, banco local), com 53 conferências automáticas ok e 28 prints:
+  - roteiro buscar → detalhe → Vou participar → salvar busca → Buscas salvas → Início;
+  - voltar do navegador, chips, "Limpar tudo" e atalho de encerramento;
+  - tabela e compacta, itens e arquivos do PNCP de verdade;
+  - prévia com debounce (1 pedido);
+  - estados carregando, vazio, erro e edital inexistente;
+  - temas claro e escuro, e celular;
+  - sem pedidos repetidos com a tela parada e sem erro no console.
+  - Os acompanhamentos e as buscas salvas criados no roteiro foram removidos no fim. O histórico dos dois editais guarda as linhas de teste no banco local.
+- **Correções durante a conferência:**
+  - no celular, textos longos alargavam as grades e a tela estourava na lateral (as gavetas abriam deslocadas). As pilhas em grade passaram a ter coluna `minmax(0, 1fr)`;
+  - a tabela não cabia ao lado do painel em 1366 px: ficou com quatro colunas, os selos sob o objeto e o painel mais estreito;
+  - outros ajustes: rolagem fantasma nas abas, "Remover acompanhamento" sem o vermelho, alternâncias esticadas no formulário e caixas de seleção claras no tema escuro.
+- **Produção:** nada. A Parte 4B (Acompanhamento, Notificações e Configurações) vem num `/implementar` seguinte.
