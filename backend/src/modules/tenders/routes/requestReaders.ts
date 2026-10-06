@@ -1,6 +1,6 @@
 import { RequestInputError } from '../../../utils/requestInput';
 import type { NoticeSort, SearchTermsMode, TenderNotificationType, TrackingFilter } from '../domains';
-import type { NoticeCriteria, NoticeSearchFilters } from '../services/noticeSearch';
+import { numberGroupsOf, type NoticeCriteria, type NoticeSearchFilters } from '../services/noticeSearch';
 import type { SavedSearchInput } from '../services/savedSearches';
 import { parseSearchText } from '../services/searchText';
 import { DEFAULT_PER_PAGE } from './validators';
@@ -119,6 +119,8 @@ export function readNoticeSearchRequest(query: RequestValues): NoticeSearchReque
       trackingStatuses: uniqueList(stringList(query['trackingStatus']).map((status) => status.toUpperCase())) as TrackingFilter[],
       hideDiscarded: readBoolean(query['hideDiscarded'], true),
       favoritesOnly: readBoolean(query['favoritesOnly'], false),
+      numberGroups: typeof query['number'] === 'string' ? numberGroupsOf(query['number']) : [],
+      purchaseYear: query['purchaseYear'] === undefined ? null : Number(query['purchaseYear']),
       sort: (typeof query['sort'] === 'string' ? query['sort'] : 'closingAsc') as NoticeSort,
       ...readPagination(query),
     },

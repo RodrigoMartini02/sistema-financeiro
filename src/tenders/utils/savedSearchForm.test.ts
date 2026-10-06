@@ -160,6 +160,9 @@ test('"Salvar esta busca": critérios entendidos e filtros em comum; o resto é 
       closingTo: '2026-10-30',
       openOnly: false,
       trackingStatuses: ['ANALISAR'],
+      favoritesOnly: true,
+      number: '352/2026',
+      purchaseYear: 2026,
     },
     { terms: ['software'], excludedTerms: ['obra'], termsMode: 'E' },
   );
@@ -180,6 +183,9 @@ test('"Salvar esta busca": critérios entendidos e filtros em comum; o resto é 
     LEFT_OUT_LABELS.closing,
     LEFT_OUT_LABELS.closedNotices,
     LEFT_OUT_LABELS.tracking,
+    LEFT_OUT_LABELS.favorites,
+    LEFT_OUT_LABELS.number,
+    LEFT_OUT_LABELS.purchaseYear,
   ]);
   assert.deepEqual(searchStateToForm(DEFAULT_SEARCH_STATE, { terms: [], excludedTerms: [], termsMode: 'E' }).leftOut, []);
   assert.deepEqual(

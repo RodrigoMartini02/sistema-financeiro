@@ -31,6 +31,13 @@ export const CLOSING_SHORTCUT_DAYS = [7, 15, 30] as const;
  */
 export const MIN_DAYS_TO_CLOSE = 3;
 
+/** "Número, processo ou controle PNCP": a API compara só os dígitos (migration 0079). */
+export const MAX_NUMBER_LENGTH = 60;
+export const MIN_PURCHASE_YEAR = 2000;
+export const MAX_PURCHASE_YEAR = 2100;
+/** Anos da lista: do próximo até tantos anos atrás. */
+const PURCHASE_YEARS_BACK = 4;
+
 export interface SearchState {
   q: string;
   termsMode: SearchTermsMode;
@@ -54,6 +61,10 @@ export interface SearchState {
   hideDiscarded: boolean;
   /** Só os editais que a pessoa favoritou. */
   favoritesOnly: boolean;
+  /** Número da compra, processo ou controle PNCP, como digitado; vazio = sem filtro. */
+  number: string;
+  /** Ano da compra; null = qualquer ano. */
+  purchaseYear: number | null;
   /** Resultados de uma busca salva: os critérios vêm dela, e os da tela ficam de fora. */
   savedSearchId: number | null;
   sort: NoticeSort;
@@ -80,6 +91,8 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   trackingStatuses: [],
   hideDiscarded: true,
   favoritesOnly: false,
+  number: '',
+  purchaseYear: null,
   savedSearchId: null,
   sort: 'closingAsc',
   page: 1,
@@ -106,6 +119,8 @@ export const SEARCH_URL_PARAMS = {
   tracking: 'acompanhamento',
   showDiscarded: 'descartados',
   favoritesOnly: 'favoritos',
+  number: 'numero',
+  purchaseYear: 'ano',
   savedSearch: 'busca',
   sort: 'ordem',
   page: 'pagina',
@@ -145,6 +160,22 @@ function uniqueValid(values: string[], normalize: (value: string) => string, isV
     }
   }
   return result;
+}
+
+/** Número de busca válido: até MAX_NUMBER_LENGTH caracteres e ao menos um dígito. */
+export function isValidNumberSearch(text: string): boolean {
+  return text.length <= MAX_NUMBER_LENGTH && /\d/.test(text);
+}
+
+function numberParam(text: string | null): string {
+  const value = (text ?? '').trim();
+  return isValidNumberSearch(value) ? value : '';
+}
+
+function purchaseYearParam(text: string | null): number | null {
+  if (!text || !/^\d{4}$/.test(text)) return null;
+  const year = Number(text);
+  return year >= MIN_PURCHASE_YEAR && year <= MAX_PURCHASE_YEAR ? year : null;
 }
 
 function positiveInt(text: string | null): number | null {
@@ -214,6 +245,8 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
     ) as TrackingFilter[],
     hideDiscarded: params.get(P.showDiscarded) !== '1',
     favoritesOnly: params.get(P.favoritesOnly) === '1',
+    number: numberParam(params.get(P.number)),
+    purchaseYear: purchaseYearParam(params.get(P.purchaseYear)),
     savedSearchId,
     page: positiveInt(params.get(P.page)) ?? 1,
     perPage,
@@ -244,6 +277,8 @@ export function toSearchParams(state: SearchState): URLSearchParams {
   state.trackingStatuses.forEach((value) => params.append(P.tracking, value.toLowerCase()));
   if (!state.hideDiscarded) params.set(P.showDiscarded, '1');
   if (state.favoritesOnly) params.set(P.favoritesOnly, '1');
+  if (state.number) params.set(P.number, state.number);
+  if (state.purchaseYear !== null) params.set(P.purchaseYear, String(state.purchaseYear));
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
   if (state.sort !== DEFAULT_SEARCH_STATE.sort) params.set(P.sort, SORT_URL_VALUES[state.sort]);
   if (state.page > 1) params.set(P.page, String(state.page));
@@ -280,6 +315,8 @@ export function toApiQuery(state: SearchState): string {
   state.trackingStatuses.forEach((value) => params.append('trackingStatus', value));
   params.set('hideDiscarded', String(state.hideDiscarded));
   if (state.favoritesOnly) params.set('favoritesOnly', 'true');
+  if (state.number) params.set('number', state.number);
+  if (state.purchaseYear !== null) params.set('purchaseYear', String(state.purchaseYear));
   params.set('sort', state.sort);
   params.set('page', String(state.page));
   params.set('perPage', String(state.perPage));
@@ -312,13 +349,13 @@ export function minimumClosingDate(todayIso: string): string {
 
 /**
  * O prazo mínimo vale na busca de editais abertos com o filtro desligado. Não
- * vale com filtro de acompanhados (Analisar, Vou participar ou Descartado) nem
- * com "Só favoritos": aí a pessoa quer ver os seus, inclusive os urgentes.
- * Também não vale com um período de encerramento que termina antes do mínimo
- * (aí vale o período escolhido).
+ * vale com filtro de acompanhados (Analisar, Vou participar ou Descartado), com
+ * "Só favoritos" nem com número: aí a pessoa procura os seus ou um edital
+ * certo, inclusive os urgentes. Também não vale com um período de encerramento
+ * que termina antes do mínimo (aí vale o período escolhido).
  */
 export function appliesMinimumDeadline(state: SearchState, todayIso: string): boolean {
-  if (!state.openOnly || state.includeClosingSoon || state.favoritesOnly) {
+  if (!state.openOnly || state.includeClosingSoon || state.favoritesOnly || state.number !== '') {
     return false;
   }
   if (state.trackingStatuses.some((status) => status !== TRACKING_FILTER_NONE)) {
@@ -350,6 +387,16 @@ export function closingSoonCountQuery(state: SearchState, todayIso: string): str
     return null;
   }
   return toApiQuery({ ...state, closingTo: addDaysToIsoDate(minimum, -1), page: 1, perPage: 1 });
+}
+
+/**
+ * Anos da lista "Ano da compra": do próximo até 4 anos atrás, do mais novo ao
+ * mais antigo. Um ano escolhido fora da faixa (veio pela URL) entra na lista.
+ */
+export function purchaseYearOptions(todayIso: string, selected: number | null = null): number[] {
+  const currentYear = Number(todayIso.slice(0, 4));
+  const years = Array.from({ length: PURCHASE_YEARS_BACK + 2 }, (_, index) => currentYear + 1 - index);
+  return selected !== null && !years.includes(selected) ? [...years, selected].sort((a, b) => b - a) : years;
 }
 
 /** Atalho "próximos N dias" do encerramento: de hoje até hoje + N. */
@@ -395,6 +442,12 @@ export function filterChips(state: SearchState, lookups: ChipLookups = {}): Filt
   if (q) {
     const mode = state.termsMode === 'OU' ? ` (${TERMS_MODE_LABELS.OU.toLowerCase()})` : '';
     add('q', `Busca: "${q}"${mode}`, { q: '', termsMode: 'E' });
+  }
+  if (state.number) {
+    add('number', `Número: ${state.number}`, { number: '' });
+  }
+  if (state.purchaseYear !== null) {
+    add('purchaseYear', `Ano: ${state.purchaseYear}`, { purchaseYear: null });
   }
   state.states.forEach((value) =>
     add(`state:${value}`, `UF: ${value}`, { states: state.states.filter((item) => item !== value) }),

@@ -101,6 +101,16 @@ export const tenderNotices = tendersSchema.table(
     publishedAtIdx: index('ix_edital_publicacao').on(table.publishedAt.desc()),
     valueIdx: index('ix_edital_valor').on(table.estimatedTotalValue),
     agencyIdx: index('ix_edital_orgao').on(table.agencyCnpj),
+    // Busca por número (migration 0079): as mesmas expressões da consulta em services/noticeSearch.ts.
+    numberGroupsIdx: index('ix_edital_numero_grupos').using(
+      'gin',
+      sql`licitacoes.fn_grupos_digitos(coalesce(${table.purchaseNumber}, '') || ' ' || coalesce(${table.purchaseYear}::text, ''))`,
+    ),
+    processGroupsIdx: index('ix_edital_processo_grupos').using(
+      'gin',
+      sql`licitacoes.fn_grupos_digitos(coalesce(${table.processNumber}, '') || ' ' || coalesce(${table.purchaseYear}::text, ''))`,
+    ),
+    controlNumberGroupsIdx: index('ix_edital_controle_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.pncpControlNumber})`),
   }),
 );
 

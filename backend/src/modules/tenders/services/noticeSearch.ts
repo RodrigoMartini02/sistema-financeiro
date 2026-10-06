@@ -59,6 +59,10 @@ export interface NoticeSearchFilters {
   hideDiscarded: boolean;
   /** Só os favoritos de quem busca (migration 0078). */
   favoritesOnly: boolean;
+  /** Grupos de dígitos do "Número, processo ou controle PNCP" (`numberGroupsOf`); vazio = sem filtro. */
+  numberGroups: string[];
+  /** Ano da compra no PNCP; null = qualquer ano. */
+  purchaseYear: number | null;
   sort: NoticeSort;
   page: number;
   perPage: number;
@@ -148,6 +152,29 @@ function startOfNextBrasiliaDay(date: string): SQL {
   return sql`(${date}::date + 1)::timestamp AT TIME ZONE ${BRASILIA_TIME_ZONE}`;
 }
 
+/**
+ * Grupos de dígitos do número digitado, sem os zeros à esquerda e sem repetir
+ * ("PE 352/2026" vira ["352", "2026"]), pela mesma regra de licitacoes.fn_grupos_digitos.
+ */
+export function numberGroupsOf(text: string): string[] {
+  const groups = (text.match(/\d+/g) ?? []).map((group) => group.replace(/^0+/, '') || '0');
+  return [...new Set(groups)];
+}
+
+// As mesmas expressões dos índices da migration 0079, para o banco usá-los:
+// mudar uma exige mudar a outra.
+const NUMBER_FIELD_GROUPS: SQL[] = [
+  sql`licitacoes.fn_grupos_digitos(coalesce(${searchedNotice.purchaseNumber}, '') || ' ' || coalesce(${searchedNotice.purchaseYear}::text, ''))`,
+  sql`licitacoes.fn_grupos_digitos(coalesce(${searchedNotice.processNumber}, '') || ' ' || coalesce(${searchedNotice.purchaseYear}::text, ''))`,
+  sql`licitacoes.fn_grupos_digitos(${searchedNotice.pncpControlNumber})`,
+];
+
+/** Todos os grupos num mesmo campo: número da compra + ano, processo + ano ou controle PNCP. */
+function numberCondition(groups: string[]): SQL {
+  const matches = NUMBER_FIELD_GROUPS.map((field) => sql`${field} @> ${sql.param(groups)}::text[]`);
+  return sql`(${sql.join(matches, sql` OR `)})`;
+}
+
 /** Conta e pessoa da busca: o acompanhamento é da conta, o favorito é da pessoa. */
 export interface SearchRequester {
   accountId: number;
@@ -178,6 +205,12 @@ function filterConditions(filters: NoticeSearchFilters, favorite: SQL): SQL[] {
   }
   if (filters.favoritesOnly) {
     conditions.push(favorite);
+  }
+  if (filters.numberGroups.length > 0) {
+    conditions.push(numberCondition(filters.numberGroups));
+  }
+  if (filters.purchaseYear !== null) {
+    conditions.push(eq(searchedNotice.purchaseYear, filters.purchaseYear));
   }
   if (filters.publishedFrom) {
     conditions.push(sql`${searchedNotice.publishedAt} >= ${startOfBrasiliaDay(filters.publishedFrom)}`);
@@ -311,6 +344,8 @@ export function criteriaOnlyFilters(criteria: NoticeCriteria, perPage: number): 
     trackingStatuses: [],
     hideDiscarded: false,
     favoritesOnly: false,
+    numberGroups: [],
+    purchaseYear: null,
     sort: 'closingAsc',
     page: 1,
     perPage,

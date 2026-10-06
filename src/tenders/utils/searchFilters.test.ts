@@ -10,8 +10,10 @@ import {
   closingWithinDays,
   favoritesApiQuery,
   filterChips,
+  isValidNumberSearch,
   minimumClosingDate,
   parseSearchParams,
+  purchaseYearOptions,
   toApiQuery,
   toSearchParams,
   withFilters,
@@ -38,6 +40,8 @@ const FULL_STATE: SearchState = {
   trackingStatuses: ['ANALISAR', 'SEM'],
   hideDiscarded: false,
   favoritesOnly: true,
+  number: 'PE 352/2026',
+  purchaseYear: 2026,
   savedSearchId: null,
   sort: 'relevance',
   page: 3,
@@ -57,6 +61,8 @@ test('filtros: ida e volta pela URL com todos os parâmetros', () => {
   assert.equal(url.get('porPagina'), '50');
   assert.equal(url.get('prazoCurto'), '1');
   assert.equal(url.get('favoritos'), '1');
+  assert.equal(url.get('numero'), 'PE 352/2026');
+  assert.equal(url.get('ano'), '2026');
   assert.deepEqual(parseSearchParams(url), FULL_STATE);
 });
 
@@ -131,6 +137,8 @@ test('filtros: query da API com os nomes da API', () => {
   assert.deepEqual(api.getAll('trackingStatus'), ['ANALISAR', 'SEM']);
   assert.equal(api.get('hideDiscarded'), 'false');
   assert.equal(api.get('favoritesOnly'), 'true');
+  assert.equal(api.get('number'), 'PE 352/2026');
+  assert.equal(api.get('purchaseYear'), '2026');
   assert.equal(api.get('sort'), 'relevance');
   assert.equal(api.get('page'), '3');
   assert.equal(api.get('perPage'), '50');
@@ -142,6 +150,7 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(plain.get('openOnly'), 'true');
   assert.equal(plain.get('hideDiscarded'), 'true');
   assert.equal(plain.get('favoritesOnly'), null, 'sem o filtro, a API traz todos');
+  assert.deepEqual([plain.get('number'), plain.get('purchaseYear')], [null, null]);
 });
 
 test('filtros: mudar um filtro volta para a página 1', () => {
@@ -158,6 +167,8 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   const labels = chips.map((chip) => chip.label);
   assert.deepEqual(labels, [
     'Busca: "software "licença de uso" -obra" (qualquer palavra)',
+    'Número: PE 352/2026',
+    'Ano: 2026',
     'UF: SP',
     'UF: RJ',
     'Município: Campinas/SP',
@@ -185,6 +196,9 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   assert.equal(byKey('includeClosingSoon').includeClosingSoon, false);
   assert.equal(byKey('showDiscarded').hideDiscarded, true);
   assert.equal(byKey('favoritesOnly').favoritesOnly, false);
+  assert.equal(byKey('number').number, '');
+  assert.equal(byKey('number').purchaseYear, 2026, 'cada chip remove só o seu');
+  assert.equal(byKey('purchaseYear').purchaseYear, null);
   assert.deepEqual(byKey('tracking:SEM').trackingStatuses, ['ANALISAR']);
 });
 
@@ -239,6 +253,8 @@ test('prazo mínimo: não vale com o filtro ligado, sem "só abertos", com acomp
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['ANALISAR'] }, TODAY), false);
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['SEM'] }, TODAY), true, 'sem acompanhamento continua na regra');
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, favoritesOnly: true }, TODAY), false);
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, number: '352/2026' }, TODAY), false, 'com número, procura um edital certo');
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, purchaseYear: 2026 }, TODAY), true, 'só o ano não muda a regra');
   assert.equal(closingSoonCountQuery({ ...DEFAULT_SEARCH_STATE, favoritesOnly: true }, TODAY), null);
 });
 
@@ -272,4 +288,26 @@ test('favoritos: a tela traz todos os favoritos, inclusive encerrados e descarta
   assert.equal(api.get('closingFrom'), null, 'sem prazo mínimo');
   assert.equal(api.get('sort'), 'closingAsc');
   assert.deepEqual([api.get('page'), api.get('perPage')], ['2', '50']);
+});
+
+test('número e ano: valores inválidos na URL ficam de fora', () => {
+  assert.equal(parseSearchParams(params('numero=%20%20352%2F2026%20')).number, '352/2026', 'espaços nas pontas saem');
+  assert.equal(parseSearchParams(params('numero=PE')).number, '', 'sem dígito');
+  assert.equal(parseSearchParams(params(`numero=${'1'.repeat(61)}`)).number, '', 'longo demais');
+  assert.equal(parseSearchParams(params('ano=2026')).purchaseYear, 2026);
+  for (const year of ['1999', '2101', '26', '20266', 'dois']) {
+    assert.equal(parseSearchParams(params(`ano=${year}`)).purchaseYear, null, year);
+  }
+  assert.deepEqual(
+    [isValidNumberSearch('PE 352/26'), isValidNumberSearch('PE'), isValidNumberSearch('1'.repeat(61))],
+    [true, false, false],
+  );
+  const inSavedSearch = parseSearchParams(params('busca=7&numero=352&ano=2025'));
+  assert.deepEqual([inSavedSearch.number, inSavedSearch.purchaseYear], ['352', 2025], 'valem também com busca salva');
+});
+
+test('ano da compra: do próximo até 4 anos atrás; ano da URL fora da faixa entra na lista', () => {
+  assert.deepEqual(purchaseYearOptions('2026-10-06'), [2027, 2026, 2025, 2024, 2023, 2022]);
+  assert.deepEqual(purchaseYearOptions('2026-10-06', 2025), [2027, 2026, 2025, 2024, 2023, 2022]);
+  assert.deepEqual(purchaseYearOptions('2026-10-06', 2019), [2027, 2026, 2025, 2024, 2023, 2022, 2019]);
 });

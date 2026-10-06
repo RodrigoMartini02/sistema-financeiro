@@ -58,6 +58,8 @@ export async function readDashboard(db: TendersDb, requester: Requester): Promis
       trackingStatuses: [...ACTIVE_TRACKING],
       hideDiscarded: true,
       favoritesOnly: false,
+      numberGroups: [],
+      purchaseYear: null,
       sort: 'closingAsc',
       page: 1,
       perPage: CLOSING_SOON_LIMIT,

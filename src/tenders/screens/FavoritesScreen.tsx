@@ -10,6 +10,7 @@ import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { NoticeSearchResult } from '../types';
+import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
 import { DEFAULT_SEARCH_STATE, favoritesApiQuery, parseSearchParams, toSearchParams } from '../utils/searchFilters';
 
 /**
@@ -72,28 +73,31 @@ export function FavoritesScreen() {
     );
   } else {
     content = (
-      <div className={`grid grid-cols-1 gap-4 transition-opacity ${favorites.isPlaceholderData ? 'opacity-60' : ''}`}>
-        <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <div className={`flex flex-1 flex-col gap-4 transition-opacity ${favorites.isPlaceholderData ? 'opacity-60' : ''}`}>
+        <ul className="grid grid-cols-1 gap-3">
           {data.items.map((notice) => (
             <li key={notice.id}>
               <NoticeCard notice={notice} detailLink={`/editais/${notice.id}`} />
             </li>
           ))}
         </ul>
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          total={data.total}
-          perPage={data.perPage}
-          onPage={(next) => goTo({ page: next, perPage })}
-          onPerPage={(next) => goTo({ page: 1, perPage: next })}
-        />
+        {/* Lista curta: a paginação desce até o rodapé da tela. */}
+        <div className="mt-auto">
+          <Pagination
+            page={data.page}
+            totalPages={data.totalPages}
+            total={data.total}
+            perPage={data.perPage}
+            onPage={(next) => goTo({ page: next, perPage })}
+            onPerPage={(next) => goTo({ page: 1, perPage: next })}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <section>
+    <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
         Os editais que você marcou com o coração, inclusive os encerrados, pela data de encerramento. Só você vê os seus favoritos.
       </p>
