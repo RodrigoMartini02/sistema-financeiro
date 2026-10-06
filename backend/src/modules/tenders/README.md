@@ -224,6 +224,11 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - `q` aceita até 500 caracteres: aspas = frase e `-palavra` = exclusão; o modo padrão é E. Termos com menos de 2 caracteres são ignorados.
   - Os critérios em comum com a busca salva passam pela mesma função do banco (`fn_edital_atende_criterios`), e "só abertos" usa `fn_edital_aberto`.
   - A resposta traz `parsedQuery`, para "Salvar esta busca".
+  - **Número** (`number`, até 60 caracteres com ao menos um dígito) e **ano da compra** (`purchaseYear`, de 2000 a 2100), migration 0079:
+    - o número vira grupos de dígitos, sem os zeros à esquerda: "PE 352/2026" vira 352 e 2026;
+    - o edital entra se todos os grupos estiverem num mesmo campo: número da compra + ano, processo + ano ou controle PNCP;
+    - a função `licitacoes.fn_grupos_digitos` e três índices GIN de expressão deixam a busca em 1 a 2 ms. A consulta (`services/noticeSearch.ts`) usa as mesmas expressões dos índices: mudar uma exige mudar a outra;
+    - número e ano são filtros da tela: valem por cima de uma busca salva e não são gravados nela.
 - **Busca salva:** tem `includeWithoutValue`. Com faixa de valor, o edital sem valor só entra com a opção ligada.
 - **Acompanhamento:**
   - o histórico é gravado na mesma transação, só quando o status ou a observação mudam;
@@ -280,6 +285,8 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
 
 As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Buscar e no formulário de Busca salva (plano `.plans/licitacoes-usabilidade-favoritos.md`).
 
+Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta, desce até o rodapé da tela (`utils/screenLayout.ts`); com lista longa, vem depois do último card (plano `.plans/licitacoes-tela-busca-numero.md`).
+
 **Contas habilitadas (`/admin/contas`)** (plano `.plans/licitacoes-acesso-rotina-diaria.md`):
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
 - busca por conta, dono ou e-mail;
@@ -291,15 +298,16 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - **prazo mínimo:** por padrão, só aparecem os editais que encerram a partir de hoje + 3 dias (contados por dia), porque com menos não dá tempo de preparar a proposta;
     - o filtro "Incluir os que encerram em menos de 3 dias" (`prazoCurto=1`) traz os demais;
     - a barra de resultados avisa quantos ficaram de fora, com "Mostrar";
-    - a regra não vale sem "Só editais abertos", com filtro de acompanhados (Analisar, Vou participar ou Descartado), com "Só favoritos" nem com período de encerramento que termina antes do mínimo;
+    - a regra não vale sem "Só editais abertos", com filtro de acompanhados (Analisar, Vou participar ou Descartado), com "Só favoritos", com número informado nem com período de encerramento que termina antes do mínimo;
     - num período escolhido, só o início sobe para o mínimo;
   - filtros na URL, para o link ser compartilhável e o voltar do navegador funcionar;
   - chips removíveis e "Limpar tudo";
   - cards ou tabela, com a opção compacta guardada no navegador;
   - ações rápidas, coração de favorito e "Salvar esta busca";
-  - filtro "Só favoritos" (`favoritos=1`).
+  - filtro "Só favoritos" (`favoritos=1`);
+  - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle PNCP" vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
 - **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
-- **Favoritos (`/favoritos`):** todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento, paginados. O coração fica no card, na tabela e no detalhe.
+- **Favoritos (`/favoritos`):** todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento, paginados, um card por linha. O coração fica no card, na tabela e no detalhe.
 - **Buscas salvas (`/buscas`):**
   - cards com o resumo dos critérios, os abertos agora e os interruptores Ativa e Notificar;
   - editar, duplicar e excluir, com confirmação;
@@ -328,6 +336,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 | `prazoCurto=1` | sem `closingFrom` mínimo | sem ele, o front envia `closingFrom` = hoje + 3 dias (salvo as exceções da regra) |
 | `acompanhamento` | `trackingStatus` | `analisar`, `participar`, `descartado` ou `sem` |
 | `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa; sem prazo mínimo |
+| `numero`, `ano` | `number`, `purchaseYear` | número com ao menos um dígito (sem prazo mínimo); ano AAAA de 2000 a 2100 |
 | `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
 | `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |
 

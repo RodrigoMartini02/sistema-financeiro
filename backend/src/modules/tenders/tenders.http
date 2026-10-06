@@ -43,6 +43,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/notices?accountId={{accountId}}&q=sistema de gestão&sort=relevance
 Authorization: Bearer {{token}}
 
+### Busca: número da compra, processo ou controle PNCP (só os dígitos contam) e ano da compra
+GET {{baseUrl}}/notices?accountId={{accountId}}&number=PE 352/2026&purchaseYear=2026
+Authorization: Bearer {{token}}
+
 ### Detalhe do edital (acompanhamento da conta e buscas salvas que batem)
 GET {{baseUrl}}/notices/{{noticeId}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
