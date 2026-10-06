@@ -18,6 +18,7 @@ import { SavedSearchFormDialog, type SavedSearchFormTarget } from '../components
 import { SearchFiltersPanel } from '../components/SearchFiltersPanel';
 import { useDomainLists, useDomainLookups } from '../hooks/useDomainLists';
 import { useStoredPreference } from '../hooks/useStoredPreference';
+import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
 import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { fetchSavedSearches } from '../services/savedSearchesService';
@@ -201,7 +202,7 @@ export function SearchScreen() {
     );
   } else {
     content = (
-      <div className={`grid grid-cols-1 gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
+      <div className={`flex flex-1 flex-col gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
         {showTable ? (
           <NoticeTable notices={data.items} compact={density === 'compacta'} detailLinkFor={detailLinkFor} detailLinkState={NOTICE_DRAWER_STATE} />
         ) : (
@@ -213,20 +214,23 @@ export function SearchScreen() {
             ))}
           </ul>
         )}
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          total={data.total}
-          perPage={data.perPage}
-          onPage={goToPage}
-          onPerPage={(perPage) => applyState(withFilters(state, { perPage }))}
-        />
+        {/* Lista curta: a paginação desce até o rodapé da tela. */}
+        <div className="mt-auto">
+          <Pagination
+            page={data.page}
+            totalPages={data.totalPages}
+            total={data.total}
+            perPage={data.perPage}
+            onPage={goToPage}
+            onPerPage={(perPage) => applyState(withFilters(state, { perPage }))}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <section>
+    <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
       <form role="search" onSubmit={submitSearch} className="flex gap-2">
         <label className="relative flex-1">
           <span className="sr-only">Buscar editais por palavras-chave</span>
@@ -288,15 +292,18 @@ export function SearchScreen() {
         </div>
       )}
 
-      <div className="mt-5 flex items-start gap-6">
+      <div className="mt-5 flex flex-1 items-start gap-6">
+        {/* Altura máxima: a tela menos o que fica acima do painel (barra, busca e
+            opções, cerca de 197 px) e o espaço de baixo. Assim, com lista curta, a
+            página cabe na tela e a paginação aparece no rodapé. */}
         <aside
           aria-label="Filtros"
-          className="scrollbar-thin hidden w-64 shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+          className="scrollbar-thin hidden w-64 shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto"
         >
           {filtersPanel}
         </aside>
 
-        <div className="grid grid-cols-1 min-w-0 flex-1 gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 self-stretch">
           <FilterChips chips={chips} onRemove={applyState} onClearAll={() => applyState(clearAllFilters(state))} />
 
           <div className="flex flex-wrap items-center justify-between gap-2">
