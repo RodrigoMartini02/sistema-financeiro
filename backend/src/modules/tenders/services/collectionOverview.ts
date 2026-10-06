@@ -8,8 +8,8 @@ import { toBrasiliaIso } from './dates';
 import type { Paginated } from './noticeSearch';
 
 // Status e histórico da coleta (escopo, seção 8.4). A próxima execução
-// prevista sai da agenda documentada no README (Render Cron Jobs), em horário
-// de Brasília; enquanto os Cron Jobs não existirem, é só a previsão da agenda.
+// prevista sai da agenda do Cron Job único do Render (`npm run daily-jobs`,
+// 09:00 UTC = 06:00 de Brasília), documentada no README do módulo.
 
 type ScheduledRunType = Exclude<CollectionRunType, 'MANUAL'>;
 
@@ -20,19 +20,27 @@ interface DailySlot {
   weekday?: number;
 }
 
-/** Agenda do README em Brasília: varredura 03:00; incremental 07:00 a 21:00 a cada 2 h; lembretes aos 15 min; limpeza domingo 04:00. */
+const DAILY_JOBS_SLOT: DailySlot = { hour: 6, minute: 0 };
+
+/**
+ * Agenda em Brasília: a rotina diária das 06:00 faz a varredura e os lembretes
+ * de prazo e, aos domingos, a limpeza. A incremental não está agendada.
+ */
 export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
-  VARREDURA: [{ hour: 3, minute: 0 }],
-  INCREMENTAL: [7, 9, 11, 13, 15, 17, 19, 21].map((hour) => ({ hour, minute: 0 })),
-  LEMBRETES: Array.from({ length: 24 }, (_, hour) => ({ hour, minute: 15 })),
-  LIMPEZA: [{ hour: 4, minute: 0, weekday: 0 }],
+  VARREDURA: [DAILY_JOBS_SLOT],
+  INCREMENTAL: [],
+  LEMBRETES: [DAILY_JOBS_SLOT],
+  LIMPEZA: [{ ...DAILY_JOBS_SLOT, weekday: 0 }],
 };
 
 const DAYS_TO_LOOK_AHEAD = 8;
 const pad = (value: number) => String(value).padStart(2, '0');
 
-/** Próxima execução prevista do tipo, em ISO com o fuso de Brasília. */
-export function nextScheduledRun(type: ScheduledRunType, now: Date): string {
+/** Próxima execução prevista do tipo, em ISO com o fuso de Brasília; sem agenda, null. */
+export function nextScheduledRun(type: ScheduledRunType, now: Date): string | null {
+  if (COLLECTION_SCHEDULE[type].length === 0) {
+    return null;
+  }
   const nowInBrasilia = brasiliaDateTime(now);
   const today = brasiliaDate(now);
   for (let offset = 0; offset < DAYS_TO_LOOK_AHEAD; offset += 1) {
@@ -86,7 +94,8 @@ function toRunView(row: typeof tenderCollectionRuns.$inferSelect): CollectionRun
 
 export interface CollectionStatusView {
   latestRuns: CollectionRunView[];
-  nextRuns: Record<ScheduledRunType, string>;
+  /** null: tipo sem agenda (a incremental). */
+  nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
 }
 

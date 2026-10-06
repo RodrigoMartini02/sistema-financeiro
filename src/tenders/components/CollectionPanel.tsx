@@ -15,8 +15,9 @@ import { LoadError, LoadingBlock } from './LoadStates';
 import { Pagination } from './Pagination';
 import { Pill, type PillTone } from './Pill';
 
-// Coleta (titular ou admin): última varredura e último incremental, próxima
-// execução prevista e o histórico das execuções, com totais e erros.
+// Coleta (titular ou admin): última varredura e últimos lembretes de prazo
+// (a rotina diária das 06:00), próxima execução prevista e o histórico das
+// execuções, com totais e erros.
 
 const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
   EXECUTANDO: 'brand',
@@ -25,7 +26,7 @@ const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
   FALHA: 'danger',
 };
 
-const SUMMARY_TYPES = ['VARREDURA', 'INCREMENTAL'] as const;
+const SUMMARY_TYPES = ['VARREDURA', 'LEMBRETES'] as const;
 
 const formatCount = (value: number) => value.toLocaleString('pt-BR');
 
@@ -69,10 +70,19 @@ function StatusCards({ status }: { status: CollectionStatus }) {
                   <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">{formatIsoDateTime(run.startedAt)}</dd>
                   <dt className="text-slate-500 dark:text-slate-400">Duração</dt>
                   <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">{runDurationLabel(run)}</dd>
-                  <dt className="text-slate-500 dark:text-slate-400">Lidos · novos · atualizados</dt>
-                  <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">
-                    {formatCount(run.recordsRead)} · {formatCount(run.newCount)} · {formatCount(run.updatedCount)}
-                  </dd>
+                  {type === 'LEMBRETES' ? (
+                    <>
+                      <dt className="text-slate-500 dark:text-slate-400">Avisos de prazo gerados</dt>
+                      <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">{formatCount(run.notificationCount)}</dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt className="text-slate-500 dark:text-slate-400">Lidos · novos · atualizados</dt>
+                      <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">
+                        {formatCount(run.recordsRead)} · {formatCount(run.newCount)} · {formatCount(run.updatedCount)}
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-slate-500 dark:text-slate-400">Erros</dt>
                   <dd className={`text-right tabular-nums ${run.errorCount > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'}`}>
                     {formatCount(run.errorCount)}
