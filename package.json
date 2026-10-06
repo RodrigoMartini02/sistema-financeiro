@@ -3,7 +3,7 @@
     "dev": "vite",
     "build": "vite build && node scripts/generate-public-route-html.mjs",
     "preview": "vite preview",
-    "test": "tsx --test src/utils/*.test.ts src/screens/finance/expense-dialog/*.test.ts src/screens/finance/income-dialog/*.test.ts src/components/financial-assistant/*.test.ts"
+    "test": "tsx --test src/utils/*.test.ts src/screens/finance/expense-dialog/*.test.ts src/screens/finance/income-dialog/*.test.ts src/components/financial-assistant/*.test.ts src/tenders/**/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
