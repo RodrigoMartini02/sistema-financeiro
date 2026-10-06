@@ -1,4 +1,5 @@
-import * as fs from 'fs';
+import jsQR from 'jsqr';
+import sharp from 'sharp';
 
 export interface PixInfo {
   chave: string | null;
@@ -9,6 +10,18 @@ export interface PixInfo {
   txid: string | null;
   raw_payload: string | null;
 }
+
+// Código Pix (BR Code, padrão EMV): campos de 2 dígitos de identificação,
+// 2 de tamanho e o valor. Os que importam aqui:
+//   26 dados da conta do recebedor (01 chave, 02 descrição, 25 URL do Pix dinâmico)
+//   54 valor (opcional: sem ele, quem paga digita o valor)
+//   59 nome do recebedor, 60 cidade
+//   62 dados adicionais (05 txid)
+
+/** Lado maior da imagem entregue ao leitor de QR: reduz fotos grandes sem distorcer. */
+const MAX_QR_IMAGE_DIMENSION = 2000;
+
+const RGBA_CHANNELS = 4;
 
 function parsePixPayload(payload: string): Record<string, string> {
   const result: Record<string, string> = {};
@@ -23,32 +36,28 @@ function parsePixPayload(payload: string): Record<string, string> {
   return result;
 }
 
+function readPixAmount(raw: string | undefined): number | null {
+  if (!raw) {
+    return null;
+  }
+  const amount = Number.parseFloat(raw.replace(',', '.'));
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+}
+
 export function extractPixInfo(payload: string): PixInfo {
   const info: PixInfo = { chave: null, valor: null, descricao: null, nome_destinatario: null, cidade: null, txid: null, raw_payload: payload };
 
   if (!payload) return info;
 
   const parsed = parsePixPayload(payload);
-
-  // Tag 26 or 62 contains merchant info
-  const merchantInfo = parsed['26'] ? parsePixPayload(parsed['26']) : {};
-  info.chave = merchantInfo['01'] ?? null;
-
-  // Tag 04 = transaction amount
-  const amountStr = parsed['04'];
-  if (amountStr) info.valor = parseFloat(amountStr.replace(',', '.')) || null;
-
-  // Tag 59 = merchant name
-  info.nome_destinatario = parsed['59'] ?? null;
-
-  // Tag 60 = city
-  info.cidade = parsed['60'] ?? null;
-
-  // Tag 05 in merchant account = description
-  info.descricao = merchantInfo['05'] ?? parsed['62'] ? parsePixPayload(parsed['62'] ?? '')['05'] ?? null : null;
-
-  // TxID from tag 62 sub-tag 05
+  const merchantAccount = parsed['26'] ? parsePixPayload(parsed['26']) : {};
   const additionalData = parsed['62'] ? parsePixPayload(parsed['62']) : {};
+
+  info.chave = merchantAccount['01'] ?? null;
+  info.descricao = merchantAccount['02'] ?? null;
+  info.valor = readPixAmount(parsed['54']);
+  info.nome_destinatario = parsed['59'] ?? null;
+  info.cidade = parsed['60'] ?? null;
   info.txid = additionalData['05'] ?? null;
 
   return info;
@@ -56,18 +65,22 @@ export function extractPixInfo(payload: string): PixInfo {
 
 export async function readQRCode(imagePath: string): Promise<string | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const jsQR = require('jsqr') as (data: Uint8ClampedArray, width: number, height: number) => { data: string } | null;
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Jimp = require('jimp') as { read: (path: string) => Promise<{ resize: (w: number, h: number, mode: unknown) => void; bitmap: { data: Buffer; width: number; height: number }; RESIZE_CONTAIN: unknown }> };
+    // Gira conforme a orientação gravada pelo celular, reduz sem distorcer e
+    // entrega ao jsQR os pixels em RGBA (sRGB primeiro: imagem em tons de
+    // cinza viria com um canal só).
+    const { data, info } = await sharp(imagePath)
+      .autoOrient()
+      .resize({ width: MAX_QR_IMAGE_DIMENSION, height: MAX_QR_IMAGE_DIMENSION, fit: 'inside', withoutEnlargement: true })
+      .toColourspace('srgb')
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    if (info.channels !== RGBA_CHANNELS) {
+      throw new Error(`imagem com ${info.channels} canais`);
+    }
 
-    const img = await Jimp.read(imagePath);
-    (img as unknown as { resize: (w: number, h: number) => void }).resize(800, 800);
-
-    const { width, height } = (img as unknown as { bitmap: { data: Buffer; width: number; height: number } }).bitmap;
-    const data = new Uint8ClampedArray((img as unknown as { bitmap: { data: Buffer } }).bitmap.data);
-
-    const code = jsQR(data, width, height);
+    const pixels = new Uint8ClampedArray(data.buffer, data.byteOffset, data.length);
+    const code = jsQR(pixels, info.width, info.height);
     return code ? code.data : null;
   } catch (err) {
     console.error('Read QR code error:', (err as Error).message);
