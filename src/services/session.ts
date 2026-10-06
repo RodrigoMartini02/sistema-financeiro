@@ -1,6 +1,8 @@
-const AUTH_ORIGIN_KEY = 'auth_origin';
+import { parseAuthOrigin, type AuthOrigin } from '../utils/authOrigin';
 
-export type AuthOrigin = 'assistant' | 'app';
+export type { AuthOrigin };
+
+const AUTH_ORIGIN_KEY = 'auth_origin';
 
 export function getToken(): string | null {
   return sessionStorage.getItem('token') ?? localStorage.getItem('token');
@@ -13,7 +15,7 @@ export function setAuthOrigin(origin: AuthOrigin) {
 export function consumeAuthOrigin(): AuthOrigin {
   const origin = sessionStorage.getItem(AUTH_ORIGIN_KEY);
   sessionStorage.removeItem(AUTH_ORIGIN_KEY);
-  return origin === 'assistant' ? 'assistant' : 'app';
+  return parseAuthOrigin(origin);
 }
 
 export function logout() {

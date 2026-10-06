@@ -5,6 +5,7 @@ import {
   googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
 } from '../../services/authService';
 import { consumeAuthOrigin } from '../../services/session';
+import { destinationForAuthOrigin } from '../../utils/authOrigin';
 import type { Enquadramento } from '../../types/config';
 import { Button } from '../../ui/button';
 import { IsoDateField } from '../../ui/DateField';
@@ -20,8 +21,7 @@ function saveSession(token: string, usuario: { id?: unknown }) {
   sessionStorage.setItem('token', token);
   localStorage.setItem('token', token);
   localStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-  const destination = consumeAuthOrigin() === 'assistant' ? '/assistant.html' : '/app.html';
-  window.location.href = destination;
+  window.location.href = destinationForAuthOrigin(consumeAuthOrigin());
 }
 
 function GoogleButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
@@ -57,7 +57,9 @@ function Divider() {
   );
 }
 
-export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMode?: Mode; tone?: 'dark' | 'light' }) {
+/** `context="tenders"`: login do módulo de Licitações, com título próprio e sem cadastro aberto. */
+export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { initialMode?: Mode; tone?: 'dark' | 'light'; context?: 'tenders' }) {
+  const isTendersLogin = context === 'tenders';
   const [mode, setMode] = useState<Mode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -248,7 +250,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-site-accent">Acesso</p>
 
-      {mode === 'login'    && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Entrar no painel</h2>}
+      {mode === 'login'    && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">{isTendersLogin ? 'Entrar em Licitações' : 'Entrar no painel'}</h2>}
       {mode === 'register' && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Criar conta</h2>}
       {mode === 'forgot'   && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Recuperar senha</h2>}
       {mode === 'verify'   && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Verificar código</h2>}
@@ -280,10 +282,12 @@ export function LoginPage({ initialMode = 'login', tone = 'dark' }: { initialMod
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
             <div className="flex items-center justify-between">
-              <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
-                Criar nova conta
-              </button>
-              <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
+              {!isTendersLogin && (
+                <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
+                  Criar nova conta
+                </button>
+              )}
+              <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className={`${textButtonClass} ml-auto text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
                 Esqueci minha senha
               </button>
             </div>
