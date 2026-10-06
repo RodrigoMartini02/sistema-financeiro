@@ -30,6 +30,7 @@ backend/src/modules/tenders/
 │   ├── repository.ts                upsert por página, lock, execuções, limpeza
 │   ├── notifications.ts             NOVO_EDITAL, EDITAL_ALTERADO, PRAZO_3D, PRAZO_1D
 │   ├── runs.ts                      varredura, incremental, lembretes, limpeza
+│   ├── runtime.ts                   config, log, banco e PNCP de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
 ├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...)
@@ -79,20 +80,28 @@ npm --prefix backend run tenders:dev -- sweep
 - **Saída:** cada execução fica em `licitacoes.coleta_execucao` com tipo, status (`SUCESSO`, `PARCIAL` ou `FALHA`), requisições, registros lidos, novos, atualizados, notificações, erros e detalhes. O código de saída é 1 em `FALHA`.
 - **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava.
 
-## Agendamento (Render Cron Jobs, horários em UTC)
+## Agendamento (Render Cron Job, horário em UTC)
 
-O Brasil não tem horário de verão desde 2019: UTC−3 o ano todo.
+Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um Command longo, por isso as etapas ficam num comando do backend: `npm run daily-jobs` (`backend/scripts/dailyJobs.ts`, lógica em `src/services/dailyJobs.ts`).
 
-| Cron (UTC) | Comando | Horário de Brasília |
+| Cron (UTC) | Command | Horário de Brasília |
 |---|---|---|
-| `0 6 * * *` | `npm --prefix backend run tenders -- sweep` | 03:00 |
-| `0 0,10-22/2 * * *` | `npm --prefix backend run tenders -- incremental` | 07:00 a 21:00, a cada 2 h |
-| `15 * * * *` | `npm --prefix backend run tenders -- deadline-reminders` | toda hora, aos 15 min |
-| `0 7 * * 0` | `npm --prefix backend run tenders -- cleanup` | domingo, 04:00 |
+| `0 9 * * *` | `npm run daily-jobs` | todo dia, 06:00 |
 
-- **Variáveis:** cada Cron Job precisa de `TENDERS_COLLECTOR_DATABASE_URL` e, se fugirem do padrão, das `PNCP_*`.
-- **Custo:** Cron Jobs no Render são pagos por uso.
-- **Quando criar:** só quando o módulo for para produção, com decisão explícita.
+**Configuração do Cron Job** (`rotinas-diarias-planos-licitações`): Root Directory `backend`, Build `npm install`, região Oregon (a mesma do banco).
+
+**Etapas, em sequência:**
+1. rotina de vencimento de planos (`POST /api/internal-jobs/plan-lifecycle`);
+2. varredura (`sweep`);
+3. lembretes de prazo (`deadline-reminders`);
+4. limpeza (`cleanup`), só aos domingos pelo calendário de Brasília.
+
+Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração.
+
+- **Variáveis:** `BILLING_CRON_SECRET` (rotina de planos), `TENDERS_COLLECTOR_DATABASE_URL` e, se fugirem do padrão, `BACKEND_URL` (padrão: o backend de produção) e as `PNCP_*`.
+- **Sem coleta incremental:** os editais novos entram na varredura do dia seguinte. Os lembretes pegam tudo o que encerra nas próximas 72 h e 24 h, sem repetir aviso, então uma execução por dia basta.
+- **Custo:** Cron Job no Render é pago por uso (mínimo de US$ 1 por mês). A varredura leva uns 45 minutos.
+- **Teste local:** `npm --prefix backend run daily-jobs` com `DOTENV_CONFIG_PATH=../.env.dev`, `TENDERS_COLLECTOR_DATABASE_URL` do banco local, `BACKEND_URL=http://localhost:3010` e o `BILLING_CRON_SECRET` do backend local. A varredura completa leva o mesmo tempo da produção.
 
 ## Usuário de banco restrito
 
@@ -189,7 +198,10 @@ A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes**
 
 Coleção completa em `tenders.http`. Montagem no `server.ts`:
 
-- `/api/tenders/admin`, com `authenticate` + `requireAdmin`. Hoje só `PUT /accounts/:accountId { active }`.
+- `/api/tenders/admin`, com `authenticate` + `requireAdmin`:
+  - `GET /accounts`: contas ativas da plataforma (PF e PJ), com o dono e a habilitação de cada uma. Ordem: habilitadas primeiro, depois PJ, depois o nome;
+  - `PUT /accounts/:accountId { active }`: habilita ou desabilita o módulo numa conta.
+  - O `GET /api/tenders/access` devolve `permissions.manageEnabledAccounts` (admin da plataforma) para o app mostrar a tela.
 - `/api/tenders`, com `authenticate` e a trava do módulo dentro do roteador (`middleware/tenderAccess.ts`).
 - Nenhuma das duas usa `requireActivePlan`: o módulo não depende do plano do app de finanças.
 
@@ -243,12 +255,13 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
   - outro erro: "tentar de novo".
 - **Servidor local:** o `vite.config.ts` reescreve `/licitacoes` e `/licitacoes/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
 
-**Hospedagem em produção (passo da ida à produção, ainda não feito):**
-- Hoje o site (atrás do Cloudflare) reescreve só `/loja/*`, e `/licitacoes` responde 404.
-- Criar duas regras de reescrita (rewrite, nunca redirect/301) onde já está a de `/loja/*`:
-  - `/licitacoes` → `/tenders.html`;
-  - `/licitacoes/*` → `/tenders.html`.
+**Hospedagem em produção (feita em 06/10/2026):**
+- O site estático reescreve (rewrite, nunca redirect/301) `/licitacoes` e `/licitacoes/*` para `/tenders.html`, como já fazia com `/loja/*`.
 - O build gera `dist/tenders.html`.
+
+**Caminhos até o módulo:**
+- **App de finanças:** atalho "Licitações" no grupo "Módulos" do menu lateral (`AppShell`). Ele só aparece quando `GET /api/tenders/access` responde 200, ou seja, para o titular de conta habilitada e o colaborador liberado. A sessão é a mesma, sem novo login.
+- **Páginas públicas:** "Conheça também: Licitações" no rodapé (`SiteFooter`). Leva ao login do módulo, que não tem cadastro aberto.
 
 **Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):
 - busca: 4 a 17 ms, com o índice GIN;
@@ -258,6 +271,12 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 ### Telas (Fase 4, Parte 4A)
 
 Plano: `.plans/licitacoes-fase4-plano.md`. Acompanhamento, Notificações e Configurações seguem provisórias até a Parte 4B.
+
+**Contas habilitadas (`/admin/contas`)** (plano `.plans/licitacoes-acesso-rotina-diaria.md`):
+- tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
+- busca por conta, dono ou e-mail;
+- interruptor por conta, PF ou PJ;
+- desligar a conta em uso pede confirmação, porque, sem outra conta habilitada, o admin perde o acesso ao módulo e a volta é pelo banco.
 
 - **Início (`/`):** os quatro indicadores (cada um abre a lista correspondente em Buscar), "Encerrando em breve", editais abertos por UF e "Minhas buscas salvas", com o rodapé da última coleta (âmbar se ela falhou).
 - **Buscar (`/buscar`):**
