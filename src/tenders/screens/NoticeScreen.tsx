@@ -13,7 +13,7 @@ export function NoticeScreen() {
   const canGoBack = location.key !== 'default';
 
   return (
-    <section className="mx-auto max-w-4xl">
+    <section>
       <button
         type="button"
         onClick={() => (canGoBack ? navigate(-1) : navigate('/buscar'))}

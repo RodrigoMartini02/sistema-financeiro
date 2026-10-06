@@ -226,7 +226,7 @@ export function SearchScreen() {
   }
 
   return (
-    <section className="mx-auto max-w-[1400px]">
+    <section>
       <form role="search" onSubmit={submitSearch} className="flex gap-2">
         <label className="relative flex-1">
           <span className="sr-only">Buscar editais por palavras-chave</span>

@@ -63,7 +63,7 @@ export function SavedSearchesScreen() {
     );
   } else {
     content = (
-      <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
         {list.map((search) => (
           <li key={search.id}>
             <SavedSearchCard
@@ -80,7 +80,7 @@ export function SavedSearchesScreen() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl">
+    <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           {searches.data

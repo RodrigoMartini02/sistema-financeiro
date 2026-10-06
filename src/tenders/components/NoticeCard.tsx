@@ -3,6 +3,7 @@ import type { NoticeListItem } from '../types';
 import { formatIsoDateTime } from '../utils/dates';
 import { formatMoneyValue } from '../utils/money';
 import { CountdownBadge } from './CountdownBadge';
+import { FavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
 import { NoticeBadges } from './NoticeBadges';
 import { TrackingStatusPill } from './Pill';
@@ -25,9 +26,12 @@ interface NoticeCardProps {
 export function NoticeCard({ notice, detailLink, detailLinkState }: NoticeCardProps) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500/40">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <NoticeBadges notice={notice} />
-        {notice.tracking && <TrackingStatusPill status={notice.tracking.status} />}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <NoticeBadges notice={notice} />
+          {notice.tracking && <TrackingStatusPill status={notice.tracking.status} />}
+        </div>
+        <FavoriteButton notice={notice} />
       </div>
 
       <h3 className="mt-2 text-sm font-semibold leading-snug text-slate-900 dark:text-slate-100">

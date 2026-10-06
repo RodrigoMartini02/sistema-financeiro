@@ -48,7 +48,7 @@ export async function readDashboard(db: TendersDb, requester: Requester): Promis
   const [trackings, matches, closingSoon, savedSearches, lastUpdate] = await Promise.all([
     countAccountTrackings(db, requester.accountId),
     summarizeOpenMatches(db, requester.accountId, requester.userId),
-    searchNotices(db, requester.accountId, {
+    searchNotices(db, requester, {
       criteria: EMPTY_CRITERIA,
       publishedFrom: null,
       publishedTo: null,
@@ -57,6 +57,7 @@ export async function readDashboard(db: TendersDb, requester: Requester): Promis
       openOnly: true,
       trackingStatuses: [...ACTIVE_TRACKING],
       hideDiscarded: true,
+      favoritesOnly: false,
       sort: 'closingAsc',
       page: 1,
       perPage: CLOSING_SOON_LIMIT,

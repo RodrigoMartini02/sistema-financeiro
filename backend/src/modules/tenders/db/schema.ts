@@ -156,6 +156,21 @@ export const tenderSavedSearches = tendersSchema.table(
   }),
 );
 
+/** Favoritos de cada pessoa na conta (migration 0078): só ela vê os seus. */
+export const tenderFavorites = tendersSchema.table(
+  'favorito',
+  {
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    noticeId: bigint('edital_id', { mode: 'number' }).notNull().references(() => tenderNotices.id, { onDelete: 'cascade' }),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.accountId, table.userId, table.noticeId] }),
+    noticeIdx: index('ix_favorito_edital').on(table.noticeId),
+  }),
+);
+
 /** Acompanhamento compartilhado pela equipe da conta: uma linha por conta e edital. */
 export const tenderTrackings = tendersSchema.table(
   'acompanhamento',

@@ -1,7 +1,7 @@
-import { and, asc, count, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, exists, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { TendersDb } from '../collector/database';
-import { tenderNotices, tenderTrackings } from '../db/schema';
+import { tenderFavorites, tenderNotices, tenderTrackings } from '../db/schema';
 import {
   TRACKING_FILTER_NONE,
   type NoticeSort,
@@ -57,6 +57,8 @@ export interface NoticeSearchFilters {
   openOnly: boolean;
   trackingStatuses: TrackingFilter[];
   hideDiscarded: boolean;
+  /** Só os favoritos de quem busca (migration 0078). */
+  favoritesOnly: boolean;
   sort: NoticeSort;
   page: number;
   perPage: number;
@@ -88,6 +90,8 @@ export interface NoticeListItem {
   pncpLink: string | null;
   sourceSystemLink: string | null;
   tracking: NoticeTracking | null;
+  /** Favorito de quem busca (cada pessoa tem os seus). */
+  isFavorite: boolean;
   /** Trecho do objeto com os termos entre << e >>; null sem termos de busca. */
   highlightedExcerpt: string | null;
 }
@@ -144,11 +148,36 @@ function startOfNextBrasiliaDay(date: string): SQL {
   return sql`(${date}::date + 1)::timestamp AT TIME ZONE ${BRASILIA_TIME_ZONE}`;
 }
 
-function filterConditions(filters: NoticeSearchFilters): SQL[] {
+/** Conta e pessoa da busca: o acompanhamento é da conta, o favorito é da pessoa. */
+export interface SearchRequester {
+  accountId: number;
+  userId: number;
+}
+
+/** O edital da busca (`e`) é favorito de quem busca. */
+function favoriteOf(db: TendersDb, requester: SearchRequester): SQL {
+  return exists(
+    db
+      .select({ found: sql`1` })
+      .from(tenderFavorites)
+      .where(
+        and(
+          eq(tenderFavorites.accountId, requester.accountId),
+          eq(tenderFavorites.userId, requester.userId),
+          eq(tenderFavorites.noticeId, searchedNotice.id),
+        ),
+      ),
+  );
+}
+
+function filterConditions(filters: NoticeSearchFilters, favorite: SQL): SQL[] {
   const tracking = accountTracking;
   const conditions: SQL[] = [criteriaCondition(filters.criteria)];
   if (filters.openOnly) {
     conditions.push(openCondition);
+  }
+  if (filters.favoritesOnly) {
+    conditions.push(favorite);
   }
   if (filters.publishedFrom) {
     conditions.push(sql`${searchedNotice.publishedAt} >= ${startOfBrasiliaDay(filters.publishedFrom)}`);
@@ -198,15 +227,16 @@ function sortOrder(sort: NoticeSort, consulta: SQL): SQL[] {
   }
 }
 
-/** Busca paginada da tela, com o acompanhamento da conta em cada edital. */
+/** Busca paginada da tela, com o acompanhamento da conta e o favorito da pessoa em cada edital. */
 export async function searchNotices(
   db: TendersDb,
-  accountId: number,
+  requester: SearchRequester,
   filters: NoticeSearchFilters,
 ): Promise<Paginated<NoticeListItem>> {
   const tracking = accountTracking;
-  const trackingOfAccount = and(eq(tracking.noticeId, searchedNotice.id), eq(tracking.accountId, accountId));
-  const where = and(...filterConditions(filters));
+  const trackingOfAccount = and(eq(tracking.noticeId, searchedNotice.id), eq(tracking.accountId, requester.accountId));
+  const favorite = favoriteOf(db, requester);
+  const where = and(...filterConditions(filters, favorite));
   const consulta = termsQuery(filters.criteria.terms, filters.criteria.termsMode);
   const excerpt =
     filters.criteria.terms.length > 0
@@ -237,6 +267,7 @@ export async function searchNotices(
         sourceSystemLink: searchedNotice.sourceSystemLink,
         trackingStatus: tracking.status,
         trackingUpdatedAt: tracking.updatedAt,
+        isFavorite: sql<boolean>`${favorite}`,
         highlightedExcerpt: excerpt,
       })
       .from(searchedNotice)
@@ -258,6 +289,7 @@ export async function searchNotices(
       proposalOpensAt: toBrasiliaIso(row.proposalOpensAt),
       proposalClosesAt: toBrasiliaIso(row.proposalClosesAt),
       tracking: trackingStatus ? { status: trackingStatus, updatedAt: toBrasiliaIso(trackingUpdatedAt) } : null,
+      isFavorite: row.isFavorite === true,
       highlightedExcerpt: row.highlightedExcerpt ?? null,
     })),
     page: filters.page,
@@ -278,6 +310,7 @@ export function criteriaOnlyFilters(criteria: NoticeCriteria, perPage: number): 
     openOnly: true,
     trackingStatuses: [],
     hideDiscarded: false,
+    favoritesOnly: false,
     sort: 'closingAsc',
     page: 1,
     perPage,

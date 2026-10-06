@@ -12,7 +12,14 @@ import {
   withRollback,
 } from '../collector/dbTestSupport';
 import { requesterOf, uniqueToken, type TestAccount } from './apiTestSupport';
-import { criteriaOnlyFilters, EMPTY_CRITERIA, searchNotices, type NoticeCriteria, type NoticeSearchFilters } from './noticeSearch';
+import {
+  criteriaOnlyFilters,
+  EMPTY_CRITERIA,
+  searchNotices,
+  type NoticeCriteria,
+  type NoticeSearchFilters,
+  type SearchRequester,
+} from './noticeSearch';
 import { parseSearchText } from './searchText';
 
 // Busca da tela (escopo, seção 8.1). Cada teste usa uma palavra única nos
@@ -28,8 +35,8 @@ function filtersFor(token: string, overrides: Partial<NoticeSearchFilters> = {},
   };
 }
 
-async function idsOf(tx: TendersDb, accountId: number, filters: NoticeSearchFilters): Promise<number[]> {
-  const result = await searchNotices(tx, accountId, filters);
+async function idsOf(tx: TendersDb, requester: SearchRequester, filters: NoticeSearchFilters): Promise<number[]> {
+  const result = await searchNotices(tx, requester, filters);
   return result.items.map((item) => item.id);
 }
 
@@ -44,21 +51,21 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
       const printer = await insertTestNotice(tx, { procurementObject: `Locação de impressoras e software ${token}` });
 
       const parsed = parseSearchText(`${token} "gestão tributária" -impressora`);
-      const result = await searchNotices(tx, account.accountId, filtersFor(token, {}, parsed));
+      const result = await searchNotices(tx, requesterOf(account), filtersFor(token, {}, parsed));
       assert.deepEqual(result.items.map((item) => item.id), [software]);
       assert.match(result.items[0]?.highlightedExcerpt ?? '', /<<gestão>> <<tributária>>/);
 
       assert.deepEqual(
-        (await idsOf(tx, account.accountId, filtersFor(token, {}, { terms: [token, 'software'], termsMode: 'E' }))).sort(),
+        (await idsOf(tx, requesterOf(account), filtersFor(token, {}, { terms: [token, 'software'], termsMode: 'E' }))).sort(),
         [software, printer].sort(),
         'software também acha softwares',
       );
       assert.deepEqual(
-        await idsOf(tx, account.accountId, filtersFor(token, {}, { terms: [token, 'impressora'], termsMode: 'E' })),
+        await idsOf(tx, requesterOf(account), filtersFor(token, {}, { terms: [token, 'impressora'], termsMode: 'E' })),
         [printer],
       );
       assert.deepEqual(
-        (await idsOf(tx, account.accountId, filtersFor(token, {}, { terms: [`${token} tributária`, `${token} impressoras`], termsMode: 'OU' }))).length,
+        (await idsOf(tx, requesterOf(account), filtersFor(token, {}, { terms: [`${token} tributária`, `${token} impressoras`], termsMode: 'OU' }))).length,
         0,
         'frase exige a ordem das palavras',
       );
@@ -81,13 +88,13 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
       const piDispensa = await insertTestNotice(tx, { ...base, state: 'PI', modalityId: 8, estimatedTotalValue: '500000.00' });
       const withoutValue = await insertTestNotice(tx, { ...base, state: 'MA', modalityId: 6, estimatedTotalValue: null });
 
-      assert.deepEqual((await idsOf(tx, account.accountId, filtersFor(token, {}, { states: ['MA'] }))).sort(), [maPregao, withoutValue].sort());
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, {}, { modalities: [8] })), [piDispensa]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, {}, { agencyCnpjs: ['06307102000130'] })), [maPregao]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, {}, { cityIbgeCodes: ['2111300'] })), [maPregao]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, {}, { minValue: '100000' })), [piDispensa]);
+      assert.deepEqual((await idsOf(tx, requesterOf(account), filtersFor(token, {}, { states: ['MA'] }))).sort(), [maPregao, withoutValue].sort());
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, {}, { modalities: [8] })), [piDispensa]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, {}, { agencyCnpjs: ['06307102000130'] })), [maPregao]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, {}, { cityIbgeCodes: ['2111300'] })), [maPregao]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, {}, { minValue: '100000' })), [piDispensa]);
       assert.deepEqual(
-        (await idsOf(tx, account.accountId, filtersFor(token, {}, { minValue: '100000', includeWithoutValue: true }))).sort(),
+        (await idsOf(tx, requesterOf(account), filtersFor(token, {}, { minValue: '100000', includeWithoutValue: true }))).sort(),
         [piDispensa, withoutValue].sort(),
       );
     });
@@ -105,19 +112,19 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
         proposalClosesAt: '2099-10-20T10:00:00',
       });
 
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token)), [october]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token)), [october]);
       assert.deepEqual(
-        (await idsOf(tx, account.accountId, filtersFor(token, { openOnly: false }))).sort(),
+        (await idsOf(tx, requesterOf(account), filtersFor(token, { openOnly: false }))).sort(),
         [closed, suspended, october].sort(),
       );
       assert.deepEqual(
-        await idsOf(tx, account.accountId, filtersFor(token, { publishedFrom: '2026-10-01', publishedTo: '2026-10-01' })),
+        await idsOf(tx, requesterOf(account), filtersFor(token, { publishedFrom: '2026-10-01', publishedTo: '2026-10-01' })),
         [october],
         '23:30 de Brasília ainda é dia 1º',
       );
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { publishedFrom: '2026-10-02' })), []);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { publishedFrom: '2026-10-02' })), []);
       assert.deepEqual(
-        await idsOf(tx, account.accountId, filtersFor(token, { closingFrom: '2099-10-20', closingTo: '2099-10-20' })),
+        await idsOf(tx, requesterOf(account), filtersFor(token, { closingFrom: '2099-10-20', closingTo: '2099-10-20' })),
         [october],
       );
     });
@@ -135,15 +142,15 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
       await trackNotice(tx, { accountId: account.accountId, noticeId: discarded, status: 'DESCARTADO', userId: account.ownerId });
       await trackNotice(tx, { accountId: other.accountId, noticeId: untracked, status: 'PARTICIPAR', userId: other.ownerId });
 
-      const all = await searchNotices(tx, account.accountId, filtersFor(token));
+      const all = await searchNotices(tx, requesterOf(account), filtersFor(token));
       assert.deepEqual(all.items.map((item) => item.id).sort(), [analyzing, untracked].sort(), 'descartado oculto por padrão');
       assert.equal(all.items.find((item) => item.id === analyzing)?.tracking?.status, 'ANALISAR');
       assert.equal(all.items.find((item) => item.id === untracked)?.tracking, null, 'acompanhamento de outra conta não aparece');
 
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { trackingStatuses: ['SEM'] })), [untracked]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { trackingStatuses: ['DESCARTADO'] })), [discarded]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { trackingStatuses: ['SEM'] })), [untracked]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { trackingStatuses: ['DESCARTADO'] })), [discarded]);
       assert.deepEqual(
-        (await idsOf(tx, account.accountId, filtersFor(token, { hideDiscarded: false }))).length,
+        (await idsOf(tx, requesterOf(account), filtersFor(token, { hideDiscarded: false }))).length,
         3,
       );
     });
@@ -172,13 +179,13 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
         estimatedTotalValue: null,
       });
 
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { sort: 'closingAsc' })), [soon, later, noDeadline]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { sort: 'publishedDesc' })), [later, soon, noDeadline]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { sort: 'valueDesc' })), [soon, later, noDeadline]);
-      assert.deepEqual(await idsOf(tx, account.accountId, filtersFor(token, { sort: 'valueAsc' })), [later, soon, noDeadline]);
-      assert.equal((await idsOf(tx, account.accountId, filtersFor(token, { sort: 'relevance' })))[0], later, 'termo repetido pesa mais');
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { sort: 'closingAsc' })), [soon, later, noDeadline]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { sort: 'publishedDesc' })), [later, soon, noDeadline]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { sort: 'valueDesc' })), [soon, later, noDeadline]);
+      assert.deepEqual(await idsOf(tx, requesterOf(account), filtersFor(token, { sort: 'valueAsc' })), [later, soon, noDeadline]);
+      assert.equal((await idsOf(tx, requesterOf(account), filtersFor(token, { sort: 'relevance' })))[0], later, 'termo repetido pesa mais');
 
-      const page2 = await searchNotices(tx, account.accountId, filtersFor(token, { perPage: 2, page: 2 }));
+      const page2 = await searchNotices(tx, requesterOf(account), filtersFor(token, { perPage: 2, page: 2 }));
       assert.deepEqual(page2.items.map((item) => item.id), [noDeadline]);
       assert.equal(page2.total, 3);
       assert.equal(page2.totalPages, 2);
@@ -195,12 +202,12 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
         proposalClosesAt: '2099-10-20T09:30:00',
         estimatedTotalValue: '200895.14',
       });
-      const [item] = (await searchNotices(tx, account.accountId, filtersFor(token))).items;
+      const [item] = (await searchNotices(tx, requesterOf(account), filtersFor(token))).items;
       assert.equal(item?.proposalClosesAt, '2099-10-20T09:30:00-03:00');
       assert.equal(item?.estimatedTotalValue, 200895.14);
       assert.equal(item?.highlightedExcerpt, `Edital <<${token}>>`);
 
-      const withoutTerms = await searchNotices(tx, account.accountId, {
+      const withoutTerms = await searchNotices(tx, requesterOf(account), {
         ...filtersFor(token),
         criteria: { ...EMPTY_CRITERIA, states: ['ZZ'] },
       });
@@ -239,7 +246,7 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
 
       for (const partial of criteriaSets) {
         const criteria: NoticeCriteria = { ...EMPTY_CRITERIA, ...partial };
-        const screen = await idsOf(tx, account.accountId, criteriaOnlyFilters(criteria, 100));
+        const screen = await idsOf(tx, requesterOf(account), criteriaOnlyFilters(criteria, 100));
         const searchId = await insertSavedSearch(tx, {
           ...requesterOf(account),
           terms: criteria.terms,

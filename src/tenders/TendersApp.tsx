@@ -4,6 +4,7 @@ import { LoadingState } from '../ui/states';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
+import { FavoritesScreen } from './screens/FavoritesScreen';
 import { GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
 import { HomeScreen } from './screens/HomeScreen';
 import { NoticeScreen } from './screens/NoticeScreen';
@@ -57,6 +58,7 @@ export function TendersApp() {
         <Route path="buscar" element={<SearchScreen />} />
         <Route path="editais/:id" element={<NoticeScreen />} />
         <Route path="buscas" element={<SavedSearchesScreen />} />
+        <Route path="favoritos" element={<FavoritesScreen />} />
         <Route path="acompanhamento" element={<TrackingScreen />} />
         <Route path="notificacoes" element={<NotificationsScreen />} />
         <Route path="configuracoes" element={<SettingsScreen />} />

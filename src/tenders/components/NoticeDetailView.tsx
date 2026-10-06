@@ -13,6 +13,7 @@ import { formatCnpj } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
 import { SEARCH_URL_PARAMS } from '../utils/searchFilters';
 import { CountdownBadge } from './CountdownBadge';
+import { FavoriteButton } from './FavoriteButton';
 import { LoadError, LoadingBlock } from './LoadStates';
 import { NoticeBadges } from './NoticeBadges';
 import { NoticeFilesTab, NoticeItemsTab } from './NoticePncpTabs';
@@ -138,7 +139,8 @@ export function NoticeDetailContent({ notice, inDrawer }: NoticeDetailContentPro
           <InfoItem label="Processo">{notice.processNumber ?? 'Não informado'}</InfoItem>
           <InfoItem label="Controle PNCP">{notice.pncpControlNumber}</InfoItem>
         </dl>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-start gap-2">
+          <FavoriteButton notice={notice} variant="labeled" />
           {notice.pncpLink && (
             <a href={notice.pncpLink} target="_blank" rel="noopener noreferrer" className={externalLinkClass}>
               <ExternalLink size={14} aria-hidden="true" />

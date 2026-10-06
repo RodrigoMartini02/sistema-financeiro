@@ -99,7 +99,7 @@ export function NotificationsScreen() {
   }
 
   return (
-    <section className="mx-auto grid max-w-4xl grid-cols-1 gap-4">
+    <section className="grid grid-cols-1 gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           Tipo

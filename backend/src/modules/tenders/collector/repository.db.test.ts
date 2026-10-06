@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 import { eq, inArray } from 'drizzle-orm';
-import { tenderNotices, tenderNotifications } from '../db/schema';
+import { tenderFavorites, tenderNotices, tenderNotifications } from '../db/schema';
 import {
   buildNoticeRow,
   closeLocalTestDatabase,
@@ -71,7 +71,7 @@ describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReaso
     });
   });
 
-  test('limpeza: apaga encerrados há mais de 12 meses e os sem prazo, menos acompanhados ou com notificação não lida', async () => {
+  test('limpeza: apaga encerrados há mais de 12 meses e os sem prazo, menos acompanhados, favoritos ou com notificação não lida', async () => {
     await withRollback(async (tx) => {
       const { accountId, ownerId } = await createTestAccount(tx, 'limpeza');
       const withoutDeadline = await insertTestNotice(tx, { proposalClosesAt: null });
@@ -79,10 +79,12 @@ describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReaso
       const withoutDeadlineUnread = await insertTestNotice(tx, { proposalClosesAt: null });
       const withoutDeadlineRead = await insertTestNotice(tx, { proposalClosesAt: null });
       const closedLongAgo = await insertTestNotice(tx, { proposalClosesAt: '2025-08-01T10:00:00' });
+      const closedLongAgoFavorite = await insertTestNotice(tx, { proposalClosesAt: '2025-08-01T10:00:00' });
       const closedRecently = await insertTestNotice(tx, { proposalClosesAt: '2026-09-01T10:00:00' });
       const open = await insertTestNotice(tx, { proposalClosesAt: '2099-01-01T10:00:00' });
 
       await trackNotice(tx, { accountId, noticeId: withoutDeadlineTracked, status: 'ANALISAR', userId: ownerId });
+      await tx.insert(tenderFavorites).values({ accountId, userId: ownerId, noticeId: closedLongAgoFavorite });
       const notification = { accountId, userId: ownerId, type: 'NOVO_EDITAL' as const, title: 'Novo edital: teste' };
       await tx.insert(tenderNotifications).values([
         { ...notification, link: `/editais/${withoutDeadlineUnread}`, noticeId: withoutDeadlineUnread },
@@ -102,13 +104,14 @@ describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReaso
             withoutDeadlineUnread,
             withoutDeadlineRead,
             closedLongAgo,
+            closedLongAgoFavorite,
             closedRecently,
             open,
           ]),
         );
       assert.deepEqual(
         remaining.map((row) => row.id).sort((a, b) => a - b),
-        [withoutDeadlineTracked, withoutDeadlineUnread, closedRecently, open].sort((a, b) => a - b),
+        [withoutDeadlineTracked, withoutDeadlineUnread, closedLongAgoFavorite, closedRecently, open].sort((a, b) => a - b),
       );
     });
   });

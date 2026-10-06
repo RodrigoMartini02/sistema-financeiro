@@ -115,7 +115,7 @@ export function HomeScreen() {
 
   const view = dashboard.data;
   return (
-    <section className="mx-auto grid grid-cols-1 max-w-[1400px] gap-4">
+    <section className="grid grid-cols-1 gap-4">
       <DashboardCards cards={view.cards} todayIso={getLocalTodayIso()} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

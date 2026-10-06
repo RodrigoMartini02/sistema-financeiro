@@ -5,9 +5,11 @@ import { RequestInputError } from '../../../utils/requestInput';
 import { TRACKING_STATUSES } from '../domains';
 import { tenderAccessOf } from '../middleware/tenderAccess';
 import {
+  addFavorite,
   getNoticeDetail,
   listTrackingHistory,
   MAX_TRACKING_NOTE_LENGTH,
+  removeFavorite,
   removeTracking,
   saveTracking,
 } from '../services/noticeDetail';
@@ -27,7 +29,7 @@ export function noticeRoutes(deps: TendersApiDeps): Router {
 
   // GET /api/tenders/notices?q=&termsMode=&state=&municipalityCode=&agencyCnpj=&modality=&minValue=&maxValue=
   //   &includeWithoutValue=&publishedFrom=&publishedTo=&closingFrom=&closingTo=&openOnly=&trackingStatus=
-  //   &hideDiscarded=&savedSearchId=&sort=&page=&perPage=
+  //   &hideDiscarded=&favoritesOnly=&savedSearchId=&sort=&page=&perPage=
   router.get(
     '/',
     [...noticeSearchValidators, validate],
@@ -43,7 +45,7 @@ export function noticeRoutes(deps: TendersApiDeps): Router {
       if (filters.sort === 'relevance' && criteria.terms.length === 0) {
         throw new RequestInputError('Ordenar por relevância exige termos de busca.');
       }
-      const result = await searchNotices(deps.db, access.account.id, { ...filters, criteria });
+      const result = await searchNotices(deps.db, { accountId: access.account.id, userId: access.userId }, { ...filters, criteria });
       res.json({
         success: true,
         data: {
@@ -112,6 +114,27 @@ export function noticeRoutes(deps: TendersApiDeps): Router {
       const access = tenderAccessOf(req);
       await removeTracking(deps.db, { accountId: access.account.id, userId: access.userId }, Number(req.params['id']));
       res.json({ success: true, data: { noticeId: Number(req.params['id']) } });
+    }),
+  );
+
+  // PUT /api/tenders/notices/:id/favorite: favorito de quem pede (cada pessoa tem os seus).
+  router.put(
+    '/:id/favorite',
+    [idParam(), validate],
+    tenderRoute('Tender favorite save failed:', 'Não foi possível favoritar o edital agora.', async (req, res) => {
+      const access = tenderAccessOf(req);
+      const favorite = await addFavorite(deps.db, { accountId: access.account.id, userId: access.userId }, Number(req.params['id']));
+      res.json({ success: true, data: favorite });
+    }),
+  );
+
+  router.delete(
+    '/:id/favorite',
+    [idParam(), validate],
+    tenderRoute('Tender favorite removal failed:', 'Não foi possível tirar o edital dos favoritos agora.', async (req, res) => {
+      const access = tenderAccessOf(req);
+      const favorite = await removeFavorite(deps.db, { accountId: access.account.id, userId: access.userId }, Number(req.params['id']));
+      res.json({ success: true, data: favorite });
     }),
   );
 

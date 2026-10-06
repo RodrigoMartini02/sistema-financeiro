@@ -70,6 +70,18 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/notices/{{noticeId}}/tracking?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
+### Favoritar (da pessoa logada; de novo não duplica)
+PUT {{baseUrl}}/notices/{{noticeId}}/favorite?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Tirar dos favoritos
+DELETE {{baseUrl}}/notices/{{noticeId}}/favorite?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Busca: só os favoritos da pessoa (inclusive encerrados e descartados)
+GET {{baseUrl}}/notices?accountId={{accountId}}&favoritesOnly=true&openOnly=false&hideDiscarded=false
+Authorization: Bearer {{token}}
+
 ### Buscas salvas do usuário na conta, com openCount
 GET {{baseUrl}}/saved-searches?accountId={{accountId}}
 Authorization: Bearer {{token}}

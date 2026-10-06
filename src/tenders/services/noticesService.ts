@@ -1,4 +1,5 @@
 import type {
+  FavoriteView,
   NoticeDetail,
   NoticeDetailList,
   NoticeFile,
@@ -10,7 +11,8 @@ import type {
 } from '../types';
 import { tendersRequest } from './tendersApi';
 
-// Editais: busca, detalhe, itens e arquivos do PNCP, acompanhamento e histórico.
+// Editais: busca, detalhe, itens e arquivos do PNCP, acompanhamento, histórico
+// e favoritos.
 
 /** `apiQuery`: parâmetros da API já montados (utils/searchFilters → `toApiQuery`). */
 export function fetchNotices(apiQuery: string): Promise<NoticeSearchResult> {
@@ -40,4 +42,13 @@ export function removeTracking(id: number): Promise<{ noticeId: number }> {
 
 export function fetchTrackingHistory(id: number): Promise<TrackingHistoryEntry[]> {
   return tendersRequest<TrackingHistoryEntry[]>(`/notices/${id}/history`);
+}
+
+/** Favorita para a pessoa logada; favoritar de novo não muda nada. */
+export function addFavorite(id: number): Promise<FavoriteView> {
+  return tendersRequest<FavoriteView>(`/notices/${id}/favorite`, { method: 'PUT' });
+}
+
+export function removeFavorite(id: number): Promise<FavoriteView> {
+  return tendersRequest<FavoriteView>(`/notices/${id}/favorite`, { method: 'DELETE' });
 }

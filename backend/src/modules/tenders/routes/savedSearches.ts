@@ -46,7 +46,7 @@ export function savedSearchRoutes(deps: TendersApiDeps): Router {
     previewLimiter,
     [...savedSearchCriteriaValidators, validate],
     tenderRoute('Tender saved search preview failed:', 'Não foi possível calcular a prévia agora.', async (req, res) => {
-      const preview = await previewSavedSearch(deps.db, requesterOf(req).accountId, readSavedSearchCriteria(req.body));
+      const preview = await previewSavedSearch(deps.db, requesterOf(req), readSavedSearchCriteria(req.body));
       res.json({ success: true, data: preview });
     }),
   );

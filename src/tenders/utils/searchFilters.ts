@@ -52,6 +52,8 @@ export interface SearchState {
   includeClosingSoon: boolean;
   trackingStatuses: TrackingFilter[];
   hideDiscarded: boolean;
+  /** Só os editais que a pessoa favoritou. */
+  favoritesOnly: boolean;
   /** Resultados de uma busca salva: os critérios vêm dela, e os da tela ficam de fora. */
   savedSearchId: number | null;
   sort: NoticeSort;
@@ -77,6 +79,7 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   includeClosingSoon: false,
   trackingStatuses: [],
   hideDiscarded: true,
+  favoritesOnly: false,
   savedSearchId: null,
   sort: 'closingAsc',
   page: 1,
@@ -102,6 +105,7 @@ export const SEARCH_URL_PARAMS = {
   includeClosingSoon: 'prazoCurto',
   tracking: 'acompanhamento',
   showDiscarded: 'descartados',
+  favoritesOnly: 'favoritos',
   savedSearch: 'busca',
   sort: 'ordem',
   page: 'pagina',
@@ -209,6 +213,7 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
       (value) => (TRACKING_FILTERS as readonly string[]).includes(value),
     ) as TrackingFilter[],
     hideDiscarded: params.get(P.showDiscarded) !== '1',
+    favoritesOnly: params.get(P.favoritesOnly) === '1',
     savedSearchId,
     page: positiveInt(params.get(P.page)) ?? 1,
     perPage,
@@ -238,6 +243,7 @@ export function toSearchParams(state: SearchState): URLSearchParams {
   if (state.includeClosingSoon) params.set(P.includeClosingSoon, '1');
   state.trackingStatuses.forEach((value) => params.append(P.tracking, value.toLowerCase()));
   if (!state.hideDiscarded) params.set(P.showDiscarded, '1');
+  if (state.favoritesOnly) params.set(P.favoritesOnly, '1');
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
   if (state.sort !== DEFAULT_SEARCH_STATE.sort) params.set(P.sort, SORT_URL_VALUES[state.sort]);
   if (state.page > 1) params.set(P.page, String(state.page));
@@ -273,10 +279,19 @@ export function toApiQuery(state: SearchState): string {
   params.set('openOnly', String(state.openOnly));
   state.trackingStatuses.forEach((value) => params.append('trackingStatus', value));
   params.set('hideDiscarded', String(state.hideDiscarded));
+  if (state.favoritesOnly) params.set('favoritesOnly', 'true');
   params.set('sort', state.sort);
   params.set('page', String(state.page));
   params.set('perPage', String(state.perPage));
   return params.toString();
+}
+
+/**
+ * Query da tela Favoritos: todos os favoritos da pessoa, inclusive os
+ * encerrados e os descartados, pelo prazo de encerramento.
+ */
+export function favoritesApiQuery(page: number, perPage: number): string {
+  return toApiQuery({ ...DEFAULT_SEARCH_STATE, openOnly: false, hideDiscarded: false, favoritesOnly: true, page, perPage });
 }
 
 /** Muda filtros: a página volta para a 1, e a relevância sai se a busca ficou sem texto. */
@@ -297,12 +312,13 @@ export function minimumClosingDate(todayIso: string): string {
 
 /**
  * O prazo mínimo vale na busca de editais abertos com o filtro desligado. Não
- * vale com filtro de acompanhados (Analisar, Vou participar ou Descartado: aí a
- * pessoa quer ver os seus, inclusive os urgentes) nem com um período de
- * encerramento que termina antes do mínimo (aí vale o período escolhido).
+ * vale com filtro de acompanhados (Analisar, Vou participar ou Descartado) nem
+ * com "Só favoritos": aí a pessoa quer ver os seus, inclusive os urgentes.
+ * Também não vale com um período de encerramento que termina antes do mínimo
+ * (aí vale o período escolhido).
  */
 export function appliesMinimumDeadline(state: SearchState, todayIso: string): boolean {
-  if (!state.openOnly || state.includeClosingSoon) {
+  if (!state.openOnly || state.includeClosingSoon || state.favoritesOnly) {
     return false;
   }
   if (state.trackingStatuses.some((status) => status !== TRACKING_FILTER_NONE)) {
@@ -422,6 +438,9 @@ export function filterChips(state: SearchState, lookups: ChipLookups = {}): Filt
   );
   if (!state.hideDiscarded) {
     add('showDiscarded', 'Mostra descartados', { hideDiscarded: true });
+  }
+  if (state.favoritesOnly) {
+    add('favoritesOnly', 'Só favoritos', { favoritesOnly: false });
   }
   return chips;
 }
