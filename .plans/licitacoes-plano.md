@@ -275,7 +275,7 @@ O plano detalhado começa pelos ajustes da Fase 1 (ritmo do PNCP, singular e plu
 10. ~~Exportação CSV/XLSX~~: saiu do módulo (decisão do plano da Fase 2). Fica o limite de taxa na prévia, no padrão de `middleware/validation.ts`.
 11. Testes: serviços, banco local, travas, isolamento entre contas e usuários e paridade busca avulsa × salva. Coleção `.http` com todas as rotas.
 
-### Fase 3 — App do módulo (tarefas; plano detalhado antes de implementar)
+### Fase 3 — App do módulo (plano detalhado: `.plans/licitacoes-fase3-plano.md`, aprovado em 05/10/2026)
 
 1. Entrada `tenders.html` + `src/tenders/main.tsx` no `vite.config.ts`, com rotas sob `/licitacoes/app/*` (`basename`). `/licitacoes` abre o sistema: o app troca o endereço para `/licitacoes/app` sem recarregar. No servidor de desenvolvimento, `/licitacoes` e `/licitacoes/app/*` caem na entrada nova.
 2. Gate do módulo: sessão, `GET /api/tenders/access`, login embutido com o módulo como contexto e tela "sem acesso" com link para o FINGERENCE.
@@ -553,3 +553,40 @@ Plano: `.plans/licitacoes-fase2-plano.md`. Decisões:
   - conta 18 (`adc`, do usuário 1) habilitada no módulo;
   - as buscas salvas criadas pela coleção foram apagadas;
   - ficaram 2 linhas de histórico do edital 19581 e o cache de itens e arquivos dele.
+
+### Fase 3 — 05/10/2026
+
+Plano: `.plans/licitacoes-fase3-plano.md`. Só front; o backend não mudou.
+
+- **Entrada própria:**
+  - `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app`;
+  - `/licitacoes` vira `/licitacoes/app` pelo próprio app, nunca por 301;
+  - reescrita local no `vite.config.ts` (`dev` e `preview`).
+- **Entrada no módulo:**
+  - login embutido "Entrar em Licitações", sem "Criar nova conta", que volta para o módulo (`auth_origin = tenders`);
+  - "sem acesso" para 404 e para 403;
+  - erro com "tentar de novo".
+- **Moldura:**
+  - menu completo a partir de 1280 px, recolhido de 768 a 1279 px e em gaveta no celular;
+  - busca rápida com atalho `/`, tema, sino com a contagem e menu do usuário;
+  - "Controle financeiro" só com plano ativo e Configurações só para titular ou admin;
+  - páginas provisórias para todas as rotas e "página não encontrada".
+- **Fora do módulo:** só `LoginPage` (modo Licitações), `session.ts` (origem nova), `vite.config.ts` e `package.json`. O destino do login do FINGERENCE e do assistente não mudou: `src/utils/authOrigin.ts` tem teste.
+- **Checks:**
+  - testes do front: 186 de 186, sendo 11 novos;
+  - tipos do front: 0 erro, como antes;
+  - build ok;
+  - o código do módulo fica só no pacote `tenders` (19,5 kB), e as páginas do FINGERENCE não o carregam.
+- **Conferência no navegador** (Edge sem janela, backend e front locais), com 20 conferências automáticas ok e prints:
+  - login do módulo;
+  - Início claro e escuro;
+  - menu do usuário;
+  - tamanho médio;
+  - celular e gaveta;
+  - página não encontrada;
+  - busca rápida;
+  - sem acesso: conta 18 desabilitada e reabilitada pela rota do admin;
+  - regressão: login do assistente e app de finanças.
+- **Correção durante a conferência:** o cartão "em construção" ficava branco no tema escuro. O conteúdo passou a usar os tokens de `.config-scope`, o mesmo padrão da tela de Clientes.
+- **Não conferido:** o login de verdade pelo módulo, porque não há senha de usuário local disponível. O destino depois do login tem teste de unidade.
+- **Produção:** nada. As regras de reescrita da hospedagem estão no README do módulo, para a ida à produção.

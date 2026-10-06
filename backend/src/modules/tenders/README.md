@@ -229,6 +229,27 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - é por usuário porque o servidor não configura `trust proxy`.
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
+## App do módulo (front, Fase 3)
+
+O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
+
+- **Entrada:** `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
+- **Endereço:** `/licitacoes` fica reservado para a página pública futura. Até ela existir, o próprio app troca o endereço para `/licitacoes/app`, nunca com 301.
+- **Login:** é o `LoginPage` de sempre, com `context="tenders"`, sem cadastro aberto. Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
+- **Entrada no módulo**, conforme `GET /api/tenders/access`:
+  - sem sessão: login;
+  - 404: "sua conta não tem acesso";
+  - 403: "peça ao titular";
+  - outro erro: "tentar de novo".
+- **Servidor local:** o `vite.config.ts` reescreve `/licitacoes` e `/licitacoes/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
+
+**Hospedagem em produção (passo da ida à produção, ainda não feito):**
+- Hoje o site (atrás do Cloudflare) reescreve só `/loja/*`, e `/licitacoes` responde 404.
+- Criar duas regras de reescrita (rewrite, nunca redirect/301) onde já está a de `/loja/*`:
+  - `/licitacoes` → `/tenders.html`;
+  - `/licitacoes/*` → `/tenders.html`.
+- O build gera `dist/tenders.html`.
+
 **Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):
 - busca: 4 a 17 ms, com o índice GIN;
 - 50 buscas salvas com `openCount`: 271 ms;
