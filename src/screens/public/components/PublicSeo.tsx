@@ -32,8 +32,8 @@ const SEO_BY_PATH: Record<string, SeoConfig> = {
     canonicalPath: '/sobre/',
   },
   '/planos': {
-    title: 'Planos do FINGERENCE | Plus e Premium',
-    description: 'Compare os planos Plus e Premium do FINGERENCE para controle financeiro pessoal, empresarial, relatórios e múltiplos perfis.',
+    title: 'Planos do FINGERENCE | Starter e Premium',
+    description: 'Compare os planos Starter e Premium do FINGERENCE: controle financeiro de uma conta ou de várias, com equipe, clientes, contratos e vitrine.',
     canonicalPath: '/planos/',
   },
   '/contato': {

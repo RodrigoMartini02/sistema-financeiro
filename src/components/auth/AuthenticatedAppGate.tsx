@@ -2,12 +2,13 @@ import { useEffect, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { AuthUser } from '../../types/auth';
 import { useAuthSession } from '../../hooks/useAuthSession';
-import { apiRequest } from '../../services/apiClient';
+import { fetchPlanStatus } from '../../services/planosService';
 import { queryKeys } from '../../services/queryKeys';
 import { setAuthOrigin } from '../../services/session';
 import { ErrorState, LoadingState } from '../../ui/states';
 import { LoginPage } from '../../screens/public/LoginPage';
-import { PlanExpiredGate, type PlanoStatus } from './PlanExpiredGate';
+import { planGateReason } from '../../utils/planFeatures';
+import { PlanExpiredGate } from './PlanExpiredGate';
 
 interface AuthenticatedAppGateProps {
   children: (user: AuthUser) => ReactNode;
@@ -16,12 +17,9 @@ interface AuthenticatedAppGateProps {
 
 export function AuthenticatedAppGate({ children, sessionErrorFallback }: AuthenticatedAppGateProps) {
   const session = useAuthSession();
-  const planQuery = useQuery<PlanoStatus>({
+  const planQuery = useQuery({
     queryKey: queryKeys.planStatus,
-    queryFn: async () => {
-      const response = await apiRequest<PlanoStatus | { data?: PlanoStatus }>('/planos/status');
-      return 'data' in response && response.data ? response.data : response as PlanoStatus;
-    },
+    queryFn: fetchPlanStatus,
     enabled: !!session.user,
     staleTime: 3 * 60 * 1000,
   });
@@ -61,8 +59,9 @@ export function AuthenticatedAppGate({ children, sessionErrorFallback }: Authent
       </div>
     );
   }
-  if (planQuery.data?.status === 'expirado') {
-    return <PlanExpiredGate planStatus={planQuery.data} />;
+  const gateReason = planQuery.data ? planGateReason(planQuery.data) : null;
+  if (planQuery.data && gateReason) {
+    return <PlanExpiredGate planStatus={planQuery.data} reason={gateReason} />;
   }
 
   return <>{children(session.user)}</>;

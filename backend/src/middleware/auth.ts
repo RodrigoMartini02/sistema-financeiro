@@ -4,7 +4,19 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { users } from '../db/schema';
 import { blockedAccessMessage } from '../utils/authMessages';
-import { getRequesterPlanStatus, isPlanAccessActive } from '../services/plan-lifecycle';
+import {
+  getRequesterPlanStatus,
+  isHolderDefaultAccount,
+  isPlanAccessActive,
+  type RequesterPlanStatus,
+} from '../services/plan-lifecycle';
+
+/** Código da recusa de recurso do Premium: o app mostra o aviso de assinar. */
+const PLAN_UPGRADE_REQUIRED = 'PLAN_UPGRADE_REQUIRED';
+
+const PREMIUM_FEATURE_MESSAGE = 'Recurso do plano Premium.';
+const TEAM_NOT_IN_PLAN_MESSAGE = 'O plano da conta não inclui equipe. Peça ao titular para assinar o Premium.';
+const DEFAULT_ACCOUNT_ONLY_MESSAGE = 'No plano Starter, só a Conta Padrão fica liberada.';
 
 // Papel dentro da conta a que o usuario esta vinculado — so informativo
 // (ex.: qual rotulo/tela mostrar). Nunca usado para decidir acesso a dado:
@@ -101,6 +113,34 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   next();
 }
 
+function sendPlanUpgradeRequired(res: Response, message: string): void {
+  res.status(403).json({ success: false, code: PLAN_UPGRADE_REQUIRED, message });
+}
+
+// O status calculado por requireActivePlan fica no pedido, para
+// requirePremiumPlan (que vem depois dele) não consultar o banco de novo.
+const PLAN_STATUS_LOCAL = 'planStatus';
+
+function rememberPlanStatus(res: Response, planStatus: RequesterPlanStatus): void {
+  res.locals[PLAN_STATUS_LOCAL] = planStatus;
+}
+
+function rememberedPlanStatus(res: Response): RequesterPlanStatus | undefined {
+  return res.locals[PLAN_STATUS_LOCAL] as RequesterPlanStatus | undefined;
+}
+
+/** `conta_id` do pedido (query ou corpo), quando é um id válido. */
+function readRequestAccountId(req: Request): number | null {
+  const body = req.body as Record<string, unknown> | undefined;
+  const raw = req.query['conta_id'] ?? body?.['conta_id'];
+  if (typeof raw !== 'string' && typeof raw !== 'number') {
+    return null;
+  }
+
+  const accountId = Number(raw);
+  return Number.isSafeInteger(accountId) && accountId > 0 ? accountId : null;
+}
+
 export async function requireActivePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (!req.user) {
     res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
@@ -124,9 +164,51 @@ export async function requireActivePlan(req: Request, res: Response, next: NextF
       return;
     }
 
+    // Sem Premium (Starter): equipe e outras contas ficam travadas, e só a
+    // Conta Padrão do dono do plano é usada.
+    if (!planStatus.premiumFeatures) {
+      if (planStatus.isAccountMember) {
+        sendPlanUpgradeRequired(res, TEAM_NOT_IN_PLAN_MESSAGE);
+        return;
+      }
+
+      const requestedAccountId = readRequestAccountId(req);
+      if (requestedAccountId !== null && !(await isHolderDefaultAccount(planStatus.holderId, requestedAccountId))) {
+        sendPlanUpgradeRequired(res, DEFAULT_ACCOUNT_ONLY_MESSAGE);
+        return;
+      }
+    }
+
+    rememberPlanStatus(res, planStatus);
     next();
   } catch (error) {
     console.error('Plan access verification failed:', (error as Error).message);
+    res.status(500).json({ success: false, message: 'Failed to verify plan access.' });
+  }
+}
+
+/** Recurso do Premium: vem depois de requireActivePlan (ou consulta o plano sozinho). */
+export async function requirePremiumPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+    return;
+  }
+
+  try {
+    const planStatus = rememberedPlanStatus(res) ?? (await getRequesterPlanStatus(req.user.id));
+    if (!planStatus) {
+      res.status(401).json({ success: false, message: 'Access denied.' });
+      return;
+    }
+
+    if (!planStatus.premiumFeatures) {
+      sendPlanUpgradeRequired(res, PREMIUM_FEATURE_MESSAGE);
+      return;
+    }
+
+    next();
+  } catch (error) {
+    console.error('Premium plan verification failed:', { userId: req.user.id, error: (error as Error).message });
     res.status(500).json({ success: false, message: 'Failed to verify plan access.' });
   }
 }

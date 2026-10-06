@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { eq, and, ne } from 'drizzle-orm';
 import { db, pool } from '../db/client';
 import { accounts, users } from '../db/schema';
-import { authenticate } from '../middleware/auth';
+import { authenticate, requirePremiumPlan } from '../middleware/auth';
 import { ensureDefaultAccountNames } from '../services/accountNameCatalogSeed';
 import { saveAccountPartners } from '../services/accountPartners';
 import { readAccountPartnersInput } from '../services/accountPartnersInput';
@@ -106,8 +106,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 // Cria sempre conta PJ — uma pessoa física adicional na conta é papel do
 // fluxo "Novo membro" (account-members), não de uma segunda conta própria.
 // Conta, catálogo padrão (categorias, setores e cargos) e sócios (com o
-// capital lançado como receita) entram juntos ou nada.
-router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
+// capital lançado como receita) entram juntos ou nada. Conta além da Conta
+// Padrão é do Premium.
+router.post('/', authenticate, requirePremiumPlan, async (req: Request, res: Response): Promise<void> => {
   try {
     const company = readCompanyAccountInput(req.body);
     const partnersInput = readAccountPartnersInput((req.body as Record<string, unknown>)['socios']);
@@ -280,8 +281,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
   }
 });
 
-// PUT /api/contas/:id/reactivate
-router.put('/:id/reactivate', authenticate, async (req: Request, res: Response): Promise<void> => {
+// PUT /api/contas/:id/reactivate — reativar conta além da Padrão é do Premium.
+router.put('/:id/reactivate', authenticate, requirePremiumPlan, async (req: Request, res: Response): Promise<void> => {
   try {
     const accountId = parseInt(req.params['id']!);
 

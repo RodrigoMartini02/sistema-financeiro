@@ -3,18 +3,33 @@ import { useQuery } from '@tanstack/react-query';
 import type { Conta } from '../types/config';
 import { fetchContas } from '../services/configService';
 import { queryKeys } from '../services/queryKeys';
+import { usePlanFeatures } from './usePlanFeatures';
 
 interface UseActiveAccountOptions {
   enabled?: boolean;
 }
 
+/**
+ * No Starter só a Conta Padrão é usada (a API recusa as outras): as demais
+ * nem entram no seletor. Sem Conta Padrão na lista, segue a lista inteira.
+ */
+export function accountsAllowedByPlan(contas: Conta[], premium: boolean): Conta[] {
+  if (premium) {
+    return contas;
+  }
+
+  const defaultAccounts = contas.filter((c) => c.eh_padrao);
+  return defaultAccounts.length > 0 ? defaultAccounts : contas;
+}
+
 export function useActiveAccount({ enabled = true }: UseActiveAccountOptions = {}) {
+  const { premium } = usePlanFeatures({ enabled });
   const contas = useQuery({
     queryKey: queryKeys.contas,
     queryFn: () => fetchContas(),
     enabled,
   });
-  const data = contas.data ?? [];
+  const data = accountsAllowedByPlan(contas.data ?? [], premium);
   const activeId = localStorage.getItem('contaAtivaId');
   const activeAccount = data.find((c) => String(c.id) === activeId) ?? data[0];
 

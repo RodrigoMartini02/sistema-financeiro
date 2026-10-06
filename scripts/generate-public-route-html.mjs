@@ -36,11 +36,11 @@ const routes = [
   {
     path: '/planos/',
     file: 'planos/index.html',
-    title: 'Planos do FINGERENCE | Plus e Premium',
-    description: 'Compare os planos Plus e Premium do FINGERENCE para controle financeiro pessoal, empresarial, relatórios e múltiplos perfis.',
+    title: 'Planos do FINGERENCE | Starter e Premium',
+    description: 'Compare os planos Starter e Premium do FINGERENCE: controle financeiro de uma conta ou de várias, com equipe, clientes, contratos e vitrine.',
     label: 'Planos',
     heading: 'Escolha o plano certo para você.',
-    body: 'O FINGERENCE possui planos para controle financeiro pessoal e empresarial, com recursos como múltiplos perfis, relatórios, reservas e exportação de dados.',
+    body: 'O Starter (R$ 4,99/mês) cuida de uma conta, pessoal ou da empresa. O Premium (R$ 9,99/mês) traz várias contas, equipe, clientes, contratos, produtos, estoque e vitrine.',
   },
   {
     path: '/contato/',

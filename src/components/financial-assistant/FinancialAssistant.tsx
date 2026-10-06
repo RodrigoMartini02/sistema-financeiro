@@ -22,6 +22,8 @@ import {
 import { createExpense, createIncome, fetchDespesasEmAberto, pagarDespesa } from '../../services/financeService';
 import { useDashboardQuery } from '../../hooks/useFinanceDashboard';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
+import { accountsAllowedByPlan } from '../../hooks/useActiveAccount';
 import { allowedAssistantIntents, canReadCatalogList } from '../../utils/screenAccess';
 import { fetchCartoes, fetchCategorias, fetchContas } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
@@ -458,7 +460,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   // Só as listas que a pessoa pode ler, e os lançamentos do lado que ela vê
   // (utils/screenAccess.ts): o resto o servidor recusaria.
   const permissions = useOwnPermissions() ?? {};
+  // Clientes, produtos e contratos são do Premium (o servidor recusa no Starter).
+  const { premium } = usePlanFeatures();
   const readsList = (list: Parameters<typeof canReadCatalogList>[1]) => canReadCatalogList(permissions, list);
+  const readsPremiumList = (list: Parameters<typeof canReadCatalogList>[1]) => premium && readsList(list);
   const allowedIntents = allowedAssistantIntents(permissions);
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categorias(contaAtivaId),
@@ -481,7 +486,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     enabled: open,
     staleTime: 5 * 60_000,
   });
-  const contas = contasQuery.data ?? [];
+  const contas = accountsAllowedByPlan(contasQuery.data ?? [], premium);
 
   // Sem escolha no card, vale a conta ativa — mesmo comportamento de antes,
   // agora visivel. `contaAtivaTipo` e o fallback que o modal tambem usa.
@@ -495,7 +500,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const clientesQuery = useQuery({
     queryKey: queryKeys.clients(contaAtivaId, ACTIVE_CLIENTS),
     queryFn: () => fetchClients(contaAtivaId!, ACTIVE_CLIENTS),
-    enabled: open && contaEhEmpresa && readsList('clients') && contaAtivaId !== null,
+    enabled: open && contaEhEmpresa && readsPremiumList('clients') && contaAtivaId !== null,
     staleTime: 60_000,
   });
   // Classificacao vale para receita de conta pessoal e empresa: catalogo da
@@ -515,13 +520,13 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const produtosQuery = useQuery({
     queryKey: queryKeys.catalogoProdutos(contaAtivaId),
     queryFn: () => fetchProdutos(contaAtivaId!),
-    enabled: open && contaEhEmpresa && readsList('products') && contaAtivaId !== null,
+    enabled: open && contaEhEmpresa && readsPremiumList('products') && contaAtivaId !== null,
     staleTime: 60_000,
   });
   const contratosAtivosQuery = useQuery({
     queryKey: queryKeys.contractsWithHours(contaAtivaId),
     queryFn: () => fetchContractsWithHours(contaAtivaId!),
-    enabled: open && contaEhEmpresa && readsList('contracts') && contaAtivaId !== null,
+    enabled: open && contaEhEmpresa && readsPremiumList('contracts') && contaAtivaId !== null,
     staleTime: 60_000,
   });
 

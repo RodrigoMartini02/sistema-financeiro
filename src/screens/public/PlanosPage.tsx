@@ -9,55 +9,56 @@ import { CookieBanner } from '../../components/CookieBanner';
 
 const PLANOS = [
   {
-    nome: 'Plus',
+    nome: 'Starter',
     preco: 'R$ 4,99',
     periodo: '/mês',
-    descricao: 'Controle completo das finanças pessoais.',
+    descricao: 'Controle financeiro completo de uma conta, pessoal ou da empresa.',
     destaque: false,
-    cta: 'Assinar Plus',
+    cta: 'Assinar Starter',
     funcionalidades: [
-      'Controle mensal de receitas e despesas',
-      'Cartão de crédito',
-      'Parcelas e recorrências avançadas',
-      'Relatórios detalhados',
-      'Categorias personalizadas',
+      'Uma conta (pessoal ou empresa)',
+      'Receitas, despesas e lançamento em lote',
+      'Cartão de crédito, parcelas e recorrências',
+      'Painel, planejamento e relatórios',
+      'Agenda, avisos e assistente Juca',
     ],
   },
   {
     nome: 'Premium',
     preco: 'R$ 9,99',
     periodo: '/mês',
-    descricao: 'Para quem precisa de múltiplos perfis e funcionalidades avançadas.',
+    descricao: 'Para quem tem empresa, equipe e vendas.',
     destaque: true,
     cta: 'Assinar Premium',
     funcionalidades: [
-      'Tudo do Plus',
-      'Múltiplos perfis (pessoal + CNPJ)',
-      'Conta empresa com clientes e representantes',
-      'Cadastro em lote de despesas e receitas',
-      'Exportação de dados',
+      'Tudo do Starter',
+      'Várias contas (pessoal e empresas)',
+      'Membros e colaboradores, com setores e cargos',
+      'Clientes e contratos',
+      'Produtos, estoque, vitrine e pedidos',
       'Suporte prioritário',
     ],
   },
 ];
 
 const COMPARATIVO = [
-  { item: 'Controle mensal de receitas e despesas', plus: true, premium: true },
-  { item: 'Cartão de crédito', plus: true, premium: true },
-  { item: 'Parcelas e recorrências avançadas', plus: true, premium: true },
-  { item: 'Relatórios detalhados', plus: true, premium: true },
-  { item: 'Categorias personalizadas', plus: true, premium: true },
-  { item: 'Múltiplos perfis (pessoal + CNPJ)', plus: false, premium: true },
-  { item: 'Conta empresa (clientes e representantes)', plus: false, premium: true },
-  { item: 'Cadastro em lote', plus: false, premium: true },
-  { item: 'Exportação de dados', plus: false, premium: true },
-  { item: 'Suporte prioritário', plus: false, premium: true },
+  { item: 'Receitas, despesas e lançamento em lote', starter: true, premium: true },
+  { item: 'Cartão de crédito, parcelas e recorrências', starter: true, premium: true },
+  { item: 'Painel, planejamento e relatórios em PDF', starter: true, premium: true },
+  { item: 'Agenda e avisos de vencimento', starter: true, premium: true },
+  { item: 'Assistente Juca', starter: true, premium: true },
+  { item: 'Categorias personalizadas', starter: true, premium: true },
+  { item: 'Mais de uma conta (pessoal e empresas)', starter: false, premium: true },
+  { item: 'Membros e colaboradores', starter: false, premium: true },
+  { item: 'Clientes e contratos', starter: false, premium: true },
+  { item: 'Produtos, estoque, vitrine e pedidos', starter: false, premium: true },
+  { item: 'Suporte prioritário', starter: false, premium: true },
 ];
 
 const FAQ = [
   { q: 'Preciso de cartão de crédito para começar?', a: 'Não. Crie sua conta sem nenhum dado de pagamento e use o sistema completo por 15 dias.' },
   { q: 'O que acontece depois dos 15 dias de avaliação?', a: 'Ao final do período de avaliação, você escolhe um plano para continuar. Seus dados ficam preservados independentemente do plano escolhido.' },
-  { q: 'Posso mudar de plano depois?', a: 'Sim. Você pode migrar entre Plus e Premium a qualquer momento. Todos os seus dados são preservados — nenhum lançamento se perde.' },
+  { q: 'Posso mudar de plano depois?', a: 'Sim. Você pode migrar entre Starter e Premium a qualquer momento. Todos os seus dados são preservados — nenhum lançamento se perde.' },
   { q: 'O que acontece com meus dados se eu cancelar?', a: 'Seus dados ficam disponíveis por 30 dias após o cancelamento. Você pode exportá-los antes de encerrar a conta.' },
 ];
 
@@ -90,7 +91,7 @@ export function PlanosPage() {
         tone="light"
         label="PLANOS"
         title="Escolha o plano certo para você."
-        description="15 dias grátis ao criar sua conta, sem cartão de crédito. Depois, escolha entre os planos Plus ou Premium — sem surpresas."
+        description="15 dias grátis ao criar sua conta, sem cartão de crédito. Depois, escolha entre os planos Starter ou Premium — sem surpresas."
       />
 
       <section className="border-b border-slate-200 bg-[#f8fbfb]">
@@ -153,16 +154,16 @@ export function PlanosPage() {
               <thead className="bg-[#eef8f9]">
                 <tr className="border-b border-slate-200">
                   <th className="py-4 pl-5 pr-6 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Funcionalidade</th>
-                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Plus</th>
+                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Starter</th>
                   <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">Premium</th>
                 </tr>
               </thead>
               <tbody>
-                {COMPARATIVO.map(({ item, plus, premium }) => (
+                {COMPARATIVO.map(({ item, starter, premium }) => (
                   <tr key={item} className="border-b border-slate-100 last:border-b-0">
                     <td className="py-3 pl-5 pr-6 text-[14px] text-slate-600">{item}</td>
                     <td className="px-4 py-3 text-center">
-                      {plus
+                      {starter
                         ? <CheckCircle2 className="mx-auto h-4 w-4 text-brand-700" strokeWidth={1.9} />
                         : <span className="text-slate-400">—</span>}
                     </td>

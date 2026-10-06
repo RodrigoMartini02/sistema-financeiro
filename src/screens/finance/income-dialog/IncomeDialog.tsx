@@ -16,6 +16,7 @@ import { fetchRepresentantes } from '../../../services/representantesService';
 import type { ClassificacaoReceita } from '../../../types/config';
 import type { FinanceDashboardData, Income } from '../../../types/finance';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
+import { usePlanFeatures } from '../../../hooks/usePlanFeatures';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
@@ -89,9 +90,11 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     staleTime: 60_000,
   });
   // Listas da conta empresa: só as que a pessoa pode ler (utils/screenAccess.ts).
+  // Contratos, produtos e clientes são do Premium; representantes ficam nos dois planos.
   const permissions = useOwnPermissions() ?? {};
+  const { premium } = usePlanFeatures();
   const readsCompanyList = (list: 'representatives' | 'contracts' | 'products' | 'clients') =>
-    isCompany && canReadCatalogList(permissions, list);
+    isCompany && canReadCatalogList(permissions, list) && (premium || list === 'representatives');
   const representativesQuery = useQuery({
     queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: readsCompanyList('representatives'), staleTime: 60_000,
   });
@@ -182,7 +185,7 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     categoryHistory,
     lockReceiptDate: !isEdit && !!presetDate,
     createCategory: canManageCatalog(permissions, 'incomeCategories') ? createCategory : undefined,
-    createClient: canManageCatalog(permissions, 'clients') && accountId !== null ? createClient : undefined,
+    createClient: premium && canManageCatalog(permissions, 'clients') && accountId !== null ? createClient : undefined,
     clientFallbackName: income?.clienteNome ?? null,
   };
 

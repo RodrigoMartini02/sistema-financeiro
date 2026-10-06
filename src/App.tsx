@@ -25,14 +25,15 @@ import { useAuthSession } from './hooks/useAuthSession';
 import { ErrorState, LoadingState } from './ui/states';
 import { AppShell } from './layout/AppShell';
 import { CookieBanner } from './components/CookieBanner';
-import { PlanExpiredGate, type PlanoStatus } from './components/auth/PlanExpiredGate';
+import { PlanExpiredGate } from './components/auth/PlanExpiredGate';
+import { PremiumUpsell } from './components/PremiumUpsell';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
 import { UpdatePwaBanner } from './components/UpdatePwaBanner';
 import type { AppSection } from './layout/AppShell';
 import type { ConfigItemId } from './layout/ConfigPanel';
 import { IncomeDialog } from './screens/finance/income-dialog/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
-import { apiRequest } from './services/apiClient';
+import { fetchPlanStatus } from './services/planosService';
 import { trackPageView } from './services/analyticsService';
 import { useOnboardingChecklist, type OnboardingTarget } from './hooks/useOnboardingChecklist';
 import { OnboardingChecklistModal } from './components/OnboardingChecklistModal';
@@ -41,6 +42,7 @@ import { useActiveAccount } from './hooks/useActiveAccount';
 import { useOwnPermissions } from './hooks/useOwnPermissions';
 import { EmptyState } from './ui/EmptyState';
 import { resolveSection, visibleSections, type AccountType } from './utils/screenAccess';
+import { hasPremiumFeatures, planGateReason } from './utils/planFeatures';
 
 /** Vitrine de uma loja (link novo ou antigo) e as páginas dela: são da empresa, não do FINGERENCE. */
 function isStorefrontPath(pathname: string): boolean {
@@ -104,17 +106,15 @@ function AppContent() {
   const [openConfigRequest, setOpenConfigRequest] = useState<{ token: number; item: ConfigItemId } | undefined>();
   const { quickAction, setQuickAction, fillViewport } = useAppContext();
 
-  const planQuery = useQuery<PlanoStatus>({
+  const planQuery = useQuery({
     queryKey: queryKeys.planStatus,
-    queryFn: async () => {
-      const r = await apiRequest<any>('/planos/status');
-      return r.data ?? r;
-    },
+    queryFn: fetchPlanStatus,
     enabled: isAppRoute && !!session.user,
     staleTime: 3 * 60 * 1000,
   });
 
   const hasPlanAccess = planQuery.data?.status === 'trial' || planQuery.data?.status === 'ativo';
+  const premium = hasPremiumFeatures(planQuery.data);
 
   // Resolve a conta ativa (localStorage) antes de disparar qualquer busca de
   // saldo/dashboard. Sem isso, a primeira renderização após o login roda com
@@ -161,12 +161,17 @@ function AppContent() {
       </div>
     );
   }
-  if (planQuery.data?.status === 'expirado') {
-    return <PlanExpiredGate planStatus={planQuery.data} />;
+  const gateReason = planQuery.data ? planGateReason(planQuery.data) : null;
+  if (planQuery.data && gateReason) {
+    return <PlanExpiredGate planStatus={planQuery.data} reason={gateReason} />;
   }
 
   const handleNavigate = (sec: AppSection) => {
     setSection(sec);
+  };
+
+  const openSubscription = () => {
+    setOpenConfigRequest((prev) => ({ token: (prev?.token ?? 0) + 1, item: 'assinatura' }));
   };
 
   const handleOnboardingGoTo = (target: OnboardingTarget) => {
@@ -192,8 +197,16 @@ function AppContent() {
       case 'painel':        return <FinanceDashboard />;
       case 'movimentacoes': return <MovimentacoesScreen />;
       case 'reports':       return <ReportsScreen />;
-      // A seção usa os tokens das Configurações (`.config-scope`).
-      case 'clientes':      return <div className={CONFIG_SCOPE_CLASS}><ClientsScreen /></div>;
+      // A seção usa os tokens das Configurações (`.config-scope`). Clientes e contratos são do Premium.
+      case 'clientes':
+        return premium
+          ? <div className={CONFIG_SCOPE_CLASS}><ClientsScreen /></div>
+          : (
+            <PremiumUpsell
+              description="Clientes, contratos e catálogo de serviços estão no plano Premium."
+              onSubscribe={openSubscription}
+            />
+          );
     }
   };
 

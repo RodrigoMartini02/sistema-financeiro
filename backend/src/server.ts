@@ -93,7 +93,7 @@ import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
 import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
 import { createTendersRoutes, tendersApiDepsFromPool } from './modules/tenders/routes';
-import { authenticate, requireActivePlan, requireAdmin, requireTitular } from './middleware/auth';
+import { authenticate, requireActivePlan, requireAdmin, requirePremiumPlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
@@ -128,9 +128,9 @@ app.use('/api/representatives', authenticate, requireActivePlan, requireCatalogA
 app.use('/api/representantes', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes); // PT alias
 // Sócios: só leitura, só do titular — a gravação vai junto com a conta (POST/PUT /api/contas).
 app.use('/api/partners', authenticate, requireActivePlan, requireTitular, partnerRoutes);
-// Setores e cargos da conta PJ (Configurações → Pessoas), cada tela com a sua permissão.
-app.use('/api/sectors', authenticate, requireActivePlan, requireCatalogAccess('sectors'), sectorRoutes);
-app.use('/api/job-titles', authenticate, requireActivePlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
+// Setores e cargos da conta PJ (Configurações → Pessoas), cada tela com a sua permissão. Equipe: só no Premium.
+app.use('/api/sectors', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('sectors'), sectorRoutes);
+app.use('/api/job-titles', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
 app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
 app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
 app.use('/api/analytics', analyticsRoutes);
@@ -145,10 +145,10 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
 app.use('/api/catalogo', catalogoRoutes);
-// Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro.
-app.use('/api/clients', authenticate, requireActivePlan, requireCatalogAccess('clients'), clientRoutes);
-app.use('/api/contracts', authenticate, requireActivePlan, requireCatalogAccess('contracts'), contractRoutes);
-app.use('/api/service-catalog', authenticate, requireActivePlan, requireCatalogAccess('services'), serviceCatalogRoutes);
+// Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro. Só no Premium.
+app.use('/api/clients', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('clients'), clientRoutes);
+app.use('/api/contracts', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('contracts'), contractRoutes);
+app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('services'), serviceCatalogRoutes);
 // Licitações: trava própria (conta habilitada + acesso por pessoa, dentro do roteador), sem requireActivePlan.
 const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool));
 app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);

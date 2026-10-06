@@ -6,6 +6,18 @@ export const PLAN_STATUS = {
 
 export type PlanStatus = (typeof PLAN_STATUS)[keyof typeof PLAN_STATUS];
 
+/** Nível do plano pago, que decide os recursos liberados (Starter ou Premium). */
+export const PLAN_TIER = {
+  starter: 'starter',
+  premium: 'premium',
+} as const;
+
+export type PlanTier = (typeof PLAN_TIER)[keyof typeof PLAN_TIER];
+
+// Valores antigos de `usuarios.plano_tipo` continuam válidos: o `mensal` (Plus)
+// virou Starter e o `anual` era vendido como Premium.
+const LEGACY_PREMIUM_PLAN_TYPE = 'anual';
+
 export const TRIAL_DURATION_DAYS = 15;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -84,4 +96,31 @@ export function getEffectivePlanAccess(
   }
 
   return { status: PLAN_STATUS.active, trialDaysLeft: null };
+}
+
+export function planTier(planType: string | null): PlanTier {
+  if (planType === PLAN_TIER.premium || planType === LEGACY_PREMIUM_PLAN_TYPE) {
+    return PLAN_TIER.premium;
+  }
+
+  return PLAN_TIER.starter;
+}
+
+export interface PlanFeatureSnapshot {
+  userType: string | null;
+  status: PlanStatus;
+  planType: string | null;
+}
+
+/** Recursos do Premium: liberados para o admin, no teste grátis e no Premium ativo. */
+export function hasPremiumFeatures(snapshot: PlanFeatureSnapshot): boolean {
+  if (snapshot.userType === 'admin') {
+    return true;
+  }
+
+  if (snapshot.status === PLAN_STATUS.trial) {
+    return true;
+  }
+
+  return snapshot.status === PLAN_STATUS.active && planTier(snapshot.planType) === PLAN_TIER.premium;
 }

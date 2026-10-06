@@ -24,6 +24,8 @@ import { InfoBanner } from '../../ui/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
+import { usePlanFeatures } from '../../hooks/usePlanFeatures';
+import { PremiumUpsell } from '../../components/PremiumUpsell';
 import { useConfirm } from '../../context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
@@ -1219,10 +1221,14 @@ interface ContasTabProps {
   /** Dados pessoais do usuário logado (titular). Editar a Conta Padrão edita
    *  também esses dados, num único formulário. */
   me?: UsuarioMe;
+  /** Abre a assinatura (aviso do Premium no Starter). */
+  onUpgrade?: () => void;
 }
 
-export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
+export function ContasTab({ isGestor, meId, me, onUpgrade }: ContasTabProps) {
   const qc = useQueryClient();
+  // No Starter só a Conta Padrão é usada: nova conta, reativação e membros são do Premium.
+  const { premium } = usePlanFeatures();
   const [dialog, setDialog] = useState<{ open: boolean; item?: Conta }>({ open: false });
   const [mutError, setMutError] = useState('');
   const [mostrarDesativados, setMostrarDesativados] = useState(false);
@@ -1323,10 +1329,10 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
             label={`${listaExibida.length} conta${listaExibida.length === 1 ? '' : 's'} ${mostrarDesativados ? 'desativada' : 'ativa'}${listaExibida.length === 1 ? '' : 's'}`}
           />
         }
-        actionLabel={isGestor ? 'Nova conta' : undefined}
+        actionLabel={isGestor && premium ? 'Nova conta' : undefined}
         onAction={() => { setMutError(''); setDialog({ open: true }); }}
       >
-        {isGestor && createGuide.isVisible && (
+        {isGestor && premium && createGuide.isVisible && (
           <FirstAccessGuideCard
             icon={Briefcase}
             description={firstAccessGuideMessages.perfisNovo}
@@ -1344,6 +1350,13 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
         <AlertCircle size={13} style={{ flex: 'none' }} />
         Cada conta separa receitas e despesas de uma empresa ou pessoa.
       </InfoBanner>
+
+      {isGestor && !premium && (
+        <PremiumUpsell
+          description="No Starter, você usa a Conta Padrão. Outras contas, membros e colaboradores estão no plano Premium."
+          onSubscribe={onUpgrade}
+        />
+      )}
 
       {contasQuery.isLoading && (
         <p style={{ padding: '16px 0', textAlign: 'center', fontSize: 12.5, color: CFG.muted }}>Carregando...</p>
@@ -1374,6 +1387,7 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
                     {c.nome}
                   </span>
                   {c.eh_padrao && <span style={cfgBadgeStyle}>Padrão</span>}
+                  {!premium && !c.eh_padrao && <span style={cfgBadgeStyle}>Premium</span>}
                   {isContaIncompleta(c) && (
                     <span style={{
                       flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -1382,7 +1396,7 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
                       <AlertCircle size={11} /> Incompleta
                     </span>
                   )}
-                  {!c.ativo && isGestor && (
+                  {!c.ativo && isGestor && premium && (
                     <span
                       role="button"
                       tabIndex={0}
@@ -1410,7 +1424,7 @@ export function ContasTab({ isGestor, meId, me }: ContasTabProps) {
 
                 {/* Mesmo padrão de "+ Subcategoria" em CategoriasTab: ação de
                     criar direto na linha, sem precisar expandir primeiro. */}
-                {c.ativo && isGestor && (
+                {c.ativo && isGestor && premium && (
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleCreateMembroClick(c.id); }}

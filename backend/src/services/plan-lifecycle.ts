@@ -3,10 +3,13 @@ import { db } from '../db/client';
 import { accountMembers, accounts, planNotificationEvents, users } from '../db/schema';
 import {
   getEffectivePlanAccess,
+  hasPremiumFeatures,
   PLAN_STATUS,
+  planTier,
   type EffectivePlanAccess,
   type PlanAccessSnapshot,
   type PlanStatus,
+  type PlanTier,
 } from './plan-access';
 
 export const PLAN_NOTIFICATION_EVENT = {
@@ -17,6 +20,9 @@ export const PLAN_NOTIFICATION_EVENT = {
 
 export interface PlanStatusResult extends EffectivePlanAccess {
   planType: string | null;
+  planTier: PlanTier;
+  /** Recursos do Premium liberados (admin, teste grátis ou Premium ativo). */
+  premiumFeatures: boolean;
   planExpiration: Date | string | null;
   createdAt: Date | string | null;
   userType: string | null;
@@ -87,9 +93,16 @@ export async function getPlanStatusForUser(userId: number): Promise<PlanStatusRe
     return null;
   }
 
+  const effectiveAccess = getEffectivePlanAccess(user);
   return {
-    ...getEffectivePlanAccess(user),
+    ...effectiveAccess,
     planType: user.planType,
+    planTier: planTier(user.planType),
+    premiumFeatures: hasPremiumFeatures({
+      userType: user.userType,
+      status: effectiveAccess.status,
+      planType: user.planType,
+    }),
     planExpiration: user.planExpiration,
     createdAt: user.createdAt,
     userType: user.userType,
@@ -122,6 +135,8 @@ export async function resolvePlanHolder(userId: number): Promise<PlanHolder> {
 }
 
 export interface RequesterPlanStatus extends PlanStatusResult {
+  /** Dono do plano: o próprio usuário ou o titular da conta de que ele é membro. */
+  holderId: number;
   isAccountMember: boolean;
 }
 
@@ -132,7 +147,17 @@ export async function getRequesterPlanStatus(userId: number): Promise<RequesterP
   if (!planStatus) {
     return null;
   }
-  return { ...planStatus, isAccountMember: holder.isAccountMember };
+  return { ...planStatus, holderId: holder.holderId, isAccountMember: holder.isAccountMember };
+}
+
+/** Conta Padrão do dono do plano: a única liberada no Starter. */
+export async function isHolderDefaultAccount(holderId: number, accountId: number): Promise<boolean> {
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.userId, holderId), eq(accounts.isDefault, true)))
+    .limit(1);
+  return account !== undefined;
 }
 
 async function expirePlanRecord(record: PlanRecord): Promise<{

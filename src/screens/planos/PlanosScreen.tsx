@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../services/apiClient';
+import { fetchPlanStatus } from '../../services/planosService';
 import { queryKeys } from '../../services/queryKeys';
+import { activePlanLabel, PLAN_TIER, planTierOf, type PlanTier } from '../../utils/planFeatures';
 import { Card } from '../../ui/card';
 import { Dialog } from '../../ui/dialog';
 import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
@@ -18,51 +20,52 @@ import { createMercadoPago, type MercadoPagoInstance } from '../../utils/mercado
 
 // ─── types ───────────────────────────────────────────────────
 
-type PlanTipo = 'mensal' | 'premium' | 'anual' | 'premium_anual';
-
-interface PlanoStatus {
-  status: 'trial' | 'ativo' | 'expirado';
-  plano_tipo: PlanTipo | 'admin' | null;
-  plano_expiracao: string | null;
-  dias_restantes_trial: number | null;
-  data_cadastro: string;
-}
-
 interface PixData { payment_id: number; qr_code: string; qr_code_base64: string }
 interface AssinarData { payment_url: string }
 
 interface CardFormData {
-  number: string; name: string; expiry: string; cvv: string; cpf: string; parcelas: number;
+  number: string; name: string; expiry: string; cvv: string; cpf: string;
 }
 
 // ─── planos config ────────────────────────────────────────────
 
-const PLANO_DEF = {
-  plus: {
-    nome: 'Plus',
+// Starter e Premium, só mensais (.plans/planos-starter-premium.md, regras 3 e 4).
+const PLANO_DEF: Record<PlanTier, {
+  nome: string; destaque: boolean; precoNum: number; label: string; periodo: string; recursos: string[];
+}> = {
+  [PLAN_TIER.starter]: {
+    nome: 'Starter',
     destaque: false,
-    tipo: 'mensal' as PlanTipo,
     precoNum: 4.99,
     label: 'R$ 4,99/mês',
     periodo: 'Cobrado mensalmente',
-    recursos: ['Controle mensal completo', 'Receitas e despesas ilimitadas', 'Categorias e cartões', 'Relatórios detalhados'],
+    recursos: [
+      'Uma conta (pessoal ou empresa)',
+      'Receitas, despesas e lançamento em lote',
+      'Cartões, painel, planejamento e relatórios',
+      'Agenda e avisos de vencimento',
+      'Assistente Juca',
+    ],
   },
-  premium: {
+  [PLAN_TIER.premium]: {
     nome: 'Premium',
     destaque: true,
-    tipo: 'premium' as PlanTipo,
     precoNum: 9.99,
     label: 'R$ 9,99/mês',
     periodo: 'Cobrado mensalmente',
-    recursos: ['Tudo do Plus', 'Perfis PF + PJ', 'Multi-usuários', 'Exportação de dados', 'Suporte prioritário'],
+    recursos: [
+      'Tudo do Starter',
+      'Várias contas (pessoal e empresas)',
+      'Membros e colaboradores, com setores e cargos',
+      'Clientes e contratos',
+      'Produtos, estoque, vitrine e pedidos',
+      'Suporte prioritário',
+    ],
   },
 };
 
-type PlanKey = keyof typeof PLANO_DEF;
-
 interface SelectedPlan {
-  key: PlanKey;
-  tipo: PlanTipo;
+  key: PlanTier;
   precoNum: number;
   label: string;
   nome: string;
@@ -107,7 +110,7 @@ function loadMpSdk(): Promise<MercadoPagoInstance | null> {
 
 // ─── PIX panel ───────────────────────────────────────────────
 
-function PixPanel({ tipo, onSuccess }: { tipo: PlanTipo; onSuccess: () => void }) {
+function PixPanel({ tipo, onSuccess }: { tipo: PlanTier; onSuccess: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const pixMut = useMutation({
@@ -192,11 +195,11 @@ function PixPanel({ tipo, onSuccess }: { tipo: PlanTipo; onSuccess: () => void }
 function CardPaymentForm({
   tipo, mode, onSuccess, onError,
 }: {
-  tipo: PlanTipo; mode: 'one-time' | 'recurring';
+  tipo: PlanTier; mode: 'one-time' | 'recurring';
   onSuccess: () => void; onError: (msg: string) => void;
 }) {
   const [form, setForm] = useState<CardFormData>({
-    number: '', name: '', expiry: '', cvv: '', cpf: '', parcelas: 1,
+    number: '', name: '', expiry: '', cvv: '', cpf: '',
   });
   const [loading, setLoading] = useState(false);
   const mpRef = useRef<any>(null);
@@ -229,7 +232,7 @@ function CardPaymentForm({
       if (mode === 'one-time') {
         const r = await apiRequest<any>('/planos/pay-card', {
           method: 'POST',
-          body: JSON.stringify({ tipo, card_token: tokenResult.id, installments: form.parcelas, cpf: form.cpf }),
+          body: JSON.stringify({ tipo, card_token: tokenResult.id, cpf: form.cpf }),
         });
         const data = r.success !== undefined ? r : r.data ?? r;
         if (data.success === false) throw new Error(data.message || 'Pagamento recusado.');
@@ -330,7 +333,7 @@ function CardPaymentForm({
 
 // ─── checkout redirect panel ──────────────────────────────────
 
-function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTipo; onError: (msg: string) => void }) {
+function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTier; onError: (msg: string) => void }) {
   const [formaPag, setFormaPag] = useState<'cartao' | 'debito'>('cartao');
 
   const checkoutMut = useMutation({
@@ -438,12 +441,12 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
 
         {/* Tab content */}
         <div style={{ margin: '0 26px 10px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {tab === 'pix' && <PixPanel tipo={plano.tipo} onSuccess={handleSuccess} />}
+          {tab === 'pix' && <PixPanel tipo={plano.key} onSuccess={handleSuccess} />}
           {tab === 'cartao' && (
             <>
               <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textAlign: 'center' }}>Pagamento único — seu plano é renovado manualmente.</p>
               <CardPaymentForm
-                tipo={plano.tipo} mode="one-time"
+                tipo={plano.key} mode="one-time"
                 onSuccess={handleSuccess} onError={setErro}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -451,7 +454,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
                 <span style={{ fontSize: 10, color: C.textMuted }}>ou</span>
                 <div style={{ flex: 1, borderTop: `1px solid ${C.border}` }} />
               </div>
-              <CheckoutRedirectPanel tipo={plano.tipo} onError={setErro} />
+              <CheckoutRedirectPanel tipo={plano.key} onError={setErro} />
             </>
           )}
           {tab === 'recorrente' && (
@@ -461,7 +464,7 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
                 <p style={{ margin: 0, fontSize: 12, color: C.success }}>Seu cartão é cobrado automaticamente a cada período. Cancele a qualquer momento.</p>
               </div>
               <CardPaymentForm
-                tipo={plano.tipo} mode="recurring"
+                tipo={plano.key} mode="recurring"
                 onSuccess={handleSuccess} onError={setErro}
               />
             </>
@@ -474,97 +477,69 @@ function PagamentoDialog({ plano, onClose, onSuccess }: {
 
 // ─── cancel dialog ────────────────────────────────────────────
 
-interface CancelPreview {
-  elegivel: boolean; meses_restantes: number; reembolso: number; tem_payment_id: boolean;
-}
-
+// Só mensal: o acesso termina na hora e não há reembolso.
 function CancelarDialog({ onClose, onCanceled }: { onClose: () => void; onCanceled: () => void }) {
   const [confirmado, setConfirmado] = useState(false);
   const [erro, setErro] = useState('');
 
-  const previewQ = useQuery({
-    queryKey: ['cancelar-preview'],
-    queryFn: async () => {
-      const r = await apiRequest<any>('/planos/cancelar/preview');
-      return (r.data ?? r) as CancelPreview;
-    },
-  });
-
   const cancelarMut = useMutation({
-    mutationFn: () => apiRequest<any>('/planos/cancelar', { method: 'POST' }),
+    mutationFn: () => apiRequest<{ success: boolean }>('/planos/cancel', { method: 'POST' }),
     onSuccess: () => { onCanceled(); },
     onError: (err) => setErro(err instanceof Error ? err.message : 'Erro ao cancelar.'),
   });
 
-  const preview = previewQ.data;
-
   return (
     <Dialog open title="Cancelar assinatura" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {previewQ.isLoading && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
-            <Loader2 size={24} className="animate-spin" style={{ color: C.textMuted }} />
+        <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
+          <AlertTriangle size={16} style={{ marginTop: 2, flexShrink: 0, color: C.warn }} />
+          <div style={{ fontSize: 13, color: C.warn }}>
+            <p style={{ margin: '0 0 2px', fontWeight: 700 }}>Atenção</p>
+            <p style={{ margin: 0 }}>Ao cancelar, seu acesso será encerrado imediatamente.</p>
+          </div>
+        </div>
+
+        {erro && (
+          <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
+            <AlertTriangle size={14} style={{ marginTop: 2, flexShrink: 0, color: C.danger }} />
+            <span style={{ fontSize: 13, color: C.danger }}>{erro}</span>
           </div>
         )}
 
-        {preview && (
-          <>
-            <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.warnBg, border: `1px solid ${C.warnBorder}` }}>
-              <AlertTriangle size={16} style={{ marginTop: 2, flexShrink: 0, color: C.warn }} />
-              <div style={{ fontSize: 13, color: C.warn }}>
-                <p style={{ margin: '0 0 2px', fontWeight: 700 }}>Atenção</p>
-                <p style={{ margin: 0 }}>Ao cancelar, seu acesso será encerrado imediatamente.</p>
-                {preview.elegivel && preview.reembolso > 0 && (
-                  <p style={{ margin: '4px 0 0', fontWeight: 600 }}>
-                    Reembolso proporcional: R$ {preview.reembolso.toFixed(2).replace('.', ',')}
-                  </p>
-                )}
-              </div>
-            </div>
+        <label style={{ margin: '0 26px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+          <input
+            type="checkbox" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)}
+            style={{ marginTop: 2, width: 16, height: 16, accentColor: C.danger, cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 13.5, color: C.text }}>
+            Entendo que minha assinatura será cancelada e o acesso encerrado imediatamente.
+          </span>
+        </label>
 
-            {erro && (
-              <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-                <AlertTriangle size={14} style={{ marginTop: 2, flexShrink: 0, color: C.danger }} />
-                <span style={{ fontSize: 13, color: C.danger }}>{erro}</span>
-              </div>
-            )}
-
-            <label style={{ margin: '0 26px 14px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-              <input
-                type="checkbox" checked={confirmado} onChange={(e) => setConfirmado(e.target.checked)}
-                style={{ marginTop: 2, width: 16, height: 16, accentColor: C.danger, cursor: 'pointer' }}
-              />
-              <span style={{ fontSize: 13.5, color: C.text }}>
-                Entendo que minha assinatura será cancelada e o acesso encerrado imediatamente.
-              </span>
-            </label>
-
-            <div style={{ margin: '0 26px', display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{ flex: 1, padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
-              >
-                Manter assinatura
-              </button>
-              <button
-                disabled={!confirmado || cancelarMut.isPending}
-                onClick={() => cancelarMut.mutate()}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                  padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
-                  background: C.danger, color: '#fff',
-                  cursor: (!confirmado || cancelarMut.isPending) ? 'not-allowed' : 'pointer',
-                  opacity: (!confirmado || cancelarMut.isPending) ? 0.4 : 1,
-                }}
-              >
-                {cancelarMut.isPending
-                  ? <><Loader2 size={14} className="animate-spin" /> Cancelando...</>
-                  : <><XCircle size={14} /> Cancelar assinatura</>}
-              </button>
-            </div>
-          </>
-        )}
+        <div style={{ margin: '0 26px', display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ flex: 1, padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
+          >
+            Manter assinatura
+          </button>
+          <button
+            disabled={!confirmado || cancelarMut.isPending}
+            onClick={() => cancelarMut.mutate()}
+            style={{
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+              padding: '12px 20px', borderRadius: 11, fontSize: 14, fontWeight: 700, border: 'none',
+              background: C.danger, color: '#fff',
+              cursor: (!confirmado || cancelarMut.isPending) ? 'not-allowed' : 'pointer',
+              opacity: (!confirmado || cancelarMut.isPending) ? 0.4 : 1,
+            }}
+          >
+            {cancelarMut.isPending
+              ? <><Loader2 size={14} className="animate-spin" /> Cancelando...</>
+              : <><XCircle size={14} /> Cancelar assinatura</>}
+          </button>
+        </div>
       </div>
     </Dialog>
   );
@@ -579,24 +554,22 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
 
   const statusQ = useQuery({
     queryKey: queryKeys.planStatus,
-    queryFn: async () => {
-      const r = await apiRequest<any>('/planos/status');
-      return (r.data ?? r) as PlanoStatus;
-    },
+    queryFn: fetchPlanStatus,
   });
 
   // preload SDK silently
   useEffect(() => { loadMpSdk(); }, []);
 
   const s = statusQ.data;
-  const planoCurrent = s?.plano_tipo ?? null;
 
-  const openDialog = (key: PlanKey) => {
+  const openDialog = (key: PlanTier) => {
     const def = PLANO_DEF[key];
-    setPagDialog({ key, tipo: def.tipo, precoNum: def.precoNum, label: def.label, nome: def.nome });
+    setPagDialog({ key, precoNum: def.precoNum, label: def.label, nome: def.nome });
   };
 
-  const isAtual = (key: PlanKey) => planoCurrent === PLANO_DEF[key].tipo;
+  // Plano atual: só o pago e ativo (plano vencido pode ser assinado de novo).
+  const isAtual = (key: PlanTier) =>
+    s?.status === 'ativo' && !!s.plano_tipo && s.plano_tipo !== 'admin' && planTierOf(s) === key;
 
   return (
     <div className={embedded ? 'grid gap-2.5' : 'mx-auto grid max-w-4xl gap-6'}>
@@ -629,7 +602,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="flex-1">
               <p className="text-[12.5px] font-semibold text-[#0f172a]">
-                {s.status === 'ativo'    ? `Plano ${s.plano_tipo === 'admin' ? 'Admin' : s.plano_tipo?.includes('premium') ? 'Premium' : 'Plus'} ativo` :
+                {s.status === 'ativo'    ? `Plano ${activePlanLabel(s)} ativo` :
                  s.status === 'trial'   ? 'Período de teste gratuito' : 'Plano expirado'}
               </p>
               <p className="mt-0.5 text-[11.5px] font-medium text-[#64748b]">
@@ -656,7 +629,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
 
       {/* Plan cards */}
       <div className={embedded ? 'grid gap-2.5 md:grid-cols-2' : 'grid gap-4 md:grid-cols-2'}>
-        {(Object.entries(PLANO_DEF) as [PlanKey, typeof PLANO_DEF[PlanKey]][]).map(([key, def]) => {
+        {(Object.entries(PLANO_DEF) as [PlanTier, typeof PLANO_DEF[PlanTier]][]).map(([key, def]) => {
           const atual = isAtual(key);
           return (
             <Card key={key} className={['p-3.5 flex flex-col gap-2.5', def.destaque ? 'ring-1 ring-brand-600' : ''].join(' ')}>

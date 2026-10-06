@@ -8,6 +8,7 @@ import { queryKeys } from '../services/queryKeys';
 import type { ConfigItemId } from '../layout/ConfigPanel';
 import { getFirstAccessGuideUserScope } from '../services/userScope';
 import { useFirstAccessGuideCoordinator } from '../context/FirstAccessGuideContext';
+import { usePlanFeatures } from './usePlanFeatures';
 
 export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 'clientes' };
 
@@ -66,13 +67,16 @@ export function useOnboardingChecklist(enabled: boolean) {
   const { isDemoMode, isSilencedAll, silenceAll } = useFirstAccessGuideCoordinator();
 
   const canQuery = enabled && !isDismissed && !isDemoMode && !isSilencedAll;
+  // Clientes são do Premium: no Starter, o passo nem aparece.
+  const { premium } = usePlanFeatures({ enabled });
+  const includesClients = isEmpresa && premium;
   const cartoesQuery = useQuery({ queryKey: queryKeys.cartoes(), queryFn: () => fetchCartoes(), enabled: canQuery });
   const accountId = getActiveAccountId();
   const categoriasQuery = useQuery({ queryKey: queryKeys.categorias(accountId), queryFn: () => fetchCategorias(accountId), enabled: canQuery });
   const clientesQuery = useQuery({
     queryKey: queryKeys.clients(accountId, ACTIVE_CLIENTS),
     queryFn: () => fetchClients(accountId!, ACTIVE_CLIENTS),
-    enabled: canQuery && isEmpresa && accountId !== null,
+    enabled: canQuery && includesClients && accountId !== null,
   });
   const representantesQuery = useQuery({ queryKey: queryKeys.representantes, queryFn: () => fetchRepresentantes(), enabled: canQuery && isEmpresa });
 
@@ -98,27 +102,28 @@ export function useOnboardingChecklist(enabled: boolean) {
       },
     ];
 
+    if (includesClients) {
+      base.push({
+        id: 'cliente',
+        label: 'Cadastrar um cliente',
+        description: 'Necessário para os contratos e para ligar as receitas a quem pagou.',
+        done: (clientesQuery.data?.length ?? 0) > 0,
+        target: { kind: 'clientes' },
+      });
+    }
+
     if (isEmpresa) {
-      base.push(
-        {
-          id: 'cliente',
-          label: 'Cadastrar um cliente',
-          description: 'Necessário para os contratos e para ligar as receitas a quem pagou.',
-          done: (clientesQuery.data?.length ?? 0) > 0,
-          target: { kind: 'clientes' },
-        },
-        {
-          id: 'representante',
-          label: 'Cadastrar um representante',
-          description: 'Opcional — apenas se você calcula comissões automáticas por receita.',
-          done: (representantesQuery.data?.length ?? 0) > 0,
-          target: { kind: 'config', item: 'representantes' },
-        },
-      );
+      base.push({
+        id: 'representante',
+        label: 'Cadastrar um representante',
+        description: 'Opcional — apenas se você calcula comissões automáticas por receita.',
+        done: (representantesQuery.data?.length ?? 0) > 0,
+        target: { kind: 'config', item: 'representantes' },
+      });
     }
 
     return base;
-  }, [isEmpresa, cartoesQuery.data, categoriasQuery.data, clientesQuery.data, representantesQuery.data]);
+  }, [isEmpresa, includesClients, cartoesQuery.data, categoriasQuery.data, clientesQuery.data, representantesQuery.data]);
 
   const dismiss = useCallback(() => {
     writeDismissed(storageKey);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getEffectivePlanAccess, PLAN_STATUS } from './plan-access';
+import { getEffectivePlanAccess, hasPremiumFeatures, PLAN_STATUS, PLAN_TIER, planTier } from './plan-access';
 
 const now = new Date('2026-08-08T12:00:00-03:00');
 
@@ -58,4 +58,25 @@ test('keeps a recurring plan active when it has no expiration date', () => {
   }, now);
 
   assert.equal(result.status, PLAN_STATUS.active);
+});
+
+test('reads the plan tier, including the legacy plan types', () => {
+  assert.equal(planTier('starter'), PLAN_TIER.starter);
+  assert.equal(planTier('premium'), PLAN_TIER.premium);
+  assert.equal(planTier('mensal'), PLAN_TIER.starter, 'the old Plus is Starter');
+  assert.equal(planTier('anual'), PLAN_TIER.premium, 'the old annual plan was sold as Premium');
+  assert.equal(planTier(null), PLAN_TIER.starter);
+});
+
+test('releases Premium features to the admin, the trial and an active Premium plan', () => {
+  assert.equal(hasPremiumFeatures({ userType: 'admin', status: PLAN_STATUS.expired, planType: null }), true);
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.trial, planType: null }), true);
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.active, planType: 'premium' }), true);
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.active, planType: 'anual' }), true);
+});
+
+test('keeps Premium features locked for Starter and expired plans', () => {
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.active, planType: 'starter' }), false);
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.active, planType: 'mensal' }), false);
+  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.expired, planType: 'premium' }), false);
 });
