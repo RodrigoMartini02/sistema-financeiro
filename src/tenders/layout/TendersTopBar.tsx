@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Bell, Menu, Moon, Search, Sun } from 'lucide-react';
+import { Menu, Moon, Search, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { quickSearchPath } from '../utils/navigation';
+import { NotificationsBell } from './NotificationsBell';
 import { TendersUserMenu } from './TendersUserMenu';
 
 // Barra superior do módulo (escopo, seção 9.3): título da página, busca
-// rápida (atalho "/"), tema, sino com as não lidas e menu do usuário.
+// rápida (atalho "/"), tema, sino com o painel das notificações e menu do usuário.
 
 interface TendersTopBarProps {
   title: string;
@@ -56,8 +57,6 @@ export function TendersTopBar({ title, unreadCount, userName, accountName, showF
     searchRef.current?.blur();
   };
 
-  const unreadLabel = unreadCount > 9 ? '9+' : String(unreadCount);
-
   return (
     <header className="sticky top-0 z-30 border-b border-[rgba(14,196,216,0.18)] bg-[#0D2E3C]/95 backdrop-blur">
       <div className="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6">
@@ -100,21 +99,7 @@ export function TendersTopBar({ title, unreadCount, userName, accountName, showF
           {theme === 'light' ? <Moon size={16} aria-hidden="true" /> : <Sun size={16} aria-hidden="true" />}
         </button>
 
-        <button
-          type="button"
-          onClick={() => navigate('/notificacoes')}
-          aria-label={unreadCount > 0 ? `Notificações (${unreadCount} não lidas)` : 'Notificações'}
-          className={iconButton}
-        >
-          <span className="relative inline-flex">
-            <Bell size={16} aria-hidden="true" />
-            {unreadCount > 0 && (
-              <span className="pointer-events-none absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-[#0D2E3C]">
-                {unreadLabel}
-              </span>
-            )}
-          </span>
-        </button>
+        <NotificationsBell unreadCount={unreadCount} buttonClassName={iconButton} />
 
         <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" aria-hidden="true" />
 

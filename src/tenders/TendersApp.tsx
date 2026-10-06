@@ -7,10 +7,13 @@ import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
 import { GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
 import { HomeScreen } from './screens/HomeScreen';
 import { NoticeScreen } from './screens/NoticeScreen';
-import { NotFoundScreen, PlaceholderScreen, SettingsPlaceholderScreen } from './screens/PlaceholderScreens';
+import { NotFoundScreen } from './screens/NotFoundScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
 import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
 import { SearchScreen } from './screens/SearchScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { TendersLoginScreen } from './screens/TendersLoginScreen';
+import { TrackingScreen } from './screens/TrackingScreen';
 import { NETWORK_ERROR_MESSAGE } from './services/tendersApiError';
 import { resolveGateState } from './utils/gateState';
 
@@ -54,9 +57,9 @@ export function TendersApp() {
         <Route path="buscar" element={<SearchScreen />} />
         <Route path="editais/:id" element={<NoticeScreen />} />
         <Route path="buscas" element={<SavedSearchesScreen />} />
-        <Route path="acompanhamento" element={<PlaceholderScreen title="Acompanhamento" />} />
-        <Route path="notificacoes" element={<PlaceholderScreen title="Notificações" />} />
-        <Route path="configuracoes" element={<SettingsPlaceholderScreen />} />
+        <Route path="acompanhamento" element={<TrackingScreen />} />
+        <Route path="notificacoes" element={<NotificationsScreen />} />
+        <Route path="configuracoes" element={<SettingsScreen />} />
         <Route path="admin/contas" element={<AdminAccountsScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Route>
