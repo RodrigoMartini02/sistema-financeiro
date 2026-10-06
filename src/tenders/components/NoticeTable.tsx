@@ -3,6 +3,7 @@ import type { NoticeListItem } from '../types';
 import { formatIsoDateTime } from '../utils/dates';
 import { formatMoneyValue } from '../utils/money';
 import { CountdownBadge } from './CountdownBadge';
+import { FavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
 import { NoticeBadges } from './NoticeBadges';
 import { noticePlace } from './NoticeCard';
@@ -24,8 +25,9 @@ export function NoticeTable({ notices, compact, detailLinkFor, detailLinkState }
   const cellPadding = compact ? 'px-3 py-1.5' : 'px-3 py-3';
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <table className="w-full min-w-[680px] table-fixed text-sm">
+      <table className="w-full min-w-[720px] table-fixed text-sm">
         <colgroup>
+          <col className="w-12" />
           <col />
           <col className="w-32" />
           <col className="w-[150px]" />
@@ -33,6 +35,9 @@ export function NoticeTable({ notices, compact, detailLinkFor, detailLinkState }
         </colgroup>
         <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40">
           <tr>
+            <th scope="col" className={TH_CLASS}>
+              <span className="sr-only">Favorito</span>
+            </th>
             <th scope="col" className={TH_CLASS}>Objeto</th>
             <th scope="col" className={`${TH_CLASS} text-right`}>Valor estimado</th>
             <th scope="col" className={TH_CLASS}>Encerramento</th>
@@ -42,6 +47,9 @@ export function NoticeTable({ notices, compact, detailLinkFor, detailLinkState }
         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
           {notices.map((notice) => (
             <tr key={notice.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-700/30">
+              <td className={compact ? 'py-1 pl-2' : 'py-2.5 pl-2'}>
+                <FavoriteButton notice={notice} />
+              </td>
               <td className={cellPadding}>
                 <Link
                   to={detailLinkFor(notice.id)}

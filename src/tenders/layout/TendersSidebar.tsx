@@ -1,4 +1,4 @@
-import { Bell, Bookmark, Building2, ClipboardList, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
+import { Bell, Bookmark, Building2, ClipboardList, Heart, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 
@@ -11,6 +11,7 @@ const ICONS: Record<TendersRouteKey, LucideIcon> = {
   buscar: Search,
   edital: Search,
   buscas: Bookmark,
+  favoritos: Heart,
   acompanhamento: ClipboardList,
   notificacoes: Bell,
   configuracoes: Settings,

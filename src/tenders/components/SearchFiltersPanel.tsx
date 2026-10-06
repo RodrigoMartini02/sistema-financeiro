@@ -235,6 +235,12 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           checked={state.hideDiscarded}
           onChange={() => update({ hideDiscarded: !state.hideDiscarded })}
         />
+        <ToggleRow
+          label="Só favoritos"
+          description="Os editais que você marcou com o coração."
+          checked={state.favoritesOnly}
+          onChange={() => update({ favoritesOnly: !state.favoritesOnly })}
+        />
       </FilterSection>
 
       <FilterSection title="Órgão (CNPJ)">

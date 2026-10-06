@@ -6,6 +6,7 @@ export type TendersRouteKey =
   | 'buscar'
   | 'edital'
   | 'buscas'
+  | 'favoritos'
   | 'acompanhamento'
   | 'notificacoes'
   | 'configuracoes'
@@ -28,6 +29,7 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'notificacoes', path: '/notificacoes', title: 'Notificações', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: true, restricted: true, platformAdminOnly: false },

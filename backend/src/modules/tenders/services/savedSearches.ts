@@ -254,10 +254,10 @@ export async function duplicateSavedSearch(db: TendersDb, requester: Requester, 
 /** Prévia do formulário: quantos abertos batem e os 5 primeiros por prazo. Não grava nada. */
 export async function previewSavedSearch(
   db: TendersDb,
-  accountId: number,
+  requester: Requester,
   criteria: NoticeCriteria,
 ): Promise<{ count: number; items: NoticeListItem[] }> {
   assertValidCriteria(criteria);
-  const result = await searchNotices(db, accountId, criteriaOnlyFilters(criteria, PREVIEW_SIZE));
+  const result = await searchNotices(db, requester, criteriaOnlyFilters(criteria, PREVIEW_SIZE));
   return { count: result.total, items: result.items };
 }

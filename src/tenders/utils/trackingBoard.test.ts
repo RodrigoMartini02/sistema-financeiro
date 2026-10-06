@@ -27,6 +27,7 @@ function notice(id: number, status: TrackingStatus, proposalClosesAt: string | n
     pncpLink: null,
     sourceSystemLink: null,
     tracking: { status, updatedAt: '2026-10-05T10:00:00-03:00' },
+    isFavorite: false,
     highlightedExcerpt: null,
   };
 }

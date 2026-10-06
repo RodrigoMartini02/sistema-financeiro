@@ -8,6 +8,7 @@ import {
   clearAllFilters,
   closingSoonCountQuery,
   closingWithinDays,
+  favoritesApiQuery,
   filterChips,
   minimumClosingDate,
   parseSearchParams,
@@ -36,6 +37,7 @@ const FULL_STATE: SearchState = {
   includeClosingSoon: true,
   trackingStatuses: ['ANALISAR', 'SEM'],
   hideDiscarded: false,
+  favoritesOnly: true,
   savedSearchId: null,
   sort: 'relevance',
   page: 3,
@@ -54,6 +56,7 @@ test('filtros: ida e volta pela URL com todos os parâmetros', () => {
   assert.equal(url.get('pagina'), '3');
   assert.equal(url.get('porPagina'), '50');
   assert.equal(url.get('prazoCurto'), '1');
+  assert.equal(url.get('favoritos'), '1');
   assert.deepEqual(parseSearchParams(url), FULL_STATE);
 });
 
@@ -127,6 +130,7 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(api.get('openOnly'), 'false');
   assert.deepEqual(api.getAll('trackingStatus'), ['ANALISAR', 'SEM']);
   assert.equal(api.get('hideDiscarded'), 'false');
+  assert.equal(api.get('favoritesOnly'), 'true');
   assert.equal(api.get('sort'), 'relevance');
   assert.equal(api.get('page'), '3');
   assert.equal(api.get('perPage'), '50');
@@ -137,6 +141,7 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(plain.get('includeWithoutValue'), null, '"incluir sem valor" só com faixa de valor');
   assert.equal(plain.get('openOnly'), 'true');
   assert.equal(plain.get('hideDiscarded'), 'true');
+  assert.equal(plain.get('favoritesOnly'), null, 'sem o filtro, a API traz todos');
 });
 
 test('filtros: mudar um filtro volta para a página 1', () => {
@@ -167,6 +172,7 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
     'Acompanhamento: Analisar',
     'Acompanhamento: Sem acompanhamento',
     'Mostra descartados',
+    'Só favoritos',
   ]);
 
   const byKey = (key: string) => chips.find((chip) => chip.key === key)!.without;
@@ -178,6 +184,7 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   assert.equal(byKey('openOnly').openOnly, true);
   assert.equal(byKey('includeClosingSoon').includeClosingSoon, false);
   assert.equal(byKey('showDiscarded').hideDiscarded, true);
+  assert.equal(byKey('favoritesOnly').favoritesOnly, false);
   assert.deepEqual(byKey('tracking:SEM').trackingStatuses, ['ANALISAR']);
 });
 
@@ -226,11 +233,21 @@ test('prazo mínimo: período escolhido só tem o início elevado, nunca inverti
   assert.deepEqual(withMinimumDeadline(shortPeriod, TODAY), shortPeriod);
 });
 
-test('prazo mínimo: não vale com o filtro ligado, sem "só abertos" ou com acompanhados', () => {
+test('prazo mínimo: não vale com o filtro ligado, sem "só abertos", com acompanhados ou com favoritos', () => {
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, includeClosingSoon: true }, TODAY), false);
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, openOnly: false }, TODAY), false);
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['ANALISAR'] }, TODAY), false);
   assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['SEM'] }, TODAY), true, 'sem acompanhamento continua na regra');
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, favoritesOnly: true }, TODAY), false);
+  assert.equal(closingSoonCountQuery({ ...DEFAULT_SEARCH_STATE, favoritesOnly: true }, TODAY), null);
+});
+
+test('favoritos: só "1" na URL liga o filtro', () => {
+  assert.equal(parseSearchParams(params('favoritos=1')).favoritesOnly, true);
+  assert.equal(parseSearchParams(params('favoritos=sim')).favoritesOnly, false);
+  assert.equal(parseSearchParams(params('')).favoritesOnly, false);
+  assert.equal(toSearchParams(DEFAULT_SEARCH_STATE).get('favoritos'), null);
+  assert.equal(parseSearchParams(params('busca=7&favoritos=1')).favoritesOnly, true, 'vale também com busca salva');
 });
 
 test('prazo mínimo: query da contagem dos que ficaram de fora', () => {
@@ -245,4 +262,14 @@ test('prazo mínimo: query da contagem dos que ficaram de fora', () => {
   assert.deepEqual([nextWeek.get('closingFrom'), nextWeek.get('closingTo')], [TODAY, '2026-10-08']);
   assert.equal(closingSoonCountQuery({ ...DEFAULT_SEARCH_STATE, includeClosingSoon: true }, TODAY), null);
   assert.equal(closingSoonCountQuery(withFilters(DEFAULT_SEARCH_STATE, { closingFrom: '2026-10-20' }), TODAY), null, 'nada escondido');
+});
+
+test('favoritos: a tela traz todos os favoritos, inclusive encerrados e descartados, pelo prazo', () => {
+  const api = new URLSearchParams(favoritesApiQuery(2, 50));
+  assert.equal(api.get('favoritesOnly'), 'true');
+  assert.equal(api.get('openOnly'), 'false');
+  assert.equal(api.get('hideDiscarded'), 'false');
+  assert.equal(api.get('closingFrom'), null, 'sem prazo mínimo');
+  assert.equal(api.get('sort'), 'closingAsc');
+  assert.deepEqual([api.get('page'), api.get('perPage')], ['2', '50']);
 });

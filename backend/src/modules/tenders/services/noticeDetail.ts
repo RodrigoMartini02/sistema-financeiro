@@ -3,14 +3,14 @@ import { alias } from 'drizzle-orm/pg-core';
 import { users } from '../../../db/schema/users';
 import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
-import { tenderNotices, tenderSavedSearches, tenderTrackingHistory, tenderTrackings } from '../db/schema';
+import { tenderFavorites, tenderNotices, tenderSavedSearches, tenderTrackingHistory, tenderTrackings } from '../db/schema';
 import { TRACKING_REMOVED, type TrackingHistoryStatus, type TrackingStatus } from '../domains';
 import { toBrasiliaIso } from './dates';
 import type { NoticeTracking } from './noticeSearch';
 
 // Detalhe do edital e acompanhamento da conta (escopo, seção 8.1). O edital é
 // público (tabela global); acompanhamento e histórico são sempre da conta da
-// requisição, e as buscas salvas, do próprio usuário.
+// requisição, e as buscas salvas e os favoritos, do próprio usuário.
 
 export const MAX_TRACKING_NOTE_LENGTH = 2000;
 
@@ -56,6 +56,8 @@ export interface NoticeDetail {
   firstCollectedAt: string | null;
   lastCollectedAt: string | null;
   tracking: (NoticeTracking & { note: string | null }) | null;
+  /** Favorito de quem abriu o edital (cada pessoa tem os seus). */
+  isFavorite: boolean;
   matchingSavedSearches: Array<{ id: number; name: string }>;
 }
 
@@ -67,6 +69,15 @@ export interface TrackingHistoryEntry {
   userId: number | null;
   userName: string | null;
   createdAt: string | null;
+}
+
+/** Favorito da pessoa na conta, para o edital informado. */
+function favoriteOf(requester: Requester, noticeId: typeof tenderNotices.id | number) {
+  return and(
+    eq(tenderFavorites.accountId, requester.accountId),
+    eq(tenderFavorites.userId, requester.userId),
+    eq(tenderFavorites.noticeId, noticeId),
+  );
 }
 
 export async function assertNoticeExists(db: TendersDb, noticeId: number): Promise<void> {
@@ -83,12 +94,14 @@ export async function getNoticeDetail(db: TendersDb, requester: Requester, notic
       trackingStatus: tenderTrackings.status,
       trackingNote: tenderTrackings.note,
       trackingUpdatedAt: tenderTrackings.updatedAt,
+      favoritedAt: tenderFavorites.createdAt,
     })
     .from(tenderNotices)
     .leftJoin(
       tenderTrackings,
       and(eq(tenderTrackings.noticeId, tenderNotices.id), eq(tenderTrackings.accountId, requester.accountId)),
     )
+    .leftJoin(tenderFavorites, favoriteOf(requester, tenderNotices.id))
     .where(eq(tenderNotices.id, noticeId))
     .limit(1);
   if (!row) {
@@ -148,6 +161,7 @@ export async function getNoticeDetail(db: TendersDb, requester: Requester, notic
     tracking: row.trackingStatus
       ? { status: row.trackingStatus, note: row.trackingNote, updatedAt: toBrasiliaIso(row.trackingUpdatedAt) }
       : null,
+    isFavorite: row.favoritedAt !== null,
     matchingSavedSearches,
   };
 }
@@ -235,4 +249,21 @@ export async function listTrackingHistory(db: TendersDb, accountId: number, noti
     .where(and(eq(tenderTrackingHistory.accountId, accountId), eq(tenderTrackingHistory.noticeId, noticeId)))
     .orderBy(desc(tenderTrackingHistory.createdAt), desc(tenderTrackingHistory.id));
   return rows.map((row) => ({ ...row, createdAt: toBrasiliaIso(row.createdAt) }));
+}
+
+/** Marca o edital como favorito da pessoa na conta. Repetir não duplica; edital inexistente: 404. */
+export async function addFavorite(db: TendersDb, requester: Requester, noticeId: number): Promise<{ noticeId: number; isFavorite: true }> {
+  await assertNoticeExists(db, noticeId);
+  await db
+    .insert(tenderFavorites)
+    .values({ accountId: requester.accountId, userId: requester.userId, noticeId })
+    .onConflictDoNothing();
+  return { noticeId, isFavorite: true };
+}
+
+/** Tira o edital dos favoritos da pessoa na conta. Se não era favorito, nada muda; edital inexistente: 404. */
+export async function removeFavorite(db: TendersDb, requester: Requester, noticeId: number): Promise<{ noticeId: number; isFavorite: false }> {
+  await assertNoticeExists(db, noticeId);
+  await db.delete(tenderFavorites).where(favoriteOf(requester, noticeId));
+  return { noticeId, isFavorite: false };
 }

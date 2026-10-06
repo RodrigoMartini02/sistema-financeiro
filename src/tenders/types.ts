@@ -61,6 +61,8 @@ export interface NoticeListItem {
   pncpLink: string | null;
   sourceSystemLink: string | null;
   tracking: NoticeTracking | null;
+  /** Favorito da pessoa logada (cada pessoa tem os seus). */
+  isFavorite: boolean;
   /** Trecho do objeto com os termos entre << e >>; null sem termos de busca. */
   highlightedExcerpt: string | null;
 }
@@ -114,7 +116,14 @@ export interface NoticeDetail {
   firstCollectedAt: string | null;
   lastCollectedAt: string | null;
   tracking: TrackingView | null;
+  isFavorite: boolean;
   matchingSavedSearches: Array<{ id: number; name: string }>;
+}
+
+/** Resposta de favoritar e de tirar dos favoritos. */
+export interface FavoriteView {
+  noticeId: number;
+  isFavorite: boolean;
 }
 
 export interface TrackingHistoryEntry {

@@ -91,6 +91,7 @@ export const noticeSearchValidators: ValidationChain[] = [
   booleanQuery('openOnly'),
   listQuery('trackingStatus', (item) => (TRACKING_FILTERS as readonly string[]).includes(item), 'Status de acompanhamento inválido', TRACKING_FILTERS.length, (item) => item.toUpperCase()),
   booleanQuery('hideDiscarded'),
+  booleanQuery('favoritesOnly'),
   query('savedSearchId').optional().isInt({ min: 1 }).withMessage('Busca salva inválida'),
   query('sort').optional().isIn([...NOTICE_SORTS]).withMessage('Ordenação inválida'),
   ...paginationQuery(),

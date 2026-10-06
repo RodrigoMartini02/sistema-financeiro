@@ -118,6 +118,7 @@ export function readNoticeSearchRequest(query: RequestValues): NoticeSearchReque
       openOnly: readBoolean(query['openOnly'], true),
       trackingStatuses: uniqueList(stringList(query['trackingStatus']).map((status) => status.toUpperCase())) as TrackingFilter[],
       hideDiscarded: readBoolean(query['hideDiscarded'], true),
+      favoritesOnly: readBoolean(query['favoritesOnly'], false),
       sort: (typeof query['sort'] === 'string' ? query['sort'] : 'closingAsc') as NoticeSort,
       ...readPagination(query),
     },

@@ -293,6 +293,31 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
+  test('favoritos por HTTP: favoritar, filtrar e tirar; edital inexistente: 404', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-favorito');
+      const token = uniqueToken();
+      const noticeId = await insertTestNotice(tx, { procurementObject: `Favorito http ${token}`, proposalClosesAt: '2099-11-20T09:30:00' });
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+        const saved = await call<{ noticeId: number; isFavorite: boolean }>('PUT', `/api/tenders/notices/${noticeId}/favorite`, { as });
+        assert.equal(saved.status, 200);
+        assert.deepEqual(saved.body.data, { noticeId, isFavorite: true });
+
+        const favorites = await call<SearchData>('GET', `/api/tenders/notices?q=${encodeURIComponent(token)}&favoritesOnly=true`, { as });
+        assert.equal(favorites.status, 200);
+        assert.deepEqual(favorites.body.data.items.map((item) => [item.id, item.isFavorite]), [[noticeId, true]]);
+
+        const removed = await call<{ noticeId: number; isFavorite: boolean }>('DELETE', `/api/tenders/notices/${noticeId}/favorite`, { as });
+        assert.deepEqual(removed.body.data, { noticeId, isFavorite: false });
+        assert.equal((await call<SearchData>('GET', `/api/tenders/notices?q=${encodeURIComponent(token)}&favoritesOnly=true`, { as })).body.data.total, 0);
+
+        assert.equal((await call('PUT', '/api/tenders/notices/999999999/favorite', { as })).status, 404);
+        assert.equal((await call('GET', '/api/tenders/notices?favoritesOnly=talvez', { as })).status, 400);
+      });
+    });
+  });
+
   test('prévia limitada por usuário', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'http-previa');

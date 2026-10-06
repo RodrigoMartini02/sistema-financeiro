@@ -41,6 +41,7 @@ test('menu: Configurações só para quem administra o módulo', () => {
     'inicio',
     'buscar',
     'buscas',
+    'favoritos',
     'acompanhamento',
     'notificacoes',
     'configuracoes',
@@ -63,6 +64,7 @@ test('título da barra pela rota; rota desconhecida não tem título de menu', (
   assert.equal(routeForPath('/buscar')?.title, 'Buscar');
   assert.equal(routeForPath('/buscar/')?.title, 'Buscar');
   assert.equal(routeForPath('/editais/123')?.title, 'Edital');
+  assert.equal(routeForPath('/favoritos')?.title, 'Favoritos');
   assert.equal(routeForPath('/nao-existe'), null);
   assert.equal(NOT_FOUND_TITLE, 'Página não encontrada');
 });

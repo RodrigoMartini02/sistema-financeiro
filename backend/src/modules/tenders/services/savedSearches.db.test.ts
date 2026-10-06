@@ -166,13 +166,13 @@ describe('buscas salvas (banco local)', { skip: databaseTestsSkipReason }, () =>
         });
       }
       const before = await countSearches(tx, account.accountId, account.ownerId);
-      const preview = await previewSavedSearch(tx, account.accountId, { ...EMPTY_CRITERIA, terms: [token] });
+      const preview = await previewSavedSearch(tx, requesterOf(account), { ...EMPTY_CRITERIA, terms: [token] });
       assert.equal(preview.count, 7);
       assert.equal(preview.items.length, 5);
       const deadlines = preview.items.map((item) => item.proposalClosesAt ?? '');
       assert.deepEqual([...deadlines].sort(), deadlines, 'ordenados pelo prazo');
       assert.equal(await countSearches(tx, account.accountId, account.ownerId), before);
-      await rejectsWith(previewSavedSearch(tx, account.accountId, EMPTY_CRITERIA), 400);
+      await rejectsWith(previewSavedSearch(tx, requesterOf(account), EMPTY_CRITERIA), 400);
     });
   });
 });
