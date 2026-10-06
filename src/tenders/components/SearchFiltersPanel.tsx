@@ -5,11 +5,14 @@ import { TRACKING_FILTERS, type DomainLists } from '../types';
 import { TRACKING_FILTER_LABELS, formatCnpj } from '../utils/labels';
 import { decimalToReais, reaisToDecimal } from '../utils/money';
 import { MAX_AGENCIES, MAX_MUNICIPALITIES, VALUE_RANGE_MESSAGE } from '../utils/savedSearchForm';
+import { formatIsoDate } from '../utils/dates';
 import {
   CLOSING_SHORTCUT_DAYS,
+  MIN_DAYS_TO_CLOSE,
   activeClosingShortcut,
   closingWithinDays,
   isValidCnpj,
+  minimumClosingDate,
   normalizeCnpj,
   withFilters,
   type SearchState,
@@ -205,6 +208,17 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           description="Recebendo propostas agora."
           checked={state.openOnly}
           onChange={() => update({ openOnly: !state.openOnly })}
+        />
+        <ToggleRow
+          label={`Incluir os que encerram em menos de ${MIN_DAYS_TO_CLOSE} dias`}
+          description={
+            state.openOnly
+              ? `Sem esta opção, aparecem os que encerram a partir de ${formatIsoDate(minimumClosingDate(todayIso))}.`
+              : 'Vale com "Só editais abertos" ligado.'
+          }
+          checked={state.includeClosingSoon}
+          disabled={!state.openOnly}
+          onChange={() => update({ includeClosingSoon: !state.includeClosingSoon })}
         />
       </FilterSection>
 

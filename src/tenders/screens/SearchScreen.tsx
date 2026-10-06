@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { BookmarkPlus, CircleCheck, LayoutGrid, Loader2, Rows3, Search, SearchX, SlidersHorizontal, Table2, X } from 'lucide-react';
+import { BookmarkPlus, CircleCheck, Clock, LayoutGrid, Loader2, Rows3, Search, SearchX, SlidersHorizontal, Table2, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { Button } from '../../ui/button';
@@ -23,16 +23,21 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import { fetchSavedSearches } from '../services/savedSearchesService';
 import type { TendersApiError } from '../services/tendersApiError';
 import { NOTICE_SORTS, type NoticeSearchResult } from '../types';
+import { formatIsoDate } from '../utils/dates';
 import { NOTICE_SORT_LABELS, TERMS_MODE_LABELS } from '../utils/labels';
 import { searchStateToForm } from '../utils/savedSearchForm';
 import {
+  MIN_DAYS_TO_CLOSE,
   NOTICE_URL_PARAM,
   clearAllFilters,
+  closingSoonCountQuery,
   filterChips,
+  minimumClosingDate,
   parseSearchParams,
   toApiQuery,
   toSearchParams,
   withFilters,
+  withMinimumDeadline,
   type SearchState,
 } from '../utils/searchFilters';
 
@@ -60,9 +65,11 @@ export function SearchScreen() {
   const navigate = useNavigate();
   const paramsText = params.toString();
   const state = useMemo(() => parseSearchParams(new URLSearchParams(paramsText)), [paramsText]);
-  const apiQuery = useMemo(() => toApiQuery(state), [state]);
-  const noticeId = positiveId(params.get(NOTICE_URL_PARAM));
   const todayIso = getLocalTodayIso();
+  // A API recebe o estado com o prazo mínimo (hoje + 3 dias), salvo as exceções da regra.
+  const apiQuery = useMemo(() => toApiQuery(withMinimumDeadline(state, todayIso)), [state, todayIso]);
+  const closingSoonQuery = useMemo(() => closingSoonCountQuery(state, todayIso), [state, todayIso]);
+  const noticeId = positiveId(params.get(NOTICE_URL_PARAM));
   const isDesktop = useTelaDesktop();
   const [view, setView] = useStoredPreference('licitacoes.buscar.visao', VIEW_OPTIONS, 'cards');
   const [density, setDensity] = useStoredPreference('licitacoes.buscar.tabela', DENSITY_OPTIONS, 'normal');
@@ -86,6 +93,13 @@ export function SearchScreen() {
     queryFn: () => fetchNotices(apiQuery),
     placeholderData: keepPreviousData,
   });
+  // Quantos o prazo mínimo deixou de fora (uma linha por página, só o total).
+  const closingSoon = useQuery<NoticeSearchResult, TendersApiError>({
+    queryKey: tendersQueryKeys.noticeSearch(closingSoonQuery ?? ''),
+    queryFn: () => fetchNotices(closingSoonQuery ?? ''),
+    enabled: closingSoonQuery !== null,
+  });
+  const hiddenClosingSoon = closingSoonQuery !== null ? (closingSoon.data?.total ?? 0) : 0;
 
   const applyState = useCallback((next: SearchState) => setParams(toSearchParams(next)), [setParams]);
   const closeFilters = useCallback(() => setFiltersOpen(false), []);
@@ -350,6 +364,24 @@ export function SearchScreen() {
               )}
             </div>
           </div>
+
+          {hiddenClosingSoon > 0 && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <Clock size={14} className="shrink-0" aria-hidden="true" />
+              <span>
+                {hiddenClosingSoon.toLocaleString('pt-BR')}{' '}
+                {hiddenClosingSoon === 1 ? 'edital encerra' : 'editais encerram'} antes de {formatIsoDate(minimumClosingDate(todayIso)).slice(0, 5)}{' '}
+                (menos de {MIN_DAYS_TO_CLOSE} dias) e não {hiddenClosingSoon === 1 ? 'aparece' : 'aparecem'} na lista.
+              </span>
+              <button
+                type="button"
+                onClick={() => applyState(withFilters(state, { includeClosingSoon: true }))}
+                className="rounded font-semibold underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600"
+              >
+                Mostrar
+              </button>
+            </p>
+          )}
 
           {content}
         </div>

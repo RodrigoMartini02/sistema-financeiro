@@ -315,8 +315,8 @@ export interface CollectionRun {
 export interface CollectionStatus {
   /** A execução mais recente de cada tipo. */
   latestRuns: CollectionRun[];
-  /** Próxima execução prevista pela agenda, em ISO com o fuso de Brasília. */
-  nextRuns: Record<ScheduledRunType, string>;
+  /** Próxima execução prevista pela agenda, em ISO com o fuso de Brasília; null sem agenda (a incremental). */
+  nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
 }
 

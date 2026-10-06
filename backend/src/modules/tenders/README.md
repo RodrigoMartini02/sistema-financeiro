@@ -280,6 +280,11 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
 
 - **Início (`/`):** os quatro indicadores (cada um abre a lista correspondente em Buscar), "Encerrando em breve", editais abertos por UF e "Minhas buscas salvas", com o rodapé da última coleta (âmbar se ela falhou).
 - **Buscar (`/buscar`):**
+  - **prazo mínimo:** por padrão, só aparecem os editais que encerram a partir de hoje + 3 dias (contados por dia), porque com menos não dá tempo de preparar a proposta;
+    - o filtro "Incluir os que encerram em menos de 3 dias" (`prazoCurto=1`) traz os demais;
+    - a barra de resultados avisa quantos ficaram de fora, com "Mostrar";
+    - a regra não vale sem "Só editais abertos", com filtro de acompanhados (Analisar, Vou participar ou Descartado) nem com período de encerramento que termina antes do mínimo;
+    - num período escolhido, só o início sobe para o mínimo;
   - filtros na URL, para o link ser compartilhável e o voltar do navegador funcionar;
   - chips removíveis e "Limpar tudo";
   - cards ou tabela, com a opção compacta guardada no navegador;
@@ -299,7 +304,7 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).
 - **Configurações (`/configuracoes`):**
   - **Equipe** (só o titular): o acesso de cada colaborador ativo da conta;
-  - **Coleta** (titular ou admin): última varredura e último incremental, próxima execução prevista e o histórico paginado, com os erros de cada execução.
+  - **Coleta** (titular ou admin): última varredura e últimos lembretes de prazo, com a próxima execução prevista pela rotina diária das 06:00, e o histórico paginado, com os erros de cada execução. A agenda fica em `COLLECTION_SCHEDULE` (`services/collectionOverview.ts`); a incremental não está agendada.
 
 **Parâmetros da URL de Buscar** (em português; os padrões ficam fora):
 
@@ -310,6 +315,7 @@ Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Deta
 | `valorMin`, `valorMax`, `semValor=1` | `minValue`, `maxValue`, `includeWithoutValue` | decimal com ponto |
 | `publicacaoDe`, `publicacaoAte`, `encerramentoDe`, `encerramentoAte` | `publishedFrom` … `closingTo` | AAAA-MM-DD |
 | `abertos=0`, `descartados=1` | `openOnly=false`, `hideDiscarded=false` | |
+| `prazoCurto=1` | sem `closingFrom` mínimo | sem ele, o front envia `closingFrom` = hoje + 3 dias (salvo as exceções da regra) |
 | `acompanhamento` | `trackingStatus` | `analisar`, `participar`, `descartado` ou `sem` |
 | `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
 | `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |

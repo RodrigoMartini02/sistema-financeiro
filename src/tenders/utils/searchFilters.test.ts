@@ -4,13 +4,17 @@ import { formatCurrency } from '../../screens/finance/formatters';
 import {
   DEFAULT_SEARCH_STATE,
   activeClosingShortcut,
+  appliesMinimumDeadline,
   clearAllFilters,
+  closingSoonCountQuery,
   closingWithinDays,
   filterChips,
+  minimumClosingDate,
   parseSearchParams,
   toApiQuery,
   toSearchParams,
   withFilters,
+  withMinimumDeadline,
   type SearchState,
 } from './searchFilters';
 
@@ -29,6 +33,7 @@ const FULL_STATE: SearchState = {
   closingFrom: '2026-10-05',
   closingTo: '2026-10-20',
   openOnly: false,
+  includeClosingSoon: true,
   trackingStatuses: ['ANALISAR', 'SEM'],
   hideDiscarded: false,
   savedSearchId: null,
@@ -48,6 +53,7 @@ test('filtros: ida e volta pela URL com todos os parâmetros', () => {
   assert.equal(url.get('ordem'), 'relevancia');
   assert.equal(url.get('pagina'), '3');
   assert.equal(url.get('porPagina'), '50');
+  assert.equal(url.get('prazoCurto'), '1');
   assert.deepEqual(parseSearchParams(url), FULL_STATE);
 });
 
@@ -157,6 +163,7 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
     'Publicação: de 01/10/2026 a 05/10/2026',
     'Encerramento: de 05/10/2026 a 20/10/2026',
     'Inclui encerrados',
+    'Inclui os que encerram em menos de 3 dias',
     'Acompanhamento: Analisar',
     'Acompanhamento: Sem acompanhamento',
     'Mostra descartados',
@@ -169,6 +176,7 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   assert.equal(byKey('q').sort, 'closingAsc', 'sem texto, a relevância sai');
   assert.deepEqual(byKey('value'), withFilters(FULL_STATE, { minValue: null, maxValue: null, includeWithoutValue: false }));
   assert.equal(byKey('openOnly').openOnly, true);
+  assert.equal(byKey('includeClosingSoon').includeClosingSoon, false);
   assert.equal(byKey('showDiscarded').hideDiscarded, true);
   assert.deepEqual(byKey('tracking:SEM').trackingStatuses, ['ANALISAR']);
 });
@@ -193,4 +201,48 @@ test('encerramento: atalhos de 7, 15 e 30 dias a partir de hoje', () => {
   const state = withFilters(DEFAULT_SEARCH_STATE, closingWithinDays(15, '2026-10-05'));
   assert.equal(activeClosingShortcut(state, '2026-10-05'), 15);
   assert.equal(activeClosingShortcut(state, '2026-10-06'), null, 'no dia seguinte o período já não é o atalho');
+});
+
+const TODAY = '2026-10-06';
+const apiParams = (state: SearchState) => new URLSearchParams(toApiQuery(state));
+
+test('prazo mínimo: por padrão, só os que encerram a partir de hoje + 3 dias', () => {
+  assert.equal(minimumClosingDate(TODAY), '2026-10-09');
+  assert.equal(appliesMinimumDeadline(DEFAULT_SEARCH_STATE, TODAY), true);
+  const effective = withMinimumDeadline(DEFAULT_SEARCH_STATE, TODAY);
+  assert.equal(effective.closingFrom, '2026-10-09');
+  assert.equal(apiParams(effective).get('closingFrom'), '2026-10-09');
+  assert.equal(parseSearchParams(params('prazoCurto=talvez')).includeClosingSoon, false, 'só "1" liga o filtro');
+});
+
+test('prazo mínimo: período escolhido só tem o início elevado, nunca invertido', () => {
+  const nextWeek = withFilters(DEFAULT_SEARCH_STATE, closingWithinDays(7, TODAY));
+  const effective = withMinimumDeadline(nextWeek, TODAY);
+  assert.deepEqual([effective.closingFrom, effective.closingTo], ['2026-10-09', '2026-10-13']);
+  const later = withFilters(DEFAULT_SEARCH_STATE, { closingFrom: '2026-10-20' });
+  assert.equal(withMinimumDeadline(later, TODAY).closingFrom, '2026-10-20', 'início já depois do mínimo');
+  const shortPeriod = withFilters(DEFAULT_SEARCH_STATE, { closingFrom: TODAY, closingTo: '2026-10-08' });
+  assert.equal(appliesMinimumDeadline(shortPeriod, TODAY), false, 'período que termina antes do mínimo');
+  assert.deepEqual(withMinimumDeadline(shortPeriod, TODAY), shortPeriod);
+});
+
+test('prazo mínimo: não vale com o filtro ligado, sem "só abertos" ou com acompanhados', () => {
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, includeClosingSoon: true }, TODAY), false);
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, openOnly: false }, TODAY), false);
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['ANALISAR'] }, TODAY), false);
+  assert.equal(appliesMinimumDeadline({ ...DEFAULT_SEARCH_STATE, trackingStatuses: ['SEM'] }, TODAY), true, 'sem acompanhamento continua na regra');
+});
+
+test('prazo mínimo: query da contagem dos que ficaram de fora', () => {
+  const hidden = new URLSearchParams(closingSoonCountQuery(withFilters(DEFAULT_SEARCH_STATE, { q: 'software' }), TODAY) ?? '');
+  assert.equal(hidden.get('q'), 'software');
+  assert.equal(hidden.get('closingFrom'), null);
+  assert.equal(hidden.get('closingTo'), '2026-10-08');
+  assert.equal(hidden.get('openOnly'), 'true');
+  assert.equal(hidden.get('perPage'), '1');
+  assert.equal(hidden.get('page'), '1');
+  const nextWeek = new URLSearchParams(closingSoonCountQuery(withFilters(DEFAULT_SEARCH_STATE, closingWithinDays(7, TODAY)), TODAY) ?? '');
+  assert.deepEqual([nextWeek.get('closingFrom'), nextWeek.get('closingTo')], [TODAY, '2026-10-08']);
+  assert.equal(closingSoonCountQuery({ ...DEFAULT_SEARCH_STATE, includeClosingSoon: true }, TODAY), null);
+  assert.equal(closingSoonCountQuery(withFilters(DEFAULT_SEARCH_STATE, { closingFrom: '2026-10-20' }), TODAY), null, 'nada escondido');
 });

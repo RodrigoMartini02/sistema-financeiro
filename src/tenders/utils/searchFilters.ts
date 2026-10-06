@@ -1,4 +1,11 @@
-import { NOTICE_SORTS, TRACKING_FILTERS, type NoticeSort, type SearchTermsMode, type TrackingFilter } from '../types';
+import {
+  NOTICE_SORTS,
+  TRACKING_FILTER_NONE,
+  TRACKING_FILTERS,
+  type NoticeSort,
+  type SearchTermsMode,
+  type TrackingFilter,
+} from '../types';
 import { addDaysToIsoDate, isValidIsoDate } from './dates';
 import {
   TERMS_MODE_LABELS,
@@ -17,6 +24,13 @@ export const PER_PAGE_OPTIONS = [20, 50, 100] as const;
 export const DEFAULT_PER_PAGE = 20;
 export const CLOSING_SHORTCUT_DAYS = [7, 15, 30] as const;
 
+/**
+ * Prazo mínimo padrão de Buscar: só os editais que encerram a partir de hoje +
+ * 3 dias, porque com menos não dá tempo de preparar a proposta. O filtro
+ * "Incluir os que encerram em menos de 3 dias" traz os demais.
+ */
+export const MIN_DAYS_TO_CLOSE = 3;
+
 export interface SearchState {
   q: string;
   termsMode: SearchTermsMode;
@@ -34,6 +48,8 @@ export interface SearchState {
   closingFrom: string | null;
   closingTo: string | null;
   openOnly: boolean;
+  /** Inclui os que encerram antes do prazo mínimo (hoje + MIN_DAYS_TO_CLOSE). */
+  includeClosingSoon: boolean;
   trackingStatuses: TrackingFilter[];
   hideDiscarded: boolean;
   /** Resultados de uma busca salva: os critérios vêm dela, e os da tela ficam de fora. */
@@ -58,6 +74,7 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   closingFrom: null,
   closingTo: null,
   openOnly: true,
+  includeClosingSoon: false,
   trackingStatuses: [],
   hideDiscarded: true,
   savedSearchId: null,
@@ -82,6 +99,7 @@ export const SEARCH_URL_PARAMS = {
   closingFrom: 'encerramentoDe',
   closingTo: 'encerramentoAte',
   openOnly: 'abertos',
+  includeClosingSoon: 'prazoCurto',
   tracking: 'acompanhamento',
   showDiscarded: 'descartados',
   savedSearch: 'busca',
@@ -184,6 +202,7 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
     closingFrom,
     closingTo,
     openOnly: params.get(P.openOnly) !== '0',
+    includeClosingSoon: params.get(P.includeClosingSoon) === '1',
     trackingStatuses: uniqueValid(
       params.getAll(P.tracking),
       (value) => value.toUpperCase(),
@@ -216,6 +235,7 @@ export function toSearchParams(state: SearchState): URLSearchParams {
   if (state.closingFrom) params.set(P.closingFrom, state.closingFrom);
   if (state.closingTo) params.set(P.closingTo, state.closingTo);
   if (!state.openOnly) params.set(P.openOnly, '0');
+  if (state.includeClosingSoon) params.set(P.includeClosingSoon, '1');
   state.trackingStatuses.forEach((value) => params.append(P.tracking, value.toLowerCase()));
   if (!state.hideDiscarded) params.set(P.showDiscarded, '1');
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
@@ -268,6 +288,52 @@ export function withFilters(state: SearchState, changes: Partial<Omit<SearchStat
 /** "Limpar tudo": filtros e busca salva saem; ordenação e itens por página ficam. */
 export function clearAllFilters(state: SearchState): SearchState {
   return withFilters(DEFAULT_SEARCH_STATE, { sort: state.sort, perPage: state.perPage });
+}
+
+/** Primeiro dia de encerramento que aparece por padrão: hoje + MIN_DAYS_TO_CLOSE (AAAA-MM-DD). */
+export function minimumClosingDate(todayIso: string): string {
+  return addDaysToIsoDate(todayIso, MIN_DAYS_TO_CLOSE);
+}
+
+/**
+ * O prazo mínimo vale na busca de editais abertos com o filtro desligado. Não
+ * vale com filtro de acompanhados (Analisar, Vou participar ou Descartado: aí a
+ * pessoa quer ver os seus, inclusive os urgentes) nem com um período de
+ * encerramento que termina antes do mínimo (aí vale o período escolhido).
+ */
+export function appliesMinimumDeadline(state: SearchState, todayIso: string): boolean {
+  if (!state.openOnly || state.includeClosingSoon) {
+    return false;
+  }
+  if (state.trackingStatuses.some((status) => status !== TRACKING_FILTER_NONE)) {
+    return false;
+  }
+  return state.closingTo === null || state.closingTo >= minimumClosingDate(todayIso);
+}
+
+/** Estado enviado à API: com o prazo mínimo, o início do encerramento sobe para hoje + 3 dias. */
+export function withMinimumDeadline(state: SearchState, todayIso: string): SearchState {
+  if (!appliesMinimumDeadline(state, todayIso)) {
+    return state;
+  }
+  const minimum = minimumClosingDate(todayIso);
+  return state.closingFrom !== null && state.closingFrom >= minimum ? state : { ...state, closingFrom: minimum };
+}
+
+/**
+ * Query da contagem dos editais que o prazo mínimo esconde: os que encerram
+ * antes de hoje + 3 dias, dentro dos outros filtros, com uma linha por página.
+ * null quando o prazo mínimo não vale ou não esconde nada.
+ */
+export function closingSoonCountQuery(state: SearchState, todayIso: string): string | null {
+  if (!appliesMinimumDeadline(state, todayIso)) {
+    return null;
+  }
+  const minimum = minimumClosingDate(todayIso);
+  if (state.closingFrom !== null && state.closingFrom >= minimum) {
+    return null;
+  }
+  return toApiQuery({ ...state, closingTo: addDaysToIsoDate(minimum, -1), page: 1, perPage: 1 });
 }
 
 /** Atalho "próximos N dias" do encerramento: de hoje até hoje + N. */
@@ -345,6 +411,9 @@ export function filterChips(state: SearchState, lookups: ChipLookups = {}): Filt
   }
   if (!state.openOnly) {
     add('openOnly', 'Inclui encerrados', { openOnly: true });
+  }
+  if (state.includeClosingSoon) {
+    add('includeClosingSoon', `Inclui os que encerram em menos de ${MIN_DAYS_TO_CLOSE} dias`, { includeClosingSoon: false });
   }
   state.trackingStatuses.forEach((status) =>
     add(`tracking:${status}`, `Acompanhamento: ${TRACKING_FILTER_LABELS[status]}`, {
