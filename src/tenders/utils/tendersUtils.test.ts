@@ -78,4 +78,25 @@ test('erro da API: mensagem da resposta ou a genérica, com o status', () => {
   const withoutMessage = tendersErrorFrom(502, 'html de erro');
   assert.equal(withoutMessage.status, 502);
   assert.equal(withoutMessage.message, NETWORK_ERROR_MESSAGE);
+  assert.deepEqual(withoutMessage.fieldErrors, []);
+});
+
+test('erro da API: validação de formato (400) traz os campos e a mensagem do primeiro', () => {
+  const error = tendersErrorFrom(400, {
+    success: false,
+    message: 'Validation error',
+    errors: [
+      { field: 'name', message: 'Nome obrigatório, com até 120 caracteres' },
+      { field: 'states[0]', message: 'UF inválida' },
+      { campo: 'ignorado' },
+    ],
+  });
+  assert.equal(error.status, 400);
+  assert.equal(error.message, 'Nome obrigatório, com até 120 caracteres');
+  assert.deepEqual(error.fieldErrors, [
+    { field: 'name', message: 'Nome obrigatório, com até 120 caracteres' },
+    { field: 'states[0]', message: 'UF inválida' },
+  ]);
+  const rule = tendersErrorFrom(400, { success: false, message: 'Informe ao menos um critério além do nome.' });
+  assert.equal(rule.message, 'Informe ao menos um critério além do nome.');
 });
