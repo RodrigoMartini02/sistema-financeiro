@@ -17,6 +17,7 @@ import { accounts } from './accounts';
 import { categories } from './categories';
 import { cards } from './cards';
 import { incomes } from './incomes';
+import { invoicePayments } from './invoicePayments';
 
 export const expenses = pgTable(
   'despesas',
@@ -51,6 +52,13 @@ export const expenses = pgTable(
     // Receita que gerou a despesa de comissão: cancelar ou excluir a receita
     // cancela a comissão ligada, se ainda não foi paga (commissionService).
     sourceIncomeId: integer('receita_origem_id').references(() => incomes.id, { onDelete: 'set null' }),
+    // Pagamento da fatura do cartão (cardInvoiceService). pagamento_fatura_id: o
+    // pagamento que pagou ou renegociou a linha. origem: o que gerou a linha
+    // (restante, parcela ou encargos). valor_juros_fatura: a parte do valor que
+    // é juros ou encargos, só nas linhas geradas.
+    invoicePaymentId: integer('pagamento_fatura_id').references(() => invoicePayments.id, { onDelete: 'set null' }),
+    invoiceOriginPaymentId: integer('origem_pagamento_fatura_id').references(() => invoicePayments.id, { onDelete: 'set null' }),
+    invoiceInterest: decimal('valor_juros_fatura', { precision: 10, scale: 2 }),
     numeroNf: varchar('numero_nf', { length: 50 }),
     dataEmissaoNf: date('data_emissao_nf'),
     createdAt: timestamp('data_criacao').defaultNow(),
@@ -66,6 +74,12 @@ export const expenses = pgTable(
     sourceIncomeIdx: index('idx_despesas_receita_origem')
       .on(table.sourceIncomeId)
       .where(sql`${table.sourceIncomeId} IS NOT NULL`),
+    invoicePaymentIdx: index('idx_despesas_pagamento_fatura')
+      .on(table.invoicePaymentId)
+      .where(sql`${table.invoicePaymentId} IS NOT NULL`),
+    invoiceOriginPaymentIdx: index('idx_despesas_origem_pagamento_fatura')
+      .on(table.invoiceOriginPaymentId)
+      .where(sql`${table.invoiceOriginPaymentId} IS NOT NULL`),
   }),
 );
 

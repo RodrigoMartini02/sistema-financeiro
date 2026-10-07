@@ -140,6 +140,86 @@ export interface Expense {
   numeroNf?: string | null;
   dataEmissaoNf?: string | null;
   anexos?: Attachment[] | null;
+  /** Pagamento da fatura do cartão que pagou ou renegociou esta compra. */
+  invoicePaymentId?: number | null;
+  /** Forma desse pagamento: a compra aparece como "Renegociada" no parcial e no parcelado. */
+  invoicePaymentMethod?: InvoicePaymentMethod | null;
+  invoicePaymentInstallments?: number | null;
+  /** Mês da fatura desse pagamento, 'AAAA-MM'. */
+  invoiceMonth?: string | null;
+  /** Linha gerada por um pagamento de fatura: restante, parcela ou encargos. */
+  invoiceOriginPaymentId?: number | null;
+  /** Na linha gerada: a parte do valor que é juros ou encargos. */
+  invoiceInterest?: number | null;
+}
+
+/** Forma do pagamento da fatura do cartão. */
+export type InvoicePaymentMethod = 'total' | 'partial' | 'installments';
+
+/** Corpo do POST /card-invoices/payments ("Pagar fatura"). */
+export interface InvoicePaymentInput {
+  cardId: number;
+  /** 'AAAA-MM'. */
+  invoiceMonth: string;
+  method: InvoicePaymentMethod;
+  paymentDate: string;
+  /** Total e parcial. */
+  amountPaid?: number;
+  /** Parcial e parcelado. */
+  interestAmount?: number;
+  /** Só no parcelado. */
+  installmentCount?: number;
+}
+
+export interface CardInvoiceItem {
+  expenseId: number;
+  description: string;
+  amount: number;
+  dueDate: string;
+  authorName: string | null;
+  installment: string | null;
+}
+
+export interface InvoicePaymentEntry {
+  id: number;
+  method: InvoicePaymentMethod;
+  paymentDate: string;
+  purchasesAmount: number;
+  paidAmount: number;
+  chargesAmount: number;
+  interestAmount: number;
+  carriedInterest: number;
+  carriedForward: number;
+  installmentCount: number | null;
+  installmentAmount: number | null;
+  firstDueDate: string | null;
+  createdAt: string;
+  registeredByName: string | null;
+  reversedAt: string | null;
+  reversedByName: string | null;
+  canUndo: boolean;
+  undoBlockedReason: string | null;
+}
+
+/** Fatura de um cartão no mês (GET /card-invoices). */
+export interface CardInvoice {
+  card: { id: number; name: string; dueDay: number; ownerName: string | null };
+  dueDate: string;
+  openTotal: number;
+  openItems: CardInvoiceItem[];
+  payments: InvoicePaymentEntry[];
+}
+
+/** Fatura renegociada no período, para o aviso do Painel. */
+export interface RenegotiatedInvoice {
+  cardId: number;
+  cardName: string;
+  invoiceMonth: string;
+  method: 'partial' | 'installments';
+  carriedForward: number;
+  installmentCount: number | null;
+  installmentAmount: number | null;
+  firstDueDate: string;
 }
 
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
@@ -285,7 +365,14 @@ export interface PainelData {
   /** null quando o bloco não se aplica: conta empresa ou membro sem Planejamento. */
   planejado: { categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number }[] | null;
   porPessoa: { usuarioId: number; nome: string; receitas: number; despesas: number }[];
-  jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
+  jurosDescontos: {
+    periodo: { juros: number; descontos: number };
+    ano: { juros: number; descontos: number };
+    /** Juros do restante e das parcelas da fatura ainda não pagos. Ausente na resposta antiga. */
+    upcomingInterest?: number;
+  };
+  /** Faturas renegociadas no período. Ausente na resposta antiga. */
+  renegotiatedInvoices?: RenegotiatedInvoice[];
   categorias: PainelCategoria[];
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: {

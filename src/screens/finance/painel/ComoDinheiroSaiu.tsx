@@ -1,4 +1,5 @@
-import type { PainelData } from '../../../types/finance';
+import type { PainelData, RenegotiatedInvoice } from '../../../types/finance';
+import { installmentsLabel, invoiceMonthLabel, installmentAmountsOf } from '../../../utils/cardInvoice';
 import { formatCurrency } from '../formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
@@ -11,6 +12,17 @@ import {
 
 const compras = (quantidade: number) => `${quantidade} compra${quantidade === 1 ? '' : 's'}`;
 
+/** "Nubank — fatura de out/2026: R$ 430,00 foram para nov/2026" ou "…: parcelada em 3x de R$ 360,00 a partir de nov/2026". */
+function avisoRenegociacao(fatura: RenegotiatedInvoice): string {
+  const inicio = `${fatura.cardName} — fatura de ${invoiceMonthLabel(fatura.invoiceMonth)}`;
+  const proximoMes = invoiceMonthLabel(fatura.firstDueDate.slice(0, 7));
+  if (fatura.method === 'installments' && fatura.installmentCount) {
+    const parcelas = installmentsLabel(installmentAmountsOf(fatura.carriedForward, fatura.installmentCount), formatCurrency);
+    return `${inicio}: parcelada em ${parcelas} a partir de ${proximoMes}`;
+  }
+  return `${inicio}: ${formatCurrency(fatura.carriedForward)} foram para ${proximoMes}`;
+}
+
 /** Para onde foi o dinheiro: despesas por categoria em destaque, como foram pagas e as formas mês a mês. */
 export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
   const cores = useCoresGrafico();
@@ -18,7 +30,9 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
   const { aVista, parcelado } = dados.aVistaParcelado;
   const { fixo, parcela, livre } = dados.tipoGasto;
   const totalCartoes = dados.cartoes.reduce((soma, cartao) => soma + cartao.gasto, 0);
-  const temCartoes = dados.cartoes.length > 0;
+  const renegociacoes = dados.renegotiatedInvoices ?? [];
+  // O bloco aparece também quando só houve renegociação de fatura no período.
+  const temCartoes = dados.cartoes.length > 0 || renegociacoes.length > 0;
   // A mesma cor para cada forma na pizza e nas barras por mês (ordem do maior valor).
   const formas = dados.formasPagamento.map((forma, indice) => ({ ...forma, nome: rotuloForma(forma.forma), cor: corDaPaleta(indice, cores) }));
 
@@ -76,6 +90,16 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
                   };
                 })}
               />
+              {renegociacoes.length > 0 && (
+                <ul className="m-0 mt-3 flex list-none flex-col gap-1 border-t border-slate-100 p-0 pt-3 text-[12px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  {renegociacoes.map((fatura) => (
+                    <li key={`${fatura.cardId}-${fatura.invoiceMonth}-${fatura.method}-${fatura.carriedForward}`}>
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">Renegociada · </span>
+                      {avisoRenegociacao(fatura)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardPainel>
           )}
           <CardPainel>

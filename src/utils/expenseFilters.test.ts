@@ -86,11 +86,15 @@ test('visibilidade: quem paga ou quem cadastrou, se estiver marcado', () => {
   assert.deepEqual(run(items, filters(), loading), [1, 2, 3, 4]);
 });
 
-test('pagamento em lote: só a despesa não paga e não cancelada', () => {
+test('pagamento em lote: só a despesa não paga, não cancelada e fora do crédito com cartão', () => {
   assert.equal(isBatchSelectable(expense(1)), true);
   assert.equal(isBatchSelectable(expense(2, { status: 'ativa' })), true);
   assert.equal(isBatchSelectable(expense(3, { pago: true })), false);
   assert.equal(isBatchSelectable(expense(4, { status: 'cancelada' })), false);
+  // No crédito com cartão, o pagamento é pela fatura; sem cartão (lançamento antigo), segue no lote.
+  assert.equal(isBatchSelectable(expense(5, { formaPagamento: 'credito', cartaoId: 7 })), false);
+  assert.equal(isBatchSelectable(expense(6, { formaPagamento: 'credito', cartaoId: null })), true);
+  assert.equal(isBatchSelectable(expense(7, { formaPagamento: 'debito', cartaoId: 7 })), true);
 });
 
 test('chave dos filtros: a mesma escolha dá o mesmo texto; mudar qualquer filtro muda o texto', () => {

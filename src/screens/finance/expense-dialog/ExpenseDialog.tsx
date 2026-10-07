@@ -9,6 +9,7 @@ import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/
 import { createExpense, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
 import { C } from '../../../ui/dialogFormTokens';
+import { INVOICE_MESSAGES, invoiceEditLock } from '../../../utils/cardInvoice';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { canManageCatalog } from '../../../utils/screenAccess';
@@ -254,11 +255,25 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
   const entryDuplicate = entrySuggestions.duplicateCreatedAt ? duplicateText(entrySuggestions.duplicateCreatedAt) : null;
   const entryLimit = cardLimitText(entry, cards, resources.cardLimits);
 
+  // Despesa ligada à fatura do cartão: a edição não mexe no que a fatura define.
+  const lock = expense ? invoiceEditLock(expense) : null;
+  const invoiceLock = lock === null ? undefined : {
+    reason: lock === 'credit-payment' ? INVOICE_MESSAGES.creditPayment : INVOICE_MESSAGES.lockedRow,
+    locksValueAndMethod: lock !== 'credit-payment',
+    locksDueDate: lock === 'invoice-item',
+  };
+
   let footerMessage = '';
   let footerTone: FooterTone = 'neutral';
   if (state.footerError) {
     footerMessage = state.footerError;
     footerTone = 'danger';
+  } else if (lock === 'invoice-item') {
+    footerMessage = 'Paga pela fatura do cartão: valor, forma, cartão, vencimento e pagamento só mudam desfazendo o pagamento da fatura.';
+  } else if (lock === 'generated') {
+    footerMessage = 'Gerada pelo pagamento da fatura: valor, forma, cartão e pagamento só mudam desfazendo aquele pagamento.';
+  } else if (lock === 'credit-payment') {
+    footerMessage = 'No crédito com cartão, o pagamento é feito pela fatura ("Pagar fatura").';
   } else if (entryDuplicate) {
     footerMessage = entryDuplicate;
     footerTone = 'warning';
@@ -320,6 +335,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
         showSummary
         suggestions={entrySuggestions}
         readOnlyBilling={editBillingLabel}
+        invoiceLock={invoiceLock}
         pendingInstallmentCount={pendingCountFor(entry.key)}
         descriptionRef={descriptionRef}
         onAddToBatch={addToBatch}
