@@ -2,43 +2,49 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://fin-gerence.com.br/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.00</priority>
   </url>
   <url>
-    <loc>https://fin-gerence.com.br/funcionalidades/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <loc>https://fin-gerence.com.br/produtos/</loc>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.80</priority>
+    <priority>0.90</priority>
   </url>
   <url>
-    <loc>https://fin-gerence.com.br/planos/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <loc>https://fin-gerence.com.br/produtos/financas/</loc>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.80</priority>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://fin-gerence.com.br/produtos/licitacoes/</loc>
+    <lastmod>2026-10-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.90</priority>
   </url>
   <url>
     <loc>https://fin-gerence.com.br/sobre/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://fin-gerence.com.br/contato/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
   <url>
     <loc>https://fin-gerence.com.br/termos/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
   <url>
     <loc>https://fin-gerence.com.br/privacidade/</loc>
-    <lastmod>2026-08-03</lastmod>
+    <lastmod>2026-10-07</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>

@@ -6,6 +6,7 @@ import {
   hasPremiumFeatures,
   PLAN_STATUS,
   planTier,
+  TRIAL_DURATION_DAYS,
   type EffectivePlanAccess,
   type PlanAccessSnapshot,
   type PlanStatus,
@@ -293,6 +294,26 @@ export async function expireRecurringPlanAfterSubscriptionStopped(
     .returning({ id: users.id });
 
   return Boolean(expiredUser);
+}
+
+/**
+ * Começa o teste de 15 dias do FINGERENCE de quem se cadastrou por Licitações
+ * (`sem_teste`). Uma vez só: fora de `sem_teste`, nada muda e devolve false.
+ * As datas saem do relógio do banco, no fuso de Brasília como o resto do plano.
+ */
+export async function startDeferredTrial(userId: number): Promise<boolean> {
+  const [startedUser] = await db
+    .update(users)
+    .set({
+      planStatus: PLAN_STATUS.trial,
+      planStart: sql`now()`,
+      planExpiration: sql`now() + make_interval(days => ${TRIAL_DURATION_DAYS})`,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(users.id, userId), eq(users.planStatus, PLAN_STATUS.notStarted)))
+    .returning({ id: users.id });
+
+  return Boolean(startedUser);
 }
 
 // Um so template para os dois motivos de bloqueio (plano pago vencido e

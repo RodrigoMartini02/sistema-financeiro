@@ -1,73 +1,68 @@
-import { useState } from 'react';
-import { SiteHeader } from './components/SiteHeader';
-import { SiteFooter } from './components/SiteFooter';
-import { SitePageHero } from './components/SitePageHero';
-import { LoginModal } from './components/LoginModal';
-import { CookieBanner } from '../../components/CookieBanner';
-import { PRIVACIDADE_CONTEUDO, TERMOS_CONTEUDO } from './TermosModal';
+import type { ReactNode } from 'react';
+import { parseLegalText, type LegalBlock } from '../../utils/legalText';
+import { PageIntro } from './components/PageIntro';
+import { SITE_CONTAINER, SITE_SECTION } from './components/siteStyles';
+import { PRIVACY_CONTENT, TERMS_CONTENT } from './legalContent';
 
-type LegalPageProps = {
-  type: 'termos' | 'privacidade';
+type LegalPageType = 'termos' | 'privacidade';
+
+const LEGAL_PAGES: Record<LegalPageType, { label: string; title: string; content: string }> = {
+  termos: { label: 'Termos', title: 'Termos de Uso', content: TERMS_CONTENT },
+  privacidade: { label: 'Privacidade e LGPD', title: 'Política de Privacidade', content: PRIVACY_CONTENT },
 };
 
-function renderLegalContent(content: string) {
-  return content.trim().split('\n').map((line, index) => {
-    const trimmed = line.trim();
+/** Títulos viram h2, itens seguidos viram uma lista e o resto vira parágrafo. */
+function renderLegalBlocks(blocks: LegalBlock[]): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let items: string[] = [];
 
-    if (!trimmed) {
-      return null;
+  const flushItems = () => {
+    if (items.length === 0) return;
+    nodes.push(
+      <ul key={`lista-${nodes.length}`} className="ml-5 list-disc space-y-1.5 text-[15px] leading-[1.75] text-slate-600">
+        {items.map((item, itemIndex) => (
+          <li key={itemIndex}>{item}</li>
+        ))}
+      </ul>,
+    );
+    items = [];
+  };
+
+  blocks.forEach((block, index) => {
+    if (block.kind === 'item') {
+      items.push(block.text);
+      return;
     }
-
-    if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-      return (
-        <h2 key={index} className="mt-8 first:mt-0 text-[18px] font-semibold leading-[1.35] text-slate-950">
-          {trimmed.replace(/\*\*/g, '')}
+    flushItems();
+    nodes.push(
+      block.kind === 'heading' ? (
+        <h2 key={index} className="pt-6 text-[18px] font-semibold leading-[1.35] text-slate-950 first:pt-0">
+          {block.text}
         </h2>
-      );
-    }
-
-    if (trimmed.startsWith('•') || trimmed.startsWith('â€¢') || trimmed.startsWith('Ã¢â‚¬Â¢')) {
-      return (
-        <li key={index} className="ml-5 list-disc text-[14px] leading-[1.75] text-slate-600">
-          {trimmed.replace(/^Ã¢â‚¬Â¢\s?/, '').replace(/^â€¢\s?/, '').replace(/^•\s?/, '')}
-        </li>
-      );
-    }
-
-    return (
-      <p key={index} className="text-[14px] leading-[1.8] text-slate-600">
-        {trimmed}
-      </p>
+      ) : (
+        <p key={index} className="text-[15px] leading-[1.8] text-slate-600">
+          {block.text}
+        </p>
+      ),
     );
   });
+  flushItems();
+  return nodes;
 }
 
-export function LegalPage({ type }: LegalPageProps) {
-  const [loginOpen, setLoginOpen] = useState(false);
-  const isPrivacy = type === 'privacidade';
-  const title = isPrivacy ? 'Política de Privacidade e LGPD' : 'Termos de Uso';
-  const description = isPrivacy
-    ? 'Informações sobre coleta, uso, segurança, retenção e direitos dos titulares de dados no FINGERENCE.'
-    : 'Condições de acesso, responsabilidades, uso aceitável e regras gerais de utilização do FINGERENCE.';
-  const content = isPrivacy ? PRIVACIDADE_CONTEUDO : TERMOS_CONTEUDO;
+export function LegalPage({ type }: { type: LegalPageType }) {
+  const page = LEGAL_PAGES[type];
 
   return (
-    <div className="min-h-screen bg-[#f8fbfb] text-slate-950">
-      <SiteHeader tone="light" onOpenLogin={() => setLoginOpen(true)} />
-
-      <SitePageHero tone="light" label="DOCUMENTO LEGAL" title={title} description={description} />
-
-      <main id="conteudo-principal" className="border-b border-slate-200 bg-white">
-        <article className="mx-auto max-w-[1120px] px-5 py-12 sm:px-8 xl:py-16">
-          <div className="rounded-lg border border-slate-200 bg-[#f8fbfb] p-6 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-8">
-            <div className="space-y-3">{renderLegalContent(content)}</div>
-          </div>
-        </article>
-      </main>
-
-      <SiteFooter tone="light" />
-      <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} tone="light" />
-      {!loginOpen && <CookieBanner />}
-    </div>
+    <>
+      <PageIntro label={page.label} title={page.title} />
+      <section className={SITE_SECTION}>
+        <div className={SITE_CONTAINER}>
+          <article className="mx-auto max-w-[860px] space-y-3 rounded-[28px] border border-slate-200 bg-white p-6 sm:p-10">
+            {renderLegalBlocks(parseLegalText(page.content))}
+          </article>
+        </div>
+      </section>
+    </>
   );
 }

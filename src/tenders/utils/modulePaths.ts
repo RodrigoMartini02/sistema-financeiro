@@ -1,6 +1,7 @@
 // Endereços do app de Licitações (escopo, seção 9.3). O sistema mora em
-// `/licitacoes/app`; `/licitacoes` fica reservado para a página pública futura
-// e, até lá, abre o sistema: o próprio app troca o endereço, nunca um 301.
+// `/licitacoes/app`, e `/licitacoes` também abre o sistema: o próprio app troca
+// o endereço, nunca um 301. A página da solução no site fica em
+// `/produtos/licitacoes` (plano .plans/site-novo.md).
 
 export const TENDERS_APP_BASE = '/licitacoes/app';
 const MODULE_ROOT = '/licitacoes';

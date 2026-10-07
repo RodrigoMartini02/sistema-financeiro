@@ -53,14 +53,19 @@ export function activePlanLabel(status: PlanFeaturesSource): string {
 }
 
 /**
- * Por que o app fica bloqueado: plano vencido, ou membro de um titular sem
- * Premium (equipe é do Premium).
+ * Por que o app fica bloqueado: teste ainda não começado (cadastro feito por
+ * Licitações), plano vencido, ou membro de um titular sem Premium (equipe é do
+ * Premium).
  */
-export type PlanGateReason = 'expired' | 'teamNotInPlan';
+export type PlanGateReason = 'notStarted' | 'expired' | 'teamNotInPlan';
 
 export function planGateReason(
   status: PlanFeaturesSource & { status: string; isAccountMember?: boolean },
 ): PlanGateReason | null {
+  if (status.status === 'sem_teste') {
+    return 'notStarted';
+  }
+
   if (status.status === 'expirado') {
     return 'expired';
   }

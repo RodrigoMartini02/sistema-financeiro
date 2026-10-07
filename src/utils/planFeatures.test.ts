@@ -27,6 +27,11 @@ test('bloqueia o app com o plano vencido e o membro de titular sem Premium', () 
   assert.equal(planGateReason({ status: 'ativo', isAccountMember: true, recursos_premium: false }), 'teamNotInPlan');
 });
 
+test('cadastro feito por Licitações: o FINGERENCE pede para começar o teste', () => {
+  assert.equal(planGateReason({ status: 'sem_teste' }), 'notStarted');
+  assert.equal(planGateReason({ status: 'sem_teste', isAccountMember: true, recursos_premium: false }), 'notStarted');
+});
+
 test('não bloqueia o titular no Starter nem o membro de titular com Premium', () => {
   assert.equal(planGateReason({ status: 'ativo', isAccountMember: false, recursos_premium: false }), null);
   assert.equal(planGateReason({ status: 'ativo', isAccountMember: true, recursos_premium: true }), null);

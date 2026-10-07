@@ -32,7 +32,7 @@ export const users = pgTable(
     googleId: varchar('google_id', { length: 255 }),
     planStatus: varchar('plano_status', { length: 20 })
       .default('trial')
-      .$type<'trial' | 'ativo' | 'expirado'>(),
+      .$type<'trial' | 'ativo' | 'expirado' | 'sem_teste'>(),
     planType: varchar('plano_tipo', { length: 10 }),
     planExpiration: timestamp('plano_expiracao'),
     preapprovalId: varchar('preapproval_id', { length: 100 }),

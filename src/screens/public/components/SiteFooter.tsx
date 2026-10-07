@@ -1,55 +1,79 @@
 import { Link } from 'react-router-dom';
-import { destinationForAuthOrigin } from '../../../utils/authOrigin';
+import { COMPANY_NAME, COMPANY_TAGLINE, SITE_SOLUTIONS, SOLUTION_NAMES, SUPPORT_CONTACT } from '../../../brand';
+import { pageOfSolution } from '../../../utils/publicPages';
+import { SITE_CONTAINER } from './siteStyles';
 
-interface SiteFooterProps {
-  onOpenTermos?: () => void;
-  onOpenPrivacidade?: () => void;
-  tone?: 'dark' | 'light';
+interface FooterLink {
+  label: string;
+  to: string;
 }
 
-export function SiteFooter({ onOpenTermos, onOpenPrivacidade, tone = 'dark' }: SiteFooterProps = {}) {
-  const isLight = tone === 'light';
-  const legalLinkClass = [
-    isLight ? 'site-neon-light-text-button' : 'site-neon-text-button',
-    'transition',
-  ].join(' ');
+const SOLUTION_LINKS: FooterLink[] = SITE_SOLUTIONS.map((solution) => ({
+  label: SOLUTION_NAMES[solution],
+  to: pageOfSolution(solution).path,
+}));
 
+const COMPANY_LINKS: FooterLink[] = [
+  { label: 'Sobre', to: '/sobre/' },
+  { label: 'Contato', to: '/contato/' },
+];
+
+const LEGAL_LINKS: FooterLink[] = [
+  { label: 'Termos de Uso', to: '/termos/' },
+  { label: 'Privacidade', to: '/privacidade/' },
+];
+
+function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) {
   return (
-    <footer className={[
-      'border-t',
-      isLight ? 'border-slate-200 bg-white' : 'border-[rgba(14,196,216,0.10)] bg-[#040E12]',
-    ].join(' ')}>
-      <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8 xl:px-10">
-        <div className="flex items-center gap-3">
-          <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-7 w-7 object-contain" />
-          <p
-            className={['tracking-[0.20em]', isLight ? 'text-slate-500' : 'text-site-textMuted'].join(' ')}
-            style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 400, fontStyle: 'italic' }}
-          >
-            FINGERENCE
-          </p>
-          <span className="text-[11px] text-site-textMuted">·</span>
-          <p className={['text-[11px]', isLight ? 'text-slate-500' : 'text-site-textMuted'].join(' ')}>
-            © {new Date().getFullYear()}{' '}
-            <a href="https://fin-gerence.com.br" target="_blank" rel="noopener noreferrer" className={['transition', isLight ? 'hover:text-slate-950' : 'hover:text-site-text'].join(' ')}>
-              fin-gerence.com.br
-            </a>
-          </p>
-        </div>
+    <div>
+      <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">{title}</p>
+      <ul className="mt-4 grid gap-2.5">
+        {links.map(({ label, to }) => (
+          <li key={to}>
+            <Link
+              to={to}
+              className="site-neon-light-text-button rounded-md text-[14px] text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
-        <div className={['flex flex-wrap items-center gap-5 text-[11px] uppercase tracking-[0.14em]', isLight ? 'text-slate-500' : 'text-site-textMuted'].join(' ')}>
-          {/* Outro app (entrada própria, tenders.html): link comum, não o Link do roteador. */}
-          <a href={destinationForAuthOrigin('tenders')} className={legalLinkClass}>Conheça também: Licitações</a>
-          {onOpenPrivacidade ? (
-            <button type="button" onClick={onOpenPrivacidade} className={legalLinkClass}>Privacidade</button>
-          ) : (
-            <Link to="/privacidade/" className={legalLinkClass}>Privacidade</Link>
-          )}
-          {onOpenTermos ? (
-            <button type="button" onClick={onOpenTermos} className={legalLinkClass}>Termos</button>
-          ) : (
-            <Link to="/termos/" className={legalLinkClass}>Termos</Link>
-          )}
+export function SiteFooter() {
+  return (
+    <footer className="border-t border-slate-200 bg-white">
+      <div className={`${SITE_CONTAINER} grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr]`}>
+        <div>
+          <div className="flex items-center gap-3">
+            <img src="/icons/fingerence-logo.webp" alt="" className="h-9 w-9 object-contain" />
+            <p
+              className="text-[13px] font-semibold uppercase tracking-[0.2em] text-slate-950"
+              style={{ fontFamily: "'Cinzel', serif", fontStyle: 'italic' }}
+            >
+              {COMPANY_NAME}
+            </p>
+          </div>
+          <p className="mt-4 max-w-[340px] text-[14px] leading-[1.7] text-slate-500">{COMPANY_TAGLINE}</p>
+        </div>
+        <FooterColumn title="Soluções" links={SOLUTION_LINKS} />
+        <FooterColumn title="Empresa" links={COMPANY_LINKS} />
+        <FooterColumn title="Legal" links={LEGAL_LINKS} />
+      </div>
+      <div className="border-t border-slate-100">
+        <div className={`${SITE_CONTAINER} flex flex-wrap items-center justify-between gap-3 py-5 text-[13px] text-slate-500`}>
+          <p>
+            © {new Date().getFullYear()} {COMPANY_NAME}. Todos os direitos reservados.
+          </p>
+          <a
+            href={`mailto:${SUPPORT_CONTACT.email}`}
+            className="site-neon-light-text-button rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            {SUPPORT_CONTACT.email}
+          </a>
         </div>
       </div>
     </footer>

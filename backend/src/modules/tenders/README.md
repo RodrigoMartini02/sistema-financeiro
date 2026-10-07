@@ -268,7 +268,7 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 **Preço** (`services/billing.ts`, em centavos): R$ 4,99 por mês com 2 usuários (o titular conta) e R$ 2,99 por usuário a mais. A mudança de usuários vale a partir da próxima cobrança, sem proporcional; com recorrente, o valor no Mercado Pago é atualizado na hora (`services/recurringAmount.ts`) e, se falhar, a resposta traz um aviso.
 
 **Como a conta entra:**
-- cadastro pelo login do módulo (`POST /api/auth/register` com `modulo: 'licitacoes'`): a conta padrão já nasce com 15 dias de teste;
+- cadastro pelo login do módulo (`POST /api/auth/register` com `modulo: 'licitacoes'`): a conta padrão já nasce com 15 dias de teste. O FINGERENCE dessa pessoa fica `sem_teste` (sem acesso e sem e-mails de plano) até ela clicar em "Começar meu teste" dentro dele (`POST /api/planos/start-trial`, plano `.plans/site-novo.md`);
 - titular que já usa o FINGERENCE: `GET /activation` lista as contas dele sem o módulo e `POST /activation { accountId }` começa os 15 dias. Um teste por conta (de novo: 409); membro não ativa (403).
 
 **Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
@@ -284,7 +284,7 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
 
 - **Entrada:** `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
-- **Endereço:** `/licitacoes` fica reservado para a página pública futura. Até ela existir, o próprio app troca o endereço para `/licitacoes/app`, nunca com 301.
+- **Endereço:** `/licitacoes` também abre o sistema: o próprio app troca o endereço para `/licitacoes/app`, nunca com 301. A página de Licitações no site é `/produtos/licitacoes/` (plano `.plans/site-novo.md`).
 - **Login:** é o `LoginPage` de sempre, com `context="tenders"`. "Criar nova conta" cadastra com `modulo: 'licitacoes'` (15 dias grátis, sem cartão). Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
 - **Entrada no módulo**, conforme `GET /api/tenders/access`:
   - sem sessão: login;
@@ -298,10 +298,9 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 - O site estático reescreve (rewrite, nunca redirect/301) `/licitacoes` e `/licitacoes/*` para `/tenders.html`, como já fazia com `/loja/*`.
 - O build gera `dist/tenders.html`.
 
-**Caminhos até o módulo:**
-- **App de finanças:** atalho "Licitações" no grupo "Módulos" do menu lateral (`AppShell`). Ele só aparece quando `GET /api/tenders/access` responde 200, ou seja, para o titular de conta com acesso e o colaborador liberado. A sessão é a mesma, sem novo login.
-- **Bloqueio de plano do FINGERENCE** (`PlanExpiredGate`): quem tem acesso a Licitações vê "Ir para Licitações", porque o módulo tem assinatura própria.
-- **Páginas públicas:** "Conheça também: Licitações" no rodapé (`SiteFooter`). Leva ao login do módulo, que tem "Criar nova conta".
+**Caminhos até o módulo** (plano `.plans/site-novo.md`, decisão 5: Licitações e FINGERENCE separados no site e nos sistemas):
+- **Site:** a página `/produtos/licitacoes/` tem "Teste grátis por 15 dias" (abre o cadastro com `context="tenders"`) e "Entrar" (vai para `/licitacoes/app`). Nas páginas da empresa, o menu "Acessar" também leva a `/licitacoes/app`.
+- **Sem atalhos entre os sistemas:** o FINGERENCE não mostra Licitações (menu lateral, bloqueio de plano), e Licitações não mostra o FINGERENCE (menu, menu do usuário, telas de bloqueio). Por baixo, o cadastro (`usuarios`) e a sessão continuam os mesmos; só a apresentação e o acesso de cada um são separados.
 
 **Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):
 - busca: 4 a 17 ms, com o índice GIN;

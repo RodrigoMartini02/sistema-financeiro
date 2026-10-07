@@ -6,7 +6,6 @@ export const tendersQueryKeys = {
   all: ['tenders'] as const,
   access: ['tenders', 'access'] as const,
   unreadNotificationsCount: ['tenders', 'notifications', 'count'] as const,
-  planStatus: ['tenders', 'plan-status'] as const,
   notices: ['tenders', 'notices'] as const,
   noticeSearch: (apiQuery: string) => ['tenders', 'notices', 'search', apiQuery] as const,
   notice: (id: number) => ['tenders', 'notices', 'detail', id] as const,

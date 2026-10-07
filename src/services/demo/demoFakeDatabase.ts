@@ -89,8 +89,34 @@ function currentMonthYear() {
   return { mes: now.getMonth(), ano: now.getFullYear() };
 }
 
+/**
+ * Dias do mês corrente para o exemplo: o que já aconteceu fica antes de hoje e
+ * o que vence fica depois, sempre dentro do mês (vale em qualquer dia).
+ */
+function monthDays(mes: number, ano: number) {
+  const today = new Date().getDate();
+  const lastDay = new Date(ano, mes + 1, 0).getDate();
+  const iso = (day: number) => `${ano}-${String(mes + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return {
+    past: (daysBefore: number) => iso(Math.max(1, today - daysBefore)),
+    upcoming: (daysAfter: number) => iso(Math.min(lastDay, today + daysAfter)),
+  };
+}
+
+interface DemoExpenseInput {
+  descricao: string;
+  categoriaId: number;
+  formaPagamento: 'pix' | 'debito' | 'credito';
+  valor: number;
+  vencimento: string;
+  pago: boolean;
+  recorrente?: boolean;
+  parcelas?: { atual: number; total: number };
+}
+
 function createSeed() {
   const { mes, ano } = currentMonthYear();
+  const days = monthDays(mes, ano);
 
   const categorias: CategoriaDemo[] = [
     { id: 1, nome: 'Moradia', cor: '#18BFD8', icone: null, forma_favorita: null, cartao_favorito_id: null, cartao_favorito_nome: null, parent_id: null, tipo_despesa: null, ativo: true, data_criacao: todayIso(-90) },
@@ -104,23 +130,44 @@ function createSeed() {
     { id: 1, nome: 'Cartão principal', limite: 5000, dia_fechamento: 20, dia_vencimento: 28, cor: '#0EC4D8', ativo: true, numero_cartao: null, validade: null, conta_id: null, tipo: 'credito' },
   ];
 
+  const income = (descricao: string, valor: number, dataRecebimento: string): RawIncomeDemo => ({
+    id: generateId(), descricao, valor, data_recebimento: dataRecebimento, mes, ano,
+    status: 'ativa', contrato_id: null, observacoes: null, cliente_id: null, cliente_nome: null, classificacao_id: null, classificacao_nome: null,
+    representante_id: null, representante_nome: null, valor_comissao: null, anexos: null,
+  });
+
   const receitas: RawIncomeDemo[] = [
-    {
-      id: generateId(), descricao: 'Salário', valor: 4500, data_recebimento: todayIso(-3), mes, ano,
-      status: 'ativa', contrato_id: null, observacoes: null, cliente_id: null, cliente_nome: null, classificacao_id: null, classificacao_nome: null,
-      representante_id: null, representante_nome: null, valor_comissao: null, anexos: null,
-    },
+    income('Salário', 4500, days.past(5)),
+    income('Projeto freelance', 1800, days.past(1)),
   ];
 
-  const despesas: RawExpenseDemo[] = [
-    {
-      id: generateId(), descricao: 'Aluguel', categoria_nome: 'Moradia', categoria_id: 1,
-      forma_pagamento: 'pix', cartao_id: null, data_vencimento: todayIso(-2), data_compra: null,
-      data_pagamento: todayIso(-2), mes, ano, status: 'ativa', pago: true, parcelado: false,
-      recorrente: false, numero_parcelas: null, parcela_atual: null, observacoes: null,
-      valor_original: 1200, numero_nf: null, data_emissao_nf: null,
+  const expense = (input: DemoExpenseInput): RawExpenseDemo => {
+    const categoria = categorias.find((item) => item.id === input.categoriaId);
+    const onCard = input.formaPagamento === 'credito';
+    return {
+      id: generateId(), descricao: input.descricao, categoria_nome: categoria?.nome ?? null, categoria_id: input.categoriaId,
+      forma_pagamento: input.formaPagamento, cartao_id: onCard ? 1 : null, cartao_nome: onCard ? 'Cartão principal' : null,
+      data_vencimento: input.vencimento, data_compra: onCard ? input.vencimento : null,
+      data_pagamento: input.pago ? input.vencimento : null, mes, ano, status: 'ativa', pago: input.pago,
+      parcelado: Boolean(input.parcelas), recorrente: input.recorrente ?? false,
+      numero_parcelas: input.parcelas?.total ?? null, parcela_atual: input.parcelas?.atual ?? null, observacoes: null,
+      valor_original: input.valor, numero_nf: null, data_emissao_nf: null,
       anexos: null,
-    },
+    };
+  };
+
+  // Um mês fictício: o que mostra a demonstração e as telas do site.
+  const despesas: RawExpenseDemo[] = [
+    expense({ descricao: 'Aluguel', categoriaId: 1, formaPagamento: 'pix', valor: 1200, vencimento: days.past(4), pago: true }),
+    expense({ descricao: 'Supermercado', categoriaId: 2, formaPagamento: 'debito', valor: 642.3, vencimento: days.past(2), pago: true }),
+    expense({ descricao: 'Farmácia', categoriaId: 5, formaPagamento: 'pix', valor: 74.2, vencimento: days.past(3), pago: true }),
+    expense({ descricao: 'Restaurante', categoriaId: 2, formaPagamento: 'credito', valor: 186.4, vencimento: days.past(1), pago: false }),
+    expense({ descricao: 'Combustível', categoriaId: 3, formaPagamento: 'credito', valor: 280, vencimento: days.past(2), pago: false }),
+    expense({ descricao: 'Academia', categoriaId: 4, formaPagamento: 'credito', valor: 99.9, vencimento: days.upcoming(3), pago: false, recorrente: true }),
+    expense({ descricao: 'Streaming', categoriaId: 4, formaPagamento: 'credito', valor: 55.9, vencimento: days.upcoming(6), pago: false, recorrente: true }),
+    expense({ descricao: 'Notebook', categoriaId: 5, formaPagamento: 'credito', valor: 389.9, vencimento: days.upcoming(8), pago: false, parcelas: { atual: 2, total: 10 } }),
+    expense({ descricao: 'Internet e telefone', categoriaId: 1, formaPagamento: 'pix', valor: 149.9, vencimento: days.upcoming(5), pago: false }),
+    expense({ descricao: 'Conta de luz', categoriaId: 1, formaPagamento: 'pix', valor: 218.35, vencimento: days.upcoming(9), pago: false }),
   ];
 
   return { categorias, cartoes, receitas, despesas };

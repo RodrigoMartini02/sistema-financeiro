@@ -15,6 +15,7 @@ import { ensureDefaultAccountNames } from '../services/accountNameCatalogSeed';
 import { companyAccountColumns, readCompanyAccountInput } from '../services/companyAccountInput';
 import { findOwnLoginWithDocument } from '../services/documentConflicts';
 import { pickLoginByDocument } from '../services/loginDocument';
+import { PLAN_STATUS } from '../services/plan-access';
 import { releaseRecoveryAttempt, reserveRecoveryAttempt } from '../services/passwordRecoveryCode';
 import { blockedAccessMessage, wrongCodeMessage } from '../utils/authMessages';
 import { resolveMemberRole } from '../utils/familyVisibility';
@@ -241,6 +242,9 @@ router.post(
             // admin (POST /users); o tipo nunca vem do pedido.
             type: 'titular',
             status: 'ativo',
+            // Por Licitações, o FINGERENCE não começa o teste: ele começa quando
+            // a pessoa pedir, dentro do FINGERENCE (POST /api/planos/start-trial).
+            planStatus: startsTenders ? PLAN_STATUS.notStarted : PLAN_STATUS.trial,
             googleId: google_id ?? null,
             country: pais ?? null,
             state: estado ?? null,

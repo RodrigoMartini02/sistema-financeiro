@@ -75,15 +75,6 @@ export function TendersSidebar({ routes, labels, onNavigate }: TendersSidebarPro
           );
         })}
       </nav>
-
-      <div className="border-t border-[rgba(14,196,216,0.12)] px-4 py-3">
-        <a
-          href="/app.html"
-          className={`text-[10.5px] text-[rgba(14,196,216,0.45)] hover:text-[#0EC4D8] ${labels === 'always' ? '' : 'hidden xl:inline'}`}
-        >
-          FINGERENCE
-        </a>
-      </div>
     </div>
   );
 }

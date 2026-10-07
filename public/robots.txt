@@ -1,19 +1,21 @@
 User-agent: *
 Allow: /
 Allow: /index.html
-Allow: /funcionalidades
+Allow: /produtos
 Allow: /sobre
-Allow: /planos
 Allow: /contato
 Allow: /termos
 Allow: /privacidade
 Allow: /assets/
 Allow: /css/
 Allow: /icons/
+Allow: /media/
 Allow: /manifest.json
 Allow: /sitemap.xml
 
 Disallow: /app.html
+Disallow: /licitacoes
+Disallow: /tenders.html
 Disallow: /node_modules/
 Disallow: /backend/
 Disallow: /.env

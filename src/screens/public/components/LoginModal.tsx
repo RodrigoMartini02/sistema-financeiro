@@ -1,31 +1,34 @@
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
+import { SOLUTION_NAMES, type SiteSolution } from '../../../brand';
 import { LoginPage } from '../LoginPage';
 
-type LoginModalMode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
+export type LoginModalMode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  notice?: string;
+  /** Licitações usa o login próprio: o cadastro já nasce com o teste dele. */
+  solution: SiteSolution;
   initialMode?: LoginModalMode;
-  tone?: 'dark' | 'light';
 }
 
-export function LoginModal({ isOpen, onClose, notice, initialMode = 'login', tone = 'dark' }: LoginModalProps) {
+/** Login e cadastro sobre o site, na solução da página. */
+export function LoginModal({ isOpen, onClose, solution, initialMode = 'login' }: LoginModalProps) {
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        if (document.querySelector('[data-legal-modal="true"]')) {
-          return;
-        }
-
-        onClose();
+      if (event.key !== 'Escape') {
+        return;
       }
+      // Com os termos abertos por cima, o Esc fecha só os termos.
+      if (document.querySelector('[data-legal-modal="true"]')) {
+        return;
+      }
+      onClose();
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -34,69 +37,33 @@ export function LoginModal({ isOpen, onClose, notice, initialMode = 'login', ton
 
   if (!isOpen) return null;
 
-  const isLight = tone === 'light';
+  const solutionName = SOLUTION_NAMES[solution];
 
   return (
-    <div
-      className={[
-        isLight ? '' : 'dark',
-        'fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4',
-        isLight ? 'bg-[#08343d]/24' : 'bg-[#040E12]/80',
-      ].join(' ')}
-    >
-      <button
-        type="button"
-        aria-label="Fechar"
-        className="absolute inset-0"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#08343d]/24 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-4">
+      <button type="button" aria-label="Fechar" className="absolute inset-0" onClick={onClose} />
       <div
-        className={[
-          'relative box-border max-h-[calc(100vh-24px)] w-[min(480px,calc(100vw-24px))] overflow-y-auto rounded-[22px] border p-5 scrollbar-thin',
-          isLight
-            ? 'border-slate-200 bg-white shadow-[0_28px_90px_rgba(8,52,61,0.18)]'
-            : 'border-[rgba(14,196,216,0.24)] bg-[#061419] shadow-[0_28px_100px_rgba(0,0,0,0.62),inset_0_1px_0_rgba(14,196,216,0.08)]',
-        ].join(' ')}
+        role="dialog"
+        aria-modal="true"
+        aria-label={solutionName}
+        className="relative box-border max-h-[calc(100vh-24px)] w-[min(480px,calc(100vw-24px))] overflow-y-auto rounded-[22px] border border-slate-200 bg-white p-5 shadow-[0_28px_90px_rgba(8,52,61,0.18)] scrollbar-thin"
       >
-        <div className="relative flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-7 w-7 object-contain" />
-            <p
-              className={['tracking-[0.20em]', isLight ? 'text-slate-950' : 'text-site-text'].join(' ')}
-              style={{ fontFamily: "'Cinzel', serif", fontSize: '10px', fontWeight: 600, fontStyle: 'italic' }}
-            >
-              FINGERENCE
-            </p>
+            <img src="/icons/fingerence-logo.webp" alt="" className="h-7 w-7 object-contain" />
+            <span className="text-[13px] font-semibold text-slate-950">{solutionName}</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className={[
-              isLight ? 'site-neon-light-icon-button border-cyan-100 bg-white/80' : 'site-neon-icon-button',
-              'flex h-8 w-8 items-center justify-center rounded-full border transition',
-            ].join(' ')}
+            className="site-neon-light-icon-button flex h-8 w-8 items-center justify-center rounded-full border border-cyan-100 bg-white/80 transition"
             aria-label="Fechar"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
-        {notice && (
-          <p
-            className={[
-              'relative mb-3 rounded-lg border px-4 py-2.5 text-[13px]',
-              isLight
-                ? 'border-cyan-200 bg-cyan-50 text-slate-600'
-                : 'border-[rgba(14,196,216,0.20)] bg-[rgba(14,196,216,0.06)] text-site-textSub',
-            ].join(' ')}
-          >
-            {notice}
-          </p>
-        )}
-
-        <div className="relative">
-          <LoginPage initialMode={initialMode} tone={tone} />
-        </div>
+        <LoginPage initialMode={initialMode} tone="light" context={solution === 'tenders' ? 'tenders' : undefined} />
       </div>
     </div>
   );

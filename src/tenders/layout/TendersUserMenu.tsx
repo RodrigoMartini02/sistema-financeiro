@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeftRight, ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, LogOut } from 'lucide-react';
 import { logout } from '../../services/session';
 import { Z_DROPDOWN } from '../../ui/zIndex';
 import { TENDERS_APP_BASE } from '../utils/modulePaths';
 
-// Menu do usuário: nome e conta, troca de módulo (só para quem também usa o
-// app de finanças) e sair.
+// Menu do usuário: nome, conta e sair. Licitações não leva ao FINGERENCE: são
+// soluções separadas (plano .plans/site-novo.md).
 
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -17,10 +17,9 @@ function initials(name: string): string {
 interface TendersUserMenuProps {
   userName: string;
   accountName: string;
-  showFinanceLink: boolean;
 }
 
-export function TendersUserMenu({ userName, accountName, showFinanceLink }: TendersUserMenuProps) {
+export function TendersUserMenu({ userName, accountName }: TendersUserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -77,12 +76,6 @@ export function TendersUserMenu({ userName, accountName, showFinanceLink }: Tend
             <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{userName}</p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">{accountName}</p>
           </div>
-          {showFinanceLink && (
-            <a role="menuitem" href="/app.html" className={itemClass}>
-              <ArrowLeftRight size={16} aria-hidden="true" />
-              Controle financeiro
-            </a>
-          )}
           <button role="menuitem" type="button" onClick={signOut} className={itemClass}>
             <LogOut size={16} aria-hidden="true" />
             Sair

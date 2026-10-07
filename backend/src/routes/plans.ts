@@ -7,6 +7,7 @@ import {
   expireRecurringPlanAfterSubscriptionStopped,
   expireRecurringPlanAfterRejectedPayment,
   getRequesterPlanStatus,
+  startDeferredTrial,
 } from '../services/plan-lifecycle';
 import type { PlanTier } from '../services/plan-access';
 import {
@@ -81,6 +82,22 @@ router.get('/status', authenticate, async (req: Request, res: Response): Promise
   } catch (error) {
     console.error('Get plan status error:', error);
     res.status(500).json({ success: false, message: 'Failed to get plan status' });
+  }
+});
+
+// POST /api/plans/start-trial — começa o teste de 15 dias de quem se cadastrou
+// por Licitações (sem_teste). Uma vez só; o membro usa o plano do titular.
+router.post('/start-trial', authenticate, requireNotAccountMember, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const started = await startDeferredTrial(req.user!.id);
+    if (!started) {
+      res.status(409).json({ success: false, message: 'O teste grátis já foi usado ou o plano já está ativo.' });
+      return;
+    }
+    res.json({ success: true, message: 'Teste grátis de 15 dias iniciado.' });
+  } catch (error) {
+    console.error('Start trial error:', error);
+    res.status(500).json({ success: false, message: 'Não foi possível começar o teste agora.' });
   }
 });
 

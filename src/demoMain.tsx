@@ -18,8 +18,21 @@ const demoQueryClient = new QueryClient({
   },
 });
 
+// Tela inicial pela `?secao=` (painel, movimentacoes ou relatorios): é por
+// onde saem as capturas da página do FINGERENCE Finanças no site.
+const DEMO_SECTION_BY_PARAM: Partial<Record<string, AppSection>> = {
+  painel: 'painel',
+  movimentacoes: 'movimentacoes',
+  relatorios: 'reports',
+};
+
+function initialDemoSection(): AppSection {
+  const param = new URLSearchParams(window.location.search).get('secao');
+  return (param ? DEMO_SECTION_BY_PARAM[param] : undefined) ?? 'movimentacoes';
+}
+
 function DemoAppContent() {
-  const [section, setSection] = useState<AppSection>('movimentacoes');
+  const [section, setSection] = useState<AppSection>(initialDemoSection);
   const { quickAction, setQuickAction } = useAppContext();
 
   const renderContent = () => {

@@ -452,3 +452,10 @@ A implementação deve ser considerada pronta quando:
 - **Pendente, avisos do recorrente:** o Mercado Pago pode mandar os avisos de assinatura (cobrança mensal, recusa, cancelamento) para a URL do painel dele, que é a do FINGERENCE, e não para a `notification_url` da requisição. Conferir no sandbox. Se for o caso, a rota do webhook do FINGERENCE precisa repassar os avisos `lic:` para Licitações.
 - **Testes de banco:** 0080 aplicada no banco local em 06/10/2026; `test:tenders-db` com 82 de 82 passando.
 - **Pendente:** conferência manual no sandbox do Mercado Pago.
+
+## Mudança posterior: site novo v2 (07/10/2026)
+
+O plano `.plans/site-novo.md` (decisão 5: separar as soluções no site e nos sistemas) substitui duas decisões deste plano:
+
+- **Decisão 4 (teste do FINGERENCE):** o cadastro por Licitações não abre mais o teste do FINGERENCE. O FINGERENCE dessa pessoa nasce `sem_teste`, sem acesso e sem o e-mail de acesso suspenso, até ela clicar em "Começar meu teste" dentro dele (`POST /api/planos/start-trial`).
+- **Etapa 14 ("Ir para Licitações" no `PlanExpiredGate`):** saiu, assim como o atalho "Licitações" no menu do FINGERENCE e os links para o FINGERENCE dentro de Licitações.

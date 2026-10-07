@@ -11,9 +11,8 @@ import type { ExpiredSubscriptionInfo, TenderActivation } from '../types';
 import { TENDERS_APP_BASE } from '../utils/modulePaths';
 
 // Telas da entrada no módulo fora do sistema: sem acesso (com a ativação para
-// o titular), assinatura vencida e erro ao conferir o acesso.
-
-const FINANCE_APP_PATH = '/app.html';
+// o titular), assinatura vencida e erro ao conferir o acesso. Licitações não
+// leva ao FINGERENCE: são soluções separadas (plano .plans/site-novo.md).
 
 function GateCard({ wide = false, children }: { wide?: boolean; children: React.ReactNode }) {
   return (
@@ -39,10 +38,7 @@ function signOut() {
 
 function GateActions() {
   return (
-    <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
-      <a href={FINANCE_APP_PATH} className={primaryButton}>
-        Ir para o FINGERENCE
-      </a>
+    <div className="mt-5 flex justify-center">
       <button type="button" onClick={signOut} className={secondaryButton}>
         Sair
       </button>
