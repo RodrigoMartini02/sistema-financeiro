@@ -24,6 +24,7 @@ import type {
   CollectionRunType,
   DetailCacheType,
   SearchTermsMode,
+  TenderAccessType,
   TenderNotificationType,
   TrackingHistoryStatus,
   TrackingStatus,
@@ -114,12 +115,23 @@ export const tenderNotices = tendersSchema.table(
   }),
 );
 
-/** Contas com o módulo habilitado: trava da plataforma, gerida pelo admin. */
+/**
+ * Contas com o módulo: cortesia (admin) ou assinatura (teste, pago ou
+ * recorrente, migration 0080). A regra de acesso fica na função
+ * licitacoes.fn_conta_com_acesso, usada pela trava e pelos avisos.
+ */
 export const tenderEnabledAccounts = tendersSchema.table('conta_habilitada', {
   accountId: integer('conta_id').primaryKey().references(() => accounts.id, { onDelete: 'cascade' }),
   active: boolean('ativa').default(true).notNull(),
   enabledBy: integer('habilitada_por').references(() => users.id, { onDelete: 'set null' }),
   enabledAt: timestampWithZone('habilitada_em').defaultNow().notNull(),
+  accessType: varchar('tipo_acesso', { length: 12 }).$type<TenderAccessType>().default('cortesia').notNull(),
+  trialUntil: timestampWithZone('teste_ate'),
+  paidUntil: timestampWithZone('pago_ate'),
+  recurringId: varchar('recorrente_id', { length: 100 }),
+  billedUsers: integer('usuarios_cobrados'),
+  lastPaymentId: varchar('ultimo_pagamento_id', { length: 40 }),
+  updatedAt: timestampWithZone('atualizada_em').defaultNow().notNull(),
 });
 
 /** Colaboradores com acesso ao módulo: trava da conta, gerida pelo titular (que tem acesso sem linha aqui). */

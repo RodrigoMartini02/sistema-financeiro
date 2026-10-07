@@ -1,14 +1,19 @@
-import type { CollectionRun, CollectionStatus, Paginated, TeamMember } from '../types';
+import type { CollectionRun, CollectionStatus, NewTeamUser, Paginated, TeamChange, TeamMember } from '../types';
 import { tendersRequest } from './tendersApi';
 
-// Configurações do módulo: equipe (titular) e coleta (titular ou admin).
+// Configurações do módulo: usuários (titular) e coleta (titular ou admin).
 
 export function fetchTeam(): Promise<TeamMember[]> {
   return tendersRequest<TeamMember[]>('/team');
 }
 
-export function setTeamMemberAccess(userId: number, hasAccess: boolean): Promise<TeamMember> {
-  return tendersRequest<TeamMember>(`/team/${userId}`, { method: 'PUT', body: JSON.stringify({ hasAccess }) });
+export function setTeamMemberAccess(userId: number, hasAccess: boolean): Promise<TeamChange> {
+  return tendersRequest<TeamChange>(`/team/${userId}`, { method: 'PUT', body: JSON.stringify({ hasAccess }) });
+}
+
+/** Usuário novo do módulo, já com acesso. */
+export function createTeamUser(user: NewTeamUser): Promise<TeamChange> {
+  return tendersRequest<TeamChange>('/team', { method: 'POST', body: JSON.stringify(user) });
 }
 
 export function fetchCollectionStatus(): Promise<CollectionStatus> {

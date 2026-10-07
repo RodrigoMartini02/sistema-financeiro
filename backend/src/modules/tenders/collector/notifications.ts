@@ -6,7 +6,8 @@ import type { TendersDb } from './database';
 // parametrizado) porque a regra "edital bate com a busca" está na função
 // licitacoes.fn_edital_bate e os destinatários saem de um UNION lateral; o
 // índice único (conta, usuário, tipo, edital, referência) com ON CONFLICT DO
-// NOTHING impede notificação repetida. Só contas habilitadas recebem.
+// NOTHING impede notificação repetida. Só contas com acesso valendo recebem
+// (licitacoes.fn_conta_com_acesso: cortesia, teste, período pago ou recorrente).
 //
 // O link é o caminho a partir do início do app do módulo (/editais/<id>); a
 // tela completa com /licitacoes/app.
@@ -42,7 +43,7 @@ async function insertNewNoticeNotifications(db: TendersDb, noticeFilter: SQL): P
            '/editais/' || e.id, e.id, b.id
       FROM licitacoes.edital e
       JOIN licitacoes.busca_salva b ON b.ativa AND b.notificar
-      JOIN licitacoes.conta_habilitada h ON h.conta_id = b.conta_id AND h.ativa
+      JOIN licitacoes.conta_habilitada h ON h.conta_id = b.conta_id AND licitacoes.fn_conta_com_acesso(h)
      WHERE ${noticeFilter}
        AND licitacoes.fn_edital_bate(e, b)
     ON CONFLICT DO NOTHING`);
@@ -75,7 +76,7 @@ export async function notifyChangedNotices(db: TendersDb, noticeIds: number[]): 
            coalesce(to_char(e.data_atualizacao_pncp AT TIME ZONE 'America/Sao_Paulo', ${BRASILIA_REFERENCE_FORMAT}), e.hash_payload)
       FROM licitacoes.edital e
       JOIN licitacoes.acompanhamento a ON a.edital_id = e.id
-      JOIN licitacoes.conta_habilitada h ON h.conta_id = a.conta_id AND h.ativa
+      JOIN licitacoes.conta_habilitada h ON h.conta_id = a.conta_id AND licitacoes.fn_conta_com_acesso(h)
       CROSS JOIN LATERAL (${trackedNoticeRecipients}) r
      WHERE e.id = ANY (${sql.param(noticeIds)}::bigint[])
     ON CONFLICT DO NOTHING`);
@@ -97,7 +98,7 @@ export async function notifyUpcomingDeadlines(db: TendersDb): Promise<number> {
              to_char(e.data_encerramento_proposta AT TIME ZONE 'America/Sao_Paulo', ${BRASILIA_REFERENCE_FORMAT})
         FROM licitacoes.acompanhamento a
         JOIN licitacoes.edital e ON e.id = a.edital_id
-        JOIN licitacoes.conta_habilitada h ON h.conta_id = a.conta_id AND h.ativa
+        JOIN licitacoes.conta_habilitada h ON h.conta_id = a.conta_id AND licitacoes.fn_conta_com_acesso(h)
         CROSS JOIN LATERAL (${trackedNoticeRecipients}) r
        WHERE a.status = ${PARTICIPATE}
          AND e.data_encerramento_proposta > now()

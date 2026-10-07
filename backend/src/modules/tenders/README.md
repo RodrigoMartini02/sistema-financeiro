@@ -8,8 +8,8 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral) e `.plans/licitacoes-fase2-plano.md` (API);
-- migrations `backend/drizzle/0072` a `0077`.
+- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API) e `.plans/licitacoes-produto.md` (assinatura própria);
+- migrations `backend/drizzle/0072` a `0080`.
 
 ## Estrutura
 
@@ -132,9 +132,10 @@ npm --prefix backend run test:tenders-db
 - **O que cobre:**
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
-  - notificações: sem duplicidade, sem retroativa, só conta habilitada, destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
+  - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
+  - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
-    - travas: conta não habilitada, inativa ou alheia dá 404, e colaborador sem acesso dá 403;
+    - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
     - isolamento entre contas e entre pessoas da mesma conta;
     - busca: filtros, ordenações, paginação e paridade com a busca salva;
     - buscas salvas: validações, limite de 50 e prévia;
@@ -199,20 +200,22 @@ A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes**
 
 Coleção completa em `tenders.http`. Montagem no `server.ts`:
 
+- `POST /api/tenders/billing/webhook`, público: aviso do Mercado Pago (seção [Assinatura](#assinatura)). Fica antes das outras montagens.
 - `/api/tenders/admin`, com `authenticate` + `requireAdmin`:
-  - `GET /accounts`: contas ativas da plataforma (PF e PJ), com o dono e a habilitação de cada uma. Ordem: habilitadas primeiro, depois PJ, depois o nome;
-  - `PUT /accounts/:accountId { active }`: habilita ou desabilita o módulo numa conta.
+  - `GET /accounts`: contas ativas da plataforma (PF e PJ), com o dono, a cortesia e a situação de cada uma no módulo. Ordem: com o módulo primeiro, depois PJ, depois o nome;
+  - `PUT /accounts/:accountId { courtesy }`: liga ou tira a cortesia. Ligada, a conta usa sem cobrança e sem limite de usuários; tirada, segue pela assinatura (sem teste nem período pago, fica vencida).
   - O `GET /api/tenders/access` devolve `permissions.manageEnabledAccounts` (admin da plataforma) para o app mostrar a tela.
-- `/api/tenders`, com `authenticate` e a trava do módulo dentro do roteador (`middleware/tenderAccess.ts`).
-- Nenhuma das duas usa `requireActivePlan`: o módulo não depende do plano do app de finanças.
+- `/api/tenders`, com `authenticate`. Ativação (`/activation`) e cobrança (`/billing`) vêm antes da trava do módulo, porque a conta pode ainda não ter o módulo ou estar vencida; o resto passa pela trava (`middleware/tenderAccess.ts`).
+- Nenhuma das montagens usa `requireActivePlan`: o módulo não depende do plano do app de finanças.
 
 **Conta da requisição:**
 - `accountId` na query string, opcional.
 - **Colaborador** (membro ativo de uma conta): sempre a conta do vínculo; outro `accountId` dá 404.
-- **Titular:** a conta pedida, se for dele. Sem `accountId`, vale a habilitada marcada como padrão (`eh_padrao`); se nenhuma for padrão, a de menor id.
+- **Titular:** a conta pedida, se for dele. Sem `accountId`, vale a conta com acesso marcada como padrão (`eh_padrao`); se nenhuma for padrão, a de menor id. A conta vencida só entra na escolha se nenhuma outra tiver acesso.
 - **Recusas:**
-  - conta não habilitada, desabilitada, inativa ou de outra pessoa: 404, igual à rota inexistente;
-  - colaborador sem linha em `acesso_membro`: 403.
+  - conta sem o módulo, desligada, inativa ou de outra pessoa: 404, igual à rota inexistente;
+  - colaborador sem linha em `acesso_membro`: 403;
+  - assinatura vencida: 402 `{ code: 'TENDERS_SUBSCRIPTION_EXPIRED', message, data: { role, account } }`. O app mostra a assinatura ao titular e o aviso ao colaborador.
 
 **Convenções:**
 - Envelope `{ success, data }`. Listas paginadas: `{ items, page, perPage, total, totalPages }`, com 20 por página e no máximo 100.
@@ -252,16 +255,41 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - é por usuário porque o servidor não configura `trust proxy`.
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
+## Assinatura
+
+Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`. Licitações é cobrado à parte do FINGERENCE, por conta.
+
+**Dados** (colunas novas em `licitacoes.conta_habilitada`):
+- `tipo_acesso`: `cortesia` (sem cobrança e sem limite de usuários) ou `assinatura`. As contas que já tinham o módulo antes da 0080 ficaram como cortesia;
+- `teste_ate`, `pago_ate`, `recorrente_id` (assinatura no cartão), `usuarios_cobrados`, `ultimo_pagamento_id` e `atualizada_em`.
+
+**Regra de acesso:** uma só, na função `licitacoes.fn_conta_com_acesso(conta_habilitada)`, usada pela trava da API e pelas notificações da coleta. A conta tem acesso se estiver ligada e for cortesia, tiver recorrente ativo ou estiver dentro do teste ou do período pago.
+
+**Preço** (`services/billing.ts`, em centavos): R$ 4,99 por mês com 2 usuários (o titular conta) e R$ 2,99 por usuário a mais. A mudança de usuários vale a partir da próxima cobrança, sem proporcional; com recorrente, o valor no Mercado Pago é atualizado na hora (`services/recurringAmount.ts`) e, se falhar, a resposta traz um aviso.
+
+**Como a conta entra:**
+- cadastro pelo login do módulo (`POST /api/auth/register` com `modulo: 'licitacoes'`): a conta padrão já nasce com 15 dias de teste. O FINGERENCE dessa pessoa fica `sem_teste` (sem acesso e sem e-mails de plano) até ela clicar em "Começar meu teste" dentro dele (`POST /api/planos/start-trial`, plano `.plans/site-novo.md`);
+- titular que já usa o FINGERENCE: `GET /activation` lista as contas dele sem o módulo e `POST /activation { accountId }` começa os 15 dias. Um teste por conta (de novo: 409); membro não ativa (403).
+
+**Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
+- `GET /billing?accountId=`: situação (`cortesia`, `teste`, `paga`, `recorrente`, `vencida` ou `desligada`), usuários, valor do mês e preço;
+- `POST /billing/pix`, `/card`, `/checkout` e `/recurring`, com `{ accountId }`, nos mesmos moldes do FINGERENCE (`services/mercadoPagoCharges.ts`). A referência é `lic:<conta>`;
+- pagamento avulso aprovado: mais 30 dias, contados do maior entre hoje, o fim do teste e o fim do período pago;
+- `POST /billing/cancel`: para o recorrente. O acesso continua até o fim do teste ou do período já pago (no FINGERENCE é diferente). Vale também em cortesia, porque a cortesia não cancela o recorrente no Mercado Pago.
+
+**Webhook** (`POST /api/tenders/billing/webhook`): busca o pagamento ou a assinatura no Mercado Pago pelo id e só trata a referência `lic:<conta>`. O mesmo pagamento não é aplicado duas vezes (`ultimo_pagamento_id`). Cobrança recusada ou recorrente cancelado/pausado limpam o `recorrente_id`.
+
 ## App do módulo (front, Fases 3 e 4)
 
 O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
 
 - **Entrada:** `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
-- **Endereço:** `/licitacoes` fica reservado para a página pública futura. Até ela existir, o próprio app troca o endereço para `/licitacoes/app`, nunca com 301.
-- **Login:** é o `LoginPage` de sempre, com `context="tenders"`, sem cadastro aberto. Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
+- **Endereço:** `/licitacoes` também abre o sistema: o próprio app troca o endereço para `/licitacoes/app`, nunca com 301. A página de Licitações no site é `/produtos/licitacoes/` (plano `.plans/site-novo.md`).
+- **Login:** é o `LoginPage` de sempre, com `context="tenders"`. "Criar nova conta" cadastra com `modulo: 'licitacoes'` (15 dias grátis, sem cartão). Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
 - **Entrada no módulo**, conforme `GET /api/tenders/access`:
   - sem sessão: login;
-  - 404: "sua conta não tem acesso";
+  - 404: o titular com conta sem o módulo vê "Ativar Licitações — 15 dias grátis" (escolhe a conta se tiver mais de uma); os demais, "sua conta não tem acesso";
+  - 402: o titular vê a assinatura da conta vencida e paga ali mesmo; o colaborador, "peça ao titular para renovar";
   - 403: "peça ao titular";
   - outro erro: "tentar de novo".
 - **Servidor local:** o `vite.config.ts` reescreve `/licitacoes` e `/licitacoes/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
@@ -270,9 +298,9 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 - O site estático reescreve (rewrite, nunca redirect/301) `/licitacoes` e `/licitacoes/*` para `/tenders.html`, como já fazia com `/loja/*`.
 - O build gera `dist/tenders.html`.
 
-**Caminhos até o módulo:**
-- **App de finanças:** atalho "Licitações" no grupo "Módulos" do menu lateral (`AppShell`). Ele só aparece quando `GET /api/tenders/access` responde 200, ou seja, para o titular de conta habilitada e o colaborador liberado. A sessão é a mesma, sem novo login.
-- **Páginas públicas:** "Conheça também: Licitações" no rodapé (`SiteFooter`). Leva ao login do módulo, que não tem cadastro aberto.
+**Caminhos até o módulo** (plano `.plans/site-novo.md`, decisão 5: Licitações e FINGERENCE separados no site e nos sistemas):
+- **Site:** a página `/produtos/licitacoes/` tem "Teste grátis por 15 dias" (abre o cadastro com `context="tenders"`) e "Entrar" (vai para `/licitacoes/app`). Nas páginas da empresa, o menu "Acessar" também leva a `/licitacoes/app`.
+- **Sem atalhos entre os sistemas:** o FINGERENCE não mostra Licitações (menu lateral, bloqueio de plano), e Licitações não mostra o FINGERENCE (menu, menu do usuário, telas de bloqueio). Por baixo, o cadastro (`usuarios`) e a sessão continuam os mesmos; só a apresentação e o acesso de cada um são separados.
 
 **Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):
 - busca: 4 a 17 ms, com o índice GIN;
@@ -287,11 +315,12 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 
 Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta, desce até o rodapé da tela (`utils/screenLayout.ts`); com lista longa, vem depois do último card (plano `.plans/licitacoes-tela-busca-numero.md`).
 
-**Contas habilitadas (`/admin/contas`)** (plano `.plans/licitacoes-acesso-rotina-diaria.md`):
+**Contas habilitadas (`/admin/contas`)** (planos `.plans/licitacoes-acesso-rotina-diaria.md` e `.plans/licitacoes-produto.md`):
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
 - busca por conta, dono ou e-mail;
-- interruptor por conta, PF ou PJ;
-- desligar a conta em uso pede confirmação, porque, sem outra conta habilitada, o admin perde o acesso ao módulo e a volta é pelo banco.
+- interruptor de cortesia por conta, PF ou PJ, com a situação de cada uma no módulo (sem o módulo, teste, pago, recorrente, vencida);
+- tirar a cortesia pede confirmação, porque, sem teste nem período pago, a conta fica vencida (na conta em uso, o admin pode perder o acesso ao módulo);
+- dar cortesia a uma conta com recorrente avisa que a cobrança no cartão continua até o titular cancelar.
 
 - **Início (`/`):** os quatro indicadores (cada um abre a lista correspondente em Buscar), "Encerrando em breve", editais abertos por UF e "Minhas buscas salvas", com o rodapé da última coleta (âmbar se ela falhou).
 - **Buscar (`/buscar`):**
@@ -321,7 +350,8 @@ Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta,
   - página `/notificacoes`, paginada, com filtro por tipo e por não lidas;
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).
 - **Configurações (`/configuracoes`):**
-  - **Equipe** (só o titular): o acesso de cada colaborador ativo da conta;
+  - **Usuários** (só o titular): "Você (titular)", o acesso de cada colaborador ativo da conta e "Adicionar usuário" (login próprio, já com acesso ao módulo), com o preço por usuário;
+  - **Assinatura** (só o titular): situação, valor do mês, pagar (Pix, cartão ou recorrente) e cancelar o recorrente;
   - **Coleta** (titular ou admin): última varredura e últimos lembretes de prazo, com a próxima execução prevista pela rotina diária das 06:00, e o histórico paginado, com os erros de cada execução. A agenda fica em `COLLECTION_SCHEDULE` (`services/collectionOverview.ts`); a incremental não está agendada.
 
 **Parâmetros da URL de Buscar** (em português; os padrões ficam fora):

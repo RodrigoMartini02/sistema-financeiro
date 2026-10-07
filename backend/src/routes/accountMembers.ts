@@ -2,12 +2,12 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { and, eq, isNotNull, ne, or } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import {
-  users, accounts, accountMembers, expenses, memberPermissions, sectors, jobTitles, type AccountNameCatalogTable,
-} from '../db/schema';
+import { users, accounts, accountMembers, expenses, memberPermissions } from '../db/schema';
 import { authenticate, requirePremiumPlan, requireTitular } from '../middleware/auth';
-import { isValidCpf, validateDocument } from '../middleware/validation';
 import { resolveMemberAccountId, hasScreenAccess, type PermissionFlag } from '../middleware/permissions';
+import {
+  ALREADY_HAS_ACCESS_MESSAGE, checkMemberDocument, checkMemberPlacement, createAccountMember, type MemberPlacement,
+} from '../services/accountMemberCreation';
 import { findAccountAccessWithDocument } from '../services/documentConflicts';
 import { readMemberUpdateInput, readNewMemberInput } from '../services/memberInput';
 import { validarPeriodo } from '../services/painelCalculos';
@@ -18,7 +18,6 @@ const router = Router();
 // Mensagens do cadastro e da edição de membro/colaborador.
 const ACCOUNT_NOT_FOUND_MESSAGE = 'Conta não encontrada';
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta conta';
-const ALREADY_HAS_ACCESS_MESSAGE = 'Esta pessoa já tem acesso a esta conta';
 const SAVE_FAILED_MESSAGE = 'Não foi possível salvar agora. Tente de novo em instantes.';
 
 // Resolve a Conta Padrão do gestor autenticado (mesma noção usada em todo o
@@ -57,65 +56,6 @@ async function resolveAccountIdForGestor(gestorId: number, contaIdParam: string 
     .where(and(eq(accounts.id, contaId), eq(accounts.userId, gestorId)))
     .limit(1);
   return account?.id ?? null;
-}
-
-/**
- * Documento do membro, quando informado. O colaborador de empresa é pessoa:
- * só CPF. O membro de conta pessoal aceita CPF ou CNPJ, como sempre.
- * Devolve a mensagem de erro quando o documento não vale.
- */
-async function checkMemberDocument(accountId: number, cleanDoc: string): Promise<string | null> {
-  const [account] = await db.select({ type: accounts.type }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
-  if (account?.type === 'empresa') {
-    return isValidCpf(cleanDoc) ? null : 'Informe um CPF válido';
-  }
-  return validateDocument(cleanDoc) ? null : 'CPF/CNPJ inválido';
-}
-
-interface MemberPlacement {
-  sectorId?: number | null;
-  jobTitleId?: number | null;
-  admissionDate?: string | null;
-}
-
-async function isActiveInAccount(table: AccountNameCatalogTable, id: number, accountId: number): Promise<boolean> {
-  const [found] = await db
-    .select({ id: table.id })
-    .from(table)
-    .where(and(eq(table.id, id), eq(table.accountId, accountId), eq(table.active, true)))
-    .limit(1);
-  return found !== undefined;
-}
-
-/**
- * Setor, cargo e admissão só existem em conta PJ. Setor e cargo precisam ser
- * desta conta e estar ativos — ou ser os que o colaborador já tem, porque um
- * setor desativado depois continua com quem o usa. Devolve a mensagem de
- * erro, ou null.
- */
-async function checkMemberPlacement(
-  accountId: number,
-  placement: MemberPlacement,
-  current?: { sectorId: number | null; jobTitleId: number | null },
-): Promise<string | null> {
-  const values = [placement.sectorId, placement.jobTitleId, placement.admissionDate];
-  if (values.every((value) => value === undefined || value === null)) {
-    return null;
-  }
-
-  const [account] = await db.select({ type: accounts.type }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
-  if (account?.type !== 'empresa') {
-    return 'Cargo, setor e admissão só existem em conta de empresa';
-  }
-  if (placement.sectorId != null && placement.sectorId !== current?.sectorId
-    && !(await isActiveInAccount(sectors, placement.sectorId, accountId))) {
-    return 'Setor não encontrado nesta conta';
-  }
-  if (placement.jobTitleId != null && placement.jobTitleId !== current?.jobTitleId
-    && !(await isActiveInAccount(jobTitles, placement.jobTitleId, accountId))) {
-    return 'Cargo não encontrado nesta conta';
-  }
-  return null;
 }
 
 // GET /api/account-members — lista os membros vinculados à conta.
@@ -203,78 +143,15 @@ router.post('/', authenticate, requireTitular, requirePremiumPlan, async (req: R
       return;
     }
 
-    const [emailExists] = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
-    if (emailExists) {
-      res.status(400).json({ success: false, message: 'Este e-mail já está cadastrado' });
-      return;
-    }
-
-    if (input.document) {
-      const documentError = await checkMemberDocument(accountId, input.document);
-      if (documentError) {
-        res.status(400).json({ success: false, message: documentError });
-        return;
-      }
-      if (await findAccountAccessWithDocument(db, accountId, input.document)) {
-        res.status(400).json({ success: false, message: ALREADY_HAS_ACCESS_MESSAGE });
-        return;
-      }
-    }
-
-    const placementError = await checkMemberPlacement(accountId, input);
-    if (placementError) {
-      res.status(400).json({ success: false, message: placementError });
-      return;
-    }
-
-    const hashedPassword = await bcrypt.hash(input.password, 10);
-
-    const created = await db.transaction(async (transaction) => {
-      const [member] = await transaction
-        .insert(users)
-        .values({
-          name: input.name,
-          lastName: input.lastName,
-          email: input.email,
-          document: input.document,
-          password: hashedPassword,
-          telefone: input.telefone,
-          dataNascimento: input.dataNascimento,
-          type: 'membro',
-          status: 'ativo',
-        })
-        .returning({
-          id: users.id, name: users.name, lastName: users.lastName, email: users.email, document: users.document,
-          telefone: users.telefone, dataNascimento: users.dataNascimento, type: users.type, status: users.status,
-        });
-
-      await transaction.insert(accountMembers).values({
-        accountId,
-        userId: member!.id,
-        status: 'ativo',
-        sectorId: input.sectorId,
-        jobTitleId: input.jobTitleId,
-        admissionDate: input.admissionDate,
-      });
-
-      // Toda permissão nasce restritiva (false) — o gestor libera
-      // explicitamente pela tela de permissões (Fase 3).
-      await transaction.insert(memberPermissions).values({ userId: member!.id });
-
-      // Categorias sao da conta, nao do usuario: o membro usa as mesmas do
-      // gestor. Antes o sistema copiava cada uma para o novo usuario, o que
-      // com a carteira compartilhada geraria duas categorias de mesmo nome
-      // no mesmo relatorio.
-
-      return member;
-    });
+    // E-mail, documento, setor e cargo conferidos no serviço (400 com a mensagem).
+    const created = await createAccountMember(db, accountId, input);
 
     res.status(201).json({
       success: true,
       message: 'Member created successfully',
       data: {
-        id: created!.id, nome: created!.name, sobrenome: created!.lastName, email: created!.email, documento: created!.document,
-        telefone: created!.telefone, data_nascimento: created!.dataNascimento, tipo: created!.type, status: created!.status,
+        id: created.id, nome: created.name, sobrenome: created.lastName, email: created.email, documento: created.document,
+        telefone: created.telefone, data_nascimento: created.dataNascimento, tipo: created.type, status: created.status,
       },
     });
   } catch (error) {
@@ -519,7 +396,7 @@ router.put('/:id', authenticate, requireTitular, async (req: Request, res: Respo
     }
 
     if (input.document !== undefined) {
-      const documentError = await checkMemberDocument(accountId, input.document);
+      const documentError = await checkMemberDocument(db, accountId, input.document);
       if (documentError) {
         res.status(400).json({ success: false, message: documentError });
         return;
@@ -541,7 +418,7 @@ router.put('/:id', authenticate, requireTitular, async (req: Request, res: Respo
     const placement: MemberPlacement = {
       sectorId: input.sectorId, jobTitleId: input.jobTitleId, admissionDate: input.admissionDate,
     };
-    const placementError = await checkMemberPlacement(accountId, placement, membership);
+    const placementError = await checkMemberPlacement(db, accountId, placement, membership);
     if (placementError) {
       res.status(400).json({ success: false, message: placementError });
       return;

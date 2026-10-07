@@ -1,33 +1,47 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { COMPANY_NAME, SOLUTION_NAMES, type SiteSolution } from '../../../brand';
+import { isProductsArea, PRODUCTS_PATH, publicPageFor } from '../../../utils/publicPages';
+import { usePublicSite } from './publicSiteContext';
+import { PRIMARY_BUTTON, SECONDARY_BUTTON, SITE_CONTAINER } from './siteStyles';
 
-interface SiteHeaderProps {
-  onOpenLogin: () => void;
-  tone?: 'dark' | 'light';
-}
-
-const NAV = [
-  { label: 'Home', to: '/' },
-  { label: 'Funcionalidades', to: '/funcionalidades/' },
-  { label: 'Planos', to: '/planos/' },
+const NAV_LINKS = [
+  { label: 'Início', to: '/' },
+  { label: 'Produtos', to: PRODUCTS_PATH },
   { label: 'Sobre', to: '/sobre/' },
   { label: 'Contato', to: '/contato/' },
 ];
 
-export function SiteHeader({ onOpenLogin, tone = 'dark' }: SiteHeaderProps) {
+const FOCUSABLE = 'a[href], button:not([disabled])';
+
+interface SiteHeaderProps {
+  /**
+   * Solução da página aberta: "Entrar" e "Começar grátis" dela. As páginas da
+   * empresa (sem solução) não têm atalho de login: entra-se pela página da solução.
+   */
+  pageSolution: SiteSolution | null;
+}
+
+export function SiteHeader({ pageSolution }: SiteHeaderProps) {
   const { pathname } = useLocation();
+  const { enter, startFree } = usePublicSite();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
-  const isLight = tone === 'light';
+  const currentPath = publicPageFor(pathname).path;
+  const inProducts = isProductsArea(pathname);
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  // Menu do celular: foco preso no painel enquanto aberto; Esc fecha.
   useEffect(() => {
     if (!menuOpen) return;
 
     const focusFrame = window.requestAnimationFrame(() => {
-      const firstFocusable = menuPanelRef.current?.querySelector<HTMLElement>('a[href], button:not([disabled])');
-      firstFocusable?.focus();
+      menuPanelRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -37,16 +51,12 @@ export function SiteHeader({ onOpenLogin, tone = 'dark' }: SiteHeaderProps) {
         menuButtonRef.current?.focus();
         return;
       }
-
       if (event.key !== 'Tab' || !menuPanelRef.current) return;
 
-      const focusable = Array.from(
-        menuPanelRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
-      );
-      if (!focusable.length) return;
-
+      const focusable = Array.from(menuPanelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
@@ -64,104 +74,68 @@ export function SiteHeader({ onOpenLogin, tone = 'dark' }: SiteHeaderProps) {
     };
   }, [menuOpen]);
 
-  const closeMenu = () => setMenuOpen(false);
-
-  const openLogin = () => {
-    closeMenu();
-    onOpenLogin();
-  };
-
-  const normalizePath = (value: string) => (value !== '/' && value.endsWith('/') ? value.slice(0, -1) : value);
-  const isActive = (to: string) => normalizePath(pathname) === normalizePath(to);
-  const focusOffsetClass = isLight ? 'focus-visible:ring-offset-white' : 'focus-visible:ring-offset-[#03161D]';
+  const isActive = (to: string) => (to === PRODUCTS_PATH ? inProducts : currentPath === to);
+  const navLinkClass = (to: string) =>
+    [
+      'rounded-lg px-1 py-2 text-[15px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none',
+      isActive(to) ? 'text-brand-700' : 'text-slate-600 hover:text-slate-950',
+    ].join(' ');
 
   return (
-    <header className={[
-      'sticky inset-x-0 top-0 z-50 border-b backdrop-blur-xl',
-      isLight
-        ? 'border-slate-200/80 bg-white/90 shadow-[0_8px_28px_rgba(15,23,42,0.04)]'
-        : 'border-[rgba(30,196,220,0.12)] bg-[#03161D]/88',
-    ].join(' ')}>
+    <header className="sticky inset-x-0 top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <a
         href="#conteudo-principal"
-        className={[
-          'sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-xl focus:border focus:border-site-accent focus:px-4 focus:py-3 focus:text-sm',
-          isLight ? 'focus:bg-white focus:text-slate-950' : 'focus:bg-[#06232C] focus:text-site-text',
-        ].join(' ')}
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-xl focus:border focus:border-site-accent focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:text-slate-950"
       >
         Pular para o conteúdo
       </a>
 
-      <div className="mx-auto flex h-[76px] max-w-[1760px] items-center justify-between gap-5 px-5 sm:px-8 xl:px-10">
+      <div className={`${SITE_CONTAINER} flex h-[72px] items-center justify-between gap-5`}>
         <Link
           to="/"
-          className={[
-            'flex min-w-0 items-center gap-4 rounded-2xl outline-none transition focus-visible:ring-2 focus-visible:ring-site-accent/70 focus-visible:ring-offset-4 motion-reduce:transition-none',
-            focusOffsetClass,
-          ].join(' ')}
-          aria-label="Ir para a Home do FINGERENCE"
+          className="flex min-w-0 items-center gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4"
+          aria-label={`${COMPANY_NAME}: página inicial`}
         >
-          <img
-            src="/icons/fingerence-logo.webp"
-            alt="FINGERENCE"
-            width={72}
-            height={72}
-            className="h-[52px] w-[52px] shrink-0 object-contain sm:h-[60px] sm:w-[60px]"
-          />
-          <span className="min-w-0">
-            <span
-              className={[
-                'block truncate text-[14px] font-semibold uppercase leading-none tracking-[0.22em]',
-                isLight ? 'text-slate-950' : 'text-site-text',
-              ].join(' ')}
-              style={{ fontFamily: "'Cinzel', serif", fontStyle: 'italic' }}
-            >
-              FINGERENCE
-            </span>
-            <span className={['mt-1.5 block text-[11px] leading-none', isLight ? 'text-slate-500' : 'text-site-textSub'].join(' ')}>Sistema financeiro</span>
+          <img src="/icons/fingerence-logo.webp" alt="" width={48} height={48} className="h-11 w-11 shrink-0 object-contain" />
+          <span
+            className="block truncate text-[14px] font-semibold uppercase leading-none tracking-[0.22em] text-slate-950"
+            style={{ fontFamily: "'Cinzel', serif", fontStyle: 'italic' }}
+          >
+            {COMPANY_NAME}
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-9 lg:flex" aria-label="Navegação principal">
-          {NAV.map(({ label, to }) => (
-            <Link
-              key={to}
-              to={to}
-              className={[
-                'rounded-lg px-1 py-2 text-[15px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-site-accent/70 focus-visible:ring-offset-4 motion-reduce:transition-none',
-                focusOffsetClass,
-                isActive(to)
-                  ? isLight ? 'text-brand-700' : 'text-site-text'
-                  : isLight ? 'text-slate-600 hover:text-slate-950' : 'text-site-textSub hover:text-site-text',
-              ].join(' ')}
-            >
+        <nav className="hidden items-center gap-8 lg:flex" aria-label="Navegação principal">
+          {NAV_LINKS.map(({ label, to }) => (
+            <Link key={to} to={to} className={navLinkClass(to)} aria-current={isActive(to) ? 'page' : undefined}>
               {label}
             </Link>
           ))}
         </nav>
 
         <div className="hidden items-center gap-5 lg:flex">
-          <button
-            type="button"
-            onClick={openLogin}
-            className={[
-              isLight ? 'site-neon-light-text-button text-slate-600' : 'site-neon-text-button text-site-textSub',
-              'rounded-lg px-2 py-2 text-[15px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-site-accent/70 focus-visible:ring-offset-4',
-              focusOffsetClass,
-            ].join(' ')}
-          >
-            Entrar
-          </button>
+          {pageSolution && (
+            <>
+              <button
+                type="button"
+                onClick={() => enter(pageSolution)}
+                aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
+                className="site-neon-light-text-button rounded-lg px-2 py-2 text-[15px] font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                Entrar
+              </button>
+              <button type="button" onClick={() => startFree(pageSolution)} className={`${PRIMARY_BUTTON} min-h-11 px-5`}>
+                Começar grátis
+              </button>
+            </>
+          )}
         </div>
 
         <button
           ref={menuButtonRef}
           type="button"
-          onClick={() => setMenuOpen((value) => !value)}
-          className={[
-            isLight ? 'site-neon-light-icon-button border-slate-200 bg-white' : 'site-neon-icon-button',
-            'flex h-11 w-11 items-center justify-center rounded-xl border lg:hidden',
-          ].join(' ')}
+          onClick={() => setMenuOpen((open) => !open)}
+          className="site-neon-light-icon-button flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white lg:hidden"
           aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
           aria-controls="site-mobile-menu"
           aria-expanded={menuOpen}
@@ -176,42 +150,38 @@ export function SiteHeader({ onOpenLogin, tone = 'dark' }: SiteHeaderProps) {
           ref={menuPanelRef}
           role="dialog"
           aria-label="Menu principal"
-          className={[
-            'border-t px-5 py-5 lg:hidden',
-            isLight
-              ? 'border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.14)]'
-              : 'border-[rgba(30,196,220,0.12)] bg-[#03161D] shadow-[0_28px_80px_rgba(0,0,0,0.45)]',
-          ].join(' ')}
+          className="max-h-[calc(100dvh-72px)] overflow-y-auto border-t border-slate-200 bg-white px-5 py-5 shadow-[0_28px_80px_rgba(15,23,42,0.14)] lg:hidden"
         >
-          <nav className="grid gap-1" aria-label="Navegação principal móvel">
-            {NAV.map(({ label, to }) => (
+          <nav className="grid gap-1" aria-label="Navegação principal no celular">
+            {NAV_LINKS.map(({ label, to }) => (
               <Link
                 key={to}
                 to={to}
-                onClick={closeMenu}
+                aria-current={isActive(to) ? 'page' : undefined}
                 className={[
-                  'min-h-11 rounded-xl px-3 py-3 text-[14px] font-medium outline-none transition hover:bg-[rgba(14,196,216,0.08)] focus-visible:ring-2 focus-visible:ring-site-accent/70 motion-reduce:transition-none',
-                  isActive(to)
-                    ? isLight ? 'text-brand-700' : 'text-site-text'
-                    : isLight ? 'text-slate-600 hover:text-slate-950' : 'text-site-textSub hover:text-site-text',
+                  'min-h-11 rounded-xl px-3 py-3 text-[15px] font-medium outline-none transition hover:bg-[#f1f9fa] focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none',
+                  isActive(to) ? 'text-brand-700' : 'text-slate-700',
                 ].join(' ')}
               >
                 {label}
               </Link>
             ))}
           </nav>
-          <div className="mt-4 grid gap-3">
-            <button
-              type="button"
-              onClick={openLogin}
-              className={[
-                isLight ? 'site-neon-light-button-subtle' : 'site-neon-button site-neon-button-subtle',
-                'min-h-11 rounded-xl border px-5 text-[13px] font-semibold',
-              ].join(' ')}
-            >
-              Entrar
-            </button>
-          </div>
+          {pageSolution && (
+            <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
+              <button type="button" onClick={() => startFree(pageSolution)} className={PRIMARY_BUTTON}>
+                Começar grátis
+              </button>
+              <button
+                type="button"
+                onClick={() => enter(pageSolution)}
+                aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
+                className={SECONDARY_BUTTON}
+              >
+                Entrar
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>

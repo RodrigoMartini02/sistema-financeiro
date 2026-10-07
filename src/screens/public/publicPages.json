@@ -1,0 +1,110 @@
+{
+  "siteUrl": "https://fin-gerence.com.br",
+  "shareImagePath": "/icons/fingerence-share.png",
+  "pages": [
+    {
+      "path": "/",
+      "file": "index.html",
+      "navLabel": "Início",
+      "solution": null,
+      "title": "FINGERENCE | Soluções de tecnologia para decidir com clareza",
+      "description": "Soluções de tecnologia para organizar o dinheiro da casa e da empresa e encontrar as licitações certas. Teste grátis por 15 dias.",
+      "fallback": {
+        "label": "FINGERENCE",
+        "heading": "Soluções de tecnologia para decidir com clareza.",
+        "body": "A FINGERENCE cria soluções simples para quem precisa decidir bem: FINGERENCE Finanças, para organizar o dinheiro da casa e da empresa, e FINGERENCE Licitações, para encontrar os editais certos e não perder prazos."
+      }
+    },
+    {
+      "path": "/produtos/",
+      "file": "produtos/index.html",
+      "navLabel": "Produtos",
+      "solution": null,
+      "title": "Nossas soluções | FINGERENCE",
+      "description": "Conheça FINGERENCE Finanças e FINGERENCE Licitações: controle financeiro sem planilha e os editais certos, com aviso antes do prazo. Teste grátis por 15 dias.",
+      "fallback": {
+        "label": "Soluções",
+        "heading": "Escolha a solução certa para o seu dia a dia.",
+        "body": "FINGERENCE Finanças organiza receitas, despesas, cartões e relatórios. FINGERENCE Licitações encontra os editais que interessam ao seu negócio e avisa antes do prazo. Cada uma com 15 dias grátis, sem cartão de crédito."
+      }
+    },
+    {
+      "path": "/produtos/financas/",
+      "file": "produtos/financas/index.html",
+      "navLabel": "FINGERENCE Finanças",
+      "solution": "finance",
+      "title": "FINGERENCE Finanças | Controle financeiro pessoal e empresarial",
+      "description": "Organize receitas, despesas, cartões e relatórios da casa e da empresa, sem planilha. Planos a partir de R$ 4,99/mês, com 15 dias grátis.",
+      "fallback": {
+        "label": "FINGERENCE Finanças",
+        "heading": "O dinheiro da casa e da empresa organizados, sem planilha.",
+        "body": "Lance receitas e despesas em segundos, controle cartões e parcelas, veja o saldo de cada mês e decida com relatórios claros. Planos Starter e Premium, com 15 dias grátis."
+      }
+    },
+    {
+      "path": "/produtos/licitacoes/",
+      "file": "produtos/licitacoes/index.html",
+      "navLabel": "FINGERENCE Licitações",
+      "solution": "tenders",
+      "title": "FINGERENCE Licitações | Os editais certos, com aviso antes do prazo",
+      "description": "Encontre as licitações certas para o seu negócio, receba aviso de editais novos e não perca nenhum prazo. R$ 4,99/mês, com 15 dias grátis.",
+      "fallback": {
+        "label": "FINGERENCE Licitações",
+        "heading": "Os editais que interessam, com aviso antes do prazo.",
+        "body": "Monte buscas com os termos, as regiões e os órgãos que interessam, receba aviso quando sai edital novo e acompanhe a participação da sua equipe num quadro com lembretes de prazo."
+      }
+    },
+    {
+      "path": "/sobre/",
+      "file": "sobre/index.html",
+      "navLabel": "Sobre",
+      "solution": null,
+      "title": "Sobre | FINGERENCE",
+      "description": "Quem somos: a FINGERENCE cria soluções de tecnologia simples, para decidir com clareza.",
+      "fallback": {
+        "label": "Sobre",
+        "heading": "Tecnologia simples para decidir com clareza.",
+        "body": "A FINGERENCE nasceu para organizar as finanças sem planilhas soltas e hoje também ajuda empresas a encontrar as licitações certas. Soluções simples, preço justo e atendimento direto."
+      }
+    },
+    {
+      "path": "/contato/",
+      "file": "contato/index.html",
+      "navLabel": "Contato",
+      "solution": null,
+      "title": "Contato | FINGERENCE",
+      "description": "Fale com a FINGERENCE por e-mail ou WhatsApp: dúvidas, suporte e sugestões.",
+      "fallback": {
+        "label": "Contato",
+        "heading": "Fale com a gente.",
+        "body": "Dúvidas, suporte ou sugestões: escreva para fingerence@gmail.com ou chame no WhatsApp (49) 99955-4856."
+      }
+    },
+    {
+      "path": "/termos/",
+      "file": "termos/index.html",
+      "navLabel": "Termos",
+      "solution": null,
+      "title": "Termos de Uso | FINGERENCE",
+      "description": "Condições de uso do FINGERENCE Finanças e do FINGERENCE Licitações.",
+      "fallback": {
+        "label": "Termos de Uso",
+        "heading": "Termos de Uso.",
+        "body": "Condições de acesso, responsabilidades, uso aceitável, assinaturas e regras gerais do FINGERENCE Finanças e do FINGERENCE Licitações."
+      }
+    },
+    {
+      "path": "/privacidade/",
+      "file": "privacidade/index.html",
+      "navLabel": "Privacidade",
+      "solution": null,
+      "title": "Política de Privacidade | FINGERENCE",
+      "description": "Como a FINGERENCE trata os dados pessoais no FINGERENCE Finanças e no FINGERENCE Licitações, conforme a LGPD.",
+      "fallback": {
+        "label": "Privacidade e LGPD",
+        "heading": "Política de Privacidade e Proteção de Dados.",
+        "body": "Como a FINGERENCE trata os dados pessoais e os dados inseridos no FINGERENCE Finanças e no FINGERENCE Licitações, com segurança, retenção, cookies e os direitos previstos na LGPD."
+      }
+    }
+  ]
+}

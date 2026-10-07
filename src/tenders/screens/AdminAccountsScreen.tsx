@@ -6,22 +6,22 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Input, ToggleRow } from '../../ui/form';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
 import { useTenderAccess } from '../hooks/useTenderAccess';
-import { fetchAdminAccounts, setAccountEnabled } from '../services/adminAccountsService';
+import { fetchAdminAccounts, setAccountCourtesy } from '../services/adminAccountsService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
-import type { AccountEnabledChange, AdminTenderAccount } from '../types';
-import { ACCOUNT_TYPE_LABELS, filterAdminAccounts } from '../utils/adminAccounts';
+import type { AdminTenderAccount, CourtesyChange } from '../types';
+import { ACCOUNT_TYPE_LABELS, adminSituationLabel, filterAdminAccounts } from '../utils/adminAccounts';
 import { NotFoundScreen } from './NotFoundScreen';
 
-interface EnabledChange {
+interface CourtesyToggle {
   accountId: number;
-  active: boolean;
+  courtesy: boolean;
 }
 
 /**
- * Contas habilitadas (só o admin da plataforma): liga e desliga o módulo em
- * cada conta. O titular de uma conta habilitada entra no módulo; os
- * colaboradores dependem da liberação do titular.
+ * Contas habilitadas (só o admin da plataforma): a cortesia de cada conta. Com
+ * cortesia, a conta usa o módulo sem cobrança e sem limite de usuários; sem
+ * cortesia, segue pela assinatura (teste, período pago ou recorrente).
  */
 export function AdminAccountsScreen() {
   const access = useTenderAccess(true);
@@ -37,9 +37,9 @@ export function AdminAccountsScreen() {
     enabled: canManage,
   });
 
-  const toggle = useMutation<AccountEnabledChange, TendersApiError, EnabledChange>({
-    mutationFn: ({ accountId, active }) => setAccountEnabled(accountId, active),
-    // Tudo do módulo: desligar a conta em uso troca a conta (ou tira o acesso).
+  const toggle = useMutation<CourtesyChange, TendersApiError, CourtesyToggle>({
+    mutationFn: ({ accountId, courtesy }) => setAccountCourtesy(accountId, courtesy),
+    // Tudo do módulo: tirar a cortesia da conta em uso pode trocar a conta (ou tirar o acesso).
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tendersQueryKeys.all }),
   });
 
@@ -47,25 +47,41 @@ export function AdminAccountsScreen() {
     return <NotFoundScreen />;
   }
 
-  const handleToggle = async (account: AdminTenderAccount) => {
-    const active = !account.enabled;
-    if (!active && account.accountId === accountInUseId) {
-      const confirmed = await confirm({
-        title: 'Desabilitar a conta em uso',
-        message: `Você está usando o módulo pela conta "${account.accountName}". Se não houver outra conta sua habilitada, você perde o acesso ao módulo, inclusive a esta tela.`,
-        confirmLabel: 'Desabilitar',
-        variant: 'danger',
-      });
-      if (!confirmed) {
-        return;
+  const confirmToggle = (account: AdminTenderAccount, courtesy: boolean): Promise<boolean> => {
+    if (courtesy) {
+      if (account.situation !== 'recorrente') {
+        return Promise.resolve(true);
       }
+      return confirm({
+        title: 'Dar cortesia a uma conta com recorrente',
+        message: `A conta "${account.accountName}" paga Licitações no cartão, todo mês. A cortesia não cancela essa cobrança: o titular cancela em Configurações → Assinatura.`,
+        confirmLabel: 'Dar cortesia',
+      });
     }
-    toggle.mutate({ accountId: account.accountId, active });
+    const inUse = account.accountId === accountInUseId
+      ? ' Você está usando o módulo por esta conta e pode perder o acesso a ele, inclusive a esta tela.'
+      : '';
+    return confirm({
+      title: 'Tirar a cortesia',
+      message: `A conta "${account.accountName}" passa a depender da assinatura. Sem teste ou período pago, o acesso fica bloqueado até o titular assinar.${inUse}`,
+      confirmLabel: 'Tirar a cortesia',
+      variant: 'danger',
+    });
+  };
+
+  const handleToggle = async (account: AdminTenderAccount) => {
+    const courtesy = !account.courtesy;
+    if (await confirmToggle(account, courtesy)) {
+      toggle.mutate({ accountId: account.accountId, courtesy });
+    }
   };
 
   const list = accounts.data ?? [];
   const visible = filterAdminAccounts(list, searchText);
-  const enabledCount = list.filter((account) => account.enabled).length;
+  const courtesyCount = list.filter((account) => account.courtesy).length;
+  const subscriptionCount = list.filter(
+    (account) => !account.courtesy && account.situation !== null && account.situation !== 'desligada',
+  ).length;
 
   let content;
   if (accounts.isPending) {
@@ -83,8 +99,8 @@ export function AdminAccountsScreen() {
           <li key={account.accountId}>
             <ToggleRow
               label={account.accountId === accountInUseId ? `${account.accountName} (em uso)` : account.accountName}
-              description={`${ACCOUNT_TYPE_LABELS[account.accountType]} · ${account.ownerName} · ${account.ownerEmail}`}
-              checked={account.enabled}
+              description={`${ACCOUNT_TYPE_LABELS[account.accountType]} · ${account.ownerName} · ${account.ownerEmail} · ${adminSituationLabel(account)}`}
+              checked={account.courtesy}
               disabled={toggle.isPending}
               onChange={() => void handleToggle(account)}
             />
@@ -99,8 +115,8 @@ export function AdminAccountsScreen() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           {accounts.data
-            ? `${enabledCount} de ${list.length} contas com o módulo habilitado. O titular entra no módulo; os colaboradores dependem da liberação dele.`
-            : 'Habilite o módulo nas contas que podem usar Licitações.'}
+            ? `${courtesyCount} com cortesia e ${subscriptionCount} pela assinatura, de ${list.length} contas ativas. Ligado = cortesia: sem cobrança e sem limite de usuários.`
+            : 'Ligue a cortesia nas contas que usam Licitações sem cobrança.'}
         </p>
         <div className="w-full sm:w-72">
           <Input

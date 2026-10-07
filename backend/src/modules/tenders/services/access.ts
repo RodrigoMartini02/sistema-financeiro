@@ -5,9 +5,11 @@ import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
 import type { TenderRole } from '../domains';
 
-// Conta da requisição e as duas travas do módulo (escopo, seção 11):
-// 1. a conta precisa estar habilitada pelo admin da plataforma;
-// 2. o titular sempre tem acesso; o colaborador precisa de linha em acesso_membro.
+// Conta da requisição e as travas do módulo (escopo, seção 11; plano
+// .plans/licitacoes-produto.md):
+// 1. a conta precisa ter o módulo com acesso válido: cortesia, teste, período
+//    pago ou recorrente (licitacoes.fn_conta_com_acesso, migration 0080);
+// 2. o titular sempre entra; o colaborador precisa de linha em acesso_membro.
 // A conta nunca vem livre do app: o `accountId` enviado é só uma escolha,
 // validada aqui contra as contas da pessoa.
 
@@ -22,7 +24,7 @@ export interface TenderAccess {
   userId: number;
   role: TenderRole;
   isPlatformAdmin: boolean;
-  /** Contas habilitadas em que a pessoa pode usar o módulo (o titular troca entre elas). */
+  /** Contas com o módulo valendo em que a pessoa pode usá-lo (o titular troca entre elas). */
   availableAccounts: TenderAccount[];
 }
 
@@ -33,14 +35,30 @@ export interface TenderRequester {
 
 export type TenderAccessResult =
   | { allowed: true; access: TenderAccess }
-  | { allowed: false; reason: 'notFound' | 'memberWithoutAccess' };
+  | { allowed: false; reason: 'notFound' | 'memberWithoutAccess' }
+  /** Conta com o módulo, mas sem teste, período pago nem recorrente valendo. */
+  | { allowed: false; reason: 'subscriptionExpired'; role: TenderRole; account: TenderAccount };
 
 const NOT_FOUND: TenderAccessResult = { allowed: false, reason: 'notFound' };
 
-/** Contas ativas e habilitadas no módulo; a marcada como padrão vem primeiro, depois a mais antiga. */
-async function findEnabledAccounts(db: TendersDb, condition: SQL | undefined): Promise<TenderAccount[]> {
+// A função recebe a linha inteira da conta_habilitada, pelo nome da tabela no FROM.
+const hasModuleAccess = sql<boolean>`licitacoes.fn_conta_com_acesso(${sql.raw('conta_habilitada')})`;
+
+interface ModuleAccount extends TenderAccount {
+  hasAccess: boolean;
+}
+
+function toAccount({ id, name, type }: ModuleAccount): TenderAccount {
+  return { id, name, type };
+}
+
+/**
+ * Contas ativas com o módulo ligado (com ou sem acesso valendo agora): a
+ * marcada como padrão primeiro, depois a mais antiga.
+ */
+async function findModuleAccounts(db: TendersDb, condition: SQL | undefined): Promise<ModuleAccount[]> {
   return db
-    .select({ id: accounts.id, name: accounts.name, type: accounts.type })
+    .select({ id: accounts.id, name: accounts.name, type: accounts.type, hasAccess: hasModuleAccess })
     .from(accounts)
     .innerJoin(
       tenderEnabledAccounts,
@@ -54,8 +72,10 @@ async function findEnabledAccounts(db: TendersDb, condition: SQL | undefined): P
  * Resolve a conta da requisição e confere as travas.
  * - Membro ativo de uma conta: usa sempre a conta do vínculo (mesma precedência
  *   do app de finanças); outro `accountId` dá "não encontrada".
- * - Titular: a conta pedida, se for dele e estiver habilitada; sem pedido, a
- *   habilitada marcada como padrão ou a mais antiga.
+ * - Titular: a conta pedida, se for dele e tiver o módulo; sem pedido, a
+ *   primeira com acesso valendo (a padrão, depois a mais antiga).
+ * - Conta com o módulo, mas vencida: `subscriptionExpired` (o app mostra a
+ *   assinatura ao titular e pede ao colaborador que fale com ele).
  */
 export async function resolveTenderAccess(
   db: TendersDb,
@@ -73,7 +93,7 @@ export async function resolveTenderAccess(
     if (requestedAccountId !== null && requestedAccountId !== membership.accountId) {
       return NOT_FOUND;
     }
-    const [account] = await findEnabledAccounts(db, eq(accounts.id, membership.accountId));
+    const [account] = await findModuleAccounts(db, eq(accounts.id, membership.accountId));
     if (!account) {
       return NOT_FOUND;
     }
@@ -85,20 +105,34 @@ export async function resolveTenderAccess(
     if (!grant) {
       return { allowed: false, reason: 'memberWithoutAccess' };
     }
+    if (!account.hasAccess) {
+      return { allowed: false, reason: 'subscriptionExpired', role: 'COLABORADOR', account: toAccount(account) };
+    }
     return {
       allowed: true,
-      access: { account, userId: requester.id, role: 'COLABORADOR', isPlatformAdmin, availableAccounts: [account] },
+      access: { account: toAccount(account), userId: requester.id, role: 'COLABORADOR', isPlatformAdmin, availableAccounts: [toAccount(account)] },
     };
   }
 
-  const ownedAccounts = await findEnabledAccounts(db, eq(accounts.userId, requester.id));
-  const account =
-    requestedAccountId === null ? ownedAccounts[0] : ownedAccounts.find((owned) => owned.id === requestedAccountId);
+  const ownedAccounts = await findModuleAccounts(db, eq(accounts.userId, requester.id));
+  const usableAccounts = ownedAccounts.filter((owned) => owned.hasAccess);
+  const account = requestedAccountId === null
+    ? (usableAccounts[0] ?? ownedAccounts[0])
+    : ownedAccounts.find((owned) => owned.id === requestedAccountId);
   if (!account) {
     return NOT_FOUND;
   }
+  if (!account.hasAccess) {
+    return { allowed: false, reason: 'subscriptionExpired', role: 'TITULAR', account: toAccount(account) };
+  }
   return {
     allowed: true,
-    access: { account, userId: requester.id, role: 'TITULAR', isPlatformAdmin, availableAccounts: ownedAccounts },
+    access: {
+      account: toAccount(account),
+      userId: requester.id,
+      role: 'TITULAR',
+      isPlatformAdmin,
+      availableAccounts: usableAccounts.map(toAccount),
+    },
   };
 }

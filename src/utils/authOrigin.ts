@@ -19,3 +19,12 @@ export function parseAuthOrigin(value: string | null): AuthOrigin {
 export function destinationForAuthOrigin(origin: AuthOrigin): string {
   return DESTINATION_BY_ORIGIN[origin];
 }
+
+/** Pedido de login numa página do site (`?entrar=1`): abre o login daquela solução. */
+export const LOGIN_REQUEST_PARAM = 'entrar';
+
+/** Entrada do FINGERENCE sem sessão ou ao sair: a página de Finanças com o login aberto. */
+export const FINANCE_LOGIN_ADDRESS = `/produtos/financas/?${LOGIN_REQUEST_PARAM}=1`;
+
+/** Entrada de Licitações sem sessão, com a sessão vencida ou ao sair: a página de Licitações com o login aberto. */
+export const TENDERS_LOGIN_ADDRESS = `/produtos/licitacoes/?${LOGIN_REQUEST_PARAM}=1`;

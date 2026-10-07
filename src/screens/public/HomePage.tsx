@@ -1,153 +1,140 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Star } from 'lucide-react';
-import { SiteFooter } from './components/SiteFooter';
-import { SiteHeader } from './components/SiteHeader';
-import { LoginModal } from './components/LoginModal';
-import { TermosModal } from './TermosModal';
-import { SitePageHero } from './components/SitePageHero';
-import { HomeBenefitsHighlights } from './components/HomeBenefitsHighlights';
-import { HomeInteractiveDemo } from './components/demo-app/HomeInteractiveDemo';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CalendarCheck, Headphones, Wallet } from 'lucide-react';
+import { COMPANY_TAGLINE, SITE_SOLUTIONS, SOLUTION_NAMES, SOLUTION_TAGLINES } from '../../brand';
+import { pageOfSolution, PRODUCTS_PATH } from '../../utils/publicPages';
+import { FINANCE_PLAN_PRICES_CENTS, formatPriceCents, FREE_TRIAL_DAYS, TENDERS_PRICE } from '../../utils/sitePricing';
+import { CallToAction } from './components/CallToAction';
+import { HeroVideo } from './components/HeroVideo';
+import { ReviewsSection } from './components/ReviewsSection';
 import { ScrollReveal } from './components/ScrollReveal';
-import { CookieBanner } from '../../components/CookieBanner';
-import { apiRequest } from '../../services/apiClient';
+import {
+  ON_DARK_BUTTON,
+  ON_DARK_SECONDARY_BUTTON,
+  SECONDARY_BUTTON,
+  SECTION_LABEL,
+  SECTION_TEXT,
+  SECTION_TITLE,
+  SITE_CONTAINER,
+  SITE_SECTION,
+  TEXT_LINK,
+} from './components/siteStyles';
 
-interface Avaliacao {
-  id: number;
-  autor: string;
-  estrelas: number;
-  comentario: string;
-  data_criacao: string;
-}
+const STARTING_PRICE_CENTS = Math.min(FINANCE_PLAN_PRICES_CENTS.starter, TENDERS_PRICE.baseCents);
 
+const HOW_WE_WORK = [
+  {
+    icon: CalendarCheck,
+    title: `${FREE_TRIAL_DAYS} dias grátis`,
+    description: 'Teste qualquer solução antes de pagar. Sem cartão de crédito.',
+  },
+  {
+    icon: Wallet,
+    title: `A partir de ${formatPriceCents(STARTING_PRICE_CENTS)}/mês`,
+    description: 'Preço justo e sem surpresa, por Pix ou cartão. Cancele quando quiser.',
+  },
+  {
+    icon: Headphones,
+    title: 'Atendimento direto',
+    description: 'Fale com a gente por e-mail ou WhatsApp, sem robô no caminho.',
+  },
+];
 
-function StarRating({ n }: { n: number }) {
+/** Início da empresa: o conceito, o que fazemos, como trabalhamos e o caminho para as soluções. */
+export function HomePage() {
   return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => (
-        <Star
-          key={i}
-          size={12}
-          className={i < n ? 'fill-site-accent text-site-accent' : 'text-site-textMuted'}
-        />
-      ))}
-    </div>
-  );
-}
+    <>
+      <HeroVideo
+        title={COMPANY_TAGLINE}
+        description="Criamos ferramentas simples para quem precisa decidir bem: sobre o dinheiro da casa e da empresa, e sobre novas oportunidades de negócio."
+      >
+        <Link to={PRODUCTS_PATH} className={ON_DARK_BUTTON}>
+          Conheça nossas soluções
+        </Link>
+        <Link to="/contato/" className={ON_DARK_SECONDARY_BUTTON}>
+          Fale com a gente
+        </Link>
+      </HeroVideo>
 
-interface HomePageProps {
-  notice?: string;
-}
-
-export function HomePage({ notice }: HomePageProps) {
-  const [loginOpen, setLoginOpen] = useState(
-    () => !!notice || new URLSearchParams(window.location.search).get('state') === 'google-oauth',
-  );
-  const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
-  const [modalAberto, setModalAberto] = useState<'termos' | 'privacidade' | null>(null);
-
-  const openLogin = () => {
-    setLoginMode('login');
-    setLoginOpen(true);
-  };
-
-  const openRegister = () => {
-    setLoginMode('register');
-    setLoginOpen(true);
-  };
-
-  const closeLogin = () => {
-    setLoginOpen(false);
-    setLoginMode('login');
-  };
-
-  const avaliacoesQ = useQuery({
-    queryKey: ['avaliacoes-public'],
-    queryFn: () =>
-      apiRequest<{ success: boolean; data: { avaliacoes: Avaliacao[]; media: number; total: number } }>(
-        '/avaliacoes',
-      ),
-    staleTime: 10 * 60 * 1000,
-  });
-  const avaliacoes: Avaliacao[] = (avaliacoesQ.data as any)?.data?.avaliacoes ?? [];
-  const media: number = (avaliacoesQ.data as any)?.data?.media ?? 0;
-  const totalAval: number = (avaliacoesQ.data as any)?.data?.total ?? 0;
-
-  return (
-    <div className="min-h-screen bg-[#f8fbfb] text-slate-950">
-      <SiteHeader tone="light" onOpenLogin={openLogin} />
-
-      <main id="conteudo-principal">
-        <SitePageHero
-          tone="light"
-          label="HOME"
-          title="Controle financeiro com clareza."
-          description="Organize sua vida financeira e sua empresa em perfis separados, com saldos, cartões e relatórios sempre visíveis."
-        />
-        <HomeBenefitsHighlights />
-        <HomeInteractiveDemo />
-
-      {/* ── Avaliações ── */}
-      {avaliacoes.length > 0 && (
-        <section className="border-b border-slate-200 bg-[#f8fbfb]">
-          <div className="mx-auto max-w-[1800px] px-5 py-14 sm:px-8 xl:px-10 xl:py-18">
-            <ScrollReveal>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-700">O QUE DIZEM OS USUÁRIOS</p>
-              <div className="mt-3 flex items-center gap-3">
-                <StarRating n={Math.round(media)} />
-                <span className="text-[13px] text-slate-500">
-                  {media.toFixed(1)} · {totalAval} {totalAval === 1 ? 'avaliação' : 'avaliações'}
-                </span>
-              </div>
-            </ScrollReveal>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {avaliacoes.slice(0, 6).map((av, index) => (
-                <ScrollReveal key={av.id} delay={Math.min(index * 0.05, 0.2)}>
-                  <article className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)] transition duration-300 hover:border-brand-200 hover:shadow-[0_20px_54px_rgba(15,23,42,0.08)]">
-                    <StarRating n={av.estrelas} />
-                    <p className="mt-3 text-[14px] leading-[1.7] text-slate-600">"{av.comentario}"</p>
-                    <p className="mt-4 text-[11px] uppercase tracking-[0.14em] text-slate-500">{av.autor}</p>
-                  </article>
-                </ScrollReveal>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-[1800px] px-5 py-14 text-center sm:px-8 xl:px-10 xl:py-18">
+      <section className={SITE_SECTION}>
+        <div className={`${SITE_CONTAINER} grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16`}>
           <ScrollReveal>
-            <h2 className="mx-auto max-w-[720px] text-[clamp(26px,2.4vw,38px)] font-semibold leading-[1.15] text-slate-950 text-balance">
-              Pronto para organizar suas finanças de verdade?
-            </h2>
-            <p className="mx-auto mt-4 max-w-[560px] text-[15px] leading-relaxed text-slate-600">
-              Comece agora e tenha 15 dias grátis para experimentar tudo, sem compromisso.
+            <p className={SECTION_LABEL}>A FINGERENCE</p>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Informação espalhada vira decisão clara.</h2>
+          </ScrollReveal>
+          <ScrollReveal delay={0.08}>
+            <p className={SECTION_TEXT}>
+              Contas, cartões, editais e prazos costumam ficar em planilhas e anotações soltas. A gente organiza tudo num sistema simples,
+              que funciona no computador e no celular.
             </p>
-            <button
-              type="button"
-              onClick={openRegister}
-              className="site-neon-light-button mt-7 inline-flex min-h-14 w-full max-w-[320px] items-center justify-center rounded-xl border px-7 text-[18px] font-semibold sm:w-auto sm:min-w-[320px]"
-            >
-              Começar 15 dias grátis
-            </button>
+            <p className={`mt-4 ${SECTION_TEXT}`}>Você enxerga o que importa e decide com segurança, no seu ritmo.</p>
           </ScrollReveal>
         </div>
       </section>
 
-      </main>
+      <section className={`${SITE_SECTION} border-y border-slate-200/70 bg-white`}>
+        <div className={SITE_CONTAINER}>
+          <ScrollReveal>
+            <p className={SECTION_LABEL}>Soluções</p>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Duas soluções, o mesmo cuidado.</h2>
+          </ScrollReveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-2">
+            {SITE_SOLUTIONS.map((solution, index) => (
+              <ScrollReveal key={solution} delay={index * 0.06}>
+                <Link
+                  to={pageOfSolution(solution).path}
+                  className="group flex h-full items-center justify-between gap-6 rounded-[24px] border border-slate-200 bg-[#f8fbfb] p-6 outline-none transition hover:border-brand-300 hover:bg-white focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
+                >
+                  <span>
+                    <span className="block text-[18px] font-semibold text-slate-950">{SOLUTION_NAMES[solution]}</span>
+                    <span className="mt-1 block text-[15px] text-slate-600">{SOLUTION_TAGLINES[solution]}</span>
+                  </span>
+                  <ArrowRight className="h-5 w-5 shrink-0 text-brand-700 transition group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+                </Link>
+              </ScrollReveal>
+            ))}
+          </div>
+          <Link to={PRODUCTS_PATH} className={`mt-8 ${TEXT_LINK}`}>
+            Ver detalhes e preços
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
+      </section>
 
-      <SiteFooter
-        tone="light"
-        onOpenTermos={() => setModalAberto('termos')}
-        onOpenPrivacidade={() => setModalAberto('privacidade')}
-      />
+      <section className={SITE_SECTION}>
+        <div className={SITE_CONTAINER}>
+          <ScrollReveal>
+            <p className={SECTION_LABEL}>Como trabalhamos</p>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Simples de começar, justo no preço.</h2>
+          </ScrollReveal>
+          <div className="mt-10 grid gap-5 md:grid-cols-3">
+            {HOW_WE_WORK.map(({ icon: Icon, title, description }, index) => (
+              <ScrollReveal key={title} delay={index * 0.06}>
+                <div className="h-full rounded-[24px] border border-slate-200 bg-white p-6">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e6f6f8] text-brand-700">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-5 text-[19px] font-semibold text-slate-950">{title}</h3>
+                  <p className="mt-2 text-[15px] leading-[1.7] text-slate-600">{description}</p>
+                </div>
+              </ScrollReveal>
+            ))}
+          </div>
+          <Link to="/sobre/" className={`mt-8 ${SECONDARY_BUTTON}`}>
+            Quem somos
+          </Link>
+        </div>
+      </section>
 
-      <LoginModal isOpen={loginOpen} onClose={closeLogin} notice={notice} initialMode={loginMode} tone="light" />
+      <ReviewsSection />
 
-      <TermosModal open={modalAberto !== null} tipo={modalAberto ?? 'termos'} onClose={() => setModalAberto(null)} />
-
-      {!loginOpen && modalAberto === null && <CookieBanner />}
-    </div>
+      <CallToAction title="Pronto para decidir com mais clareza?" text={`Escolha a solução certa e teste grátis por ${FREE_TRIAL_DAYS} dias.`}>
+        <Link to={PRODUCTS_PATH} className={ON_DARK_BUTTON}>
+          Conheça nossas soluções
+        </Link>
+        <Link to="/contato/" className={ON_DARK_SECONDARY_BUTTON}>
+          Fale com a gente
+        </Link>
+      </CallToAction>
+    </>
   );
 }

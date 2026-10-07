@@ -6,7 +6,6 @@ export const tendersQueryKeys = {
   all: ['tenders'] as const,
   access: ['tenders', 'access'] as const,
   unreadNotificationsCount: ['tenders', 'notifications', 'count'] as const,
-  planStatus: ['tenders', 'plan-status'] as const,
   notices: ['tenders', 'notices'] as const,
   noticeSearch: (apiQuery: string) => ['tenders', 'notices', 'search', apiQuery] as const,
   notice: (id: number) => ['tenders', 'notices', 'detail', id] as const,
@@ -21,6 +20,11 @@ export const tendersQueryKeys = {
   notifications: ['tenders', 'notifications'] as const,
   notificationList: (apiQuery: string) => ['tenders', 'notifications', 'list', apiQuery] as const,
   team: ['tenders', 'team'] as const,
+  /** Prefixo das assinaturas: mudar usuários ou pagar invalida todas. */
+  billingAll: ['tenders', 'billing'] as const,
+  /** Assinatura de uma conta (fora da trava: vale também para a conta vencida). */
+  billing: (accountId: number) => ['tenders', 'billing', accountId] as const,
+  activation: ['tenders', 'activation'] as const,
   collectionStatus: ['tenders', 'collection', 'status'] as const,
   collectionRuns: (page: number, perPage: number) => ['tenders', 'collection', 'runs', page, perPage] as const,
   // Tela "Contas habilitadas" (admin da plataforma).

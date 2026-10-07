@@ -57,7 +57,7 @@ function Divider() {
   );
 }
 
-/** `context="tenders"`: login do módulo de Licitações, com título próprio e sem cadastro aberto. */
+/** `context="tenders"`: login do módulo de Licitações, com título próprio; o cadastro já nasce com o teste do módulo. */
 export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { initialMode?: Mode; tone?: 'dark' | 'light'; context?: 'tenders' }) {
   const isTendersLogin = context === 'tenders';
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -133,6 +133,8 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const documento = fd.get('documento') as string;
     if (isRegisterCnpj && !isValidCnpj(documento)) { setError('CNPJ inválido'); return; }
     setError(''); setLoading(true);
+    // Pelo login de Licitações, a conta já nasce com o teste do módulo.
+    const modulo = isTendersLogin ? 'licitacoes' : undefined;
     try {
       // Com CNPJ, o login é a própria empresa: só os dados dela, e-mail e senha.
       const { token, usuario } = isRegisterCnpj
@@ -144,6 +146,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
           dataAbertura: (fd.get('data_abertura') as string) || undefined,
           email: fd.get('email') as string,
           senha: fd.get('senha') as string,
+          modulo,
         })
         : await register({
           nome: fd.get('nome') as string,
@@ -153,6 +156,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
           senha: fd.get('senha') as string,
           telefone: (fd.get('telefone') as string) || undefined,
           dataNascimento: (fd.get('data_nascimento') as string) || undefined,
+          modulo,
         });
       saveSession(token, usuario);
     } catch (err) {
@@ -251,7 +255,10 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
       <p className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-site-accent">Acesso</p>
 
       {mode === 'login'    && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">{isTendersLogin ? 'Entrar em Licitações' : 'Entrar no painel'}</h2>}
-      {mode === 'register' && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Criar conta</h2>}
+      {mode === 'register' && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">{isTendersLogin ? 'Criar conta em Licitações' : 'Criar conta'}</h2>}
+      {mode === 'register' && isTendersLogin && (
+        <p className="mt-1 text-sm text-slate-500 dark:text-site-textSub">15 dias grátis, sem cartão de crédito.</p>
+      )}
       {mode === 'forgot'   && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Recuperar senha</h2>}
       {mode === 'verify'   && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Verificar código</h2>}
       {mode === 'reset'    && <h2 className="mt-1 text-2xl font-bold text-slate-950 dark:text-site-text">Nova senha</h2>}
@@ -282,11 +289,9 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
             <div className="flex items-center justify-between">
-              {!isTendersLogin && (
-                <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
-                  Criar nova conta
-                </button>
-              )}
+              <button type="button" onClick={() => { setMode('register'); setError(''); }} className={`${textButtonClass} text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
+                Criar nova conta
+              </button>
               <button type="button" onClick={() => { setMode('forgot'); setError(''); }} className={`${textButtonClass} ml-auto text-sm text-slate-500 hover:text-brand-600 dark:text-site-textMuted dark:hover:text-site-accent transition-colors`}>
                 Esqueci minha senha
               </button>

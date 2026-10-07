@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../services/apiClient';
 import { fetchPlanStatus } from '../../services/planosService';
@@ -6,37 +6,26 @@ import { queryKeys } from '../../services/queryKeys';
 import { activePlanLabel, PLAN_TIER, planTierOf, type PlanTier } from '../../utils/planFeatures';
 import { Card } from '../../ui/card';
 import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
+import { C, cardStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
 import {
-  CheckCircle2, Crown, Loader2, Copy, Check, QrCode,
-  CreditCard, ExternalLink, AlertTriangle, RefreshCw,
-  Shield, RotateCcw, XCircle,
+  CheckCircle2, Crown, Loader2, CreditCard, AlertTriangle, RefreshCw, XCircle,
 } from 'lucide-react';
 import { ErrorState } from '../../ui/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { createMercadoPago, type MercadoPagoInstance } from '../../utils/mercadoPagoSdk';
-
-// ─── types ───────────────────────────────────────────────────
-
-interface PixData { payment_id: number; qr_code: string; qr_code_base64: string }
-interface AssinarData { payment_url: string }
-
-interface CardFormData {
-  number: string; name: string; expiry: string; cvv: string; cpf: string;
-}
+import { PaymentDialog } from '../../components/payments/PaymentDialog';
+import { loadPlatformMercadoPago, type PaymentEndpoints } from '../../components/payments/paymentRequests';
 
 // ─── planos config ────────────────────────────────────────────
 
 // Starter e Premium, só mensais (.plans/planos-starter-premium.md, regras 3 e 4).
 const PLANO_DEF: Record<PlanTier, {
-  nome: string; destaque: boolean; precoNum: number; label: string; periodo: string; recursos: string[];
+  nome: string; destaque: boolean; label: string; periodo: string; recursos: string[];
 }> = {
   [PLAN_TIER.starter]: {
     nome: 'Starter',
     destaque: false,
-    precoNum: 4.99,
     label: 'R$ 4,99/mês',
     periodo: 'Cobrado mensalmente',
     recursos: [
@@ -50,7 +39,6 @@ const PLANO_DEF: Record<PlanTier, {
   [PLAN_TIER.premium]: {
     nome: 'Premium',
     destaque: true,
-    precoNum: 9.99,
     label: 'R$ 9,99/mês',
     periodo: 'Cobrado mensalmente',
     recursos: [
@@ -64,414 +52,30 @@ const PLANO_DEF: Record<PlanTier, {
   },
 };
 
-interface SelectedPlan {
-  key: PlanTier;
-  precoNum: number;
-  label: string;
-  nome: string;
-}
+const PLAN_PAYMENT_ENDPOINTS: PaymentEndpoints = {
+  pix: '/planos/pix',
+  card: '/planos/pay-card',
+  checkout: '/planos/subscribe',
+  recurring: '/planos/subscribe-recurring',
+};
 
-// ─── helpers ─────────────────────────────────────────────────
-
-function maskCard(v: string) {
-  return v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
-}
-function maskExpiry(v: string) {
-  const n = v.replace(/\D/g, '').slice(0, 4);
-  return n.length > 2 ? `${n.slice(0, 2)}/${n.slice(2)}` : n;
-}
-function maskCpf(v: string) {
-  const n = v.replace(/\D/g, '').slice(0, 11);
-  if (n.length <= 3) return n;
-  if (n.length <= 6) return `${n.slice(0, 3)}.${n.slice(3)}`;
-  if (n.length <= 9) return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6)}`;
-  return `${n.slice(0, 3)}.${n.slice(3, 6)}.${n.slice(6, 9)}-${n.slice(9)}`;
-}
-
-// ─── MP SDK loader ────────────────────────────────────────────
-
-let mpInitPromise: Promise<MercadoPagoInstance | null> | null = null;
-
-function loadMpSdk(): Promise<MercadoPagoInstance | null> {
-  if (mpInitPromise) return mpInitPromise;
-  mpInitPromise = (async () => {
-    try {
-      const config = await apiRequest<any>('/planos/config');
-      const pubKey = config.public_key ?? config.data?.public_key ?? null;
-      if (!pubKey) return null; // sem chave — não bloqueia a UI
-      return await createMercadoPago(pubKey);
-    } catch (e) {
-      console.warn('[MP SDK] Falha ao carregar:', e);
-      return null; // graceful degradation
-    }
-  })();
-  return mpInitPromise;
-}
-
-// ─── PIX panel ───────────────────────────────────────────────
-
-function PixPanel({ tipo, onSuccess }: { tipo: PlanTier; onSuccess: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  const pixMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest<any>('/planos/pix', { method: 'POST', body: JSON.stringify({ tipo }) });
-      return (r.data ?? r) as PixData;
-    },
-  });
-
-  const handleCopy = () => {
-    if (!pixMut.data?.qr_code) return;
-    navigator.clipboard.writeText(pixMut.data.qr_code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  if (!pixMut.data && !pixMut.isPending && !pixMut.error) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted, textAlign: 'center' }}>
-          Pague com PIX em qualquer app bancário. Confirmação automática em até 1 minuto.
-        </p>
-        <button
-          type="button"
-          onClick={() => pixMut.mutate()}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none', background: C.primary, color: '#fff', cursor: 'pointer' }}
-        >
-          <QrCode size={16} /> Gerar QR Code PIX
-        </button>
-      </div>
-    );
-  }
-
-  if (pixMut.isPending) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '24px 0' }}>
-        <Loader2 size={32} className="animate-spin" style={{ color: C.primary }} />
-        <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted }}>Gerando QR Code...</p>
-      </div>
-    );
-  }
-
-  if (pixMut.error) {
-    return (
-      <div style={{ borderRadius: 12, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '12px 14px', fontSize: 13, color: C.danger }}>
-        {pixMut.error instanceof Error ? pixMut.error.message : 'Erro ao gerar PIX.'}
-        <button onClick={() => pixMut.reset()} style={{ marginLeft: 8, textDecoration: 'underline', color: C.danger, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>Tentar novamente</button>
-      </div>
-    );
-  }
-
-  const d = pixMut.data!;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {d.qr_code_base64 && (
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <img src={`data:image/png;base64,${d.qr_code_base64}`} alt="QR Code PIX"
-            style={{ height: 192, width: 192, borderRadius: 12, border: `1px solid ${C.border}`, padding: 8 }} />
-        </div>
-      )}
-      <div style={{ borderRadius: 12, border: `1px solid ${C.border}`, background: C.cardBg, padding: '10px 12px' }}>
-        <p style={{ margin: '0 0 4px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.textFaint }}>Copia e cola</p>
-        <p style={{ margin: 0, fontSize: 11, fontFamily: 'monospace', color: C.text, lineHeight: 1.5, wordBreak: 'break-all' }}>{d.qr_code.slice(0, 80)}…</p>
-      </div>
-      <button
-        type="button"
-        onClick={handleCopy}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: `1px solid ${C.borderInput}`, background: '#fff', color: C.textSoft, cursor: 'pointer' }}
-      >
-        {copied ? <><Check size={15} /> Copiado!</> : <><Copy size={15} /> Copiar código</>}
-      </button>
-      <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: C.textMuted }}>Seu plano é ativado automaticamente após o pagamento.</p>
-      <button onClick={onSuccess} style={{ textAlign: 'center', fontSize: 13, color: C.primary, background: 'none', border: 'none', cursor: 'pointer' }}>
-        Já paguei — verificar status
-      </button>
-    </div>
-  );
-}
-
-// ─── card form ────────────────────────────────────────────────
-
-function CardPaymentForm({
-  tipo, mode, onSuccess, onError,
-}: {
-  tipo: PlanTier; mode: 'one-time' | 'recurring';
-  onSuccess: () => void; onError: (msg: string) => void;
-}) {
-  const [form, setForm] = useState<CardFormData>({
-    number: '', name: '', expiry: '', cvv: '', cpf: '',
-  });
-  const [loading, setLoading] = useState(false);
-  const mpRef = useRef<any>(null);
-
-  useEffect(() => { loadMpSdk().then((mp) => { mpRef.current = mp; }); }, []);
-
-  const set = (field: keyof CardFormData, val: string | number) =>
-    setForm((f) => ({ ...f, [field]: val }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (!mpRef.current) {
-        throw new Error('SDK de pagamento não disponível. Recarregue a página e tente novamente.');
-      }
-
-      const [month, year] = form.expiry.split('/').map((s) => s.trim());
-      const tokenResult = await mpRef.current.createCardToken({
-        cardNumber: form.number.replace(/\D/g, ''),
-        cardholderName: form.name.trim(),
-        cardExpirationMonth: month,
-        cardExpirationYear: year.length === 2 ? `20${year}` : year,
-        securityCode: form.cvv.trim(),
-        ...(form.cpf ? { identificationType: 'CPF', identificationNumber: form.cpf.replace(/\D/g, '') } : {}),
-      });
-
-      if (!tokenResult?.id) throw new Error('Falha ao tokenizar cartão. Verifique os dados.');
-
-      if (mode === 'one-time') {
-        const r = await apiRequest<any>('/planos/pay-card', {
-          method: 'POST',
-          body: JSON.stringify({ tipo, card_token: tokenResult.id, cpf: form.cpf }),
-        });
-        const data = r.success !== undefined ? r : r.data ?? r;
-        if (data.success === false) throw new Error(data.message || 'Pagamento recusado.');
-      } else {
-        const r = await apiRequest<any>('/planos/subscribe-recurring', {
-          method: 'POST',
-          body: JSON.stringify({ tipo, card_token: tokenResult.id }),
-        });
-        const data = r.success !== undefined ? r : r.data ?? r;
-        if (data.success === false) throw new Error(data.message || 'Falha ao criar assinatura.');
-      }
-
-      onSuccess();
-    } catch (err) {
-      onError(err instanceof Error ? err.message : 'Erro desconhecido. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <label style={labelStyle}>NÚMERO DO CARTÃO</label>
-        <input
-          required maxLength={19} placeholder="0000 0000 0000 0000"
-          style={fieldInputStyle}
-          value={form.number}
-          onChange={(e) => set('number', maskCard(e.target.value))}
-        />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <label style={labelStyle}>NOME NO CARTÃO</label>
-        <input
-          required placeholder="Como aparece no cartão"
-          style={{ ...fieldInputStyle, textTransform: 'uppercase' }}
-          value={form.name}
-          onChange={(e) => set('name', e.target.value.toUpperCase())}
-        />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <label style={labelStyle}>VALIDADE</label>
-          <input
-            required placeholder="MM/AA" maxLength={5}
-            style={fieldInputStyle}
-            value={form.expiry}
-            onChange={(e) => set('expiry', maskExpiry(e.target.value))}
-          />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <label style={labelStyle}>CVV</label>
-          <input
-            required type="password" placeholder="•••" maxLength={4}
-            style={fieldInputStyle}
-            value={form.cvv}
-            onChange={(e) => set('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
-          />
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        <label style={labelStyle}>CPF DO TITULAR <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0, color: C.textMuted }}>(recomendado)</span></label>
-        <input
-          placeholder="000.000.000-00" maxLength={14}
-          style={fieldInputStyle}
-          value={form.cpf}
-          onChange={(e) => set('cpf', maskCpf(e.target.value))}
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4,
-          padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none',
-          background: C.primary, color: '#fff',
-          cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
-        }}
-      >
-        {loading
-          ? <><Loader2 size={15} className="animate-spin" /> Processando...</>
-          : mode === 'one-time'
-            ? <><CreditCard size={15} /> Pagar agora</>
-            : <><RotateCcw size={15} /> Assinar com débito automático</>
-        }
-      </button>
-
-      <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, textAlign: 'center', fontSize: 11, color: C.textMuted }}>
-        <Shield size={11} /> Pagamento seguro via Mercado Pago
-      </p>
-    </form>
-  );
-}
-
-// ─── checkout redirect panel ──────────────────────────────────
-
-function CheckoutRedirectPanel({ tipo, onError }: { tipo: PlanTier; onError: (msg: string) => void }) {
-  const [formaPag, setFormaPag] = useState<'cartao' | 'debito'>('cartao');
-
-  const checkoutMut = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest<any>('/planos/subscribe', {
-        method: 'POST',
-        body: JSON.stringify({ tipo, forma_pagamento: formaPag }),
-      });
-      return (r.data ?? r) as AssinarData;
-    },
-    onSuccess: (data) => {
-      if (data?.payment_url) window.open(data.payment_url, '_blank', 'noopener');
-      else onError('Link de pagamento não retornado. Tente novamente.');
-    },
-    onError: (err) => onError(err instanceof Error ? err.message : 'Erro ao gerar link.'),
-  });
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <p style={{ margin: 0, fontSize: 13.5, color: C.textMuted, textAlign: 'center' }}>
-        Você será redirecionado para o checkout seguro do Mercado Pago.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {(['cartao', 'debito'] as const).map((f) => (
-          <div key={f} onClick={() => setFormaPag(f)} style={{ ...chipStyle(formaPag === f, { h: 62, r: 12 }), flexDirection: 'column', gap: 4 }}>
-            <CreditCard size={16} />
-            {f === 'cartao' ? 'Crédito' : 'Débito'}
-          </div>
-        ))}
-      </div>
-      <button
-        type="button"
-        disabled={checkoutMut.isPending}
-        onClick={() => checkoutMut.mutate()}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', height: 30, borderRadius: 999, fontSize: 12.5, fontWeight: 600, border: 'none', background: C.primary, color: '#fff', cursor: checkoutMut.isPending ? 'not-allowed' : 'pointer', opacity: checkoutMut.isPending ? 0.6 : 1 }}
-      >
-        {checkoutMut.isPending
-          ? <><Loader2 size={16} className="animate-spin" /> Gerando link...</>
-          : <><ExternalLink size={16} /> Ir para o checkout</>}
-      </button>
-      <p style={{ margin: 0, textAlign: 'center', fontSize: 12, color: C.textMuted }}>Abre em nova aba. Retorna automaticamente após o pagamento.</p>
-    </div>
-  );
-}
-
-// ─── payment dialog ───────────────────────────────────────────
-
-type PayTab = 'pix' | 'cartao' | 'recorrente';
-
-function PagamentoDialog({ plano, onClose, onSuccess }: {
-  plano: SelectedPlan; onClose: () => void; onSuccess: () => void;
-}) {
-  const [tab, setTab] = useState<PayTab>('pix');
-  const [erro, setErro] = useState('');
+/** Guia de primeiro acesso das formas de pagamento (só no FINGERENCE, que tem o provedor do guia). */
+function PaymentTabsGuide() {
   const tabsGuide = useFirstAccessGuide('planos:formas-pagamento-v1');
-
-  const handleSuccess = () => { onClose(); onSuccess(); };
-
-  const TABS: { id: PayTab; label: string }[] = [
-    { id: 'pix', label: 'PIX' },
-    { id: 'cartao', label: 'Cartão' },
-    { id: 'recorrente', label: 'Recorrente' },
-  ];
+  if (!tabsGuide.isVisible) {
+    return null;
+  }
 
   return (
-    <Dialog open title={`Assinar ${plano.nome}`} onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {/* Resumo */}
-        <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: C.primarySoft, border: `1px solid ${C.primarySoftBorder}` }}>
-          <div>
-            <p style={{ margin: 0, fontWeight: 700, color: C.primaryDark }}>{plano.nome}</p>
-            <p style={{ margin: 0, fontSize: 12, color: C.primary }}>Cobrado mensalmente</p>
-          </div>
-          <p style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.primaryDark }}>{plano.label}</p>
-        </div>
-
-        {erro && (
-          <div style={{ ...cardStyle, display: 'flex', alignItems: 'flex-start', gap: 8, background: C.dangerBg, border: `1px solid ${C.dangerBorder}` }}>
-            <AlertTriangle size={15} style={{ marginTop: 2, flexShrink: 0, color: C.danger }} />
-            <span style={{ fontSize: 13, color: C.danger }}>{erro}</span>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div style={{ ...cardStyle, position: 'relative' }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {TABS.map(({ id, label }) => (
-              <div key={id} onClick={() => { setTab(id); setErro(''); }} style={{ ...chipStyle(tab === id, { h: 38 }), flex: 1 }}>
-                {label}
-              </div>
-            ))}
-          </div>
-          {tabsGuide.isVisible && (
-            <FirstAccessGuideCard
-              floating
-              placement="bottom"
-              className="w-[min(24rem,calc(100vw-2rem))]"
-              icon={CreditCard}
-              description={firstAccessGuideMessages.planosFormasPagamento}
-              onDismiss={tabsGuide.dismiss}
-              onSilenceAll={tabsGuide.silenceAll}
-            />
-          )}
-        </div>
-
-        {/* Tab content */}
-        <div style={{ margin: '0 26px 10px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {tab === 'pix' && <PixPanel tipo={plano.key} onSuccess={handleSuccess} />}
-          {tab === 'cartao' && (
-            <>
-              <p style={{ margin: 0, fontSize: 11, color: C.textMuted, textAlign: 'center' }}>Pagamento único — seu plano é renovado manualmente.</p>
-              <CardPaymentForm
-                tipo={plano.key} mode="one-time"
-                onSuccess={handleSuccess} onError={setErro}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, borderTop: `1px solid ${C.border}` }} />
-                <span style={{ fontSize: 10, color: C.textMuted }}>ou</span>
-                <div style={{ flex: 1, borderTop: `1px solid ${C.border}` }} />
-              </div>
-              <CheckoutRedirectPanel tipo={plano.key} onError={setErro} />
-            </>
-          )}
-          {tab === 'recorrente' && (
-            <>
-              <div style={{ borderRadius: 12, border: `1px solid ${C.successBorder}`, background: C.successBg, padding: '12px 14px' }}>
-                <p style={{ margin: '0 0 2px', fontSize: 13.5, fontWeight: 600, color: C.success }}>Débito automático mensal</p>
-                <p style={{ margin: 0, fontSize: 12, color: C.success }}>Seu cartão é cobrado automaticamente a cada período. Cancele a qualquer momento.</p>
-              </div>
-              <CardPaymentForm
-                tipo={plano.key} mode="recurring"
-                onSuccess={handleSuccess} onError={setErro}
-              />
-            </>
-          )}
-        </div>
-      </div>
-    </Dialog>
+    <FirstAccessGuideCard
+      floating
+      placement="bottom"
+      className="w-[min(24rem,calc(100vw-2rem))]"
+      icon={CreditCard}
+      description={firstAccessGuideMessages.planosFormasPagamento}
+      onDismiss={tabsGuide.dismiss}
+      onSilenceAll={tabsGuide.silenceAll}
+    />
   );
 }
 
@@ -549,7 +153,7 @@ function CancelarDialog({ onClose, onCanceled }: { onClose: () => void; onCancel
 
 export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient();
-  const [pagDialog, setPagDialog] = useState<SelectedPlan | null>(null);
+  const [pagPlan, setPagPlan] = useState<PlanTier | null>(null);
   const [cancelDialog, setCancelDialog] = useState(false);
 
   const statusQ = useQuery({
@@ -558,14 +162,9 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
   });
 
   // preload SDK silently
-  useEffect(() => { loadMpSdk(); }, []);
+  useEffect(() => { loadPlatformMercadoPago(); }, []);
 
   const s = statusQ.data;
-
-  const openDialog = (key: PlanTier) => {
-    const def = PLANO_DEF[key];
-    setPagDialog({ key, precoNum: def.precoNum, label: def.label, nome: def.nome });
-  };
 
   // Plano atual: só o pago e ativo (plano vencido pode ser assinado de novo).
   const isAtual = (key: PlanTier) =>
@@ -653,7 +252,7 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
               </ul>
               <button
                 type="button"
-                onClick={() => { if (!atual) openDialog(key); }}
+                onClick={() => { if (!atual) setPagPlan(key); }}
                 className={[
                   'mt-auto h-8 w-full rounded-full text-[12.5px] font-semibold transition',
                   atual
@@ -689,12 +288,15 @@ export function PlanosScreen({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-      {pagDialog && (
-        <PagamentoDialog
-          plano={pagDialog}
-          onClose={() => setPagDialog(null)}
+      {pagPlan && (
+        <PaymentDialog
+          summary={{ name: PLANO_DEF[pagPlan].nome, priceLabel: PLANO_DEF[pagPlan].label }}
+          endpoints={PLAN_PAYMENT_ENDPOINTS}
+          requestBody={{ tipo: pagPlan }}
+          tabsHint={<PaymentTabsGuide />}
+          onClose={() => setPagPlan(null)}
           onSuccess={() => {
-            setPagDialog(null);
+            setPagPlan(null);
             qc.invalidateQueries({ queryKey: queryKeys.planStatus });
           }}
         />

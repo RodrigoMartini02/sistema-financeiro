@@ -151,8 +151,10 @@ app.use('/api/catalogo', catalogoRoutes);
 app.use('/api/clients', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('clients'), clientRoutes);
 app.use('/api/contracts', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('contracts'), contractRoutes);
 app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('services'), serviceCatalogRoutes);
-// Licitações: trava própria (conta habilitada + acesso por pessoa, dentro do roteador), sem requireActivePlan.
+// Licitações: assinatura e trava próprias (dentro do roteador), sem requireActivePlan.
+// O aviso do Mercado Pago sobre a assinatura do módulo é público e vem antes das rotas com login.
 const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool));
+app.post('/api/tenders/billing/webhook', tendersApi.billingWebhook);
 app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);
 app.use('/api/tenders', authenticate, tendersApi.routes);
 

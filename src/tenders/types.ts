@@ -248,6 +248,9 @@ export interface DomainLists {
   municipalities: Municipality[];
 }
 
+/** Situação da conta no módulo (cortesia ou assinatura); só "vencida" e "desligada" ficam sem acesso. */
+export type SubscriptionSituation = 'cortesia' | 'teste' | 'paga' | 'recorrente' | 'vencida' | 'desligada';
+
 /** Conta na tela "Contas habilitadas" (GET /api/tenders/admin/accounts, só admin da plataforma). */
 export interface AdminTenderAccount {
   accountId: number;
@@ -255,17 +258,61 @@ export interface AdminTenderAccount {
   accountType: 'pessoal' | 'empresa';
   ownerName: string;
   ownerEmail: string;
-  enabled: boolean;
-  /** Última mudança da habilitação; null se a conta nunca foi habilitada. */
+  /** Usa o módulo sem cobrança e sem limite de usuários. */
+  courtesy: boolean;
+  /** Situação no módulo; null para conta que nunca teve o módulo. */
+  situation: SubscriptionSituation | null;
+  trialUntil: string | null;
+  paidUntil: string | null;
+  /** Última mudança no módulo; null se a conta nunca teve o módulo. */
   changedAt: string | null;
 }
 
 /** Resposta de PUT /api/tenders/admin/accounts/:accountId. */
-export interface AccountEnabledChange {
+export interface CourtesyChange {
   accountId: number;
   accountName: string;
-  active: boolean;
+  courtesy: boolean;
   changedAt: string | null;
+}
+
+/** Assinatura da conta no módulo (GET /access e GET /billing). */
+export interface TenderSubscription {
+  accessType: 'cortesia' | 'assinatura';
+  situation: SubscriptionSituation;
+  trialUntil: string | null;
+  paidUntil: string | null;
+  recurring: boolean;
+  /** O titular e quem tem acesso ao módulo. */
+  usersCount: number;
+  monthlyAmountCents: number;
+}
+
+/** Preço do módulo, vindo do servidor. */
+export interface TenderPrice {
+  baseCents: number;
+  /** A base cobre o titular e mais (includedUsers - 1). */
+  includedUsers: number;
+  extraUserCents: number;
+}
+
+/** Resposta de GET /api/tenders/billing. */
+export interface TenderBilling {
+  account: { id: number; name: string; type: 'pessoal' | 'empresa' };
+  subscription: TenderSubscription;
+  price: TenderPrice;
+}
+
+/** Resposta de GET /api/tenders/activation: contas do titular que ainda não têm o módulo. */
+export interface TenderActivation {
+  canActivate: boolean;
+  accounts: Array<{ id: number; name: string; type: 'pessoal' | 'empresa' }>;
+}
+
+/** `data` do 402 (assinatura vencida). */
+export interface ExpiredSubscriptionInfo {
+  role: 'TITULAR' | 'COLABORADOR';
+  account: { id: number; name: string; type: 'pessoal' | 'empresa' };
 }
 
 export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
@@ -335,4 +382,19 @@ export interface TeamMember {
   email: string;
   hasAccess: boolean;
   grantedAt: string | null;
+}
+
+/** Resposta de POST /team e PUT /team/:userId: o usuário e o aviso, se o valor do recorrente não mudou. */
+export interface TeamChange {
+  member: TeamMember;
+  warning: string | null;
+}
+
+/** Corpo de POST /api/tenders/team (mesmos campos do cadastro de membro do FINGERENCE). */
+export interface NewTeamUser {
+  nome: string;
+  sobrenome?: string;
+  email: string;
+  senha: string;
+  documento?: string;
 }

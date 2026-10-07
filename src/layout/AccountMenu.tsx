@@ -4,6 +4,7 @@ import type { AuthUser } from '../types/auth';
 import type { Conta } from '../types/config';
 import { logout } from '../services/session';
 import { useActiveAccount } from '../hooks/useActiveAccount';
+import { FINANCE_LOGIN_ADDRESS } from '../utils/authOrigin';
 import { companyDisplayName } from '../utils/companyAccount';
 import { formatDocumento } from '../utils/document';
 import { Z_DROPDOWN } from '../ui/zIndex';
@@ -88,7 +89,7 @@ export function AccountMenu({ user, isDemoMode = false, onOpenConfig }: AccountM
   const handleLogout = () => {
     setLoggingOut(true);
     logout();
-    window.location.replace('/index.html');
+    window.location.replace(FINANCE_LOGIN_ADDRESS);
   };
 
   const handleOpenConfig = () => {

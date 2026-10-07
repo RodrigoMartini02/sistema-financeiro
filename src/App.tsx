@@ -1,20 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
+import { AboutPage } from './screens/public/AboutPage';
+import { ContactPage } from './screens/public/ContactPage';
+import { FinancePage } from './screens/public/FinancePage';
 import { HomePage } from './screens/public/HomePage';
+import { LegalPage } from './screens/public/LegalPage';
+import { ProductsPage } from './screens/public/ProductsPage';
+import { TendersPage } from './screens/public/TendersPage';
 import { StorefrontPage } from './screens/public/storefront/StorefrontPage';
 import { StorefrontCartPage } from './screens/public/storefront/StorefrontCartPage';
 import { StorefrontCheckoutPage } from './screens/public/storefront/StorefrontCheckoutPage';
 import { StorefrontOrderPage } from './screens/public/storefront/StorefrontOrderPage';
-import { FuncionalidadesPage } from './screens/public/FuncionalidadesPage';
-import { SobrePage } from './screens/public/SobrePage';
-import { PlanosPage } from './screens/public/PlanosPage';
-import { ContatoPage } from './screens/public/ContatoPage';
-import { LegalPage } from './screens/public/LegalPage';
+import { PublicLayout } from './screens/public/components/PublicLayout';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
@@ -43,6 +45,7 @@ import { useOwnPermissions } from './hooks/useOwnPermissions';
 import { EmptyState } from './ui/EmptyState';
 import { resolveSection, visibleSections, type AccountType } from './utils/screenAccess';
 import { hasPremiumFeatures, planGateReason } from './utils/planFeatures';
+import { FINANCE_LOGIN_ADDRESS } from './utils/authOrigin';
 
 /** Vitrine de uma loja (link novo ou antigo) e as páginas dela: são da empresa, não do FINGERENCE. */
 function isStorefrontPath(pathname: string): boolean {
@@ -75,21 +78,29 @@ function PublicSite() {
         <PublicSeo />
       </MarketingSiteOnly>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/index.html" element={<HomePage />} />
-        <Route path="/funcionalidades" element={<FuncionalidadesPage />} />
-        <Route path="/sobre" element={<SobrePage />} />
-        <Route path="/planos" element={<PlanosPage />} />
-        <Route path="/contato" element={<ContatoPage />} />
-        <Route path="/termos" element={<LegalPage type="termos" />} />
-        <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
+        {/* Site da empresa (plano .plans/site-novo.md), dentro da moldura comum. */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          {/* A volta do login com Google chega em /index.html. */}
+          <Route path="/index.html" element={<HomePage />} />
+          <Route path="/produtos" element={<ProductsPage />} />
+          <Route path="/produtos/financas" element={<FinancePage />} />
+          <Route path="/produtos/licitacoes" element={<TendersPage />} />
+          <Route path="/sobre" element={<AboutPage />} />
+          <Route path="/contato" element={<ContactPage />} />
+          <Route path="/termos" element={<LegalPage type="termos" />} />
+          <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
+          <Route path="*" element={<HomePage />} />
+        </Route>
+        {/* Endereços antigos do site; na hospedagem, o ideal é o 301. */}
+        <Route path="/funcionalidades/*" element={<Navigate to="/produtos/financas/" replace />} />
+        <Route path="/planos/*" element={<Navigate to="/produtos/" replace />} />
         <Route path="/loja/:storefront" element={<StorefrontPage />} />
         <Route path="/loja/:storefront/sacola" element={<StorefrontCartPage />} />
         <Route path="/loja/:storefront/checkout" element={<StorefrontCheckoutPage />} />
         <Route path="/loja/:storefront/pedido/:pedidoId" element={<StorefrontOrderPage />} />
         {/* Link antigo da vitrine, com o código: continua abrindo a mesma loja. */}
         <Route path="/catalogo/:storefront" element={<StorefrontPage />} />
-        <Route path="*" element={<HomePage />} />
       </Routes>
       <MarketingSiteOnly>
         <CookieBanner />
@@ -144,12 +155,12 @@ function AppContent() {
   const shownSection = ownPermissions ? resolveSection(section, visibleSections(ownPermissions, accountType)) : undefined;
 
   if (!isAppRoute) return <PublicSite />;
-  if (!session.hasToken) {
-    window.location.replace('/index.html');
+  // Sem sessão (ou com ela inválida), a entrada é a página de Finanças com o login aberto.
+  if (!session.hasToken || session.isError) {
+    window.location.replace(FINANCE_LOGIN_ADDRESS);
     return <LoadingState title="Redirecionando" description="Abrindo a entrada de acesso." />;
   }
   if (session.isLoading) return <LoadingState title="Carregando painel" description="Validando sua sessão." />;
-  if (session.isError) return <PublicSite />;
 
   if (planQuery.isLoading) {
     return <LoadingState title="Carregando plano" description="Verificando seu acesso ao sistema." />;

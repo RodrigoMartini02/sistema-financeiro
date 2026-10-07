@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { CONFIG_SCOPE_CLASS } from '../../ui/configTokens';
 import { Z_MOBILE_NAV_OVERLAY } from '../../ui/zIndex';
-import { useFinanceAccess } from '../hooks/useFinanceAccess';
 import type { TenderAccess } from '../hooks/useTenderAccess';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { readLoggedUserName } from '../utils/loggedUser';
@@ -18,7 +17,6 @@ export function TendersShell({ access }: { access: TenderAccess }) {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const unreadCount = useUnreadNotificationsCount(true);
-  const showFinanceLink = useFinanceAccess(true);
   const routes = menuRoutes(access.permissions);
   const title = routeForPath(location.pathname)?.title ?? NOT_FOUND_TITLE;
 
@@ -56,7 +54,6 @@ export function TendersShell({ access }: { access: TenderAccess }) {
           unreadCount={unreadCount.data ?? 0}
           userName={readLoggedUserName()}
           accountName={access.account.name}
-          showFinanceLink={showFinanceLink}
           onOpenMenu={() => setDrawerOpen(true)}
         />
         {/* Tokens de tela (claro e escuro) do `.config-scope`, os mesmos que o EmptyState usa. */}

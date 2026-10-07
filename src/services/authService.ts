@@ -26,6 +26,9 @@ export async function verifySession(): Promise<AuthUser> {
   return payload.usuario;
 }
 
+/** Módulo do cadastro: com Licitações, a conta já nasce com o teste do módulo. */
+export type RegisterModule = 'licitacoes';
+
 export interface RegisterInput {
   nome: string;
   sobrenome?: string;
@@ -34,6 +37,7 @@ export interface RegisterInput {
   senha: string;
   telefone?: string;
   dataNascimento?: string;
+  modulo?: RegisterModule;
 }
 
 /** Cadastro com CPF: a pessoa é o login. */
@@ -48,6 +52,7 @@ export async function register(input: RegisterInput): Promise<LoginPayload> {
       senha: input.senha,
       telefone: input.telefone || undefined,
       data_nascimento: input.dataNascimento || undefined,
+      modulo: input.modulo,
     }),
   }, PUBLIC_AUTH);
 }
@@ -60,6 +65,7 @@ export interface RegisterCompanyInput {
   dataAbertura?: string;
   email: string;
   senha: string;
+  modulo?: RegisterModule;
 }
 
 /** Cadastro com CNPJ: o login é a própria empresa (CNPJ, e-mail e senha), sem dados de pessoa. */
@@ -74,6 +80,7 @@ export async function registerCompany(input: RegisterCompanyInput): Promise<Logi
       data_abertura: input.dataAbertura || undefined,
       email: input.email,
       senha: input.senha,
+      modulo: input.modulo,
     }),
   }, PUBLIC_AUTH);
 }

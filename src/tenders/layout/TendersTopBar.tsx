@@ -14,7 +14,6 @@ interface TendersTopBarProps {
   unreadCount: number;
   userName: string;
   accountName: string;
-  showFinanceLink: boolean;
   onOpenMenu: () => void;
 }
 
@@ -26,7 +25,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
-export function TendersTopBar({ title, unreadCount, userName, accountName, showFinanceLink, onOpenMenu }: TendersTopBarProps) {
+export function TendersTopBar({ title, unreadCount, userName, accountName, onOpenMenu }: TendersTopBarProps) {
   const { theme, toggleTheme } = useAppContext();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -103,7 +102,7 @@ export function TendersTopBar({ title, unreadCount, userName, accountName, showF
 
         <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" aria-hidden="true" />
 
-        <TendersUserMenu userName={userName} accountName={accountName} showFinanceLink={showFinanceLink} />
+        <TendersUserMenu userName={userName} accountName={accountName} />
       </div>
     </header>
   );

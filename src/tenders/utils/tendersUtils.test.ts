@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NETWORK_ERROR_MESSAGE, tendersErrorFrom } from '../services/tendersApiError';
-import { resolveGateState } from './gateState';
+import { expiredInfoFrom, resolveGateState } from './gateState';
 import { loggedUserName } from './loggedUser';
 import { appAddressFor } from './modulePaths';
 import { NOT_FOUND_TITLE, canOpenSettings, menuRoutes, quickSearchPath, routeForPath } from './navigation';
@@ -29,14 +29,25 @@ test('entrada no módulo: cada situação de sessão e de /access', () => {
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 401 }), 'login');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 404 }), 'noModule');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 403 }), 'memberWithoutAccess');
+  assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 402 }), 'expired');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 500 }), 'error');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 0 }), 'error');
 });
 
+test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta vira null', () => {
+  const account = { id: 7, name: 'Pessoal', type: 'pessoal' };
+  assert.deepEqual(expiredInfoFrom({ role: 'TITULAR', account }), { role: 'TITULAR', account });
+  assert.deepEqual(expiredInfoFrom({ role: 'COLABORADOR', account, extra: 1 }), { role: 'COLABORADOR', account });
+  assert.equal(expiredInfoFrom(undefined), null);
+  assert.equal(expiredInfoFrom({ role: 'ADMIN', account }), null);
+  assert.equal(expiredInfoFrom({ role: 'TITULAR', account: { id: '7', name: 'Pessoal', type: 'pessoal' } }), null);
+  assert.equal(expiredInfoFrom({ role: 'TITULAR' }), null);
+});
+
 test('menu: Configurações só para quem administra o módulo', () => {
-  const titular = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false };
-  const admin = { manageTeam: false, viewCollectionRuns: true, manageEnabledAccounts: true };
-  const colaborador = { manageTeam: false, viewCollectionRuns: false, manageEnabledAccounts: false };
+  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const admin = { manageTeam: false, manageBilling: false, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const colaborador = { manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), [
     'inicio',
     'buscar',
@@ -52,8 +63,8 @@ test('menu: Configurações só para quem administra o módulo', () => {
 });
 
 test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', () => {
-  const titularAdmin = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: true };
-  const titular = { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const titularAdmin = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   assert.equal(menuRoutes(titularAdmin).at(-1)?.key, 'contas');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'contas'), false);
   assert.equal(routeForPath('/admin/contas')?.title, 'Contas habilitadas');

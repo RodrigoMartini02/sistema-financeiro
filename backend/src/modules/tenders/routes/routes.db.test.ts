@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import { after, describe, test } from 'node:test';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { eq } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
 import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, insertTestNotice, withRollback } from '../collector/dbTestSupport';
+import { tenderEnabledAccounts } from '../db/schema';
 import type { TenderAccount } from '../services/access';
 import { addAccountMember, uniqueToken } from '../services/apiTestSupport';
 import type { DashboardView } from '../services/dashboard';
@@ -11,7 +13,8 @@ import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
 import type { SavedSearchView } from '../services/savedSearches';
-import type { EnabledAccountView, TeamMemberView, TenderAccountAdminView } from '../services/team';
+import type { SubscriptionView } from '../services/subscription';
+import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
 import { createTendersRoutes } from './index';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 
@@ -34,7 +37,19 @@ interface ApiResponse<T> {
 interface AccessData {
   account: TenderAccount;
   role: string;
-  permissions: { manageTeam: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
+  permissions: { manageTeam: boolean; manageBilling: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
+  subscription: SubscriptionView | null;
+}
+
+interface TeamChange {
+  member: TeamMemberView;
+  warning: string | null;
+}
+
+interface BillingData {
+  account: TenderAccount;
+  subscription: SubscriptionView;
+  price: { baseCents: number; includedUsers: number; extraUserCents: number };
 }
 
 type SearchData = Paginated<NoticeListItem> & {
@@ -173,7 +188,10 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(access.status, 200);
         assert.equal(access.body.success, true);
         assert.equal(access.body.data.role, 'TITULAR');
-        assert.deepEqual(access.body.data.permissions, { manageTeam: true, viewCollectionRuns: true, manageEnabledAccounts: false });
+        assert.deepEqual(access.body.data.permissions, {
+          manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false,
+        });
+        assert.equal(access.body.data.subscription?.situation, 'cortesia');
 
         const search = await call<SearchData>('GET', `/api/tenders/notices?q=${encodeURIComponent(`${token} licitação`)}&state=MA`, { as });
         assert.equal(search.status, 200);
@@ -247,7 +265,9 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const as = { id: member, type: 'membro' as const };
         const access = await call<AccessData>('GET', '/api/tenders/access', { as });
         assert.equal(access.body.data.role, 'COLABORADOR');
-        assert.deepEqual(access.body.data.permissions, { manageTeam: false, viewCollectionRuns: false, manageEnabledAccounts: false });
+        assert.deepEqual(access.body.data.permissions, {
+          manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false,
+        });
         assert.equal((await call('GET', '/api/tenders/notices', { as })).status, 200);
         assert.equal((await call('GET', '/api/tenders/team', { as })).status, 403);
         assert.equal((await call('PUT', `/api/tenders/team/${member}`, { as, body: { hasAccess: true } })).status, 403);
@@ -257,7 +277,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
-  test('titular concede acesso pela equipe; admin habilita conta pela rota de admin', async () => {
+  test('titular concede acesso pela equipe; admin liga a cortesia pela rota de admin', async () => {
     await withRollback(async (tx) => {
       const admin = await createTestAccount(tx, 'http-admin');
       const client = await createTestAccount(tx, 'http-admin-cliente', { enabled: false });
@@ -272,23 +292,99 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal((await call('GET', '/api/tenders/admin/accounts', { as: titular })).status, 403);
         const listed = await call<TenderAccountAdminView[]>('GET', '/api/tenders/admin/accounts', { as: platformAdmin });
         assert.equal(listed.status, 200);
-        assert.equal(listed.body.data.find((row) => row.accountId === client.accountId)?.enabled, false);
+        assert.equal(listed.body.data.find((row) => row.accountId === client.accountId)?.courtesy, false);
 
-        assert.equal((await call('PUT', `/api/tenders/admin/accounts/${client.accountId}`, { as: titular, body: { active: true } })).status, 403);
+        assert.equal((await call('PUT', `/api/tenders/admin/accounts/${client.accountId}`, { as: titular, body: { courtesy: true } })).status, 403);
         assert.equal((await call('PUT', `/api/tenders/admin/accounts/${client.accountId}`, { as: platformAdmin, body: {} })).status, 400);
-        const enabled = await call<EnabledAccountView>('PUT', `/api/tenders/admin/accounts/${client.accountId}`, {
+        const courtesy = await call<CourtesyChangeView>('PUT', `/api/tenders/admin/accounts/${client.accountId}`, {
           as: platformAdmin,
-          body: { active: true },
+          body: { courtesy: true },
         });
-        assert.equal(enabled.status, 200);
-        assert.equal(enabled.body.data.active, true);
-        assert.equal((await call('PUT', '/api/tenders/admin/accounts/999999999', { as: platformAdmin, body: { active: true } })).status, 404);
+        assert.equal(courtesy.status, 200);
+        assert.equal(courtesy.body.data.courtesy, true);
+        assert.equal((await call('PUT', '/api/tenders/admin/accounts/999999999', { as: platformAdmin, body: { courtesy: true } })).status, 404);
 
         assert.equal((await call('GET', '/api/tenders/access', { as: titular })).status, 200);
         assert.equal((await call('GET', '/api/tenders/access', { as: { id: member, type: 'membro' } })).status, 403);
-        const granted = await call<TeamMemberView>('PUT', `/api/tenders/team/${member}`, { as: titular, body: { hasAccess: true } });
-        assert.equal(granted.body.data.hasAccess, true);
+        const granted = await call<TeamChange>('PUT', `/api/tenders/team/${member}`, { as: titular, body: { hasAccess: true } });
+        assert.equal(granted.body.data.member.hasAccess, true);
+        assert.equal(granted.body.data.warning, null);
         assert.equal((await call('GET', '/api/tenders/access', { as: { id: member, type: 'membro' } })).status, 200);
+      });
+    });
+  });
+
+  test('ativação e assinatura vencida: 402 para titular e colaborador; cobrança fica fora da trava', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-ativacao', { enabled: false });
+      const member = await addAccountMember(tx, account, 'http-ativacao-membro', { access: true });
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const asMember = { id: member, type: 'membro' as const };
+
+        const activatable = await call<{ canActivate: boolean; accounts: TenderAccount[] }>('GET', '/api/tenders/activation', { as: titular });
+        assert.deepEqual(
+          { canActivate: activatable.body.data.canActivate, ids: activatable.body.data.accounts.map((owned) => owned.id) },
+          { canActivate: true, ids: [account.accountId] },
+        );
+        assert.equal((await call<{ canActivate: boolean }>('GET', '/api/tenders/activation', { as: asMember })).body.data.canActivate, false);
+        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: {} })).status, 400);
+        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: { accountId: account.accountId } })).status, 201);
+        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: { accountId: account.accountId } })).status, 409);
+
+        const access = await call<AccessData>('GET', '/api/tenders/access', { as: titular });
+        assert.equal(access.body.data.subscription?.situation, 'teste');
+
+        await tx
+          .update(tenderEnabledAccounts)
+          .set({ trialUntil: new Date(Date.now() - 60_000).toISOString() })
+          .where(eq(tenderEnabledAccounts.accountId, account.accountId));
+
+        const expiredTitular = await call<{ role: string; account: TenderAccount }>('GET', '/api/tenders/access', { as: titular });
+        assert.equal(expiredTitular.status, 402);
+        assert.equal((expiredTitular.body as unknown as { code: string }).code, 'TENDERS_SUBSCRIPTION_EXPIRED');
+        assert.equal(expiredTitular.body.data.role, 'TITULAR');
+        assert.equal(expiredTitular.body.data.account.id, account.accountId);
+        const expiredMember = await call<{ role: string }>('GET', '/api/tenders/notices', { as: asMember });
+        assert.equal(expiredMember.status, 402);
+        assert.equal(expiredMember.body.data.role, 'COLABORADOR');
+
+        const billing = await call<BillingData>('GET', `/api/tenders/billing?accountId=${account.accountId}`, { as: titular });
+        assert.equal(billing.status, 200);
+        assert.equal(billing.body.data.subscription.situation, 'vencida');
+        assert.equal(billing.body.data.subscription.usersCount, 2);
+        assert.equal(billing.body.data.subscription.monthlyAmountCents, 499);
+        assert.deepEqual(billing.body.data.price, { baseCents: 499, includedUsers: 2, extraUserCents: 299 });
+        assert.equal((await call('GET', `/api/tenders/billing?accountId=${account.accountId}`, { as: asMember })).status, 403);
+        assert.equal((await call('GET', '/api/tenders/billing', { as: titular })).status, 400);
+      });
+    });
+  });
+
+  test('titular cadastra usuário pela equipe, já com acesso; o valor do mês acompanha; cortesia não paga', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-usuarios');
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const newUser = (label: string) => ({
+          nome: `Usuário ${label}`,
+          email: `licitacoes-http-${label}-${Date.now()}@exemplo.test`,
+          senha: 'senha-forte-1',
+        });
+
+        const first = await call<TeamChange>('POST', '/api/tenders/team', { as: titular, body: newUser('um') });
+        assert.equal(first.status, 201);
+        assert.equal(first.body.data.member.hasAccess, true);
+        const second = newUser('dois');
+        assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: second })).status, 201);
+        assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: second })).status, 400, 'e-mail repetido');
+        assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: { nome: 'Sem senha', email: 'x@exemplo.test' } })).status, 400);
+
+        const billing = await call<BillingData>('GET', `/api/tenders/billing?accountId=${account.accountId}`, { as: titular });
+        assert.equal(billing.body.data.subscription.accessType, 'cortesia');
+        assert.equal(billing.body.data.subscription.usersCount, 3);
+        assert.equal(billing.body.data.subscription.monthlyAmountCents, 798);
+        assert.equal((await call('POST', '/api/tenders/billing/pix', { as: titular, body: { accountId: account.accountId } })).status, 409);
       });
     });
   });

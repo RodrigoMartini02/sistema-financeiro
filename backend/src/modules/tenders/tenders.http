@@ -2,13 +2,15 @@
 # Uso: extensão REST Client do VS Code, com o backend local (npm run dev).
 #
 # 1. Faça login (primeira requisição) e cole o token em @token.
-# 2. O admin da plataforma habilita a conta no módulo ("Admin" no fim).
-# 3. @accountId é opcional para o titular (sem ele, vale a conta habilitada padrão);
+# 2. O titular ativa o módulo (15 dias grátis, "Ativação") ou o admin da plataforma
+#    dá cortesia à conta ("Admin" no fim).
+# 3. @accountId é opcional para o titular (sem ele, vale a conta com acesso padrão);
 #    o colaborador sempre usa a conta do vínculo.
 #
 # Respostas: { success, data }; listas paginadas em data: { items, page, perPage, total, totalPages }.
 # Erro de validação: 400 { success: false, message: 'Validation error', errors: [{ field, message }] }.
 # Conta sem o módulo: 404 igual a rota inexistente. Colaborador sem acesso: 403.
+# Assinatura vencida: 402 { code: 'TENDERS_SUBSCRIPTION_EXPIRED', data: { role, account } }.
 
 @host = http://localhost:3010
 @baseUrl = {{host}}/api/tenders
@@ -175,20 +177,60 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/collection/runs?accountId={{accountId}}&page=1&perPage=20
 Authorization: Bearer {{token}}
 
-### Equipe: colaboradores da conta e acesso ao módulo (titular)
+### Usuários: colaboradores da conta e acesso ao módulo (titular)
 GET {{baseUrl}}/team?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
-### Conceder ou retirar o acesso de um colaborador (titular)
+### Adicionar usuário, já com acesso ao módulo (titular; o valor muda na próxima cobrança)
+POST {{baseUrl}}/team?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "nome": "Ana", "sobrenome": "Souza", "email": "ana@exemplo.com", "senha": "senha-com-8" }
+
+### Conceder ou retirar o acesso de um colaborador (titular; data: { member, warning })
 PUT {{baseUrl}}/team/2?accountId={{accountId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 { "hasAccess": true }
 
-### Admin da plataforma: habilitar ou desabilitar o módulo numa conta
+### Ativação: contas do titular sem o módulo (fora da trava)
+GET {{baseUrl}}/activation
+Authorization: Bearer {{token}}
+
+### Ativar o módulo numa conta (15 dias grátis, um teste por conta)
+POST {{baseUrl}}/activation
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "accountId": {{accountId}} }
+
+### Assinatura: situação, usuários, valor do mês e preço (titular; fora da trava)
+GET {{baseUrl}}/billing?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Pix do mês (referência lic:<conta>; a liberação vem pelo webhook)
+POST {{baseUrl}}/billing/pix
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "accountId": {{accountId}} }
+
+### Cancelar o recorrente (o acesso vai até o fim do teste ou do período pago)
+POST {{baseUrl}}/billing/cancel
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "accountId": {{accountId}} }
+
+### Admin da plataforma: contas, cortesia e situação no módulo
+GET {{baseUrl}}/admin/accounts
+Authorization: Bearer {{token}}
+
+### Admin da plataforma: ligar ou tirar a cortesia numa conta
 PUT {{baseUrl}}/admin/accounts/{{accountId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{ "active": true }
+{ "courtesy": true }

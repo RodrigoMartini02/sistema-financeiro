@@ -2,13 +2,18 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { accountMembers } from '../../../db/schema/accountMembers';
 import { accounts } from '../../../db/schema/accounts';
 import { users } from '../../../db/schema/users';
+import { createAccountMember } from '../../../services/accountMemberCreation';
+import type { NewMemberInput } from '../../../services/memberInput';
 import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
+import type { TenderAccessType } from '../domains';
+import { subscriptionSituation, type SubscriptionSituation } from './billing';
 import { toBrasiliaIso } from './dates';
+import { snapshotOf } from './subscription';
 
-// Acesso da equipe ao módulo (titular) e habilitação de conta (admin da
-// plataforma). Colaboradores são os vínculos ativos da conta em conta_membros.
+// Usuários do módulo (titular) e cortesia das contas (admin da plataforma).
+// Colaboradores são os vínculos ativos da conta em conta_membros.
 
 export interface TeamMemberView {
   userId: number;
@@ -47,6 +52,15 @@ export async function listTeam(db: TendersDb, accountId: number): Promise<TeamMe
   return rows.map(toMemberView);
 }
 
+async function readTeamMember(db: TendersDb, accountId: number, memberUserId: number): Promise<TeamMemberView> {
+  const rows = await teamQuery(db, accountId);
+  const member = rows.find((row) => row.userId === memberUserId);
+  if (!member) {
+    throw new RequestInputError(MEMBER_NOT_FOUND, 404);
+  }
+  return toMemberView(member);
+}
+
 /** Concede ou retira o acesso de um colaborador ativo da conta. */
 export async function setTeamMemberAccess(
   db: TendersDb,
@@ -77,45 +91,65 @@ export async function setTeamMemberAccess(
       .where(and(eq(tenderMemberAccess.accountId, accountId), eq(tenderMemberAccess.userId, memberUserId)));
   }
 
-  const rows = await teamQuery(db, accountId);
-  const updated = rows.find((row) => row.userId === memberUserId);
-  if (!updated) {
-    throw new RequestInputError(MEMBER_NOT_FOUND, 404);
-  }
-  return toMemberView(updated);
+  return readTeamMember(db, accountId, memberUserId);
 }
 
-export interface EnabledAccountView {
+/**
+ * Usuário novo do módulo: o login (sempre novo), o vínculo com a conta e o
+ * acesso a Licitações, juntos. No FINGERENCE ele nasce sem nenhuma tela
+ * liberada (createAccountMember).
+ */
+export async function createTeamMember(
+  db: TendersDb,
+  accountId: number,
+  titularId: number,
+  input: NewMemberInput,
+): Promise<TeamMemberView> {
+  const created = await createAccountMember(db, accountId, input, async (transaction, memberId) => {
+    await transaction.insert(tenderMemberAccess).values({ accountId, userId: memberId, grantedBy: titularId });
+  });
+  return readTeamMember(db, accountId, created.id);
+}
+
+export interface CourtesyChangeView {
   accountId: number;
   accountName: string;
-  active: boolean;
+  courtesy: boolean;
   changedAt: string | null;
 }
 
-/** Habilita ou desabilita o módulo numa conta (admin da plataforma). Conta inexistente: 404. */
-export async function setAccountEnabled(
+/**
+ * Cortesia do módulo numa conta (admin da plataforma). Ligada: a conta usa sem
+ * cobrança e sem limite de usuários. Desligada: a conta segue pela assinatura
+ * (teste, período pago ou recorrente; sem nada disso, fica vencida). Conta
+ * inexistente: 404.
+ */
+export async function setAccountCourtesy(
   db: TendersDb,
   adminId: number,
   accountId: number,
-  active: boolean,
-): Promise<EnabledAccountView> {
+  courtesy: boolean,
+  now: Date,
+): Promise<CourtesyChangeView> {
   const [account] = await db.select({ id: accounts.id, name: accounts.name }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
   if (!account) {
     throw new RequestInputError('Conta não encontrada', 404);
   }
+
+  const accessType: TenderAccessType = courtesy ? 'cortesia' : 'assinatura';
   const [saved] = await db
     .insert(tenderEnabledAccounts)
-    .values({ accountId, active, enabledBy: adminId })
+    .values({ accountId, active: true, enabledBy: adminId, accessType, updatedAt: now.toISOString() })
     .onConflictDoUpdate({
       target: tenderEnabledAccounts.accountId,
-      set: { active, enabledBy: adminId, enabledAt: sql`now()` },
+      set: { active: true, enabledBy: adminId, accessType, updatedAt: now.toISOString() },
     })
     .returning();
   return {
     accountId: account.id,
     accountName: account.name,
-    active: saved?.active ?? active,
-    changedAt: toBrasiliaIso(saved?.enabledAt),
+    courtesy: saved?.accessType === 'cortesia',
+    changedAt: toBrasiliaIso(saved?.updatedAt),
   };
 }
 
@@ -125,18 +159,22 @@ export interface TenderAccountAdminView {
   accountType: 'pessoal' | 'empresa';
   ownerName: string;
   ownerEmail: string;
-  /** Habilitada no módulo agora (conta sem linha em conta_habilitada: false). */
-  enabled: boolean;
-  /** Última mudança da habilitação; null se a conta nunca foi habilitada. */
+  /** Cortesia ligada (conta sem linha em conta_habilitada, ou desligada: false). */
+  courtesy: boolean;
+  /** Situação no módulo; nula para conta que nunca teve o módulo. */
+  situation: SubscriptionSituation | null;
+  trialUntil: string | null;
+  paidUntil: string | null;
+  /** Última mudança no módulo; nula se a conta nunca teve o módulo. */
   changedAt: string | null;
 }
 
 /**
- * Contas ativas da plataforma e a habilitação de cada uma no módulo (tela do
- * admin). Ordem: habilitadas primeiro, depois PJ, depois o nome da conta.
+ * Contas ativas da plataforma e a situação de cada uma no módulo (tela do
+ * admin). Ordem: com o módulo primeiro, depois PJ, depois o nome da conta.
  */
-export async function listAccountsForTenders(db: TendersDb): Promise<TenderAccountAdminView[]> {
-  const enabled = sql<boolean>`coalesce(${tenderEnabledAccounts.active}, false)`;
+export async function listAccountsForTenders(db: TendersDb, now: Date): Promise<TenderAccountAdminView[]> {
+  const hasModule = sql<boolean>`coalesce(${tenderEnabledAccounts.active}, false)`;
   const rows = await db
     .select({
       accountId: accounts.id,
@@ -144,13 +182,20 @@ export async function listAccountsForTenders(db: TendersDb): Promise<TenderAccou
       accountType: accounts.type,
       ownerName: users.name,
       ownerEmail: users.email,
-      enabled,
-      changedAt: tenderEnabledAccounts.enabledAt,
+      module: tenderEnabledAccounts,
     })
     .from(accounts)
     .innerJoin(users, eq(users.id, accounts.userId))
     .leftJoin(tenderEnabledAccounts, eq(tenderEnabledAccounts.accountId, accounts.id))
     .where(sql`coalesce(${accounts.active}, true)`)
-    .orderBy(desc(enabled), desc(eq(accounts.type, 'empresa')), asc(accounts.name), asc(accounts.id));
-  return rows.map((row) => ({ ...row, changedAt: toBrasiliaIso(row.changedAt) }));
+    .orderBy(desc(hasModule), desc(eq(accounts.type, 'empresa')), asc(accounts.name), asc(accounts.id));
+
+  return rows.map(({ module, ...row }) => ({
+    ...row,
+    courtesy: module !== null && module.active && module.accessType === 'cortesia',
+    situation: module === null ? null : subscriptionSituation(snapshotOf(module), now),
+    trialUntil: toBrasiliaIso(module?.trialUntil),
+    paidUntil: toBrasiliaIso(module?.paidUntil),
+    changedAt: toBrasiliaIso(module?.updatedAt),
+  }));
 }
