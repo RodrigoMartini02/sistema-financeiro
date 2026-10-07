@@ -90,6 +90,33 @@ describe('notificações do coletor (banco local)', { skip: databaseTestsSkipRea
     });
   });
 
+  test('assinatura vencida não recebe; teste valendo e cortesia recebem', async () => {
+    await withRollback(async (tx) => {
+      const day = 24 * 3_600_000;
+      const expired = await createTestAccount(tx, 'assinatura-vencida');
+      await tx
+        .update(tenderEnabledAccounts)
+        .set({ accessType: 'assinatura', trialUntil: new Date(Date.now() - day).toISOString() })
+        .where(eq(tenderEnabledAccounts.accountId, expired.accountId));
+      const trial = await createTestAccount(tx, 'assinatura-teste');
+      await tx
+        .update(tenderEnabledAccounts)
+        .set({ accessType: 'assinatura', trialUntil: new Date(Date.now() + day).toISOString() })
+        .where(eq(tenderEnabledAccounts.accountId, trial.accountId));
+      const courtesy = await createTestAccount(tx, 'assinatura-cortesia');
+
+      const terms = ['georreferenciamento'];
+      for (const account of [expired, trial, courtesy]) {
+        await insertSavedSearch(tx, { accountId: account.accountId, userId: account.ownerId, terms });
+      }
+
+      const noticeId = await insertTestNotice(tx, { procurementObject: 'Georreferenciamento de imóveis rurais' });
+      assert.equal(await notifyNewNotices(tx, [noticeId]), 2);
+      const notified = await notificationsOf(tx, [expired.accountId, trial.accountId, courtesy.accountId]);
+      assert.deepEqual(notified.map((row) => row.accountId).sort((a, b) => a - b), [trial.accountId, courtesy.accountId].sort((a, b) => a - b));
+    });
+  });
+
   test('busca criada depois não gera notificação retroativa', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'retroativa');

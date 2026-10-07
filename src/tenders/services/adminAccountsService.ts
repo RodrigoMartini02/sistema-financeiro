@@ -1,16 +1,16 @@
-import type { AccountEnabledChange, AdminTenderAccount } from '../types';
+import type { AdminTenderAccount, CourtesyChange } from '../types';
 import { tendersRequest } from './tendersApi';
 
-// Habilitação de contas no módulo (admin da plataforma). As rotas ficam em
+// Cortesia das contas no módulo (admin da plataforma). As rotas ficam em
 // /api/tenders/admin, fora da trava de conta do módulo.
 
 export function fetchAdminAccounts(): Promise<AdminTenderAccount[]> {
   return tendersRequest<AdminTenderAccount[]>('/admin/accounts');
 }
 
-export function setAccountEnabled(accountId: number, active: boolean): Promise<AccountEnabledChange> {
-  return tendersRequest<AccountEnabledChange>(`/admin/accounts/${accountId}`, {
+export function setAccountCourtesy(accountId: number, courtesy: boolean): Promise<CourtesyChange> {
+  return tendersRequest<CourtesyChange>(`/admin/accounts/${accountId}`, {
     method: 'PUT',
-    body: JSON.stringify({ active }),
+    body: JSON.stringify({ courtesy }),
   });
 }

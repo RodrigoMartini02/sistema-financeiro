@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { validate } from '../../../middleware/validation';
+import { readNewMemberInput } from '../../../services/memberInput';
 import { requireTenderTitular, requireTenderTitularOrAdmin, tenderAccessOf } from '../middleware/tenderAccess';
 import { listCollectionRuns, readCollectionOverview } from '../services/collectionOverview';
 import { readDashboard } from '../services/dashboard';
 import { createDomainListsReader } from '../services/domainLists';
-import { listTeam, setTeamMemberAccess } from '../services/team';
+import { syncRecurringAmount } from '../services/recurringAmount';
+import { readSubscription } from '../services/subscription';
+import { createTeamMember, listTeam, setTeamMemberAccess } from '../services/team';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 import { readPagination } from './requestReaders';
@@ -62,11 +65,14 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
           isPlatformAdmin: access.isPlatformAdmin,
           permissions: {
             manageTeam: access.role === 'TITULAR',
+            // Assinatura (pagar e cancelar): só o titular (as rotas de cobrança conferem de novo).
+            manageBilling: access.role === 'TITULAR',
             viewCollectionRuns: access.role === 'TITULAR' || access.isPlatformAdmin,
             // Tela "Contas habilitadas": só o admin da plataforma (as rotas de admin conferem de novo).
             manageEnabledAccounts: access.isPlatformAdmin,
           },
           accounts: access.availableAccounts,
+          subscription: await readSubscription(deps.db, access.account.id, deps.now()),
         },
       });
     }),
@@ -80,7 +86,20 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
     }),
   );
 
-  // PUT /api/tenders/team/:userId { hasAccess }
+  // POST /api/tenders/team: usuário novo, já com acesso ao módulo (sem setor nem cargo: isso é do FINGERENCE).
+  router.post(
+    '/team',
+    requireTenderTitular,
+    tenderRoute('Tender team create failed:', 'Não foi possível cadastrar o usuário agora.', async (req, res) => {
+      const access = tenderAccessOf(req);
+      const input = { ...readNewMemberInput(req.body), sectorId: null, jobTitleId: null, admissionDate: null };
+      const member = await createTeamMember(deps.db, access.account.id, access.userId, input);
+      const warning = await syncRecurringAmount(deps.db, access.account.id, deps.now());
+      res.status(201).json({ success: true, data: { member, warning } });
+    }),
+  );
+
+  // PUT /api/tenders/team/:userId { hasAccess }: a mudança vale no valor da próxima cobrança.
   router.put(
     '/team/:userId',
     requireTenderTitular,
@@ -94,7 +113,8 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
         Number(req.params['userId']),
         req.body.hasAccess === true,
       );
-      res.json({ success: true, data: member });
+      const warning = await syncRecurringAmount(deps.db, access.account.id, deps.now());
+      res.json({ success: true, data: { member, warning } });
     }),
   );
 

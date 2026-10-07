@@ -5,7 +5,7 @@ import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
 import { FavoritesScreen } from './screens/FavoritesScreen';
-import { GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
+import { ExpiredScreen, GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
 import { HomeScreen } from './screens/HomeScreen';
 import { NoticeScreen } from './screens/NoticeScreen';
 import { NotFoundScreen } from './screens/NotFoundScreen';
@@ -16,7 +16,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { TendersLoginScreen } from './screens/TendersLoginScreen';
 import { TrackingScreen } from './screens/TrackingScreen';
 import { NETWORK_ERROR_MESSAGE } from './services/tendersApiError';
-import { resolveGateState } from './utils/gateState';
+import { expiredInfoFrom, resolveGateState } from './utils/gateState';
 
 /** App de Licitações: entrada no módulo (sessão e acesso) e rotas dentro da moldura. */
 export function TendersApp() {
@@ -36,6 +36,8 @@ export function TendersApp() {
     case 'noModule':
     case 'memberWithoutAccess':
       return <NoAccessScreen reason={state} />;
+    case 'expired':
+      return <ExpiredScreen info={expiredInfoFrom(access.error?.data)} message={access.error?.message ?? NETWORK_ERROR_MESSAGE} />;
     case 'error':
       return (
         <GateErrorScreen

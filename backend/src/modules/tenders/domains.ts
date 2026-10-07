@@ -61,6 +61,10 @@ export type NoticeSort = (typeof NOTICE_SORTS)[number];
 export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
 export type TenderRole = (typeof TENDER_ROLES)[number];
 
+/** Como a conta tem o módulo: cortesia (admin, sem cobrança) ou assinatura (migration 0080). */
+export const TENDER_ACCESS_TYPES = ['cortesia', 'assinatura'] as const;
+export type TenderAccessType = (typeof TENDER_ACCESS_TYPES)[number];
+
 export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 

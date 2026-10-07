@@ -9,7 +9,8 @@ export interface TendersAccessSummary {
 
 /**
  * Acesso de quem está logado ao módulo. Sem acesso, o servidor responde 404
- * (conta não habilitada) ou 403 (colaborador não liberado) e a promessa falha.
+ * (conta sem o módulo), 403 (colaborador não liberado) ou 402 (assinatura
+ * vencida) e a promessa falha.
  */
 export function fetchTendersAccess(): Promise<TendersAccessSummary> {
   return apiRequest<TendersAccessSummary>('/tenders/access');

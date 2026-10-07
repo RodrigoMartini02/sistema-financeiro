@@ -2,7 +2,10 @@ import { useEffect } from 'react';
 import { LoginPage } from '../../screens/public/LoginPage';
 import { setAuthOrigin } from '../../services/session';
 
-/** Login embutido do módulo (escopo, seção 9.3): mesmo LoginPage, sem cadastro, voltando para Licitações. */
+/**
+ * Login embutido do módulo: mesmo LoginPage, voltando para Licitações. "Criar
+ * nova conta" cadastra já com o módulo, em 15 dias grátis.
+ */
 export function TendersLoginScreen() {
   useEffect(() => {
     setAuthOrigin('tenders');

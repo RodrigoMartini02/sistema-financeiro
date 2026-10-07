@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import { MercadoPagoConfig, Preference, Payment, PreApproval } from 'mercadopago';
 import { pool } from '../db/client';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { requireNotAccountMember } from '../middleware/permissions';
@@ -17,13 +16,22 @@ import {
   parsePlanChoice,
   PLAN_OFFERS,
 } from '../services/planPayments';
+import {
+  cancelRecurring,
+  chargeCard,
+  createCheckoutLink,
+  createPixCharge,
+  createRecurring,
+  getPayment,
+  getRecurring,
+  type CheckoutPaymentType,
+} from '../services/mercadoPagoCharges';
 
 const router = Router();
 
-const mpClient = new MercadoPagoConfig({ accessToken: process.env['MP_ACCESS_TOKEN']! });
-
 const BACKEND_URL = process.env['BACKEND_URL'] ?? 'https://sistema-financeiro-backend-o199.onrender.com';
 const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'https://sistema-financeiro-kxed.onrender.com';
+const NOTIFICATION_URL = `${BACKEND_URL}/api/plans/webhook`;
 
 const INVALID_PLAN_MESSAGE = 'Invalid plan type';
 
@@ -35,6 +43,15 @@ function oneTimePlanExpiration(days: number = ONE_TIME_PLAN_DAYS): Date {
   const expiration = new Date();
   expiration.setDate(expiration.getDate() + days);
   return expiration;
+}
+
+function readCheckoutPaymentType(value: unknown): CheckoutPaymentType | null {
+  return value === 'cartao' || value === 'debito' ? value : null;
+}
+
+async function readPayerEmail(userId: number): Promise<string> {
+  const userResult = await pool.query('SELECT email FROM usuarios WHERE id = $1', [userId]);
+  return (userResult.rows[0] as { email: string }).email;
 }
 
 // GET /api/plans/status — para membro ativo, o plano do titular da conta.
@@ -83,24 +100,17 @@ router.post('/subscribe', authenticate, requireNotAccountMember, async (req: Req
   }
 
   try {
-    const preference = new Preference(mpClient);
-
-    const excludedTypes: Array<{ id: string }> = [{ id: 'ticket' }];
-    if (forma_pagamento === 'debito') excludedTypes.push({ id: 'credit_card' });
-    else if (forma_pagamento === 'cartao') excludedTypes.push({ id: 'debit_card' });
-
-    const result = await preference.create({
-      body: {
-        items: [{ id: plan, title: paymentDescription(plan), unit_price: PLAN_OFFERS[plan].amount, quantity: 1, currency_id: 'BRL' }],
-        payment_methods: { excluded_payment_types: excludedTypes, installments: 1 },
-        external_reference: buildPaymentReference(req.user!.id, plan),
-        notification_url: `${BACKEND_URL}/api/plans/webhook`,
-        back_urls: { success: `${FRONTEND_URL}/dashboard.html`, failure: `${FRONTEND_URL}/dashboard.html` },
-        auto_return: 'approved',
-      },
+    const paymentUrl = await createCheckoutLink({
+      itemId: plan,
+      description: paymentDescription(plan),
+      amount: PLAN_OFFERS[plan].amount,
+      reference: buildPaymentReference(req.user!.id, plan),
+      notificationUrl: NOTIFICATION_URL,
+      backUrl: `${FRONTEND_URL}/dashboard.html`,
+      paymentType: readCheckoutPaymentType(forma_pagamento),
     });
 
-    res.json({ success: true, data: { payment_url: result.init_point } });
+    res.json({ success: true, data: { payment_url: paymentUrl } });
   } catch (error) {
     console.error('Subscribe error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate payment link' });
@@ -118,31 +128,15 @@ router.post('/pix', authenticate, requireNotAccountMember, async (req: Request, 
   }
 
   try {
-    const userResult = await pool.query('SELECT email, nome FROM usuarios WHERE id = $1', [req.user!.id]);
-    const user = userResult.rows[0] as { email: string };
-
-    const payment = new Payment(mpClient);
-    const expiration = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
-    const pdt = await payment.create({
-      body: {
-        transaction_amount: PLAN_OFFERS[plan].amount,
-        payment_method_id: 'pix',
-        payer: { email: user.email },
-        description: paymentDescription(plan),
-        external_reference: buildPaymentReference(req.user!.id, plan),
-        notification_url: `${BACKEND_URL}/api/plans/webhook`,
-        date_of_expiration: expiration,
-      },
+    const pix = await createPixCharge({
+      amount: PLAN_OFFERS[plan].amount,
+      description: paymentDescription(plan),
+      reference: buildPaymentReference(req.user!.id, plan),
+      notificationUrl: NOTIFICATION_URL,
+      payerEmail: await readPayerEmail(req.user!.id),
     });
 
-    const pixData = ((pdt as unknown as Record<string, unknown>)?.['point_of_interaction'] as Record<string, unknown> | undefined)?.['transaction_data'] as Record<string, unknown> | undefined;
-
-    if (!pixData?.['qr_code']) {
-      throw new Error('QR Code not returned by MercadoPago');
-    }
-
-    res.json({ success: true, data: { payment_id: pdt.id, qr_code: pixData['qr_code'], qr_code_base64: pixData['qr_code_base64'] } });
+    res.json({ success: true, data: { payment_id: pix.paymentId, qr_code: pix.qrCode, qr_code_base64: pix.qrCodeBase64 } });
   } catch (error) {
     console.error('PIX error:', error);
     res.status(500).json({ success: false, message: 'Failed to generate PIX' });
@@ -164,34 +158,26 @@ router.post('/pay-card', authenticate, requireNotAccountMember, async (req: Requ
   }
 
   try {
-    const userResult = await pool.query('SELECT email FROM usuarios WHERE id = $1', [req.user!.id]);
-    const user = userResult.rows[0] as { email: string };
-
-    const payment = new Payment(mpClient);
-    const pdt = await payment.create({
-      body: {
-        transaction_amount: PLAN_OFFERS[plan].amount,
-        token: String(card_token),
-        installments: 1,
-        payment_method_id: null as unknown as string,
-        payer: { email: user.email, identification: cpf ? { type: 'CPF', number: String(cpf).replace(/\D/g, '') } : undefined },
-        description: paymentDescription(plan),
-        external_reference: buildPaymentReference(req.user!.id, plan),
-        notification_url: `${BACKEND_URL}/api/plans/webhook`,
-      },
+    const payment = await chargeCard({
+      amount: PLAN_OFFERS[plan].amount,
+      cardToken: String(card_token),
+      cpf: cpf ? String(cpf) : null,
+      payerEmail: await readPayerEmail(req.user!.id),
+      description: paymentDescription(plan),
+      reference: buildPaymentReference(req.user!.id, plan),
+      notificationUrl: NOTIFICATION_URL,
     });
 
-    if (pdt.status === 'approved') {
+    if (payment.status === 'approved') {
       await pool.query(
         `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = $2, plano_inicio = NOW(), payment_id_anual = NULL, preapproval_id = NULL WHERE id = $3`,
         [plan, oneTimePlanExpiration(), req.user!.id],
       );
       res.json({ success: true, message: 'Payment approved!' });
-    } else if (pdt.status === 'in_process' || pdt.status === 'pending') {
+    } else if (payment.status === 'in_process' || payment.status === 'pending') {
       res.json({ success: false, message: 'Payment under review. You will be notified when approved.' });
     } else {
-      const detail = (pdt as unknown as Record<string, unknown>)['status_detail'] ?? pdt.status;
-      res.json({ success: false, message: `Payment declined (${detail}). Check your card details.` });
+      res.json({ success: false, message: `Payment declined (${payment.statusDetail ?? payment.status}). Check your card details.` });
     }
   } catch (error) {
     console.error('Pay card error:', error);
@@ -219,28 +205,20 @@ router.post('/subscribe-recurring', authenticate, requireNotAccountMember, async
 
     if (user.preapproval_id) {
       try {
-        const preApproval = new PreApproval(mpClient);
-        await preApproval.update({ id: user.preapproval_id, body: { status: 'cancelled' } });
+        await cancelRecurring(user.preapproval_id);
       } catch (e) {
         console.warn('Could not cancel previous subscription:', (e as Error).message);
       }
     }
 
-    const preApproval = new PreApproval(mpClient);
-    const startDate = new Date();
-    startDate.setSeconds(startDate.getSeconds() + 30);
-
-    const result = await preApproval.create({
-      body: {
-        reason: paymentDescription(plan),
-        external_reference: buildPaymentReference(req.user!.id, plan),
-        payer_email: user.email,
-        card_token_id: String(card_token),
-        auto_recurring: { frequency: 1, frequency_type: 'months', start_date: startDate.toISOString(), transaction_amount: PLAN_OFFERS[plan].amount, currency_id: 'BRL' },
-        back_url: FRONTEND_URL,
-        notification_url: `${BACKEND_URL}/api/plans/webhook`,
-        status: 'authorized',
-      } as unknown as Parameters<typeof preApproval.create>[0]['body'],
+    const result = await createRecurring({
+      amount: PLAN_OFFERS[plan].amount,
+      description: paymentDescription(plan),
+      reference: buildPaymentReference(req.user!.id, plan),
+      notificationUrl: NOTIFICATION_URL,
+      payerEmail: user.email,
+      cardToken: String(card_token),
+      backUrl: FRONTEND_URL,
     });
 
     if (result.status === 'authorized') {
@@ -270,8 +248,7 @@ router.post('/cancel', authenticate, requireNotAccountMember, async (req: Reques
 
     if (user.preapproval_id) {
       try {
-        const preApproval = new PreApproval(mpClient);
-        await preApproval.update({ id: user.preapproval_id, body: { status: 'cancelled' } });
+        await cancelRecurring(user.preapproval_id);
       } catch (e) {
         console.warn('Could not cancel preapproval on MP:', (e as Error).message);
       }
@@ -330,13 +307,12 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
 
   try {
     if (eventType === 'payment' || action === 'payment.created' || action === 'payment.updated') {
-      const payment = new Payment(mpClient);
-      const pdt = await payment.get({ id: resourceId as string });
+      const payment = await getPayment(String(resourceId));
 
-      if (pdt.status === 'approved') {
-        const reference = parsePaymentReference(pdt.external_reference);
+      if (payment.status === 'approved') {
+        const reference = parsePaymentReference(payment.externalReference);
         if (!reference) {
-          console.warn(`[Webhook] Approved payment ${pdt.id} without a valid plan reference`);
+          console.warn(`[Webhook] Approved payment ${payment.id} without a valid plan reference`);
           return;
         }
 
@@ -349,51 +325,41 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
     }
 
     if (eventType === 'subscription_preapproval' || action === 'subscription_preapproval.updated') {
-      const preApproval = new PreApproval(mpClient);
-      const sub = await preApproval.get({ id: resourceId as string });
-      const reference = parsePaymentReference(sub.external_reference);
+      const subscription = await getRecurring(String(resourceId));
+      const reference = parsePaymentReference(subscription.externalReference);
       if (!reference) {
-        console.warn(`[Webhook] Subscription ${sub.id} without a valid plan reference`);
+        console.warn(`[Webhook] Subscription ${subscription.id} without a valid plan reference`);
         return;
       }
 
-      if (sub.status === 'authorized') {
+      if (subscription.status === 'authorized') {
         await pool.query(
           `UPDATE usuarios SET plano_status = 'ativo', plano_tipo = $1, plano_expiracao = NULL, preapproval_id = $2 WHERE id = $3 AND preapproval_id = $2`,
-          [reference.plan, sub.id, reference.userId],
+          [reference.plan, subscription.id, reference.userId],
         );
-        console.log(`[Webhook] Subscription ${sub.id} authorized for user ${reference.userId}`);
-      } else if (sub.status === 'cancelled' || sub.status === 'paused') {
-        const wasExpired = await expireRecurringPlanAfterSubscriptionStopped(reference.userId, String(sub.id));
+        console.log(`[Webhook] Subscription ${subscription.id} authorized for user ${reference.userId}`);
+      } else if (subscription.status === 'cancelled' || subscription.status === 'paused') {
+        const wasExpired = await expireRecurringPlanAfterSubscriptionStopped(reference.userId, String(subscription.id));
         if (!wasExpired) {
           return;
         }
-        console.log(`[Webhook] Subscription ${sub.id} ${sub.status} — user ${reference.userId} blocked`);
+        console.log(`[Webhook] Subscription ${subscription.id} ${subscription.status} — user ${reference.userId} blocked`);
       }
     }
 
     if (eventType === 'subscription_authorized_payment') {
-      const payment = new Payment(mpClient);
-      const pdt = await payment.get({ id: resourceId as string });
-      const preapprovalId = (pdt as unknown as Record<string, unknown>)['preapproval_id'];
-      const reference = parsePaymentReference(pdt.external_reference);
+      const payment = await getPayment(String(resourceId));
+      const reference = parsePaymentReference(payment.externalReference);
 
-      if (pdt.status === 'approved' && reference && preapprovalId) {
-        const wasReactivated = await activateRecurringPlanAfterApprovedPayment(
-          reference.userId,
-          String(preapprovalId),
-        );
+      if (payment.status === 'approved' && reference && payment.recurringId) {
+        const wasReactivated = await activateRecurringPlanAfterApprovedPayment(reference.userId, payment.recurringId);
         if (wasReactivated) {
           console.log(`[Webhook] Recurring charge approved for user ${reference.userId}`);
         }
-      } else if (pdt.status === 'rejected' && reference && preapprovalId) {
-        const wasExpired = await expireRecurringPlanAfterRejectedPayment(
-          reference.userId,
-          String(pdt.id),
-          String(preapprovalId),
-        );
+      } else if (payment.status === 'rejected' && reference && payment.recurringId) {
+        const wasExpired = await expireRecurringPlanAfterRejectedPayment(reference.userId, String(payment.id), payment.recurringId);
         if (wasExpired) {
-          console.warn(`[Webhook] Recurring charge rejected and access blocked for user ${reference.userId}: ${(pdt as unknown as Record<string, unknown>)['status_detail']}`);
+          console.warn(`[Webhook] Recurring charge rejected and access blocked for user ${reference.userId}: ${payment.statusDetail}`);
         }
       }
     }

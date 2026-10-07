@@ -1,17 +1,37 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
+import { eq } from 'drizzle-orm';
 import { accounts } from '../../../db/schema/accounts';
+import { memberPermissions } from '../../../db/schema/memberPermissions';
 import { RequestInputError } from '../../../utils/requestInput';
 import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, withRollback } from '../collector/dbTestSupport';
 import { resolveTenderAccess } from './access';
 import { addAccountMember } from './apiTestSupport';
-import { listAccountsForTenders, listTeam, setAccountEnabled, setTeamMemberAccess } from './team';
+import { countModuleUsers } from './subscription';
+import { createTeamMember, listAccountsForTenders, listTeam, setAccountCourtesy, setTeamMemberAccess } from './team';
 
-// Equipe (titular) e habilitação de conta (admin da plataforma), seção 8.4 do escopo.
+// Usuários do módulo (titular) e cortesia das contas (admin da plataforma).
 
 const isNotFound = (error: unknown) => error instanceof RequestInputError && error.status === 404;
+const isBadRequest = (error: unknown) => error instanceof RequestInputError && error.status === 400;
+const now = () => new Date();
 
-describe('equipe e habilitação (banco local)', { skip: databaseTestsSkipReason }, () => {
+function newMemberInput(label: string) {
+  return {
+    name: `Usuário ${label}`,
+    lastName: null,
+    email: `licitacoes-${label}-${Date.now()}@exemplo.test`,
+    password: 'senha-forte-1',
+    document: null,
+    telefone: null,
+    dataNascimento: null,
+    sectorId: null,
+    jobTitleId: null,
+    admissionDate: null,
+  };
+}
+
+describe('usuários e cortesia (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
 
   test('titular concede e retira o acesso de colaborador ativo; quem não é da conta não existe', async () => {
@@ -28,12 +48,14 @@ describe('equipe e habilitação (banco local)', { skip: databaseTestsSkipReason
       const granted = await setTeamMemberAccess(tx, account.accountId, account.ownerId, member, true);
       assert.equal(granted.hasAccess, true);
       assert.ok(granted.grantedAt);
+      assert.equal(await countModuleUsers(tx, account.accountId), 2, 'o titular e o colaborador com acesso');
       const memberAccess = await resolveTenderAccess(tx, { id: member, type: 'membro' }, null);
       assert.equal(memberAccess.allowed, true);
 
       await setTeamMemberAccess(tx, account.accountId, account.ownerId, member, true);
       const revoked = await setTeamMemberAccess(tx, account.accountId, account.ownerId, member, false);
       assert.equal(revoked.hasAccess, false);
+      assert.equal(await countModuleUsers(tx, account.accountId), 1);
       assert.deepEqual(await resolveTenderAccess(tx, { id: member, type: 'membro' }, null), {
         allowed: false,
         reason: 'memberWithoutAccess',
@@ -45,32 +67,54 @@ describe('equipe e habilitação (banco local)', { skip: databaseTestsSkipReason
     });
   });
 
-  test('admin habilita e desabilita o módulo numa conta; conta inexistente: não encontrada', async () => {
+  test('usuário cadastrado pelo módulo já entra com acesso e sem nenhuma tela do FINGERENCE', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'equipe-cadastro');
+      const input = newMemberInput('equipe-cadastro-usuario');
+
+      const created = await createTeamMember(tx, account.accountId, account.ownerId, input);
+      assert.equal(created.hasAccess, true);
+      assert.equal(created.email, input.email);
+      assert.equal(await countModuleUsers(tx, account.accountId), 2);
+      assert.equal((await resolveTenderAccess(tx, { id: created.userId, type: 'membro' }, null)).allowed, true);
+
+      const [permissions] = await tx.select().from(memberPermissions).where(eq(memberPermissions.userId, created.userId));
+      assert.equal(permissions?.accessExpenses, false);
+      assert.equal(permissions?.accessDashboard, false);
+
+      await assert.rejects(createTeamMember(tx, account.accountId, account.ownerId, input), isBadRequest, 'e-mail já cadastrado');
+    });
+  });
+
+  test('admin liga e desliga a cortesia; desligada, a conta segue pela assinatura', async () => {
     await withRollback(async (tx) => {
       const admin = await createTestAccount(tx, 'admin');
       const client = await createTestAccount(tx, 'admin-cliente', { enabled: false });
       const requester = { id: client.ownerId, type: 'titular' as const };
-      assert.equal((await resolveTenderAccess(tx, requester, null)).allowed, false);
+      assert.deepEqual(await resolveTenderAccess(tx, requester, null), { allowed: false, reason: 'notFound' });
 
-      const enabled = await setAccountEnabled(tx, admin.ownerId, client.accountId, true);
-      assert.equal(enabled.active, true);
-      assert.equal(enabled.accountId, client.accountId);
+      const courtesy = await setAccountCourtesy(tx, admin.ownerId, client.accountId, true, now());
+      assert.equal(courtesy.courtesy, true);
+      assert.equal(courtesy.accountId, client.accountId);
       assert.equal((await resolveTenderAccess(tx, requester, null)).allowed, true);
 
-      await setAccountEnabled(tx, admin.ownerId, client.accountId, false);
-      assert.equal((await resolveTenderAccess(tx, requester, null)).allowed, false);
+      const paying = await setAccountCourtesy(tx, admin.ownerId, client.accountId, false, now());
+      assert.equal(paying.courtesy, false);
+      const expired = await resolveTenderAccess(tx, requester, null);
+      assert.equal(expired.allowed, false);
+      assert.equal(!expired.allowed && expired.reason, 'subscriptionExpired', 'sem teste nem período pago, vencida');
 
-      await assert.rejects(setAccountEnabled(tx, admin.ownerId, 999_999_999, true), isNotFound);
+      await assert.rejects(setAccountCourtesy(tx, admin.ownerId, 999_999_999, true, now()), isNotFound);
     });
   });
 
-  test('lista do admin: habilitadas primeiro, depois PJ, depois o nome; conta inativa fica de fora', async () => {
+  test('lista do admin: com o módulo primeiro, depois PJ, depois o nome; conta inativa fica de fora', async () => {
     await withRollback(async (tx) => {
       const admin = await createTestAccount(tx, 'lista-admin');
-      const enabledPj = await createTestAccount(tx, 'lista-habilitada');
+      const courtesyPj = await createTestAccount(tx, 'lista-habilitada');
       const plainPj = await createTestAccount(tx, 'lista-pj', { enabled: false });
-      const disabledPj = await createTestAccount(tx, 'lista-desabilitada');
-      await setAccountEnabled(tx, admin.ownerId, disabledPj.accountId, false);
+      const payingPj = await createTestAccount(tx, 'lista-desabilitada');
+      await setAccountCourtesy(tx, admin.ownerId, payingPj.accountId, false, now());
       const [personal] = await tx
         .insert(accounts)
         .values({ userId: plainPj.ownerId, name: 'Conta lista-pessoal', type: 'pessoal' })
@@ -80,25 +124,25 @@ describe('equipe e habilitação (banco local)', { skip: databaseTestsSkipReason
         .values({ userId: plainPj.ownerId, name: 'Conta lista-inativa', type: 'empresa', active: false })
         .returning({ id: accounts.id });
       assert.ok(personal && inactive);
-      await setAccountEnabled(tx, admin.ownerId, inactive.id, true);
+      await setAccountCourtesy(tx, admin.ownerId, inactive.id, true, now());
 
-      const testIds = new Set([enabledPj.accountId, plainPj.accountId, disabledPj.accountId, personal.id, inactive.id]);
-      const listed = (await listAccountsForTenders(tx)).filter((row) => testIds.has(row.accountId));
+      const testIds = new Set([courtesyPj.accountId, plainPj.accountId, payingPj.accountId, personal.id, inactive.id]);
+      const listed = (await listAccountsForTenders(tx, now())).filter((row) => testIds.has(row.accountId));
 
       assert.deepEqual(
-        listed.map(({ accountId, accountType, enabled }) => ({ accountId, accountType, enabled })),
+        listed.map(({ accountId, accountType, courtesy, situation }) => ({ accountId, accountType, courtesy, situation })),
         [
-          { accountId: enabledPj.accountId, accountType: 'empresa', enabled: true },
-          { accountId: disabledPj.accountId, accountType: 'empresa', enabled: false },
-          { accountId: plainPj.accountId, accountType: 'empresa', enabled: false },
-          { accountId: personal.id, accountType: 'pessoal', enabled: false },
+          { accountId: payingPj.accountId, accountType: 'empresa', courtesy: false, situation: 'vencida' },
+          { accountId: courtesyPj.accountId, accountType: 'empresa', courtesy: true, situation: 'cortesia' },
+          { accountId: plainPj.accountId, accountType: 'empresa', courtesy: false, situation: null },
+          { accountId: personal.id, accountType: 'pessoal', courtesy: false, situation: null },
         ],
       );
-      const [first, disabled, plain] = listed;
+      const [paying, first, plain] = listed;
       assert.equal(first?.accountName, 'Conta lista-habilitada');
       assert.equal(first?.ownerName, 'Teste licitações lista-habilitada-titular');
       assert.match(first?.ownerEmail ?? '', /^licitacoes-lista-habilitada-titular-.+@exemplo\.test$/);
-      assert.ok(disabled?.changedAt, 'desabilitada guarda a data da mudança');
+      assert.ok(paying?.changedAt, 'a mudança guarda a data');
       assert.equal(plain?.changedAt, null);
     });
   });

@@ -41,14 +41,16 @@ export const NOT_FOUND_TITLE = 'Página não encontrada';
 /** Permissões que `GET /api/tenders/access` devolve. */
 export interface TendersPermissions {
   manageTeam: boolean;
+  /** Assinatura (pagar e cancelar): só o titular. */
+  manageBilling: boolean;
   viewCollectionRuns: boolean;
-  /** Habilitar e desabilitar contas no módulo: só o admin da plataforma. */
+  /** Cortesia das contas no módulo: só o admin da plataforma. */
   manageEnabledAccounts: boolean;
 }
 
-/** Configurações do módulo: equipe (titular) e coleta (titular ou admin). */
+/** Configurações do módulo: usuários e assinatura (titular) e coleta (titular ou admin). */
 export function canOpenSettings(permissions: TendersPermissions): boolean {
-  return permissions.manageTeam || permissions.viewCollectionRuns;
+  return permissions.manageTeam || permissions.manageBilling || permissions.viewCollectionRuns;
 }
 
 export function menuRoutes(permissions: TendersPermissions): TendersRoute[] {
