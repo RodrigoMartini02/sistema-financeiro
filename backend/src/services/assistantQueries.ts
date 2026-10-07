@@ -8,6 +8,7 @@ import { assertValidRange, describeRange } from './assistantDateRange';
 import type { OpenExpenseRow } from './assistantPayment';
 import { isOverdueReceivable, matchesReceivableSituation } from './assistantReceivables';
 import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
+import { INVOICE_EXPENSE_METHOD } from './cardInvoiceRules';
 
 // Consultas do assistente. Cada funcao recebe periodo em datas absolutas (o
 // modelo nunca manda "esse mes") e devolve dado bruto — a redacao da resposta
@@ -702,15 +703,17 @@ const MAX_OPEN_ROWS = 500;
 
 /**
  * Despesas em aberto do usuario na conta, por vencimento. Mesma regra da rota
- * de pagar (POST /expenses/:id/pay): so as do proprio usuario — oferecer uma
- * que a rota recusaria terminaria num 404 ao salvar. Com `ate`, so as que
- * vencem ate essa data.
+ * de pagar (POST /expenses/:id/pay): so as do proprio usuario, e nunca as do
+ * credito com cartao, que sao pagas pela fatura — oferecer uma que a rota
+ * recusaria terminaria num erro ao salvar. Com `ate`, so as que vencem ate
+ * essa data.
  */
 export async function despesasEmAberto(scope: QueryScope, ate?: string): Promise<OpenExpenseRow[]> {
   const conditions = [
     expenseAuthoredAll(scope)!,
     or(eq(expenses.paid, false), isNull(expenses.paid))!,
     eq(expenses.status, ACTIVE_STATUS),
+    sql`NOT (COALESCE(${expenses.paymentMethod}, '') = ${INVOICE_EXPENSE_METHOD} AND ${expenses.cardId} IS NOT NULL)`,
   ];
   if (ate) conditions.push(lte(expenses.dueDate, ate));
 

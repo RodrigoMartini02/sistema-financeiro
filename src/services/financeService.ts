@@ -1,7 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
   Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
-  Income, IncomeCreateInput, IncomeUpdateInput, MonthBalance, OpenExpense, PainelData, PainelFiltro,
+  Income, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentMethod, MonthBalance, OpenExpense, PainelData, PainelFiltro,
 } from '../types/finance';
 
 interface RawIncome {
@@ -33,6 +33,25 @@ interface RawExpense {
   data_criacao?: string | null;
   autor_nome?: string | null;
   anexos?: Attachment[] | null;
+  pagamento_fatura_id?: number | null;
+  origem_pagamento_fatura_id?: number | null;
+  valor_juros_fatura?: string | null;
+  pagamento_fatura_forma?: string | null;
+  pagamento_fatura_parcelas?: number | null;
+  pagamento_fatura_mes?: number | null;
+  pagamento_fatura_ano?: number | null;
+}
+
+/** Forma gravada do pagamento da fatura ('total' | 'parcial' | 'parcelado') na forma do app. */
+const INVOICE_METHOD_BY_COLUMN: Record<string, InvoicePaymentMethod> = {
+  total: 'total',
+  parcial: 'partial',
+  parcelado: 'installments',
+};
+
+function invoiceMonthOf(month: number | null | undefined, year: number | null | undefined): string | null {
+  if (month == null || year == null) return null;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
 interface RawBalance {
@@ -109,6 +128,12 @@ function expenseFromApi(r: RawExpense): Expense {
     numeroNf: r.numero_nf ?? null,
     dataEmissaoNf: r.data_emissao_nf ?? null,
     anexos: Array.isArray(r.anexos) ? r.anexos : null,
+    invoicePaymentId: r.pagamento_fatura_id ?? null,
+    invoicePaymentMethod: r.pagamento_fatura_forma ? INVOICE_METHOD_BY_COLUMN[r.pagamento_fatura_forma] ?? null : null,
+    invoicePaymentInstallments: r.pagamento_fatura_parcelas ?? null,
+    invoiceMonth: invoiceMonthOf(r.pagamento_fatura_mes, r.pagamento_fatura_ano),
+    invoiceOriginPaymentId: r.origem_pagamento_fatura_id ?? null,
+    invoiceInterest: r.valor_juros_fatura != null ? asNumber(r.valor_juros_fatura) : null,
   };
 }
 

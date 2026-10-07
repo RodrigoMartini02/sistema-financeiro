@@ -22,6 +22,8 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
   const saldo = periodo.descontos - periodo.juros;
   const semNadaNoPeriodo = periodo.juros === 0 && periodo.descontos === 0;
   const semNadaNoAno = doAno.juros === 0 && doAno.descontos === 0;
+  // Juros do restante e das parcelas da fatura do cartão ainda não pagos: não seguem o período.
+  const jurosAVencer = valores.upcomingInterest ?? 0;
   // Período começando em 1º de janeiro: o período já é o acumulado do ano.
   const periodoEhOAno = serie.pontos[0]?.inicio === `${ano}-01-01`;
 
@@ -33,7 +35,7 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
           valor={semNadaNoPeriodo ? undefined : formatarComSinal(saldo)}
           tomValor={saldo >= 0 ? TOM_DESCONTO : TOM_JUROS}
         />
-        {semNadaNoPeriodo && semNadaNoAno ? (
+        {semNadaNoPeriodo && semNadaNoAno && jurosAVencer === 0 ? (
           <Vazio>Nenhum juro pago nem desconto ganho em {ano}.</Vazio>
         ) : (
           <>
@@ -42,6 +44,9 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
               { rotulo: 'Descontos ganhos', valor: formatCurrency(periodo.descontos), tom: TOM_DESCONTO },
               ...(!periodoEhOAno && !semNadaNoAno
                 ? [{ rotulo: `Em ${ano} até agora`, valor: `juros ${formatCurrency(doAno.juros)} · descontos ${formatCurrency(doAno.descontos)}` }]
+                : []),
+              ...(jurosAVencer > 0
+                ? [{ rotulo: 'Juros a vencer', valor: formatCurrency(jurosAVencer), tom: TOM_JUROS }]
                 : []),
             ]} />
             {semNadaNoPeriodo ? (

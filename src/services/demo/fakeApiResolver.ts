@@ -2,10 +2,15 @@ import {
   createDemoFakeDatabase, generateId, todayIso,
   type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo,
 } from './demoFakeDatabase';
-import type { ExpenseCreateInput, IncomeCreateInput, IncomeUpdateInput } from '../../types/finance';
+import type {
+  CardInvoice, ExpenseCreateInput, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentEntry, InvoicePaymentInput,
+} from '../../types/finance';
 import { PERMISSION_FLAGS } from '../../types/permissions';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
-import { addMonthsClamped } from '../../utils/expenseSchedule';
+import {
+  installmentAmountsOf, invoiceDueDate, invoiceMonthLabel, isCreditWithCard, summarizeInvoicePayment,
+} from '../../utils/cardInvoice';
+import { addMonthsClamped, splitAmountInCents } from '../../utils/expenseSchedule';
 
 export interface FakeApiRequestInit {
   method?: string;
@@ -95,12 +100,32 @@ export function resolveFakeApiRequest(
   if (despesaPayMatch && method === 'POST') {
     const id = Number(despesaPayMatch[1]);
     const body = parseBody<Record<string, unknown>>(init);
+    const target = db.despesas.find((item) => item.id === id);
+    if (target && isCreditWithCard({ formaPagamento: target.forma_pagamento, cartaoId: target.cartao_id })) {
+      throw new Error('Despesa no crédito é paga pela fatura do cartão.');
+    }
     db.despesas = db.despesas.map((item) =>
       item.id === id
         ? { ...item, pago: true, data_pagamento: String(body.data_pagamento ?? todayIso()) }
         : item,
     );
     return undefined;
+  }
+
+  // Pagamento da fatura do cartão: faturas do mês, pagar e desfazer
+  if (matchEndpoint(endpoint, /^\/card-invoices$/) && method === 'GET') {
+    const month = new URLSearchParams(endpoint.split('?')[1] ?? '').get('invoice_month') ?? '';
+    return demoCardInvoices(db, month);
+  }
+  if (matchEndpoint(endpoint, /^\/card-invoices\/payments$/) && method === 'POST') {
+    const input = parseBody<InvoicePaymentInput>(init);
+    demoPayInvoice(db, input);
+    return demoCardInvoices(db, input.invoiceMonth).find((invoice) => invoice.card.id === input.cardId) ?? null;
+  }
+  const invoicePaymentMatch = matchEndpoint(endpoint, /^\/card-invoices\/payments\/(\d+)$/);
+  if (invoicePaymentMatch && method === 'DELETE') {
+    const payment = demoUndoInvoicePayment(db, Number(invoicePaymentMatch[1]));
+    return demoCardInvoices(db, payment.invoiceMonth).find((invoice) => invoice.card.id === payment.cardId) ?? null;
   }
 
   // Saldo do mês — calculado a partir do estado fake
@@ -215,6 +240,186 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
   ))];
 }
 
+interface DemoInvoicePayment extends Omit<InvoicePaymentEntry, 'canUndo' | 'undoBlockedReason'> {
+  cardId: number;
+  invoiceMonth: string;
+}
+
+// Histórico dos pagamentos de fatura da demo, por banco fake (o tipo do banco não muda).
+const demoInvoicePayments = new WeakMap<DemoFakeDatabase, DemoInvoicePayment[]>();
+
+function paymentsOf(db: DemoFakeDatabase): DemoInvoicePayment[] {
+  const list = demoInvoicePayments.get(db) ?? [];
+  demoInvoicePayments.set(db, list);
+  return list;
+}
+
+const DB_METHOD = { total: 'total', partial: 'parcial', installments: 'parcelado' } as const;
+
+/** Compras em aberto da fatura: no crédito do cartão, ativas e vencendo no mês. */
+function demoOpenItems(db: DemoFakeDatabase, cardId: number, invoiceMonth: string): RawExpenseDemo[] {
+  return db.despesas
+    .filter((row) => row.cartao_id === cardId && row.forma_pagamento === 'credito' && row.status === 'ativa'
+      && !row.pago && row.data_vencimento.startsWith(invoiceMonth))
+    .sort((left, right) => left.data_vencimento.localeCompare(right.data_vencimento) || left.id - right.id);
+}
+
+/** As mesmas faturas que a API devolve, a partir do estado fake. */
+function demoCardInvoices(db: DemoFakeDatabase, invoiceMonth: string): CardInvoice[] {
+  return db.cartoes
+    .filter((card) => card.tipo === null || card.tipo === 'credito' || card.tipo === 'ambos')
+    .map((card): CardInvoice => {
+      const dueDay = card.dia_vencimento ?? 10;
+      const items = demoOpenItems(db, card.id, invoiceMonth);
+      const payments = paymentsOf(db)
+        .filter((payment) => payment.cardId === card.id && payment.invoiceMonth === invoiceMonth)
+        .map((payment): InvoicePaymentEntry => {
+          const generated = db.despesas.filter((row) => row.origem_pagamento_fatura_id === payment.id);
+          const blocked = generated.some((row) => row.pago && row.pagamento_fatura_id !== payment.id);
+          const reason = payment.reversedAt === null && blocked
+            ? 'Uma parte desta renegociação já foi paga numa fatura seguinte. Desfaça aquele pagamento antes.'
+            : null;
+          return { ...payment, canUndo: payment.reversedAt === null && !blocked, undoBlockedReason: reason };
+        });
+      return {
+        card: { id: card.id, name: card.nome, dueDay, ownerName: null },
+        dueDate: invoiceDueDate(invoiceMonth, dueDay, 0),
+        openTotal: items.reduce((sum, row) => sum + Math.round((row.valor_original ?? 0) * 100), 0) / 100,
+        openItems: items.map((row) => ({
+          expenseId: row.id,
+          description: row.descricao,
+          amount: row.valor_original ?? 0,
+          dueDate: row.data_vencimento,
+          authorName: null,
+          installment: row.parcela_atual && row.numero_parcelas ? `${row.parcela_atual}/${row.numero_parcelas}` : null,
+        })),
+        payments,
+      };
+    });
+}
+
+/** Parte de cada compra num pagamento parcial, com os centavos que sobram na última. */
+function demoShares(items: RawExpenseDemo[], paidCents: number): number[] {
+  const totalCents = items.reduce((sum, row) => sum + Math.round((row.valor_original ?? 0) * 100), 0);
+  const shares = items.map((row) => Math.floor((paidCents * Math.round((row.valor_original ?? 0) * 100)) / totalCents));
+  shares[shares.length - 1]! += paidCents - shares.reduce((sum, cents) => sum + cents, 0);
+  return shares;
+}
+
+/** As mesmas regras do backend (cardInvoiceService), simplificadas, sem banco. */
+function demoPayInvoice(db: DemoFakeDatabase, input: InvoicePaymentInput): void {
+  const card = db.cartoes.find((item) => item.id === input.cardId);
+  if (!card) throw new Error('Cartão não encontrado');
+  const items = demoOpenItems(db, card.id, input.invoiceMonth);
+  if (items.length === 0) throw new Error('Esta fatura não tem valor em aberto.');
+  const purchasesAmount = items.reduce((sum, row) => sum + Math.round((row.valor_original ?? 0) * 100), 0) / 100;
+  const summary = summarizeInvoicePayment({
+    purchasesAmount,
+    method: input.method,
+    amountPaid: input.amountPaid ?? 0,
+    interestAmount: input.interestAmount ?? 0,
+    installmentCount: input.installmentCount ?? 0,
+  });
+  if (summary.error) throw new Error(summary.error);
+
+  const [year, month] = input.invoiceMonth.split('-').map(Number) as [number, number];
+  const paymentId = generateId();
+  const dueDay = card.dia_vencimento ?? 10;
+  const interest = input.interestAmount ?? 0;
+  const paid = input.method === 'installments' ? 0 : input.amountPaid ?? 0;
+  paymentsOf(db).unshift({
+    id: paymentId,
+    cardId: card.id,
+    invoiceMonth: input.invoiceMonth,
+    method: input.method,
+    paymentDate: input.paymentDate,
+    purchasesAmount,
+    paidAmount: paid,
+    chargesAmount: summary.chargesAmount,
+    interestAmount: input.method === 'total' ? 0 : interest,
+    carriedInterest: 0,
+    carriedForward: summary.carriedForward,
+    installmentCount: input.method === 'installments' ? input.installmentCount ?? null : null,
+    installmentAmount: summary.installmentAmounts[0] ?? null,
+    firstDueDate: input.method === 'total' ? null : invoiceDueDate(input.invoiceMonth, dueDay, 1),
+    createdAt: `${todayIso()} 00:00:00`,
+    registeredByName: 'Você',
+    reversedAt: null,
+    reversedByName: null,
+  });
+
+  const shares = input.method === 'partial' ? demoShares(items, Math.round(paid * 100)) : [];
+  const link = {
+    pagamento_fatura_id: paymentId,
+    pagamento_fatura_forma: DB_METHOD[input.method],
+    pagamento_fatura_parcelas: input.method === 'installments' ? input.installmentCount ?? null : null,
+    pagamento_fatura_mes: month - 1,
+    pagamento_fatura_ano: year,
+  };
+  const itemIds = new Set(items.map((row) => row.id));
+  db.despesas = db.despesas.map((row) => {
+    if (!itemIds.has(row.id)) return row;
+    const index = items.findIndex((item) => item.id === row.id);
+    const valorPago = input.method === 'total' ? row.valor_original : input.method === 'partial' ? (shares[index] ?? 0) / 100 : 0;
+    return { ...row, ...link, pago: true, data_pagamento: input.paymentDate, valor_pago: valorPago };
+  });
+
+  const label = invoiceMonthLabel(input.invoiceMonth);
+  const generatedRow = (
+    description: string, dueDate: string, amount: number, interestShare: number, extra: Partial<RawExpenseDemo>,
+  ): RawExpenseDemo => {
+    const [rowYear, rowMonth] = dueDate.split('-').map(Number) as [number, number];
+    return {
+      id: generateId(), descricao: `${description} de ${label} — ${card.nome}`, categoria_id: null,
+      categoria_nome: 'Renegociação de fatura', forma_pagamento: 'credito', cartao_id: card.id, cartao_nome: card.nome,
+      data_vencimento: dueDate, data_compra: input.paymentDate, data_pagamento: null, mes: rowMonth - 1, ano: rowYear,
+      status: 'ativa', pago: false, parcelado: false, recorrente: false, numero_parcelas: null, parcela_atual: null,
+      observacoes: null, valor_original: amount, numero_nf: null, data_emissao_nf: null, anexos: null,
+      origem_pagamento_fatura_id: paymentId, valor_juros_fatura: interestShare,
+      ...extra,
+    };
+  };
+
+  if (input.method === 'total' && summary.chargesAmount > 0) {
+    db.despesas = [generatedRow('Encargos da fatura', invoiceDueDate(input.invoiceMonth, dueDay, 0), summary.chargesAmount, summary.chargesAmount, {
+      categoria_nome: 'Encargos de cartão', pago: true, data_pagamento: input.paymentDate, valor_pago: summary.chargesAmount, ...link,
+    }), ...db.despesas];
+  }
+  if (input.method === 'partial') {
+    db.despesas = [generatedRow('Restante da fatura', invoiceDueDate(input.invoiceMonth, dueDay, 1), summary.carriedForward, interest, {}), ...db.despesas];
+  }
+  if (input.method === 'installments') {
+    const amounts = installmentAmountsOf(summary.carriedForward, input.installmentCount ?? 0);
+    const interests = splitAmountInCents(Math.round(interest * 100), amounts.length).map((cents) => cents / 100);
+    const groupId = generateId();
+    const rows = amounts.map((amount, index) => generatedRow(
+      'Parcelamento da fatura', invoiceDueDate(input.invoiceMonth, dueDay, index + 1), amount, Math.min(interests[index] ?? 0, amount),
+      { ...(index === 0 ? { id: groupId } : {}), parcelado: true, numero_parcelas: amounts.length, parcela_atual: index + 1, grupo_parcelamento_id: groupId },
+    ));
+    db.despesas = [...rows, ...db.despesas];
+  }
+}
+
+function demoUndoInvoicePayment(db: DemoFakeDatabase, paymentId: number): DemoInvoicePayment {
+  const payment = paymentsOf(db).find((item) => item.id === paymentId && item.reversedAt === null);
+  if (!payment) throw new Error('Pagamento não encontrado');
+  const generated = db.despesas.filter((row) => row.origem_pagamento_fatura_id === paymentId);
+  if (generated.some((row) => row.pago && row.pagamento_fatura_id !== paymentId)) {
+    throw new Error('Uma parte desta renegociação já foi paga numa fatura seguinte. Desfaça aquele pagamento antes.');
+  }
+  db.despesas = db.despesas
+    .filter((row) => row.origem_pagamento_fatura_id !== paymentId)
+    .map((row) => (row.pagamento_fatura_id === paymentId
+      ? {
+          ...row, pago: false, data_pagamento: null, valor_pago: null, pagamento_fatura_id: null, pagamento_fatura_forma: null,
+          pagamento_fatura_parcelas: null, pagamento_fatura_mes: null, pagamento_fatura_ano: null,
+        }
+      : row));
+  payment.reversedAt = `${todayIso()} 00:00:00`;
+  payment.reversedByName = 'Você';
+  return payment;
+}
+
 /** As mesmas linhas que o backend grava: a receita e uma cópia por mês até "Repetir até". */
 function buildDemoIncomeRows(input: IncomeCreateInput): RawIncomeDemo[] {
   const row = (receiptDate: string): RawIncomeDemo => {
@@ -269,7 +474,7 @@ function buildDemoReport(db: DemoFakeDatabase, params: URLSearchParams): Report 
         status: row.pago ? 'paid' : row.data_vencimento < today ? 'overdue' : 'on_time',
         installment: row.numero_parcelas ? `${row.parcela_atual ?? 1}/${row.numero_parcelas}` : null,
         recurring: row.recorrente,
-        amount: row.valor_original ?? 0,
+        amount: row.pago && row.valor_pago != null ? row.valor_pago : row.valor_original ?? 0,
       };
     }) : [];
 

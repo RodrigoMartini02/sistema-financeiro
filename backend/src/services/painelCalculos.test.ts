@@ -18,12 +18,15 @@ import {
   baldesDaSerie,
   classificarPagamento,
   dataIsoValida,
+  descontoDaDespesa,
   fatorMetaProporcional,
   janelaDaSerie,
+  jurosDaDespesa,
   montarSerie,
   percentual,
   periodoAnterior,
   resumirPeriodo,
+  sumUpcomingInterest,
   ticketMedio,
   ultimoDiaDoMes,
   validarPeriodo,
@@ -46,6 +49,8 @@ function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
     valorPago: null,
     parcelado: false,
     recorrente: false,
+    invoicePaymentId: null,
+    invoiceInterest: null,
     ...parcial,
   };
 }
@@ -223,6 +228,47 @@ test('série: juros e descontos no trecho do vencimento, somando o total do per�
   const total = agregarJurosDescontos(despesas);
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.juros, 0), total.juros);
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.descontos, 0), total.descontos);
+});
+
+test('fatura renegociada: compra paga em parte não vira desconto', () => {
+  // Parcial: a compra de 500 contou 300.
+  const parcial = despesa({ formaPagamento: 'credito', valorOriginal: 500, pago: true, valorPago: 300, invoicePaymentId: 9 });
+  assert.equal(descontoDaDespesa(parcial), 0);
+  assert.equal(jurosDaDespesa(parcial), 0);
+  // Parcelado: a compra contou 0.
+  const parcelada = despesa({ formaPagamento: 'credito', valorOriginal: 500, pago: true, valorPago: 0, invoicePaymentId: 9 });
+  assert.equal(descontoDaDespesa(parcelada), 0);
+  assert.deepEqual(agregarJurosDescontos([parcial, parcelada]), { juros: 0, descontos: 0 });
+});
+
+test('linhas geradas pela fatura: juros guardados contam na proporção do que foi pago', () => {
+  // Restante de 430 com 30 de juros, pago inteiro na fatura seguinte.
+  const restantePago = despesa({ formaPagamento: 'credito', valorOriginal: 430, pago: true, valorPago: 430, invoicePaymentId: 12, invoiceInterest: 30 });
+  assert.equal(jurosDaDespesa(restantePago), 30);
+  // Pago pela metade numa nova renegociação: metade dos juros conta agora.
+  const restanteMetade = despesa({ formaPagamento: 'credito', valorOriginal: 430, pago: true, valorPago: 215, invoicePaymentId: 12, invoiceInterest: 30 });
+  assert.equal(jurosDaDespesa(restanteMetade), 15);
+  // Encargos do pagamento total: toda ela juros.
+  const encargos = despesa({ formaPagamento: 'credito', valorOriginal: 45.5, pago: true, valorPago: 45.5, invoicePaymentId: 12, invoiceInterest: 45.5 });
+  assert.equal(jurosDaDespesa(encargos), 45.5);
+  // Em aberto: nada pago ainda.
+  assert.equal(jurosDaDespesa(despesa({ valorOriginal: 360, invoiceInterest: 26.66 })), 0);
+});
+
+test('despesa fora da fatura: regra de sempre (acima é juro, abaixo é desconto)', () => {
+  assert.equal(jurosDaDespesa(despesa({ pago: true, valorPago: 112 })), 12);
+  assert.equal(descontoDaDespesa(despesa({ pago: true, valorPago: 95 })), 5);
+});
+
+test('juros a vencer: só as linhas geradas ainda não pagas', () => {
+  const despesas = [
+    despesa({ invoiceInterest: 26.66 }),
+    despesa({ invoiceInterest: 26.66 }),
+    despesa({ invoiceInterest: 26.68, pago: true, valorPago: 360, invoicePaymentId: 3 }),
+    despesa({ invoiceInterest: null }),
+  ];
+  assert.equal(Math.round(sumUpcomingInterest(despesas) * 100), 5332);
+  assert.equal(sumUpcomingInterest([]), 0);
 });
 
 test('indicadores sem base devolvem null em vez de dividir por zero', () => {

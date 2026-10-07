@@ -7,11 +7,14 @@ import {
   formatDiferenca, getFirstName, getStatusColor, StatusBadge,
 } from './expenseStatus';
 import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
+import { expensePayButton, isInvoiceProtected, isRenegotiated, renegotiationNote } from '../../utils/cardInvoice';
 import { EntryTypeBadge, getPaymentMethodLabel } from '../finance/entryTable';
 
 interface ExpenseCardProps {
   item: Expense;
   isEmpresa: boolean;
+  /** Abre a fatura que pagou ou renegociou a compra. */
+  onOpenInvoice: () => void;
   onPay: () => void;
   onMoveToNextMonth: () => void;
   onCancel: () => void;
@@ -21,9 +24,13 @@ interface ExpenseCardProps {
 }
 
 export function ExpenseCard({
-  item, isEmpresa, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit, onDelete,
+  item, isEmpresa, onOpenInvoice, onPay, onMoveToNextMonth, onCancel, onOpenAttachments, onEdit, onDelete,
 }: ExpenseCardProps) {
   const isCancelada = item.status === 'cancelada';
+  // Paga ou renegociada pela fatura, ou gerada por ela: só muda desfazendo o pagamento da fatura.
+  const isProtected = isInvoiceProtected(item);
+  const payButton = expensePayButton(item);
+  const note = renegotiationNote(item);
   const anexosCount = item.anexos?.length ?? 0;
 
   const actions: KebabMenuAction[] = [
@@ -35,10 +42,10 @@ export function ExpenseCard({
     },
     {
       key: 'pagar',
-      label: item.pago ? 'Já pago' : 'Marcar como pago',
+      label: payButton.label,
       icon: <CircleCheck size={15} />,
       onClick: onPay,
-      disabled: item.pago || isCancelada,
+      disabled: payButton.disabled,
     },
     {
       key: 'mover',
@@ -52,7 +59,7 @@ export function ExpenseCard({
       label: isCancelada ? 'Já cancelada' : 'Cancelar',
       icon: <Ban size={15} />,
       onClick: onCancel,
-      disabled: isCancelada,
+      disabled: isCancelada || isProtected,
       tone: 'danger',
     },
     {
@@ -60,6 +67,7 @@ export function ExpenseCard({
       label: 'Excluir',
       icon: <Trash2 size={15} />,
       onClick: onDelete,
+      disabled: isProtected,
       tone: 'danger',
     },
   ];
@@ -87,6 +95,15 @@ export function ExpenseCard({
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <StatusBadge item={item} />
           <EntryTypeBadge item={item} />
+          {note && (
+            <button
+              type="button"
+              onClick={onOpenInvoice}
+              className="text-[11px] text-slate-400 underline decoration-dotted hover:text-[#0EC4D8]"
+            >
+              {note}
+            </button>
+          )}
           {isEmpresa && item.numeroNf && (
             <span className="text-[11px] text-slate-400">NF {item.numeroNf}</span>
           )}
@@ -110,7 +127,11 @@ export function ExpenseCard({
           <span className={['whitespace-nowrap text-sm', getStatusColor(item)].join(' ')}>
             {formatCurrency(effectiveExpenseValue(item))}
           </span>
-          {paymentDifference(item) !== null && (
+          {isRenegotiated(item) ? (
+            <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
+              de {formatCurrency(item.valorFinal)}
+            </p>
+          ) : paymentDifference(item) !== null && (
             <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
               {formatDiferenca(paymentDifference(item)!)}
             </p>

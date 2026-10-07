@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Paperclip, Ban, CircleCheck, ArrowRight, ChevronDown, CheckSquare, Pencil, Trash2 } from 'lucide-react';
+import { Paperclip, Ban, CircleCheck, ArrowRight, ChevronDown, CheckSquare, CreditCard, Pencil, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
@@ -15,6 +15,7 @@ import { IncomeDialog } from './income-dialog/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from './PaymentModal';
 import { BatchPaymentModal } from './BatchPaymentModal';
+import { InvoicePaymentModal } from './InvoicePaymentModal';
 import { formatCurrency, formatDate } from './formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
@@ -26,6 +27,9 @@ import {
   type EntryType, type ExpenseFilters, type ExpenseStatus, type PaymentDateWindow,
 } from '../../utils/expenseFilters';
 import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
+import {
+  INVOICE_MESSAGES, expensePayButton, invoiceMonthParam, isInvoiceProtected, isRenegotiated, renegotiationNote,
+} from '../../utils/cardInvoice';
 import { formatDiferenca } from '../despesas/expenseStatus';
 import { ExpenseCard } from '../despesas/ExpenseCard';
 import { IncomeCard, categoriaReceita } from '../receitas/IncomeCard';
@@ -37,15 +41,19 @@ type LancamentoItem =
   | { kind: 'despesa'; id: number; chave: string; data: Expense }
   | { kind: 'receita'; id: number; chave: string; data: Income };
 
-const STATUS_TEXT_COLOR: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada';
+
+const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
   pago: 'text-green-600 dark:text-green-400',
   atrasada: 'text-red-600 dark:text-red-400',
   em_dia: 'text-slate-600 dark:text-slate-300',
   cancelada: 'text-slate-400 dark:text-slate-500',
+  // Fatura paga em parte ou parcelada: encerrada no mês, o restante seguiu para a frente.
+  renegociada: 'text-slate-500 dark:text-slate-400',
 };
 
-const STATUS_LABEL: Record<'pago' | 'atrasada' | 'em_dia' | 'cancelada', string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada',
+const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -53,8 +61,10 @@ export function getFirstName(nome?: string | null): string {
   return first || '—';
 }
 
-function getExpenseStatusKey(item: Expense): 'pago' | 'atrasada' | 'em_dia' | 'cancelada' {
-  return item.status === 'cancelada' ? 'cancelada' : getExpenseStatus(item);
+function getExpenseStatusKey(item: Expense): ExpenseStatusKey {
+  if (item.status === 'cancelada') return 'cancelada';
+  if (isRenegotiated(item)) return 'renegociada';
+  return getExpenseStatus(item);
 }
 
 function getExpenseStatusColor(item: Expense): string {
@@ -163,6 +173,8 @@ export interface LancamentosTableProps {
    * Precisa ser estável (ex.: setter do useState): o efeito que a chama depende dela.
    */
   onDataLoaded?: (options: { formas: string[]; cartoes: [string, string][] }) => void;
+  /** Quem pode lançar despesas paga despesas e faturas (a mesma permissão de /api/card-invoices). */
+  canPayExpenses?: boolean;
 }
 
 /**
@@ -183,7 +195,7 @@ function incomeUndoNotes(item: Income): string[] {
 export function LancamentosTable({
   month, year, isEmpresa, escopoFamilia, meIdStr, nomesVisiveis,
   filtroTipo, filtroStatus, filtroCategoria, filtroFormaPag, filtroCartao, filtroDataPag, ordenar, hasFilter,
-  onDataLoaded,
+  onDataLoaded, canPayExpenses = true,
 }: LancamentosTableProps) {
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [incomeDialog, setIncomeDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
@@ -194,6 +206,10 @@ export function LancamentosTable({
   const [installmentDialog, setInstallmentDialog] = useState<{ open: boolean; item?: Expense; mode: 'excluir' | 'cancelar' }>({ open: false, mode: 'excluir' });
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [batchModal, setBatchModal] = useState(false);
+  // "Pagar fatura": abre no mês da tela; a nota de uma compra renegociada abre no cartão e no mês dela.
+  const [invoiceModal, setInvoiceModal] = useState<{ open: boolean; invoiceMonth: string; cardId: number | null }>({
+    open: false, invoiceMonth: invoiceMonthParam(month, year), cardId: null,
+  });
 
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -250,8 +266,12 @@ export function LancamentosTable({
     if (ok) moverMut.mutate(item.id);
   };
 
+  const openInvoiceFor = (item: Expense) => {
+    setInvoiceModal({ open: true, invoiceMonth: item.invoiceMonth ?? invoiceMonthParam(month, year), cardId: item.cartaoId ?? null });
+  };
+
   const handleCancelarDespesa = async (item: Expense) => {
-    if (item.status === 'cancelada') return;
+    if (item.status === 'cancelada' || isInvoiceProtected(item)) return;
     if (item.parcela) {
       setInstallmentDialog({ open: true, item, mode: 'cancelar' });
       return;
@@ -265,6 +285,7 @@ export function LancamentosTable({
   };
 
   const handleExcluirDespesa = async (item: Expense) => {
+    if (isInvoiceProtected(item)) return;
     if (item.parcela) {
       setInstallmentDialog({ open: true, item, mode: 'excluir' });
       return;
@@ -420,27 +441,42 @@ export function LancamentosTable({
         )}
 
         <Card allowOverflow className="flex min-h-0 flex-1 flex-col">
-          {selecionadas.size > 0 && (
-            <div className="relative flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-100 dark:border-slate-700 px-4 py-2.5">
-              <CheckSquare size={14} className="text-[#0a9db5]" />
-              <span className="text-xs font-semibold text-[#0a9db5]">
-                {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
-              </span>
+          {/* Pagamentos sempre à vista: as despesas marcadas (demais formas) e a fatura do cartão. */}
+          {canPayExpenses && (
+            <div className="relative flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 dark:border-slate-700 px-4 py-2.5">
               <button
                 type="button"
                 onClick={() => setBatchModal(true)}
-                className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition"
+                disabled={selecionadasExpenses.length === 0}
+                title={selecionadasExpenses.length === 0 ? 'Marque na lista as despesas que quer pagar' : undefined}
+                className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Pagar selecionadas
+                Pagar despesas{selecionadasExpenses.length > 0 ? ` (${selecionadasExpenses.length})` : ''}
               </button>
               <button
                 type="button"
-                onClick={() => setSelecionadas(new Set())}
-                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                onClick={() => setInvoiceModal({ open: true, invoiceMonth: invoiceMonthParam(month, year), cardId: null })}
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition dark:border-emerald-500 dark:bg-slate-800 dark:text-emerald-300"
               >
-                Desmarcar
+                <CreditCard size={13} />
+                Pagar fatura
               </button>
-              {pagarSelecionadasGuide.isVisible && (
+              {selecionadas.size > 0 && (
+                <>
+                  <span className="ml-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[#0a9db5]">
+                    <CheckSquare size={14} />
+                    {selecionadas.size} selecionada{selecionadas.size !== 1 ? 's' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelecionadas(new Set())}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                  >
+                    Desmarcar
+                  </button>
+                </>
+              )}
+              {selecionadas.size > 0 && pagarSelecionadasGuide.isVisible && (
                 <FirstAccessGuideCard
                   floating
                   placement="bottom"
@@ -515,6 +551,7 @@ export function LancamentosTable({
                     key={item.chave}
                     item={item.data}
                     isEmpresa={isEmpresa}
+                    onOpenInvoice={() => openInvoiceFor(item.data)}
                     onPay={() => setPaymentModal({ open: true, item: item.data })}
                     onMoveToNextMonth={() => handleMoverProximoMes(item.data)}
                     onCancel={() => handleCancelarDespesa(item.data)}
@@ -592,6 +629,7 @@ export function LancamentosTable({
                         isEmpresa={isEmpresa}
                         selecionada={selecionadas.has(item.chave)}
                         onToggleSelecionada={() => toggleItem(item.chave)}
+                        onOpenInvoice={() => openInvoiceFor(item.data)}
                         onEdit={() => setExpenseDialog({ open: true, item: item.data })}
                         onPay={() => setPaymentModal({ open: true, item: item.data })}
                         onMoveToNextMonth={() => handleMoverProximoMes(item.data)}
@@ -648,6 +686,12 @@ export function LancamentosTable({
           pagarMut.mutate({ id: paymentModal.item.id, dataPagamento, valorPago });
         }}
       />
+      <InvoicePaymentModal
+        open={invoiceModal.open}
+        invoiceMonth={invoiceModal.invoiceMonth}
+        initialCardId={invoiceModal.cardId}
+        onClose={() => setInvoiceModal((current) => ({ ...current, open: false }))}
+      />
       <BatchPaymentModal
         open={batchModal}
         expenses={selecionadasExpenses}
@@ -682,13 +726,15 @@ export function LancamentosTable({
 // ─── Linha de despesa (colunas completas) ──────────────────────────────────
 
 function ExpenseRow({
-  item, chave, isEmpresa, selecionada, onToggleSelecionada, onEdit, onPay, onMoveToNextMonth, onCancel, onDelete, onOpenAttachments, isCancelarPending,
+  item, chave, isEmpresa, selecionada, onToggleSelecionada, onOpenInvoice, onEdit, onPay, onMoveToNextMonth, onCancel, onDelete, onOpenAttachments, isCancelarPending,
 }: {
   item: Expense;
   chave: string;
   isEmpresa: boolean;
   selecionada: boolean;
   onToggleSelecionada: () => void;
+  /** Abre a fatura que pagou ou renegociou a compra. */
+  onOpenInvoice: () => void;
   onEdit: () => void;
   onPay: () => void;
   onMoveToNextMonth: () => void;
@@ -697,6 +743,9 @@ function ExpenseRow({
   onOpenAttachments: () => void;
   isCancelarPending: boolean;
 }) {
+  const payButton = expensePayButton(item);
+  const isProtected = isInvoiceProtected(item);
+  const note = renegotiationNote(item);
   return (
     <tr
       key={chave}
@@ -745,10 +794,24 @@ function ExpenseRow({
       <td className={[TD_CLASS, 'whitespace-nowrap text-xs text-slate-500 dark:text-slate-400'].join(' ')}>
         {item.dataPagamento && item.pago ? formatDate(item.dataPagamento) : DASH}
       </td>
-      <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}><ExpenseStatusBadge item={item} /></td>
+      <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
+        <ExpenseStatusBadge item={item} />
+        {note && (
+          <button
+            type="button"
+            onClick={onOpenInvoice}
+            title={`${note} — ver a fatura`}
+            className={['block w-full truncate text-center underline decoration-dotted hover:text-[#0EC4D8]', SECONDARY_CLASS].join(' ')}
+          >
+            {note}
+          </button>
+        )}
+      </td>
       <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
         <span className={['text-xs', getExpenseStatusColor(item)].join(' ')}>{formatCurrency(effectiveExpenseValue(item))}</span>
-        {paymentDifference(item) !== null && <p className={SECONDARY_CLASS}>{formatDiferenca(paymentDifference(item)!)}</p>}
+        {isRenegotiated(item)
+          ? <p className={SECONDARY_CLASS}>de {formatCurrency(item.valorFinal)}</p>
+          : paymentDifference(item) !== null && <p className={SECONDARY_CLASS}>{formatDiferenca(paymentDifference(item)!)}</p>}
       </td>
       {isEmpresa && (
         <td className={[TD_CLASS, 'text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap'].join(' ')}>
@@ -779,8 +842,8 @@ function ExpenseRow({
           </ActionBtn>
           <ActionBtn
             onClick={onPay}
-            disabled={item.pago || item.status === 'cancelada'}
-            title={item.status === 'cancelada' ? 'Cancelada' : item.pago ? 'Já pago' : 'Marcar como pago'}
+            disabled={payButton.disabled}
+            title={payButton.label}
             colorClass="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
           >
             <CircleCheck size={15} />
@@ -790,13 +853,18 @@ function ExpenseRow({
           </ActionBtn>
           <ActionBtn
             onClick={onCancel}
-            disabled={item.status === 'cancelada' || isCancelarPending}
-            title={item.status === 'cancelada' ? 'Já cancelada' : 'Cancelar'}
+            disabled={item.status === 'cancelada' || isProtected || isCancelarPending}
+            title={item.status === 'cancelada' ? 'Já cancelada' : isProtected ? INVOICE_MESSAGES.lockedRow : 'Cancelar'}
             colorClass="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
           >
             <Ban size={14} />
           </ActionBtn>
-          <ActionBtn onClick={onDelete} title="Excluir" colorClass="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30">
+          <ActionBtn
+            onClick={onDelete}
+            disabled={isProtected}
+            title={isProtected ? INVOICE_MESSAGES.lockedRow : 'Excluir'}
+            colorClass="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30"
+          >
             <Trash2 size={14} />
           </ActionBtn>
         </div>

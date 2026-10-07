@@ -44,6 +44,16 @@ export interface RawExpenseDemo {
   numero_nf: string | null;
   data_emissao_nf: string | null;
   anexos: null;
+  // Pagamento da fatura do cartão na demo (fakeApiResolver): os mesmos campos que a API devolve.
+  valor_pago?: number | null;
+  grupo_parcelamento_id?: number | null;
+  pagamento_fatura_id?: number | null;
+  origem_pagamento_fatura_id?: number | null;
+  valor_juros_fatura?: number | null;
+  pagamento_fatura_forma?: string | null;
+  pagamento_fatura_parcelas?: number | null;
+  pagamento_fatura_mes?: number | null;
+  pagamento_fatura_ano?: number | null;
 }
 
 export interface CategoriaDemo {

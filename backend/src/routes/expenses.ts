@@ -24,6 +24,8 @@ import {
 import { BudgetInputError, resolveFinancialAccount, type FinancialAccount } from '../services/budgetService';
 import { despesasEmAberto } from '../services/assistantQueries';
 import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense } from '../services/assistantPayment';
+import { INVOICE_EXPENSE_METHOD, INVOICE_MESSAGES, invoiceEditRefusal } from '../services/cardInvoiceRules';
+import { hasInvoiceProtectedRows, isCreditWithCardExpense } from '../services/cardInvoiceService';
 
 const router = Router();
 
@@ -127,7 +129,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
               ct.nome AS cartao_nome, ct.tipo AS cartao_tipo, ct.usuario_id AS cartao_dono_id,
               COALESCE(conta_autor.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome,
-              COALESCE(conta_dono_cartao.nome, TRIM(CONCAT(dono_cartao.nome, ' ', dono_cartao.sobrenome))) AS cartao_dono_nome
+              COALESCE(conta_dono_cartao.nome, TRIM(CONCAT(dono_cartao.nome, ' ', dono_cartao.sobrenome))) AS cartao_dono_nome,
+              pf.forma AS pagamento_fatura_forma, pf.numero_parcelas AS pagamento_fatura_parcelas,
+              pf.mes AS pagamento_fatura_mes, pf.ano AS pagamento_fatura_ano
        FROM despesas d
        LEFT JOIN categorias c ON d.categoria_id = c.id
        LEFT JOIN categorias p ON c.parent_id = p.id
@@ -136,6 +140,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
        LEFT JOIN contas conta_autor ON conta_autor.usuario_id = u.id AND conta_autor.eh_padrao = true
        LEFT JOIN usuarios dono_cartao ON dono_cartao.id = ct.usuario_id
        LEFT JOIN contas conta_dono_cartao ON conta_dono_cartao.usuario_id = dono_cartao.id AND conta_dono_cartao.eh_padrao = true
+       -- Pagamento da fatura que pagou ou renegociou a compra: a lista mostra "Renegociada" com a nota.
+       LEFT JOIN pagamentos_fatura pf ON pf.id = d.pagamento_fatura_id
        ${where}
        ORDER BY d.data_vencimento ASC`,
       params,
@@ -274,6 +280,20 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const input = readUpdateExpenseInput(req.body);
+    // Compra paga pela fatura e linha gerada por ela têm campos travados; no
+    // crédito com cartão, o pagamento só muda pela fatura.
+    const lockRefusal = invoiceEditRefusal(current.invoiceEditLock, current.lockableFields, {
+      amount: input.amount,
+      dueDate: input.dueDate,
+      paymentMethod: input.paymentMethod,
+      cardId: input.cardId,
+      paid: input.paid,
+      paymentDate: input.paymentDate,
+      amountPaid: input.amountPaid,
+    });
+    if (lockRefusal) {
+      throw new RequestInputError(lockRefusal);
+    }
     // A categoria que a despesa já tem continua aceita: lançamentos antigos podem
     // apontar para categorias de antes do catálogo da conta.
     if (input.categoryId !== current.categoryId
@@ -281,7 +301,9 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, current.accountId, current.cardId);
-    const updated = await updateExpense(ownerId, expenseId, { ...input, cardId }, current.isInstallment, getTodayIsoInTimezone());
+    const updated = await updateExpense(
+      ownerId, expenseId, { ...input, cardId }, current.isInstallment, getTodayIsoInTimezone(), current.invoiceEditLock,
+    );
     if (!updated) {
       throw new RequestInputError('Despesa não encontrada', 404);
     }
@@ -367,11 +389,21 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
         return;
       }
 
+      // Compra paga pela fatura e linha gerada por ela só mudam desfazendo o pagamento da fatura.
+      if (await hasInvoiceProtectedRows(donoCancel, { ids: selectedIds })) {
+        res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
+        return;
+      }
+
       await pool.query(
         `UPDATE despesas SET status = 'cancelada' WHERE id = ANY($1) AND usuario_id = $2`,
         [selectedIds, donoCancel],
       );
     } else {
+      if (await hasInvoiceProtectedRows(donoCancel, { ids: [expenseId] })) {
+        res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
+        return;
+      }
       const result = await pool.query(
         "UPDATE despesas SET status = 'cancelada' WHERE id = $1 AND usuario_id = $2 RETURNING id",
         [expenseId, donoCancel],
@@ -435,16 +467,30 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         return;
       }
 
+      // Compra paga pela fatura e linha gerada por ela só mudam desfazendo o pagamento da fatura.
+      if (await hasInvoiceProtectedRows(donoDelete, { ids: selectedIds })) {
+        res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
+        return;
+      }
+
       await pool.query(
         `DELETE FROM despesas WHERE id = ANY($1) AND usuario_id = $2`,
         [selectedIds, donoDelete],
       );
     } else if (delete_group === 'true') {
+      if (await hasInvoiceProtectedRows(donoDelete, { groupAnchorId: expenseId })) {
+        res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
+        return;
+      }
       await pool.query(
         `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2`,
         [expenseId, donoDelete],
       );
     } else {
+      if (await hasInvoiceProtectedRows(donoDelete, { ids: [expenseId] })) {
+        res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
+        return;
+      }
       const result = await pool.query(
         'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 RETURNING id',
         [expenseId, donoDelete],
@@ -470,6 +516,13 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
 
     const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
 
+    // Despesa no credito com cartao e paga pela fatura, nunca sozinha (lote,
+    // assistente). A condicao se repete no proprio UPDATE, contra corrida.
+    if (Number.isInteger(expenseId) && await isCreditWithCardExpense(req.user!.id, expenseId)) {
+      res.status(400).json({ success: false, message: INVOICE_MESSAGES.creditPayment });
+      return;
+    }
+
     // Sem valor informado, grava o proprio valor da compra. Deixar nulo obrigava
     // toda leitura a presumir o valor por COALESCE, e escondia juros e desconto
     // de quem quitou sem digitar nada.
@@ -477,8 +530,9 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
       `UPDATE despesas
        SET pago = true, data_pagamento = $1, valor_pago = COALESCE($2, valor_original)
        WHERE id = $3 AND usuario_id = $4
+         AND NOT (COALESCE(forma_pagamento, '') = $5 AND cartao_id IS NOT NULL)
        RETURNING *`,
-      [paymentDate, valor_pago ?? null, expenseId, req.user!.id],
+      [paymentDate, valor_pago ?? null, expenseId, req.user!.id, INVOICE_EXPENSE_METHOD],
     );
 
     if (result.rows.length === 0) {

@@ -4,6 +4,7 @@ import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
 import { addMonthsClamped, getMonthYearFromIsoDate } from '../utils/date';
 import { escapeLikePattern } from '../utils/requestInput';
+import { invoiceEditLockOf, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
 import {
   PAYMENT_METHODS,
   type CreateExpenseInput,
@@ -135,21 +136,54 @@ export interface ExpenseForUpdate {
   cardId: number | null;
   categoryId: number | null;
   isInstallment: boolean;
+  /** Trava do pagamento da fatura: a edição recusa mudar os campos travados e não os regrava. */
+  invoiceEditLock: InvoiceEditLock | null;
+  /** Valores gravados que as travas comparam com os da edição. */
+  lockableFields: LockableExpenseFields;
 }
 
 export async function findExpenseForUpdate(ownerId: number, expenseId: number): Promise<ExpenseForUpdate | null> {
   const [row] = await db
-    .select({ accountId: expenses.accountId, cardId: expenses.cardId, categoryId: expenses.categoryId, installment: expenses.installment })
+    .select({
+      accountId: expenses.accountId,
+      cardId: expenses.cardId,
+      categoryId: expenses.categoryId,
+      installment: expenses.installment,
+      invoicePaymentId: expenses.invoicePaymentId,
+      invoiceOriginPaymentId: expenses.invoiceOriginPaymentId,
+      originalAmount: expenses.originalAmount,
+      dueDate: expenses.dueDate,
+      paymentMethod: expenses.paymentMethod,
+      paid: expenses.paid,
+      paymentDate: expenses.paymentDate,
+      amountPaid: expenses.amountPaid,
+    })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)));
   if (!row) return null;
-  return { accountId: row.accountId, cardId: row.cardId, categoryId: row.categoryId, isInstallment: row.installment === true };
+  return {
+    accountId: row.accountId,
+    cardId: row.cardId,
+    categoryId: row.categoryId,
+    isInstallment: row.installment === true,
+    invoiceEditLock: invoiceEditLockOf(row),
+    lockableFields: {
+      amount: Number(row.originalAmount ?? 0),
+      dueDate: row.dueDate,
+      paymentMethod: row.paymentMethod,
+      cardId: row.cardId,
+      paid: row.paid === true,
+      paymentDate: row.paymentDate,
+      amountPaid: row.amountPaid === null ? null : Number(row.amountPaid),
+    },
+  };
 }
 
 /**
  * Edita uma linha. Número e posição da parcela, grupo, recorrência, conta e
  * observação ficam como estão: o modal não os mostra, e sobrescrevê-los apagava o
- * "3/10" da parcela editada.
+ * "3/10" da parcela editada. Com a trava do pagamento da fatura, os campos
+ * travados também ficam como estão (a rota já recusou qualquer mudança neles).
  */
 export async function updateExpense(
   ownerId: number,
@@ -157,18 +191,23 @@ export async function updateExpense(
   input: UpdateExpenseInput,
   isInstallment: boolean,
   today: string,
+  invoiceEditLock: InvoiceEditLock | null = null,
 ): Promise<Expense | null> {
+  const keepsValueAndMethod = invoiceEditLock !== null;
+  const keepsScheduleAndPayment = invoiceEditLock === 'invoice-item';
   const [updated] = await db
     .update(expenses)
     .set({
-      ...scheduleColumns(input.dueDate),
-      ...resolvePayment(input, input.amount, input.dueDate, input.paymentMethod, today, !isInstallment),
+      ...(keepsScheduleAndPayment ? {} : scheduleColumns(input.dueDate)),
+      ...(keepsScheduleAndPayment
+        ? {}
+        : resolvePayment(input, input.amount, input.dueDate, input.paymentMethod, today, !isInstallment)),
       description: input.description,
       purchaseDate: input.purchaseDate,
       categoryId: input.categoryId,
-      cardId: input.cardId,
-      paymentMethod: input.paymentMethod,
-      originalAmount: toDecimal(input.amount),
+      ...(keepsValueAndMethod
+        ? {}
+        : { cardId: input.cardId, paymentMethod: input.paymentMethod, originalAmount: toDecimal(input.amount) }),
       attachments: input.attachments,
       numeroNf: input.invoiceNumber,
       dataEmissaoNf: input.invoiceDate,
