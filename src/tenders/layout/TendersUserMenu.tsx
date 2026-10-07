@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { logout } from '../../services/session';
 import { Z_DROPDOWN } from '../../ui/zIndex';
-import { TENDERS_APP_BASE } from '../utils/modulePaths';
+import { TENDERS_LOGIN_ADDRESS } from '../../utils/authOrigin';
 
 // Menu do usuário: nome, conta e sair. Licitações não leva ao FINGERENCE: são
 // soluções separadas (plano .plans/site-novo.md).
@@ -41,7 +41,7 @@ export function TendersUserMenu({ userName, accountName }: TendersUserMenuProps)
 
   const signOut = () => {
     logout();
-    window.location.replace(TENDERS_APP_BASE);
+    window.location.replace(TENDERS_LOGIN_ADDRESS);
   };
 
   const itemClass =

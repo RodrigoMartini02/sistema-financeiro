@@ -1,4 +1,4 @@
-import { Bell, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 // Prévia da tela de busca de Licitações, feita em código e com dados
 // fictícios: o módulo não tem demonstração (plano .plans/site-novo.md).
@@ -50,8 +50,8 @@ export function TendersPreview() {
     <figure>
       <div
         role="img"
-        aria-label="Prévia da tela de busca de Licitações: editais com órgão, objeto, modalidade, valor e prazo, e o aviso de edital novo. Dados fictícios."
-        className="relative rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_30px_80px_rgba(8,52,61,0.12)] sm:p-6"
+        aria-label="Prévia da tela de busca de Licitações: editais com órgão, objeto, modalidade, valor e prazo. Dados fictícios."
+        className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_30px_80px_rgba(8,52,61,0.12)] sm:p-6"
       >
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-slate-200" />
@@ -90,18 +90,6 @@ export function TendersPreview() {
               </div>
             </div>
           ))}
-        </div>
-
-        <div className="absolute -top-5 right-4 hidden w-[290px] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:block lg:-right-6">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#e6f6f8] text-brand-700">
-              <Bell className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-[13px] font-semibold text-slate-950">Edital novo na sua busca</p>
-              <p className="mt-0.5 text-[12px] leading-[1.5] text-slate-500">“Software de gestão” · Prefeitura de Vale Serrano (SP)</p>
-            </div>
-          </div>
         </div>
       </div>
       <figcaption className="mt-3 text-center text-[13px] text-slate-500">Prévia com dados fictícios.</figcaption>

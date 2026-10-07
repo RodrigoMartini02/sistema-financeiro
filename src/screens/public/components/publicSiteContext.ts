@@ -3,7 +3,7 @@ import type { SiteSolution } from '../../../brand';
 
 /** Ações de "Entrar" e "Começar grátis", da moldura do site (PublicLayout). */
 export interface PublicSiteActions {
-  /** Finanças abre o login; Licitações abre o sistema, que tem o próprio login. */
+  /** Abre o login da solução, sobre o site. */
   enter: (solution: SiteSolution) => void;
   /** Cadastro já naquela solução (em Licitações, com o teste dela). */
   startFree: (solution: SiteSolution) => void;

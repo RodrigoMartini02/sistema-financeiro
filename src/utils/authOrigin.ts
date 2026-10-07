@@ -25,3 +25,6 @@ export const LOGIN_REQUEST_PARAM = 'entrar';
 
 /** Entrada do FINGERENCE sem sessão ou ao sair: a página de Finanças com o login aberto. */
 export const FINANCE_LOGIN_ADDRESS = `/produtos/financas/?${LOGIN_REQUEST_PARAM}=1`;
+
+/** Entrada de Licitações sem sessão, com a sessão vencida ou ao sair: a página de Licitações com o login aberto. */
+export const TENDERS_LOGIN_ADDRESS = `/produtos/licitacoes/?${LOGIN_REQUEST_PARAM}=1`;

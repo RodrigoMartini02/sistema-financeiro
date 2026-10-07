@@ -1,6 +1,6 @@
 import { Check, Minus } from 'lucide-react';
 import { SOLUTION_NAMES } from '../../../brand';
-import { FINANCE_PLAN_PRICES_CENTS, formatPriceCents, FREE_TRIAL_DAYS, TENDERS_PRICE, tendersMonthlyCents } from '../../../utils/sitePricing';
+import { FINANCE_PLAN_PRICES_CENTS, formatPriceCents, FREE_TRIAL_DAYS, TENDERS_PRICE } from '../../../utils/sitePricing';
 import { ScrollReveal } from './ScrollReveal';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './siteStyles';
 
@@ -8,6 +8,7 @@ import { PRIMARY_BUTTON, SECONDARY_BUTTON } from './siteStyles';
 // conta já nela; o plano é escolhido depois, dentro do sistema.
 
 const START_LABEL = `Teste grátis por ${FREE_TRIAL_DAYS} dias`;
+const HIGHLIGHT_BADGE = 'Mais completo';
 
 interface FinancePlan {
   name: string;
@@ -67,9 +68,8 @@ const TENDERS_FEATURES = [
   'Lembretes 3 dias e 1 dia antes do prazo',
   'Favoritos e quadro de acompanhamento',
   'Itens e arquivos do edital',
+  'Mais de um usuário por conta; acima do limite, cobrança adicional por usuário',
 ];
-
-const EXAMPLE_USERS = 4;
 
 function FeatureList({ features }: { features: string[] }) {
   return (
@@ -93,35 +93,63 @@ function PriceTag({ cents, suffix }: { cents: number; suffix: string }) {
   );
 }
 
+interface PlanCardProps {
+  name: string;
+  priceCents: number;
+  priceSuffix: string;
+  description: string;
+  features: string[];
+  /** Destaque: fundo colorido e o botão principal. */
+  highlight: boolean;
+  badge?: string;
+  onStart: () => void;
+}
+
+/** O card de um plano, igual em Finanças e Licitações: nome, preço, o que inclui e o teste grátis. */
+function PlanCard({ name, priceCents, priceSuffix, description, features, highlight, badge, onStart }: PlanCardProps) {
+  return (
+    <article
+      className={[
+        'flex h-full flex-col rounded-[28px] border p-8',
+        highlight ? 'border-brand-300 bg-[#eef8f9] shadow-[0_22px_64px_rgba(8,52,61,0.12)]' : 'border-slate-200 bg-white',
+      ].join(' ')}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-700">{name}</h3>
+        {badge && (
+          <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-700">
+            {badge}
+          </span>
+        )}
+      </div>
+      <PriceTag cents={priceCents} suffix={priceSuffix} />
+      <p className="mt-3 text-[15px] leading-[1.6] text-slate-600">{description}</p>
+      <FeatureList features={features} />
+      <div className="mt-auto pt-8">
+        <button type="button" onClick={onStart} className={`${highlight ? PRIMARY_BUTTON : SECONDARY_BUTTON} w-full`}>
+          {START_LABEL}
+        </button>
+      </div>
+    </article>
+  );
+}
+
 /** Starter e Premium do módulo Finanças. */
 export function FinancePlanCards({ onStart }: { onStart: () => void }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {FINANCE_PLANS.map((plan, index) => (
         <ScrollReveal key={plan.name} delay={index * 0.08}>
-          <article
-            className={[
-              'flex h-full flex-col rounded-[28px] border p-8',
-              plan.highlight ? 'border-brand-300 bg-[#eef8f9] shadow-[0_22px_64px_rgba(8,52,61,0.12)]' : 'border-slate-200 bg-white',
-            ].join(' ')}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-700">{plan.name}</h3>
-              {plan.highlight && (
-                <span className="rounded-full border border-brand-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-700">
-                  Mais completo
-                </span>
-              )}
-            </div>
-            <PriceTag cents={plan.priceCents} suffix="/mês" />
-            <p className="mt-3 text-[15px] leading-[1.6] text-slate-600">{plan.description}</p>
-            <FeatureList features={plan.features} />
-            <div className="mt-auto pt-8">
-              <button type="button" onClick={onStart} className={`${plan.highlight ? PRIMARY_BUTTON : SECONDARY_BUTTON} w-full`}>
-                {START_LABEL}
-              </button>
-            </div>
-          </article>
+          <PlanCard
+            name={plan.name}
+            priceCents={plan.priceCents}
+            priceSuffix="/mês"
+            description={plan.description}
+            features={plan.features}
+            highlight={plan.highlight}
+            badge={plan.highlight ? HIGHLIGHT_BADGE : undefined}
+            onStart={onStart}
+          />
         </ScrollReveal>
       ))}
     </div>
@@ -163,34 +191,24 @@ export function FinanceComparison() {
   );
 }
 
-/** O plano único de Licitações, por conta, com o exemplo de usuários a mais. */
+/**
+ * O plano único de Licitações, no mesmo card dos planos de Finanças e com a
+ * largura de um deles. O valor por usuário a mais fica nas perguntas frequentes.
+ */
 export function TendersPlanCard({ onStart }: { onStart: () => void }) {
-  const othersIncluded = TENDERS_PRICE.includedUsers - 1;
-  const extraUsers = EXAMPLE_USERS - TENDERS_PRICE.includedUsers;
-
   return (
-    <ScrollReveal>
-      <article className="grid gap-8 rounded-[28px] border border-brand-300 bg-[#eef8f9] p-8 shadow-[0_22px_64px_rgba(8,52,61,0.12)] lg:grid-cols-[1fr_1fr] lg:gap-12 lg:p-10">
-        <div>
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-700">{SOLUTION_NAMES.tenders}</h3>
-          <PriceTag cents={TENDERS_PRICE.baseCents} suffix="/mês por conta" />
-          <p className="mt-3 text-[15px] leading-[1.6] text-slate-600">
-            Com {TENDERS_PRICE.includedUsers} usuários: você e mais {othersIncluded}. Cada usuário a mais:{' '}
-            <span className="font-semibold text-slate-950">{formatPriceCents(TENDERS_PRICE.extraUserCents)}/mês</span>, a partir da próxima cobrança.
-          </p>
-          <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-[14px] text-slate-600">
-            Exemplo: {EXAMPLE_USERS} usuários = {formatPriceCents(TENDERS_PRICE.baseCents)} + {extraUsers} × {formatPriceCents(TENDERS_PRICE.extraUserCents)} ={' '}
-            <span className="font-semibold text-slate-950">{formatPriceCents(tendersMonthlyCents(EXAMPLE_USERS))}/mês</span>
-          </p>
-          <button type="button" onClick={onStart} className={`mt-8 ${PRIMARY_BUTTON}`}>
-            {START_LABEL}
-          </button>
-        </div>
-        <div>
-          <p className="text-[15px] font-semibold text-slate-950">Tudo incluso, para todos os usuários:</p>
-          <FeatureList features={TENDERS_FEATURES} />
-        </div>
-      </article>
-    </ScrollReveal>
+    <div className="grid gap-6 md:grid-cols-2">
+      <ScrollReveal>
+        <PlanCard
+          name={SOLUTION_NAMES.tenders}
+          priceCents={TENDERS_PRICE.baseCents}
+          priceSuffix="/mês por conta"
+          description="Busca, avisos e acompanhamento dos editais, num só lugar."
+          features={TENDERS_FEATURES}
+          highlight
+          onStart={onStart}
+        />
+      </ScrollReveal>
+    </div>
   );
 }

@@ -405,3 +405,19 @@ A implementação deve ser considerada pronta quando:
 - **Telas de Finanças:** calendário, lançamentos e relatórios, tirados da demonstração. O painel ficou de fora, porque a demonstração não tem os dados dele.
 - **Demonstração:** ganhou a escolha da tela inicial pela `?secao=` (`painel`, `movimentacoes` ou `relatorios`) e lançamentos fictícios mais variados (2 receitas e 10 despesas), para as capturas e para quem abre a demonstração.
 - **`?entrar=1`:** só abre o login na página de Finanças; nas outras páginas é ignorado. Em Licitações, "Entrar" leva direto a `/licitacoes/app`, que tem o próprio login.
+
+## Mudança posterior: ajustes antes da produção (07/10/2026)
+
+O plano `.plans/site-novo-ajustes-licitacoes.md` mudou, antes da ida para a produção:
+
+- **Decisão 2 ("Acessar ▾"):** saiu. As páginas da empresa não têm atalho de login; entra-se pela página da solução.
+- **Login de Licitações:**
+  - o "Entrar" da página de Licitações abre o mesmo modal de Finanças;
+  - o `?entrar=1` vale nas páginas das duas soluções;
+  - sem sessão, com a sessão vencida ou ao sair, Licitações leva a `/produtos/licitacoes/?entrar=1`;
+  - a tela de login de dentro do sistema saiu.
+- **Prévia de Licitações:** sem o card de notificação "Edital novo na sua busca".
+- **Card do plano de Licitações:**
+  - no mesmo visual dos cards de Finanças, com a largura de um deles;
+  - os benefícios incluem "Mais de um usuário por conta; acima do limite, cobrança adicional por usuário", no lugar das linhas de usuários e do exemplo de cálculo;
+  - o valor por usuário a mais fica nas perguntas frequentes.

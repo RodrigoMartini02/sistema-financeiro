@@ -8,7 +8,7 @@ export type LoginModalMode = 'login' | 'register' | 'forgot' | 'verify' | 'reset
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Licitações usa o login próprio: o cadastro já nasce com o teste dele. */
+  /** Solução do login: em Licitações, o título é o dela e o cadastro já nasce com o teste dela. */
   solution: SiteSolution;
   initialMode?: LoginModalMode;
 }

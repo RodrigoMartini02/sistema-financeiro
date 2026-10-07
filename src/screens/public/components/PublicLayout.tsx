@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { SiteSolution } from '../../../brand';
 import { setAuthOrigin, type AuthOrigin } from '../../../services/session';
-import { destinationForAuthOrigin, LOGIN_REQUEST_PARAM } from '../../../utils/authOrigin';
+import { LOGIN_REQUEST_PARAM } from '../../../utils/authOrigin';
 import { publicPageFor } from '../../../utils/publicPages';
 import { LoginModal } from './LoginModal';
 import { PublicSiteContext, type PublicSiteActions } from './publicSiteContext';
@@ -48,29 +48,23 @@ export function PublicLayout() {
 
   const closeLogin = useCallback(() => setLogin(null), []);
 
-  // `?entrar=1` na página de Finanças (o FINGERENCE manda para cá quem está sem
-  // sessão ou acabou de sair): abre o login e limpa o endereço. Nas outras
-  // páginas, é ignorado.
+  // `?entrar=1` na página de uma solução (o sistema dela manda para cá quem está
+  // sem sessão ou acabou de sair): abre o login dela e limpa o endereço. Nas
+  // páginas da empresa, é ignorado.
   useEffect(() => {
     const params = new URLSearchParams(search);
-    if (pageSolution !== 'finance' || !params.has(LOGIN_REQUEST_PARAM)) {
+    if (pageSolution === null || !params.has(LOGIN_REQUEST_PARAM)) {
       return;
     }
     params.delete(LOGIN_REQUEST_PARAM);
     const remaining = params.toString();
     navigate({ pathname, search: remaining ? `?${remaining}` : '' }, { replace: true });
-    openLogin({ solution: 'finance', mode: 'login' });
+    openLogin({ solution: pageSolution, mode: 'login' });
   }, [navigate, openLogin, pageSolution, pathname, search]);
 
   const actions = useMemo<PublicSiteActions>(
     () => ({
-      enter: (solution) => {
-        if (solution === 'tenders') {
-          window.location.assign(destinationForAuthOrigin('tenders'));
-          return;
-        }
-        openLogin({ solution, mode: 'login' });
-      },
+      enter: (solution) => openLogin({ solution, mode: 'login' }),
       startFree: (solution) => openLogin({ solution, mode: 'register' }),
     }),
     [openLogin],

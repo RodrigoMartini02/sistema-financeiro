@@ -15,7 +15,7 @@ export const SOLUTION_NAMES: Record<SiteSolution, string> = {
   tenders: 'FINGERENCE Licitações',
 };
 
-/** O que cada solução resolve, numa frase (menu "Acessar" e cards). */
+/** O que cada solução resolve, numa frase (cards da página inicial). */
 export const SOLUTION_TAGLINES: Record<SiteSolution, string> = {
   finance: 'O dinheiro da casa e da empresa organizados, sem planilha.',
   tenders: 'Os editais que interessam, com aviso antes do prazo.',

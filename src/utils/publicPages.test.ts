@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FINANCE_LOGIN_ADDRESS } from './authOrigin';
+import { FINANCE_LOGIN_ADDRESS, TENDERS_LOGIN_ADDRESS } from './authOrigin';
 import { canonicalUrlFor, isProductsArea, pageOfSolution, PUBLIC_PAGES, publicPageFor, SITE_URL } from './publicPages';
 
 test('páginas: título, descrição, texto de reserva e endereço canônico com barra no fim', () => {
@@ -55,6 +55,12 @@ test('área de Produtos: a lista e as páginas das soluções', () => {
 test('entrada do FINGERENCE sem sessão: a página de Finanças, que abre o login', () => {
   const address = new URL(FINANCE_LOGIN_ADDRESS, SITE_URL);
   assert.equal(publicPageFor(address.pathname).solution, 'finance');
+  assert.equal(address.searchParams.get('entrar'), '1');
+});
+
+test('entrada de Licitações sem sessão: a página de Licitações, que abre o login', () => {
+  const address = new URL(TENDERS_LOGIN_ADDRESS, SITE_URL);
+  assert.equal(publicPageFor(address.pathname).solution, 'tenders');
   assert.equal(address.searchParams.get('entrar'), '1');
 });
 

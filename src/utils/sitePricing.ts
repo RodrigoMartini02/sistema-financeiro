@@ -16,12 +16,6 @@ export const TENDERS_PRICE = {
   extraUserCents: 299,
 } as const;
 
-/** Valor do mês de Licitações com esta quantidade de usuários (o titular conta). */
-export function tendersMonthlyCents(usersCount: number): number {
-  const extraUsers = Math.max(0, usersCount - TENDERS_PRICE.includedUsers);
-  return TENDERS_PRICE.baseCents + extraUsers * TENDERS_PRICE.extraUserCents;
-}
-
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export function formatPriceCents(cents: number): string {

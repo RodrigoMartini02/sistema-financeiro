@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Clock, Lock, RefreshCw, Sparkles } from 'lucide-react';
 import { logout } from '../../services/session';
 import { Field, Select } from '../../ui/form';
+import { TENDERS_LOGIN_ADDRESS } from '../../utils/authOrigin';
 import { BillingPanel } from '../components/BillingPanel';
 import { activateTenders, fetchActivation } from '../services/billingService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { ExpiredSubscriptionInfo, TenderActivation } from '../types';
-import { TENDERS_APP_BASE } from '../utils/modulePaths';
 
 // Telas da entrada no módulo fora do sistema: sem acesso (com a ativação para
 // o titular), assinatura vencida e erro ao conferir o acesso. Licitações não
@@ -33,7 +33,7 @@ const secondaryButton =
 
 function signOut() {
   logout();
-  window.location.replace(TENDERS_APP_BASE);
+  window.location.replace(TENDERS_LOGIN_ADDRESS);
 }
 
 function GateActions() {

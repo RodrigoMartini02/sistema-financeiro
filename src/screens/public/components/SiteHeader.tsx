@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Menu, X } from 'lucide-react';
-import { COMPANY_NAME, SITE_SOLUTIONS, SOLUTION_NAMES, SOLUTION_TAGLINES, type SiteSolution } from '../../../brand';
+import { Menu, X } from 'lucide-react';
+import { COMPANY_NAME, SOLUTION_NAMES, type SiteSolution } from '../../../brand';
 import { isProductsArea, PRODUCTS_PATH, publicPageFor } from '../../../utils/publicPages';
 import { usePublicSite } from './publicSiteContext';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON, SITE_CONTAINER } from './siteStyles';
@@ -17,8 +17,8 @@ const FOCUSABLE = 'a[href], button:not([disabled])';
 
 interface SiteHeaderProps {
   /**
-   * Solução da página aberta: "Entrar" e "Começar grátis" dela. Nas páginas da
-   * empresa (sem solução), só o "Acessar" discreto, para quem já é cliente.
+   * Solução da página aberta: "Entrar" e "Começar grátis" dela. As páginas da
+   * empresa (sem solução) não têm atalho de login: entra-se pela página da solução.
    */
   pageSolution: SiteSolution | null;
 }
@@ -27,44 +27,14 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
   const { pathname } = useLocation();
   const { enter, startFree } = usePublicSite();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [accessOpen, setAccessOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
-  const accessButtonRef = useRef<HTMLButtonElement>(null);
-  const accessPanelRef = useRef<HTMLDivElement>(null);
   const currentPath = publicPageFor(pathname).path;
   const inProducts = isProductsArea(pathname);
 
   useEffect(() => {
     setMenuOpen(false);
-    setAccessOpen(false);
   }, [pathname]);
-
-  // "Acessar": Esc fecha e devolve o foco ao botão; clique fora fecha.
-  useEffect(() => {
-    if (!accessOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setAccessOpen(false);
-        accessButtonRef.current?.focus();
-      }
-    };
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (!accessPanelRef.current?.contains(target) && !accessButtonRef.current?.contains(target)) {
-        setAccessOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [accessOpen]);
 
   // Menu do celular: foco preso no painel enquanto aberto; Esc fecha.
   useEffect(() => {
@@ -103,12 +73,6 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
-
-  const access = (solution: SiteSolution) => {
-    setAccessOpen(false);
-    setMenuOpen(false);
-    enter(solution);
-  };
 
   const isActive = (to: string) => (to === PRODUCTS_PATH ? inProducts : currentPath === to);
   const navLinkClass = (to: string) =>
@@ -150,7 +114,7 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
         </nav>
 
         <div className="hidden items-center gap-5 lg:flex">
-          {pageSolution ? (
+          {pageSolution && (
             <>
               <button
                 type="button"
@@ -164,39 +128,6 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
                 Começar grátis
               </button>
             </>
-          ) : (
-            <div className="relative">
-              <button
-                ref={accessButtonRef}
-                type="button"
-                onClick={() => setAccessOpen((open) => !open)}
-                aria-expanded={accessOpen}
-                aria-controls="site-access-panel"
-                className="flex items-center gap-1 rounded-lg px-2 py-2 text-[15px] font-medium text-slate-600 outline-none transition hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
-              >
-                Acessar
-                <ChevronDown className={['h-4 w-4 transition motion-reduce:transition-none', accessOpen ? 'rotate-180' : ''].join(' ')} aria-hidden="true" />
-              </button>
-              {accessOpen && (
-                <div
-                  id="site-access-panel"
-                  ref={accessPanelRef}
-                  className="absolute right-0 top-full mt-3 w-[320px] rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.12)]"
-                >
-                  {SITE_SOLUTIONS.map((solution) => (
-                    <button
-                      key={solution}
-                      type="button"
-                      onClick={() => access(solution)}
-                      className="block w-full rounded-xl px-4 py-3 text-left outline-none transition hover:bg-[#f1f9fa] focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
-                    >
-                      <span className="block text-[15px] font-semibold text-slate-950">{SOLUTION_NAMES[solution]}</span>
-                      <span className="mt-0.5 block text-[13px] text-slate-500">Entrar no sistema</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           )}
         </div>
 
@@ -236,38 +167,21 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
               </Link>
             ))}
           </nav>
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            {pageSolution ? (
-              <div className="grid gap-3">
-                <button type="button" onClick={() => startFree(pageSolution)} className={PRIMARY_BUTTON}>
-                  Começar grátis
-                </button>
-                <button
-                  type="button"
-                  onClick={() => enter(pageSolution)}
-                  aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
-                  className={SECONDARY_BUTTON}
-                >
-                  Entrar
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="px-3 pb-1 text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">Acessar</p>
-                {SITE_SOLUTIONS.map((solution) => (
-                  <button
-                    key={solution}
-                    type="button"
-                    onClick={() => access(solution)}
-                    className="block min-h-11 w-full rounded-xl px-3 py-3 text-left outline-none transition hover:bg-[#f1f9fa] focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
-                  >
-                    <span className="block text-[15px] font-semibold text-slate-700">{SOLUTION_NAMES[solution]}</span>
-                    <span className="block text-[13px] text-slate-500">{SOLUTION_TAGLINES[solution]}</span>
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
+          {pageSolution && (
+            <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
+              <button type="button" onClick={() => startFree(pageSolution)} className={PRIMARY_BUTTON}>
+                Começar grátis
+              </button>
+              <button
+                type="button"
+                onClick={() => enter(pageSolution)}
+                aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
+                className={SECONDARY_BUTTON}
+              >
+                Entrar
+              </button>
+            </div>
+          )}
         </div>
       )}
     </header>
