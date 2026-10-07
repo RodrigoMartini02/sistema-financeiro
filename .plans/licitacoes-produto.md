@@ -450,4 +450,5 @@ A implementação deve ser considerada pronta quando:
 - **Admin:** dar cortesia a uma conta com recorrente avisa que a cobrança no cartão continua até o titular cancelar. Tirar a cortesia pede confirmação, porque sem teste nem período pago a conta fica vencida.
 - **Valor do recorrente que não muda:** a resposta traz um aviso pedindo para cancelar e assinar de novo. O sistema não recria a assinatura sozinho.
 - **Pendente, avisos do recorrente:** o Mercado Pago pode mandar os avisos de assinatura (cobrança mensal, recusa, cancelamento) para a URL do painel dele, que é a do FINGERENCE, e não para a `notification_url` da requisição. Conferir no sandbox. Se for o caso, a rota do webhook do FINGERENCE precisa repassar os avisos `lic:` para Licitações.
-- **Pendente:** testes de banco (`test:tenders-db`, depois da 0080 no banco local) e conferência manual no sandbox do Mercado Pago.
+- **Testes de banco:** 0080 aplicada no banco local em 06/10/2026; `test:tenders-db` com 82 de 82 passando.
+- **Pendente:** conferência manual no sandbox do Mercado Pago.
