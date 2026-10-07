@@ -1,11 +1,14 @@
-import { and, asc, eq, gte, inArray, isNotNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
-import { cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes } from '../db/schema';
+import {
+  INVOICE_PAYMENT_METHODS, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes, invoicePayments,
+} from '../db/schema';
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
 import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import { PAYMENT_METHODS } from './expenseInput';
+import { INVOICE_EXPENSE_METHOD, invoiceDueDate } from './cardInvoiceRules';
 import {
   ACTIVE_STATUS,
   RECEIVABLE_STATUSES,
@@ -42,6 +45,7 @@ import {
   resumirPeriodo,
   resumirReceitasPainel,
   agruparPorRaiz,
+  sumUpcomingInterest,
   SEM_CATEGORIA,
   type ItemArvorePainel,
   type FatiaPainel,
@@ -110,7 +114,14 @@ export interface PainelResposta {
   contasEmAberto: ContasEmAberto;
   planejado: Array<{ categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number }> | null;
   porPessoa: Array<{ usuarioId: number; nome: string; receitas: number; despesas: number }>;
-  jurosDescontos: { periodo: { juros: number; descontos: number }; ano: { juros: number; descontos: number } };
+  jurosDescontos: {
+    periodo: { juros: number; descontos: number };
+    ano: { juros: number; descontos: number };
+    /** Juros guardados no restante e nas parcelas da fatura ainda não pagos, de qualquer data (não seguem o período). */
+    upcomingInterest: number;
+  };
+  /** Faturas renegociadas (pagamento parcial ou parcelado) com o mês dentro do período. */
+  renegotiatedInvoices: RenegotiatedInvoice[];
   categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; usuarioId: number; autorNome: string | null; total: number }>;
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: ReceitasPainelResumo;
@@ -123,6 +134,19 @@ export interface PainelResposta {
   } | null;
   /** Opções do botão de filtros: formas e cartões das despesas do período, sem os filtros aplicados. */
   filterOptions: { paymentMethods: string[]; cards: Array<{ id: number; name: string }> };
+}
+
+export interface RenegotiatedInvoice {
+  cardId: number;
+  cardName: string;
+  /** Mês da fatura, 'AAAA-MM'. */
+  invoiceMonth: string;
+  method: 'partial' | 'installments';
+  carriedForward: number;
+  installmentCount: number | null;
+  installmentAmount: number | null;
+  /** Vencimento da primeira linha que foi para a frente. */
+  firstDueDate: string;
 }
 
 const LIMITE_ESTOQUE_BAIXO = 20;
@@ -145,6 +169,8 @@ const colunasDespesa = {
   valorPago: expenses.amountPaid,
   parcelado: expenses.installment,
   recorrente: expenses.recurring,
+  invoicePaymentId: expenses.invoicePaymentId,
+  invoiceInterest: expenses.invoiceInterest,
 };
 
 type LinhaDespesa = {
@@ -160,6 +186,8 @@ type LinhaDespesa = {
   valorPago: string | null;
   parcelado: boolean | null;
   recorrente: boolean | null;
+  invoicePaymentId: number | null;
+  invoiceInterest: string | null;
 };
 
 function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
@@ -176,6 +204,8 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
     valorPago: linha.valorPago === null ? null : toNumber(linha.valorPago),
     parcelado: linha.parcelado === true,
     recorrente: linha.recorrente === true,
+    invoicePaymentId: linha.invoicePaymentId,
+    invoiceInterest: linha.invoiceInterest === null ? null : toNumber(linha.invoiceInterest),
   };
 }
 
@@ -189,6 +219,66 @@ async function buscarDespesas(entrada: PainelEntrada, janela: Periodo): Promise<
     ),
   ));
   return linhas.map(paraDespesaPainel);
+}
+
+/** Restante e parcelas da fatura ainda não pagos, de qualquer data: a base dos "Juros a vencer". */
+async function buscarJurosAVencer(entrada: PainelEntrada): Promise<DespesaPainel[]> {
+  const linhas = await db.select(colunasDespesa).from(expenses).where(and(
+    ...expenseBaseConditions(entrada.escopo, entrada.accountId),
+    eq(expenses.paid, false),
+    sql`${expenses.invoiceInterest} > 0`,
+  ));
+  return linhas.map(paraDespesaPainel);
+}
+
+/**
+ * Faturas renegociadas (parcial ou parcelado, não estornadas) dos cartões das
+ * pessoas do escopo, na conta, com o mês da fatura dentro do período. Com filtro
+ * de cartão, só os cartões filtrados; com filtro de forma sem o crédito, nenhuma.
+ */
+async function buscarFaturasRenegociadas(entrada: PainelEntrada): Promise<RenegotiatedInvoice[]> {
+  const { filtros, periodo } = entrada;
+  if (filtros.paymentMethods.length > 0 && !filtros.paymentMethods.includes(INVOICE_EXPENSE_METHOD)) {
+    return [];
+  }
+  const [anoDe, mesDe] = periodo.de.split('-').map(Number) as [number, number];
+  const [anoAte, mesAte] = periodo.ate.split('-').map(Number) as [number, number];
+  const chaveMes = sql`(${invoicePayments.year} * 12 + ${invoicePayments.month})`;
+  const linhas = await db.select({
+    cardId: cards.id,
+    cardName: cards.name,
+    dueDay: cards.dueDay,
+    month: invoicePayments.month,
+    year: invoicePayments.year,
+    method: invoicePayments.method,
+    carriedForward: invoicePayments.carriedForward,
+    installmentCount: invoicePayments.installmentCount,
+    installmentAmount: invoicePayments.installmentAmount,
+  })
+    .from(invoicePayments)
+    .innerJoin(cards, eq(cards.id, invoicePayments.cardId))
+    .where(and(
+      inArray(cards.userId, entrada.escopo),
+      accountFilter(cards.accountId, cards.userId, entrada.accountId),
+      ...(filtros.cardIds.length > 0 ? [inArray(cards.id, filtros.cardIds)] : []),
+      isNull(invoicePayments.reversedAt),
+      inArray(invoicePayments.method, [INVOICE_PAYMENT_METHODS.partial, INVOICE_PAYMENT_METHODS.installments]),
+      sql`${chaveMes} BETWEEN ${anoDe * 12 + mesDe - 1} AND ${anoAte * 12 + mesAte - 1}`,
+    ))
+    .orderBy(asc(invoicePayments.year), asc(invoicePayments.month), asc(cards.name), asc(invoicePayments.id));
+  return linhas.map((linha) => {
+    const invoiceMonth = `${linha.year}-${String(linha.month + 1).padStart(2, '0')}`;
+    return {
+      cardId: linha.cardId,
+      cardName: linha.cardName,
+      invoiceMonth,
+      method: linha.method === INVOICE_PAYMENT_METHODS.installments ? 'installments' : 'partial',
+      carriedForward: toNumber(linha.carriedForward),
+      installmentCount: linha.installmentCount,
+      installmentAmount: linha.installmentAmount === null ? null : toNumber(linha.installmentAmount),
+      firstDueDate: invoiceDueDate(`${invoiceMonth}-01`, linha.dueDay, 1),
+    };
+  });
 }
 
 /** Tudo que está em aberto até o fim da janela de compromissos: atraso de qualquer período entra aqui. */
@@ -445,18 +535,21 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
 
   // Previstas desde o início do mês do período: a projeção das fixas precisa
   // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
-  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas] = await Promise.all([
+  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas, jurosAVencerSemFiltro, faturasRenegociadas] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
     calcularSaldoAnterior(entrada),
     buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, RECEIVABLE_STATUSES),
     buscarFixas(entrada),
+    buscarJurosAVencer(entrada),
+    buscarFaturasRenegociadas(entrada),
   ]);
 
   // Os filtros do botão (categoria, cartão, forma) valem só para as despesas.
   const despesas = filtrarDespesasPainel(despesasSemFiltro, entrada.filtros);
   const naoPagas = filtrarDespesasPainel(naoPagasSemFiltro, entrada.filtros);
+  const jurosAVencer = filtrarDespesasPainel(jurosAVencerSemFiltro, entrada.filtros);
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
   const receitasPeriodo = receitasDoPeriodo(receitas, periodo);
   const resumoAtual = resumirPeriodo(despesasPeriodo, receitasPeriodo);
@@ -515,7 +608,9 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     jurosDescontos: {
       periodo: agregarJurosDescontos(despesasPeriodo),
       ano: agregarJurosDescontos(despesasDoPeriodo(despesas, { de: inicioDoAno, ate: periodo.ate })),
+      upcomingInterest: sumUpcomingInterest(jurosAVencer),
     },
+    renegotiatedInvoices: faturasRenegociadas,
     categorias: categoriasAgregadas.map((linha) => {
       const categoria = linha.categoriaId !== null ? categoriasPorId.get(linha.categoriaId) : undefined;
       return {

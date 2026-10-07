@@ -265,6 +265,7 @@ export function MovimentacoesScreen() {
                   <LancamentosTable
                     month={month}
                     year={year}
+                    canPayExpenses={controls.newExpense}
                     isEmpresa={isEmpresa}
                     escopoFamilia={escopoFamilia}
                     meIdStr={meIdStr}

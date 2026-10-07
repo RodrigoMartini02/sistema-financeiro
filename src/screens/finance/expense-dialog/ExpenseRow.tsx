@@ -94,6 +94,12 @@ interface ExpenseRowProps {
   suggestions: DraftSuggestions | null;
   /** Edição: a cobrança só aparece ("Parcela 3/10", "Mensal"). */
   readOnlyBilling?: string;
+  /**
+   * Edição de despesa ligada à fatura do cartão: o pagamento fica travado (é pela
+   * fatura); com `locksValueAndMethod`, também valor, forma e cartão; com
+   * `locksDueDate`, também o vencimento. `reason` vai no título dos campos.
+   */
+  invoiceLock?: { reason: string; locksValueAndMethod: boolean; locksDueDate: boolean };
   pendingInstallmentCount: number | null;
   descriptionRef?: RefObject<HTMLInputElement | null>;
   onUpdate: (patch: DraftPatch) => void;
@@ -106,10 +112,14 @@ interface ExpenseRowProps {
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
-  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, pendingInstallmentCount,
+  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, invoiceLock, pendingInstallmentCount,
   descriptionRef, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
+  const paymentLocked = invoiceLock !== undefined;
+  const valueLocked = invoiceLock?.locksValueAndMethod === true;
+  const dueDateLocked = invoiceLock?.locksDueDate === true;
+  const lockedCardName = draft.cardId !== null ? context.cards.find((card) => card.id === draft.cardId)?.nome ?? null : null;
   const isEntry = variant === 'entry';
   const installments = draft.billingType === 'installments';
   const matches = suggestions?.suggestions?.matches ?? [];
@@ -183,15 +193,23 @@ export function ExpenseRow({
 
         {!isEntry && (
           <GridCell label="Pagamento" className="col-span-2 lg:col-span-1">
-            <PaymentMethodPopover
-              variant="cell"
-              draft={draft}
-              cards={context.cards}
-              cardLimits={resources.cardLimits}
-              preferredCardIds={preferredCardIds}
-              cardInvalid={!!errors?.card}
-              onChange={(choice) => onUpdate(choice)}
-            />
+            {valueLocked ? (
+              <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title={invoiceLock!.reason}>
+                <span style={ellipsisStyle}>
+                  {getPaymentMethodLabel(draft.paymentMethod)}{lockedCardName ? ` · ${lockedCardName}` : ''}
+                </span>
+              </span>
+            ) : (
+              <PaymentMethodPopover
+                variant="cell"
+                draft={draft}
+                cards={context.cards}
+                cardLimits={resources.cardLimits}
+                preferredCardIds={preferredCardIds}
+                cardInvalid={!!errors?.card}
+                onChange={(choice) => onUpdate(choice)}
+              />
+            )}
           </GridCell>
         )}
 
@@ -218,6 +236,8 @@ export function ExpenseRow({
             onChange={(cents) => onUpdate({ amountCents: cents })}
             suffix={draft.billingType === 'monthly' ? '/mês' : undefined}
             invalid={errors?.amount}
+            disabled={valueLocked}
+            title={valueLocked ? invoiceLock!.reason : undefined}
           />
         </GridCell>
 
@@ -241,7 +261,8 @@ export function ExpenseRow({
             onChange={(text) => onUpdate({ dueDate: text })}
             todayIso={context.todayIso}
             placeholder={dueDatePlaceholder}
-            title="Em branco, o sistema calcula"
+            disabled={dueDateLocked}
+            title={dueDateLocked ? invoiceLock!.reason : 'Em branco, o sistema calcula'}
             invalid={errors?.dueDate}
           />
         </GridCell>
@@ -259,9 +280,10 @@ export function ExpenseRow({
                   role="checkbox"
                   aria-checked={draft.paid}
                   aria-label="Já foi paga"
-                  title="Já foi paga"
+                  title={paymentLocked ? invoiceLock!.reason : 'Já foi paga'}
                   onClick={togglePaid}
-                  style={checkboxStyle(draft.paid)}
+                  disabled={paymentLocked}
+                  style={{ ...checkboxStyle(draft.paid), ...(paymentLocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
                 >
                   {draft.paid ? '✓' : ''}
                 </button>
@@ -271,7 +293,8 @@ export function ExpenseRow({
                   onChange={(text) => onUpdate({ paymentDate: text })}
                   todayIso={context.todayIso}
                   placeholder={draft.paid ? 'dd/mm/aaaa' : 'não paga'}
-                  disabled={!draft.paid}
+                  disabled={!draft.paid || paymentLocked}
+                  title={paymentLocked ? invoiceLock!.reason : undefined}
                   invalid={errors?.paymentDate}
                 />
               </div>
@@ -282,7 +305,8 @@ export function ExpenseRow({
                 valueCents={draft.amountPaidCents}
                 onChange={(cents) => onUpdate({ amountPaidCents: cents })}
                 placeholder={draft.paid && draft.amountCents ? formatMoney(draft.amountCents / 100) : ''}
-                disabled={!draft.paid}
+                disabled={!draft.paid || paymentLocked}
+                title={paymentLocked ? invoiceLock!.reason : undefined}
               />
             </GridCell>
           </>

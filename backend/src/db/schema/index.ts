@@ -8,6 +8,7 @@ export * from './incomeClassifications';
 export * from './cards';
 export * from './incomes';
 export * from './expenses';
+export * from './invoicePayments';
 export * from './years';
 export * from './ratings';
 export * from './representatives';

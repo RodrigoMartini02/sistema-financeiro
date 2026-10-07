@@ -29,6 +29,10 @@ export interface DespesaPainel {
   valorPago: number | null;
   parcelado: boolean;
   recorrente: boolean;
+  /** Pagamento da fatura que pagou ou renegociou a linha; nulo fora da fatura. */
+  invoicePaymentId: number | null;
+  /** Linha gerada pelo pagamento da fatura: a parte do valor que é juros ou encargos. */
+  invoiceInterest: number | null;
 }
 
 export interface ReceitaPainel {
@@ -264,18 +268,34 @@ export function classificarTipoGasto(despesa: DespesaPainel): TipoGasto {
   return 'livre';
 }
 
+/**
+ * Juros pagos. Na linha paga ou renegociada pela fatura do cartão, contam os
+ * juros guardados nela na proporção do que foi pago: o que não foi pago seguiu
+ * para o restante ou as parcelas. Fora da fatura, conta o que passou do valor
+ * previsto.
+ */
 export function jurosDaDespesa(despesa: DespesaPainel): number {
   if (!despesa.pago || despesa.valorPago === null) {
     return 0;
   }
+  if (despesa.invoicePaymentId !== null) {
+    const juros = despesa.invoiceInterest ?? 0;
+    return despesa.valorOriginal > 0 ? (juros * despesa.valorPago) / despesa.valorOriginal : 0;
+  }
   return Math.max(0, despesa.valorPago - despesa.valorOriginal);
 }
 
+/** Pago abaixo do valor previsto. Na fatura renegociada não há desconto: o que falta foi para a frente. */
 export function descontoDaDespesa(despesa: DespesaPainel): number {
-  if (!despesa.pago || despesa.valorPago === null) {
+  if (!despesa.pago || despesa.valorPago === null || despesa.invoicePaymentId !== null) {
     return 0;
   }
   return Math.max(0, despesa.valorOriginal - despesa.valorPago);
+}
+
+/** Juros a vencer: os juros guardados nas linhas geradas pela fatura (restante e parcelas) ainda não pagas. */
+export function sumUpcomingInterest(despesas: DespesaPainel[]): number {
+  return somar(despesas.filter((despesa) => !despesa.pago), (despesa) => despesa.invoiceInterest ?? 0);
 }
 
 // ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import { fetchExpenseGroup } from '../../services/financeService';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency, formatDate } from '../finance/formatters';
 import type { Expense } from '../../types/finance';
+import { INVOICE_MESSAGES, isInvoiceProtected } from '../../utils/cardInvoice';
 import { StatusBadge } from './expenseStatus';
 
 type InstallmentDialogMode = 'excluir' | 'cancelar';
@@ -45,15 +46,19 @@ export function DeleteInstallmentDialog({
   if (!expense) return null;
 
   const parcelas = groupQuery.data ?? [];
+  // Parcela paga ou renegociada pela fatura do cartão, ou gerada por ela, nunca
+  // entra: só muda desfazendo o pagamento da fatura.
+  const parcelasSelecionaveis = parcelas.filter((p) => !isInvoiceProtected(p));
   // No modo cancelar, "selecionar todas" nunca inclui parcela já paga — o
   // dinheiro debitado permanece um gasto real. Uma paga só entra na seleção
   // se o usuário clicar nela individualmente (ação explícita, abaixo).
-  const parcelasElegiveisParaTodas = mode === 'cancelar' ? parcelas.filter((p) => !p.pago) : parcelas;
+  const parcelasElegiveisParaTodas = mode === 'cancelar' ? parcelasSelecionaveis.filter((p) => !p.pago) : parcelasSelecionaveis;
   const todasSelecionadas = parcelasElegiveisParaTodas.length > 0
     && parcelasElegiveisParaTodas.every((p) => selecionadas.has(p.id))
     && selecionadas.size === parcelasElegiveisParaTodas.length;
 
   const toggleItem = (id: number) => {
+    if (!parcelasSelecionaveis.some((p) => p.id === id)) return;
     setSelecionadas((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -121,27 +126,32 @@ export function DeleteInstallmentDialog({
                 </tr>
               </thead>
               <tbody>
-                {parcelas.map((p) => (
-                  <tr
-                    key={p.id}
-                    onClick={() => toggleItem(p.id)}
-                    style={{ borderBottom: `1px solid ${C.borderInput}`, cursor: 'pointer' }}
-                  >
-                    <td style={{ padding: '8px 10px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selecionadas.has(p.id)}
-                        onChange={() => toggleItem(p.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Selecionar parcela ${p.parcela ?? p.id}`}
-                      />
-                    </td>
-                    <td style={{ padding: '8px 10px', color: C.text }}>{p.parcela ?? '—'}</td>
-                    <td style={{ padding: '8px 10px', color: C.textSoft }}>{formatDate(p.dataVencimento)}</td>
-                    <td style={{ padding: '8px 10px', textAlign: 'right', color: C.text }}>{formatCurrency(p.valorFinal)}</td>
-                    <td style={{ padding: '8px 10px' }}><StatusBadge item={p} /></td>
-                  </tr>
-                ))}
+                {parcelas.map((p) => {
+                  const protegida = isInvoiceProtected(p);
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => toggleItem(p.id)}
+                      title={protegida ? INVOICE_MESSAGES.lockedRow : undefined}
+                      style={{ borderBottom: `1px solid ${C.borderInput}`, cursor: protegida ? 'not-allowed' : 'pointer', opacity: protegida ? 0.55 : 1 }}
+                    >
+                      <td style={{ padding: '8px 10px' }}>
+                        <input
+                          type="checkbox"
+                          checked={selecionadas.has(p.id)}
+                          disabled={protegida}
+                          onChange={() => toggleItem(p.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Selecionar parcela ${p.parcela ?? p.id}`}
+                        />
+                      </td>
+                      <td style={{ padding: '8px 10px', color: C.text }}>{p.parcela ?? '—'}</td>
+                      <td style={{ padding: '8px 10px', color: C.textSoft }}>{formatDate(p.dataVencimento)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', color: C.text }}>{formatCurrency(p.valorFinal)}</td>
+                      <td style={{ padding: '8px 10px' }}><StatusBadge item={p} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

@@ -1,8 +1,9 @@
 import type { Expense } from '../../types/finance';
+import { isRenegotiated } from '../../utils/cardInvoice';
 import { getLocalTodayIso } from '../../utils/date';
 import { formatCurrency } from '../finance/formatters';
 
-type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada';
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada';
 
 function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
@@ -20,10 +21,12 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
   // Cancelada e encerramento, nao pendencia: cinza para nao competir com
   // "atrasada", que e a unica que pede acao.
   cancelada: 'text-slate-400 dark:text-slate-500',
+  // Fatura paga em parte ou parcelada: encerrada no mês, o restante seguiu para a frente.
+  renegociada: 'text-slate-500 dark:text-slate-400',
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -36,7 +39,9 @@ export function formatDiferenca(diff: number): string {
 }
 
 function getStatusKey(item: Expense): ExpenseStatusKey {
-  return item.status === 'cancelada' ? 'cancelada' : getStatus(item);
+  if (item.status === 'cancelada') return 'cancelada';
+  if (isRenegotiated(item)) return 'renegociada';
+  return getStatus(item);
 }
 
 export function getStatusColor(item: Expense): string {

@@ -3,6 +3,7 @@
 // avisar a tela a cada render.
 import type { Expense } from '../types/finance';
 import { daysAgoLocalIso, getLocalTodayIso } from './date';
+import { isCreditWithCard } from './cardInvoice';
 
 export type EntryType = 'receita' | 'despesa';
 export type ExpenseStatus = 'pago' | 'em_dia' | 'atrasada';
@@ -47,9 +48,12 @@ export function expensesPaidByPeople(items: readonly Expense[], visibility: Expe
     && (visibility.meId == null || (!!item.pagadorNome && visibility.visibleNames.has(item.pagadorNome))));
 }
 
-/** Despesa que pode entrar no pagamento em lote: não paga e não cancelada. */
+/**
+ * Despesa que pode entrar no pagamento em lote: não paga, não cancelada e fora
+ * do crédito com cartão, que é pago pela fatura.
+ */
 export function isBatchSelectable(item: Expense): boolean {
-  return !item.pago && item.status !== 'cancelada';
+  return !item.pago && item.status !== 'cancelada' && !isCreditWithCard(item);
 }
 
 /**
