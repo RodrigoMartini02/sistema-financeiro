@@ -121,7 +121,7 @@ function expenseFromApi(r: RawExpense): Expense {
     dataPagamento: r.data_pagamento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada') ?? 'ativa',
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,
-    parcela, grupoParcelamentoId: r.grupo_parcelamento_id ?? null,
+    parcela, parcelaAtual: r.parcelado ? r.parcela_atual ?? null : null, grupoParcelamentoId: r.grupo_parcelamento_id ?? null,
     observacoes: r.observacoes,
     valorOriginal: r.valor_original ? asNumber(r.valor_original) : null,
     valorPago: r.valor_pago != null ? asNumber(r.valor_pago) : null,

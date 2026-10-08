@@ -1,10 +1,22 @@
-import { and, count, desc, eq, gte, ilike, inArray, isNull, max, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, max, ne, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
 import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
 import { addMonthsClamped, getMonthYearFromIsoDate } from '../utils/date';
 import { escapeLikePattern } from '../utils/requestInput';
-import { invoiceEditLockOf, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
+import { INVOICE_EXPENSE_METHOD, invoiceEditLockOf, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
+import { ACTIVE_STATUS } from './entryQueries';
+import {
+  changedSeriesFields,
+  isInstallmentInScope,
+  isOpenFollowingOccurrence,
+  planInstallmentUpdates,
+  planRecurringUpdates,
+  type InvoiceCardDays,
+  type SeriesFields,
+  type SeriesOccurrence,
+  type SeriesRowUpdate,
+} from './expenseSeries';
 import {
   PAYMENT_METHODS,
   type CreateExpenseInput,
@@ -140,6 +152,10 @@ export interface ExpenseForUpdate {
   invoiceEditLock: InvoiceEditLock | null;
   /** Valores gravados que as travas comparam com os da edição. */
   lockableFields: LockableExpenseFields;
+  /** Série da despesa (mensal ou parcelado), para a edição alcançar as outras linhas. */
+  series: { recurring: boolean; installmentGroupId: number | null; installmentNumber: number | null };
+  /** Valores gravados que a edição compara para saber o que passar para a série. */
+  seriesFields: SeriesFields;
 }
 
 export async function findExpenseForUpdate(ownerId: number, expenseId: number): Promise<ExpenseForUpdate | null> {
@@ -157,10 +173,16 @@ export async function findExpenseForUpdate(ownerId: number, expenseId: number): 
       paid: expenses.paid,
       paymentDate: expenses.paymentDate,
       amountPaid: expenses.amountPaid,
+      description: expenses.description,
+      purchaseDate: expenses.purchaseDate,
+      recurring: expenses.recurring,
+      installmentGroupId: expenses.installmentGroupId,
+      currentInstallment: expenses.currentInstallment,
     })
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)));
   if (!row) return null;
+  const amount = Number(row.originalAmount ?? 0);
   return {
     accountId: row.accountId,
     cardId: row.cardId,
@@ -168,7 +190,7 @@ export async function findExpenseForUpdate(ownerId: number, expenseId: number): 
     isInstallment: row.installment === true,
     invoiceEditLock: invoiceEditLockOf(row),
     lockableFields: {
-      amount: Number(row.originalAmount ?? 0),
+      amount,
       dueDate: row.dueDate,
       paymentMethod: row.paymentMethod,
       cardId: row.cardId,
@@ -176,45 +198,189 @@ export async function findExpenseForUpdate(ownerId: number, expenseId: number): 
       paymentDate: row.paymentDate,
       amountPaid: row.amountPaid === null ? null : Number(row.amountPaid),
     },
+    series: {
+      recurring: row.recurring === true,
+      installmentGroupId: row.installmentGroupId,
+      installmentNumber: row.currentInstallment,
+    },
+    seriesFields: {
+      description: row.description,
+      categoryId: row.categoryId,
+      paymentMethod: row.paymentMethod,
+      cardId: row.cardId,
+      amount,
+      purchaseDate: row.purchaseDate,
+      dueDate: row.dueDate,
+    },
   };
 }
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export interface ExpenseUpdateResult {
+  updated: Expense;
+  /** Outras linhas da série que também mudaram. */
+  seriesUpdated: number;
+}
+
 /**
- * Edita uma linha. Número e posição da parcela, grupo, recorrência, conta e
- * observação ficam como estão: o modal não os mostra, e sobrescrevê-los apagava o
- * "3/10" da parcela editada. Com a trava do pagamento da fatura, os campos
- * travados também ficam como estão (a rota já recusou qualquer mudança neles).
+ * Edita uma linha e, numa série, as outras do alcance (expenseSeries). Número e
+ * posição da parcela, grupo, recorrência, conta e observação ficam como estão: o
+ * modal não os mostra, e sobrescrevê-los apagava o "3/10" da parcela editada.
+ * Com a trava do pagamento da fatura, os campos travados também ficam como
+ * estão (a rota já recusou qualquer mudança neles). Tudo numa transação: ou a
+ * série inteira muda, ou nada.
  */
 export async function updateExpense(
   ownerId: number,
   expenseId: number,
   input: UpdateExpenseInput,
-  isInstallment: boolean,
+  current: ExpenseForUpdate,
   today: string,
-  invoiceEditLock: InvoiceEditLock | null = null,
-): Promise<Expense | null> {
-  const keepsValueAndMethod = invoiceEditLock !== null;
-  const keepsScheduleAndPayment = invoiceEditLock === 'invoice-item';
-  const [updated] = await db
-    .update(expenses)
-    .set({
-      ...(keepsScheduleAndPayment ? {} : scheduleColumns(input.dueDate)),
-      ...(keepsScheduleAndPayment
-        ? {}
-        : resolvePayment(input, input.amount, input.dueDate, input.paymentMethod, today, !isInstallment)),
-      description: input.description,
-      purchaseDate: input.purchaseDate,
-      categoryId: input.categoryId,
-      ...(keepsValueAndMethod
-        ? {}
-        : { cardId: input.cardId, paymentMethod: input.paymentMethod, originalAmount: toDecimal(input.amount) }),
-      attachments: input.attachments,
-      numeroNf: input.invoiceNumber,
-      dataEmissaoNf: input.invoiceDate,
+): Promise<ExpenseUpdateResult | null> {
+  const keepsValueAndMethod = current.invoiceEditLock !== null;
+  const keepsScheduleAndPayment = current.invoiceEditLock === 'invoice-item';
+  return db.transaction(async (transaction) => {
+    const [updated] = await transaction
+      .update(expenses)
+      .set({
+        ...(keepsScheduleAndPayment ? {} : scheduleColumns(input.dueDate)),
+        ...(keepsScheduleAndPayment
+          ? {}
+          : resolvePayment(input, input.amount, input.dueDate, input.paymentMethod, today, !current.isInstallment)),
+        description: input.description,
+        purchaseDate: input.purchaseDate,
+        categoryId: input.categoryId,
+        ...(keepsValueAndMethod
+          ? {}
+          : { cardId: input.cardId, paymentMethod: input.paymentMethod, originalAmount: toDecimal(input.amount) }),
+        attachments: input.attachments,
+        numeroNf: input.invoiceNumber,
+        dataEmissaoNf: input.invoiceDate,
+      })
+      .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)))
+      .returning();
+    if (!updated) return null;
+    const seriesUpdated = await updateSeriesRows(transaction, ownerId, expenseId, input, current);
+    return { updated, seriesUpdated };
+  });
+}
+
+/** Fechamento e vencimento do cartão, quando o resultado da edição é crédito com cartão (regra da fatura). */
+async function invoiceCardDays(transaction: Transaction, next: SeriesFields): Promise<InvoiceCardDays | null> {
+  if (next.paymentMethod !== INVOICE_EXPENSE_METHOD || next.cardId === null) return null;
+  const [card] = await transaction
+    .select({ closingDay: cards.closingDay, dueDay: cards.dueDay })
+    .from(cards)
+    .where(eq(cards.id, next.cardId))
+    .limit(1);
+  return card ?? null;
+}
+
+/** Colunas de uma linha da série: só os campos que mudaram (vencimento regrava mês e ano). */
+function seriesRowColumns(update: SeriesRowUpdate): Partial<NewExpense> {
+  return {
+    ...(update.description !== undefined ? { description: update.description } : {}),
+    ...(update.categoryId !== undefined ? { categoryId: update.categoryId } : {}),
+    ...(update.paymentMethod !== undefined ? { paymentMethod: update.paymentMethod } : {}),
+    ...(update.cardId !== undefined ? { cardId: update.cardId } : {}),
+    ...(update.amount !== undefined ? { originalAmount: toDecimal(update.amount) } : {}),
+    ...(update.purchaseDate !== undefined ? { purchaseDate: update.purchaseDate } : {}),
+    ...(update.dueDate !== undefined ? scheduleColumns(update.dueDate) : {}),
+  };
+}
+
+/**
+ * As outras linhas da série que a edição alcança — no mensal, as próximas em
+ * aberto; no parcelado, o alcance pedido (`applyTo`) — com só os campos
+ * alterados. Lidas com FOR UPDATE, sempre do dono e da série da despesa já
+ * autorizada. Devolve quantas mudaram.
+ */
+async function updateSeriesRows(
+  transaction: Transaction,
+  ownerId: number,
+  expenseId: number,
+  input: UpdateExpenseInput,
+  current: ExpenseForUpdate,
+): Promise<number> {
+  const { series } = current;
+  if (series.installmentGroupId === null) return 0;
+  const installmentScope = current.isInstallment && input.applyTo !== 'this' ? input.applyTo : null;
+  if (!series.recurring && installmentScope === null) return 0;
+
+  const next: SeriesFields = {
+    description: input.description,
+    categoryId: input.categoryId,
+    paymentMethod: input.paymentMethod,
+    cardId: input.cardId,
+    amount: input.amount,
+    purchaseDate: input.purchaseDate,
+    dueDate: input.dueDate,
+  };
+  const changed = changedSeriesFields(current.seriesFields, next);
+  if (changed.size === 0) return 0;
+
+  const rows = await transaction
+    .select({
+      id: expenses.id,
+      installmentGroupId: expenses.installmentGroupId,
+      recurring: expenses.recurring,
+      installment: expenses.installment,
+      installmentNumber: expenses.currentInstallment,
+      status: expenses.status,
+      paid: expenses.paid,
+      invoicePaymentId: expenses.invoicePaymentId,
+      invoiceOriginPaymentId: expenses.invoiceOriginPaymentId,
+      dueDate: expenses.dueDate,
+      purchaseDate: expenses.purchaseDate,
     })
-    .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)))
-    .returning();
-  return updated ?? null;
+    .from(expenses)
+    .where(and(
+      eq(expenses.userId, ownerId),
+      eq(expenses.installmentGroupId, series.installmentGroupId),
+      ne(expenses.id, expenseId),
+    ))
+    .orderBy(asc(expenses.dueDate), asc(expenses.id))
+    .for('update');
+  const occurrences: SeriesOccurrence[] = rows.map((row) => ({
+    id: row.id,
+    installmentGroupId: row.installmentGroupId,
+    recurring: row.recurring === true,
+    installment: row.installment === true,
+    installmentNumber: row.installmentNumber,
+    active: row.status === ACTIVE_STATUS,
+    paid: row.paid === true,
+    invoicePaymentId: row.invoicePaymentId,
+    invoiceOriginPaymentId: row.invoiceOriginPaymentId,
+    dueDate: row.dueDate,
+    purchaseDate: row.purchaseDate,
+  }));
+  const edited = {
+    id: expenseId,
+    installmentGroupId: series.installmentGroupId,
+    installmentNumber: series.installmentNumber,
+    dueDate: current.seriesFields.dueDate,
+  };
+  const edit = { originalDueDate: current.seriesFields.dueDate, next };
+
+  let updates: SeriesRowUpdate[];
+  if (series.recurring) {
+    const following = occurrences.filter((row) => isOpenFollowingOccurrence(row, edited));
+    if (following.length === 0) return 0;
+    updates = planRecurringUpdates(edit, changed, following, await invoiceCardDays(transaction, next));
+  } else {
+    const scope = installmentScope!;
+    updates = planInstallmentUpdates(edit, changed, occurrences.filter((row) => isInstallmentInScope(row, edited, scope)));
+  }
+
+  let updatedRows = 0;
+  for (const update of updates) {
+    const columns = seriesRowColumns(update);
+    if (Object.keys(columns).length === 0) continue;
+    await transaction.update(expenses).set(columns).where(and(eq(expenses.id, update.id), eq(expenses.userId, ownerId)));
+    updatedRows += 1;
+  }
+  return updatedRows;
 }
 
 /** O histórico de quem lança: só as próprias despesas ativas, na conta pedida. */

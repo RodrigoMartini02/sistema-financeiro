@@ -132,6 +132,8 @@ export interface Expense {
   recorrente: boolean;
   parcelado: boolean;
   parcela?: string | null;
+  /** Número da parcela (o "3" de "3/10"); nulo fora do parcelado. */
+  parcelaAtual?: number | null;
   /** Id da 1a parcela do grupo — todas as parcelas de um parcelamento (a
    *  propria 1a inclusive) compartilham este valor. Usado para buscar/excluir
    *  o grupo inteiro na grade de multi-selecao. */
@@ -262,10 +264,20 @@ export type ExpenseCreateInput = ExpenseFieldsInput & { accountId: number | null
   | { billingType: 'installments'; installments: ExpenseInstallmentInput[] }
 );
 
-/** Corpo do PUT /expenses/:id: edita uma linha; parcela, recorrência e conta não mudam. */
+/**
+ * Alcance da edição numa série: só a linha, ela e as próximas, ou todas. Só o
+ * parcelado escolhe; o mensal sempre vale para as próximas em aberto.
+ */
+export type ExpenseUpdateScope = 'this' | 'following' | 'all';
+
+/**
+ * Corpo do PUT /expenses/:id: edita a linha e, numa série, as outras do alcance
+ * (`applyTo`); número da parcela, recorrência e conta não mudam.
+ */
 export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentInput {
   amount: number;
   dueDate: string;
+  applyTo?: ExpenseUpdateScope;
 }
 
 export interface FinanceDashboardData {
