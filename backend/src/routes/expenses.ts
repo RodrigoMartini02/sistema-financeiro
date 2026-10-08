@@ -301,13 +301,13 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, current.accountId, current.cardId);
-    const updated = await updateExpense(
-      ownerId, expenseId, { ...input, cardId }, current.isInstallment, getTodayIsoInTimezone(), current.invoiceEditLock,
-    );
-    if (!updated) {
+    // Numa série, a edição alcança as outras linhas: no mensal, as próximas em
+    // aberto; no parcelado, o alcance escolhido no modal (applyTo).
+    const result = await updateExpense(ownerId, expenseId, { ...input, cardId }, current, getTodayIsoInTimezone());
+    if (!result) {
       throw new RequestInputError('Despesa não encontrada', 404);
     }
-    res.json({ success: true, message: 'Expense updated', data: updated });
+    res.json({ success: true, message: 'Expense updated', data: result.updated, seriesUpdated: result.seriesUpdated });
   } catch (error) {
     sendRequestError(res, error, 'Update expense error:', req.user?.id, 'Não foi possível salvar a despesa. Tente novamente.');
   }

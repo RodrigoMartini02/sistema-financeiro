@@ -124,6 +124,14 @@ test('edição lê só os campos editáveis', () => {
   assert.equal('billingType' in input, false);
 });
 
+test('edição: alcance na série ausente vale só esta; aceita as três opções e recusa outra', () => {
+  assert.equal(readUpdateExpenseInput(singleBody()).applyTo, 'this');
+  for (const scope of ['this', 'following', 'all']) {
+    assert.equal(readUpdateExpenseInput(singleBody({ applyTo: scope })).applyTo, scope);
+  }
+  assertRejects(() => readUpdateExpenseInput(singleBody({ applyTo: 'todas' })), 'Alcance da edição inválido');
+});
+
 test('sugestões ignoram texto com menos de 2 letras', () => {
   assert.deepEqual(readSuggestionsQuery({ description: 'u', account_id: '17' }), {
     description: '', accountId: 17, categoryId: null,

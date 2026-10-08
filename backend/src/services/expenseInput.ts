@@ -15,6 +15,13 @@ export type BillingType = (typeof BILLING_TYPES)[number];
 export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 360;
 
+/**
+ * Alcance da edição na série: só a linha, ela e as próximas, ou todas. Só o
+ * parcelado escolhe; o mensal sempre vale para as próximas em aberto.
+ */
+export const EXPENSE_UPDATE_SCOPES = ['this', 'following', 'all'] as const;
+export type ExpenseUpdateScope = (typeof EXPENSE_UPDATE_SCOPES)[number];
+
 const MAX_INVOICE_NUMBER_LENGTH = 50;
 const MIN_SEARCH_LENGTH = 2;
 const CARD_PAYMENT_METHODS: readonly PaymentMethod[] = ['debito', 'credito'];
@@ -50,6 +57,7 @@ export type CreateExpenseInput = ExpenseFieldsInput & ExpenseScheduleInput & { a
 export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
   amount: number;
   dueDate: string;
+  applyTo: ExpenseUpdateScope;
 }
 
 export interface SuggestionsQuery {
@@ -157,7 +165,18 @@ export function readCreateExpenseInput(body: unknown): CreateExpenseInput {
   };
 }
 
-/** Corpo do PUT /expenses/:id — edita uma linha só; parcela e recorrência não mudam. */
+function readUpdateScope(value: unknown): ExpenseUpdateScope {
+  if (value === undefined || value === null) return 'this';
+  if (!(EXPENSE_UPDATE_SCOPES as readonly unknown[]).includes(value)) {
+    throw new RequestInputError('Alcance da edição inválido');
+  }
+  return value as ExpenseUpdateScope;
+}
+
+/**
+ * Corpo do PUT /expenses/:id — edita a linha e, numa série, as outras do
+ * alcance (`applyTo`); número da parcela e recorrência não mudam.
+ */
 export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
   const record = readRecord(body, 'Pedido inválido');
   return {
@@ -165,6 +184,7 @@ export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
     amount: readAmount(record['amount'], 'Informe o valor'),
     dueDate: readIsoDate(record['dueDate'], 'Data de vencimento inválida'),
     ...readPayment(record),
+    applyTo: readUpdateScope(record['applyTo']),
   };
 }
 

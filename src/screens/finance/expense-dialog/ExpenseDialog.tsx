@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useReducer, useRef, type Dispatch } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, type Dispatch } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
-import type { Expense, FinanceDashboardData } from '../../../types/finance';
+import type { Expense, ExpenseUpdateScope, FinanceDashboardData } from '../../../types/finance';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
-import { createExpense, updateExpense } from '../../../services/financeService';
+import { createExpense, fetchExpenseGroup, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
-import { C } from '../../../ui/dialogFormTokens';
+import { C, chipStyle } from '../../../ui/dialogFormTokens';
 import { INVOICE_MESSAGES, invoiceEditLock } from '../../../utils/cardInvoice';
+import { installmentScopeRows, openFollowingOccurrences } from '../../../utils/expenseSeries';
 import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { canManageCatalog } from '../../../utils/screenAccess';
@@ -33,6 +34,13 @@ import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSugges
 
 const TOAST_DURATION_MS = 2800;
 const EXPENSE_NOUN = { singular: 'despesa', plural: 'despesas' };
+
+/** Alcance da edição de uma parcela, na ordem do modal (plano .plans/recorrente-editar-proximas.md). */
+const INSTALLMENT_SCOPE_OPTIONS: Array<{ scope: ExpenseUpdateScope; label: string }> = [
+  { scope: 'this', label: 'Só esta' },
+  { scope: 'following', label: 'Esta e as próximas' },
+  { scope: 'all', label: 'Todas' },
+];
 
 interface ExpenseDialogProps {
   open: boolean;
@@ -100,6 +108,16 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
   const categoriesQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
   const cardsQuery = useQuery({ queryKey: queryKeys.cartoes(undefined, 'familia'), queryFn: () => fetchCartoes(undefined, 'familia') });
   const limitsQuery = useQuery({ queryKey: queryKeys.cardLimits(undefined, 'familia'), queryFn: () => fetchCardLimits('familia'), staleTime: 60_000 });
+  // Série da despesa em edição (mensal ou parcelado): quantas linhas a edição
+  // também muda. O salvamento não depende dela; sem a lista, só some a contagem.
+  const seriesGroupId = expense && (expense.recorrente || expense.parcelado) ? expense.grupoParcelamentoId ?? null : null;
+  const seriesQuery = useQuery({
+    queryKey: queryKeys.expenseGroup(seriesGroupId ?? -1),
+    queryFn: () => fetchExpenseGroup(seriesGroupId!),
+    enabled: seriesGroupId !== null,
+  });
+  const isInstallmentSeries = expense?.parcelado === true && seriesGroupId !== null;
+  const [installmentScope, setInstallmentScope] = useState<ExpenseUpdateScope>('this');
 
   const categories = useMemo(() => (categoriesQuery.data ?? []).filter((category) => category.ativo), [categoriesQuery.data]);
   // Na edição, o cartão da despesa continua na lista mesmo que hoje não esteja mais liberado.
@@ -191,7 +209,11 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     }
     dispatch({ type: 'savingStarted', total: 1 });
     try {
-      await updateExpense(target.id, buildUpdateInput(state.entry, context));
+      // No mensal, o servidor sempre leva a edição às próximas; no parcelado, vai o alcance escolhido.
+      await updateExpense(target.id, {
+        ...buildUpdateInput(state.entry, context),
+        ...(isInstallmentSeries ? { applyTo: installmentScope } : {}),
+      });
       invalidateExpenseQueries(qc);
       onClose();
     } catch (error) {
@@ -285,8 +307,19 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     footerMessage = 'Enter registra · Shift+Enter adiciona ao lote';
   }
 
+  const series = seriesQuery.data;
+  const followingCount = expense && series ? openFollowingOccurrences(series, expense).length : 0;
+  // A parcela editada entra na conta de cada alcance.
+  const scopeCounts = expense && series && isInstallmentSeries
+    ? {
+        following: installmentScopeRows(series, expense, 'following').length + 1,
+        all: installmentScopeRows(series, expense, 'all').length + 1,
+      }
+    : null;
+
+  const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
   const editBillingLabel = expense
-    ? expense.parcelado && expense.parcela ? `Parcela ${expense.parcela}` : expense.recorrente ? 'Mensal' : 'Não repete'
+    ? expense.parcelado && expense.parcela ? `Parcela ${expense.parcela}` : expense.recorrente ? recurringLabel : 'Não repete'
     : undefined;
 
   const top = (
@@ -341,6 +374,32 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
         onAddToBatch={addToBatch}
         {...rowHandlers(entry.key)}
       />
+
+      {isInstallmentSeries && (
+        <div
+          role="radiogroup"
+          aria-label="Aplicar a edição a"
+          style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Aplicar a</span>
+          {INSTALLMENT_SCOPE_OPTIONS.map(({ scope, label }) => {
+            const count = scope === 'this' ? null : scopeCounts?.[scope] ?? null;
+            return (
+              <button
+                key={scope}
+                type="button"
+                role="radio"
+                aria-checked={installmentScope === scope}
+                disabled={state.saving !== null}
+                onClick={() => setInstallmentScope(scope)}
+                style={chipStyle(installmentScope === scope, { h: 30 })}
+              >
+                {label}{count !== null ? ` (${count})` : ''}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 
