@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Cartao } from '../../../types/config';
 import { formatCurrency } from '../formatters';
-import { createDraft, type ExpenseDraft } from './draftState';
+import { createDraft, dialogReducer, initialDialogState, withRecurringOnCredit, type ExpenseDraft } from './draftState';
 import {
-  buildCreateInput, buildUpdateInput, duplicateQuery, errorMessage, installmentAmounts, installmentGrid,
+  buildCreateInput, buildUpdateInput, canBeRecurring, duplicateQuery, errorMessage, installmentAmounts, installmentGrid,
   installmentMismatch, installmentsTotal, markOverdueAsPaid, summarizeDraft, validateDraft, type RuleContext,
 } from './draftRules';
 
@@ -15,7 +15,7 @@ const context: RuleContext = { todayIso: TODAY, cards: [NUBANK, CAJU] };
 
 function draft(overrides: Partial<ExpenseDraft> = {}): ExpenseDraft {
   return {
-    ...createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: '29/09/2026', paymentMethodTouched: false }, TODAY),
+    ...createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: '29/09/2026', paymentMethodTouched: false }),
     description: 'Conta de luz',
     categoryId: 10,
     amountCents: 18740,
@@ -151,8 +151,13 @@ test('validação aponta os campos e monta a mensagem do rodapé', () => {
   assert.ok(typedDay.billingType === 'single');
   assert.equal(typedDay.dueDate, '2026-09-05');
 
-  const badDay = validateDraft(draft({ billingType: 'monthly', recurrenceDay: null }), context);
-  assert.equal(errorMessage(badDay), 'Informe o dia do mês, de 1 a 31.');
+  // A recorrente é do cartão de crédito: no Pix, ou sem cartão de crédito cadastrado, é recusada.
+  const recurringMessage = 'A recorrente é só no cartão de crédito.';
+  assert.equal(errorMessage(validateDraft(draft({ billingType: 'monthly' }), context)), recurringMessage);
+  assert.equal(errorMessage(validateDraft(credit({ billingType: 'monthly', cardId: null }), { ...context, cards: [CAJU] })), recurringMessage);
+  // No crédito sem o cartão escolhido, aponta o cartão.
+  assert.equal(errorMessage(validateDraft(credit({ billingType: 'monthly', cardId: null }), context)), 'Escolha o cartão de crédito.');
+  assert.deepEqual(validateDraft(credit({ billingType: 'monthly' }), context), {});
 
   const negativeLast = validateDraft(draft({
     billingType: 'installments', installmentCount: 3, amountCents: 10000, amountIsTotal: true, installmentAdjustments: { 0: 6000, 1: 6000 },
@@ -175,10 +180,29 @@ test('envio da despesa única: vencimento calculado e data real do pagamento', (
   assert.equal(paid.amountPaid, 190);
 });
 
-test('envio da mensal: dia 31 cai no último dia do mês curto', () => {
-  const monthly = buildCreateInput(draft({ billingType: 'monthly', recurrenceDay: 31, purchaseDate: '10/02/2026' }), context, null);
+test('envio da mensal: no crédito com cartão, com o vencimento pela fatura', () => {
+  const monthly = buildCreateInput(credit({ billingType: 'monthly', purchaseDate: '17/10/2026' }), context, null);
   assert.ok(monthly.billingType === 'monthly');
-  assert.equal(monthly.dueDate, '2026-02-28');
+  assert.equal(monthly.cardId, NUBANK.id);
+  assert.equal(monthly.dueDate, '2026-11-10');
+  assert.equal(summarizeDraft(credit({ billingType: 'monthly' }), context)?.totalText, `${brl(187.4)} · todo mês na fatura Nubank · até dezembro`);
+});
+
+test('recorrente só no crédito: a opção depende de cartão de crédito, e a forma fora do crédito volta para não repete', () => {
+  assert.equal(canBeRecurring(credit(), [NUBANK, CAJU]), true);
+  assert.equal(canBeRecurring(draft(), [NUBANK, CAJU]), false);
+  assert.equal(canBeRecurring(credit({ cardId: null }), [CAJU]), false);
+  assert.equal(withRecurringOnCredit(draft({ billingType: 'monthly' })).billingType, 'single');
+  assert.equal(withRecurringOnCredit(credit({ billingType: 'monthly' })).billingType, 'monthly');
+
+  // Trocar a forma (linha, barra "Lançando em" ou sugestão do histórico) passa pelo reducer.
+  const state = initialDialogState(credit({ billingType: 'monthly' }));
+  const toPix = dialogReducer(state, { type: 'update', key: state.entry.key, patch: { paymentMethod: 'pix', cardId: null } });
+  assert.equal(toPix.entry.billingType, 'single');
+  const suggested = dialogReducer(state, { type: 'applySuggestion', key: state.entry.key, patch: { paymentMethod: 'debito', cardId: CAJU.id } });
+  assert.equal(suggested.entry.billingType, 'single');
+  const otherCard = dialogReducer(state, { type: 'update', key: state.entry.key, patch: { cardId: null } });
+  assert.equal(otherCard.entry.billingType, 'monthly');
 });
 
 test('envio do parcelado: valores da grade, ajustes e pagamentos', () => {

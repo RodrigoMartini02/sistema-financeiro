@@ -239,15 +239,13 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
   const paid = input.paid || (input.paymentMethod !== 'credito' && (input.paymentDate ?? input.dueDate) <= todayIso());
   const first = row(input.dueDate, input.amount, paid, input.paymentDate, { recorrente: input.billingType === 'monthly' });
   if (input.billingType === 'single') return [first];
-  // Até dezembro do ano da 1ª. No crédito com cartão, cada ocorrência tem a data
-  // de compra e o vencimento da fatura dela; nas outras formas, o vencimento mês a mês.
+  // A recorrente é do cartão de crédito, como no backend: vai até dezembro do ano
+  // da 1ª, e cada ocorrência tem a data de compra e o vencimento da fatura dela.
   const invoiceCard = card && isCreditWithCard({ formaPagamento: input.paymentMethod, cartaoId: input.cardId }) ? card : null;
+  if (!invoiceCard) throw new Error('Recorrente é só no cartão de crédito.');
   return [first, ...Array.from({ length: 12 - Number(input.dueDate.slice(5, 7)) }, (_, index) => {
-    if (invoiceCard) {
-      const purchaseDate = addMonthsClamped(input.purchaseDate, index + 1);
-      return row(purchaseInvoiceDueDate(purchaseDate, invoiceCard), input.amount, false, null, { recorrente: true, data_compra: purchaseDate });
-    }
-    return row(addMonthsClamped(input.dueDate, index + 1), input.amount, false, null, { recorrente: true, data_compra: null });
+    const purchaseDate = addMonthsClamped(input.purchaseDate, index + 1);
+    return row(purchaseInvoiceDueDate(purchaseDate, invoiceCard), input.amount, false, null, { recorrente: true, data_compra: purchaseDate });
   })];
 }
 

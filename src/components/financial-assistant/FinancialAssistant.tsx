@@ -555,6 +555,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const cardsForDraft = (cardsQuery.data ?? []).filter((card) => (
     card.ativo && (!card.tipo || card.tipo === 'ambos' || card.tipo === draft?.paymentMethod)
   ));
+  // A recorrente é do cartão de crédito: só com Crédito e cartão cadastrado.
+  const recurringAvailable = draft?.paymentMethod === 'credito' && cardsForDraft.length > 0;
 
   // ── Campos de receita PJ: mesmas regras do modal de receita do desktop ──
   const clientes = clientesQuery.data ?? [];
@@ -1708,7 +1710,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                             <span className="relative flex-1">
                               <select
                                 value={draft.paymentMethod}
-                                onChange={(event) => updateDraft({ paymentMethod: event.target.value as FinancialAssistantDraft['paymentMethod'] })}
+                                onChange={(event) => {
+                                  const paymentMethod = event.target.value as FinancialAssistantDraft['paymentMethod'];
+                                  // Fora do crédito, a recorrente volta para "Não repete".
+                                  updateDraft({ paymentMethod, ...(paymentMethod !== 'credito' && draft.billingType === 'mensal' ? { billingType: 'nao' } : {}) });
+                                }}
                                 className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
                                 <option value="pix">Pix</option>
@@ -1757,7 +1763,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               >
                                 <option value="nao">Não repete</option>
                                 <option value="parcelas">Parcelado</option>
-                                <option value="mensal">Recorrente</option>
+                                {(recurringAvailable || draft.billingType === 'mensal') && <option value="mensal">Recorrente</option>}
                               </select>
                               <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>

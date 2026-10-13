@@ -9,6 +9,7 @@ import {
   monthlySeriesDates,
   planInstallmentUpdates,
   planRecurringUpdates,
+  recurringPaymentRefusal,
   renewalDates,
   renewalYear,
   type SeriesFields,
@@ -262,14 +263,10 @@ test('série nova até dezembro: no crédito, compra mês a mês e vencimento pe
   assert.deepEqual(fullYear[11], { purchaseDate: '2027-11-17', dueDate: '2027-12-09' });
 });
 
-test('série nova até dezembro: fora do crédito, vencimento mês a mês e data de compra só na primeira', () => {
-  assert.deepEqual(monthlySeriesDates({ purchaseDate: '2026-10-01', dueDate: '2026-10-10' }, null), [
-    { purchaseDate: '2026-10-01', dueDate: '2026-10-10' },
-    { purchaseDate: null, dueDate: '2026-11-10' },
-    { purchaseDate: null, dueDate: '2026-12-10' },
+test('série nova até dezembro: a primeira vencendo em dezembro fica sozinha', () => {
+  assert.deepEqual(monthlySeriesDates({ purchaseDate: '2026-11-17', dueDate: '2026-12-09' }, MERCADO_PAGO), [
+    { purchaseDate: '2026-11-17', dueDate: '2026-12-09' },
   ]);
-  // Primeira em dezembro: só ela.
-  assert.equal(monthlySeriesDates({ purchaseDate: '2026-12-05', dueDate: '2026-12-10' }, null).length, 1);
 });
 
 test('renovação: janeiro a dezembro do ano seguinte, a partir da última ocorrência', () => {
@@ -277,10 +274,9 @@ test('renovação: janeiro a dezembro do ano seguinte, a partir da última ocorr
   assert.equal(credit.length, 12);
   assert.deepEqual(credit[0], { purchaseDate: '2026-12-17', dueDate: '2027-01-09' });
   assert.deepEqual(credit[11], { purchaseDate: '2027-11-17', dueDate: '2027-12-09' });
-  const pix = renewalDates({ purchaseDate: null, dueDate: '2026-12-10' }, null);
-  assert.deepEqual([pix[0]?.dueDate, pix[11]?.dueDate], ['2027-01-10', '2027-12-10']);
-  // No crédito sem data de compra gravada, segue o vencimento.
-  assert.equal(renewalDates({ purchaseDate: null, dueDate: '2026-12-09' }, MERCADO_PAGO)[0]?.dueDate, '2027-01-09');
+  // Ocorrência antiga sem data de compra gravada: segue o vencimento.
+  const legacy = renewalDates({ purchaseDate: null, dueDate: '2026-12-09' }, MERCADO_PAGO);
+  assert.deepEqual([legacy[0], legacy[11]], [{ purchaseDate: null, dueDate: '2027-01-09' }, { purchaseDate: null, dueDate: '2027-12-09' }]);
   assert.equal(renewalYear('2026-12-09'), 2027);
 });
 
@@ -293,4 +289,18 @@ test('renovação pendente: de 1º de dezembro a 31 de janeiro, sem decisão e c
   // Série que acabou em novembro ou em um dezembro antigo não é oferecida.
   assert.equal(isRenewalPending('2026-11-09', '2026-12-15', false), false);
   assert.equal(isRenewalPending('2025-12-09', '2026-12-15', false), false);
+});
+
+test('recorrente na edição: fica no crédito com cartão, e só o cartão troca', () => {
+  const message = 'A recorrente fica no cartão de crédito: dá para trocar só o cartão';
+  const subscription = { recurring: true, paymentMethod: 'credito', cardId: 6 };
+  assert.equal(recurringPaymentRefusal(subscription, { paymentMethod: 'pix', cardId: null }), message);
+  assert.equal(recurringPaymentRefusal(subscription, { paymentMethod: 'credito', cardId: null }), message);
+  assert.equal(recurringPaymentRefusal(subscription, { paymentMethod: 'credito', cardId: 7 }), null);
+  // Recorrente antiga fora do crédito: editável sem trocar a forma.
+  const legacy = { recurring: true, paymentMethod: 'pix', cardId: null };
+  assert.equal(recurringPaymentRefusal(legacy, { paymentMethod: 'pix', cardId: null }), null);
+  assert.equal(recurringPaymentRefusal(legacy, { paymentMethod: 'debito', cardId: 3 }), message);
+  // Despesa que não é recorrente troca de forma à vontade.
+  assert.equal(recurringPaymentRefusal({ ...subscription, recurring: false }, { paymentMethod: 'pix', cardId: null }), null);
 });

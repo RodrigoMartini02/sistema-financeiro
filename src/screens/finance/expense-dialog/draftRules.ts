@@ -6,7 +6,7 @@ import type {
 } from '../../../types/finance';
 import type { ExpenseDuplicateQuery } from '../../../services/expenseSuggestionsService';
 import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
-import { addMonthsClamped, dateInMonth, invoiceDueDate, splitAmountInCents } from '../../../utils/expenseSchedule';
+import { addMonthsClamped, invoiceDueDate, splitAmountInCents } from '../../../utils/expenseSchedule';
 import { formatCurrency } from '../formatters';
 import { formatCents, toReais } from '../entry-dialog/cents';
 import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
@@ -67,11 +67,20 @@ export function isCreditWithCard(draft: ExpenseDraft, cards: Cartao[]): boolean 
   return draft.paymentMethod === 'credito' && selectedCard(draft, cards) !== undefined;
 }
 
+/**
+ * A recorrente é do cartão de crédito (plano .plans/recorrente-so-credito.md):
+ * a opção só existe com a forma Crédito e pelo menos um cartão de crédito
+ * cadastrado.
+ */
+export function canBeRecurring(draft: ExpenseDraft, cards: Cartao[]): boolean {
+  return draft.paymentMethod === 'credito' && compatibleCards(cards, 'credito').length > 0;
+}
+
 export function purchaseDateIso(draft: ExpenseDraft, todayIso: string): string {
   return brDateInputToIso(draft.purchaseDate, todayIso) || todayIso;
 }
 
-export type DueDateKind = 'manual' | 'invoice' | 'recurrence' | 'purchase';
+export type DueDateKind = 'manual' | 'invoice' | 'purchase';
 
 export interface DueDate {
   date: string;
@@ -85,7 +94,6 @@ export function computedDueDate(draft: ExpenseDraft, context: RuleContext): DueD
   const purchase = purchaseDateIso(draft, context.todayIso);
   const card = draft.paymentMethod === 'credito' ? selectedCard(draft, context.cards) : undefined;
   if (card) return { date: invoiceDueDate(purchase, card), kind: 'invoice', card };
-  if (draft.billingType === 'monthly') return { date: dateInMonth(purchase, draft.recurrenceDay || 1), kind: 'recurrence' };
   return { date: purchase, kind: 'purchase' };
 }
 
@@ -346,7 +354,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   if (!autoPay && due.kind !== 'manual' && draft.billingType === 'single') dueText = `Vence ${isoToShortBrDate(due.date)}`;
 
   const totalText = draft.billingType === 'monthly'
-    ? `${formatCents(amount)} · ${credit && due.card ? `todo mês na fatura ${due.card.nome}` : `todo dia ${draft.recurrenceDay ?? 1}`} · até dezembro`
+    ? `${formatCents(amount)} · todo mês${due.card ? ` na fatura ${due.card.nome}` : ''} · até dezembro`
     : `total ${formatCents(amount)}`;
   if (draft.paid && draft.amountPaidCents !== null) {
     if (draft.amountPaidCents > amount) badges.push({ text: `+ ${formatCents(draft.amountPaidCents - amount)} de multa e juros`, tone: 'warning' });
@@ -393,9 +401,9 @@ export function validateDraft(draft: ExpenseDraft, context: RuleContext): DraftE
   } else if (draft.paid && isInvalidOptionalDate(draft.paymentDate)) {
     errors.paymentDate = true;
   }
-  if (draft.billingType === 'monthly' && draft.paymentMethod !== 'credito'
-    && (draft.recurrenceDay === null || draft.recurrenceDay < 1 || draft.recurrenceDay > 31)) {
-    errors.recurrenceDay = true;
+  // A recorrente é do cartão de crédito; sem o cartão escolhido, o erro do cartão já aponta.
+  if (draft.billingType === 'monthly' && !errors.card && !isCreditWithCard(draft, context.cards)) {
+    errors.recurring = true;
   }
   return errors;
 }
@@ -419,7 +427,7 @@ export function errorMessage(errors: DraftErrors): string {
     errors.installments && 'as parcelas',
   ].filter((item): item is string => typeof item === 'string');
   if (invalidDates.length) clauses.push(`confira ${joinWithAnd(invalidDates)}`);
-  if (errors.recurrenceDay) clauses.push('informe o dia do mês, de 1 a 31');
+  if (errors.recurring) clauses.push('a recorrente é só no cartão de crédito');
   return toSentence(clauses);
 }
 

@@ -252,6 +252,14 @@ export function seedDraftFromMessage(
 
   draft.paymentMethod = matchPaymentMethod(text);
   draft.billingType = matchBillingType(text);
+  // A recorrente é do cartão de crédito (plano .plans/recorrente-so-credito.md):
+  // sem forma na frase, "mensal" vira crédito; com outra forma dita, ou sem
+  // cartão de crédito cadastrado, não repete.
+  if (draft.billingType === 'mensal') {
+    const hasCreditCard = cardsForPaymentMethod(catalog, 'credito').length > 0;
+    if (draft.paymentMethod === null && hasCreditCard) draft.paymentMethod = 'credito';
+    if (draft.paymentMethod !== 'credito' || !hasCreditCard) draft.billingType = 'nao';
+  }
 
   if (draft.billingType === 'parcelas') {
     const installments = text.match(/(\d{1,3})\s*(?:x|vezes|parcelas)/);

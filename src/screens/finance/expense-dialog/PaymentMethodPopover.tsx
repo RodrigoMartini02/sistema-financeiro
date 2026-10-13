@@ -44,11 +44,15 @@ interface PaymentMethodPopoverProps {
   /** Barra "Lançando em" (vale para as próximas) ou coluna "Pagamento" do lote. */
   variant: 'bar' | 'cell';
   cardInvalid: boolean;
+  /** Edição de uma recorrente: só o Crédito, e o cartão pode trocar (a recorrente é do cartão). */
+  creditOnly?: boolean;
   onChange: (choice: PaymentChoice) => void;
 }
 
 /** Forma de pagamento e cartão, com o limite do cartão de crédito. */
-export function PaymentMethodPopover({ draft, cards, cardLimits, preferredCardIds, variant, cardInvalid, onChange }: PaymentMethodPopoverProps) {
+export function PaymentMethodPopover({
+  draft, cards, cardLimits, preferredCardIds, variant, cardInvalid, creditOnly = false, onChange,
+}: PaymentMethodPopoverProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const option = optionOf(draft.paymentMethod);
@@ -56,6 +60,7 @@ export function PaymentMethodPopover({ draft, cards, cardLimits, preferredCardId
   const compatible = compatibleCards(cards, draft.paymentMethod);
   const limitText = cardLimitText(draft, cards, cardLimits);
   const label = `${option.label}${card ? ` · ${card.nome}` : ''}`;
+  const options = creditOnly ? PAYMENT_OPTIONS.filter((item) => item.method === 'credito') : PAYMENT_OPTIONS;
 
   const chooseMethod = (method: PaymentMethod) => {
     const preferred = usesCard(method) ? preferredCardIds[method] : null;
@@ -116,7 +121,7 @@ export function PaymentMethodPopover({ draft, cards, cardLimits, preferredCardId
       {trigger}
       <FloatingPanel open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} label="Forma de pagamento" width={320}>
         <div role="radiogroup" aria-label="Forma de pagamento" style={{ display: 'flex', gap: 2, padding: 2, background: SEPARATOR, borderRadius: 8 }}>
-          {PAYMENT_OPTIONS.map((item) => {
+          {options.map((item) => {
             const active = item.method === draft.paymentMethod;
             return (
               <button
@@ -171,6 +176,11 @@ export function PaymentMethodPopover({ draft, cards, cardLimits, preferredCardId
         {variant === 'bar' && (
           <span style={{ fontSize: 11, color: C.textFaint, borderTop: `1px solid ${SEPARATOR}`, paddingTop: 9 }}>
             Continua selecionado para as próximas despesas.
+          </span>
+        )}
+        {creditOnly && (
+          <span style={{ fontSize: 11, color: C.textFaint, borderTop: `1px solid ${SEPARATOR}`, paddingTop: 9 }}>
+            A recorrente é só no cartão de crédito.
           </span>
         )}
       </FloatingPanel>

@@ -5,6 +5,7 @@ import {
   MAX_AMOUNT, RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId,
   readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, roundCents,
 } from '../utils/requestInput';
+import { isCreditWithCard } from './cardInvoiceRules';
 
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -154,6 +155,10 @@ export function readCreateExpenseInput(body: unknown): CreateExpenseInput {
 
   if (billingType !== 'single' && billingType !== 'monthly') {
     throw new RequestInputError('Tipo de cobrança inválido');
+  }
+  // A recorrente é do cartão de crédito: cada ocorrência é uma cobrança na fatura.
+  if (billingType === 'monthly' && !isCreditWithCard(fields)) {
+    throw new RequestInputError('Recorrente é só no cartão de crédito: escolha o cartão');
   }
   return {
     ...fields,

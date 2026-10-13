@@ -42,8 +42,6 @@ export interface ExpenseDraft {
   overdueDismissed: boolean;
   knowsCashPrice: boolean;
   cashPriceCents: number | null;
-  /** Dia do vencimento no recorrente (1 a 31); null enquanto o campo está vazio. */
-  recurrenceDay: number | null;
   purchaseDate: string;
   /** Vazio: o vencimento é calculado. */
   dueDate: string;
@@ -67,7 +65,7 @@ export interface DraftCarryOver {
   paymentMethodTouched: boolean;
 }
 
-export function createDraft(carryOver: DraftCarryOver, todayIso: string): ExpenseDraft {
+export function createDraft(carryOver: DraftCarryOver): ExpenseDraft {
   return {
     key: nextDraftKey(),
     description: '',
@@ -81,7 +79,6 @@ export function createDraft(carryOver: DraftCarryOver, todayIso: string): Expens
     overdueDismissed: false,
     knowsCashPrice: false,
     cashPriceCents: null,
-    recurrenceDay: Number(todayIso.slice(8, 10)),
     dueDate: '',
     paid: false,
     paymentDate: '',
@@ -94,7 +91,7 @@ export function createDraft(carryOver: DraftCarryOver, todayIso: string): Expens
 }
 
 /** A despesa gravada, pronta para editar. A cobrança não muda na edição. */
-export function draftFromExpense(expense: Expense, todayIso: string): ExpenseDraft {
+export function draftFromExpense(expense: Expense): ExpenseDraft {
   const amountCents = toCents(expense.valorFinal);
   const amountPaidCents = expense.valorPago != null ? toCents(expense.valorPago) : null;
   return {
@@ -103,7 +100,7 @@ export function draftFromExpense(expense: Expense, todayIso: string): ExpenseDra
       cardId: expense.cartaoId ?? null,
       purchaseDate: isoToBrDate(expense.dataCompra ?? expense.dataVencimento),
       paymentMethodTouched: true,
-    }, todayIso),
+    }),
     description: expense.descricao,
     categoryId: expense.categoriaId ?? null,
     amountCents,
@@ -127,7 +124,8 @@ export interface DraftErrors {
   purchaseDate?: true;
   dueDate?: true;
   paymentDate?: true;
-  recurrenceDay?: true;
+  /** Recorrente fora do crédito com cartão. */
+  recurring?: true;
   installments?: true;
   invoiceDate?: true;
 }
@@ -148,6 +146,15 @@ export type DialogAction =
   | { type: 'setInstallmentCount'; key: number; count: number; force: boolean }
   | { type: 'cancelInstallmentCount' };
 
+/**
+ * A recorrente é do cartão de crédito (plano .plans/recorrente-so-credito.md):
+ * se a forma sai do Crédito (à mão, na barra "Lançando em" ou pela sugestão do
+ * histórico), a cobrança volta para "Não repete".
+ */
+export function withRecurringOnCredit(draft: ExpenseDraft): ExpenseDraft {
+  return draft.billingType === 'monthly' && draft.paymentMethod !== 'credito' ? { ...draft, billingType: 'single' } : draft;
+}
+
 function keepBelow<T>(record: Record<number, T>, count: number): Record<number, T> {
   return Object.fromEntries(Object.entries(record).filter(([index]) => Number(index) < count));
 }
@@ -155,7 +162,14 @@ function keepBelow<T>(record: Record<number, T>, count: number): Record<number, 
 export function dialogReducer(state: DialogState, action: DialogAction): DialogState {
   switch (action.type) {
     case 'applySuggestion':
-      return updateDraft<ExpenseDraft, DialogState>(state, action.key, (draft) => ({ ...draft, ...action.patch }));
+      return updateDraft<ExpenseDraft, DialogState>(state, action.key, (draft) => withRecurringOnCredit({ ...draft, ...action.patch }));
+
+    case 'update':
+      return updateDraft<ExpenseDraft, DialogState>(
+        batchReducer<ExpenseDraft, DraftErrors, DialogState>(state, action),
+        action.key,
+        withRecurringOnCredit,
+      );
 
     case 'setInstallmentCount': {
       const draft = findDraft(state, action.key);
