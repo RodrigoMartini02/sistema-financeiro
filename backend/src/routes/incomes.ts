@@ -7,7 +7,7 @@ import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
 import { isClassificationAllowed } from '../services/incomeClassificationCatalog';
 import { topUpOpenEndedContracts } from '../services/contractIncomes';
-import { processFixedIncomes } from '../services/fixedIncomes';
+import { ensureFixedIncomeYears } from '../services/fixedIncomes';
 import {
   readCreateIncomeInput,
   readIncomeDuplicateQuery,
@@ -145,13 +145,13 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   }
 });
 
-// POST /api/incomes/fixas/processar — checagem ao abrir o sistema: lança as
-// receitas fixas do mês que a rotina diária ainda não lançou, só das
-// configurações de quem pediu, e completa as 12 mensalidades à frente dos
-// contratos sem prazo das contas dele.
+// POST /api/incomes/fixas/processar — checagem ao abrir o sistema: grava o ano
+// das receitas fixas de quem pediu que ainda não o têm (a rotina diária faz o
+// mesmo para todas) e completa as 12 mensalidades à frente dos contratos sem
+// prazo das contas dele.
 router.post('/fixas/processar', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await processFixedIncomes({ userId: req.user!.id });
+    const result = await ensureFixedIncomeYears({ userId: req.user!.id });
     const contractIncomes = await topUpOpenEndedContracts({ userId: req.user!.id });
     res.json({ success: true, data: { ...result, contractIncomes } });
   } catch (error) {

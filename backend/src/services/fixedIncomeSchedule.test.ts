@@ -1,19 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  anoDaRenovacao,
   competenciaDe,
-  competenciaParaLancar,
+  competenciasAteDezembro,
+  competenciasDaRenovacao,
   dataDoLancamento,
   primeiraCompetencia,
-  type ConfiguracaoFixa,
+  renovacaoPendente,
 } from './fixedIncomeSchedule';
-
-const config = (parcial: Partial<ConfiguracaoFixa>): ConfiguracaoFixa => ({
-  diaRecebimento: 5,
-  lancarAutomatico: true,
-  automaticoDesde: '2026-01-01',
-  ...parcial,
-});
 
 test('competência é o primeiro dia do mês', () => {
   assert.equal(competenciaDe('2026-09-27'), '2026-09-01');
@@ -33,15 +28,27 @@ test('primeiro mês: ligado antes ou no dia vale o mês; depois do dia, o seguin
   assert.equal(primeiraCompetencia('2026-12-20', 5), '2027-01-01');
 });
 
-test('lança só a partir do dia do mês atual e uma vez só', () => {
-  assert.equal(competenciaParaLancar('2026-09-04', config({}), false), null);
-  assert.equal(competenciaParaLancar('2026-09-05', config({}), false), '2026-09-01');
-  assert.equal(competenciaParaLancar('2026-09-20', config({}), false), '2026-09-01');
-  assert.equal(competenciaParaLancar('2026-09-20', config({}), true), null);
+test('ligar a fixa grava do mês atual (ou do seguinte, se o dia passou) até dezembro', () => {
+  assert.deepEqual(competenciasAteDezembro('2026-10-13', 20), ['2026-10-01', '2026-11-01', '2026-12-01']);
+  assert.deepEqual(competenciasAteDezembro('2026-10-13', 5), ['2026-11-01', '2026-12-01']);
+  assert.equal(competenciasAteDezembro('2026-01-31', 31).length, 12);
+  // Ligada em dezembro, depois do dia: o ano seguinte inteiro.
+  const nextYear = competenciasAteDezembro('2026-12-20', 5);
+  assert.deepEqual([nextYear.length, nextYear[0], nextYear[11]], [12, '2027-01-01', '2027-12-01']);
 });
 
-test('automático desligado ou ligado depois do dia no mês atual não lança', () => {
-  assert.equal(competenciaParaLancar('2026-09-20', config({ lancarAutomatico: false }), false), null);
-  assert.equal(competenciaParaLancar('2026-09-20', config({ automaticoDesde: '2026-09-10' }), false), null);
-  assert.equal(competenciaParaLancar('2026-10-05', config({ automaticoDesde: '2026-09-10' }), false), '2026-10-01');
+test('renovação: o ano seguinte inteiro, ou a partir do mês atual se a decisão vem no ano novo', () => {
+  assert.equal(competenciasDaRenovacao('2026-12-10', 2027, 5).length, 12);
+  assert.deepEqual(competenciasDaRenovacao('2027-03-10', 2027, 5)[0], '2027-04-01');
+  assert.deepEqual(competenciasDaRenovacao('2027-03-03', 2027, 5)[0], '2027-03-01');
+  assert.deepEqual(competenciasDaRenovacao('2027-12-20', 2027, 5), []);
+  assert.equal(anoDaRenovacao(2026, '2026-12-10'), 2027);
+  assert.equal(anoDaRenovacao(2026, '2028-01-05'), 2028);
+});
+
+test('renovação pendente a partir de 1º de dezembro do último ano gravado, sem fim', () => {
+  assert.equal(renovacaoPendente(2026, '2026-11-30'), false);
+  assert.equal(renovacaoPendente(2026, '2026-12-01'), true);
+  assert.equal(renovacaoPendente(2026, '2027-06-01'), true);
+  assert.equal(renovacaoPendente(2027, '2026-12-15'), false);
 });

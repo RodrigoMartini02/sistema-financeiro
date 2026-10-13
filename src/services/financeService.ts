@@ -175,11 +175,11 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
 }
 
 /**
- * Checagem ao abrir o sistema: lança as receitas fixas do mês que a rotina
- * diária ainda não lançou (só as configuradas por quem está usando).
+ * Checagem ao abrir o sistema: grava o ano das receitas fixas de quem está
+ * usando que ainda não o têm (a rotina diária faz o mesmo para todas).
  */
-export async function processarReceitasFixas(): Promise<{ launched: number; pushSent: number }> {
-  return apiRequest<{ launched: number; pushSent: number }>('/incomes/fixas/processar', { method: 'POST' });
+export async function processarReceitasFixas(): Promise<{ registered: number }> {
+  return apiRequest<{ registered: number }>('/incomes/fixas/processar', { method: 'POST' });
 }
 
 /** Receita prevista/faturada passa a recebida (mesma ação da lista de receitas). */

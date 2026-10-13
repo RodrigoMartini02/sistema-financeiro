@@ -100,8 +100,11 @@ function amountColumns(amounts: IncomeAmounts) {
  * Grava a receita e as réplicas de "Repetir até" numa transação: ou entram
  * todas, ou nenhuma. As réplicas repetem descrição, valor, categoria, cliente,
  * representante e o vínculo com o contrato das horas; os anexos, a venda do
- * produto e as horas lançadas ficam só na original. A comissão mensal gera a
- * despesa de comissão em cada lançamento; a única, só na original. Horas de
+ * produto e as horas lançadas ficam só na original. As réplicas nascem
+ * previstas: o dinheiro ainda não caiu, e cada uma vira recebida com o
+ * "Confirmar recebimento" (plano .plans/receita-fixa-ano-previsto.md). A
+ * comissão mensal gera a despesa de comissão em cada lançamento; a única, só
+ * na original. Horas de
  * contrato com órgão público: o valor digitado é o bruto e a receita vale o
  * líquido, com as retenções do contrato.
  *
@@ -150,6 +153,7 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
         productId: isOriginal ? input.productSale?.productId ?? null : null,
         soldQuantity: isOriginal && input.productSale ? String(input.productSale.quantity) : null,
         attachments: isOriginal ? input.attachments : null,
+        ...(isOriginal ? {} : { status: INCOME_STATUS.planned }),
       };
     };
 

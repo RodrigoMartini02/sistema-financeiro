@@ -315,6 +315,7 @@ async function buscarFixas(entrada: PainelEntrada): Promise<FixaPainel[]> {
     return [];
   }
   const linhas = await db.select({
+    usuarioId: incomeClassificationFixes.userId,
     classificacaoId: incomeClassificationFixes.classificationId,
     valor: incomeClassificationFixes.amount,
     diaRecebimento: incomeClassificationFixes.dayOfMonth,

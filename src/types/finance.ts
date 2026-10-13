@@ -249,6 +249,24 @@ export interface SeriesRenewalResult {
   declined: number;
 }
 
+/** Receita fixa da pessoa que aguarda a decisão de continuar (GET /incomes/fixed-renewals). */
+export interface FixedIncomeRenewal {
+  /** A configuração da fixa. */
+  fixedId: number;
+  /** "Raiz › Nome", como a receita aparece na lista. */
+  description: string;
+  amount: number;
+  dayOfMonth: number;
+  /** Ano que a renovação grava. */
+  year: number;
+}
+
+/** Decisão do modal de renovação: a receita fixa continua ou não no ano seguinte. */
+export interface FixedIncomeRenewalDecision {
+  fixedId: number;
+  renew: boolean;
+}
+
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 

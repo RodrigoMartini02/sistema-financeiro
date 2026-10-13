@@ -73,6 +73,7 @@ import incomeRoutes from './routes/incomes';
 import expenseRoutes from './routes/expenses';
 import cardInvoiceRoutes from './routes/cardInvoices';
 import seriesRenewalRoutes from './routes/seriesRenewals';
+import fixedIncomeRenewalRoutes from './routes/fixedIncomeRenewals';
 import monthRoutes from './routes/months';
 import yearRoutes from './routes/years';
 import appointmentRoutes from './routes/appointments';
@@ -109,6 +110,8 @@ app.use('/api/categories', authenticate, requireActivePlan, requireCatalogAccess
 app.use('/api/categorias', authenticate, requireActivePlan, requireCatalogAccess('expenseCategories'), categoryRoutes);     // PT alias
 app.use('/api/cards', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);
 app.use('/api/cartoes', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);            // PT alias
+// Antes de /api/incomes: o caminho começa igual e a renovação da fixa tem rota própria.
+app.use('/api/incomes/fixed-renewals', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), fixedIncomeRenewalRoutes);
 app.use('/api/incomes', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);
 app.use('/api/receitas', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);         // PT alias
 // Antes de /api/expenses: o caminho começa igual e a renovação tem rota própria.
