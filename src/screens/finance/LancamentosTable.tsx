@@ -30,7 +30,8 @@ import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseVal
 import {
   INVOICE_MESSAGES, expensePayButton, invoiceMonthParam, isInvoiceProtected, isRenegotiated, renegotiationNote,
 } from '../../utils/cardInvoice';
-import { formatDiferenca } from '../despesas/expenseStatus';
+import { formatDiferenca, scheduledTitle } from '../despesas/expenseStatus';
+import { isCountedExpense } from '../../utils/expenseCounting';
 import { ExpenseCard } from '../despesas/ExpenseCard';
 import { IncomeCard, categoriaReceita } from '../receitas/IncomeCard';
 import { DeleteInstallmentDialog } from '../despesas/DeleteInstallmentDialog';
@@ -41,7 +42,7 @@ type LancamentoItem =
   | { kind: 'despesa'; id: number; chave: string; data: Expense }
   | { kind: 'receita'; id: number; chave: string; data: Income };
 
-type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada';
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada';
 
 const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
   pago: 'text-green-600 dark:text-green-400',
@@ -50,10 +51,12 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
   cancelada: 'text-slate-400 dark:text-slate-500',
   // Fatura paga em parte ou parcelada: encerrada no mês, o restante seguiu para a frente.
   renegociada: 'text-slate-500 dark:text-slate-400',
+  // Mensal que ainda não chegou à data: aparece na lista, fora das somas.
+  agendada: 'text-slate-400 dark:text-slate-500',
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -64,6 +67,7 @@ export function getFirstName(nome?: string | null): string {
 function getExpenseStatusKey(item: Expense): ExpenseStatusKey {
   if (item.status === 'cancelada') return 'cancelada';
   if (isRenegotiated(item)) return 'renegociada';
+  if (!isCountedExpense(item, getLocalTodayIso())) return 'agendada';
   return getExpenseStatus(item);
 }
 
@@ -73,7 +77,11 @@ function getExpenseStatusColor(item: Expense): string {
 
 function ExpenseStatusBadge({ item }: { item: Expense }) {
   const key = getExpenseStatusKey(item);
-  return <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')}>{STATUS_LABEL[key]}</span>;
+  return (
+    <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')} title={key === 'agendada' ? scheduledTitle(item) : undefined}>
+      {STATUS_LABEL[key]}
+    </span>
+  );
 }
 
 interface FilterOption { value: string; label: string }

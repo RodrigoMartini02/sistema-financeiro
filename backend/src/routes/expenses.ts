@@ -246,7 +246,7 @@ router.get('/em-aberto', authenticate, async (req: Request, res: Response): Prom
   }
 });
 
-// POST /api/expenses — despesa única, mensal (12 ocorrências) ou parcelada (uma linha por parcela)
+// POST /api/expenses — despesa única, mensal (até dezembro) ou parcelada (uma linha por parcela)
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const input = readCreateExpenseInput(req.body);

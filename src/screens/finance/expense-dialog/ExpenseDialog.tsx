@@ -21,7 +21,7 @@ import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
   EMPTY_FORM_MESSAGE, buildCreateInput, buildUpdateInput, cardForMethod, errorMessage, hasErrors,
-  isDraftFilled, usesCard, validateDraft, type RuleContext,
+  installmentsTotal, isDraftFilled, usesCard, validateDraft, type RuleContext,
 } from './draftRules';
 import {
   createDraft, dialogReducer, draftFromExpense, initialDialogState,
@@ -405,7 +405,10 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
 
   const batch = state.batch.length > 0 ? {
     count: state.batch.length,
-    sumCents: state.batch.reduce((sum, draft) => sum + (draft.amountCents ?? 0), 0),
+    // No parcelado, o total das parcelas (o valor da linha pode ser o de cada parcela).
+    sumCents: state.batch.reduce((sum, draft) => (
+      sum + (draft.billingType === 'installments' ? installmentsTotal(draft) : draft.amountCents ?? 0)
+    ), 0),
     header: (
       <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '10px 8px 4px' }}>
         <span>Descrição</span><span>Categoria</span><span>Pagamento</span><span>Cobrança</span><span>Valor</span><span>Compra</span>

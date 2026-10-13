@@ -235,3 +235,75 @@ export function planInstallmentUpdates(
     return update;
   });
 }
+
+/** Datas de uma ocorrência da série mensal. */
+export interface SeriesOccurrenceDates {
+  purchaseDate: string | null;
+  dueDate: string;
+}
+
+const DECEMBER = 12;
+const MONTHS_IN_YEAR = 12;
+
+function monthOf(isoDate: string): number {
+  return Number(isoDate.slice(5, 7));
+}
+
+/**
+ * Datas de uma série mensal nova: da primeira ocorrência até dezembro do ano
+ * dela (plano .plans/recorrente-ano-e-contagem.md). Com `card` (crédito com
+ * cartão), cada ocorrência tem a data de compra — a primeira mais i meses — e
+ * o vencimento da fatura dela; nas outras formas, o vencimento mês a mês e a
+ * data de compra só na primeira.
+ */
+export function monthlySeriesDates(
+  first: { purchaseDate: string; dueDate: string },
+  card: InvoiceCardDays | null,
+): SeriesOccurrenceDates[] {
+  const count = DECEMBER - monthOf(first.dueDate) + 1;
+  return Array.from({ length: count }, (_, index) => {
+    if (index === 0) return { purchaseDate: first.purchaseDate, dueDate: first.dueDate };
+    if (card) {
+      const purchaseDate = addMonthsClamped(first.purchaseDate, index);
+      return { purchaseDate, dueDate: invoiceDueDateForPurchase(purchaseDate, card) };
+    }
+    return { purchaseDate: null, dueDate: addMonthsClamped(first.dueDate, index) };
+  });
+}
+
+/**
+ * Renovação: as 12 ocorrências do ano seguinte, a partir da última da série
+ * (que vence em dezembro). No crédito com cartão e com data de compra, a
+ * compra segue mês a mês e o vencimento sai da fatura; senão, o vencimento
+ * segue mês a mês.
+ */
+export function renewalDates(
+  last: { purchaseDate: string | null; dueDate: string },
+  card: InvoiceCardDays | null,
+): SeriesOccurrenceDates[] {
+  return Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
+    const offset = index + 1;
+    if (card && last.purchaseDate !== null) {
+      const purchaseDate = addMonthsClamped(last.purchaseDate, offset);
+      return { purchaseDate, dueDate: invoiceDueDateForPurchase(purchaseDate, card) };
+    }
+    return { purchaseDate: null, dueDate: addMonthsClamped(last.dueDate, offset) };
+  });
+}
+
+/** Ano que a renovação cria: o seguinte ao da última ocorrência. */
+export function renewalYear(lastDueDate: string): number {
+  return Number(lastDueDate.slice(0, 4)) + 1;
+}
+
+/**
+ * Série pendente de renovação: a última ocorrência vence em dezembro do ano X,
+ * hoje está entre 1º de dezembro de X e 31 de janeiro de X + 1, e ainda não há
+ * decisão para X + 1. O fim em janeiro evita oferecer a renovação de séries que
+ * acabaram há mais tempo.
+ */
+export function isRenewalPending(lastDueDate: string, today: string, decided: boolean): boolean {
+  if (decided || monthOf(lastDueDate) !== DECEMBER) return false;
+  const year = Number(lastDueDate.slice(0, 4));
+  return today >= `${year}-12-01` && today <= `${year + 1}-01-31`;
+}

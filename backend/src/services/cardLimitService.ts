@@ -1,5 +1,7 @@
 import { pool } from '../db/client';
+import { getTodayIsoInTimezone } from '../utils/date';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
+import { countedExpenseSql } from './expenseCounting';
 
 export interface CardLimit {
   id: number;
@@ -21,9 +23,9 @@ interface CardLimitRow {
 // futuro. Isso é intencional: uma compra parcelada em N vezes já grava uma
 // linha por parcela (cada uma com seu próprio mês/ano) e ocupa o limite
 // inteiro desde a compra, liberando conforme cada parcela é paga — mesma
-// lógica de uma fatura de cartão real. Despesas recorrentes não têm linhas
-// futuras pré-criadas, então são cobertas pela mesma soma sem tratamento
-// especial.
+// lógica de uma fatura de cartão real. A despesa mensal já tem as ocorrências
+// do ano gravadas, mas a em aberto só ocupa o limite depois da cobrança (a data
+// de compra; expenseCounting), como no banco.
 //
 // Cartões tipo 'ambos' misturam despesas de débito e crédito no mesmo
 // cartao_id (a despesa tem sua própria forma_pagamento, independente do tipo
@@ -73,6 +75,8 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
       SELECT 1 FROM contas pd WHERE pd.id = $${params.length} AND pd.tipo = 'pessoal' AND pd.usuario_id = d.usuario_id
     )))`;
   }
+  params.push(getTodayIsoInTimezone());
+  const countedClause = ` AND ${countedExpenseSql('d', `$${params.length}`)}`;
 
   const result = await pool.query<CardLimitRow>(
     `SELECT c.id, c.nome, c.limite,
@@ -88,7 +92,7 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
        -- abaixo. Antes a soma exigia forma_pagamento = 'credito' na despesa, e
        -- lancamentos antigos sem esse campo ficavam de fora: o cartao aparecia
        -- na lista mas o valor usado nao subia.
-       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos') OR d.forma_pagamento = 'credito')${expenseAccountClause}
+       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos') OR d.forma_pagamento = 'credito')${expenseAccountClause}${countedClause}
      WHERE c.usuario_id = ANY($1) AND c.ativo = true
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}
      GROUP BY c.id, c.nome, c.limite

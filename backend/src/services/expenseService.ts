@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, max, ne, or, sq
 import { db } from '../db/client';
 import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
-import { addMonthsClamped, getMonthYearFromIsoDate } from '../utils/date';
+import { getMonthYearFromIsoDate } from '../utils/date';
 import { escapeLikePattern } from '../utils/requestInput';
 import { INVOICE_EXPENSE_METHOD, invoiceEditLockOf, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
 import { ACTIVE_STATUS } from './entryQueries';
@@ -10,6 +10,7 @@ import {
   changedSeriesFields,
   isInstallmentInScope,
   isOpenFollowingOccurrence,
+  monthlySeriesDates,
   planInstallmentUpdates,
   planRecurringUpdates,
   type InvoiceCardDays,
@@ -27,8 +28,6 @@ import {
   type UpdateExpenseInput,
 } from './expenseInput';
 
-/** Ocorrências geradas para uma despesa mensal (a primeira mais 11). */
-const MONTHLY_OCCURRENCES = 12;
 const MATCH_LIMIT = 4;
 
 const lowerDescription = sql<string>`lower(${expenses.description})`;
@@ -67,9 +66,12 @@ function resolvePayment(
 
 /**
  * Linhas a gravar. Anexos e nota fiscal ficam só na primeira, como sempre foi.
- * Parcelas levam a data da compra em todas; ocorrências mensais, só a primeira.
+ * Parcelas levam a data da compra em todas. A despesa mensal vai da primeira
+ * ocorrência até dezembro do ano dela (monthlySeriesDates): no crédito com
+ * cartão (`card`), cada ocorrência tem a data de compra e o vencimento da fatura
+ * dela; nas outras formas, a data de compra fica só na primeira.
  */
-function buildRows(userId: number, input: CreateExpenseInput, today: string): NewExpense[] {
+function buildRows(userId: number, input: CreateExpenseInput, today: string, card: InvoiceCardDays | null): NewExpense[] {
   const base: Pick<NewExpense, 'userId' | 'accountId' | 'categoryId' | 'cardId' | 'description' | 'paymentMethod'> = {
     userId,
     accountId: input.accountId,
@@ -112,9 +114,11 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string): Ne
     return [first];
   }
 
-  const occurrences = Array.from({ length: MONTHLY_OCCURRENCES - 1 }, (_, index): NewExpense => ({
+  const [, ...followingDates] = monthlySeriesDates({ purchaseDate: input.purchaseDate, dueDate: input.dueDate }, card);
+  const occurrences = followingDates.map((dates): NewExpense => ({
     ...base,
-    ...scheduleColumns(addMonthsClamped(input.dueDate, index + 1)),
+    ...scheduleColumns(dates.dueDate),
+    purchaseDate: dates.purchaseDate,
     originalAmount: toDecimal(input.amount),
     recurring: true,
   }));
@@ -127,7 +131,8 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string): Ne
  * a primeira aponta para si mesma — o mesmo agrupamento que a exclusão usa.
  */
 export async function createExpense(userId: number, input: CreateExpenseInput, today: string): Promise<Expense> {
-  const [firstRow, ...otherRows] = buildRows(userId, input, today);
+  const card = input.billingType === 'monthly' ? await invoiceCardDays(db, input) : null;
+  const [firstRow, ...otherRows] = buildRows(userId, input, today, card);
   return db.transaction(async (transaction) => {
     const [first] = await transaction.insert(expenses).values(firstRow!).returning();
     if (otherRows.length === 0) {
@@ -266,13 +271,20 @@ export async function updateExpense(
   });
 }
 
-/** Fechamento e vencimento do cartão, quando o resultado da edição é crédito com cartão (regra da fatura). */
-async function invoiceCardDays(transaction: Transaction, next: SeriesFields): Promise<InvoiceCardDays | null> {
-  if (next.paymentMethod !== INVOICE_EXPENSE_METHOD || next.cardId === null) return null;
-  const [card] = await transaction
+/**
+ * Fechamento e vencimento do cartão, quando a despesa é crédito com cartão (regra
+ * da fatura); nulo nas outras formas. O cartão já foi autorizado pela rota
+ * (resolveCardForWrite).
+ */
+async function invoiceCardDays(
+  executor: Pick<typeof db, 'select'>,
+  expense: Pick<SeriesFields, 'paymentMethod' | 'cardId'>,
+): Promise<InvoiceCardDays | null> {
+  if (expense.paymentMethod !== INVOICE_EXPENSE_METHOD || expense.cardId === null) return null;
+  const [card] = await executor
     .select({ closingDay: cards.closingDay, dueDay: cards.dueDay })
     .from(cards)
-    .where(eq(cards.id, next.cardId))
+    .where(eq(cards.id, expense.cardId))
     .limit(1);
   return card ?? null;
 }

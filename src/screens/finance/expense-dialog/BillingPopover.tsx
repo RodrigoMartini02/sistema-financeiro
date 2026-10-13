@@ -4,7 +4,9 @@ import { C } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import type { DraftPatch, ExpenseDraft } from './draftState';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
-import { SEPARATOR, chevronStyle, ellipsisStyle, fieldStyle, linkButtonStyle, selectStyle } from '../entry-dialog/fieldStyles';
+import {
+  SEPARATOR, checkboxStyle, chevronStyle, ellipsisStyle, fieldStyle, linkButtonStyle, selectStyle,
+} from '../entry-dialog/fieldStyles';
 
 const BILLING_OPTIONS: ReadonlyArray<{ type: ExpenseBillingType; label: string }> = [
   { type: 'single', label: 'Não repete' },
@@ -35,7 +37,7 @@ interface BillingPopoverProps {
   onCancelInstallmentCount: () => void;
 }
 
-/** Cobrança: não repete, parcelado (nº de parcelas e preço à vista) ou recorrente (dia do mês). */
+/** Cobrança: não repete, parcelado (nº de parcelas, valor total e preço à vista) ou recorrente (dia do mês). */
 export function BillingPopover({
   draft, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount,
 }: BillingPopoverProps) {
@@ -148,6 +150,18 @@ export function BillingPopover({
               </div>
             )}
 
+            {/* Sem a caixa, o valor da linha é o de cada parcela; com ela, o total, dividido nas parcelas. */}
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={draft.amountIsTotal}
+              onClick={() => onUpdate((current) => ({ amountIsTotal: !current.amountIsTotal }))}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: C.text, cursor: 'pointer' }}
+            >
+              <span aria-hidden="true" style={checkboxStyle(draft.amountIsTotal)}>{draft.amountIsTotal ? '✓' : ''}</span>
+              Sei o valor total
+            </button>
+
             <button
               type="button"
               onClick={() => onUpdate((current) => ({ knowsCashPrice: !current.knowsCashPrice, cashPriceCents: null }))}
@@ -180,7 +194,7 @@ export function BillingPopover({
               aria-label="Dia do vencimento"
               style={{ ...fieldStyle(), width: 40, padding: 0, textAlign: 'center' }}
             />
-            <span>de cada mês · 12 ocorrências</span>
+            <span>de cada mês · até dezembro</span>
           </div>
         )}
         {draft.billingType === 'monthly' && credit && (

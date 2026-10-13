@@ -76,6 +76,8 @@ export function toExpenseDraft(
     description: draft.description ?? '',
     categoryId: categoryIdByName(categories, draft.category),
     amountCents: draft.amount ? toCents(draft.amount) : null,
+    // No parcelado, o valor da frase é o total ("3000 em 10x"), ao contrário do modal.
+    amountIsTotal: true,
     billingType: BILLING_TYPES[draft.billingType ?? 'nao'],
     installmentCount: draft.installments ?? MIN_INSTALLMENTS,
     installmentAdjustments: {},

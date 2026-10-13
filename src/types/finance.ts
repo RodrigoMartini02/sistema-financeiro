@@ -224,6 +224,31 @@ export interface RenegotiatedInvoice {
   firstDueDate: string;
 }
 
+/** Série mensal que termina em dezembro e aguarda a decisão de renovar (GET /expenses/series-renewals). */
+export interface SeriesRenewal {
+  /** A 1ª ocorrência da série (grupo_parcelamento_id). */
+  seriesId: number;
+  description: string;
+  amount: number;
+  paymentMethod: string | null;
+  cardName: string | null;
+  /** Vencimento da última ocorrência, 'AAAA-MM-DD'. */
+  lastDueDate: string;
+  /** Ano que a renovação cria. */
+  year: number;
+}
+
+/** Decisão do modal de renovação: renovar ou não a série no ano seguinte. */
+export interface SeriesRenewalDecision {
+  seriesId: number;
+  renew: boolean;
+}
+
+export interface SeriesRenewalResult {
+  renewed: number;
+  declined: number;
+}
+
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
@@ -231,7 +256,7 @@ export function isPaymentMethod(value: string): value is PaymentMethod {
   return (PAYMENT_METHODS as readonly string[]).includes(value);
 }
 
-/** Não repete, recorrente (12 ocorrências) ou parcelado (uma linha por parcela). */
+/** Não repete, recorrente (até dezembro do ano da 1ª ocorrência) ou parcelado (uma linha por parcela). */
 export type ExpenseBillingType = 'single' | 'monthly' | 'installments';
 
 export interface ExpensePaymentInput {

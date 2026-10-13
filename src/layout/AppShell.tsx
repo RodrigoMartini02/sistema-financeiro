@@ -15,6 +15,7 @@ import { useTelaDesktop } from '../hooks/useTelaDesktop';
 import { useAppContext } from '../context/AppContext';
 import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
+import { SeriesRenewalModal } from '../screens/finance/SeriesRenewalModal';
 import { AccountMenu } from './AccountMenu';
 import { visibleSections, type AccountType } from '../utils/screenAccess';
 import { ConfigPanel, configItemContext, hasVisibleConfigItems, type ConfigItemId } from './ConfigPanel';
@@ -242,6 +243,7 @@ export function AppShell({
   const canViewNotifications = ownPermissions?.accessNotifications === true;
   const canUseAssistant = ownPermissions?.accessAssistant === true;
   const canLaunchIncomes = ownPermissions?.accessIncomes === true;
+  const canLaunchExpenses = ownPermissions?.accessExpenses === true;
   const hasConfigItems = !!ownPermissions && hasVisibleConfigItems(ownPermissions, configItemContext(user, contaTipo));
 
   // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
@@ -465,6 +467,8 @@ export function AppShell({
         </main>
       </div>
       {!isDemoMode && !telaDesktop && canUseAssistant && <FinancialAssistant />}
+      {/* Em dezembro e janeiro, pergunta se as séries mensais que terminam em dezembro renovam (na demo, nunca há). */}
+      {canLaunchExpenses && <SeriesRenewalModal />}
       {!isDemoMode && (
         <ConfigPanel
           open={configPanel.open && hasConfigItems}

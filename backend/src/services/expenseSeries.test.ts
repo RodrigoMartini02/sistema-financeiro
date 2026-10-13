@@ -5,8 +5,12 @@ import {
   invoiceDueDateForPurchase,
   isInstallmentInScope,
   isOpenFollowingOccurrence,
+  isRenewalPending,
+  monthlySeriesDates,
   planInstallmentUpdates,
   planRecurringUpdates,
+  renewalDates,
+  renewalYear,
   type SeriesFields,
   type SeriesOccurrence,
 } from './expenseSeries';
@@ -242,4 +246,51 @@ test('parcelado, só o valor: as parcelas do escopo mudam o valor e mantêm as d
     [{ id: 104, dueDate: '2026-11-10' }],
   );
   assert.deepEqual(updates, [{ id: 104, amount: 250 }]);
+});
+
+const MERCADO_PAGO = { closingDay: 2, dueDay: 9 };
+
+test('série nova até dezembro: no crédito, compra mês a mês e vencimento pela fatura de cada uma', () => {
+  // Cobrança no dia 17: a compra de outubro cai na fatura de novembro.
+  assert.deepEqual(monthlySeriesDates({ purchaseDate: '2026-10-17', dueDate: '2026-11-09' }, MERCADO_PAGO), [
+    { purchaseDate: '2026-10-17', dueDate: '2026-11-09' },
+    { purchaseDate: '2026-11-17', dueDate: '2026-12-09' },
+  ]);
+  // Primeira ocorrência em janeiro: o ano inteiro.
+  const fullYear = monthlySeriesDates({ purchaseDate: '2026-12-17', dueDate: '2027-01-09' }, MERCADO_PAGO);
+  assert.equal(fullYear.length, 12);
+  assert.deepEqual(fullYear[11], { purchaseDate: '2027-11-17', dueDate: '2027-12-09' });
+});
+
+test('série nova até dezembro: fora do crédito, vencimento mês a mês e data de compra só na primeira', () => {
+  assert.deepEqual(monthlySeriesDates({ purchaseDate: '2026-10-01', dueDate: '2026-10-10' }, null), [
+    { purchaseDate: '2026-10-01', dueDate: '2026-10-10' },
+    { purchaseDate: null, dueDate: '2026-11-10' },
+    { purchaseDate: null, dueDate: '2026-12-10' },
+  ]);
+  // Primeira em dezembro: só ela.
+  assert.equal(monthlySeriesDates({ purchaseDate: '2026-12-05', dueDate: '2026-12-10' }, null).length, 1);
+});
+
+test('renovação: janeiro a dezembro do ano seguinte, a partir da última ocorrência', () => {
+  const credit = renewalDates({ purchaseDate: '2026-11-17', dueDate: '2026-12-09' }, MERCADO_PAGO);
+  assert.equal(credit.length, 12);
+  assert.deepEqual(credit[0], { purchaseDate: '2026-12-17', dueDate: '2027-01-09' });
+  assert.deepEqual(credit[11], { purchaseDate: '2027-11-17', dueDate: '2027-12-09' });
+  const pix = renewalDates({ purchaseDate: null, dueDate: '2026-12-10' }, null);
+  assert.deepEqual([pix[0]?.dueDate, pix[11]?.dueDate], ['2027-01-10', '2027-12-10']);
+  // No crédito sem data de compra gravada, segue o vencimento.
+  assert.equal(renewalDates({ purchaseDate: null, dueDate: '2026-12-09' }, MERCADO_PAGO)[0]?.dueDate, '2027-01-09');
+  assert.equal(renewalYear('2026-12-09'), 2027);
+});
+
+test('renovação pendente: de 1º de dezembro a 31 de janeiro, sem decisão e com a última em dezembro', () => {
+  assert.equal(isRenewalPending('2026-12-09', '2026-11-30', false), false);
+  assert.equal(isRenewalPending('2026-12-09', '2026-12-01', false), true);
+  assert.equal(isRenewalPending('2026-12-09', '2027-01-31', false), true);
+  assert.equal(isRenewalPending('2026-12-09', '2027-02-01', false), false);
+  assert.equal(isRenewalPending('2026-12-09', '2026-12-15', true), false);
+  // Série que acabou em novembro ou em um dezembro antigo não é oferecida.
+  assert.equal(isRenewalPending('2026-11-09', '2026-12-15', false), false);
+  assert.equal(isRenewalPending('2025-12-09', '2026-12-15', false), false);
 });
