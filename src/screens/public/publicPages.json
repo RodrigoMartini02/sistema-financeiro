@@ -16,8 +16,8 @@
       }
     },
     {
-      "path": "/produtos/financas/",
-      "file": "produtos/financas/index.html",
+      "path": "/financas/",
+      "file": "financas/index.html",
       "navLabel": "FINGERENCE Finanças",
       "solution": "finance",
       "title": "FINGERENCE Finanças | Controle financeiro pessoal e empresarial",
@@ -29,8 +29,8 @@
       }
     },
     {
-      "path": "/produtos/licitacoes/",
-      "file": "produtos/licitacoes/index.html",
+      "path": "/licitacoes/",
+      "file": "licitacoes/index.html",
       "navLabel": "FINGERENCE Licitações",
       "solution": "tenders",
       "title": "FINGERENCE Licitações | Os editais certos, sem perder prazos",

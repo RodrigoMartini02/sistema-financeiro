@@ -4,14 +4,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
 /**
- * App de Licitações: no servidor local (dev e preview), `/licitacoes` e
- * `/licitacoes/*` entregam a entrada `tenders.html`. Em produção, a mesma
- * reescrita fica na hospedagem do site (README do módulo, no backend).
+ * App de Licitações: no servidor local (dev e preview), `/licitacoes/app` e
+ * `/licitacoes/app/*` entregam a entrada `tenders.html`; `/licitacoes/` é a
+ * página do site. Em produção, a mesma reescrita fica na hospedagem do site
+ * (README do módulo, no backend).
  */
 function tendersAppRewrite(): Plugin {
   const rewrite: Connect.NextHandleFunction = (req, _res, next) => {
     const path = (req.url ?? '').split('?')[0] ?? '';
-    if (path === '/licitacoes' || path.startsWith('/licitacoes/')) {
+    if (path === '/licitacoes/app' || path.startsWith('/licitacoes/app/')) {
       req.url = '/tenders.html';
     }
     next();

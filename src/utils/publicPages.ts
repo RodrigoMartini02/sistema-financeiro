@@ -62,7 +62,7 @@ export function canonicalUrlFor(page: PublicPage): string {
   return `${SITE_URL}${page.path}`;
 }
 
-/** Página da solução (ex.: Licitações → /produtos/licitacoes/). */
+/** Página da solução (ex.: Licitações → /licitacoes/). */
 export function pageOfSolution(solution: SiteSolution): PublicPage {
   const page = PUBLIC_PAGES.find((candidate) => candidate.solution === solution);
   if (!page) {

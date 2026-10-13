@@ -27,8 +27,8 @@ test('páginas: título, descrição, texto de reserva e endereço canônico com
   }
   assert.deepEqual([...paths], [
     '/',
-    '/produtos/financas/',
-    '/produtos/licitacoes/',
+    '/financas/',
+    '/licitacoes/',
     '/sobre/',
     '/contato/',
     '/termos/',
@@ -49,24 +49,21 @@ test('textos das páginas sem as palavras proibidas do site', () => {
 
 test('endereço: com ou sem barra é a mesma página; /index.html e desconhecido viram a home', () => {
   assert.equal(publicPageFor('/sobre').path, '/sobre/');
-  assert.equal(publicPageFor('/produtos/financas').path, '/produtos/financas/');
+  assert.equal(publicPageFor('/financas').path, '/financas/');
   assert.equal(publicPageFor('/').path, '/');
   assert.equal(publicPageFor('/index.html').path, '/');
   assert.equal(publicPageFor('/nao-existe').path, '/');
-  assert.equal(publicPageFor('/produtos/').path, '/', 'a página Produtos saiu: as soluções ficam na Início');
-  assert.equal(publicPageFor('/produtos').path, '/', 'a página Produtos saiu: as soluções ficam na Início');
-  assert.equal(publicPageFor('/planos/').path, '/', 'a página de planos saiu: os planos ficam em cada solução');
-  assert.equal(publicPageFor('/licitacoes').path, '/', '/licitacoes é do sistema, não do site');
 });
 
 test('solução da página: Finanças e Licitações nas páginas delas; nenhuma nas da empresa', () => {
-  assert.equal(publicPageFor('/produtos/financas/').solution, 'finance');
-  assert.equal(publicPageFor('/produtos/licitacoes').solution, 'tenders');
+  assert.equal(publicPageFor('/financas/').solution, 'finance');
+  assert.equal(publicPageFor('/licitacoes').solution, 'tenders');
+  assert.equal(publicPageFor('/licitacoes/app').solution, null, '/licitacoes/app é o sistema, não a página do site');
   assert.equal(publicPageFor('/').solution, null);
   assert.equal(publicPageFor('/sobre/').solution, null);
   assert.equal(publicPageFor('/contato').solution, null);
-  assert.equal(pageOfSolution('finance').path, '/produtos/financas/');
-  assert.equal(pageOfSolution('tenders').path, '/produtos/licitacoes/');
+  assert.equal(pageOfSolution('finance').path, '/financas/');
+  assert.equal(pageOfSolution('tenders').path, '/licitacoes/');
 });
 
 test('entrada do FINGERENCE sem sessão: a página de Finanças, que abre o login', () => {
@@ -82,6 +79,6 @@ test('entrada de Licitações sem sessão: a página de Licitações, que abre o
 });
 
 test('endereço canônico no domínio do site', () => {
-  assert.equal(canonicalUrlFor(publicPageFor('/produtos/licitacoes')), `${SITE_URL}/produtos/licitacoes/`);
+  assert.equal(canonicalUrlFor(publicPageFor('/licitacoes')), `${SITE_URL}/licitacoes/`);
   assert.equal(canonicalUrlFor(publicPageFor('/')), `${SITE_URL}/`);
 });

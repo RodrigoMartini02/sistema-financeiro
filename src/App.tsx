@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ConfirmProvider } from './context/ConfirmContext';
@@ -82,18 +82,14 @@ function PublicSite() {
           <Route path="/" element={<HomePage />} />
           {/* A volta do login com Google chega em /index.html. */}
           <Route path="/index.html" element={<HomePage />} />
-          <Route path="/produtos/financas" element={<FinancePage />} />
-          <Route path="/produtos/licitacoes" element={<TendersPage />} />
+          <Route path="/financas" element={<FinancePage />} />
+          <Route path="/licitacoes" element={<TendersPage />} />
           <Route path="/sobre" element={<AboutPage />} />
           <Route path="/contato" element={<ContactPage />} />
           <Route path="/termos" element={<LegalPage type="termos" />} />
           <Route path="/privacidade" element={<LegalPage type="privacidade" />} />
           <Route path="*" element={<HomePage />} />
         </Route>
-        {/* Endereços antigos do site; na hospedagem, o ideal é o 301. */}
-        <Route path="/funcionalidades/*" element={<Navigate to="/produtos/financas/" replace />} />
-        <Route path="/planos/*" element={<Navigate to="/#solucoes" replace />} />
-        <Route path="/produtos" element={<Navigate to="/#solucoes" replace />} />
         <Route path="/loja/:storefront" element={<StorefrontPage />} />
         <Route path="/loja/:storefront/sacola" element={<StorefrontCartPage />} />
         <Route path="/loja/:storefront/checkout" element={<StorefrontCheckoutPage />} />

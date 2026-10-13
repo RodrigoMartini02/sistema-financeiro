@@ -5,15 +5,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { AppProvider } from '../context/AppContext';
 import { ConfirmProvider } from '../context/ConfirmContext';
 import { TendersApp } from './TendersApp';
-import { TENDERS_APP_BASE, appAddressFor } from './utils/modulePaths';
+import { TENDERS_APP_BASE } from './utils/modulePaths';
 import '../styles/globals.css';
 
-// Entrada do app de Licitações (tenders.html), servida em /licitacoes/app/*.
-// `/licitacoes` abre o sistema: troca o endereço aqui, sem recarregar e sem 301.
-const appAddress = appAddressFor(window.location);
-if (appAddress) {
-  window.history.replaceState(null, '', appAddress);
-}
+// Entrada do app de Licitações (tenders.html), servida só em /licitacoes/app/*.
 
 const queryClient = new QueryClient({
   defaultOptions: {

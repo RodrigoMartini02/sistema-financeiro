@@ -596,3 +596,95 @@ As entradas de Termos e Privacidade não mudam, e os `navLabel` continuam os mes
 
 - Sai o bloco de `/produtos/`.
 - O `lastmod` da Início, de Finanças, de Licitações, da Sobre e do Contato passa para a data da implementação.
+
+---
+
+## Adendo 1: endereços limpos, sem rotas antigas (2026-10-13)
+
+**Contexto:** a primeira entrega já está na branch e no GitHub (commit `b3d089d5`), sem merge. Depois dela, o usuário pediu que a reestruturação ficasse limpa: sem "produtos" nos endereços, sem rotas antigas e sem remendos.
+
+Este adendo **vale por cima** das partes do plano que falam em `/produtos/...`, em `/#solucoes` como destino de endereço antigo e nas regras do Render para endereços antigos.
+
+### Decisões
+
+1. **Endereços das soluções:** `/financas/` e `/licitacoes/`. O sistema de Licitações fica só em `/licitacoes/app`, e o `/licitacoes` sozinho deixa de abrir o sistema.
+2. **Endereços antigos** (`/produtos/...`, `/planos/`, `/funcionalidades/` e `/termoPrivacidade.html`): não ganham redirecionamento, nem no código nem no Render, e passam a dar 404. O motivo é que só o usuário e a Mirian usam o site.
+
+### Estrutura final
+
+- **Site:** `/`, `/financas/`, `/licitacoes/`, `/sobre/`, `/contato/`, `/termos/` e `/privacidade/`.
+- **Sistemas:** `/app.html` (Finanças) e `/licitacoes/app` (Licitações), sem mudança.
+- **Login sem sessão:** leva a `/financas/?entrar=1` e a `/licitacoes/?entrar=1`.
+- **Backend:** nada muda. O retorno do Mercado Pago, o destino do login e os links das notificações já usam `/licitacoes/app`.
+
+### Código
+
+1. **`src/screens/public/publicPages.json`:** os `path` passam a ser `/financas/` (`file` `financas/index.html`) e `/licitacoes/` (`file` `licitacoes/index.html`).
+2. **`src/App.tsx`:**
+   - as rotas passam a ser `/financas` e `/licitacoes`;
+   - saem as rotas de endereços antigos (`/funcionalidades/*`, `/planos/*` e `/produtos`), junto com o comentário delas;
+   - o import de `Navigate` sai, se ficar sem uso.
+3. **`src/utils/authOrigin.ts`:** `FINANCE_LOGIN_ADDRESS` passa a ser `/financas/?entrar=1`, e `TENDERS_LOGIN_ADDRESS` passa a ser `/licitacoes/?entrar=1`.
+4. **`src/tenders/utils/modulePaths.ts`:** saem `appAddressFor`, `MODULE_ROOT` e `AddressParts`. Fica só `TENDERS_APP_BASE`, com o comentário da estrutura nova.
+5. **`src/tenders/utils/tendersUtils.test.ts`:** saem os testes de `appAddressFor` e o import dele.
+6. **`src/tenders/main.tsx`:** sai a troca de endereço (`appAddressFor` com `replaceState`). O comentário passa a dizer que o app é servido só em `/licitacoes/app/*`.
+7. **`vite.config.ts`:** o servidor local entrega `tenders.html` só em `/licitacoes/app` e `/licitacoes/app/*`, e o comentário acompanha.
+8. **`public/robots.txt`:**
+   - `Allow: /produtos` vira `Allow: /financas` e `Allow: /licitacoes/`;
+   - `Disallow: /licitacoes` vira `Disallow: /licitacoes/app`.
+9. **`public/sitemap.xml`:** as entradas passam a ser `/financas/` e `/licitacoes/`.
+10. **`index.html`:** recebe os links novos na navegação de reserva.
+11. **`src/utils/publicPages.ts`:** o comentário de exemplo do `pageOfSolution` passa a usar o endereço novo.
+12. **`src/utils/publicPages.test.ts`:**
+    - a lista de páginas passa a ter `/financas/` e `/licitacoes/`;
+    - `/licitacoes` passa a ser página do site, com a solução `tenders`;
+    - saem as verificações de endereços antigos (`/produtos` e `/planos/`);
+    - o resto continua igual.
+13. **`backend/src/modules/tenders/README.md`:** as seções de endereço e de hospedagem passam a descrever a estrutura nova. É só documentação.
+
+### Render (feito pelo usuário logo depois do deploy, nunca antes)
+
+| Regra hoje | O que fazer |
+|---|---|
+| `/termoPrivacidade.html`, `/funcionalidades` e `/planos` | Apagar, porque são endereços antigos. |
+| `/licitacoes` (Rewrite → `/tenders.html`) | Trocar para Redirect → `/licitacoes/`. |
+| `/licitacoes/*` (Rewrite → `/tenders.html`) | Trocar o Source para `/licitacoes/app/*`. |
+| Nova | `/licitacoes/app` → `/tenders.html`, como Rewrite. |
+| Nova | `/financas` → `/financas/`, como Redirect. |
+| `/sobre`, `/contato`, `/termos`, `/privacidade`, `/loja/*` e `/catalogo/*` | Continuam como estão. |
+
+**Por que depois do deploy:** antes dele, `/licitacoes/` ainda não tem arquivo. Com a regra nova, `/licitacoes` → `/licitacoes/` cairia de novo na própria regra e entraria em loop, como aconteceu com `/planos/`.
+
+**Conferência com `curl`, depois da troca:**
+- `/financas/` e `/licitacoes/` respondem 200;
+- `/financas` e `/licitacoes` respondem 301, para o endereço com barra;
+- `/licitacoes/app` responde 200, com o `tenders.html`;
+- `/produtos/financas/` responde 404.
+
+### Riscos
+
+- **Entre o deploy e a troca das regras,** `/licitacoes` sem barra fica com a página em branco por alguns minutos.
+- **Os favoritos de `/licitacoes`** passam a abrir a página do site, e não mais o sistema, que agora fica em `/licitacoes/app`.
+- **Regra de negócio revista:** "`/licitacoes` continua sendo só do sistema" passa a ser "`/licitacoes/` é a página do site, e o sistema fica em `/licitacoes/app`".
+
+### Validação
+
+- `npm test`, `npx tsc --noEmit` e `npm run build`. O build passa a gerar `dist/financas/index.html` e `dist/licitacoes/index.html`, e não gera mais nada em `dist/produtos/`.
+- **No ambiente local:**
+  - o menu leva a `/financas/` e `/licitacoes/`;
+  - `/licitacoes/app` sem login cai em `/licitacoes/?entrar=1`, com a tela de login aberta;
+  - `/produtos/financas/` não é mais página.
+
+### Critérios de aceite
+
+- Nenhum endereço do site tem "produtos", e o código não tem nenhuma rota de endereço antigo.
+- Nos dois sistemas, quem está sem sessão vai para a página da solução, com o login aberto.
+- As regras do Render estão como na tabela e foram conferidas com `curl`.
+
+### Observações para a skill implementar
+
+- Usar a mesma branch `feat/R/site-menu-textos-cards`, num segundo commit.
+- Apagar primeiro o que sai (as rotas antigas e o `appAddressFor`) e depois aplicar o novo.
+- No `/finalizar`, atualizar estas memórias:
+  - regras do site: a estrutura nova e o `/licitacoes/` como página do site;
+  - pendências do site v2: as regras do Render deste adendo.
