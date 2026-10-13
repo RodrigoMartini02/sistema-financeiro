@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
 import { getMonthYearFromIsoDate } from '../utils/date';
-import { escapeLikePattern } from '../utils/requestInput';
+import { RequestInputError, escapeLikePattern } from '../utils/requestInput';
 import { INVOICE_EXPENSE_METHOD, invoiceEditLockOf, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
 import { ACTIVE_STATUS } from './entryQueries';
 import {
@@ -66,10 +66,10 @@ function resolvePayment(
 
 /**
  * Linhas a gravar. Anexos e nota fiscal ficam só na primeira, como sempre foi.
- * Parcelas levam a data da compra em todas. A despesa mensal vai da primeira
- * ocorrência até dezembro do ano dela (monthlySeriesDates): no crédito com
- * cartão (`card`), cada ocorrência tem a data de compra e o vencimento da fatura
- * dela; nas outras formas, a data de compra fica só na primeira.
+ * Parcelas levam a data da compra em todas. A despesa mensal é sempre do
+ * crédito com cartão (`card`) e vai da primeira ocorrência até dezembro do ano
+ * dela (monthlySeriesDates), cada uma com a data de compra e o vencimento da
+ * fatura dela.
  */
 function buildRows(userId: number, input: CreateExpenseInput, today: string, card: InvoiceCardDays | null): NewExpense[] {
   const base: Pick<NewExpense, 'userId' | 'accountId' | 'categoryId' | 'cardId' | 'description' | 'paymentMethod'> = {
@@ -114,6 +114,8 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string, car
     return [first];
   }
 
+  // A leitura do pedido já exige o crédito com cartão; sem os dias do cartão, não há fatura para seguir.
+  if (!card) throw new RequestInputError('Cartão não encontrado');
   const [, ...followingDates] = monthlySeriesDates({ purchaseDate: input.purchaseDate, dueDate: input.dueDate }, card);
   const occurrences = followingDates.map((dates): NewExpense => ({
     ...base,

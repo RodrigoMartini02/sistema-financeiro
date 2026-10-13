@@ -99,13 +99,18 @@ test('paga sem valor digitado manda o valor vazio: o servidor grava o previsto',
   assert.equal(input.billingType === 'single' && input.amountPaid, null);
 });
 
-test('recorrente: vence no dia digitado; sem ele, no dia da compra', () => {
-  const typed = save(draft({ billingType: 'mensal', dueDate: '2026-10-15' }));
-  const fromPurchase = save(draft({ billingType: 'mensal', date: '2026-10-07' }));
+test('recorrente no crédito: vence pela fatura do cartão; com vencimento digitado, no dia digitado', () => {
+  const subscription = { billingType: 'mensal' as const, paymentMethod: 'credito' as const, cardId: NUBANK.id };
+  const fromInvoice = save(draft({ ...subscription, date: '2026-10-07' }));
+  const typed = save(draft({ ...subscription, dueDate: '2026-10-15' }));
 
-  assert.equal(typed.billingType, 'monthly');
+  assert.equal(fromInvoice.billingType, 'monthly');
+  assert.equal(fromInvoice.billingType === 'monthly' && fromInvoice.dueDate, '2026-11-12');
   assert.equal(typed.billingType === 'monthly' && typed.dueDate, '2026-10-15');
-  assert.equal(fromPurchase.billingType === 'monthly' && fromPurchase.dueDate, '2026-10-07');
+
+  // Fora do crédito, a recorrente não é salva.
+  const pix = buildExpenseSave(draft({ billingType: 'mensal' }), { categories, context, accountId: 7, attachments: [] });
+  assert.deepEqual(pix, { ok: false, error: 'A recorrente é só no cartão de crédito.' });
 });
 
 test('parcelas pagas fora do crédito: data e valor de cada uma, vazio vale o vencimento e o previsto', () => {

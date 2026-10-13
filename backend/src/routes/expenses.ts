@@ -26,6 +26,7 @@ import { despesasEmAberto } from '../services/assistantQueries';
 import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense } from '../services/assistantPayment';
 import { INVOICE_EXPENSE_METHOD, INVOICE_MESSAGES, invoiceEditRefusal } from '../services/cardInvoiceRules';
 import { hasInvoiceProtectedRows, isCreditWithCardExpense } from '../services/cardInvoiceService';
+import { recurringPaymentRefusal } from '../services/expenseSeries';
 
 const router = Router();
 
@@ -293,6 +294,14 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     });
     if (lockRefusal) {
       throw new RequestInputError(lockRefusal);
+    }
+    // A recorrente é do cartão de crédito: a edição só troca o cartão.
+    const recurringRefusal = recurringPaymentRefusal(
+      { recurring: current.series.recurring, paymentMethod: current.seriesFields.paymentMethod, cardId: current.seriesFields.cardId },
+      { paymentMethod: input.paymentMethod, cardId: input.cardId },
+    );
+    if (recurringRefusal) {
+      throw new RequestInputError(recurringRefusal);
     }
     // A categoria que a despesa já tem continua aceita: lançamentos antigos podem
     // apontar para categorias de antes do catálogo da conta.

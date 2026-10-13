@@ -204,3 +204,25 @@ test('"no cartão" e forma de pagar, nao descricao', () => {
   assert.equal(seedDraftFromMessage('expense', '10x de 300 no cartão', catalog).description, null);
   assert.equal(seedDraftFromMessage('expense', 'paguei 50 no cartão', catalog).description, null);
 });
+
+test('recorrente é do cartão de crédito: sem forma vira crédito, com outra forma não repete', () => {
+  const subscription = seedDraftFromMessage('expense', 'assinatura netflix 55 no miriam', catalog);
+  assert.equal(subscription.billingType, 'mensal');
+  assert.equal(subscription.paymentMethod, 'credito');
+  assert.equal(subscription.cardId, 11);
+
+  const gym = seedDraftFromMessage('expense', 'academia 100 todo mes', catalog);
+  assert.equal(gym.billingType, 'mensal');
+  assert.equal(gym.paymentMethod, 'credito');
+  assert.equal(gym.cardId, null);
+
+  const rent = seedDraftFromMessage('expense', 'aluguel 1500 todo mes no pix', catalog);
+  assert.equal(rent.billingType, 'nao');
+  assert.equal(rent.paymentMethod, 'pix');
+
+  // Sem cartão de crédito cadastrado, a recorrente não tem como existir.
+  const withoutCards = seedDraftFromMessage('expense', 'academia 100 todo mes', { ...catalog, cards: [] });
+  assert.equal(withoutCards.billingType, 'nao');
+  assert.equal(withoutCards.paymentMethod, null);
+});
+

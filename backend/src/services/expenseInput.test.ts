@@ -66,6 +66,15 @@ test('lê o parcelado com a lista de parcelas', () => {
   assert.equal(input.installments[2]?.amount, 33.34);
 });
 
+test('recorrente só no crédito com cartão', () => {
+  const message = 'Recorrente é só no cartão de crédito: escolha o cartão';
+  assertRejects(() => readCreateExpenseInput(singleBody({ billingType: 'monthly' })), message);
+  assertRejects(() => readCreateExpenseInput(singleBody({ billingType: 'monthly', paymentMethod: 'credito' })), message);
+  const input = readCreateExpenseInput(singleBody({ billingType: 'monthly', paymentMethod: 'credito', cardId: 6 }));
+  assert.ok(input.billingType === 'monthly');
+  assert.equal(input.cardId, 6);
+});
+
 test('recusa campos obrigatórios ausentes ou inválidos', () => {
   assertRejects(() => readCreateExpenseInput(singleBody({ description: '   ' })), 'Informe a descrição');
   assertRejects(() => readCreateExpenseInput(singleBody({ paymentMethod: 'boleto' })), 'Forma de pagamento inválida');

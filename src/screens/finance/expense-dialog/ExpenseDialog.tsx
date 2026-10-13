@@ -101,8 +101,8 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
   const descriptionRef = useRef<HTMLInputElement>(null);
 
   const [state, dispatch] = useReducer(dialogReducer, null, () => initialDialogState(expense
-    ? draftFromExpense(expense, todayIso)
-    : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), paymentMethodTouched: false }, todayIso)));
+    ? draftFromExpense(expense)
+    : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), paymentMethodTouched: false })));
 
   const permissions = useOwnPermissions() ?? {};
   const categoriesQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
@@ -185,7 +185,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     cardId: from.cardId,
     purchaseDate: from.purchaseDate,
     paymentMethodTouched: true,
-  }, todayIso);
+  });
 
   const requestClose = () => {
     if (!state.saving) onClose();
@@ -369,6 +369,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
         suggestions={entrySuggestions}
         readOnlyBilling={editBillingLabel}
         invoiceLock={invoiceLock}
+        creditOnlyPayment={expense?.recorrente === true}
         pendingInstallmentCount={pendingCountFor(entry.key)}
         descriptionRef={descriptionRef}
         onAddToBatch={addToBatch}

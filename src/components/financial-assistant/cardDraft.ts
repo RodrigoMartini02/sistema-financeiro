@@ -1,7 +1,7 @@
 // Rascunho do card de despesa do assistente → rascunho do modal de despesa do
 // desktop. O card valida e monta o que é gravado pelas mesmas regras do modal
 // (draftRules): total dividido nas parcelas, vencimento calculado (fatura do
-// cartão, dia do mês, data da compra), "Pago em" e parcelas pagas uma a uma.
+// cartão ou data da compra), "Pago em" e parcelas pagas uma a uma.
 // Sem React, para o teste rodar direto.
 import type { Attachment, ExpenseCreateInput } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
@@ -55,10 +55,6 @@ export function fillDraftDefaults(draft: FinancialAssistantDraft, todayIso: stri
   };
 }
 
-function dayOfMonth(isoDate: string | null | undefined): number | null {
-  return isoDate ? Number(isoDate.slice(8, 10)) : null;
-}
-
 /**
  * O rascunho do card no formato do modal: centavos e datas dd/mm/aaaa, como o
  * modal guarda. Vencimento vazio continua vazio — no modal isso quer dizer
@@ -85,8 +81,6 @@ export function toExpenseDraft(
     overdueDismissed: draft.overdueDismissed ?? false,
     knowsCashPrice: false,
     cashPriceCents: null,
-    // Recorrente: o dia do vencimento digitado; sem ele, o da compra.
-    recurrenceDay: dayOfMonth(draft.dueDate) ?? dayOfMonth(purchaseIso),
     purchaseDate: isoToBrDate(purchaseIso),
     dueDate: isoToBrDate(draft.dueDate),
     paid: draft.paid,

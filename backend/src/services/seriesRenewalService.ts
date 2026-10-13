@@ -3,6 +3,8 @@
 // pergunta, para cada série do usuário que termina em dezembro e ainda não tem
 // decisão, se ela renova. Renovar cria janeiro a dezembro do ano seguinte na
 // mesma série; a decisão fica em renovacoes_serie e não é perguntada de novo.
+// Só renova a série no crédito com cartão: a recorrente é do cartão (plano
+// .plans/recorrente-so-credito.md); a antiga fora do crédito fica como histórico.
 //
 // Só as séries do próprio usuário (despesas.usuario_id), na conta pedida. A série
 // é a 1ª ocorrência (grupo_parcelamento_id), como na edição e na exclusão.
@@ -11,9 +13,9 @@ import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import { cards, expenses, seriesRenewals, type NewExpense } from '../db/schema';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
-import { INVOICE_EXPENSE_METHOD } from './cardInvoiceRules';
+import { INVOICE_EXPENSE_METHOD, isCreditWithCard } from './cardInvoiceRules';
 import { ACTIVE_STATUS, accountFilter, toNumber } from './entryQueries';
-import { isRenewalPending, renewalDates, renewalYear, type InvoiceCardDays } from './expenseSeries';
+import { isRenewalPending, renewalDates, renewalYear } from './expenseSeries';
 import type { SeriesRenewalDecision } from './seriesRenewalInput';
 
 export interface PendingRenewal {
@@ -88,6 +90,7 @@ export async function listPendingRenewals(
       description: expenses.description,
       amount: expenses.originalAmount,
       paymentMethod: expenses.paymentMethod,
+      cardId: expenses.cardId,
       cardName: cards.name,
       dueDate: expenses.dueDate,
     })
@@ -107,7 +110,7 @@ export async function listPendingRenewals(
 
   return pending.flatMap((candidate) => {
     const last = lastBySeries.get(candidate.seriesId);
-    if (!last) return [];
+    if (!last || !isCreditWithCard(last)) return [];
     return [{
       seriesId: candidate.seriesId,
       description: last.description,
@@ -122,10 +125,10 @@ export async function listPendingRenewals(
 
 /**
  * Grava as decisões numa transação. Série que não é do usuário, que não está
- * pendente ou que já foi decidida é ignorada. Renovar cria as 12 ocorrências
- * do ano seguinte na mesma série, copiando da última a descrição, a categoria,
- * a forma, o cartão, o valor e a conta; no crédito com cartão, a compra segue
- * mês a mês e o vencimento sai da fatura.
+ * pendente, que não é do crédito com cartão ou que já foi decidida é ignorada.
+ * Renovar cria as 12 ocorrências do ano seguinte na mesma série, copiando da
+ * última a descrição, a categoria, a forma, o cartão, o valor e a conta; a
+ * compra segue mês a mês e o vencimento sai da fatura.
  */
 export async function decideRenewals(
   userId: number,
@@ -155,7 +158,14 @@ export async function decideRenewals(
         ))
         .orderBy(desc(expenses.dueDate), desc(expenses.id))
         .limit(1);
-      if (!last || !isRenewalPending(last.dueDate, today, false)) continue;
+      if (!last || last.paymentMethod !== INVOICE_EXPENSE_METHOD || last.cardId === null) continue;
+      if (!isRenewalPending(last.dueDate, today, false)) continue;
+      const [card] = await transaction
+        .select({ closingDay: cards.closingDay, dueDay: cards.dueDay })
+        .from(cards)
+        .where(eq(cards.id, last.cardId))
+        .limit(1);
+      if (!card) continue;
 
       const inserted = await transaction
         .insert(seriesRenewals)
@@ -169,15 +179,6 @@ export async function decideRenewals(
         continue;
       }
 
-      let card: InvoiceCardDays | null = null;
-      if (last.paymentMethod === INVOICE_EXPENSE_METHOD && last.cardId !== null) {
-        const [cardRow] = await transaction
-          .select({ closingDay: cards.closingDay, dueDay: cards.dueDay })
-          .from(cards)
-          .where(eq(cards.id, last.cardId))
-          .limit(1);
-        card = cardRow ?? null;
-      }
       const rows = renewalDates({ purchaseDate: last.purchaseDate, dueDate: last.dueDate }, card)
         .map((dates): NewExpense => {
           const { mes, ano } = getMonthYearFromIsoDate(dates.dueDate);

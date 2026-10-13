@@ -5,7 +5,7 @@ import { FloatingPanel } from '../../../ui/FloatingPanel';
 import type { DraftPatch, ExpenseDraft } from './draftState';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
 import {
-  SEPARATOR, checkboxStyle, chevronStyle, ellipsisStyle, fieldStyle, linkButtonStyle, selectStyle,
+  SEPARATOR, checkboxStyle, chevronStyle, ellipsisStyle, linkButtonStyle, selectStyle,
 } from '../entry-dialog/fieldStyles';
 
 const BILLING_OPTIONS: ReadonlyArray<{ type: ExpenseBillingType; label: string }> = [
@@ -30,6 +30,8 @@ const stepperButtonStyle = {
 
 interface BillingPopoverProps {
   draft: ExpenseDraft;
+  /** "Recorrente" só no Crédito, com cartão de crédito cadastrado (canBeRecurring). */
+  recurringAvailable: boolean;
   /** Nº de parcelas esperando confirmação, porque apagaria ajustes ou pagamentos. */
   pendingInstallmentCount: number | null;
   onUpdate: (patch: DraftPatch) => void;
@@ -37,14 +39,14 @@ interface BillingPopoverProps {
   onCancelInstallmentCount: () => void;
 }
 
-/** Cobrança: não repete, parcelado (nº de parcelas, valor total e preço à vista) ou recorrente (dia do mês). */
+/** Cobrança: não repete, parcelado (nº de parcelas, valor total e preço à vista) ou recorrente (só no crédito). */
 export function BillingPopover({
-  draft, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount,
+  draft, recurringAvailable, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount,
 }: BillingPopoverProps) {
   const [open, setOpen] = useState(false);
   const [countText, setCountText] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const credit = draft.paymentMethod === 'credito';
+  const options = BILLING_OPTIONS.filter((option) => option.type !== 'monthly' || recurringAvailable);
 
   const commitCount = () => {
     if (countText === null) return;
@@ -81,7 +83,7 @@ export function BillingPopover({
 
       <FloatingPanel open={open} anchorRef={triggerRef} onClose={() => { commitCount(); setOpen(false); }} label="Cobrança" width={300} padding={6}>
         <div role="radiogroup" aria-label="Cobrança" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {BILLING_OPTIONS.map((option) => {
+          {options.map((option) => {
             const active = option.type === draft.billingType;
             return (
               <button
@@ -180,25 +182,8 @@ export function BillingPopover({
           </div>
         )}
 
-        {draft.billingType === 'monthly' && !credit && (
-          <div style={{ ...sectionStyle, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <span>Todo dia</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={draft.recurrenceDay ?? ''}
-              onChange={(event) => {
-                const day = Number.parseInt(event.target.value.replace(/\D/g, ''), 10);
-                onUpdate({ recurrenceDay: Number.isFinite(day) && day > 0 ? Math.min(31, day) : null });
-              }}
-              aria-label="Dia do vencimento"
-              style={{ ...fieldStyle(), width: 40, padding: 0, textAlign: 'center' }}
-            />
-            <span>de cada mês · até dezembro</span>
-          </div>
-        )}
-        {draft.billingType === 'monthly' && credit && (
-          <span style={sectionStyle}>No crédito, a recorrência segue a fatura do cartão.</span>
+        {draft.billingType === 'monthly' && (
+          <span style={sectionStyle}>A recorrência segue a fatura do cartão, até dezembro.</span>
         )}
       </FloatingPanel>
     </>

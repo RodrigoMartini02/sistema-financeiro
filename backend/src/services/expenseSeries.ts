@@ -7,7 +7,7 @@
 // - parcelado: vale para o escopo escolhido (esta e as próximas, ou todas), com
 //   as pagas incluídas.
 import { addMonthsClamped } from '../utils/date';
-import { INVOICE_EXPENSE_METHOD } from './cardInvoiceRules';
+import { INVOICE_EXPENSE_METHOD, isCreditWithCard } from './cardInvoiceRules';
 import type { ExpenseUpdateScope } from './expenseInput';
 
 export interface InvoiceCardDays {
@@ -250,40 +250,36 @@ function monthOf(isoDate: string): number {
 }
 
 /**
- * Datas de uma série mensal nova: da primeira ocorrência até dezembro do ano
- * dela (plano .plans/recorrente-ano-e-contagem.md). Com `card` (crédito com
- * cartão), cada ocorrência tem a data de compra — a primeira mais i meses — e
- * o vencimento da fatura dela; nas outras formas, o vencimento mês a mês e a
- * data de compra só na primeira.
+ * Datas de uma série mensal nova, que é sempre do crédito com cartão: da
+ * primeira ocorrência até dezembro do ano dela (plano
+ * .plans/recorrente-ano-e-contagem.md). Cada ocorrência tem a data de compra —
+ * a primeira mais i meses — e o vencimento da fatura dela.
  */
 export function monthlySeriesDates(
   first: { purchaseDate: string; dueDate: string },
-  card: InvoiceCardDays | null,
+  card: InvoiceCardDays,
 ): SeriesOccurrenceDates[] {
   const count = DECEMBER - monthOf(first.dueDate) + 1;
   return Array.from({ length: count }, (_, index) => {
     if (index === 0) return { purchaseDate: first.purchaseDate, dueDate: first.dueDate };
-    if (card) {
-      const purchaseDate = addMonthsClamped(first.purchaseDate, index);
-      return { purchaseDate, dueDate: invoiceDueDateForPurchase(purchaseDate, card) };
-    }
-    return { purchaseDate: null, dueDate: addMonthsClamped(first.dueDate, index) };
+    const purchaseDate = addMonthsClamped(first.purchaseDate, index);
+    return { purchaseDate, dueDate: invoiceDueDateForPurchase(purchaseDate, card) };
   });
 }
 
 /**
  * Renovação: as 12 ocorrências do ano seguinte, a partir da última da série
- * (que vence em dezembro). No crédito com cartão e com data de compra, a
- * compra segue mês a mês e o vencimento sai da fatura; senão, o vencimento
- * segue mês a mês.
+ * (que vence em dezembro e é do crédito com cartão). Com a data de compra, a
+ * compra segue mês a mês e o vencimento sai da fatura; a ocorrência antiga sem
+ * data de compra segue o vencimento mês a mês.
  */
 export function renewalDates(
   last: { purchaseDate: string | null; dueDate: string },
-  card: InvoiceCardDays | null,
+  card: InvoiceCardDays,
 ): SeriesOccurrenceDates[] {
   return Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
     const offset = index + 1;
-    if (card && last.purchaseDate !== null) {
+    if (last.purchaseDate !== null) {
       const purchaseDate = addMonthsClamped(last.purchaseDate, offset);
       return { purchaseDate, dueDate: invoiceDueDateForPurchase(purchaseDate, card) };
     }
@@ -306,4 +302,22 @@ export function isRenewalPending(lastDueDate: string, today: string, decided: bo
   if (decided || monthOf(lastDueDate) !== DECEMBER) return false;
   const year = Number(lastDueDate.slice(0, 4));
   return today >= `${year}-12-01` && today <= `${year + 1}-01-31`;
+}
+
+/** Forma de pagamento e cartão, como a regra da recorrente compara. */
+interface PaymentChoice {
+  paymentMethod: string | null;
+  cardId: number | null;
+}
+
+/**
+ * A recorrente é do cartão de crédito (plano .plans/recorrente-so-credito.md):
+ * na edição, a forma e o cartão só mudam se o resultado continua no crédito
+ * com cartão. A recorrente antiga fora do crédito continua editável, desde que
+ * a forma e o cartão não mudem. Devolve a mensagem da recusa, ou null.
+ */
+export function recurringPaymentRefusal(current: PaymentChoice & { recurring: boolean }, next: PaymentChoice): string | null {
+  if (!current.recurring || isCreditWithCard(next)) return null;
+  const unchanged = next.paymentMethod === current.paymentMethod && next.cardId === current.cardId;
+  return unchanged ? null : 'A recorrente fica no cartão de crédito: dá para trocar só o cartão';
 }

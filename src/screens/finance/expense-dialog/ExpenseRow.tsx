@@ -20,8 +20,8 @@ import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
 import { getPaymentMethodLabel } from '../entryTable';
 import { BillingPopover } from './BillingPopover';
 import {
-  SUMMARY_TONE, cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft, usesCard,
-  type RuleContext,
+  SUMMARY_TONE, canBeRecurring, cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft,
+  usesCard, type RuleContext,
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
 import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
@@ -100,6 +100,8 @@ interface ExpenseRowProps {
    * `locksDueDate`, também o vencimento. `reason` vai no título dos campos.
    */
   invoiceLock?: { reason: string; locksValueAndMethod: boolean; locksDueDate: boolean };
+  /** Edição de uma recorrente: a forma fica no Crédito, e só o cartão troca. */
+  creditOnlyPayment?: boolean;
   pendingInstallmentCount: number | null;
   descriptionRef?: RefObject<HTMLInputElement | null>;
   onUpdate: (patch: DraftPatch) => void;
@@ -112,8 +114,9 @@ interface ExpenseRowProps {
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
-  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, invoiceLock, pendingInstallmentCount,
-  descriptionRef, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove,
+  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, invoiceLock, creditOnlyPayment = false,
+  pendingInstallmentCount, descriptionRef, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, onFocus,
+  onAddToBatch, onRemove,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
   const paymentLocked = invoiceLock !== undefined;
@@ -207,6 +210,7 @@ export function ExpenseRow({
                 cardLimits={resources.cardLimits}
                 preferredCardIds={preferredCardIds}
                 cardInvalid={!!errors?.card}
+                creditOnly={creditOnlyPayment}
                 onChange={(choice) => onUpdate(choice)}
               />
             )}
@@ -221,6 +225,7 @@ export function ExpenseRow({
           ) : (
             <BillingPopover
               draft={draft}
+              recurringAvailable={canBeRecurring(draft, context.cards)}
               pendingInstallmentCount={pendingInstallmentCount}
               onUpdate={onUpdate}
               onSetInstallmentCount={onSetInstallmentCount}
