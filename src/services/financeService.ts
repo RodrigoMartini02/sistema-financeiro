@@ -200,7 +200,7 @@ export async function updateIncome(id: number, input: IncomeUpdateInput): Promis
   await apiRequest<unknown>(`/incomes/${id}`, { method: 'PUT', body: JSON.stringify(input) });
 }
 
-/** Grava a despesa inteira de uma vez: a única, as 12 ocorrências da mensal ou todas as parcelas. */
+/** Grava a despesa inteira de uma vez: a única, a mensal até dezembro ou todas as parcelas. */
 export async function createExpense(input: ExpenseCreateInput): Promise<void> {
   await apiRequest<unknown>('/expenses', { method: 'POST', body: JSON.stringify(input) });
 }

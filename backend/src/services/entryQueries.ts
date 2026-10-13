@@ -2,6 +2,7 @@ import { and, eq, exists, inArray, isNull, or, sql, type SQL } from 'drizzle-orm
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import { accounts, cards, expenses, incomes, users } from '../db/schema';
+import { countedExpenseCondition } from './expenseCounting';
 
 // Regras de consulta de lançamentos compartilhadas pelo Painel e pelos
 // Relatórios: quem paga a despesa, filtro de conta e condições base.
@@ -54,12 +55,17 @@ export function accountFilter(accountColumn: AnyPgColumn, userColumn: AnyPgColum
  */
 export const expensePayer = sql<number>`COALESCE((SELECT ${cards.userId} FROM ${cards} WHERE ${cards.id} = ${expenses.cardId}), ${expenses.userId})`;
 
-/** Despesas vigentes pagas por alguém do escopo, na conta informada. */
-export function expenseBaseConditions(scope: number[], accountId: number | null): Array<SQL | undefined> {
+/**
+ * Despesas vigentes pagas por alguém do escopo, na conta informada, que contam
+ * nas somas: a ocorrência mensal em aberto só entra depois da data dela
+ * (expenseCounting). Base do saldo do mês, do Painel e dos Relatórios.
+ */
+export function expenseBaseConditions(scope: number[], accountId: number | null, today?: string): Array<SQL | undefined> {
   return [
     inArray(expensePayer, scope),
     eq(expenses.status, ACTIVE_STATUS),
     accountFilter(expenses.accountId, expenses.userId, accountId),
+    countedExpenseCondition(today),
   ];
 }
 

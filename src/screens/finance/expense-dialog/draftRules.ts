@@ -97,9 +97,16 @@ export function effectiveDueDate(draft: ExpenseDraft, context: RuleContext): Due
 
 // ── Parcelado ──────────────────────────────────────────────────────────────
 
-/** Valor de cada parcela: total ÷ n com o resto na última, respeitando os ajustes feitos à mão. */
+/**
+ * Valor de cada parcela, respeitando os ajustes feitos à mão. O valor digitado
+ * é o de cada parcela; com "Sei o valor total" (`amountIsTotal`), é o total,
+ * dividido em n com o resto na última.
+ */
 export function installmentAmounts(draft: ExpenseDraft): number[] {
   const count = draft.installmentCount;
+  if (!draft.amountIsTotal) {
+    return Array.from({ length: count }, (_, index) => draft.installmentAdjustments[index] ?? draft.amountCents ?? 0);
+  }
   const split = splitAmountInCents(draft.amountCents ?? 0, count);
   const amounts: number[] = [];
   let sumBeforeLast = 0;
@@ -110,6 +117,11 @@ export function installmentAmounts(draft: ExpenseDraft): number[] {
   }
   amounts.push(draft.installmentAdjustments[count - 1] ?? (draft.amountCents ?? 0) - sumBeforeLast);
   return amounts;
+}
+
+/** Soma das parcelas, com os ajustes. */
+export function installmentsTotal(draft: ExpenseDraft): number {
+  return installmentAmounts(draft).reduce((total, amount) => total + amount, 0);
 }
 
 /** O valor que a parcela teria sem o ajuste dela (para saber se o ajuste pode ser descartado). */
@@ -224,10 +236,13 @@ export function installmentGrid(draft: ExpenseDraft, context: RuleContext): Inst
   return { rows, totalCents: amounts.reduce((sum, amount) => sum + amount, 0), paidCents, remainingCents };
 }
 
-/** Aviso quando a soma das parcelas (com ajustes) não bate com o total digitado. Não impede salvar. */
+/**
+ * Aviso quando a soma das parcelas (com ajustes) não bate com o total digitado.
+ * Só com "Sei o valor total": sem ele, não há total digitado. Não impede salvar.
+ */
 export function installmentMismatch(draft: ExpenseDraft): string | null {
-  if (draft.billingType !== 'installments' || !draft.amountCents) return null;
-  const sum = installmentAmounts(draft).reduce((total, amount) => total + amount, 0);
+  if (draft.billingType !== 'installments' || !draft.amountIsTotal || !draft.amountCents) return null;
+  const sum = installmentsTotal(draft);
   if (sum === draft.amountCents) return null;
   return `A soma das parcelas (${formatCents(sum)}) difere do valor total informado (${formatCents(draft.amountCents)}).`;
 }
@@ -291,18 +306,20 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
       }
     }
     const allEqual = amounts.every((value) => value === amounts[0]);
+    const total = amounts.reduce((sum, value) => sum + value, 0);
+    // "3x de R$ 240,00 = R$ 720,00": a parcela e o total, digitado um ou o outro.
     const totalText = `${count}x`
       + (allEqual ? ` de ${formatCents(amounts[0]!)}` : '')
+      + ` = ${formatCents(total)}`
       + (paidCount ? ` · ${paidCount} ${plural(paidCount, 'paga', 'pagas')}` : '')
-      + (nextOpen >= 0 ? ` · próxima vence ${isoToShortBrDate(installmentDueDate(draft, context, nextOpen))}` : ' · quitado')
-      + ` · total ${formatCents(amount)}`;
+      + (nextOpen >= 0 ? ` · próxima vence ${isoToShortBrDate(installmentDueDate(draft, context, nextOpen))}` : ' · quitado');
     const status: SummaryStatus = paidCount === count ? 'Pago'
       : overdue ? 'Com vencidas'
         : credit ? 'Entra na fatura'
           : paidCount ? 'Em andamento' : 'Agendado';
 
-    if (draft.knowsCashPrice && draft.cashPriceCents && amount > draft.cashPriceCents) {
-      const interest = amount - draft.cashPriceCents;
+    if (draft.knowsCashPrice && draft.cashPriceCents && total > draft.cashPriceCents) {
+      const interest = total - draft.cashPriceCents;
       const percent = ((interest / draft.cashPriceCents) * 100).toFixed(1).replace('.', ',');
       badges.push({ text: `+ ${formatCents(interest)} de juros embutido (${percent}%)`, tone: 'warning' });
     }
@@ -329,7 +346,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   if (!autoPay && due.kind !== 'manual' && draft.billingType === 'single') dueText = `Vence ${isoToShortBrDate(due.date)}`;
 
   const totalText = draft.billingType === 'monthly'
-    ? `${formatCents(amount)} · ${credit && due.card ? `todo mês na fatura ${due.card.nome}` : `todo dia ${draft.recurrenceDay ?? 1} · 12 ocorrências`}`
+    ? `${formatCents(amount)} · ${credit && due.card ? `todo mês na fatura ${due.card.nome}` : `todo dia ${draft.recurrenceDay ?? 1}`} · até dezembro`
     : `total ${formatCents(amount)}`;
   if (draft.paid && draft.amountPaidCents !== null) {
     if (draft.amountPaidCents > amount) badges.push({ text: `+ ${formatCents(draft.amountPaidCents - amount)} de multa e juros`, tone: 'warning' });

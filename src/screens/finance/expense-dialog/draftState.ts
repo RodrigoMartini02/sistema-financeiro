@@ -28,8 +28,10 @@ export interface ExpenseDraft {
   key: number;
   description: string;
   categoryId: number | null;
-  /** No parcelado é o total; no recorrente, o valor de cada mês. */
+  /** No parcelado é o valor de cada parcela (o total, com `amountIsTotal`); no recorrente, o valor de cada mês. */
   amountCents: number | null;
+  /** "Sei o valor total" no parcelado: o valor digitado é o total, dividido nas parcelas. */
+  amountIsTotal: boolean;
   billingType: ExpenseBillingType;
   installmentCount: number;
   /** Valor ajustado à mão, por índice da parcela (a loja arredondou diferente). */
@@ -71,6 +73,7 @@ export function createDraft(carryOver: DraftCarryOver, todayIso: string): Expens
     description: '',
     categoryId: null,
     amountCents: null,
+    amountIsTotal: false,
     billingType: 'single',
     installmentCount: MIN_INSTALLMENTS,
     installmentAdjustments: {},

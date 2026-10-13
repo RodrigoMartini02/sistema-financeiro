@@ -45,7 +45,7 @@ export interface RowResources {
 }
 
 export function amountLabel(draft: ExpenseDraft): string {
-  if (draft.billingType === 'installments') return 'Valor total';
+  if (draft.billingType === 'installments') return draft.amountIsTotal ? 'Valor total' : 'Valor da parcela';
   return draft.billingType === 'monthly' ? 'Valor mensal' : 'Valor';
 }
 

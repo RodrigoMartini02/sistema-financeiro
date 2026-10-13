@@ -9,6 +9,7 @@ export * from './cards';
 export * from './incomes';
 export * from './expenses';
 export * from './invoicePayments';
+export * from './seriesRenewals';
 export * from './years';
 export * from './ratings';
 export * from './representatives';

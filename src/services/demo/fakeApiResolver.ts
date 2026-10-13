@@ -10,7 +10,7 @@ import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
 import {
   installmentAmountsOf, invoiceDueDate, invoiceMonthLabel, isCreditWithCard, summarizeInvoicePayment,
 } from '../../utils/cardInvoice';
-import { addMonthsClamped, splitAmountInCents } from '../../utils/expenseSchedule';
+import { addMonthsClamped, invoiceDueDate as purchaseInvoiceDueDate, splitAmountInCents } from '../../utils/expenseSchedule';
 
 export interface FakeApiRequestInit {
   method?: string;
@@ -89,6 +89,10 @@ export function resolveFakeApiRequest(
   }
   if (matchEndpoint(endpoint, /^\/expenses\/duplicate$/)) {
     return { duplicate: null };
+  }
+  // Renovação das séries mensais: a demo não tem série pendente
+  if (matchEndpoint(endpoint, /^\/expenses\/series-renewals$/) && method === 'GET') {
+    return [];
   }
   const despesaIdMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)$/);
   if (despesaIdMatch && method === 'DELETE') {
@@ -207,7 +211,7 @@ export function resolveFakeApiRequest(
   return undefined;
 }
 
-/** As mesmas linhas que o backend grava: a única, as 12 ocorrências da mensal ou uma por parcela. */
+/** As mesmas linhas que o backend grava: a única, a mensal até dezembro ou uma por parcela. */
 function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): RawExpenseDemo[] {
   const category = db.categorias.find((item) => item.id === input.categoryId);
   const card = db.cartoes.find((item) => item.id === input.cardId);
@@ -235,9 +239,16 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
   const paid = input.paid || (input.paymentMethod !== 'credito' && (input.paymentDate ?? input.dueDate) <= todayIso());
   const first = row(input.dueDate, input.amount, paid, input.paymentDate, { recorrente: input.billingType === 'monthly' });
   if (input.billingType === 'single') return [first];
-  return [first, ...Array.from({ length: 11 }, (_, index) => (
-    row(addMonthsClamped(input.dueDate, index + 1), input.amount, false, null, { recorrente: true })
-  ))];
+  // Até dezembro do ano da 1ª. No crédito com cartão, cada ocorrência tem a data
+  // de compra e o vencimento da fatura dela; nas outras formas, o vencimento mês a mês.
+  const invoiceCard = card && isCreditWithCard({ formaPagamento: input.paymentMethod, cartaoId: input.cardId }) ? card : null;
+  return [first, ...Array.from({ length: 12 - Number(input.dueDate.slice(5, 7)) }, (_, index) => {
+    if (invoiceCard) {
+      const purchaseDate = addMonthsClamped(input.purchaseDate, index + 1);
+      return row(purchaseInvoiceDueDate(purchaseDate, invoiceCard), input.amount, false, null, { recorrente: true, data_compra: purchaseDate });
+    }
+    return row(addMonthsClamped(input.dueDate, index + 1), input.amount, false, null, { recorrente: true, data_compra: null });
+  })];
 }
 
 interface DemoInvoicePayment extends Omit<InvoicePaymentEntry, 'canUndo' | 'undoBlockedReason'> {

@@ -1,9 +1,10 @@
 import type { Expense } from '../../types/finance';
 import { isRenegotiated } from '../../utils/cardInvoice';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso, isoToShortBrDate } from '../../utils/date';
+import { countsFromDate, isCountedExpense } from '../../utils/expenseCounting';
 import { formatCurrency } from '../finance/formatters';
 
-type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada';
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada';
 
 function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
@@ -23,10 +24,12 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
   cancelada: 'text-slate-400 dark:text-slate-500',
   // Fatura paga em parte ou parcelada: encerrada no mês, o restante seguiu para a frente.
   renegociada: 'text-slate-500 dark:text-slate-400',
+  // Mensal que ainda não chegou à data: aparece na lista, fora das somas.
+  agendada: 'text-slate-400 dark:text-slate-500',
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -41,7 +44,13 @@ export function formatDiferenca(diff: number): string {
 function getStatusKey(item: Expense): ExpenseStatusKey {
   if (item.status === 'cancelada') return 'cancelada';
   if (isRenegotiated(item)) return 'renegociada';
+  if (!isCountedExpense(item, getLocalTodayIso())) return 'agendada';
   return getStatus(item);
+}
+
+/** Título do "Agendada": o dia em que ela entra nas somas. */
+export function scheduledTitle(item: Expense): string {
+  return `Conta a partir de ${isoToShortBrDate(countsFromDate(item))}`;
 }
 
 export function getStatusColor(item: Expense): string {
@@ -53,7 +62,7 @@ export function getStatusColor(item: Expense): string {
 export function StatusBadge({ item }: { item: Expense }) {
   const key = getStatusKey(item);
   return (
-    <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')}>
+    <span className={['text-xs', STATUS_TEXT_COLOR[key]].join(' ')} title={key === 'agendada' ? scheduledTitle(item) : undefined}>
       {STATUS_LABEL[key]}
     </span>
   );

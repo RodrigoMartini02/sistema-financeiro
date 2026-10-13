@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { expensePayer } from './entryQueries';
+import { countedExpenseCondition } from './expenseCounting';
 import { db } from '../db/client';
 import { accountMembers, accounts, budgetTargets, categories, expenses, incomes } from '../db/schema';
 import { effectiveExpenseAmount } from '../utils/expenseAmount';
@@ -160,6 +161,8 @@ function expenseAccountCondition(userIds: number[], account: FinancialAccount, d
     // tela de despesas mostra.
     eq(expenses.status, 'ativa'),
     sql`(${expenses.year} * 12 + ${expenses.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
+    // Recorrente em aberto só entra no gasto depois da data dela (expenseCounting).
+    countedExpenseCondition(),
   ];
   if (account.type === 'pessoal') {
     conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);

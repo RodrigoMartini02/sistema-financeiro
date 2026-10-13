@@ -13,6 +13,8 @@ import { getActiveAccountId } from '../../services/apiClient';
 import { ErrorState } from '../../ui/states';
 import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
 import { dangerButtonStyle, successOutlineButtonStyle, neutralOutlineButtonStyle, neutralOutlineButtonOffStyle } from '../../ui/dialogFormTokens';
+import { getLocalTodayIso } from '../../utils/date';
+import { isCountedExpense } from '../../utils/expenseCounting';
 import { expensesPaidByPeople, filterExpenses } from '../../utils/expenseFilters';
 import { effectiveExpenseValue } from '../../utils/expenseValue';
 import { canReadCatalogList, movementControls } from '../../utils/screenAccess';
@@ -132,14 +134,19 @@ export function MovimentacoesScreen() {
   // "Despesa do mês" tem uma conta só, com ou sem filtro: a lista com a mesma
   // regra da tabela (filterExpenses), somando só as despesas não canceladas
   // pagas pelas pessoas selecionadas, pelo valor efetivo (o pago, quando paga).
-  // Sem filtro, dá o total do servidor (despesa conta para quem paga).
+  // Sem filtro, dá o total do servidor (despesa conta para quem paga). A mensal
+  // ainda agendada (antes da data dela) aparece na lista, fora da soma — mesma
+  // regra do servidor (expenseCounting).
   // Resultado e saldo atual são sempre do mês inteiro, como saldo anterior e
   // receita, para nenhum card misturar filtrado com não filtrado.
   const visibility = { meId: meIdStr, visibleNames: nomesVisiveis };
-  const expensesInTotal = expensesPaidByPeople(
+  const expensesPaid = expensesPaidByPeople(
     filterExpenses(dashboard?.expenses ?? [], filters.state, visibility, month, year),
     visibility,
   );
+  const todayIso = getLocalTodayIso();
+  const expensesInTotal = expensesPaid.filter((item) => isCountedExpense(item, todayIso));
+  const scheduledCount = expensesPaid.length - expensesInTotal.length;
   const despesasMes = expensesInTotal.reduce((sum, item) => sum + effectiveExpenseValue(item), 0);
   const resultadoMes = receitasMes - despesasLancadasMes;
   const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
@@ -228,7 +235,7 @@ export function MovimentacoesScreen() {
               label="Despesa do mês"
               value={formatCurrency(despesasMes)}
               tone="expense"
-              note={`${expensesInTotal.length} lançamento(s)${filters.hasActiveFilters ? ' filtrado(s)' : ''}`}
+              note={`${expensesInTotal.length} lançamento(s)${filters.hasActiveFilters ? ' filtrado(s)' : ''}${scheduledCount > 0 ? ` · ${scheduledCount} agendada(s)` : ''}`}
             />
             <MovementMetricCard
               label="Resultado do mês"

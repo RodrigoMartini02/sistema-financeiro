@@ -9,6 +9,7 @@ import type { OpenExpenseRow } from './assistantPayment';
 import { isOverdueReceivable, matchesReceivableSituation } from './assistantReceivables';
 import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
 import { INVOICE_EXPENSE_METHOD } from './cardInvoiceRules';
+import { countedExpenseCondition } from './expenseCounting';
 
 // Consultas do assistente. Cada funcao recebe periodo em datas absolutas (o
 // modelo nunca manda "esse mes") e devolve dado bruto — a redacao da resposta
@@ -54,6 +55,15 @@ function expenseRange(scope: QueryScope, inicio: string, fim: string) {
     conditions.push(eq(expenses.accountId, scope.account.id));
   }
   return and(...conditions);
+}
+
+/**
+ * Despesas do periodo que contam nas somas: a recorrente em aberto so entra
+ * depois da data dela (expenseCounting). As listas usam expenseRange e
+ * continuam mostrando a ocorrencia futura.
+ */
+function countedExpenseRange(scope: QueryScope, inicio: string, fim: string) {
+  return and(expenseRange(scope, inicio, fim), countedExpenseCondition());
 }
 
 /**
@@ -113,7 +123,7 @@ export async function resumoPeriodo(scope: QueryScope, inicio: string, fim: stri
   assertValidRange(inicio, fim);
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), paid: expenses.paid })
-      .from(expenses).where(expenseRange(scope, inicio, fim)),
+      .from(expenses).where(countedExpenseRange(scope, inicio, fim)),
     db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicio, fim, RECEIVED_INCOME_STATUSES)),
   ]);
 
@@ -163,7 +173,7 @@ export async function saudeFinanceira(scope: QueryScope, meses: number) {
   const [incomeRows, expenseRows, futuras] = await Promise.all([
     db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioIso, hoje, RECEIVED_INCOME_STATUSES)),
     db.select({ amount: effectiveExpenseAmount(), recurring: expenses.recurring })
-      .from(expenses).where(expenseRange(scope, inicioIso, hoje)),
+      .from(expenses).where(countedExpenseRange(scope, inicioIso, hoje)),
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate })
       .from(expenses).where(and(expenseAll(scope), eq(expenses.installment, true), gte(expenses.dueDate, hoje))),
   ]);
@@ -198,7 +208,7 @@ export async function gastosPorCategoria(scope: QueryScope, inicio: string, fim:
     categoryName: categories.name,
     amount: effectiveExpenseAmount(),
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
-    .where(expenseRange(scope, inicio, fim));
+    .where(countedExpenseRange(scope, inicio, fim));
 
   const totais = new Map<string, { total: number; quantidade: number }>();
   for (const row of rows) {
@@ -225,7 +235,7 @@ export async function maioresGastos(scope: QueryScope, inicio: string, fim: stri
     dueDate: expenses.dueDate,
     categoryName: categories.name,
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
-    .where(expenseRange(scope, inicio, fim))
+    .where(countedExpenseRange(scope, inicio, fim))
     .orderBy(desc(effectiveExpenseAmount()))
     .limit(clampLimit(limite, 5));
 
@@ -322,7 +332,7 @@ export async function gastosPorFormaPagamento(scope: QueryScope, inicio: string,
     amount: effectiveExpenseAmount(),
     cardName: cards.name,
   }).from(expenses).leftJoin(cards, eq(expenses.cardId, cards.id))
-    .where(expenseRange(scope, inicio, fim));
+    .where(countedExpenseRange(scope, inicio, fim));
 
   const totais = new Map<string, number>();
   for (const row of rows) {
@@ -369,7 +379,7 @@ export async function contasAPagar(scope: QueryScope, inicio: string, fim: strin
     amount: effectiveExpenseAmount(),
     dueDate: expenses.dueDate,
     paid: expenses.paid,
-  }).from(expenses).where(expenseRange(scope, inicio, fim)).orderBy(asc(expenses.dueDate)).limit(MAX_ROWS);
+  }).from(expenses).where(countedExpenseRange(scope, inicio, fim)).orderBy(asc(expenses.dueDate)).limit(MAX_ROWS);
 
   const itens = rows
     .filter((row) => {
@@ -552,7 +562,7 @@ export async function projecaoSaldo(scope: QueryScope, meses: number) {
 
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate, paid: expenses.paid })
-      .from(expenses).where(expenseRange(scope, hoje, fim)),
+      .from(expenses).where(countedExpenseRange(scope, hoje, fim)),
     db.select({ amount: incomes.amount, data: incomes.receiptDate })
       .from(incomes).where(incomeRange(scope, hoje, fim, LIVE_INCOME_STATUSES)),
   ]);
@@ -663,10 +673,10 @@ export async function variacaoPorCategoria(scope: QueryScope, meses: number) {
   const [anteriores, atuais] = await Promise.all([
     db.select({ categoryName: categories.name, amount: effectiveExpenseAmount() })
       .from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
-      .where(expenseRange(scope, inicio, fimMesAnterior)),
+      .where(countedExpenseRange(scope, inicio, fimMesAnterior)),
     db.select({ categoryName: categories.name, amount: effectiveExpenseAmount() })
       .from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
-      .where(expenseRange(scope, inicioMesAtual, hoje)),
+      .where(countedExpenseRange(scope, inicioMesAtual, hoje)),
   ]);
 
   const mesesAnteriores = Math.max(janela - 1, 1);

@@ -39,7 +39,7 @@ export function invalidateFinanceQueries(qc: QueryClient, month: number, year: n
 const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
   'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate', 'despesas-em-aberto',
-  'card-invoices',
+  'card-invoices', 'series-renewals',
 ]);
 
 export function invalidateExpenseQueries(qc: QueryClient) {
@@ -107,6 +107,8 @@ export const queryKeys = {
   expenseGroup: (grupoId: number) => ['expense-group', grupoId] as const,
   // Faturas do mês ('AAAA-MM') dos cartões que a pessoa pode pagar, na conta.
   cardInvoices: (accountId: number | null, invoiceMonth: string) => ['card-invoices', accountId ?? 'ativa', invoiceMonth] as const,
+  // Séries mensais do usuário que aguardam a decisão de renovar, na conta.
+  seriesRenewals: (accountId: number | null) => ['series-renewals', accountId ?? 'ativa'] as const,
   expenseSuggestions: (accountId: number | null, query: ExpenseSuggestionsQuery) =>
     ['expense-suggestions', accountId ?? 'ativa', query] as const,
   expenseDuplicate: (accountId: number | null, query: ExpenseDuplicateQuery | null) =>
