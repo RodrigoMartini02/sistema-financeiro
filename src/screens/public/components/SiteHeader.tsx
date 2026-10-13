@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { COMPANY_NAME, SOLUTION_NAMES, type SiteSolution } from '../../../brand';
 import { pageOfSolution, publicPageFor } from '../../../utils/publicPages';
 import { usePublicSite } from './publicSiteContext';
-import { PRIMARY_BUTTON, SECONDARY_BUTTON, SITE_CONTAINER } from './siteStyles';
+import { SECONDARY_BUTTON, SITE_CONTAINER } from './siteStyles';
 
 const NAV_LINKS = [
   { label: 'Início', to: '/' },
@@ -18,15 +19,16 @@ const FOCUSABLE = 'a[href], button:not([disabled])';
 
 interface SiteHeaderProps {
   /**
-   * Solução da página aberta: "Entrar" e "Começar grátis" dela. As páginas da
-   * empresa (sem solução) não têm atalho de login: entra-se pela página da solução.
+   * Solução da página aberta: o "Entrar" dela. As páginas da empresa (sem
+   * solução) não têm atalho de login: entra-se pela página da solução.
    */
   pageSolution: SiteSolution | null;
 }
 
 export function SiteHeader({ pageSolution }: SiteHeaderProps) {
   const { pathname } = useLocation();
-  const { enter, startFree } = usePublicSite();
+  const { enter } = usePublicSite();
+  const prefersReducedMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
@@ -90,10 +92,11 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
         Pular para o conteúdo
       </a>
 
-      <div className={`${SITE_CONTAINER} flex h-[72px] items-center justify-between gap-5`}>
+      {/* No computador, três colunas: o menu fica no centro e não muda de lugar quando o "Entrar" aparece. */}
+      <div className={`${SITE_CONTAINER} flex h-[72px] items-center justify-between gap-5 lg:grid lg:grid-cols-[1fr_auto_1fr]`}>
         <Link
           to="/"
-          className="flex min-w-0 items-center gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4"
+          className="flex min-w-0 items-center gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4 lg:justify-self-start"
           aria-label={`${COMPANY_NAME}: página inicial`}
         >
           <img src="/icons/fingerence-logo.webp" alt="" width={48} height={48} className="h-11 w-11 shrink-0 object-contain" />
@@ -113,21 +116,19 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-5 lg:flex">
+        <div className="hidden items-center gap-5 lg:flex lg:justify-self-end">
           {pageSolution && (
-            <>
-              <button
-                type="button"
-                onClick={() => enter(pageSolution)}
-                aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
-                className="site-neon-light-text-button rounded-lg px-2 py-2 text-[15px] font-medium text-slate-600 outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                Entrar
-              </button>
-              <button type="button" onClick={() => startFree(pageSolution)} className={`${PRIMARY_BUTTON} min-h-11 px-5`}>
-                Começar grátis
-              </button>
-            </>
+            <motion.button
+              type="button"
+              onClick={() => enter(pageSolution)}
+              aria-label={`Entrar no ${SOLUTION_NAMES[pageSolution]}`}
+              initial={prefersReducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className={`${SECONDARY_BUTTON} min-h-11 px-5`}
+            >
+              Entrar
+            </motion.button>
           )}
         </div>
 
@@ -169,9 +170,6 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
           </nav>
           {pageSolution && (
             <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
-              <button type="button" onClick={() => startFree(pageSolution)} className={PRIMARY_BUTTON}>
-                Começar grátis
-              </button>
               <button
                 type="button"
                 onClick={() => enter(pageSolution)}
