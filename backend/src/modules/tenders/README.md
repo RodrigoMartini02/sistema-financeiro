@@ -284,7 +284,7 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
 
 - **Entrada:** `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
-- **Endereço:** `/licitacoes` também abre o sistema: o próprio app troca o endereço para `/licitacoes/app`, nunca com 301. A página de Licitações no site é `/produtos/licitacoes/` (plano `.plans/site-novo.md`).
+- **Endereço:** o sistema abre só em `/licitacoes/app`. O `/licitacoes/` é a página de Licitações no site (plano `.plans/site-menu-textos-cards.md`, adendo 1).
 - **Login:** é o `LoginPage` de sempre, com `context="tenders"`. "Criar nova conta" cadastra com `modulo: 'licitacoes'` (15 dias grátis, sem cartão). Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
 - **Entrada no módulo**, conforme `GET /api/tenders/access`:
   - sem sessão: login;
@@ -292,14 +292,15 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
   - 402: o titular vê a assinatura da conta vencida e paga ali mesmo; o colaborador, "peça ao titular para renovar";
   - 403: "peça ao titular";
   - outro erro: "tentar de novo".
-- **Servidor local:** o `vite.config.ts` reescreve `/licitacoes` e `/licitacoes/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
+- **Servidor local:** o `vite.config.ts` reescreve `/licitacoes/app` e `/licitacoes/app/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
 
-**Hospedagem em produção (feita em 06/10/2026):**
-- O site estático reescreve (rewrite, nunca redirect/301) `/licitacoes` e `/licitacoes/*` para `/tenders.html`, como já fazia com `/loja/*`.
-- O build gera `dist/tenders.html`.
+**Hospedagem em produção (regras do site estático no Render):**
+- `/licitacoes/app` e `/licitacoes/app/*` são reescritos (rewrite) para `/tenders.html`, como já acontece com `/loja/*`.
+- `/licitacoes` redireciona para `/licitacoes/`, a página do site, como as outras páginas.
+- O build gera `dist/tenders.html` e a página `dist/licitacoes/index.html`.
 
 **Caminhos até o módulo** (plano `.plans/site-novo.md`, decisão 5: Licitações e FINGERENCE separados no site e nos sistemas):
-- **Site:** a página `/produtos/licitacoes/` tem "Teste grátis por 15 dias" (abre o cadastro com `context="tenders"`) e "Entrar" (vai para `/licitacoes/app`). Nas páginas da empresa, o menu "Acessar" também leva a `/licitacoes/app`.
+- **Site:** a página `/licitacoes/` tem "Teste grátis por 15 dias" (abre o cadastro com `context="tenders"`) e "Entrar" (abre o login de Licitações, que leva a `/licitacoes/app`). As páginas da empresa não têm atalho de login.
 - **Sem atalhos entre os sistemas:** o FINGERENCE não mostra Licitações (menu lateral, bloqueio de plano), e Licitações não mostra o FINGERENCE (menu, menu do usuário, telas de bloqueio). Por baixo, o cadastro (`usuarios`) e a sessão continuam os mesmos; só a apresentação e o acesso de cada um são separados.
 
 **Desempenho medido no banco local** (05/10/2026, cerca de 25 mil editais abertos):

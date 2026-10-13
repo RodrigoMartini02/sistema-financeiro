@@ -1,7 +1,8 @@
 User-agent: *
 Allow: /
 Allow: /index.html
-Allow: /produtos
+Allow: /financas
+Allow: /licitacoes/
 Allow: /sobre
 Allow: /contato
 Allow: /termos
@@ -14,7 +15,7 @@ Allow: /manifest.json
 Allow: /sitemap.xml
 
 Disallow: /app.html
-Disallow: /licitacoes
+Disallow: /licitacoes/app
 Disallow: /tenders.html
 Disallow: /node_modules/
 Disallow: /backend/

@@ -19,15 +19,23 @@ const CARDS: SolutionCard[] = [
   {
     solution: 'finance',
     image: SITE_MEDIA.financeCard,
-    headline: 'O dinheiro da casa e da empresa organizados, sem planilha.',
-    benefits: ['Receitas, despesas, cartões e parcelas num lugar só', 'Saldo de cada mês calculado sozinho', 'Relatórios claros para decidir'],
+    headline: 'Gestão financeira completa, da conta pessoal à empresa.',
+    benefits: [
+      'Receitas, despesas, cartões e parcelamentos em um único painel',
+      'Saldo do mês e compromissos dos próximos meses, atualizados a cada lançamento',
+      'Relatórios por categoria e período, com exportação em PDF',
+    ],
     startingPriceCents: FINANCE_PLAN_PRICES_CENTS.starter,
   },
   {
     solution: 'tenders',
     image: SITE_MEDIA.tendersCard,
-    headline: 'Os editais que interessam, com aviso antes do prazo.',
-    benefits: ['Busca por região, órgão, modalidade e valor', 'Aviso quando sai edital novo', 'Lembrete antes do fim do prazo'],
+    headline: 'Os editais certos para a sua empresa, sem perder nenhum prazo.',
+    benefits: [
+      'Buscas por região, órgão, modalidade e faixa de valor',
+      'Notificação de novos editais que correspondem às suas buscas',
+      'Lembretes automáticos 3 dias e 1 dia antes do prazo',
+    ],
     startingPriceCents: TENDERS_PRICE.baseCents,
   },
 ];

@@ -41,8 +41,8 @@ export function ReviewsSection() {
     <section className={`${SITE_SECTION} border-t border-slate-200/70`}>
       <div className={SITE_CONTAINER}>
         <ScrollReveal>
-          <p className={SECTION_LABEL}>O que dizem os usuários</p>
-          <h2 className={`mt-4 ${SECTION_TITLE}`}>Quem usa, recomenda.</h2>
+          <p className={SECTION_LABEL}>Avaliações</p>
+          <h2 className={`mt-4 ${SECTION_TITLE}`}>Avaliado por quem usa todos os dias.</h2>
           <div className="mt-4 flex items-center gap-3">
             <StarRating value={Math.round(media)} />
             <span className="text-[14px] text-slate-500">

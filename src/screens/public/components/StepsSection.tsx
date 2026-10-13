@@ -26,10 +26,13 @@ export function StepsSection({ label, title, steps }: StepsSectionProps) {
             <li key={step.title}>
               <ScrollReveal delay={index * 0.08}>
                 <div className="h-full rounded-[24px] border border-slate-200 bg-[#f8fbfb] p-6">
-                  <span className="text-[13px] font-semibold text-brand-700" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <h3 className="mt-3 text-[20px] font-semibold text-slate-950">{step.title}</h3>
+                  <div className="flex items-center gap-4" aria-hidden="true">
+                    <span className="text-[44px] font-light leading-none tracking-[-0.02em] text-brand-700">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="h-px flex-1 bg-brand-200" />
+                  </div>
+                  <h3 className="mt-4 text-[20px] font-semibold text-slate-950">{step.title}</h3>
                   <p className="mt-2 text-[15px] leading-[1.7] text-slate-600">{step.description}</p>
                 </div>
               </ScrollReveal>

@@ -16,6 +16,9 @@ export const TENDERS_PRICE = {
   extraUserCents: 299,
 } as const;
 
+/** "A partir de": o menor preço entre as soluções (Início e Sobre). */
+export const STARTING_PRICE_CENTS = Math.min(FINANCE_PLAN_PRICES_CENTS.starter, TENDERS_PRICE.baseCents);
+
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export function formatPriceCents(cents: number): string {

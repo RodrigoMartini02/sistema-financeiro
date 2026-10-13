@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { NavigationType, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import type { SiteSolution } from '../../../brand';
 import { setAuthOrigin, type AuthOrigin } from '../../../services/session';
 import { LOGIN_REQUEST_PARAM } from '../../../utils/authOrigin';
@@ -28,6 +28,35 @@ function isGoogleLoginReturn(): boolean {
 }
 
 /**
+ * Rolagem ao trocar de página: a página nova abre no topo, e o endereço com
+ * âncora (ex.: /#solucoes) desce até a seção. Voltar e avançar ficam com o
+ * navegador, que devolve a posição de antes. No primeiro carregamento, só a
+ * âncora é tratada: a seção só existe depois que a página monta.
+ */
+function useScrollOnNavigate() {
+  const { pathname, hash } = useLocation();
+  const navigationType = useNavigationType();
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    const firstRender = isFirstRender.current;
+    isFirstRender.current = false;
+
+    if (navigationType === NavigationType.Pop && !firstRender) {
+      return;
+    }
+    const target = hash ? document.getElementById(hash.slice(1)) : null;
+    if (target) {
+      target.scrollIntoView();
+      return;
+    }
+    if (!firstRender) {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash, navigationType]);
+}
+
+/**
  * Moldura do site: cabeçalho, rodapé e o login de cada solução (plano
  * .plans/site-novo.md). As vitrines ficam fora dela.
  */
@@ -47,6 +76,8 @@ export function PublicLayout() {
   }, []);
 
   const closeLogin = useCallback(() => setLogin(null), []);
+
+  useScrollOnNavigate();
 
   // `?entrar=1` na página de uma solução (o sistema dela manda para cá quem está
   // sem sessão ou acabou de sair): abre o login dela e limpa o endereço. Nas

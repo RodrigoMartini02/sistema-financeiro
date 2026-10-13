@@ -3,24 +3,7 @@ import test from 'node:test';
 import { NETWORK_ERROR_MESSAGE, tendersErrorFrom } from '../services/tendersApiError';
 import { expiredInfoFrom, resolveGateState } from './gateState';
 import { loggedUserName } from './loggedUser';
-import { appAddressFor } from './modulePaths';
 import { NOT_FOUND_TITLE, canOpenSettings, menuRoutes, quickSearchPath, routeForPath } from './navigation';
-
-const address = (pathname: string, search = '', hash = '') => ({ pathname, search, hash });
-
-test('/licitacoes abre o sistema em /licitacoes/app, mantendo query e hash', () => {
-  assert.equal(appAddressFor(address('/licitacoes')), '/licitacoes/app');
-  assert.equal(appAddressFor(address('/licitacoes/')), '/licitacoes/app');
-  assert.equal(appAddressFor(address('/licitacoes', '?origem=site', '#topo')), '/licitacoes/app?origem=site#topo');
-  assert.equal(appAddressFor(address('/licitacoes/qualquer')), '/licitacoes/app', 'outro caminho do módulo também vai para o sistema');
-});
-
-test('dentro do sistema o endereço não muda', () => {
-  assert.equal(appAddressFor(address('/licitacoes/app')), null);
-  assert.equal(appAddressFor(address('/licitacoes/app/')), null);
-  assert.equal(appAddressFor(address('/licitacoes/app/editais/12', '?aba=itens')), null);
-  assert.equal(appAddressFor(address('/licitacoesx')), null);
-});
 
 test('entrada no módulo: cada situação de sessão e de /access', () => {
   assert.equal(resolveGateState({ hasToken: false, accessStatus: 'pending', errorStatus: null }), 'login');
