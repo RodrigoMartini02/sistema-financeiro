@@ -22,7 +22,7 @@ const FINANCE_PLANS: FinancePlan[] = [
   {
     name: 'Starter',
     priceCents: FINANCE_PLAN_PRICES_CENTS.starter,
-    description: 'Uma conta, pessoal ou da empresa, com todo o financeiro.',
+    description: 'Para a gestão de uma conta, pessoal ou empresarial, com todos os recursos financeiros.',
     highlight: false,
     features: [
       'Uma conta (pessoal ou empresa)',
@@ -35,7 +35,7 @@ const FINANCE_PLANS: FinancePlan[] = [
   {
     name: 'Premium',
     priceCents: FINANCE_PLAN_PRICES_CENTS.premium,
-    description: 'Para quem tem empresa, equipe e vendas.',
+    description: 'Para empresas com equipe, carteira de clientes e operação de vendas.',
     highlight: true,
     features: [
       'Tudo do Starter',
@@ -68,7 +68,7 @@ const TENDERS_FEATURES = [
   'Lembretes 3 dias e 1 dia antes do prazo',
   'Favoritos e quadro de acompanhamento',
   'Itens e arquivos do edital',
-  'Mais de um usuário por conta; acima do limite, cobrança adicional por usuário',
+  'Uso em equipe, com cobrança adicional por usuário acima do limite do plano',
 ];
 
 function FeatureList({ features }: { features: string[] }) {
@@ -134,7 +134,7 @@ function PlanCard({ name, priceCents, priceSuffix, description, features, highli
   );
 }
 
-/** Starter e Premium do módulo Finanças. */
+/** Starter e Premium do FINGERENCE Finanças. */
 export function FinancePlanCards({ onStart }: { onStart: () => void }) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -203,7 +203,7 @@ export function TendersPlanCard({ onStart }: { onStart: () => void }) {
           name={SOLUTION_NAMES.tenders}
           priceCents={TENDERS_PRICE.baseCents}
           priceSuffix="/mês por conta"
-          description="Busca, avisos e acompanhamento dos editais, num só lugar."
+          description="Busca, alertas e gestão da participação em editais, em um único ambiente."
           features={TENDERS_FEATURES}
           highlight
           onStart={onStart}

@@ -10,6 +10,10 @@ export const SECTION_TITLE = 'text-[clamp(28px,3vw,44px)] font-light leading-[1.
 
 export const SECTION_TEXT = 'text-[16px] leading-[1.75] text-slate-600';
 
+/** Quadrado do ícone dos cards: degradê da marca, com o ícone branco em dois tons. */
+export const ICON_TILE =
+  'flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#08343d] to-brand-600 text-white';
+
 const BUTTON_BASE =
   'inline-flex min-h-12 items-center justify-center gap-2 rounded-full border px-6 text-[15px] font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 motion-reduce:transition-none';
 

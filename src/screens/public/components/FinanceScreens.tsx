@@ -21,19 +21,19 @@ const SCREENS: FinanceScreen[] = [
   {
     key: 'calendar',
     label: 'Calendário',
-    description: 'O mês inteiro num relance: o que entrou, o que saiu e o que vence.',
+    description: 'Visão mensal de entradas, saídas e vencimentos, dia a dia.',
     alt: 'Calendário do FINGERENCE Finanças com receitas e despesas em cada dia do mês, com dados fictícios',
   },
   {
     key: 'entries',
     label: 'Lançamentos',
-    description: 'Receitas e despesas do mês, com saldo, categoria e forma de pagamento.',
+    description: 'Todas as movimentações do mês, com saldo, categoria e forma de pagamento.',
     alt: 'Tela de lançamentos do FINGERENCE Finanças com receitas, despesas e o saldo do mês, com dados fictícios',
   },
   {
     key: 'reports',
     label: 'Relatórios',
-    description: 'Quanto entrou, quanto saiu e o saldo do período, lançamento por lançamento.',
+    description: 'Entradas, saídas e saldo do período, com o detalhe de cada lançamento.',
     alt: 'Relatórios do FINGERENCE Finanças com receitas, despesas e saldo do período, com dados fictícios',
   },
 ];
@@ -50,11 +50,11 @@ export function FinanceScreens() {
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-[640px]">
               <p className={SECTION_LABEL}>Por dentro</p>
-              <h2 className={`mt-4 ${SECTION_TITLE}`}>Simples de usar desde o primeiro dia.</h2>
+              <h2 className={`mt-4 ${SECTION_TITLE}`}>Uma interface objetiva, pensada para o uso diário.</h2>
               <p className={`mt-4 ${SECTION_TEXT}`}>{selected?.description}</p>
             </div>
             <a href={DEMO_ADDRESS} target="_blank" rel="noopener noreferrer" className={TEXT_LINK}>
-              Experimentar a demonstração
+              Acessar a demonstração
               <ExternalLink className="h-4 w-4" aria-hidden="true" />
               <span className="sr-only">(abre em outra aba)</span>
             </a>

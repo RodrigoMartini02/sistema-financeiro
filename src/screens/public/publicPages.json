@@ -7,25 +7,12 @@
       "file": "index.html",
       "navLabel": "Início",
       "solution": null,
-      "title": "FINGERENCE | Soluções de tecnologia para decidir com clareza",
-      "description": "Soluções de tecnologia para organizar o dinheiro da casa e da empresa e encontrar as licitações certas. Teste grátis por 15 dias.",
+      "title": "FINGERENCE | Inovação e automação em gestão financeira e licitações",
+      "description": "Sistemas que automatizam a gestão financeira pessoal e empresarial e o acompanhamento de licitações públicas. Teste grátis por 15 dias.",
       "fallback": {
         "label": "FINGERENCE",
-        "heading": "Soluções de tecnologia para decidir com clareza.",
-        "body": "A FINGERENCE cria soluções simples para quem precisa decidir bem: FINGERENCE Finanças, para organizar o dinheiro da casa e da empresa, e FINGERENCE Licitações, para encontrar os editais certos e não perder prazos."
-      }
-    },
-    {
-      "path": "/produtos/",
-      "file": "produtos/index.html",
-      "navLabel": "Produtos",
-      "solution": null,
-      "title": "Nossas soluções | FINGERENCE",
-      "description": "Conheça FINGERENCE Finanças e FINGERENCE Licitações: controle financeiro sem planilha e os editais certos, com aviso antes do prazo. Teste grátis por 15 dias.",
-      "fallback": {
-        "label": "Soluções",
-        "heading": "Escolha a solução certa para o seu dia a dia.",
-        "body": "FINGERENCE Finanças organiza receitas, despesas, cartões e relatórios. FINGERENCE Licitações encontra os editais que interessam ao seu negócio e avisa antes do prazo. Cada uma com 15 dias grátis, sem cartão de crédito."
+        "heading": "Inovação e automação para uma gestão mais eficiente.",
+        "body": "A FINGERENCE desenvolve sistemas que eliminam tarefas manuais, organizam a informação e entregam a visão necessária para decidir com segurança: o FINGERENCE Finanças, para a gestão financeira pessoal e empresarial, e o FINGERENCE Licitações, para encontrar e acompanhar editais sem perder prazos."
       }
     },
     {
@@ -34,11 +21,11 @@
       "navLabel": "FINGERENCE Finanças",
       "solution": "finance",
       "title": "FINGERENCE Finanças | Controle financeiro pessoal e empresarial",
-      "description": "Organize receitas, despesas, cartões e relatórios da casa e da empresa, sem planilha. Planos a partir de R$ 4,99/mês, com 15 dias grátis.",
+      "description": "Receitas, despesas, cartões, faturas e relatórios da vida pessoal e da empresa em um só lugar. Planos a partir de R$ 4,99/mês, com 15 dias grátis.",
       "fallback": {
         "label": "FINGERENCE Finanças",
-        "heading": "O dinheiro da casa e da empresa organizados, sem planilha.",
-        "body": "Lance receitas e despesas em segundos, controle cartões e parcelas, veja o saldo de cada mês e decida com relatórios claros. Planos Starter e Premium, com 15 dias grátis."
+        "heading": "Controle financeiro completo, para você e para a sua empresa.",
+        "body": "Registre receitas e despesas em segundos, acompanhe faturas e parcelamentos, veja os compromissos dos próximos meses e decida com base em relatórios por categoria. Planos Starter e Premium, com 15 dias grátis."
       }
     },
     {
@@ -46,12 +33,12 @@
       "file": "produtos/licitacoes/index.html",
       "navLabel": "FINGERENCE Licitações",
       "solution": "tenders",
-      "title": "FINGERENCE Licitações | Os editais certos, com aviso antes do prazo",
-      "description": "Encontre as licitações certas para o seu negócio, receba aviso de editais novos e não perca nenhum prazo. R$ 4,99/mês, com 15 dias grátis.",
+      "title": "FINGERENCE Licitações | Os editais certos, sem perder prazos",
+      "description": "Monitore licitações abertas em todo o Brasil, receba notificações de novos editais e acompanhe a participação da sua equipe até o prazo final. R$ 4,99/mês, com 15 dias grátis.",
       "fallback": {
         "label": "FINGERENCE Licitações",
-        "heading": "Os editais que interessam, com aviso antes do prazo.",
-        "body": "Monte buscas com os termos, as regiões e os órgãos que interessam, receba aviso quando sai edital novo e acompanhe a participação da sua equipe num quadro com lembretes de prazo."
+        "heading": "Encontre as licitações certas e não perca nenhum prazo.",
+        "body": "Monitore editais abertos em todo o Brasil, receba notificações de novas oportunidades e conduza a participação da sua equipe, da análise ao prazo final, em um único ambiente."
       }
     },
     {
@@ -60,11 +47,11 @@
       "navLabel": "Sobre",
       "solution": null,
       "title": "Sobre | FINGERENCE",
-      "description": "Quem somos: a FINGERENCE cria soluções de tecnologia simples, para decidir com clareza.",
+      "description": "Conheça a FINGERENCE: sistemas que automatizam a gestão financeira e o acompanhamento de licitações, com transparência, segurança e preço acessível.",
       "fallback": {
         "label": "Sobre",
-        "heading": "Tecnologia simples para decidir com clareza.",
-        "body": "A FINGERENCE nasceu para organizar as finanças sem planilhas soltas e hoje também ajuda empresas a encontrar as licitações certas. Soluções simples, preço justo e atendimento direto."
+        "heading": "Tecnologia que transforma informação em gestão.",
+        "body": "A FINGERENCE nasceu para organizar finanças sem depender de planilhas soltas. Hoje, também apoia empresas na busca e no acompanhamento de licitações públicas. Nas duas frentes, o compromisso é o mesmo: automatizar o que é repetitivo e entregar informação confiável, organizada e pronta para a decisão."
       }
     },
     {
@@ -73,11 +60,11 @@
       "navLabel": "Contato",
       "solution": null,
       "title": "Contato | FINGERENCE",
-      "description": "Fale com a FINGERENCE por e-mail ou WhatsApp: dúvidas, suporte e sugestões.",
+      "description": "Fale com a equipe da FINGERENCE por e-mail ou WhatsApp: dúvidas comerciais, suporte e parcerias, com resposta em até 1 dia útil.",
       "fallback": {
         "label": "Contato",
-        "heading": "Fale com a gente.",
-        "body": "Dúvidas, suporte ou sugestões: escreva para fingerence@gmail.com ou chame no WhatsApp (49) 99955-4856."
+        "heading": "Fale com a nossa equipe.",
+        "body": "Dúvidas comerciais, suporte técnico ou sugestões: escreva para fingerence@gmail.com ou chame no WhatsApp (49) 99955-4856. Respondemos em até 1 dia útil."
       }
     },
     {

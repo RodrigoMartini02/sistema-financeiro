@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { COMPANY_NAME, SOLUTION_NAMES, type SiteSolution } from '../../../brand';
-import { isProductsArea, PRODUCTS_PATH, publicPageFor } from '../../../utils/publicPages';
+import { pageOfSolution, publicPageFor } from '../../../utils/publicPages';
 import { usePublicSite } from './publicSiteContext';
 import { PRIMARY_BUTTON, SECONDARY_BUTTON, SITE_CONTAINER } from './siteStyles';
 
 const NAV_LINKS = [
   { label: 'Início', to: '/' },
-  { label: 'Produtos', to: PRODUCTS_PATH },
+  { label: 'Finanças', to: pageOfSolution('finance').path },
+  { label: 'Licitações', to: pageOfSolution('tenders').path },
   { label: 'Sobre', to: '/sobre/' },
   { label: 'Contato', to: '/contato/' },
 ];
@@ -30,7 +31,6 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const currentPath = publicPageFor(pathname).path;
-  const inProducts = isProductsArea(pathname);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -74,7 +74,7 @@ export function SiteHeader({ pageSolution }: SiteHeaderProps) {
     };
   }, [menuOpen]);
 
-  const isActive = (to: string) => (to === PRODUCTS_PATH ? inProducts : currentPath === to);
+  const isActive = (to: string) => currentPath === to;
   const navLinkClass = (to: string) =>
     [
       'rounded-lg px-1 py-2 text-[15px] font-medium outline-none transition focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none',

@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarCheck, Headphones, Wallet } from 'lucide-react';
-import { COMPANY_TAGLINE, SITE_SOLUTIONS, SOLUTION_NAMES, SOLUTION_TAGLINES } from '../../brand';
-import { pageOfSolution, PRODUCTS_PATH } from '../../utils/publicPages';
-import { FINANCE_PLAN_PRICES_CENTS, formatPriceCents, FREE_TRIAL_DAYS, TENDERS_PRICE } from '../../utils/sitePricing';
+import { COMPANY_NAME, COMPANY_TAGLINE, SITE_SOLUTIONS, SOLUTION_NAMES, SUPPORT_CONTACT } from '../../brand';
+import { pageOfSolution } from '../../utils/publicPages';
+import { formatPriceCents, FREE_TRIAL_DAYS, STARTING_PRICE_CENTS } from '../../utils/sitePricing';
 import { CallToAction } from './components/CallToAction';
 import { HeroVideo } from './components/HeroVideo';
 import { ReviewsSection } from './components/ReviewsSection';
 import { ScrollReveal } from './components/ScrollReveal';
+import { SolutionCards } from './components/SolutionCards';
 import {
   ON_DARK_BUTTON,
   ON_DARK_SECONDARY_BUTTON,
@@ -16,87 +16,70 @@ import {
   SECTION_TITLE,
   SITE_CONTAINER,
   SITE_SECTION,
-  TEXT_LINK,
 } from './components/siteStyles';
 
-const STARTING_PRICE_CENTS = Math.min(FINANCE_PLAN_PRICES_CENTS.starter, TENDERS_PRICE.baseCents);
-
+/** "Como trabalhamos": o número em destaque, a linha que o completa e o detalhe. */
 const HOW_WE_WORK = [
   {
-    icon: CalendarCheck,
-    title: `${FREE_TRIAL_DAYS} dias grátis`,
-    description: 'Teste qualquer solução antes de pagar. Sem cartão de crédito.',
+    value: `${FREE_TRIAL_DAYS} dias`,
+    caption: 'de avaliação gratuita',
+    description: 'Acesso completo para avaliar a solução, sem cadastrar cartão de crédito.',
   },
   {
-    icon: Wallet,
-    title: `A partir de ${formatPriceCents(STARTING_PRICE_CENTS)}/mês`,
-    description: 'Preço justo e sem surpresa, por Pix ou cartão. Cancele quando quiser.',
+    value: `${formatPriceCents(STARTING_PRICE_CENTS)}/mês`,
+    caption: 'no plano de entrada',
+    description: 'Sem fidelidade, com pagamento por Pix ou cartão.',
   },
   {
-    icon: Headphones,
-    title: 'Atendimento direto',
-    description: 'Fale com a gente por e-mail ou WhatsApp, sem robô no caminho.',
+    value: SUPPORT_CONTACT.responseTime,
+    caption: 'de prazo de resposta',
+    description: 'Atendimento humano por e-mail e WhatsApp.',
   },
 ];
 
-/** Início da empresa: o conceito, o que fazemos, como trabalhamos e o caminho para as soluções. */
+/** Início da empresa: a frase da empresa, por que ela existe, as soluções e como trabalhamos. */
 export function HomePage() {
   return (
     <>
       <HeroVideo
         title={COMPANY_TAGLINE}
-        description="Criamos ferramentas simples para quem precisa decidir bem: sobre o dinheiro da casa e da empresa, e sobre novas oportunidades de negócio."
+        description={`A ${COMPANY_NAME} desenvolve sistemas que eliminam tarefas manuais, organizam a informação e entregam a visão necessária para decidir com segurança.`}
       >
-        <Link to={PRODUCTS_PATH} className={ON_DARK_BUTTON}>
-          Conheça nossas soluções
-        </Link>
+        <a href="#solucoes" className={ON_DARK_BUTTON}>
+          Conhecer as soluções
+        </a>
         <Link to="/contato/" className={ON_DARK_SECONDARY_BUTTON}>
-          Fale com a gente
+          Falar com a equipe
         </Link>
       </HeroVideo>
 
       <section className={SITE_SECTION}>
         <div className={`${SITE_CONTAINER} grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-16`}>
           <ScrollReveal>
-            <p className={SECTION_LABEL}>A FINGERENCE</p>
-            <h2 className={`mt-4 ${SECTION_TITLE}`}>Informação espalhada vira decisão clara.</h2>
+            <p className={SECTION_LABEL}>Por que a {COMPANY_NAME}</p>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Do dado disperso à gestão com método.</h2>
           </ScrollReveal>
           <ScrollReveal delay={0.08}>
             <p className={SECTION_TEXT}>
-              Contas, cartões, editais e prazos costumam ficar em planilhas e anotações soltas. A gente organiza tudo num sistema simples,
-              que funciona no computador e no celular.
+              Lançamentos, cartões, editais e prazos costumam se espalhar por planilhas, e-mails e anotações. Nossos sistemas
+              automatizam o que é repetitivo e reúnem essas informações em um só ambiente, acessível pelo computador e pelo celular.
             </p>
-            <p className={`mt-4 ${SECTION_TEXT}`}>Você enxerga o que importa e decide com segurança, no seu ritmo.</p>
+            <p className={`mt-4 ${SECTION_TEXT}`}>
+              O resultado é previsibilidade: saber o que entra, o que sai e qual oportunidade merece a sua atenção.
+            </p>
           </ScrollReveal>
         </div>
       </section>
 
-      <section className={`${SITE_SECTION} border-y border-slate-200/70 bg-white`}>
+      <section id="solucoes" className={`${SITE_SECTION} scroll-mt-20 border-y border-slate-200/70 bg-white`}>
         <div className={SITE_CONTAINER}>
           <ScrollReveal>
             <p className={SECTION_LABEL}>Soluções</p>
-            <h2 className={`mt-4 ${SECTION_TITLE}`}>Duas soluções, o mesmo cuidado.</h2>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Uma solução para cada frente do seu negócio.</h2>
           </ScrollReveal>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            {SITE_SOLUTIONS.map((solution, index) => (
-              <ScrollReveal key={solution} delay={index * 0.06}>
-                <Link
-                  to={pageOfSolution(solution).path}
-                  className="group flex h-full items-center justify-between gap-6 rounded-[24px] border border-slate-200 bg-[#f8fbfb] p-6 outline-none transition hover:border-brand-300 hover:bg-white focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
-                >
-                  <span>
-                    <span className="block text-[18px] font-semibold text-slate-950">{SOLUTION_NAMES[solution]}</span>
-                    <span className="mt-1 block text-[15px] text-slate-600">{SOLUTION_TAGLINES[solution]}</span>
-                  </span>
-                  <ArrowRight className="h-5 w-5 shrink-0 text-brand-700 transition group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-                </Link>
-              </ScrollReveal>
-            ))}
+          <div className="mt-10">
+            <SolutionCards />
           </div>
-          <Link to={PRODUCTS_PATH} className={`mt-8 ${TEXT_LINK}`}>
-            Ver detalhes e preços
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
         </div>
       </section>
 
@@ -104,36 +87,33 @@ export function HomePage() {
         <div className={SITE_CONTAINER}>
           <ScrollReveal>
             <p className={SECTION_LABEL}>Como trabalhamos</p>
-            <h2 className={`mt-4 ${SECTION_TITLE}`}>Simples de começar, justo no preço.</h2>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Condições claras desde o primeiro acesso.</h2>
           </ScrollReveal>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {HOW_WE_WORK.map(({ icon: Icon, title, description }, index) => (
-              <ScrollReveal key={title} delay={index * 0.06}>
-                <div className="h-full rounded-[24px] border border-slate-200 bg-white p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e6f6f8] text-brand-700">
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <h3 className="mt-5 text-[19px] font-semibold text-slate-950">{title}</h3>
+            {HOW_WE_WORK.map(({ value, caption, description }, index) => (
+              <ScrollReveal key={caption} delay={index * 0.06}>
+                <div className="h-full rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_16px_42px_rgba(15,23,42,0.05)]">
+                  <p className="text-[clamp(28px,3.2vw,44px)] font-light leading-none tracking-[-0.02em] text-brand-700">{value}</p>
+                  <p className="mt-3 text-[15px] font-semibold text-slate-950">{caption}</p>
                   <p className="mt-2 text-[15px] leading-[1.7] text-slate-600">{description}</p>
                 </div>
               </ScrollReveal>
             ))}
           </div>
           <Link to="/sobre/" className={`mt-8 ${SECONDARY_BUTTON}`}>
-            Quem somos
+            Conheça a {COMPANY_NAME}
           </Link>
         </div>
       </section>
 
       <ReviewsSection />
 
-      <CallToAction title="Pronto para decidir com mais clareza?" text={`Escolha a solução certa e teste grátis por ${FREE_TRIAL_DAYS} dias.`}>
-        <Link to={PRODUCTS_PATH} className={ON_DARK_BUTTON}>
-          Conheça nossas soluções
-        </Link>
-        <Link to="/contato/" className={ON_DARK_SECONDARY_BUTTON}>
-          Fale com a gente
-        </Link>
+      <CallToAction title="Comece sua avaliação gratuita hoje." text={`${FREE_TRIAL_DAYS} dias de acesso completo, sem cartão de crédito.`}>
+        {SITE_SOLUTIONS.map((solution) => (
+          <Link key={solution} to={pageOfSolution(solution).path} className={ON_DARK_BUTTON}>
+            {SOLUTION_NAMES[solution]}
+          </Link>
+        ))}
       </CallToAction>
     </>
   );

@@ -21,7 +21,6 @@ export interface PublicPage {
 
 const HOME_PATH = '/';
 const HOME_FILE_PATH = '/index.html';
-export const PRODUCTS_PATH = '/produtos/';
 
 function isSiteSolution(value: unknown): value is SiteSolution {
   return (SITE_SOLUTIONS as readonly unknown[]).includes(value);
@@ -70,10 +69,4 @@ export function pageOfSolution(solution: SiteSolution): PublicPage {
     throw new Error(`publicPages.json sem a página da solução ${solution}`);
   }
   return page;
-}
-
-/** Produtos e as páginas das soluções ficam sob /produtos/: o menu marca "Produtos" em todas. */
-export function isProductsArea(pathname: string): boolean {
-  const key = pageKey(pathname);
-  return key === pageKey(PRODUCTS_PATH) || key.startsWith(PRODUCTS_PATH);
 }

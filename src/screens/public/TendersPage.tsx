@@ -1,4 +1,4 @@
-import { BellRing, CalendarClock, Columns3, FileText, Heart, Search } from 'lucide-react';
+import { AlarmIcon, BellRingingIcon, BookmarkSimpleIcon, FilesIcon, KanbanIcon, MagnifyingGlassIcon } from '@phosphor-icons/react';
 import { formatPriceCents, FREE_TRIAL_DAYS, TENDERS_PRICE } from '../../utils/sitePricing';
 import { CallToAction } from './components/CallToAction';
 import { FaqSection, type FaqItem } from './components/FaqSection';
@@ -17,30 +17,42 @@ import { ON_DARK_BUTTON, ON_DARK_SECONDARY_BUTTON, SECTION_LABEL, SECTION_TITLE,
 
 const STEPS: Step[] = [
   {
-    title: 'Diga o que procura',
-    description: 'Palavras, região, órgão, modalidade e faixa de valor. Cada pessoa da equipe salva as suas buscas.',
+    title: 'Defina o perfil de busca',
+    description: 'Palavras-chave, região, órgão, modalidade e faixa de valor. Cada integrante da equipe salva as próprias buscas.',
   },
   {
-    title: 'Receba os avisos',
-    description: 'Quando sai edital novo que combina com a sua busca, o aviso aparece no sistema.',
+    title: 'Receba as oportunidades',
+    description: 'Quando um novo edital corresponde a uma busca com aviso ligado, a notificação aparece no sistema.',
   },
   {
-    title: 'Acompanhe até o fim',
-    description: 'Leve o edital para o quadro (Analisar, Vou participar, Descartado) e receba lembretes antes do prazo.',
+    title: 'Gerencie a participação',
+    description: 'Classifique cada edital em Analisar, Vou participar ou Descartado e receba lembretes antes do prazo.',
   },
 ];
 
 const BENEFITS: FeatureItem[] = [
   {
-    icon: Search,
-    title: 'Busca completa',
-    description: 'Frases, exclusões e filtros de região, município, órgão, modalidade, valor e datas.',
+    icon: MagnifyingGlassIcon,
+    title: 'Busca avançada',
+    description: 'Frases exatas, termos excluídos e filtros por região, município, órgão, modalidade, valor e datas.',
   },
-  { icon: BellRing, title: 'Aviso de edital novo', description: 'Cada busca salva avisa quando aparece edital que combina com ela.' },
-  { icon: CalendarClock, title: 'Lembrete de prazo', description: 'Três dias e um dia antes do fim do prazo dos editais em que você vai participar.' },
-  { icon: Columns3, title: 'Quadro de acompanhamento', description: 'Analisar, Vou participar e Descartado, com observações e histórico.' },
-  { icon: Heart, title: 'Favoritos', description: 'Cada pessoa guarda os editais que quer acompanhar de perto.' },
-  { icon: FileText, title: 'Itens e arquivos', description: 'Os itens da compra e os arquivos do edital, a um clique.' },
+  {
+    icon: BellRingingIcon,
+    title: 'Alertas de novos editais',
+    description: 'As buscas salvas com aviso ligado notificam quando surge um edital que corresponde a elas.',
+  },
+  {
+    icon: AlarmIcon,
+    title: 'Lembretes de prazo',
+    description: 'Avisos 3 dias e 1 dia antes do encerramento dos editais em que a sua empresa vai participar.',
+  },
+  {
+    icon: KanbanIcon,
+    title: 'Gestão da participação',
+    description: 'Situação de cada edital (Analisar, Vou participar, Descartado), com observações e histórico compartilhados pela equipe.',
+  },
+  { icon: BookmarkSimpleIcon, title: 'Favoritos individuais', description: 'Cada integrante destaca os editais que quer acompanhar de perto.' },
+  { icon: FilesIcon, title: 'Itens e documentos', description: 'Os itens da compra e os arquivos oficiais do edital, a um clique.' },
 ];
 
 const FAQ: FaqItem[] = [
@@ -62,11 +74,12 @@ const FAQ: FaqItem[] = [
   },
   {
     question: 'E se eu cancelar?',
-    answer: 'No pagamento automático no cartão, o acesso continua até o fim do período já pago. As suas buscas e o acompanhamento ficam guardados.',
+    answer:
+      'O pagamento automático no cartão pode ser cancelado a qualquer momento, e o acesso continua até o fim do período já pago. No Pix e no cartão, cada pagamento vale por um período, sem renovação automática. As suas buscas e o acompanhamento ficam guardados.',
   },
 ];
 
-/** Página do FINGERENCE Licitações: como funciona, benefícios, preço e perguntas. */
+/** Página do FINGERENCE Licitações: como funciona, recursos, preço e perguntas. */
 export function TendersPage() {
   const { enter, startFree } = usePublicSite();
 
@@ -74,20 +87,20 @@ export function TendersPage() {
     <>
       <SolutionHero
         solution="tenders"
-        title="Os editais certos para o seu negócio, com aviso antes do prazo."
-        description="Encontre licitações abertas em todo o Brasil, receba aviso quando sai edital novo e acompanhe a participação da sua equipe num só lugar."
+        title="Encontre as licitações certas e não perca nenhum prazo."
+        description="Monitore editais abertos em todo o Brasil, receba notificações de novas oportunidades e conduza a participação da sua equipe, da análise ao prazo final, em um único ambiente."
         media={<TendersPreview />}
       />
 
-      <StepsSection label="Como funciona" title="Da busca ao prazo, sem planilha." steps={STEPS} />
+      <StepsSection label="Como funciona" title="Da busca ao prazo final, em três etapas." steps={STEPS} />
 
-      <FeatureGrid label="Benefícios" title="Tudo incluso, para toda a sua equipe." items={BENEFITS} />
+      <FeatureGrid label="Recursos" title="Recursos completos, para toda a equipe." items={BENEFITS} />
 
       <section id="preco" className={`${SITE_SECTION} scroll-mt-20 border-t border-slate-200/70`}>
         <div className={SITE_CONTAINER}>
           <ScrollReveal>
             <p className={SECTION_LABEL}>Preço</p>
-            <h2 className={`mt-4 ${SECTION_TITLE}`}>Um plano, sem surpresa.</h2>
+            <h2 className={`mt-4 ${SECTION_TITLE}`}>Plano único, com todos os recursos.</h2>
           </ScrollReveal>
           <div className="mt-10">
             <TendersPlanCard onStart={() => startFree('tenders')} />
@@ -97,7 +110,7 @@ export function TendersPage() {
 
       <FaqSection title="Perguntas frequentes" items={FAQ} />
 
-      <CallToAction title="Comece a acompanhar os editais hoje." text={`Teste grátis por ${FREE_TRIAL_DAYS} dias, sem cartão de crédito.`}>
+      <CallToAction title="Sua próxima licitação pode estar publicada hoje." text={`Teste grátis por ${FREE_TRIAL_DAYS} dias, sem cartão de crédito.`}>
         <button type="button" onClick={() => startFree('tenders')} className={ON_DARK_BUTTON}>
           Teste grátis por {FREE_TRIAL_DAYS} dias
         </button>

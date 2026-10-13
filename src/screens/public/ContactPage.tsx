@@ -1,17 +1,17 @@
 import { useId, useState, type FormEvent } from 'react';
-import { Mail, MessageCircle } from 'lucide-react';
+import { EnvelopeIcon, WhatsappLogoIcon } from '@phosphor-icons/react';
 import { SOLUTION_NAMES, SUPPORT_CONTACT } from '../../brand';
 import { formatPhone } from '../../utils/brazilDocuments';
 import { PageIntro } from './components/PageIntro';
 import { ScrollReveal } from './components/ScrollReveal';
-import { PRIMARY_BUTTON, SITE_CONTAINER, SITE_SECTION } from './components/siteStyles';
+import { ICON_TILE, PRIMARY_BUTTON, SITE_CONTAINER, SITE_SECTION } from './components/siteStyles';
 
 const OTHER_SUBJECT = 'Outro assunto';
 const SUBJECTS = [SOLUTION_NAMES.finance, SOLUTION_NAMES.tenders, OTHER_SUBJECT];
 
 const CHANNELS = [
-  { icon: Mail, title: 'E-mail', value: SUPPORT_CONTACT.email, href: `mailto:${SUPPORT_CONTACT.email}`, external: false },
-  { icon: MessageCircle, title: 'WhatsApp', value: SUPPORT_CONTACT.whatsappLabel, href: SUPPORT_CONTACT.whatsappUrl, external: true },
+  { icon: EnvelopeIcon, title: 'E-mail', value: SUPPORT_CONTACT.email, href: `mailto:${SUPPORT_CONTACT.email}`, external: false },
+  { icon: WhatsappLogoIcon, title: 'WhatsApp', value: SUPPORT_CONTACT.whatsappLabel, href: SUPPORT_CONTACT.whatsappUrl, external: true },
 ];
 
 const fieldClass = [
@@ -66,8 +66,8 @@ export function ContactPage() {
     <>
       <PageIntro
         label="Contato"
-        title="Fale com a gente."
-        description="Dúvidas, suporte ou sugestões: escreva para a gente. Respondemos em até 1 dia útil."
+        title="Fale com a nossa equipe."
+        description={`Dúvidas comerciais, suporte técnico ou sugestões: a nossa equipe responde em até ${SUPPORT_CONTACT.responseTime}.`}
       />
 
       <section className={SITE_SECTION}>
@@ -81,8 +81,8 @@ export function ContactPage() {
                   {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                   className="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-white p-6 outline-none transition hover:border-brand-300 focus-visible:ring-2 focus-visible:ring-brand-400 motion-reduce:transition-none"
                 >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e6f6f8] text-brand-700">
-                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span className={ICON_TILE}>
+                    <Icon size={26} weight="duotone" aria-hidden="true" />
                   </span>
                   <span>
                     <span className="block text-[13px] font-semibold uppercase tracking-[0.16em] text-slate-500">{title}</span>
@@ -120,7 +120,7 @@ export function ContactPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor={`${fieldId}-subject`} className={labelClass}>Sobre</label>
+                  <label htmlFor={`${fieldId}-subject`} className={labelClass}>Assunto</label>
                   <select id={`${fieldId}-subject`} value={form.subject} onChange={(event) => update('subject', event.target.value)} className={`${fieldClass} cursor-pointer`}>
                     {SUBJECTS.map((subject) => (
                       <option key={subject} value={subject}>{subject}</option>

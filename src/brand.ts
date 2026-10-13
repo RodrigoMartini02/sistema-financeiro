@@ -4,8 +4,8 @@
 
 export const COMPANY_NAME = 'FINGERENCE';
 
-/** Conceito da empresa (plano .plans/site-novo.md, decisão 1). */
-export const COMPANY_TAGLINE = 'Soluções de tecnologia para decidir com clareza.';
+/** Frase da empresa: título da Início e rodapé (plano .plans/site-menu-textos-cards.md, decisão 2). */
+export const COMPANY_TAGLINE = 'Inovação e automação para uma gestão mais eficiente.';
 
 export const SITE_SOLUTIONS = ['finance', 'tenders'] as const;
 export type SiteSolution = (typeof SITE_SOLUTIONS)[number];
@@ -15,14 +15,10 @@ export const SOLUTION_NAMES: Record<SiteSolution, string> = {
   tenders: 'FINGERENCE Licitações',
 };
 
-/** O que cada solução resolve, numa frase (cards da página inicial). */
-export const SOLUTION_TAGLINES: Record<SiteSolution, string> = {
-  finance: 'O dinheiro da casa e da empresa organizados, sem planilha.',
-  tenders: 'Os editais que interessam, com aviso antes do prazo.',
-};
-
 export const SUPPORT_CONTACT = {
   email: 'fingerence@gmail.com',
   whatsappLabel: '(49) 99955-4856',
   whatsappUrl: 'https://wa.me/5549999554856',
+  /** Prazo de resposta prometido na Início e no Contato (espaço fixo: o número não fica sozinho no fim da linha). */
+  responseTime: '1 dia útil',
 } as const;
