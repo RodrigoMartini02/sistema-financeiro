@@ -13,6 +13,12 @@ import { contracts } from '../modules/contracts/db/schema';
 import { ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
 import { getTodayIsoInTimezone } from '../utils/date';
 import {
+  findFixedIncomeSource,
+  registerFixedIncomeYear,
+  removeOpenFixedIncomes,
+  updateOpenFixedIncomes,
+} from '../services/fixedIncomes';
+import {
   belongsToCatalog,
   findCatalogClassification,
   resolveIncomeClassificationCatalog,
@@ -27,7 +33,7 @@ import {
 const router = Router();
 const NOME_MAXIMO = 100;
 
-const CONTRACT_BLOCKS_AUTO_LAUNCH = 'Classification used by an active contract: the contract already launches these incomes';
+const CONTRACT_BLOCKS_FIXED = 'Classification used by an active contract: the contract already launches these incomes';
 const GROUP_CANNOT_BE_FIXED = 'Classification with active subclassifications is only a group name: set one of its subclassifications as fixed';
 
 function fixToResponse(fix: IncomeClassificationFix | undefined) {
@@ -35,7 +41,6 @@ function fixToResponse(fix: IncomeClassificationFix | undefined) {
   return {
     valor: Number(fix.amount),
     dia_recebimento: fix.dayOfMonth,
-    lancar_automatico: fix.autoLaunch,
   };
 }
 
@@ -49,13 +54,13 @@ function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, in
     ativo: row.active,
     data_criacao: row.createdAt,
     data_atualizacao: row.updatedAt,
-    // Configuração de fixa desta conta (a padrão é compartilhada entre contas).
+    // Receita fixa de quem pediu, nesta conta (a padrão é compartilhada entre contas).
     fixa: fixToResponse(fix),
     em_contrato_ativo: inActiveContract,
   };
 }
 
-/** Classificações apontadas por contrato ativo da conta: não ligam o automático. */
+/** Classificações apontadas por contrato ativo da conta: não podem ser fixas. */
 async function classificationsInActiveContracts(accountId: number): Promise<Set<number>> {
   const rows = await db
     .select({
@@ -74,11 +79,12 @@ async function classificationsInActiveContracts(accountId: number): Promise<Set<
   return ids;
 }
 
-async function fixesByClassification(accountId: number): Promise<Map<number, IncomeClassificationFix>> {
+/** Receitas fixas da pessoa na conta, por classificação: cada pessoa vê só a sua. */
+async function fixesByClassification(accountId: number, userId: number): Promise<Map<number, IncomeClassificationFix>> {
   const fixes = await db
     .select()
     .from(incomeClassificationFixes)
-    .where(eq(incomeClassificationFixes.accountId, accountId));
+    .where(and(eq(incomeClassificationFixes.accountId, accountId), eq(incomeClassificationFixes.userId, userId)));
   return new Map(fixes.map((fix) => [fix.classificationId, fix]));
 }
 
@@ -120,7 +126,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 
     const [rows, fixes, inContracts] = await Promise.all([
       db.select().from(incomeClassifications).where(belongsToCatalog(catalog)).orderBy(asc(incomeClassifications.name)),
-      fixesByClassification(catalog.accountId),
+      fixesByClassification(catalog.accountId, req.user!.id),
       classificationsInActiveContracts(catalog.accountId),
     ]);
 
@@ -213,8 +219,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
 });
 
 // PUT /api/income-classifications/:id/fixa?conta_id=
-// Liga, altera ou desliga a classificação fixa NESTA conta. Quem configurou
-// (autor das previstas automáticas) só muda ao desligar e ligar de novo.
+// Liga, altera ou desliga a receita fixa de quem está logado NESTA conta (plano
+// .plans/receita-fixa-ano-previsto.md): cada pessoa tem a sua. Ligar grava as
+// previstas até dezembro; mudar o valor ou o dia atualiza as previstas em
+// aberto; desligar apaga as em aberto. Tudo numa transação.
 router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const catalog = await catalogFromRequest(req, res, req.query['conta_id']);
@@ -227,27 +235,39 @@ router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promi
       return;
     }
 
-    const { fixa, valor, dia_recebimento, lancar_automatico } = req.body as Record<string, unknown>;
+    const userId = req.user!.id;
+    const today = getTodayIsoInTimezone();
+    const { fixa, valor, dia_recebimento } = req.body as Record<string, unknown>;
     const configWhere = and(
       eq(incomeClassificationFixes.classificationId, id),
       eq(incomeClassificationFixes.accountId, catalog.accountId),
+      eq(incomeClassificationFixes.userId, userId),
     );
 
     if (fixa !== true) {
-      await db.delete(incomeClassificationFixes).where(configWhere);
+      await db.transaction(async (transaction) => {
+        const [current] = await transaction
+          .select({ id: incomeClassificationFixes.id })
+          .from(incomeClassificationFixes)
+          .where(configWhere)
+          .limit(1);
+        if (!current) return;
+        await removeOpenFixedIncomes(transaction, current.id, today);
+        await transaction.delete(incomeClassificationFixes).where(eq(incomeClassificationFixes.id, current.id));
+      });
       res.json({ success: true, message: 'Fixed classification removed', data: toResponse(existing) });
       return;
     }
 
     const amount = Math.round(Number(valor) * 100) / 100;
     const day = Number(dia_recebimento);
-    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(day) || day < 1 || day > 31 || typeof lancar_automatico !== 'boolean') {
-      res.status(400).json({ success: false, message: 'Fixed classification needs amount > 0, day 1-31 and auto launch true/false' });
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(day) || day < 1 || day > 31) {
+      res.status(400).json({ success: false, message: 'Fixed classification needs amount > 0 and day 1-31' });
       return;
     }
 
     // Principal com subclassificação ativa é só o nome do grupo: não se escolhe
-    // ao lançar, então também não pode ser fixa (a receita automática cairia nela).
+    // ao lançar, então também não pode ser fixa (a receita prevista cairia nela).
     const [subAtiva] = await db
       .select({ id: incomeClassifications.id })
       .from(incomeClassifications)
@@ -258,37 +278,38 @@ router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promi
       return;
     }
 
+    // O contrato ativo já lança as receitas da classificação: a fixa duplicaria.
     const inContracts = await classificationsInActiveContracts(catalog.accountId);
-    if (lancar_automatico && inContracts.has(id)) {
-      res.status(400).json({ success: false, message: CONTRACT_BLOCKS_AUTO_LAUNCH });
+    if (inContracts.has(id)) {
+      res.status(400).json({ success: false, message: CONTRACT_BLOCKS_FIXED });
       return;
     }
 
-    const [current] = await db.select().from(incomeClassificationFixes).where(configWhere).limit(1);
-    // O automático conta a partir do dia em que foi ligado; manter ligado
-    // preserva a data, desligar zera.
-    const autoSince = !lancar_automatico
-      ? null
-      : current?.autoLaunch && current.autoSince ? current.autoSince : getTodayIsoInTimezone();
+    const amountText = amount.toFixed(2);
+    const saved = await db.transaction(async (transaction) => {
+      const [current] = await transaction.select().from(incomeClassificationFixes).where(configWhere).limit(1).for('update');
+      const [row] = current
+        ? await transaction
+          .update(incomeClassificationFixes)
+          .set({ amount: amountText, dayOfMonth: day, updatedAt: new Date() })
+          .where(eq(incomeClassificationFixes.id, current.id))
+          .returning()
+        : await transaction
+          .insert(incomeClassificationFixes)
+          .values({ classificationId: id, accountId: catalog.accountId, userId, amount: amountText, dayOfMonth: day })
+          .returning();
 
-    const [saved] = current
-      ? await db
-        .update(incomeClassificationFixes)
-        .set({ amount: amount.toFixed(2), dayOfMonth: day, autoLaunch: lancar_automatico, autoSince, updatedAt: new Date() })
-        .where(eq(incomeClassificationFixes.id, current.id))
-        .returning()
-      : await db
-        .insert(incomeClassificationFixes)
-        .values({
-          classificationId: id,
-          accountId: catalog.accountId,
-          userId: req.user!.id,
-          amount: amount.toFixed(2),
-          dayOfMonth: day,
-          autoLaunch: lancar_automatico,
-          autoSince,
-        })
-        .returning();
+      if (current && current.registeredYear !== null) {
+        if (current.amount !== amountText || current.dayOfMonth !== day) {
+          await updateOpenFixedIncomes(transaction, current.id, { amount: amountText, dayOfMonth: day }, today);
+        }
+      } else {
+        // Fixa nova (ou a antiga, sem o ano gravado): grava as previstas até dezembro.
+        const source = await findFixedIncomeSource(transaction, row!.id);
+        if (source) await registerFixedIncomeYear(transaction, source, today);
+      }
+      return row!;
+    });
 
     res.json({ success: true, message: 'Fixed classification saved', data: toResponse(existing, saved, inContracts.has(id)) });
   } catch (error) {

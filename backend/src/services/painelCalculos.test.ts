@@ -285,7 +285,10 @@ test('meta proporcional: mês inteiro vale 1, metade do mês vale metade', () =>
 });
 
 test('projeção das fixas: só de hoje em diante e sem mês já lançado', () => {
-  const fixas = [{ classificacaoId: 10, valor: 4500, diaRecebimento: 5 }, { classificacaoId: 20, valor: 800, diaRecebimento: 31 }];
+  const fixas = [
+    { usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 },
+    { usuarioId: 1, classificacaoId: 20, valor: 800, diaRecebimento: 31 },
+  ];
   const periodo = { de: '2026-09-01', ate: '2026-11-30' };
   const lancadas = [receita({ classificacaoId: 10, dataRecebimento: '2026-10-04' })];
   const ocorrencias = projetarFixas(fixas, lancadas, periodo, '2026-09-27');
@@ -298,8 +301,19 @@ test('projeção das fixas: só de hoje em diante e sem mês já lançado', () =
 });
 
 test('projeção das fixas: período encerrado não projeta nada', () => {
-  const fixas = [{ classificacaoId: 10, valor: 4500, diaRecebimento: 5 }];
+  const fixas = [{ usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 }];
   assert.deepEqual(projetarFixas(fixas, [], { de: '2026-08-01', ate: '2026-08-31' }, '2026-09-27'), []);
+});
+
+test('projeção das fixas: por pessoa, a receita de outra pessoa na mesma classificação não esconde a fixa', () => {
+  const fixas = [
+    { usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 },
+    { usuarioId: 15, classificacaoId: 10, valor: 3000, diaRecebimento: 5 },
+  ];
+  const lancadas = [receita({ usuarioId: 1, classificacaoId: 10, dataRecebimento: '2026-10-05' })];
+  assert.deepEqual(projetarFixas(fixas, lancadas, { de: '2026-10-01', ate: '2026-10-31' }, '2026-09-27'), [
+    { classificacaoId: 10, valor: 3000, data: '2026-10-05' },
+  ]);
 });
 
 test('agrupamento por classificação principal, com subcategorias e sem categoria', () => {

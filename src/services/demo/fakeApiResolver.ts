@@ -90,8 +90,8 @@ export function resolveFakeApiRequest(
   if (matchEndpoint(endpoint, /^\/expenses\/duplicate$/)) {
     return { duplicate: null };
   }
-  // Renovação das séries mensais: a demo não tem série pendente
-  if (matchEndpoint(endpoint, /^\/expenses\/series-renewals$/) && method === 'GET') {
+  // Renovação das séries mensais e das receitas fixas: a demo não tem pendência
+  if (matchEndpoint(endpoint, /^\/(expenses\/series-renewals|incomes\/fixed-renewals)$/) && method === 'GET') {
     return [];
   }
   const despesaIdMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)$/);

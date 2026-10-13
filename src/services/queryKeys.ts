@@ -53,7 +53,7 @@ const INCOME_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'budget-overview', 'budget-overview-range', 'reports',
   'catalogo-produtos', 'income-suggestions', 'income-duplicate',
   'clients', 'clients-summary', 'client', 'client-incomes', 'contracts', 'contract', 'contract-portfolio',
-  'contracts-with-hours',
+  'contracts-with-hours', 'fixed-income-renewals',
 ]);
 
 export function invalidateIncomeQueries(qc: QueryClient) {
@@ -109,6 +109,8 @@ export const queryKeys = {
   cardInvoices: (accountId: number | null, invoiceMonth: string) => ['card-invoices', accountId ?? 'ativa', invoiceMonth] as const,
   // Séries mensais do usuário que aguardam a decisão de renovar, na conta.
   seriesRenewals: (accountId: number | null) => ['series-renewals', accountId ?? 'ativa'] as const,
+  // Receitas fixas da pessoa que aguardam a decisão de continuar, na conta.
+  fixedIncomeRenewals: (accountId: number | null) => ['fixed-income-renewals', accountId ?? 'ativa'] as const,
   expenseSuggestions: (accountId: number | null, query: ExpenseSuggestionsQuery) =>
     ['expense-suggestions', accountId ?? 'ativa', query] as const,
   expenseDuplicate: (accountId: number | null, query: ExpenseDuplicateQuery | null) =>

@@ -606,6 +606,8 @@ export function gastoPorCategoriaComRollup(despesas: DespesaPainel[], paiDe: Map
 
 /** Classificação fixa da conta do painel (valor e dia configurados). */
 export interface FixaPainel {
+  /** De quem é a fixa: cada pessoa tem a sua. */
+  usuarioId: number;
   classificacaoId: number;
   valor: number;
   diaRecebimento: number;
@@ -631,10 +633,11 @@ function meses(de: string, ate: string): string[] {
 }
 
 /**
- * O que as classificações fixas ainda devem trazer no período: uma ocorrência
- * por mês, no dia configurado, só de hoje em diante. Mês que já tem receita
- * (recebida ou prevista) daquela classificação não projeta — seja a lançada
- * pelo automático, seja a lançada à mão —, para não contar duas vezes.
+ * O que as receitas fixas ainda devem trazer no período: uma ocorrência por
+ * mês, no dia configurado, só de hoje em diante. Mês em que a mesma pessoa já
+ * tem receita (recebida ou prevista) daquela classificação não projeta — seja
+ * a prevista gravada pela fixa, seja a lançada à mão —, para não contar duas
+ * vezes. A receita de outra pessoa na mesma classificação não esconde a fixa.
  */
 export function projetarFixas(fixas: FixaPainel[], lancadas: ReceitaPainel[], periodo: Periodo, hoje: string): OcorrenciaFixa[] {
   const inicio = periodo.de > hoje ? periodo.de : hoje;
@@ -642,14 +645,14 @@ export function projetarFixas(fixas: FixaPainel[], lancadas: ReceitaPainel[], pe
 
   const mesesComReceita = new Set(lancadas
     .filter((receita) => receita.classificacaoId !== null)
-    .map((receita) => `${receita.classificacaoId}|${receita.dataRecebimento.slice(0, 7)}`));
+    .map((receita) => `${receita.usuarioId}|${receita.classificacaoId}|${receita.dataRecebimento.slice(0, 7)}`));
 
   const ocorrencias: OcorrenciaFixa[] = [];
   for (const fixa of fixas) {
     for (const mes of meses(inicio, periodo.ate)) {
       const data = dataDoLancamento(mes, fixa.diaRecebimento);
       if (data < inicio || data > periodo.ate) continue;
-      if (mesesComReceita.has(`${fixa.classificacaoId}|${mes.slice(0, 7)}`)) continue;
+      if (mesesComReceita.has(`${fixa.usuarioId}|${fixa.classificacaoId}|${mes.slice(0, 7)}`)) continue;
       ocorrencias.push({ classificacaoId: fixa.classificacaoId, valor: fixa.valor, data });
     }
   }

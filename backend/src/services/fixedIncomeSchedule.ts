@@ -29,20 +29,41 @@ export function primeiraCompetencia(ligadoEm: string, diaRecebimento: number): s
   return ligadoEm <= dataDoLancamento(competencia, diaRecebimento) ? competencia : mesSeguinte(competencia);
 }
 
-export interface ConfiguracaoFixa {
-  diaRecebimento: number;
-  lancarAutomatico: boolean;
-  automaticoDesde: string | null;
+/**
+ * Competências gravadas como previstas ao ligar ou salvar a fixa (plano
+ * .plans/receita-fixa-ano-previsto.md): da primeira — o mês de `inicio`, se o
+ * dia ainda não passou, ou o seguinte — até dezembro do ano dela.
+ */
+export function competenciasAteDezembro(inicio: string, diaRecebimento: number): string[] {
+  const primeira = primeiraCompetencia(inicio, diaRecebimento);
+  const ano = primeira.slice(0, 4);
+  const competencias: string[] = [];
+  for (let competencia = primeira; competencia.startsWith(ano); competencia = mesSeguinte(competencia)) {
+    competencias.push(competencia);
+  }
+  return competencias;
+}
+
+/** Ano que a renovação grava: o seguinte ao último gravado, ou o ano de hoje, se a decisão demorou. */
+export function anoDaRenovacao(anoRegistrado: number, hoje: string): number {
+  return Math.max(anoRegistrado + 1, Number(hoje.slice(0, 4)));
 }
 
 /**
- * Competência a lançar hoje, ou null. Só o mês atual — mês inteiro perdido não
- * é recuperado — e só a partir do dia configurado. Quem já lançou o mês
- * (índice único no banco) informa em `jaLancada`.
+ * Competências da renovação para `ano`: janeiro a dezembro. Se a decisão vem
+ * já dentro de `ano`, vale a regra de ligar a fixa: a partir do mês atual, se
+ * o dia ainda não passou.
  */
-export function competenciaParaLancar(hoje: string, config: ConfiguracaoFixa, jaLancada: boolean): string | null {
-  if (!config.lancarAutomatico || !config.automaticoDesde || jaLancada) return null;
-  const competencia = competenciaDe(hoje);
-  if (competencia < primeiraCompetencia(config.automaticoDesde, config.diaRecebimento)) return null;
-  return hoje >= dataDoLancamento(competencia, config.diaRecebimento) ? competencia : null;
+export function competenciasDaRenovacao(hoje: string, ano: number, diaRecebimento: number): string[] {
+  const inicioDoAno = `${ano}-01-01`;
+  return competenciasAteDezembro(hoje > inicioDoAno ? hoje : inicioDoAno, diaRecebimento)
+    .filter((competencia) => competencia.startsWith(`${ano}-`));
+}
+
+/**
+ * A fixa pergunta se continua a partir de 1º de dezembro do último ano
+ * gravado. Não há fim: a fixa continua ligada até alguém decidir.
+ */
+export function renovacaoPendente(anoRegistrado: number, hoje: string): boolean {
+  return hoje >= `${anoRegistrado}-12-01`;
 }

@@ -111,7 +111,7 @@ test('horas de contrato com órgão público: o valor digitado é o bruto e a re
 });
 
 test('categoria fixa preenche o valor vazio e o dia, menos com a data travada', () => {
-  const fixed = { id: 4, fixa: { valor: 4500, dia_recebimento: 31, lancar_automatico: false } } as ClassificacaoReceita;
+  const fixed = { id: 4, fixa: { valor: 4500, dia_recebimento: 31 } } as ClassificacaoReceita;
   assert.deepEqual(fixedCategoryPatch(draft({ amountCents: null, receiptDate: '10/02/2026' }), fixed, TODAY, false), {
     amountCents: 450000, receiptDate: '28/02/2026',
   });

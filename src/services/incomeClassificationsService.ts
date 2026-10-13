@@ -33,7 +33,7 @@ export async function saveClassificacaoReceita(
   });
 }
 
-/** Liga/altera a fixa desta conta; `null` desliga. */
+/** Liga ou altera a receita fixa de quem está logado nesta conta (grava o ano como previsto); `null` desliga. */
 export async function saveClassificacaoReceitaFixa(
   id: number,
   fixa: ClassificacaoFixa | null,

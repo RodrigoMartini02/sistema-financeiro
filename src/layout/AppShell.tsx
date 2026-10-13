@@ -8,7 +8,7 @@ import type { AuthUser } from '../types/auth';
 import { getActiveAccountId } from '../services/apiClient';
 import { processarReceitasFixas } from '../services/financeService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
-import { queryKeys } from '../services/queryKeys';
+import { invalidateIncomeQueries, queryKeys } from '../services/queryKeys';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useTelaDesktop } from '../hooks/useTelaDesktop';
@@ -246,15 +246,13 @@ export function AppShell({
   const canLaunchExpenses = ownPermissions?.accessExpenses === true;
   const hasConfigItems = !!ownPermissions && hasVisibleConfigItems(ownPermissions, configItemContext(user, contaTipo));
 
-  // Garantia da rotina diária: ao abrir o sistema, lança as receitas fixas do
-  // mês que já passaram do dia e ainda não foram lançadas. Só para quem pode
-  // lançar receitas — para os demais o servidor recusaria.
+  // Garantia da rotina diária: ao abrir o sistema, grava o ano das receitas
+  // fixas que ainda não o têm. Só para quem pode lançar receitas — para os
+  // demais o servidor recusaria.
   const receitasFixas = useMutation({
     mutationFn: processarReceitasFixas,
-    onSuccess: ({ launched }) => {
-      if (launched === 0) return;
-      qc.invalidateQueries({ queryKey: ['dashboard'] });
-      qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'painel' });
+    onSuccess: ({ registered }) => {
+      if (registered > 0) invalidateIncomeQueries(qc);
     },
   });
   useEffect(() => {
@@ -467,8 +465,8 @@ export function AppShell({
         </main>
       </div>
       {!isDemoMode && !telaDesktop && canUseAssistant && <FinancialAssistant />}
-      {/* Em dezembro e janeiro, pergunta se as séries mensais que terminam em dezembro renovam (na demo, nunca há). */}
-      {canLaunchExpenses && <SeriesRenewalModal />}
+      {/* A partir de 1º de dezembro, pergunta se as despesas recorrentes e as receitas fixas continuam (na demo, nunca há). */}
+      {(canLaunchExpenses || canLaunchIncomes) && <SeriesRenewalModal showExpenses={canLaunchExpenses} showIncomes={canLaunchIncomes} />}
       {!isDemoMode && (
         <ConfigPanel
           open={configPanel.open && hasConfigItems}
