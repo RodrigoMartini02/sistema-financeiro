@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Pause, Play } from 'lucide-react';
 import { SITE_MEDIA } from './siteMedia';
 import { SITE_CONTAINER } from './siteStyles';
 
@@ -33,35 +32,21 @@ interface HeroVideoProps {
 }
 
 /**
- * Topo da Início em tela cheia: o vídeo em loop ao fundo, sem som e com botão
- * de pausar, e a frase em branco sobre um degradê escuro. No celular e para
- * quem pede "reduzir movimento", a imagem de capa.
+ * Topo da Início em tela cheia: o vídeo em loop ao fundo, sem som, e a frase em
+ * branco sobre um degradê escuro. No celular e para quem pede "reduzir
+ * movimento", a imagem de capa.
  */
 export function HeroVideo({ title, description, children }: HeroVideoProps) {
   const prefersReducedMotion = useReducedMotion();
   const isWideScreen = useWideScreen();
   const showVideo = isWideScreen && !prefersReducedMotion;
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(true);
   const variants = prefersReducedMotion ? undefined : ENTRANCE;
-
-  const togglePlayback = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      // O navegador pode recusar tocar; o botão continua mostrando "continuar".
-      void video.play().catch(() => setIsPlaying(false));
-    } else {
-      video.pause();
-    }
-  };
 
   return (
     <section className="relative isolate overflow-hidden bg-[#06232c]">
       <div className="absolute inset-0 -z-10" aria-hidden="true">
         {showVideo ? (
           <video
-            ref={videoRef}
             className="h-full w-full object-cover"
             autoPlay
             muted
@@ -69,8 +54,6 @@ export function HeroVideo({ title, description, children }: HeroVideoProps) {
             playsInline
             preload="metadata"
             poster={SITE_MEDIA.heroPoster}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
           >
             <source src={SITE_MEDIA.heroVideo} type="video/mp4" />
           </video>
@@ -110,17 +93,6 @@ export function HeroVideo({ title, description, children }: HeroVideoProps) {
           {children}
         </motion.div>
       </div>
-
-      {showVideo && (
-        <button
-          type="button"
-          onClick={togglePlayback}
-          aria-label={isPlaying ? 'Pausar o vídeo' : 'Continuar o vídeo'}
-          className="absolute bottom-6 right-6 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white outline-none backdrop-blur transition hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white motion-reduce:transition-none"
-        >
-          {isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
-        </button>
-      )}
     </section>
   );
 }
