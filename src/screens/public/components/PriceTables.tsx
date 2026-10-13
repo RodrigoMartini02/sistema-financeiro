@@ -158,8 +158,10 @@ export function FinancePlanCards({ onStart }: { onStart: () => void }) {
 
 /** O que muda entre Starter e Premium, item a item. */
 export function FinanceComparison() {
+  // "relative": os textos sr-only das células têm posição absoluta e precisam
+  // ficar presos na caixa com rolagem; sem isso, esticam a página no celular.
   return (
-    <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
+    <div className="relative overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
       <table className="w-full min-w-[600px]">
         <caption className="sr-only">Comparação dos planos Starter e Premium</caption>
         <thead className="bg-[#eef8f9]">

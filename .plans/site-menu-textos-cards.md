@@ -688,3 +688,31 @@ Este adendo **vale por cima** das partes do plano que falam em `/produtos/...`, 
 - No `/finalizar`, atualizar estas memórias:
   - regras do site: a estrutura nova e o `/licitacoes/` como página do site;
   - pendências do site v2: as regras do Render deste adendo.
+
+### Revisão da decisão 2 (2026-10-13, depois do deploy)
+
+**O que mudou:** a decisão 2 ("nenhum redirecionamento, endereços antigos dão 404") foi revista. Depois do deploy, o `curl` mostrou que **o Render guarda e continua entregando os arquivos dos deploys anteriores**. Sem regra, `/produtos/financas/` e `/produtos/licitacoes/` entregavam as páginas antigas, com o texto velho, e `/planos/index.html` e `/funcionalidades/index.html` ainda existiam, de 07/10. Como a regra vale antes desses arquivos antigos, os endereços antigos ganharam 301. Isso só existe no Render: o código continua sem nenhuma rota antiga.
+
+**Regras finais no Render, conferidas com `curl`:**
+
+| Source | Destination | Action |
+|---|---|---|
+| `/funcionalidades` | `/financas/` | Redirect |
+| `/sobre` | `/sobre/` | Redirect |
+| `/planos` | `/#solucoes` | Redirect |
+| `/contato` | `/contato/` | Redirect |
+| `/termos` | `/termos/` | Redirect |
+| `/privacidade` | `/privacidade/` | Redirect |
+| `/loja/*` | `/index.html` | Rewrite |
+| `/catalogo/*` | `/index.html` | Rewrite |
+| `/licitacoes` | `/licitacoes/` | Redirect |
+| `/licitacoes/app/*` | `/tenders.html` | Rewrite |
+| `/produtos` | `/#solucoes` | Redirect |
+| `/licitacoes/app` | `/tenders.html` | Rewrite |
+| `/financas` | `/financas/` | Redirect |
+| `/produtos/financas` | `/financas/` | Redirect |
+| `/produtos/licitacoes` | `/licitacoes/` | Redirect |
+
+**Incidente:** durante a troca, a regra `/licitacoes/*` → `/licitacoes/app/*` (Rewrite) deixou o sistema de Licitações em branco por alguns minutos, porque o Render devolveu 200 vazio. Corrigida a regra, o `curl` confirmou o `tenders.html` em todos os endereços do sistema.
+
+**Lição:** Rewrite só pode apontar para um arquivo que existe, como `/tenders.html` ou `/index.html`.
