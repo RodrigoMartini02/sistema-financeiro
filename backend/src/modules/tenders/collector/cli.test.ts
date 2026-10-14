@@ -10,9 +10,27 @@ function assertUsageError(argv: string[], message?: RegExp): void {
 }
 
 test('comandos sem opções', () => {
-  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup'] as const) {
+  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup', 'contracts-daily', 'contracts-cleanup'] as const) {
     assert.deepEqual(parseCliArgs([name]), { name });
   }
+});
+
+test('contracts-backfill: faixa, tempo e espaço opcionais', () => {
+  assert.deepEqual(parseCliArgs(['contracts-backfill']), { name: 'contracts-backfill', from: null, to: null, maxMinutes: null, maxDbMb: null });
+  assert.deepEqual(
+    parseCliArgs(['contracts-backfill', '--from', '2026-09-01', '--to', '2026-09-30', '--max-minutes', '90', '--max-db-mb', '2000']),
+    { name: 'contracts-backfill', from: '2026-09-01', to: '2026-09-30', maxMinutes: 90, maxDbMb: 2000 },
+  );
+});
+
+test('contracts-backfill: datas válidas, --from antes de --to e números inteiros positivos', () => {
+  assertUsageError(['contracts-backfill', '--from', '01/09/2026'], /--from/);
+  assertUsageError(['contracts-backfill', '--to', '2026-02-30'], /--to/);
+  assertUsageError(['contracts-backfill', '--from', '2026-09-30', '--to', '2026-09-01'], /antes de --to/);
+  assertUsageError(['contracts-backfill', '--max-minutes', '0'], /max-minutes/);
+  assertUsageError(['contracts-backfill', '--max-minutes', '601'], /max-minutes/);
+  assertUsageError(['contracts-backfill', '--max-db-mb', 'muito'], /max-db-mb/);
+  assertUsageError(['contracts-daily', '--from', '2026-09-01'], /não vale/);
 });
 
 test('reprocess-notifications exige --since com data válida', () => {

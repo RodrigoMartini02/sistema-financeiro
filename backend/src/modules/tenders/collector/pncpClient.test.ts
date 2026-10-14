@@ -247,3 +247,65 @@ test('lista: espera curta configurável no 429, para o pedido da tela', async ()
   assert.deepEqual(await client.fetchDetailList('itens', purchase, 1), []);
   assert.deepEqual(sleeps, [1_000]);
 });
+
+test('contratos: consulta por publicação e por atualização global, com 500 por página', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 0), pageResponse(1, 0)], { pageSize: 500 });
+  await collectPages(client.pages('contratos', { dataInicial: '20260930', dataFinal: '20260930' }));
+  await collectPages(client.pages('contratos-atualizacao', { dataInicial: '20261009', dataFinal: '20261009' }));
+
+  const [publication, update] = requestedUrls.map((url) => new URL(url));
+  assert.equal(publication?.pathname, '/api/consulta/v1/contratos');
+  assert.equal(publication?.searchParams.get('dataInicial'), '20260930');
+  assert.equal(publication?.searchParams.get('tamanhoPagina'), '500');
+  assert.equal(update?.pathname, '/api/consulta/v1/contratos/atualizacao');
+});
+
+const contract = { agencyCnpj: '83831719000100', year: 2024, sequence: 7 };
+
+test('termos: endereço do contrato na API principal e a lista como veio (registro real)', async () => {
+  const terms = JSON.parse(readFileSync(path.join(__dirname, 'fixtures', 'termos-prorrogacao.json'), 'utf8')) as unknown[];
+  const { client, requestedUrls } = createFakeClient([listResponse(terms)], detailOptions);
+  assert.deepEqual(await client.fetchContractTerms(contract), terms);
+  assert.deepEqual(requestedUrls, [
+    'https://pncp.example/api/pncp/v1/orgaos/83831719000100/contratos/2024/7/termos?pagina=1&tamanhoPagina=500',
+  ]);
+});
+
+test('termos: HTTP 204 é contrato sem termos; 404 volta null, sem repetir', async () => {
+  const withoutTerms = createFakeClient([new Response(null, { status: 204 })], detailOptions);
+  assert.deepEqual(await withoutTerms.client.fetchContractTerms(contract), []);
+
+  const notFound = createFakeClient([new Response('{"message":"não encontrado"}', { status: 404 })], detailOptions);
+  assert.equal(await notFound.client.fetchContractTerms(contract), null);
+  assert.equal(notFound.requestedUrls.length, 1);
+  assert.deepEqual(notFound.sleeps, []);
+});
+
+test('termos: página cheia segue para a próxima', async () => {
+  const { client, requestedUrls } = createFakeClient(
+    [listResponse([{ sequencialTermoContrato: 1 }, { sequencialTermoContrato: 2 }]), listResponse([{ sequencialTermoContrato: 3 }])],
+    { ...detailOptions, pageSize: 2 },
+  );
+  assert.deepEqual(await client.fetchContractTerms(contract), [
+    { sequencialTermoContrato: 1 },
+    { sequencialTermoContrato: 2 },
+    { sequencialTermoContrato: 3 },
+  ]);
+  assert.deepEqual(
+    requestedUrls.map((url) => new URL(url).searchParams.get('pagina')),
+    ['1', '2'],
+  );
+});
+
+test('termos: ritmo próprio, separado do da consulta de contratos', async () => {
+  const consult = createFakeClient([pageResponse(1, 0), pageResponse(1, 0)], { requestIntervalMs: 4000, pageSize: 500 });
+  const terms = createFakeClient([listResponse([]), listResponse([])], { ...detailOptions, requestIntervalMs: 500 });
+
+  await consult.client.fetchPage('contratos', {}, 1);
+  await terms.client.fetchContractTerms(contract);
+  await consult.client.fetchPage('contratos', {}, 1);
+  await terms.client.fetchContractTerms(contract);
+
+  assert.deepEqual(consult.sleeps, [4000]);
+  assert.deepEqual(terms.sleeps, [500]);
+});

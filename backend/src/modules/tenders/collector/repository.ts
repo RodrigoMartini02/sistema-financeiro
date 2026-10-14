@@ -9,13 +9,19 @@ import {
   type CollectionRunDetails,
 } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
+import { readContractsStatus } from './contractRepository';
 import type { TendersDb } from './database';
 import type { TenderNoticeRow } from './mapping';
 
-/** Chaves do pg_try_advisory_lock: uma para as coletas, outra para lembretes, limpeza e reprocessamento. */
+/**
+ * Chaves do pg_try_advisory_lock: uma para as coletas de editais, outra para
+ * lembretes, limpeza e reprocessamento, e a dos contratos (coleta diária,
+ * carga e limpeza), que não bloqueia a varredura de editais nem é bloqueada por ela.
+ */
 export const COLLECTOR_LOCK_KEYS = {
   collection: 7_274_001,
   maintenance: 7_274_002,
+  contracts: 7_274_003,
 } as const;
 
 export interface CollectorLock {
@@ -148,7 +154,7 @@ export async function finishCollectionRun(db: TendersDb, runId: number, summary:
     .where(eq(tenderCollectionRuns.id, runId));
 }
 
-/** Última execução de cada tipo e os totais de editais, para o comando `status`. */
+/** Última execução de cada tipo, os totais de editais e de contratos e o andamento da carga, para o comando `status`. */
 export async function readCollectionStatus(db: TendersDb) {
   const latestRuns = await db
     .selectDistinctOn([tenderCollectionRuns.type])
@@ -162,7 +168,7 @@ export async function readCollectionStatus(db: TendersDb) {
     })
     .from(tenderNotices);
 
-  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 } };
+  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 }, contracts: await readContractsStatus(db) };
 }
 
 /**

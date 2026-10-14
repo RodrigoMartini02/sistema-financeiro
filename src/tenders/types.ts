@@ -338,7 +338,16 @@ export interface NotificationFilters {
   perPage: number;
 }
 
-export const COLLECTION_RUN_TYPES = ['VARREDURA', 'INCREMENTAL', 'LEMBRETES', 'LIMPEZA', 'MANUAL'] as const;
+export const COLLECTION_RUN_TYPES = [
+  'VARREDURA',
+  'INCREMENTAL',
+  'LEMBRETES',
+  'LIMPEZA',
+  'MANUAL',
+  'CONTRATOS_DIARIA',
+  'CONTRATOS_CARGA',
+  'CONTRATOS_LIMPEZA',
+] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 /** Execuções com horário na agenda (a manual não tem). */
 export type ScheduledRunType = Exclude<CollectionRunType, 'MANUAL'>;
@@ -368,12 +377,40 @@ export interface CollectionRun {
   details: CollectionRunDetails;
 }
 
+/** Por que o bloco da carga de contratos parou: tempo, espaço no banco ou PNCP fora do ar. */
+export type BackfillStopReason = 'time' | 'space' | 'pncp';
+
+/** A última execução da carga de contratos. */
+export interface BackfillRun {
+  from: string;
+  to: string;
+  totalDays: number;
+  /** Dias da faixa ainda sem carga, ao fim da execução. */
+  pendingDays: number;
+  stoppedBy: BackfillStopReason | null;
+  finished: boolean;
+}
+
+export interface ContractsCollection {
+  contracts: number;
+  /** Com vencimento de hoje em diante. */
+  activeContracts: number;
+  backfill: {
+    completedDays: number;
+    /** Dia de publicação mais antigo já carregado (AAAA-MM-DD). */
+    oldestDay: string | null;
+    /** null: a carga ainda não rodou, ou a última execução não terminou. */
+    lastRun: BackfillRun | null;
+  };
+}
+
 export interface CollectionStatus {
   /** A execução mais recente de cada tipo. */
   latestRuns: CollectionRun[];
   /** Próxima execução prevista pela agenda, em ISO com o fuso de Brasília; null sem agenda (a incremental). */
   nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
+  contracts: ContractsCollection;
 }
 
 export interface TeamMember {

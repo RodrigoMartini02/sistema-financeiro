@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util';
 import * as dotenv from 'dotenv';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
 import { CollectorConfigError, databaseHost } from './config';
+import { runContractsBackfill, runContractsCleanup, runContractsDaily } from './contractRuns';
 import { errorMessage } from './logger';
 import {
   readStatus,
@@ -20,6 +21,8 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix backend run tenders -- sweep | incremental | deadline-reminders | cleanup | status
 //   npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 //   npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2
+//   npm --prefix backend run tenders -- contracts-daily | contracts-cleanup
+//   npm --prefix backend run tenders -- contracts-backfill --from 2026-09-01 --to 2026-09-30 --max-db-mb 2000
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
 
@@ -31,13 +34,17 @@ export const CLI_COMMANDS = [
   'status',
   'collect',
   'cleanup',
+  'contracts-daily',
+  'contracts-backfill',
+  'contracts-cleanup',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
 export type CliCommand =
-  | { name: 'sweep' | 'incremental' | 'deadline-reminders' | 'status' | 'cleanup' }
+  | { name: 'sweep' | 'incremental' | 'deadline-reminders' | 'status' | 'cleanup' | 'contracts-daily' | 'contracts-cleanup' }
   | { name: 'reprocess-notifications'; since: string }
-  | { name: 'collect'; modality: number; state: BrazilianState | null; maxPages: number | null };
+  | { name: 'collect'; modality: number; state: BrazilianState | null; maxPages: number | null }
+  | { name: 'contracts-backfill'; from: string | null; to: string | null; maxMinutes: number | null; maxDbMb: number | null };
 
 export class CliUsageError extends Error {
   constructor(message: string) {
@@ -51,6 +58,8 @@ const USAGE = [
   '  sweep | incremental | deadline-reminders | cleanup | status',
   '  reprocess-notifications --since AAAA-MM-DD',
   '  collect --modality N [--state UF] [--max-pages N]',
+  '  contracts-daily | contracts-cleanup',
+  '  contracts-backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--max-minutes N] [--max-db-mb N]',
 ].join('\n');
 
 const CLI_OPTIONS = {
@@ -58,6 +67,10 @@ const CLI_OPTIONS = {
   modality: { type: 'string' },
   state: { type: 'string' },
   'max-pages': { type: 'string' },
+  from: { type: 'string' },
+  to: { type: 'string' },
+  'max-minutes': { type: 'string' },
+  'max-db-mb': { type: 'string' },
 } as const;
 type CliOptionName = keyof typeof CLI_OPTIONS;
 
@@ -69,9 +82,15 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   cleanup: [],
   'reprocess-notifications': ['since'],
   collect: ['modality', 'state', 'max-pages'],
+  'contracts-daily': [],
+  'contracts-cleanup': [],
+  'contracts-backfill': ['from', 'to', 'max-minutes', 'max-db-mb'],
 };
 
 const MAX_PAGES_LIMIT = 10_000;
+/** O mesmo teto de TENDERS_CONTRACTS_BACKFILL_MINUTES. */
+const MAX_BACKFILL_MINUTES = 600;
+const MAX_DATABASE_MB = 10_000_000;
 
 function isCliCommandName(value: string): value is CliCommandName {
   return (CLI_COMMANDS as readonly string[]).includes(value);
@@ -142,7 +161,32 @@ export function parseCliArgs(argv: string[]): CliCommand {
     return { name, modality, state: state as BrazilianState | null, maxPages };
   }
 
+  if (name === 'contracts-backfill') {
+    return parseBackfillOptions(values);
+  }
+
   return { name };
+}
+
+function readOptionalDate(value: string | undefined, option: string): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (!isValidCalendarDate(value)) {
+    throw new CliUsageError(`--${option} deve ser uma data válida AAAA-MM-DD`);
+  }
+  return value;
+}
+
+function parseBackfillOptions(values: Partial<Record<CliOptionName, string>>): CliCommand {
+  const from = readOptionalDate(values.from, 'from');
+  const to = readOptionalDate(values.to, 'to');
+  if (from !== null && to !== null && from > to) {
+    throw new CliUsageError('--from deve ser antes de --to');
+  }
+  const maxMinutes = values['max-minutes'] ? readPositiveInteger(values['max-minutes'], 'max-minutes', MAX_BACKFILL_MINUTES) : null;
+  const maxDbMb = values['max-db-mb'] ? readPositiveInteger(values['max-db-mb'], 'max-db-mb', MAX_DATABASE_MB) : null;
+  return { name: 'contracts-backfill', from, to, maxMinutes, maxDbMb };
 }
 
 async function runCommand(context: CollectorContext, command: CliCommand): Promise<RunOutcome | null> {
@@ -159,6 +203,17 @@ async function runCommand(context: CollectorContext, command: CliCommand): Promi
       return runReprocessNotifications(context, command.since);
     case 'collect':
       return runManualCollect(context, command);
+    case 'contracts-daily':
+      return runContractsDaily(context);
+    case 'contracts-cleanup':
+      return runContractsCleanup(context);
+    case 'contracts-backfill':
+      return runContractsBackfill(context, {
+        ...(command.from !== null ? { from: command.from } : {}),
+        ...(command.to !== null ? { to: command.to } : {}),
+        ...(command.maxMinutes !== null ? { maxMinutes: command.maxMinutes } : {}),
+        ...(command.maxDbMb !== null ? { maxDbMb: command.maxDbMb } : {}),
+      });
     case 'status': {
       const status = await readStatus(context);
       console.log(JSON.stringify(status, null, 2));

@@ -1,4 +1,5 @@
 import { databaseHost } from '../modules/tenders/collector/config';
+import { runContractsBackfill, runContractsCleanup, runContractsDaily } from '../modules/tenders/collector/contractRuns';
 import { createCollectorLogger, type CollectorLogger } from '../modules/tenders/collector/logger';
 import { runCleanup, runDeadlineReminders, runSweep, type CollectorContext, type RunOutcome } from '../modules/tenders/collector/runs';
 import { createCollectorRuntime, type CollectorRuntime } from '../modules/tenders/collector/runtime';
@@ -13,7 +14,11 @@ type TendersStep = Exclude<DailyJobStep, 'plan-lifecycle'>;
 const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext) => Promise<RunOutcome>> = {
   'tenders-sweep': runSweep,
   'tenders-deadline-reminders': runDeadlineReminders,
+  'tenders-contracts-daily': runContractsDaily,
+  'tenders-contracts-cleanup': runContractsCleanup,
   'tenders-cleanup': runCleanup,
+  // Sem TENDERS_CONTRACTS_MAX_DB_MB, ou sem dia pendente, a etapa é pulada com o motivo no log.
+  'tenders-contracts-backfill': (context) => runContractsBackfill(context),
 };
 
 const PLAN_LIFECYCLE_TIMEOUT_MS = 120_000;

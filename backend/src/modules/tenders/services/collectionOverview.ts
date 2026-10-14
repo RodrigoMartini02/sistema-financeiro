@@ -1,4 +1,5 @@
 import { count, desc, inArray } from 'drizzle-orm';
+import type { BackfillStopReason } from '../collector/contractRuns';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
 import { readCollectionStatus } from '../collector/repository';
@@ -23,15 +24,22 @@ interface DailySlot {
 const DAILY_JOBS_SLOT: DailySlot = { hour: 6, minute: 0 };
 
 /**
- * Agenda em Brasília: a rotina diária das 06:00 faz a varredura e os lembretes
- * de prazo e, aos domingos, a limpeza. A incremental não está agendada.
+ * Agenda em Brasília: a rotina diária das 06:00 faz a varredura, os lembretes
+ * de prazo, a coleta e a limpeza dos contratos, a carga de contratos (enquanto
+ * houver dias pendentes) e, aos domingos, a limpeza dos editais. A incremental
+ * não está agendada.
  */
 export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   VARREDURA: [DAILY_JOBS_SLOT],
   INCREMENTAL: [],
   LEMBRETES: [DAILY_JOBS_SLOT],
   LIMPEZA: [{ ...DAILY_JOBS_SLOT, weekday: 0 }],
+  CONTRATOS_DIARIA: [DAILY_JOBS_SLOT],
+  CONTRATOS_CARGA: [DAILY_JOBS_SLOT],
+  CONTRATOS_LIMPEZA: [DAILY_JOBS_SLOT],
 };
+
+const SCHEDULED_RUN_TYPES = Object.keys(COLLECTION_SCHEDULE) as ScheduledRunType[];
 
 const DAYS_TO_LOOK_AHEAD = 8;
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -92,24 +100,74 @@ function toRunView(row: typeof tenderCollectionRuns.$inferSelect): CollectionRun
   };
 }
 
+/** A última execução da carga de contratos, lida dos detalhes que ela grava no fim. */
+export interface BackfillRunView {
+  from: string;
+  to: string;
+  totalDays: number;
+  /** Dias da faixa ainda sem carga, ao fim da execução. */
+  pendingDays: number;
+  stoppedBy: BackfillStopReason | null;
+  finished: boolean;
+}
+
+export interface ContractsOverview {
+  contracts: number;
+  /** Com vencimento de hoje em diante (Brasília). */
+  activeContracts: number;
+  backfill: {
+    completedDays: number;
+    /** Dia de publicação mais antigo já carregado. */
+    oldestDay: string | null;
+    /** null: a carga ainda não rodou, ou a última execução não terminou. */
+    lastRun: BackfillRunView | null;
+  };
+}
+
 export interface CollectionStatusView {
   latestRuns: CollectionRunView[];
   /** null: tipo sem agenda (a incremental). */
   nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
+  contracts: ContractsOverview;
+}
+
+const BACKFILL_STOP_REASONS: readonly BackfillStopReason[] = ['time', 'space', 'pncp'];
+
+/** Detalhes da carga gravados pela execução (contractRuns.ts); fora do formato, null. */
+export function backfillRunView(details: CollectionRunDetails | undefined): BackfillRunView | null {
+  const backfill = details?.['backfill'];
+  if (backfill === null || typeof backfill !== 'object') {
+    return null;
+  }
+  const values = backfill as Record<string, unknown>;
+  const { from, to, totalDays, pendingAfter, stoppedBy, finished } = values;
+  if (typeof from !== 'string' || typeof to !== 'string' || typeof totalDays !== 'number' || typeof pendingAfter !== 'number') {
+    return null;
+  }
+  const stopReason = BACKFILL_STOP_REASONS.find((reason) => reason === stoppedBy) ?? null;
+  return { from, to, totalDays, pendingDays: pendingAfter, stoppedBy: stopReason, finished: finished === true };
 }
 
 export async function readCollectionOverview(db: TendersDb, now: Date): Promise<CollectionStatusView> {
   const status = await readCollectionStatus(db);
+  const lastBackfill = status.latestRuns.find((run) => run.type === 'CONTRATOS_CARGA');
   return {
     latestRuns: status.latestRuns.map(toRunView),
-    nextRuns: {
-      VARREDURA: nextScheduledRun('VARREDURA', now),
-      INCREMENTAL: nextScheduledRun('INCREMENTAL', now),
-      LEMBRETES: nextScheduledRun('LEMBRETES', now),
-      LIMPEZA: nextScheduledRun('LIMPEZA', now),
-    },
+    nextRuns: Object.fromEntries(SCHEDULED_RUN_TYPES.map((type) => [type, nextScheduledRun(type, now)])) as Record<
+      ScheduledRunType,
+      string | null
+    >,
     totals: status.totals,
+    contracts: {
+      contracts: status.contracts.contracts,
+      activeContracts: status.contracts.activeContracts,
+      backfill: {
+        completedDays: status.contracts.backfill.completedDays,
+        oldestDay: status.contracts.backfill.oldestDay,
+        lastRun: backfillRunView(lastBackfill?.details),
+      },
+    },
   };
 }
 

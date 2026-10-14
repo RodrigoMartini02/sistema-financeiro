@@ -3,7 +3,15 @@ import { brasiliaDate } from '../modules/tenders/collector/dates';
 // Etapas da rotina diária (o Cron Job do Render roda `npm run daily-jobs` uma
 // vez por dia). Parte pura: a execução fica em dailyJobs.ts.
 
-export const DAILY_JOB_STEPS = ['plan-lifecycle', 'tenders-sweep', 'tenders-deadline-reminders', 'tenders-cleanup'] as const;
+export const DAILY_JOB_STEPS = [
+  'plan-lifecycle',
+  'tenders-sweep',
+  'tenders-deadline-reminders',
+  'tenders-contracts-daily',
+  'tenders-contracts-cleanup',
+  'tenders-cleanup',
+  'tenders-contracts-backfill',
+] as const;
 export type DailyJobStep = (typeof DAILY_JOB_STEPS)[number];
 
 const DEFAULT_BACKEND_URL = 'https://sistema-financeiro-backend-o199.onrender.com';
@@ -17,13 +25,23 @@ function isSundayInBrasilia(instant: Date): boolean {
 
 /**
  * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
- * varredura de Licitações, os lembretes de prazo e, aos domingos, a limpeza.
+ * varredura de Licitações, os lembretes de prazo, a coleta e a limpeza dos
+ * contratos, aos domingos a limpeza dos editais e, por último, a carga inicial
+ * de contratos (a mais longa: só roda com dias pendentes e com
+ * TENDERS_CONTRACTS_MAX_DB_MB definida).
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {
-  const steps: DailyJobStep[] = ['plan-lifecycle', 'tenders-sweep', 'tenders-deadline-reminders'];
+  const steps: DailyJobStep[] = [
+    'plan-lifecycle',
+    'tenders-sweep',
+    'tenders-deadline-reminders',
+    'tenders-contracts-daily',
+    'tenders-contracts-cleanup',
+  ];
   if (isSundayInBrasilia(now)) {
     steps.push('tenders-cleanup');
   }
+  steps.push('tenders-contracts-backfill');
   return steps;
 }
 

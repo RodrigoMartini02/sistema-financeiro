@@ -5,6 +5,7 @@ import { TransactionRollbackError } from 'drizzle-orm';
 import { accounts } from '../../../db/schema/accounts';
 import { users } from '../../../db/schema/users';
 import {
+  tenderContracts,
   tenderEnabledAccounts,
   tenderNotices,
   tenderSavedSearches,
@@ -12,8 +13,13 @@ import {
   tenderTrackings,
 } from '../db/schema';
 import type { TrackingStatus } from '../domains';
+import { loadCollectorConfig, type ContractsSettings } from './config';
+import type { TenderContractRow } from './contractMapping';
 import { createCollectorDatabase, type TendersDb } from './database';
+import { createCollectorLogger } from './logger';
 import { payloadHash, type TenderNoticeRow } from './mapping';
+import { PncpClient } from './pncpClient';
+import type { CollectorContext } from './runs';
 
 // Apoio dos testes de banco (*.db.test.ts). Eles só rodam pelo script
 // test:tenders-db (TENDERS_DB_TESTS=1), só no banco local e cada teste numa
@@ -132,6 +138,75 @@ export async function insertSavedSearch(
     throw new Error('busca de teste não criada');
   }
   return search.id;
+}
+
+/** Contrato de teste com número de controle único (o banco local pode ter os contratos do piloto). */
+export function buildContractRow(overrides: Partial<TenderContractRow> = {}): TenderContractRow {
+  const pncpControlNumber = overrides.pncpControlNumber ?? `TESTE-${randomUUID().slice(0, 18)}`;
+  return {
+    pncpControlNumber,
+    contractYear: 2026,
+    contractSequence: 1,
+    agencyCnpj: '03353358000196',
+    contractObject: 'Contrato de teste',
+    termStart: '2026-01-01',
+    originalTermEnd: '2027-01-01',
+    expiresOn: '2027-01-01',
+    publishedAt: '2026-01-02T10:00:00',
+    payloadHash: payloadHash({ pncpControlNumber, ...overrides }),
+    ...overrides,
+  };
+}
+
+export async function insertTestContract(tx: TendersDb, overrides: Partial<TenderContractRow> = {}): Promise<number> {
+  const [contract] = await tx.insert(tenderContracts).values(buildContractRow(overrides)).returning({ id: tenderContracts.id });
+  if (!contract) {
+    throw new Error('contrato de teste não criado');
+  }
+  return contract.id;
+}
+
+/** Resposta simulada do PNCP para os clientes do contexto de teste. */
+export type FakePncpFetch = (url: URL) => Response | Promise<Response>;
+
+/**
+ * Contexto do coletor sobre a transação do teste, com clientes do PNCP
+ * simulados (sem rede e sem espera) e log desligado. As travas usam o pool
+ * local, como na execução real.
+ */
+export function createTestCollectorContext(
+  tx: TendersDb,
+  options: {
+    contractsFetch: FakePncpFetch;
+    termsFetch?: FakePncpFetch;
+    now?: () => Date;
+    contracts?: Partial<ContractsSettings>;
+  },
+): CollectorContext {
+  const config = loadCollectorConfig({
+    TENDERS_COLLECTOR_DATABASE_URL: 'postgres://teste@localhost:5433/sistema_financas_dev',
+    PNCP_MAX_ATTEMPTS: '1',
+  });
+  const clientOptions = { ...config.pncp, requestIntervalMs: 0, sleep: async () => {} };
+  const fakeFetch = (handler: FakePncpFetch): typeof fetch => async (input) => handler(new URL(String(input)));
+  const unexpected: FakePncpFetch = (url) => {
+    throw new Error(`pedido inesperado ao PNCP: ${url.toString()}`);
+  };
+  return {
+    db: tx,
+    pool: localTestPool(),
+    pncp: new PncpClient({ ...clientOptions, fetch: fakeFetch(unexpected) }),
+    contractsPncp: new PncpClient({ ...clientOptions, pageSize: 500, fetch: fakeFetch(options.contractsFetch) }),
+    termsPncp: new PncpClient({
+      ...clientOptions,
+      baseUrl: 'https://pncp.example/api/pncp',
+      pageSize: 500,
+      fetch: fakeFetch(options.termsFetch ?? unexpected),
+    }),
+    config: { ...config, contracts: { ...config.contracts, ...options.contracts } },
+    logger: createCollectorLogger('error', () => {}),
+    now: options.now ?? (() => new Date()),
+  };
 }
 
 /** Acompanhamento da conta, com a linha de histórico de quem marcou (como a API fará). */

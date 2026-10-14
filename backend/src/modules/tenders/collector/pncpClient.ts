@@ -1,20 +1,39 @@
 import { z } from 'zod/v4';
 
 // Cliente do PNCP (público, sem autenticação): consultas paginadas da API de
-// Consultas, usadas pelo coletor, e listas de itens e arquivos de uma compra
-// da API principal, abertas na tela de detalhe. Recebe fetch, sleep, random e
-// now por parâmetro, para os testes simularem HTTP e espera sem rede nem
-// relógio real.
+// Consultas (contratações e contratos), usadas pelo coletor; listas de itens e
+// arquivos de uma compra da API principal, abertas na tela de detalhe; e os
+// termos de um contrato, consultados pelo coletor de contratos. Recebe fetch,
+// sleep, random e now por parâmetro, para os testes simularem HTTP e espera
+// sem rede nem relógio real.
 
 export const PNCP_ENDPOINTS = ['proposta', 'publicacao', 'atualizacao'] as const;
 export type PncpEndpoint = (typeof PNCP_ENDPOINTS)[number];
+
+/** Consultas de contratos da API de Consultas: por data de publicação e por data de atualização global. */
+export const PNCP_CONTRACT_ENDPOINTS = ['contratos', 'contratos-atualizacao'] as const;
+export type PncpContractEndpoint = (typeof PNCP_CONTRACT_ENDPOINTS)[number];
+
+/** Qualquer consulta paginada da API de Consultas. */
+export type PncpQueryEndpoint = PncpEndpoint | PncpContractEndpoint;
+
+const QUERY_PATHS: Record<PncpQueryEndpoint, string> = {
+  proposta: 'contratacoes/proposta',
+  publicacao: 'contratacoes/publicacao',
+  atualizacao: 'contratacoes/atualizacao',
+  contratos: 'contratos',
+  'contratos-atualizacao': 'contratos/atualizacao',
+};
 
 /** Listas da API principal do PNCP (`/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/...`). */
 export const PNCP_DETAIL_LISTS = ['itens', 'arquivos'] as const;
 export type PncpDetailList = (typeof PNCP_DETAIL_LISTS)[number];
 
+/** Termos de um contrato na API principal (`/v1/orgaos/{cnpj}/contratos/{ano}/{sequencial}/termos`). */
+export const PNCP_CONTRACT_TERMS = 'termos';
+
 /** O que foi pedido ao PNCP, para os erros e o log de repetições. */
-export type PncpRequestTarget = PncpEndpoint | PncpDetailList;
+export type PncpRequestTarget = PncpQueryEndpoint | PncpDetailList | typeof PNCP_CONTRACT_TERMS;
 
 export type PncpQueryParams = Record<string, string | number>;
 
@@ -32,6 +51,9 @@ export interface PncpPurchaseKey {
   year: number;
   sequence: number;
 }
+
+/** Contrato no PNCP: CNPJ do órgão, ano e sequencial do contrato. */
+export type PncpContractKey = PncpPurchaseKey;
 
 export interface PncpRetryInfo {
   endpoint: PncpRequestTarget;
@@ -77,6 +99,9 @@ const pageEnvelopeSchema = z.object({
 });
 
 const detailListSchema = z.array(z.unknown());
+
+// Os termos de um contrato costumam caber numa página; o limite só evita laço sem fim.
+const MAX_TERM_PAGES = 10;
 
 const BASE_BACKOFF_MS = 1_000;
 const BACKOFF_JITTER_RATIO = 0.25;
@@ -129,7 +154,7 @@ export class PncpClient {
   }
 
   /** Percorre as páginas de uma consulta até `paginasRestantes = 0` (ou até `maxPages`). */
-  async *pages(endpoint: PncpEndpoint, params: PncpQueryParams, options: { maxPages?: number } = {}): AsyncGenerator<PncpPage> {
+  async *pages(endpoint: PncpQueryEndpoint, params: PncpQueryParams, options: { maxPages?: number } = {}): AsyncGenerator<PncpPage> {
     for (let pageNumber = 1; ; pageNumber += 1) {
       const page = await this.fetchPage(endpoint, params, pageNumber);
       yield page;
@@ -141,7 +166,7 @@ export class PncpClient {
     }
   }
 
-  async fetchPage(endpoint: PncpEndpoint, params: PncpQueryParams, pageNumber: number): Promise<PncpPage> {
+  async fetchPage(endpoint: PncpQueryEndpoint, params: PncpQueryParams, pageNumber: number): Promise<PncpPage> {
     const url = this.buildUrl(endpoint, params, pageNumber);
     return this.withRetries(endpoint, pageNumber, (attempt) => this.requestPage(url, endpoint, pageNumber, attempt));
   }
@@ -155,7 +180,33 @@ export class PncpClient {
     const query = new URLSearchParams({ pagina: String(pageNumber), tamanhoPagina: String(this.options.pageSize) });
     const purchasePath = `${encodeURIComponent(purchase.agencyCnpj)}/compras/${purchase.year}/${purchase.sequence}`;
     const url = `${this.options.baseUrl}/v1/orgaos/${purchasePath}/${list}?${query.toString()}`;
-    return this.withRetries(list, pageNumber, (attempt) => this.requestDetailList(url, list, pageNumber, attempt));
+    return this.withRetries(list, pageNumber, (attempt) => this.requestList(url, list, pageNumber, attempt));
+  }
+
+  /**
+   * Todos os termos de um contrato (aditivos, apostilamentos e rescisões), na
+   * API principal do PNCP. HTTP 204 é contrato sem termos (lista vazia);
+   * contrato que o PNCP não conhece (404) volta `null`, sem repetir. Página
+   * cheia segue para a próxima.
+   */
+  async fetchContractTerms(contract: PncpContractKey): Promise<unknown[] | null> {
+    const contractPath = `${encodeURIComponent(contract.agencyCnpj)}/contratos/${contract.year}/${contract.sequence}`;
+    const terms: unknown[] = [];
+    for (let pageNumber = 1; pageNumber <= MAX_TERM_PAGES; pageNumber += 1) {
+      const query = new URLSearchParams({ pagina: String(pageNumber), tamanhoPagina: String(this.options.pageSize) });
+      const url = `${this.options.baseUrl}/v1/orgaos/${contractPath}/${PNCP_CONTRACT_TERMS}?${query.toString()}`;
+      const page = await this.withRetries(PNCP_CONTRACT_TERMS, pageNumber, (attempt) =>
+        this.requestList(url, PNCP_CONTRACT_TERMS, pageNumber, attempt),
+      );
+      if (page === null) {
+        return pageNumber === 1 ? null : terms;
+      }
+      terms.push(...page);
+      if (page.length < this.options.pageSize) {
+        return terms;
+      }
+    }
+    return terms;
   }
 
   /** Pausa entre requisições, repetição das falhas passageiras e erro tipado ao desistir. */
@@ -186,7 +237,7 @@ export class PncpClient {
     }
   }
 
-  private async requestPage(url: string, endpoint: PncpEndpoint, pageNumber: number, attempt: number): Promise<PncpPage> {
+  private async requestPage(url: string, endpoint: PncpQueryEndpoint, pageNumber: number, attempt: number): Promise<PncpPage> {
     const response = await this.send(url);
 
     if (response.status === 204) {
@@ -210,7 +261,8 @@ export class PncpClient {
     };
   }
 
-  private async requestDetailList(url: string, list: PncpDetailList, pageNumber: number, attempt: number): Promise<unknown[] | null> {
+  /** Lista da API principal: 204 = vazia; 404 = não encontrado (`null`, sem repetir). */
+  private async requestList(url: string, target: PncpRequestTarget, pageNumber: number, attempt: number): Promise<unknown[] | null> {
     const response = await this.send(url);
 
     if (response.status === 204) {
@@ -221,7 +273,7 @@ export class PncpClient {
       return null;
     }
 
-    await this.rejectFailedResponse(response, list, pageNumber, attempt);
+    await this.rejectFailedResponse(response, target, pageNumber, attempt);
 
     const records = detailListSchema.safeParse(await this.readJson(response));
     if (!records.success) {
@@ -268,14 +320,14 @@ export class PncpClient {
     }
   }
 
-  private buildUrl(endpoint: PncpEndpoint, params: PncpQueryParams, pageNumber: number): string {
+  private buildUrl(endpoint: PncpQueryEndpoint, params: PncpQueryParams, pageNumber: number): string {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
       query.set(key, String(value));
     }
     query.set('pagina', String(pageNumber));
     query.set('tamanhoPagina', String(this.options.pageSize));
-    return `${this.options.baseUrl}/v1/contratacoes/${endpoint}?${query.toString()}`;
+    return `${this.options.baseUrl}/v1/${QUERY_PATHS[endpoint]}?${query.toString()}`;
   }
 
   /** Retry-After quando vier; senão, espera longa no 429 e backoff curto nas outras falhas. */

@@ -1,0 +1,51 @@
+[
+  {
+    "unidade": {
+      "codigoUnidade": "18",
+      "nomeUnidade": "Câmara Municipal de Chapecó",
+      "municipioNome": "Chapecó",
+      "codigoIbge": "4204202",
+      "ufSigla": "SC",
+      "ufNome": "Santa Catarina"
+    },
+    "fornecedor": null,
+    "niFornecedor": null,
+    "fornecedorSubContratado": null,
+    "niFornecedorSubContratado": null,
+    "orgaoEntidade": {
+      "cnpj": "83831719000100",
+      "razaoSocial": "CHAPECO CAMARA DE VEREADORES",
+      "esferaId": "M",
+      "poderId": "L"
+    },
+    "dataAssinatura": "2025-12-12",
+    "dataVigenciaFim": "2026-12-31",
+    "dataVigenciaInicio": "2026-01-01",
+    "dataAtualizacao": "2025-12-13T00:00:16",
+    "tipoPessoa": "PJ",
+    "nomeRazaoSocialFornecedor": null,
+    "dataInclusao": "2025-12-13T00:00:16",
+    "dataPublicacaoPncp": "2025-12-13T00:00:16",
+    "informacaoComplementar": null,
+    "unidadeSubrogada": null,
+    "processo": "PR13/2024",
+    "objetoTermoContrato": "Contrato 7/2024 - Aditivo de contrato 7/2024-1",
+    "fundamentoLegal": null,
+    "valorAcrescido": null,
+    "sequencialTermoContrato": 1,
+    "numeroTermoContrato": "7/2024-1",
+    "qualificacaoReajuste": false,
+    "informativoObservacao": null,
+    "orgaoSubrogado": null,
+    "tipoPessoaSubContratada": null,
+    "prazoAditadoDias": null,
+    "qualificacaoVigencia": true,
+    "qualificacaoAcrescimoSupressao": true,
+    "qualificacaoFornecedor": false,
+    "numeroParcelas": null,
+    "nomeFornecedorSubContratado": null,
+    "valorParcela": null,
+    "valorGlobal": null,
+    "tipoTermoContratoNome": "Termo Aditivo"
+  }
+]

@@ -7,7 +7,7 @@ import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settings
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { CollectionRun, CollectionRunStatus, CollectionStatus, Paginated } from '../types';
-import { runDurationLabel, runErrorLines } from '../utils/collectionRuns';
+import { backfillSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
 import { formatIsoDateTime } from '../utils/dates';
 import { RUN_STATUS_LABELS, RUN_TYPE_LABELS } from '../utils/labels';
 import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
@@ -15,9 +15,10 @@ import { LoadError, LoadingBlock } from './LoadStates';
 import { Pagination } from './Pagination';
 import { Pill, type PillTone } from './Pill';
 
-// Coleta (titular ou admin): última varredura e últimos lembretes de prazo
-// (a rotina diária das 06:00), próxima execução prevista e o histórico das
-// execuções, com totais e erros.
+// Coleta (titular ou admin): última varredura, últimos lembretes de prazo e os
+// contratos (coleta diária e andamento da carga inicial), todos da rotina
+// diária das 06:00, próxima execução prevista e o histórico das execuções,
+// com totais e erros.
 
 const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
   EXECUTANDO: 'brand',
@@ -49,6 +50,54 @@ function RunErrors({ run }: { run: CollectionRun }) {
         ))}
       </ul>
     </details>
+  );
+}
+
+const TERM_CLASS = 'text-slate-500 dark:text-slate-400';
+const VALUE_CLASS = 'text-right tabular-nums text-slate-800 dark:text-slate-100';
+
+function ContractsCard({ status }: { status: CollectionStatus }) {
+  const daily = status.latestRuns.find((run) => run.type === 'CONTRATOS_DIARIA');
+  const backfillRunning = status.latestRuns.some((run) => run.type === 'CONTRATOS_CARGA' && run.status === 'EXECUTANDO');
+  const summary = backfillSummary(status.contracts.backfill);
+  const backfillStatus = backfillRunning ? 'Carga em andamento' : summary.status;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2 dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Contratos</h3>
+        {daily && <RunStatusPill status={daily.status} />}
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <dt className={TERM_CLASS}>Última coleta diária</dt>
+        <dd className={VALUE_CLASS}>{daily ? formatIsoDateTime(daily.startedAt) : 'Ainda não rodou.'}</dd>
+        {daily && (
+          <>
+            <dt className={TERM_CLASS}>Lidos · novos · atualizados</dt>
+            <dd className={VALUE_CLASS}>
+              {formatCount(daily.recordsRead)} · {formatCount(daily.newCount)} · {formatCount(daily.updatedCount)}
+            </dd>
+          </>
+        )}
+        <dt className={TERM_CLASS}>Contratos vigentes na base</dt>
+        <dd className={VALUE_CLASS}>{formatCount(status.contracts.activeContracts)}</dd>
+        <dt className={TERM_CLASS}>Carga inicial</dt>
+        <dd className={VALUE_CLASS}>
+          {backfillStatus}
+          {summary.progress ? ` · ${summary.progress}` : ''}
+        </dd>
+      </dl>
+      {summary.notes.length > 0 && (
+        <ul className="mt-2 grid grid-cols-1 gap-0.5 text-xs text-slate-600 dark:text-slate-300">
+          {summary.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+        Próxima prevista: <strong className="tabular-nums">{formatIsoDateTime(status.nextRuns.CONTRATOS_DIARIA)}</strong>
+      </p>
+    </section>
   );
 }
 
@@ -97,6 +146,7 @@ function StatusCards({ status }: { status: CollectionStatus }) {
             </section>
           );
         })}
+        <ContractsCard status={status} />
       </div>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {formatCount(status.totals.notices)} editais na base, {formatCount(status.totals.openNotices)} com prazo aberto.

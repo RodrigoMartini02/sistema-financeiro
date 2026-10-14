@@ -10,6 +10,7 @@ import {
   boolean,
   numeric,
   timestamp,
+  date,
   jsonb,
   customType,
   index,
@@ -24,6 +25,7 @@ import type {
   CollectionRunType,
   DetailCacheType,
   SearchTermsMode,
+  SupplierPersonType,
   TenderAccessType,
   TenderNotificationType,
   TrackingHistoryStatus,
@@ -114,6 +116,99 @@ export const tenderNotices = tendersSchema.table(
     controlNumberGroupsIdx: index('ix_edital_controle_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.pncpControlNumber})`),
   }),
 );
+
+/** Um termo do contrato no PNCP (aditivo, apostilamento ou rescisão), resumido para o detalhe. */
+export interface ContractTermSummary {
+  type: string | null;
+  number: string | null;
+  sequence: number | null;
+  signedAt: string | null;
+  /** Fim da vigência que o termo informa (aditivo de prazo ou rescisão). */
+  endDate: string | null;
+  addedValue: string | null;
+  /** Termo que muda a vigência: conta para o vencimento atual. */
+  changesTerm: boolean;
+}
+
+/**
+ * Global: contratos vigentes do PNCP (migration 0085), sem o JSON completo.
+ * `amendments` NULL = termos não conferidos; [] = conferidos, sem termo.
+ */
+export const tenderContracts = tendersSchema.table(
+  'contrato',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    pncpControlNumber: varchar('numero_controle_pncp', { length: 60 }).notNull().unique(),
+    purchaseControlNumber: varchar('numero_controle_compra', { length: 60 }),
+    contractYear: integer('ano_contrato').notNull(),
+    contractSequence: integer('sequencial_contrato').notNull(),
+    contractNumber: text('numero_contrato'),
+    processNumber: text('processo'),
+    agencyCnpj: varchar('orgao_cnpj', { length: 14 }).notNull(),
+    agencyName: text('orgao_razao_social'),
+    governmentSphere: varchar('esfera', { length: 2 }),
+    unitCode: varchar('unidade_codigo', { length: 30 }),
+    unitName: text('unidade_nome'),
+    state: char('uf', { length: 2 }),
+    cityName: text('municipio_nome'),
+    cityIbgeCode: varchar('municipio_ibge', { length: 7 }),
+    categoryId: smallint('categoria_id'),
+    categoryName: text('categoria_nome'),
+    contractObject: text('objeto').notNull(),
+    additionalInformation: text('informacao_complementar'),
+    supplierPersonType: varchar('fornecedor_tipo_pessoa', { length: 2 }).$type<SupplierPersonType>(),
+    supplierDocument: varchar('fornecedor_documento', { length: 30 }),
+    supplierName: text('fornecedor_nome'),
+    initialValue: numeric('valor_inicial', { precision: 18, scale: 2 }),
+    globalValue: numeric('valor_global', { precision: 18, scale: 2 }),
+    signedAt: date('data_assinatura', { mode: 'string' }),
+    termStart: date('vigencia_inicio', { mode: 'string' }).notNull(),
+    originalTermEnd: date('vigencia_fim_original', { mode: 'string' }).notNull(),
+    expiresOn: date('vencimento', { mode: 'string' }).notNull(),
+    publishedAt: timestampWithZone('data_publicacao_pncp').notNull(),
+    pncpUpdatedAt: timestampWithZone('data_atualizacao_pncp'),
+    pncpGlobalUpdatedAt: timestampWithZone('data_atualizacao_global'),
+    amendments: jsonb('aditivos').$type<ContractTermSummary[]>(),
+    amendmentsReference: timestampWithZone('aditivos_referencia'),
+    payloadHash: char('hash_payload', { length: 64 }).notNull(),
+    searchVector: tsvector('busca_tsv').generatedAlwaysAs(
+      sql`to_tsvector('licitacoes.pt_unaccent', coalesce(objeto, '') || ' ' || coalesce(informacao_complementar, ''))`,
+    ),
+    firstCollectedAt: timestampWithZone('primeira_coleta_em').defaultNow().notNull(),
+    lastCollectedAt: timestampWithZone('ultima_coleta_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    searchVectorIdx: index('ix_contrato_tsv').using('gin', table.searchVector),
+    expiresOnIdx: index('ix_contrato_vencimento').on(table.expiresOn),
+    stateIdx: index('ix_contrato_uf').on(table.state),
+    cityIdx: index('ix_contrato_municipio').on(table.cityIbgeCode),
+    agencyIdx: index('ix_contrato_orgao').on(table.agencyCnpj),
+    categoryIdx: index('ix_contrato_categoria').on(table.categoryId),
+    publishedAtIdx: index('ix_contrato_publicacao').on(table.publishedAt.desc()),
+    valueIdx: index('ix_contrato_valor').on(table.globalValue),
+    supplierIdx: index('ix_contrato_fornecedor').on(table.supplierDocument),
+    // Busca por número (parte B): as mesmas expressões da migration 0085.
+    numberGroupsIdx: index('ix_contrato_numero_grupos').using(
+      'gin',
+      sql`licitacoes.fn_grupos_digitos(coalesce(${table.contractNumber}, '') || ' ' || ${table.contractYear}::text)`,
+    ),
+    processGroupsIdx: index('ix_contrato_processo_grupos').using(
+      'gin',
+      sql`licitacoes.fn_grupos_digitos(coalesce(${table.processNumber}, '') || ' ' || ${table.contractYear}::text)`,
+    ),
+    controlNumberGroupsIdx: index('ix_contrato_controle_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.pncpControlNumber})`),
+    purchaseGroupsIdx: index('ix_contrato_compra_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.purchaseControlNumber})`),
+  }),
+);
+
+/** Global: dias de publicação que a carga inicial de contratos já concluiu (migration 0085). */
+export const tenderContractBackfillDays = tendersSchema.table('contrato_carga_dia', {
+  day: date('dia', { mode: 'string' }).primaryKey(),
+  completedAt: timestampWithZone('concluido_em').defaultNow().notNull(),
+  recordsRead: integer('registros_lidos').default(0).notNull(),
+  storedCount: integer('gravados').default(0).notNull(),
+  termsChecked: integer('aditivos_consultados').default(0).notNull(),
+});
 
 /**
  * Contas com o módulo: cortesia (admin) ou assinatura (teste, pago ou
@@ -291,3 +386,5 @@ export const tenderDetailCache = tendersSchema.table(
 
 export type TenderNotice = typeof tenderNotices.$inferSelect;
 export type NewTenderNotice = typeof tenderNotices.$inferInsert;
+export type TenderContract = typeof tenderContracts.$inferSelect;
+export type NewTenderContract = typeof tenderContracts.$inferInsert;

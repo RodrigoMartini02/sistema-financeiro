@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { nextScheduledRun } from './collectionOverview';
+import { backfillRunView, nextScheduledRun } from './collectionOverview';
 
 // 2026-10-05 é segunda-feira. Horários em UTC; Brasília = UTC−3.
 const at = (isoUtc: string) => new Date(isoUtc);
@@ -23,4 +23,28 @@ test('limpeza: domingo às 06:00', () => {
   assert.equal(nextScheduledRun('LIMPEZA', at('2026-10-05T12:00:00Z')), '2026-10-11T06:00:00-03:00');
   assert.equal(nextScheduledRun('LIMPEZA', at('2026-10-11T08:59:00Z')), '2026-10-11T06:00:00-03:00');
   assert.equal(nextScheduledRun('LIMPEZA', at('2026-10-11T09:00:00Z')), '2026-10-18T06:00:00-03:00');
+});
+
+test('contratos: coleta diária, limpeza e carga todo dia às 06:00 (rotina diária)', () => {
+  for (const type of ['CONTRATOS_DIARIA', 'CONTRATOS_LIMPEZA', 'CONTRATOS_CARGA'] as const) {
+    assert.equal(nextScheduledRun(type, at('2026-10-05T12:00:00Z')), '2026-10-06T06:00:00-03:00');
+  }
+});
+
+test('carga de contratos: lê a faixa, os dias pendentes e o motivo da parada nos detalhes da execução', () => {
+  const details = {
+    backfill: { from: '2021-01-01', to: '2026-10-12', totalDays: 2111, pendingAfter: 1900, stoppedBy: 'time', finished: false },
+  };
+  assert.deepEqual(backfillRunView(details), {
+    from: '2021-01-01',
+    to: '2026-10-12',
+    totalDays: 2111,
+    pendingDays: 1900,
+    stoppedBy: 'time',
+    finished: false,
+  });
+  assert.equal(backfillRunView({ backfill: { ...details.backfill, stoppedBy: 'outro' } })?.stoppedBy, null);
+  assert.equal(backfillRunView({}), null, 'execução ainda sem detalhes (em andamento)');
+  assert.equal(backfillRunView({ backfill: { from: '2021-01-01' } }), null);
+  assert.equal(backfillRunView(undefined), null);
 });

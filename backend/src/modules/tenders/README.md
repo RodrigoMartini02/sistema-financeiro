@@ -8,8 +8,8 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API) e `.plans/licitacoes-produto.md` (assinatura própria);
-- migrations `backend/drizzle/0072` a `0080`.
+- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria) e `.plans/licitacoes-contratos-a-vencer.md` (contratos);
+- migrations `backend/drizzle/0072` a `0080` e `0085` (contratos).
 
 ## Estrutura
 
@@ -30,6 +30,9 @@ backend/src/modules/tenders/
 │   ├── repository.ts                upsert por página, lock, execuções, limpeza
 │   ├── notifications.ts             NOVO_EDITAL, EDITAL_ALTERADO, PRAZO_3D, PRAZO_1D
 │   ├── runs.ts                      varredura, incremental, lembretes, limpeza
+│   ├── contractMapping.ts           contrato do PNCP → licitacoes.contrato; vencimento pelos termos
+│   ├── contractRepository.ts        upsert de contratos, dias da carga, limpeza e tamanho do banco
+│   ├── contractRuns.ts              contratos: coleta diária, carga inicial e limpeza
 │   ├── runtime.ts                   config, log, banco e PNCP de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
@@ -50,6 +53,11 @@ backend/src/modules/tenders/
 | `PNCP_REQUEST_INTERVAL_MS` | `4000` | Pausa entre requisições. Medido na Fase 1: a 400 ms e a 1 s o PNCP responde 429 depois de poucas páginas; a 4 s, nenhum 429 numa varredura inteira. |
 | `PNCP_TIMEOUT_S` | `30` | Tempo máximo de cada requisição. |
 | `PNCP_MAX_ATTEMPTS` | `5` | Tentativas em timeout, erro de rede, 429 e 5xx. |
+| `PNCP_CONTRACTS_PAGE_SIZE` | `500` | Contratos por página (10 a 500). |
+| `PNCP_TERMS_INTERVAL_MS` | `500` | Pausa entre as consultas de termos (API principal), separada da consulta. Medido no piloto: mais de 10 mil consultas a 0,5 s, sem 429. |
+| `TENDERS_CONTRACTS_BACKFILL_FROM` | `2021-01-01` | Dia de publicação mais antigo da carga inicial. |
+| `TENDERS_CONTRACTS_BACKFILL_MINUTES` | `480` | Tempo de cada bloco da carga (1 a 600). |
+| `TENDERS_CONTRACTS_MAX_DB_MB` | — (sem ela, a carga não roda) | Tamanho do banco em que a carga para. É o "ligar" da carga: sugestão de 70% do espaço do plano do Postgres. |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
@@ -69,6 +77,9 @@ npm --prefix backend run tenders -- cleanup                   # encerrados há 1
 npm --prefix backend run tenders -- status                    # última execução de cada tipo e totais
 npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2   # depuração
+npm --prefix backend run tenders -- contracts-daily           # contratos publicados e atualizados de ontem a hoje
+npm --prefix backend run tenders -- contracts-cleanup         # apaga os contratos vencidos
+npm --prefix backend run tenders -- contracts-backfill [--from 2026-09-01] [--to 2026-09-30] [--max-minutes 90] [--max-db-mb 2000]
 ```
 
 No banco local, o mesmo comando vai com `tenders:dev`, que lê o `../.env.dev`:
@@ -78,7 +89,7 @@ npm --prefix backend run tenders:dev -- sweep
 ```
 
 - **Saída:** cada execução fica em `licitacoes.coleta_execucao` com tipo, status (`SUCESSO`, `PARCIAL` ou `FALHA`), requisições, registros lidos, novos, atualizados, notificações, erros e detalhes. O código de saída é 1 em `FALHA`.
-- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava.
+- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava, e os contratos uma terceira: a carga manual e a rotina não rodam juntas.
 
 ## Agendamento (Render Cron Job, horário em UTC)
 
@@ -94,13 +105,16 @@ Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um
 1. rotina de vencimento de planos (`POST /api/internal-jobs/plan-lifecycle`);
 2. varredura (`sweep`);
 3. lembretes de prazo (`deadline-reminders`);
-4. limpeza (`cleanup`), só aos domingos pelo calendário de Brasília.
+4. coleta diária de contratos (`contracts-daily`);
+5. limpeza dos contratos vencidos (`contracts-cleanup`), todo dia;
+6. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
+7. carga inicial de contratos (`contracts-backfill`), por último: só roda com `TENDERS_CONTRACTS_MAX_DB_MB` definida e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
 
 Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração.
 
 - **Variáveis:** `BILLING_CRON_SECRET` (rotina de planos), `TENDERS_COLLECTOR_DATABASE_URL` e, se fugirem do padrão, `BACKEND_URL` (padrão: o backend de produção) e as `PNCP_*`.
 - **Sem coleta incremental:** os editais novos entram na varredura do dia seguinte. Os lembretes pegam tudo o que encerra nas próximas 72 h e 24 h, sem repetir aviso, então uma execução por dia basta.
-- **Custo:** Cron Job no Render é pago por uso (mínimo de US$ 1 por mês). A varredura leva uns 45 minutos.
+- **Custo:** Cron Job no Render é pago por uso (mínimo de US$ 1 por mês). A varredura leva uns 45 minutos, e os contratos de 25 a 30 minutos por dia. Durante a carga inicial, a rotina dura ~9,5 h (o limite do Render é 12 h), por uns 10 dias, e a conta continua no mínimo.
 - **Teste local:** `npm --prefix backend run daily-jobs` com `DOTENV_CONFIG_PATH=../.env.dev`, `TENDERS_COLLECTOR_DATABASE_URL` do banco local, `BACKEND_URL=http://localhost:3010` e o `BILLING_CRON_SECRET` do backend local. A varredura completa leva o mesmo tempo da produção.
 
 ## Usuário de banco restrito
@@ -115,7 +129,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA licitacoes TO licitacoes_coletor;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA licitacoes TO licitacoes_coletor;
 ```
 
-- Rodar depois das migrations 0072 a 0077. Os `GRANT ... ON ALL` valem para o que já existe; tabelas criadas depois exigem novo `GRANT`.
+- Rodar depois das migrations 0072 a 0077. Os `GRANT ... ON ALL` valem para o que já existe; tabelas criadas depois exigem novo `GRANT`. As migrations 0080 e 0085 (contratos) já dão o acesso às tabelas que criam, quando o usuário existe.
 - O usuário do backend é o dono das tabelas e já tem todas as permissões.
 - No banco local, o coletor pode usar o mesmo usuário do `.env.dev`.
 
@@ -133,6 +147,7 @@ npm --prefix backend run test:tenders-db
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
+  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza e trava própria;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
@@ -175,6 +190,61 @@ SELECT count(*) AS editais,
 - **`hash_payload`:** SHA-256 do JSON com as chaves ordenadas. A mesma resposta em outra ordem dá o mesmo hash.
 - **`link_pncp`:** `https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}`.
 - **`link` das notificações:** `/editais/<id>`, a partir do início do app do módulo. A tela completa com `/licitacoes/app` (decisão 24).
+
+## Contratos a vencer (dados)
+
+Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos vigentes do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria (`licitacoes.contrato`, migration 0085), com uma carga inicial e uma coleta diária.
+
+**O que entra** (`collector/contractMapping.ts`):
+- só "Contrato (termo inicial)" (`tipoContrato.id = 1`), com vigência original de 180 dias ou mais e vencimento de hoje em diante;
+- ficam de fora, contados nos detalhes da execução, sem erro:
+  - outro tipo (`skippedNotInitialTerm`);
+  - contrato curto (`skippedShortTerm`);
+  - sem data de fim (`skippedWithoutEndDate`);
+  - vigência de mais de 35 anos (`skippedImplausibleTerm`): digitação como 2227, ou água e energia com 2100 e 3024;
+  - vencido ainda não gravado (`skippedExpired`);
+- registro fora do formato (CNPJ, datas, fim antes do início) conta erro, como nos editais;
+- fornecedor pessoa física: o CPF fica só mascarado (`***.456.789-**`).
+
+**Vencimento pelos termos:**
+- **Sinal de alteração:** a atualização global mais de 24 h depois da publicação. Só com o sinal os termos são consultados (`GET /v1/orgaos/{cnpj}/contratos/{ano}/{sequencial}/termos`, na API principal). Eles só voltam a ser consultados quando a data de atualização global muda (`aditivos_referencia`).
+- **Regra:** vale o termo mais recente (pela assinatura e depois pelo sequencial) que muda a vigência:
+  - aditivo com `qualificacaoVigencia`: vale a `dataVigenciaFim`;
+  - rescisão ("Termo de Rescisão"): vale a `dataVigenciaFim` ou, sem ela, a assinatura;
+  - apostilamento não conta.
+- **Aditivo de prazo sem a data nova:** mantém o vencimento anterior e é contado em `termsWithoutEndDate`. Data de fim fora do formato conta erro.
+- **`aditivos`:** NULL = termos não conferidos; `[]` = conferidos, sem termo.
+- **Link do contrato no PNCP:** `https://pncp.gov.br/app/contratos/{cnpj}/{ano}/{sequencial}`.
+
+**Carga inicial** (`contracts-backfill`):
+- **Ordem:** um dia de publicação por vez, do mais recente (ontem, na primeira execução) até `TENDERS_CONTRACTS_BACKFILL_FROM`. O dia só é marcado em `contrato_carga_dia` ao terminar, e o que falhou fica para a próxima execução.
+- **Paradas:** antes de cada dia, a carga confere o tempo do bloco e o tamanho do banco (`pg_database_size`). Para no primeiro limite, com o motivo em `detalhes.backfill.stoppedBy`:
+  - `time`: tempo do bloco;
+  - `space`: tamanho do banco;
+  - `pncp`: 3 dias seguidos com falha do PNCP.
+- **Ligar na produção:** definir `TENDERS_CONTRACTS_MAX_DB_MB` no Cron Job. Sem ela, a etapa sai com "carga não iniciada". Sem dia pendente, sai com "carga concluída".
+- **Andamento:** em Configurações › Coleta (bloco Contratos) ou no comando `status`.
+
+**Coleta diária e limpeza:**
+- **Coleta:** os contratos publicados e atualizados de ontem a hoje.
+- **Limpeza:** todo dia, apaga os contratos com vencimento antes de hoje. Se um aditivo for publicado depois, a coleta diária traz o contrato de volta.
+
+**Medido no piloto** (13 e 14/10/2026, banco local; números completos no plano):
+- **Ritmo:** nenhum 429 com termos a 4 s, 1 s e 0,5 s (mais de 10 mil consultas a 0,5 s). A consulta de contratos, a 4 s entre páginas de 500, levou de 1 a 3 s por página.
+- **Espaço:** 1.797 bytes por contrato com os índices (tabela 1.203, TOAST 51 e índices 543).
+- **Setembro/2026:** 175.638 registros e 43.386 contratos (24,7%), ~2,6 min por dia útil.
+- **Carga completa** (5 milhões de registros, de 2021 a 10/2026): 68 a 78 h, ~585 mil contratos e ~1 GB. Com blocos de 8 h, ~10 dias. Em um ano, ~1,1 GB.
+- **Coleta diária:** ~1.900 consultas de termos e ~43 páginas, de 25 a 30 min.
+- **Busca no banco local** (59,5 mil contratos): de 0,05 a 4,7 ms.
+
+**Medir de novo** depois da carga:
+
+```sql
+SELECT count(*) AS contratos,
+       pg_size_pretty(pg_total_relation_size('licitacoes.contrato')) AS total,
+       pg_total_relation_size('licitacoes.contrato') / greatest(count(*), 1) AS bytes_por_contrato
+  FROM licitacoes.contrato;
+```
 
 ## Singular e plural na busca (migrations 0075 e 0077)
 

@@ -26,7 +26,12 @@ import {
 export interface CollectorContext {
   db: TendersDb;
   pool: Pool;
+  /** Consulta de contratações (editais). */
   pncp: PncpClient;
+  /** Consulta de contratos, com o tamanho de página dos contratos. */
+  contractsPncp: PncpClient;
+  /** Termos dos contratos na API principal, com ritmo próprio (PNCP_TERMS_INTERVAL_MS). */
+  termsPncp: PncpClient;
   config: CollectorConfig;
   logger: CollectorLogger;
   now: () => Date;
@@ -40,7 +45,7 @@ const MAX_ERROR_DETAILS = 50;
 const NOTICE_RETENTION_MONTHS = 12;
 
 /** Contadores de uma execução. Erros vão para os detalhes até um limite, e o excedente só é contado. */
-class RunTally {
+export class RunTally {
   recordsRead = 0;
   newCount = 0;
   updatedCount = 0;
@@ -51,6 +56,15 @@ class RunTally {
   private omittedErrors = 0;
 
   constructor(private readonly requestsAtStart: number) {}
+
+  /** Soma um contador nos detalhes (ex.: registros ignorados por motivo). */
+  addDetailCount(key: string, amount: number): void {
+    if (amount <= 0) {
+      return;
+    }
+    const previous = typeof this.details[key] === 'number' ? this.details[key] : 0;
+    this.details[key] = previous + amount;
+  }
 
   addError(detail: Record<string, unknown>): void {
     this.errorCount += 1;
@@ -87,11 +101,16 @@ class RunTally {
   }
 }
 
-async function withCollectionRun(
+/**
+ * Uma execução registrada em coleta_execucao, com a trava da chave. A contagem
+ * de requisições é a do cliente de editais; os contratos passam a soma dos deles.
+ */
+export async function withCollectionRun(
   context: CollectorContext,
   type: CollectionRunType,
   lockKey: number,
   work: (tally: RunTally) => Promise<void>,
+  requestCount: () => number = () => context.pncp.requestCount,
 ): Promise<RunOutcome> {
   const lock = await tryAcquireCollectorLock(context.pool, lockKey);
   if (!lock) {
@@ -102,7 +121,7 @@ async function withCollectionRun(
 
   try {
     const runId = await startCollectionRun(context.db, type);
-    const tally = new RunTally(context.pncp.requestCount);
+    const tally = new RunTally(requestCount());
     context.logger.info('Execução iniciada', { runId, type });
 
     let status: CollectionRunStatus;
@@ -115,7 +134,7 @@ async function withCollectionRun(
       context.logger.error('Execução interrompida', { runId, type, error });
     }
 
-    const summary = tally.summarize(status, context.pncp.requestCount);
+    const summary = tally.summarize(status, requestCount());
     await finishCollectionRun(context.db, runId, summary);
     const { details, ...counters } = summary;
     context.logger.info('Execução finalizada', { runId, type, ...counters, omittedErrors: details.omittedErrors });
@@ -224,11 +243,7 @@ async function collectQuery(
   }
 
   for (const reason of Object.keys(skipped) as NoticeSkipReason[]) {
-    if (skipped[reason] > 0) {
-      const key = SKIP_DETAIL_KEYS[reason];
-      const previous = typeof tally.details[key] === 'number' ? tally.details[key] : 0;
-      tally.details[key] = previous + skipped[reason];
-    }
+    tally.addDetailCount(SKIP_DETAIL_KEYS[reason], skipped[reason]);
   }
 }
 

@@ -1,6 +1,8 @@
-import type { CollectionRun } from '../types';
+import type { BackfillStopReason, CollectionRun, ContractsCollection } from '../types';
+import { formatIsoDate } from './dates';
 
-// Histórico da coleta (Configurações → Coleta): duração e erros de cada execução.
+// Histórico da coleta (Configurações → Coleta): duração e erros de cada
+// execução, e o andamento da carga inicial de contratos.
 
 const MINUTE_SECONDS = 60;
 const HOUR_SECONDS = 60 * MINUTE_SECONDS;
@@ -37,4 +39,39 @@ export function runErrorLines(run: Pick<CollectionRun, 'details'>): string[] {
     lines.push(`e mais ${omitted.toLocaleString('pt-BR')} ${omitted === 1 ? 'erro' : 'erros'} não guardados`);
   }
   return lines;
+}
+
+const BACKFILL_STOP_LABELS: Record<BackfillStopReason, string> = {
+  time: 'Parou no limite de tempo do bloco; continua na próxima rotina.',
+  space: 'Parou no limite de espaço do banco.',
+  pncp: 'Parou porque o PNCP não respondeu; continua na próxima rotina.',
+};
+
+export interface BackfillSummary {
+  status: 'Carga não iniciada' | 'Carga em andamento' | 'Carga concluída';
+  /** "1.234 de 2.100 dias"; sem execução terminada, os dias já carregados. */
+  progress: string | null;
+  /** O dia mais antigo já carregado e, se parou antes de terminar, o motivo. */
+  notes: string[];
+}
+
+const dayCount = (days: number) => `${days.toLocaleString('pt-BR')} ${days === 1 ? 'dia' : 'dias'}`;
+
+/** Andamento da carga inicial de contratos, para o bloco "Contratos" da coleta. */
+export function backfillSummary(backfill: ContractsCollection['backfill']): BackfillSummary {
+  const notes = backfill.oldestDay ? [`Dia mais antigo carregado: ${formatIsoDate(backfill.oldestDay)}.`] : [];
+  const run = backfill.lastRun;
+  if (!run) {
+    if (backfill.completedDays === 0) {
+      return { status: 'Carga não iniciada', progress: null, notes };
+    }
+    const loaded = backfill.completedDays === 1 ? 'carregado' : 'carregados';
+    return { status: 'Carga em andamento', progress: `${dayCount(backfill.completedDays)} ${loaded}`, notes };
+  }
+
+  const progress = `${(run.totalDays - run.pendingDays).toLocaleString('pt-BR')} de ${dayCount(run.totalDays)}`;
+  if (run.finished) {
+    return { status: 'Carga concluída', progress, notes };
+  }
+  return { status: 'Carga em andamento', progress, notes: run.stoppedBy ? [...notes, BACKFILL_STOP_LABELS[run.stoppedBy]] : notes };
 }

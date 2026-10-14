@@ -16,9 +16,24 @@ export interface PncpSettings {
   maxAttempts: number;
 }
 
+/** Coleta de contratos (plano .plans/licitacoes-contratos-a-vencer.md). */
+export interface ContractsSettings {
+  /** Registros por página da consulta de contratos (10 a 500). */
+  pageSize: number;
+  /** Pausa entre as consultas de termos na API principal do PNCP. */
+  termsIntervalMs: number;
+  /** Dia de publicação mais antigo da carga inicial (AAAA-MM-DD). */
+  backfillFrom: string;
+  /** Tempo de cada bloco da carga, em minutos. */
+  backfillMinutes: number;
+  /** Tamanho do banco em que a carga para. Sem ele, a carga não roda: é o "ligar" da carga. */
+  maxDatabaseMb: number | null;
+}
+
 export interface CollectorConfig {
   databaseUrl: string;
   pncp: PncpSettings;
+  contracts: ContractsSettings;
   logLevel: LogLevel;
 }
 
@@ -66,6 +81,15 @@ const collectorEnvSchema = z.object({
   PNCP_REQUEST_INTERVAL_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
   PNCP_TIMEOUT_S: z.coerce.number().int().min(1).max(300).default(30),
   PNCP_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(5),
+  PNCP_CONTRACTS_PAGE_SIZE: z.coerce.number().int().min(10).max(500).default(500),
+  // Medido no piloto (14/10/2026): mais de 10 mil consultas de termos a 0,5 s,
+  // sem nenhum 429. A 4 s, só a coleta diária passaria de 2 h.
+  PNCP_TERMS_INTERVAL_MS: z.coerce.number().int().min(0).max(60_000).default(500),
+  TENDERS_CONTRACTS_BACKFILL_FROM: z.iso.date('deve ser uma data AAAA-MM-DD').default('2021-01-01'),
+  // Blocos de 8 h: a carga completa (~70 h no piloto) termina em ~10 dias, e a
+  // rotina fica abaixo do limite de 12 h do Cron Job do Render.
+  TENDERS_CONTRACTS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(480),
+  TENDERS_CONTRACTS_MAX_DB_MB: z.coerce.number().int().positive().optional(),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
@@ -98,6 +122,13 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       requestIntervalMs: values.PNCP_REQUEST_INTERVAL_MS,
       timeoutMs: values.PNCP_TIMEOUT_S * 1000,
       maxAttempts: values.PNCP_MAX_ATTEMPTS,
+    },
+    contracts: {
+      pageSize: values.PNCP_CONTRACTS_PAGE_SIZE,
+      termsIntervalMs: values.PNCP_TERMS_INTERVAL_MS,
+      backfillFrom: values.TENDERS_CONTRACTS_BACKFILL_FROM,
+      backfillMinutes: values.TENDERS_CONTRACTS_BACKFILL_MINUTES,
+      maxDatabaseMb: values.TENDERS_CONTRACTS_MAX_DB_MB ?? null,
     },
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,
   };

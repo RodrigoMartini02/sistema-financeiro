@@ -68,8 +68,25 @@ export type TenderAccessType = (typeof TENDER_ACCESS_TYPES)[number];
 export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
-export const COLLECTION_RUN_TYPES = ['VARREDURA', 'INCREMENTAL', 'LEMBRETES', 'LIMPEZA', 'MANUAL'] as const;
+/** Execuções do coletor; as de contratos são da migration 0085 (CONTRATOS_AVISOS entra na parte B). */
+export const COLLECTION_RUN_TYPES = [
+  'VARREDURA',
+  'INCREMENTAL',
+  'LEMBRETES',
+  'LIMPEZA',
+  'MANUAL',
+  'CONTRATOS_DIARIA',
+  'CONTRATOS_CARGA',
+  'CONTRATOS_LIMPEZA',
+] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
+
+/** Tipo de contrato do PNCP (`tipoContrato.id`) que entra em "Contratos a vencer": o termo inicial. */
+export const PNCP_INITIAL_CONTRACT_TYPE_ID = 1;
+
+/** Tipo de pessoa do fornecedor no PNCP: jurídica, física ou estrangeira. */
+export const SUPPLIER_PERSON_TYPES = ['PJ', 'PF', 'PE'] as const;
+export type SupplierPersonType = (typeof SUPPLIER_PERSON_TYPES)[number];
 
 export const COLLECTION_RUN_STATUSES = ['EXECUTANDO', 'SUCESSO', 'PARCIAL', 'FALHA'] as const;
 export type CollectionRunStatus = (typeof COLLECTION_RUN_STATUSES)[number];
