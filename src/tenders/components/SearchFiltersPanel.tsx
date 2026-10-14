@@ -27,10 +27,10 @@ import { MoneyField } from './MoneyField';
 import { MunicipalityPicker } from './MunicipalityPicker';
 import { TagInput } from './TagInput';
 
-const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
-const NUMBER_MESSAGE = 'Informe ao menos um número.';
+export const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
+export const NUMBER_MESSAGE = 'Informe ao menos um número.';
 
-function FilterSection({ title, children, error }: { title: string; children: ReactNode; error?: string | null }) {
+export function FilterSection({ title, children, error }: { title: string; children: ReactNode; error?: string | null }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="grid grid-cols-1 gap-2">

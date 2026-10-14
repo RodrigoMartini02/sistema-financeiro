@@ -1,0 +1,43 @@
+import { CalendarClock } from 'lucide-react';
+import type { ContractListItem } from '../types';
+import { daysUntilExpiry, expiryLabel } from '../utils/contractFilters';
+import { formatIsoDate } from '../utils/dates';
+import { Pill, type PillTone } from './Pill';
+
+// Selos do contrato: categoria, "Prorrogado" (vencimento diferente do fim
+// original) e "Vencido" (só aparece nos favoritos), e o tempo até o vencimento.
+
+/** Vermelho até 30 dias, âmbar até 90, cinza depois disso e apagado quando já venceu. */
+function expiryTone(days: number): PillTone {
+  if (days < 0) return 'muted';
+  if (days <= 30) return 'danger';
+  if (days <= 90) return 'warning';
+  return 'neutral';
+}
+
+/** "Vence em 45 dias", com a cor da proximidade do vencimento. */
+export function ExpiryBadge({ expiresOn, todayIso }: { expiresOn: string; todayIso: string }) {
+  const days = daysUntilExpiry(expiresOn, todayIso);
+  return (
+    <Pill tone={expiryTone(days)} title={`Vencimento: ${formatIsoDate(expiresOn)}`} icon={<CalendarClock size={11} aria-hidden="true" />}>
+      {expiryLabel(expiresOn, todayIso)}
+    </Pill>
+  );
+}
+
+type BadgeSource = Pick<ContractListItem, 'categoryName' | 'isExtended' | 'expiresOn'>;
+
+export function ContractBadges({ contract, todayIso }: { contract: BadgeSource; todayIso: string }) {
+  const expired = daysUntilExpiry(contract.expiresOn, todayIso) < 0;
+  return (
+    <>
+      {contract.categoryName && <Pill>{contract.categoryName}</Pill>}
+      {contract.isExtended && (
+        <Pill tone="brand" title="O vencimento mudou por um aditivo de prazo ou por uma rescisão.">
+          Prorrogado
+        </Pill>
+      )}
+      {expired && <Pill tone="muted">Vencido</Pill>}
+    </>
+  );
+}

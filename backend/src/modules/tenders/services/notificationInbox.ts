@@ -19,9 +19,11 @@ export interface NotificationView {
   type: TenderNotificationType;
   title: string;
   message: string | null;
-  /** Caminho a partir do início do app do módulo (ex.: /editais/123). */
+  /** Caminho a partir do início do app do módulo (ex.: /editais/123 ou /contratos/45). */
   link: string;
   noticeId: number | null;
+  /** Aviso de contrato (vencimento ou vencimento alterado). */
+  contractId: number | null;
   savedSearchId: number | null;
   readAt: string | null;
   createdAt: string | null;
@@ -67,6 +69,7 @@ export async function listNotifications(
       message: row.message,
       link: row.link,
       noticeId: row.noticeId,
+      contractId: row.contractId,
       savedSearchId: row.savedSearchId,
       readAt: toBrasiliaIso(row.readAt),
       createdAt: toBrasiliaIso(row.createdAt),

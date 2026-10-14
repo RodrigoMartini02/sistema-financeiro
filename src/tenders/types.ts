@@ -21,6 +21,10 @@ export type SearchTermsMode = (typeof SEARCH_TERMS_MODES)[number];
 export const NOTICE_SORTS = ['closingAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
 export type NoticeSort = (typeof NOTICE_SORTS)[number];
 
+/** Ordenações da busca de contratos; o padrão é o vencimento mais próximo, e `relevance` só vale com termos. */
+export const CONTRACT_SORTS = ['expiryAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
+export type ContractSort = (typeof CONTRACT_SORTS)[number];
+
 /** Situação "Divulgada no PNCP": o card só mostra as outras. */
 export const SITUATION_PUBLISHED_ID = 1;
 
@@ -224,6 +228,147 @@ export interface SavedSearchPreview {
   items: NoticeListItem[];
 }
 
+/** Contrato da busca "Contratos a vencer". Datas de vigência em AAAA-MM-DD. */
+export interface ContractListItem {
+  id: number;
+  pncpControlNumber: string;
+  contractObject: string;
+  agencyCnpj: string;
+  agencyName: string | null;
+  state: string | null;
+  cityName: string | null;
+  cityIbgeCode: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  supplierName: string | null;
+  /** CNPJ (14 dígitos) ou, na pessoa física, o CPF mascarado. */
+  supplierDocument: string | null;
+  globalValue: number | null;
+  termStart: string;
+  originalTermEnd: string;
+  /** Vencimento atual: o fim original ou o do aditivo mais recente que muda a vigência. */
+  expiresOn: string;
+  publishedAt: string | null;
+  /** O vencimento atual é diferente do fim original (aditivo de prazo ou rescisão). */
+  isExtended: boolean;
+  isFavorite: boolean;
+  /** Trecho do objeto com os termos entre << e >>; null sem termos de busca. */
+  highlightedExcerpt: string | null;
+  pncpLink: string;
+}
+
+export interface ContractSearchResult extends Paginated<ContractListItem> {
+  parsedQuery: ParsedQuery;
+}
+
+/** Aditivo ou rescisão do contrato, como o PNCP informa (sem os apostilamentos). */
+export interface ContractAmendment {
+  type: string | null;
+  number: string | null;
+  sequence: number | null;
+  signedAt: string | null;
+  endDate: string | null;
+  addedValue: number | null;
+  changesTerm: boolean;
+}
+
+export interface ContractDetail {
+  id: number;
+  pncpControlNumber: string;
+  purchaseControlNumber: string | null;
+  contractYear: number;
+  contractSequence: number;
+  contractNumber: string | null;
+  processNumber: string | null;
+  agencyCnpj: string;
+  agencyName: string | null;
+  governmentSphere: string | null;
+  unitCode: string | null;
+  unitName: string | null;
+  state: string | null;
+  cityName: string | null;
+  cityIbgeCode: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  contractObject: string;
+  additionalInformation: string | null;
+  supplierPersonType: 'PJ' | 'PF' | 'PE' | null;
+  supplierDocument: string | null;
+  supplierName: string | null;
+  initialValue: number | null;
+  globalValue: number | null;
+  signedAt: string | null;
+  termStart: string;
+  originalTermEnd: string;
+  expiresOn: string;
+  isExtended: boolean;
+  /** Termos conferidos no PNCP; null = sem sinal de alteração (termos não consultados). */
+  amendments: ContractAmendment[] | null;
+  publishedAt: string | null;
+  pncpUpdatedAt: string | null;
+  lastCollectedAt: string | null;
+  pncpLink: string;
+  /** Edital de origem na base, para abrir no app. */
+  originNoticeId: number | null;
+  /** Sem o edital na base: a página da compra no PNCP. */
+  originPncpLink: string | null;
+  isFavorite: boolean;
+}
+
+/** Resposta de favoritar e de tirar dos favoritos um contrato. */
+export interface ContractFavoriteView {
+  contractId: number;
+  isFavorite: boolean;
+}
+
+/** Critérios de uma busca salva de contratos no corpo da API. Valores em decimal com ponto ("150000.50"). */
+export interface ContractSearchCriteriaBody {
+  terms: string[];
+  termsMode: SearchTermsMode;
+  excludedTerms: string[];
+  states: string[];
+  cityIbgeCodes: string[];
+  agencyCnpjs: string[];
+  categories: number[];
+  supplierCnpjs: string[];
+  minValue: string | null;
+  maxValue: string | null;
+  includeWithoutValue: boolean;
+}
+
+export interface ContractSearchBody extends ContractSearchCriteriaBody {
+  name: string;
+  notify?: boolean;
+  active?: boolean;
+}
+
+export interface ContractSavedSearch {
+  id: number;
+  name: string;
+  terms: string[];
+  termsMode: SearchTermsMode;
+  excludedTerms: string[];
+  states: string[];
+  cityIbgeCodes: string[];
+  agencyCnpjs: string[];
+  categories: number[];
+  supplierCnpjs: string[];
+  minValue: number | null;
+  maxValue: number | null;
+  includeWithoutValue: boolean;
+  notify: boolean;
+  active: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  /** Contratos vigentes que batem com a busca agora. */
+  activeCount: number;
+}
+
+export interface ContractSearchPreview {
+  count: number;
+  items: ContractListItem[];
+}
+
 export interface DashboardView {
   cards: { newToday: number; closingIn7Days: number; analyzing: number; participating: number };
   closingSoon: NoticeListItem[];
@@ -245,6 +390,8 @@ export interface DomainLists {
   states: string[];
   trackingStatuses: TrackingStatus[];
   notificationTypes: string[];
+  /** Categorias dos contratos do PNCP. */
+  contractCategories: Array<{ id: number; name: string }>;
   municipalities: Municipality[];
 }
 
@@ -315,7 +462,15 @@ export interface ExpiredSubscriptionInfo {
   account: { id: number; name: string; type: 'pessoal' | 'empresa' };
 }
 
-export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
+export const TENDER_NOTIFICATION_TYPES = [
+  'NOVO_EDITAL',
+  'EDITAL_ALTERADO',
+  'PRAZO_3D',
+  'PRAZO_1D',
+  'CONTRATO_VENCE_90D',
+  'CONTRATO_VENCE_30D',
+  'CONTRATO_ALTERADO',
+] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
 export interface TenderNotification {
@@ -323,9 +478,11 @@ export interface TenderNotification {
   type: TenderNotificationType;
   title: string;
   message: string | null;
-  /** Caminho a partir do início do app do módulo (ex.: /editais/123). */
+  /** Caminho a partir do início do app do módulo (ex.: /editais/123 ou /contratos/45). */
   link: string;
   noticeId: number | null;
+  /** Aviso de contrato (vencimento ou vencimento alterado). */
+  contractId: number | null;
   savedSearchId: number | null;
   readAt: string | null;
   createdAt: string | null;
@@ -347,6 +504,7 @@ export const COLLECTION_RUN_TYPES = [
   'CONTRATOS_DIARIA',
   'CONTRATOS_CARGA',
   'CONTRATOS_LIMPEZA',
+  'CONTRATOS_AVISOS',
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 /** Execuções com horário na agenda (a manual não tem). */

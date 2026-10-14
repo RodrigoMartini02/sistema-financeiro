@@ -18,6 +18,12 @@ test('notificação: link fora do app cai no edital, ou em nada', () => {
   assert.equal(notificationTarget({ link: '', noticeId: null }), null);
 });
 
+test('notificação de contrato: abre o contrato pelo link gravado ou, sem ele, pelo contrato', () => {
+  assert.equal(notificationTarget({ link: '/contratos/45', noticeId: null, contractId: 45 }), '/contratos/45');
+  assert.equal(notificationTarget({ link: 'https://exemplo.com/x', noticeId: null, contractId: 45 }), '/contratos/45');
+  assert.equal(notificationTarget({ link: '', noticeId: null, contractId: null }), null);
+});
+
 test('notificação: query da lista e do painel do sino', () => {
   assert.equal(notificationsQuery(NOTIFICATION_PANEL_FILTERS), 'page=1&perPage=10');
   assert.equal(

@@ -54,6 +54,7 @@ test('tipos de execução de contratos têm rótulo', () => {
   assert.equal(RUN_TYPE_LABELS.CONTRATOS_DIARIA, 'Contratos: coleta diária');
   assert.equal(RUN_TYPE_LABELS.CONTRATOS_CARGA, 'Contratos: carga inicial');
   assert.equal(RUN_TYPE_LABELS.CONTRATOS_LIMPEZA, 'Contratos: limpeza');
+  assert.equal(RUN_TYPE_LABELS.CONTRATOS_AVISOS, 'Contratos: avisos');
 });
 
 test('erro de termo de contrato aparece com o número de controle', () => {

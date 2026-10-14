@@ -9,7 +9,7 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
 - planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria) e `.plans/licitacoes-contratos-a-vencer.md` (contratos);
-- migrations `backend/drizzle/0072` a `0080` e `0085` (contratos).
+- migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos).
 
 ## Estrutura
 
@@ -32,7 +32,8 @@ backend/src/modules/tenders/
 │   ├── runs.ts                      varredura, incremental, lembretes, limpeza
 │   ├── contractMapping.ts           contrato do PNCP → licitacoes.contrato; vencimento pelos termos
 │   ├── contractRepository.ts        upsert de contratos, dias da carga, limpeza e tamanho do banco
-│   ├── contractRuns.ts              contratos: coleta diária, carga inicial e limpeza
+│   ├── contractRuns.ts              contratos: coleta diária, carga inicial, limpeza e avisos
+│   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO
 │   ├── runtime.ts                   config, log, banco e PNCP de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
@@ -78,7 +79,8 @@ npm --prefix backend run tenders -- status                    # última execuç�
 npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2   # depuração
 npm --prefix backend run tenders -- contracts-daily           # contratos publicados e atualizados de ontem a hoje
-npm --prefix backend run tenders -- contracts-cleanup         # apaga os contratos vencidos
+npm --prefix backend run tenders -- contracts-cleanup         # apaga os contratos vencidos, menos os favoritados
+npm --prefix backend run tenders -- contract-reminders        # avisos de 90 e 30 dias antes do vencimento
 npm --prefix backend run tenders -- contracts-backfill [--from 2026-09-01] [--to 2026-09-30] [--max-minutes 90] [--max-db-mb 2000]
 ```
 
@@ -107,8 +109,9 @@ Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um
 3. lembretes de prazo (`deadline-reminders`);
 4. coleta diária de contratos (`contracts-daily`);
 5. limpeza dos contratos vencidos (`contracts-cleanup`), todo dia;
-6. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
-7. carga inicial de contratos (`contracts-backfill`), por último: só roda com `TENDERS_CONTRACTS_MAX_DB_MB` definida e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
+6. avisos de vencimento dos contratos (`contract-reminders`);
+7. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
+8. carga inicial de contratos (`contracts-backfill`), por último: só roda com `TENDERS_CONTRACTS_MAX_DB_MB` definida e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
 
 Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração.
 
@@ -147,7 +150,8 @@ npm --prefix backend run test:tenders-db
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
-  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza e trava própria;
+  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado e trava própria;
+  - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
@@ -246,6 +250,30 @@ SELECT count(*) AS contratos,
   FROM licitacoes.contrato;
 ```
 
+## Contratos a vencer: busca, favoritos e avisos
+
+Parte B do mesmo plano, migration `0086_licitacoes_contratos_favoritos_buscas.sql`.
+
+**Busca** (`services/contractSearch.ts`):
+- mostra só os contratos vigentes (`licitacoes.fn_contrato_vigente`: vencimento de hoje em diante, em Brasília). Com "Só favoritos", aparecem também os favoritos vencidos;
+- palavras como na busca de editais, no objeto e na informação complementar;
+- **número** (grupos de dígitos, como na 0079): número do contrato + ano, processo + ano, controle PNCP do contrato ou controle da compra. A consulta usa as mesmas expressões dos índices da 0085;
+- critérios em comum com a busca salva pela função `licitacoes.fn_contrato_atende_criterios`: termos, exclusões, UF, município, órgão, categoria, fornecedor (CNPJ) e faixa de valor global, com "incluir sem valor";
+- ordem padrão: o vencimento mais próximo. A relevância só vale com palavras.
+
+**Favoritos** (`favorito_contrato`): de cada pessoa na conta e idempotentes. A limpeza não apaga contrato favoritado.
+
+**Buscas salvas** (`busca_salva_contrato`): os mesmos critérios da tela, menos número, ano e "Só favoritos", com até 50 por pessoa e conta, contadas à parte das de editais. O total `activeCount` são os vigentes que batem agora.
+
+**Avisos** (`contract-reminders`, etapa diária, e a gravação dos contratos):
+- só para contas com acesso (`fn_conta_com_acesso`), sem repetir: o índice único de `notificacao` usa como referência o vencimento (AAAA-MM-DD). Um vencimento novo gera os avisos de novo;
+- **buscas salvas** ativas com Notificar: `CONTRATO_VENCE_90D` para vencimento entre hoje + 84 e + 90 dias, e `CONTRATO_VENCE_30D` entre hoje + 24 e + 30. Assim, ao criar a busca, não chegam avisos em massa dos contratos que já estavam na janela;
+- **favoritos:** `CONTRATO_VENCE_90D` entre hoje + 31 e + 90, e `CONTRATO_VENCE_30D` de hoje até + 30, um aviso por janela. O favorito avisa primeiro: o mesmo contrato não recebe de novo pela busca salva;
+- **`CONTRATO_ALTERADO`:** quando a coleta grava um vencimento diferente do anterior, quem favoritou recebe "Vencimento de contrato favorito mudou para dd/mm/aaaa";
+- link `/contratos/<id>`. Os avisos de um contrato apagado saem junto (ON DELETE CASCADE).
+
+**Sem `fn_contrato_bate`:** a tela, o total das buscas salvas e os avisos chamam `fn_contrato_atende_criterios` com a consulta de texto calculada uma vez por busca (CTE materializada, como em `savedSearchMatches.ts`).
+
 ## Singular e plural na busca (migrations 0075 e 0077)
 
 A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes** de reduzir a palavra ao radical, e o radical do português depende do acento em alguns sufixos. Medido no banco local em 05/10/2026, sem ajuste:
@@ -323,6 +351,11 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
 - **Limite de taxa:**
   - prévia da busca salva: 60 por minuto por usuário, em memória;
   - é por usuário porque o servidor não configura `trust proxy`.
+- **Contratos a vencer** (seção [Contratos a vencer: busca, favoritos e avisos](#contratos-a-vencer-busca-favoritos-e-avisos)):
+  - `GET /contracts` (filtros `q`, `termsMode`, `state`, `municipalityCode`, `agencyCnpj`, `category`, `supplierCnpj`, `minValue`, `maxValue`, `includeWithoutValue`, `publishedFrom/To`, `expiryFrom/To`, `favoritesOnly`, `number`, `contractYear`, `savedSearchId`, `sort` e paginação), com `parsedQuery`;
+  - `GET /contracts/:id`: detalhe, aditivos, `originNoticeId` (edital de origem na base) ou `originPncpLink` (a compra no PNCP) e `pncpLink`;
+  - `PUT` e `DELETE /contracts/:id/favorite`, idempotentes; contrato inexistente dá 404;
+  - `/contract-searches`: as mesmas rotas de `/saved-searches` (listar, criar, alterar, `PATCH` de `active` e `notify`, excluir, duplicar e `POST /preview`, também com 60 por minuto por usuário).
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
 ## Assinatura
@@ -407,9 +440,16 @@ Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta,
   - filtro "Só favoritos" (`favoritos=1`);
   - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle PNCP" vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
 - **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
-- **Favoritos (`/favoritos`):** todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento, paginados, um card por linha. O coração fica no card, na tabela e no detalhe.
+- **Contratos a vencer (`/contratos`):**
+  - os contratos vigentes, no modelo de Buscar: filtros na URL, chips, "Limpar tudo", cards ou tabela, coração de favorito, "Salvar esta busca" e paginação no fim da página;
+  - filtros: vencimento de/até, com os atalhos de 30, 90, 180 e 365 dias, "Só favoritos", número e ano do contrato, UF, município, categoria, valor global, publicação, órgão e fornecedor (CNPJ);
+  - o card mostra o objeto, o órgão e o local, o fornecedor, o valor global e o vencimento, com "Vence em N dias" (vermelho até 30, âmbar até 90) e os selos "Prorrogado" e "Vencido";
+  - detalhe no painel lateral (`?contrato=<id>`) e na rota `/contratos/:id`: vigência, aditivos e rescisões, dados do contrato, fornecedor e valores, "Ver no PNCP" e "Edital de origem";
+  - no rodapé, a última coleta diária de contratos.
+- **Favoritos (`/favoritos`):** abas Editais e Contratos (`aba=contratos`). Editais: todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento. Contratos: inclusive os vencidos, pelo vencimento. Paginados, um card por linha. O coração fica no card, na tabela e no detalhe.
 - **Buscas salvas (`/buscas`):**
-  - cards com o resumo dos critérios, os abertos agora e os interruptores Ativa e Notificar;
+  - abas Editais e Contratos (`aba=contratos`), cada uma com o seu limite de 50;
+  - cards com o resumo dos critérios, os abertos (ou vigentes) agora e os interruptores Ativa e Notificar;
   - editar, duplicar e excluir, com confirmação;
   - formulário com prévia ao vivo (500 ms sem digitar).
 - **Acompanhamento (`/acompanhamento`):**
@@ -440,6 +480,19 @@ Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta,
 | `numero`, `ano` | `number`, `purchaseYear` | número com ao menos um dígito (sem prazo mínimo); ano AAAA de 2000 a 2100 |
 | `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
 | `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |
+
+**Parâmetros da URL de Contratos a vencer** (os mesmos nomes de Buscar, quando o filtro é o mesmo):
+
+| URL | API | Observação |
+| --- | --- | --- |
+| `q`, `modo=ou` | `q`, `termsMode` | o modo E é o padrão |
+| `uf`, `municipio`, `orgao`, `categoria`, `fornecedor` | `state`, `municipalityCode`, `agencyCnpj`, `category`, `supplierCnpj` | repetíveis |
+| `valorMin`, `valorMax`, `semValor=1` | `minValue`, `maxValue`, `includeWithoutValue` | valor global, decimal com ponto |
+| `publicacaoDe`, `publicacaoAte`, `vencimentoDe`, `vencimentoAte` | `publishedFrom` … `expiryTo` | AAAA-MM-DD |
+| `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa, inclusive os vencidos |
+| `numero`, `ano` | `number`, `contractYear` | número com ao menos um dígito; ano do contrato, de 2000 a 2100 |
+| `busca` | `savedSearchId` | busca salva de contratos: os critérios vêm dela |
+| `ordem`, `pagina`, `porPagina` | `sort`, `page`, `perPage` | `vencimento`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; 20, 50 ou 100 |
 
 **Observação do acompanhamento:** o `PUT /notices/:id/tracking` grava o status e a observação juntos, e a observação ausente vira vazia. Por isso a ação rápida da lista lê o edital antes de gravar e reenvia a observação atual.
 

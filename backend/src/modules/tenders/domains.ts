@@ -57,6 +57,26 @@ export type SearchTermsMode = (typeof SEARCH_TERMS_MODES)[number];
 export const NOTICE_SORTS = ['closingAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
 export type NoticeSort = (typeof NOTICE_SORTS)[number];
 
+/** Ordenações da busca de contratos; o padrão é o vencimento mais próximo, e `relevance` só vale com termos. */
+export const CONTRACT_SORTS = ['expiryAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
+export type ContractSort = (typeof CONTRACT_SORTS)[number];
+
+/** Categorias do processo nos contratos do PNCP (`categoriaProcesso`), com os nomes do PNCP: as 11 vistas no piloto de 14/10/2026. */
+export const CONTRACT_CATEGORIES = [
+  { id: 1, name: 'Cessão' },
+  { id: 2, name: 'Compras' },
+  { id: 3, name: 'Informática (TIC)' },
+  { id: 4, name: 'Internacional' },
+  { id: 5, name: 'Locação Imóveis' },
+  { id: 6, name: 'Mão de Obra' },
+  { id: 7, name: 'Obras' },
+  { id: 8, name: 'Serviços' },
+  { id: 9, name: 'Serviços de Engenharia' },
+  { id: 10, name: 'Serviços de Saúde' },
+  { id: 11, name: 'Alienação de bens móveis/imóveis' },
+] as const;
+export const CONTRACT_CATEGORY_IDS: readonly number[] = CONTRACT_CATEGORIES.map((category) => category.id);
+
 /** Papel da pessoa no módulo, dentro da conta da requisição. */
 export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
 export type TenderRole = (typeof TENDER_ROLES)[number];
@@ -65,10 +85,19 @@ export type TenderRole = (typeof TENDER_ROLES)[number];
 export const TENDER_ACCESS_TYPES = ['cortesia', 'assinatura'] as const;
 export type TenderAccessType = (typeof TENDER_ACCESS_TYPES)[number];
 
-export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
+/** Avisos do módulo; os de contratos são da migration 0086. */
+export const TENDER_NOTIFICATION_TYPES = [
+  'NOVO_EDITAL',
+  'EDITAL_ALTERADO',
+  'PRAZO_3D',
+  'PRAZO_1D',
+  'CONTRATO_VENCE_90D',
+  'CONTRATO_VENCE_30D',
+  'CONTRATO_ALTERADO',
+] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
-/** Execuções do coletor; as de contratos são da migration 0085 (CONTRATOS_AVISOS entra na parte B). */
+/** Execuções do coletor; as de contratos são da migration 0085. */
 export const COLLECTION_RUN_TYPES = [
   'VARREDURA',
   'INCREMENTAL',
@@ -78,6 +107,7 @@ export const COLLECTION_RUN_TYPES = [
   'CONTRATOS_DIARIA',
   'CONTRATOS_CARGA',
   'CONTRATOS_LIMPEZA',
+  'CONTRATOS_AVISOS',
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 

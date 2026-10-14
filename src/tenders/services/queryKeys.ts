@@ -14,6 +14,12 @@ export const tendersQueryKeys = {
   noticeFiles: (id: number) => ['tenders', 'notice-files', id] as const,
   savedSearches: ['tenders', 'saved-searches'] as const,
   savedSearchPreview: (body: string) => ['tenders', 'saved-search-preview', body] as const,
+  /** Prefixo dos contratos: favoritar ou mudar uma busca salva invalida a busca e o detalhe. */
+  contracts: ['tenders', 'contracts'] as const,
+  contractSearch: (apiQuery: string) => ['tenders', 'contracts', 'search', apiQuery] as const,
+  contract: (id: number) => ['tenders', 'contracts', 'detail', id] as const,
+  contractSavedSearches: ['tenders', 'contract-searches'] as const,
+  contractSearchPreview: (body: string) => ['tenders', 'contract-search-preview', body] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   domains: ['tenders', 'domains'] as const,
   /** Prefixo das notificações: listas e contador do sino. */

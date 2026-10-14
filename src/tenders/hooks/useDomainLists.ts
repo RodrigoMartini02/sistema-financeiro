@@ -18,17 +18,21 @@ export interface DomainLookups {
   /** "Campinas/SP"; município fora da lista, undefined. */
   municipalityName: (code: string) => string | undefined;
   modalityName: (id: number) => string | undefined;
+  /** Categoria dos contratos (PNCP). */
+  categoryName: (id: number) => string | undefined;
 }
 
-/** Nomes de município e modalidade para chips e resumos. */
+/** Nomes de município, modalidade e categoria para chips e resumos. */
 export function useDomainLookups(): DomainLookups {
   const { data } = useDomainLists();
   return useMemo(() => {
     const municipalities = new Map((data?.municipalities ?? []).map((item) => [item.code, `${item.name}/${item.state}`]));
     const modalities = new Map((data?.modalities ?? []).map((item) => [item.id, item.name]));
+    const categories = new Map((data?.contractCategories ?? []).map((item) => [item.id, item.name]));
     return {
       municipalityName: (code: string) => municipalities.get(code),
       modalityName: (id: number) => modalities.get(id),
+      categoryName: (id: number) => categories.get(id),
     };
   }, [data]);
 }

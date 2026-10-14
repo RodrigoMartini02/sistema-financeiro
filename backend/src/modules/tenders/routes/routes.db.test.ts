@@ -4,9 +4,19 @@ import { after, describe, test } from 'node:test';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { eq } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
-import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, insertTestNotice, withRollback } from '../collector/dbTestSupport';
+import {
+  closeLocalTestDatabase,
+  createTestAccount,
+  databaseTestsSkipReason,
+  insertTestContract,
+  insertTestNotice,
+  withRollback,
+} from '../collector/dbTestSupport';
 import { tenderEnabledAccounts } from '../db/schema';
 import type { TenderAccount } from '../services/access';
+import type { ContractDetail } from '../services/contractDetail';
+import type { ContractSavedSearchView } from '../services/contractSavedSearches';
+import type { ContractListItem } from '../services/contractSearch';
 import { addAccountMember, uniqueToken } from '../services/apiTestSupport';
 import type { DashboardView } from '../services/dashboard';
 import type { DomainLists } from '../services/domainLists';
@@ -437,6 +447,87 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal((await search(`number=${'1'.repeat(61)}`)).status, 400);
         assert.equal((await search('purchaseYear=1999')).status, 400);
         assert.equal((await search('purchaseYear=dois')).status, 400);
+      });
+    });
+  });
+
+  test('contratos: conta sem o módulo, 404; colaborador sem acesso, 403; assinatura vencida, 402', async () => {
+    await withRollback(async (tx) => {
+      const notEnabled = await createTestAccount(tx, 'http-contrato-sem', { enabled: false });
+      const enabled = await createTestAccount(tx, 'http-contrato-com');
+      const memberWithoutAccess = await addAccountMember(tx, enabled, 'http-contrato-semlib', { access: false });
+      const contractId = await insertTestContract(tx, { expiresOn: '2030-01-01' });
+      await withApi(tx, async (call) => {
+        const outsider = { id: notEnabled.ownerId, type: 'titular' as const };
+        const blocked = { id: memberWithoutAccess, type: 'membro' as const };
+        for (const path of ['/api/tenders/contracts', `/api/tenders/contracts/${contractId}`, '/api/tenders/contract-searches']) {
+          assert.equal((await call('GET', path, { as: outsider })).status, 404, path);
+          assert.equal((await call('GET', path, { as: blocked })).status, 403, path);
+        }
+
+        await tx
+          .update(tenderEnabledAccounts)
+          .set({ accessType: 'assinatura', trialUntil: new Date(Date.now() - 60_000).toISOString() })
+          .where(eq(tenderEnabledAccounts.accountId, enabled.accountId));
+        const titular = { id: enabled.ownerId, type: 'titular' as const };
+        assert.equal((await call('GET', '/api/tenders/contracts', { as: titular })).status, 402);
+        assert.equal((await call('PUT', `/api/tenders/contracts/${contractId}/favorite`, { as: titular })).status, 402);
+      });
+    });
+  });
+
+  test('contratos por HTTP: busca, detalhe, favorito, buscas salvas e validações', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-contratos');
+      const token = uniqueToken();
+      const contractId = await insertTestContract(tx, { contractObject: `Contrato http ${token}`, categoryId: 8, expiresOn: '2030-01-01' });
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+        type ContractSearchData = Paginated<ContractListItem> & { parsedQuery: { terms: string[] } };
+
+        const found = await call<ContractSearchData>('GET', `/api/tenders/contracts?q=${encodeURIComponent(token)}&category=8&sort=relevance`, { as });
+        assert.equal(found.status, 200);
+        assert.deepEqual(found.body.data.items.map((item) => item.id), [contractId]);
+        assert.deepEqual(found.body.data.parsedQuery.terms, [token]);
+
+        const detail = await call<ContractDetail>('GET', `/api/tenders/contracts/${contractId}`, { as });
+        assert.equal(detail.status, 200);
+        assert.equal(detail.body.data.isFavorite, false);
+        assert.equal((await call('GET', '/api/tenders/contracts/999999999', { as })).status, 404);
+
+        const favorite = await call<{ contractId: number; isFavorite: boolean }>('PUT', `/api/tenders/contracts/${contractId}/favorite`, { as });
+        assert.deepEqual(favorite.body.data, { contractId, isFavorite: true });
+        const favorites = await call<ContractSearchData>('GET', `/api/tenders/contracts?q=${encodeURIComponent(token)}&favoritesOnly=true`, { as });
+        assert.deepEqual(favorites.body.data.items.map((item) => [item.id, item.isFavorite]), [[contractId, true]]);
+        assert.equal((await call('DELETE', `/api/tenders/contracts/${contractId}/favorite`, { as })).status, 200);
+
+        const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', {
+          as,
+          body: { name: 'Contratos http', terms: [token], categories: [8] },
+        });
+        assert.equal(created.status, 201);
+        assert.equal(created.body.data.activeCount, 1);
+        const searchId = created.body.data.id;
+        const bySaved = await call<ContractSearchData>('GET', `/api/tenders/contracts?savedSearchId=${searchId}`, { as });
+        assert.deepEqual(bySaved.body.data.items.map((item) => item.id), [contractId]);
+        const patched = await call<ContractSavedSearchView>('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: { notify: false } });
+        assert.equal(patched.body.data.notify, false);
+        assert.equal((await call('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: {} })).status, 400);
+        assert.equal((await call('POST', `/api/tenders/contract-searches/${searchId}/duplicate`, { as })).status, 201);
+        const preview = await call<{ count: number }>('POST', '/api/tenders/contract-searches/preview', { as, body: { terms: [token] } });
+        assert.equal(preview.body.data.count, 1);
+        assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 200);
+        assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 404);
+
+        const invalid = await call('GET', '/api/tenders/contracts?category=99&supplierCnpj=123&expiryFrom=31-12-2026&contractYear=1999&sort=prazo', { as });
+        assert.equal(invalid.status, 400);
+        assert.deepEqual(invalid.body.errors?.map((error) => error.field).sort(), ['category', 'contractYear', 'expiryFrom', 'sort', 'supplierCnpj']);
+        assert.equal((await call('GET', '/api/tenders/contracts?sort=relevance', { as })).status, 400, 'relevância sem termos');
+        assert.equal((await call('GET', '/api/tenders/contracts?expiryFrom=2027-01-01&expiryTo=2026-01-01', { as })).status, 400);
+        const emptySearch = await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'Vazia' } });
+        assert.equal(emptySearch.status, 400);
+        assert.match(String(emptySearch.body.message), /ao menos um critério/);
+        assert.equal((await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'x', categories: [99] } })).status, 400);
       });
     });
   });

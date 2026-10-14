@@ -1,5 +1,6 @@
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import { contractExpiryFromTerms, mapPncpContract, type ContractSkipReason, type TenderContractRow } from './contractMapping';
+import { notifyChangedContractExpiry, notifyContractExpirations } from './contractNotifications';
 import {
   databaseSizeMb,
   deleteExpiredContracts,
@@ -18,8 +19,9 @@ import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTall
 // Execuções de contratos (plano .plans/licitacoes-contratos-a-vencer.md):
 // coleta diária (publicados e atualizados de ontem a hoje), carga inicial (um
 // dia de publicação por vez, do mais recente para o mais antigo, em blocos com
-// limite de tempo e de espaço) e limpeza dos vencidos. Todas com a trava
-// própria dos contratos e registradas em licitacoes.coleta_execucao.
+// limite de tempo e de espaço), limpeza dos vencidos e avisos de vencimento
+// (parte B). Todas com a trava própria dos contratos e registradas em
+// licitacoes.coleta_execucao.
 
 const SKIP_DETAIL_KEYS: Record<ContractSkipReason, string> = {
   notInitialTerm: 'skippedNotInitialTerm',
@@ -110,7 +112,8 @@ async function resolveContractExpiry(
  * que não são termo inicial e os curtos; ler o que já está gravado (uma
  * consulta para a página); consultar os termos de quem precisa; calcular o
  * vencimento; tirar os vencidos que não estão gravados; gravar. O vencido já
- * gravado é atualizado, e a limpeza o tira.
+ * gravado é atualizado, e a limpeza o tira. Quem favoritou um contrato que
+ * mudou de vencimento recebe CONTRATO_ALTERADO.
  */
 async function collectContractPage(
   context: CollectorContext,
@@ -139,6 +142,7 @@ async function collectContractPage(
     candidates.map((candidate) => candidate.row.pncpControlNumber),
   );
   const rows: TenderContractRow[] = [];
+  const expiryChanged: string[] = [];
   for (const { row, hasChangeSignal } of candidates) {
     const previous = stored.get(row.pncpControlNumber);
     const resolved = await resolveContractExpiry(context, tally, row, hasChangeSignal, previous, counts);
@@ -146,12 +150,16 @@ async function collectContractPage(
       skipped.expired += 1;
       continue;
     }
+    if (previous && previous.expiresOn !== resolved.expiresOn) {
+      expiryChanged.push(resolved.pncpControlNumber);
+    }
     rows.push(resolved);
   }
 
   const result = await upsertContractPage(context.db, rows);
   tally.newCount += result.insertedCount;
   tally.updatedCount += result.updatedCount;
+  tally.notificationCount += await notifyChangedContractExpiry(context.db, expiryChanged);
   counts.storedCount += rows.length;
   for (const reason of Object.keys(skipped) as ContractSkipReason[]) {
     tally.addDetailCount(SKIP_DETAIL_KEYS[reason], skipped[reason]);
@@ -338,7 +346,16 @@ export async function runContractsBackfill(context: CollectorContext, options: B
   );
 }
 
-/** Limpeza diária: apaga os contratos com vencimento antes de hoje (Brasília). */
+/** Avisos de vencimento do dia (Brasília): 90 e 30 dias, para favoritos e buscas salvas com Notificar. */
+export function runContractReminders(context: CollectorContext): Promise<RunOutcome> {
+  return withCollectionRun(context, 'CONTRATOS_AVISOS', COLLECTOR_LOCK_KEYS.contracts, async (tally) => {
+    const today = brasiliaDate(context.now());
+    tally.details['today'] = today;
+    tally.notificationCount += await notifyContractExpirations(context.db, today);
+  });
+}
+
+/** Limpeza diária: apaga os contratos com vencimento antes de hoje (Brasília), menos os favoritados. */
 export function runContractsCleanup(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(
     context,

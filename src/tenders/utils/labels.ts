@@ -1,6 +1,7 @@
 import type {
   CollectionRunStatus,
   CollectionRunType,
+  ContractSort,
   NoticeSort,
   SearchTermsMode,
   TenderNotificationType,
@@ -44,6 +45,14 @@ export const NOTICE_SORT_LABELS: Record<NoticeSort, string> = {
   relevance: 'Relevância',
 };
 
+export const CONTRACT_SORT_LABELS: Record<ContractSort, string> = {
+  expiryAsc: 'Vencimento mais próximo',
+  publishedDesc: 'Publicação mais recente',
+  valueDesc: 'Maior valor',
+  valueAsc: 'Menor valor',
+  relevance: 'Relevância',
+};
+
 export const TERMS_MODE_LABELS: Record<SearchTermsMode, string> = {
   E: 'Todas as palavras',
   OU: 'Qualquer palavra',
@@ -54,6 +63,9 @@ export const NOTIFICATION_TYPE_LABELS: Record<TenderNotificationType, string> = 
   EDITAL_ALTERADO: 'Edital alterado',
   PRAZO_3D: 'Prazo em até 3 dias',
   PRAZO_1D: 'Prazo em até 1 dia',
+  CONTRATO_VENCE_90D: 'Contrato vence em até 90 dias',
+  CONTRATO_VENCE_30D: 'Contrato vence em até 30 dias',
+  CONTRATO_ALTERADO: 'Vencimento alterado',
 };
 
 export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {
@@ -65,6 +77,7 @@ export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {
   CONTRATOS_DIARIA: 'Contratos: coleta diária',
   CONTRATOS_CARGA: 'Contratos: carga inicial',
   CONTRATOS_LIMPEZA: 'Contratos: limpeza',
+  CONTRATOS_AVISOS: 'Contratos: avisos',
 };
 
 export const RUN_STATUS_LABELS: Record<CollectionRunStatus, string> = {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Bell, Clock, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Z_SYSTEM_OVERLAY } from '../../ui/zIndex';
 import { LoadError } from '../components/LoadStates';
@@ -16,7 +16,7 @@ import { NOTIFICATION_PANEL_FILTERS, notificationsQuery } from '../utils/notific
 
 // Sino da barra superior (escopo, seção 9.4): painel lateral à direita com as
 // 10 mais recentes, no visual do painel de notificações do app de finanças
-// (AppShell). O clique marca como lida e abre o edital; no rodapé, "Marcar
+// (AppShell). O clique marca como lida e abre o edital ou o contrato; no rodapé, "Marcar
 // todas como lidas" e "Ver todas". O painel vai para o body: a barra superior
 // tem desfoque, que prenderia o `fixed` dentro dela.
 
@@ -24,11 +24,16 @@ const PANEL_QUERY = notificationsQuery(NOTIFICATION_PANEL_FILTERS);
 const FOCUSABLE = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
 const AMBER_CIRCLE = 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-900';
+const ROSE_CIRCLE = 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900';
+const CYAN_CIRCLE = 'bg-cyan-50 text-cyan-600 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900';
 const TYPE_STYLES: Record<TenderNotificationType, { icon: LucideIcon; circle: string }> = {
-  NOVO_EDITAL: { icon: Sparkles, circle: 'bg-cyan-50 text-cyan-600 ring-cyan-100 dark:bg-cyan-950 dark:text-cyan-300 dark:ring-cyan-900' },
+  NOVO_EDITAL: { icon: Sparkles, circle: CYAN_CIRCLE },
   EDITAL_ALTERADO: { icon: RefreshCw, circle: AMBER_CIRCLE },
   PRAZO_3D: { icon: Clock, circle: AMBER_CIRCLE },
-  PRAZO_1D: { icon: AlertTriangle, circle: 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900' },
+  PRAZO_1D: { icon: AlertTriangle, circle: ROSE_CIRCLE },
+  CONTRATO_VENCE_90D: { icon: CalendarClock, circle: AMBER_CIRCLE },
+  CONTRATO_VENCE_30D: { icon: CalendarClock, circle: ROSE_CIRCLE },
+  CONTRATO_ALTERADO: { icon: CalendarSync, circle: CYAN_CIRCLE },
 };
 
 const linkClass =

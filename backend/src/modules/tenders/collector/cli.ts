@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import * as dotenv from 'dotenv';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
 import { CollectorConfigError, databaseHost } from './config';
-import { runContractsBackfill, runContractsCleanup, runContractsDaily } from './contractRuns';
+import { runContractReminders, runContractsBackfill, runContractsCleanup, runContractsDaily } from './contractRuns';
 import { errorMessage } from './logger';
 import {
   readStatus,
@@ -21,7 +21,7 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix backend run tenders -- sweep | incremental | deadline-reminders | cleanup | status
 //   npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 //   npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2
-//   npm --prefix backend run tenders -- contracts-daily | contracts-cleanup
+//   npm --prefix backend run tenders -- contracts-daily | contracts-cleanup | contract-reminders
 //   npm --prefix backend run tenders -- contracts-backfill --from 2026-09-01 --to 2026-09-30 --max-db-mb 2000
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
@@ -37,11 +37,14 @@ export const CLI_COMMANDS = [
   'contracts-daily',
   'contracts-backfill',
   'contracts-cleanup',
+  'contract-reminders',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
 export type CliCommand =
-  | { name: 'sweep' | 'incremental' | 'deadline-reminders' | 'status' | 'cleanup' | 'contracts-daily' | 'contracts-cleanup' }
+  | {
+      name: 'sweep' | 'incremental' | 'deadline-reminders' | 'status' | 'cleanup' | 'contracts-daily' | 'contracts-cleanup' | 'contract-reminders';
+    }
   | { name: 'reprocess-notifications'; since: string }
   | { name: 'collect'; modality: number; state: BrazilianState | null; maxPages: number | null }
   | { name: 'contracts-backfill'; from: string | null; to: string | null; maxMinutes: number | null; maxDbMb: number | null };
@@ -58,7 +61,7 @@ const USAGE = [
   '  sweep | incremental | deadline-reminders | cleanup | status',
   '  reprocess-notifications --since AAAA-MM-DD',
   '  collect --modality N [--state UF] [--max-pages N]',
-  '  contracts-daily | contracts-cleanup',
+  '  contracts-daily | contracts-cleanup | contract-reminders',
   '  contracts-backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--max-minutes N] [--max-db-mb N]',
 ].join('\n');
 
@@ -84,6 +87,7 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   collect: ['modality', 'state', 'max-pages'],
   'contracts-daily': [],
   'contracts-cleanup': [],
+  'contract-reminders': [],
   'contracts-backfill': ['from', 'to', 'max-minutes', 'max-db-mb'],
 };
 
@@ -207,6 +211,8 @@ async function runCommand(context: CollectorContext, command: CliCommand): Promi
       return runContractsDaily(context);
     case 'contracts-cleanup':
       return runContractsCleanup(context);
+    case 'contract-reminders':
+      return runContractReminders(context);
     case 'contracts-backfill':
       return runContractsBackfill(context, {
         ...(command.from !== null ? { from: command.from } : {}),

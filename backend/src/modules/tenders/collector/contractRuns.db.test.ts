@@ -3,11 +3,26 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
-import { count, eq, inArray } from 'drizzle-orm';
-import { tenderCollectionRuns, tenderContractBackfillDays, tenderContracts } from '../db/schema';
-import { BACKFILL_FINISHED, BACKFILL_NOT_STARTED, runContractsBackfill, runContractsCleanup, runContractsDaily } from './contractRuns';
+import { and, count, eq, inArray } from 'drizzle-orm';
+import { tenderCollectionRuns, tenderContractBackfillDays, tenderContractFavorites, tenderContracts, tenderNotifications } from '../db/schema';
+import {
+  BACKFILL_FINISHED,
+  BACKFILL_NOT_STARTED,
+  runContractReminders,
+  runContractsBackfill,
+  runContractsCleanup,
+  runContractsDaily,
+} from './contractRuns';
 import { markBackfillDayCompleted } from './contractRepository';
-import { closeLocalTestDatabase, createTestCollectorContext, databaseTestsSkipReason, insertTestContract, localTestPool, withRollback } from './dbTestSupport';
+import {
+  closeLocalTestDatabase,
+  createTestAccount,
+  createTestCollectorContext,
+  databaseTestsSkipReason,
+  insertTestContract,
+  localTestPool,
+  withRollback,
+} from './dbTestSupport';
 import type { TendersDb } from './database';
 import { COLLECTOR_LOCK_KEYS, tryAcquireCollectorLock } from './repository';
 import type { RunOutcome } from './runs';
@@ -267,24 +282,43 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
     });
   });
 
-  test('trava própria: com contratos em execução, a segunda sai sem coletar; a varredura de editais usa outra trava', async () => {
+  test('trava própria: com contratos em execução, coleta, carga e avisos saem sem rodar; os editais usam outra trava', async () => {
     await withRollback(async (tx) => {
       const pool = localTestPool();
       const context = createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), now: () => NOW });
       const lock = await tryAcquireCollectorLock(pool, COLLECTOR_LOCK_KEYS.contracts);
       assert.ok(lock, 'a primeira execução de contratos obtém a trava');
+      const busy = { skipped: true, reason: 'coleta já em execução' };
       try {
-        assert.deepEqual(await runContractsDaily(context), { skipped: true, reason: 'coleta já em execução' });
-        assert.deepEqual(await runContractsBackfill(context, { from: '2019-07-01', to: '2019-07-01', maxDbMb: 1_000_000 }), {
-          skipped: true,
-          reason: 'coleta já em execução',
-        });
-        const collectionLock = await tryAcquireCollectorLock(pool, COLLECTOR_LOCK_KEYS.collection);
-        assert.ok(collectionLock, 'os contratos não bloqueiam a varredura de editais');
-        await collectionLock.release();
+        assert.deepEqual(await runContractsDaily(context), busy);
+        assert.deepEqual(await runContractsBackfill(context, { from: '2019-07-01', to: '2019-07-01', maxDbMb: 1_000_000 }), busy);
+        assert.deepEqual(await runContractReminders(context), busy);
       } finally {
         await lock.release();
       }
+      // A trava dos editais não é pega aqui: os arquivos de teste rodam em
+      // paralelo, e repository.db.test.ts testa a dela.
+      assert.notEqual(COLLECTOR_LOCK_KEYS.contracts, COLLECTOR_LOCK_KEYS.collection);
+      assert.notEqual(COLLECTOR_LOCK_KEYS.contracts, COLLECTOR_LOCK_KEYS.maintenance);
+    });
+  });
+
+  test('avisos: a execução CONTRATOS_AVISOS registra o total de avisos do dia', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'avisos-execucao');
+      const contractId = await insertTestContract(tx, { expiresOn: '2026-10-20' });
+      await tx.insert(tenderContractFavorites).values({ accountId: account.accountId, userId: account.ownerId, contractId });
+      const context = createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), now: () => NOW });
+
+      const outcome = assertRan(await runContractReminders(context));
+      assert.equal(outcome.status, 'SUCESSO');
+      assert.equal(outcome.details['today'], '2026-10-13');
+      assert.ok(outcome.notificationCount >= 1);
+      const [notice] = await tx
+        .select({ type: tenderNotifications.type })
+        .from(tenderNotifications)
+        .where(and(eq(tenderNotifications.contractId, contractId), eq(tenderNotifications.accountId, account.accountId)));
+      assert.equal(notice?.type, 'CONTRATO_VENCE_30D');
     });
   });
 
@@ -300,6 +334,74 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
       assert.ok(Number(outcome.details['removedContracts']) >= 1);
       const remaining = await tx.select({ id: tenderContracts.id }).from(tenderContracts).where(inArray(tenderContracts.id, [expired, valid]));
       assert.deepEqual(remaining.map((row) => row.id), [valid]);
+    });
+  });
+
+  test('limpeza: o contrato vencido favoritado fica (a pessoa continua vendo o favorito)', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'limpeza-favorito');
+      const favorited = await insertTestContract(tx, { termStart: '2024-01-01', originalTermEnd: '2026-10-12', expiresOn: '2026-10-12' });
+      const notFavorited = await insertTestContract(tx, { termStart: '2024-01-01', originalTermEnd: '2026-10-12', expiresOn: '2026-10-12' });
+      await tx.insert(tenderContractFavorites).values({ accountId: account.accountId, userId: account.ownerId, contractId: favorited });
+      const context = createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), now: () => NOW });
+
+      assertRan(await runContractsCleanup(context));
+      const remaining = await tx
+        .select({ id: tenderContracts.id })
+        .from(tenderContracts)
+        .where(inArray(tenderContracts.id, [favorited, notFavorited]));
+      assert.deepEqual(remaining.map((row) => row.id), [favorited]);
+    });
+  });
+
+  test('vencimento alterado: CONTRATO_ALTERADO só para quem favoritou, e só quando o vencimento muda', async () => {
+    await withRollback(async (tx) => {
+      // Gravado com o fim original (30/06/2026); o aditivo do PNCP prorroga até 31/12/2026.
+      const record = contractRecord({
+        dataVigenciaInicio: '2025-07-01',
+        dataVigenciaFim: '2026-06-30',
+        dataPublicacaoPncp: '2025-07-02T10:00:00',
+        dataAtualizacaoGlobal: '2026-10-05T10:00:00',
+      });
+      const contractId = await insertTestContract(tx, {
+        pncpControlNumber: String(record.numeroControlePNCP),
+        termStart: '2025-07-01',
+        originalTermEnd: '2026-06-30',
+        expiresOn: '2026-06-30',
+      });
+      const fan = await createTestAccount(tx, 'alterado-favorito');
+      const bystander = await createTestAccount(tx, 'alterado-sem-favorito');
+      await tx.insert(tenderContractFavorites).values({ accountId: fan.accountId, userId: fan.ownerId, contractId });
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: publicationOnly([record]),
+        termsFetch: () => new Response(prorrogacao, { status: 200 }),
+        now: () => NOW,
+      });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.equal(outcome.notificationCount, 1);
+      const notices = await tx
+        .select({ accountId: tenderNotifications.accountId, type: tenderNotifications.type, title: tenderNotifications.title, link: tenderNotifications.link, reference: tenderNotifications.reference })
+        .from(tenderNotifications)
+        .where(eq(tenderNotifications.contractId, contractId));
+      assert.deepEqual(notices, [
+        {
+          accountId: fan.accountId,
+          type: 'CONTRATO_ALTERADO',
+          title: 'Vencimento de contrato favorito mudou para 31/12/2026',
+          link: `/contratos/${contractId}`,
+          reference: '2026-12-31',
+        },
+      ]);
+      assert.equal(notices.some((notice) => notice.accountId === bystander.accountId), false);
+
+      const again = assertRan(await runContractsDaily(context));
+      assert.equal(again.notificationCount, 0, 'mesmo vencimento: sem aviso novo');
+      const [row] = await tx
+        .select({ total: count() })
+        .from(tenderNotifications)
+        .where(and(eq(tenderNotifications.contractId, contractId), eq(tenderNotifications.type, 'CONTRATO_ALTERADO')));
+      assert.equal(row?.total, 1);
     });
   });
 });

@@ -138,8 +138,8 @@ const SORT_URL_VALUES: Record<NoticeSort, string> = {
   relevance: 'relevancia',
 };
 
-const STATE_PATTERN = /^[A-Z]{2}$/;
-const MUNICIPALITY_PATTERN = /^\d{7}$/;
+export const STATE_PATTERN = /^[A-Z]{2}$/;
+export const MUNICIPALITY_PATTERN = /^\d{7}$/;
 const CNPJ_PATTERN = /^\d{14}$/;
 
 /** CNPJ só com os dígitos; válido com 14. */
@@ -151,7 +151,7 @@ export function isValidCnpj(digits: string): boolean {
   return CNPJ_PATTERN.test(digits);
 }
 
-function uniqueValid(values: string[], normalize: (value: string) => string, isValid: (value: string) => boolean): string[] {
+export function uniqueValid(values: string[], normalize: (value: string) => string, isValid: (value: string) => boolean): string[] {
   const result: string[] = [];
   for (const raw of values) {
     const value = normalize(raw.trim());
@@ -167,7 +167,7 @@ export function isValidNumberSearch(text: string): boolean {
   return text.length <= MAX_NUMBER_LENGTH && /\d/.test(text);
 }
 
-function numberParam(text: string | null): string {
+export function numberParam(text: string | null): string {
   const value = (text ?? '').trim();
   return isValidNumberSearch(value) ? value : '';
 }
@@ -178,22 +178,22 @@ function purchaseYearParam(text: string | null): number | null {
   return year >= MIN_PURCHASE_YEAR && year <= MAX_PURCHASE_YEAR ? year : null;
 }
 
-function positiveInt(text: string | null): number | null {
+export function positiveInt(text: string | null): number | null {
   if (!text || !/^\d+$/.test(text)) return null;
   const number = Number(text);
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
-function dateParam(text: string | null): string | null {
+export function dateParam(text: string | null): string | null {
   return text && isValidIsoDate(text) ? text : null;
 }
 
 /** Período com o início depois do fim: fica só o início. */
-function datePair(from: string | null, to: string | null): [string | null, string | null] {
+export function datePair(from: string | null, to: string | null): [string | null, string | null] {
   return from && to && from > to ? [from, null] : [from, to];
 }
 
-function decimalParam(text: string | null): string | null {
+export function decimalParam(text: string | null): string | null {
   return text && isDecimalValue(text) ? text : null;
 }
 

@@ -1,5 +1,5 @@
-import { and, count, gte, inArray, lt, lte, max, min, sql, getTableColumns } from 'drizzle-orm';
-import { tenderContractBackfillDays, tenderContracts, type ContractTermSummary } from '../db/schema';
+import { and, count, eq, gte, inArray, lt, lte, max, min, notExists, sql, getTableColumns } from 'drizzle-orm';
+import { tenderContractBackfillDays, tenderContractFavorites, tenderContracts, type ContractTermSummary } from '../db/schema';
 import type { TendersDb } from './database';
 import type { TenderContractRow } from './contractMapping';
 
@@ -126,9 +126,17 @@ export async function markBackfillDayCompleted(db: TendersDb, day: string, count
     });
 }
 
-/** Apaga os contratos com vencimento antes de `today` (AAAA-MM-DD, Brasília). */
+/**
+ * Apaga os contratos com vencimento antes de `today` (AAAA-MM-DD, Brasília),
+ * menos os favoritados (a pessoa continua vendo o favorito vencido). Os avisos
+ * do contrato apagado saem junto (ON DELETE CASCADE).
+ */
 export async function deleteExpiredContracts(db: TendersDb, today: string): Promise<number> {
-  const result = await db.delete(tenderContracts).where(lt(tenderContracts.expiresOn, today));
+  const favorited = db
+    .select({ found: sql`1` })
+    .from(tenderContractFavorites)
+    .where(eq(tenderContractFavorites.contractId, tenderContracts.id));
+  const result = await db.delete(tenderContracts).where(and(lt(tenderContracts.expiresOn, today), notExists(favorited)));
   return result.rowCount ?? 0;
 }
 

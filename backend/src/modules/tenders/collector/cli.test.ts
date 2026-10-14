@@ -10,7 +10,7 @@ function assertUsageError(argv: string[], message?: RegExp): void {
 }
 
 test('comandos sem opções', () => {
-  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup', 'contracts-daily', 'contracts-cleanup'] as const) {
+  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup', 'contracts-daily', 'contracts-cleanup', 'contract-reminders'] as const) {
     assert.deepEqual(parseCliArgs([name]), { name });
   }
 });

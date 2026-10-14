@@ -31,33 +31,38 @@ export const VALUE_RANGE_MESSAGE = 'O valor mínimo não pode ser maior que o m�
 export const PRICE_REGISTRATION_CHOICES = ['any', 'yes', 'no'] as const;
 export type PriceRegistrationChoice = (typeof PRICE_REGISTRATION_CHOICES)[number];
 
-const termSchema = z
+export const termSchema = z
   .string()
   .trim()
   .min(MIN_TERM_LENGTH, `Cada termo precisa ter de ${MIN_TERM_LENGTH} a ${MAX_TERM_LENGTH} caracteres`)
   .max(MAX_TERM_LENGTH, `Cada termo precisa ter de ${MIN_TERM_LENGTH} a ${MAX_TERM_LENGTH} caracteres`);
 
-const moneySchema = z.number().min(0, 'Valor inválido').lt(MAX_MONEY_VALUE, 'Valor muito alto').nullable();
+export const moneySchema = z.number().min(0, 'Valor inválido').lt(MAX_MONEY_VALUE, 'Valor muito alto').nullable();
+
+/** Campos em comum dos formulários de busca salva de editais e de contratos. */
+export const sharedSavedSearchFields = {
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Informe o nome da busca')
+    .max(MAX_SAVED_SEARCH_NAME_LENGTH, `Nome com até ${MAX_SAVED_SEARCH_NAME_LENGTH} caracteres`),
+  terms: z.array(termSchema).max(MAX_TERMS, `Até ${MAX_TERMS} termos`),
+  termsMode: z.enum(SEARCH_TERMS_MODES),
+  excludedTerms: z.array(termSchema).max(MAX_TERMS, `Até ${MAX_TERMS} termos de exclusão`),
+  states: z.array(z.string().regex(/^[A-Z]{2}$/, 'UF inválida')),
+  cityIbgeCodes: z
+    .array(z.string().regex(/^\d{7}$/, 'Município inválido'))
+    .max(MAX_MUNICIPALITIES, `Até ${MAX_MUNICIPALITIES} municípios`),
+  agencyCnpjs: z.array(z.string().regex(/^\d{14}$/, 'CNPJ com 14 dígitos')).max(MAX_AGENCIES, `Até ${MAX_AGENCIES} órgãos`),
+  minValue: moneySchema,
+  maxValue: moneySchema,
+  includeWithoutValue: z.boolean(),
+};
 
 export const savedSearchFormSchema = z
   .object({
-    name: z
-      .string()
-      .trim()
-      .min(1, 'Informe o nome da busca')
-      .max(MAX_SAVED_SEARCH_NAME_LENGTH, `Nome com até ${MAX_SAVED_SEARCH_NAME_LENGTH} caracteres`),
-    terms: z.array(termSchema).max(MAX_TERMS, `Até ${MAX_TERMS} termos`),
-    termsMode: z.enum(SEARCH_TERMS_MODES),
-    excludedTerms: z.array(termSchema).max(MAX_TERMS, `Até ${MAX_TERMS} termos de exclusão`),
-    states: z.array(z.string().regex(/^[A-Z]{2}$/, 'UF inválida')),
-    cityIbgeCodes: z
-      .array(z.string().regex(/^\d{7}$/, 'Município inválido'))
-      .max(MAX_MUNICIPALITIES, `Até ${MAX_MUNICIPALITIES} municípios`),
-    agencyCnpjs: z.array(z.string().regex(/^\d{14}$/, 'CNPJ com 14 dígitos')).max(MAX_AGENCIES, `Até ${MAX_AGENCIES} órgãos`),
+    ...sharedSavedSearchFields,
     modalities: z.array(z.number().int().positive('Modalidade inválida')),
-    minValue: moneySchema,
-    maxValue: moneySchema,
-    includeWithoutValue: z.boolean(),
     priceRegistration: z.enum(PRICE_REGISTRATION_CHOICES),
   })
   .superRefine((values, context) => {
@@ -233,8 +238,14 @@ type SummarySource = Pick<
 
 const quoted = (term: string) => `"${term}"`;
 
-/** Resumo dos critérios para o card, uma linha por critério em uso. */
-export function criteriaSummary(search: SummarySource, lookups: SummaryLookups = {}): string[] {
+/** Critérios em comum das buscas salvas de editais e de contratos, para o resumo do card. */
+export type SharedSummarySource = Pick<
+  SavedSearch,
+  'terms' | 'termsMode' | 'excludedTerms' | 'states' | 'cityIbgeCodes' | 'agencyCnpjs'
+>;
+
+/** Linhas do resumo dos critérios em comum: termos, exclusões, UF, municípios e órgãos. */
+export function sharedCriteriaLines(search: SharedSummarySource, lookups: SummaryLookups = {}): string[] {
   const lines: string[] = [];
   if (search.terms.length > 0) {
     const mode = search.terms.length > 1 ? ` (${TERMS_MODE_LABELS[search.termsMode].toLowerCase()})` : '';
@@ -253,13 +264,25 @@ export function criteriaSummary(search: SummarySource, lookups: SummaryLookups =
   if (search.agencyCnpjs.length > 0) {
     lines.push(`${search.agencyCnpjs.length > 1 ? 'Órgãos' : 'Órgão'}: ${listWithMore(search.agencyCnpjs.map(formatCnpj), 2)}`);
   }
+  return lines;
+}
+
+/** Linha da faixa de valor do resumo; sem faixa, null. */
+export function valueRangeLine(search: Pick<SavedSearch, 'minValue' | 'maxValue' | 'includeWithoutValue'>): string | null {
+  const valueRange = valueRangeLabel(search.minValue, search.maxValue);
+  return valueRange ? `Valor: ${valueRange}${search.includeWithoutValue ? ', inclui sem valor' : ''}` : null;
+}
+
+/** Resumo dos critérios para o card, uma linha por critério em uso. */
+export function criteriaSummary(search: SummarySource, lookups: SummaryLookups = {}): string[] {
+  const lines = sharedCriteriaLines(search, lookups);
   if (search.modalities.length > 0) {
     const names = search.modalities.map((id) => lookups.modalityName?.(id) ?? String(id));
     lines.push(`${search.modalities.length > 1 ? 'Modalidades' : 'Modalidade'}: ${listWithMore(names)}`);
   }
-  const valueRange = valueRangeLabel(search.minValue, search.maxValue);
-  if (valueRange) {
-    lines.push(`Valor: ${valueRange}${search.includeWithoutValue ? ', inclui sem valor' : ''}`);
+  const valueLine = valueRangeLine(search);
+  if (valueLine) {
+    lines.push(valueLine);
   }
   if (search.priceRegistration !== null) {
     lines.push(search.priceRegistration ? 'Só registro de preços (SRP)' : 'Sem registro de preços (SRP)');

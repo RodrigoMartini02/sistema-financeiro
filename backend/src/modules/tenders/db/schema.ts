@@ -273,6 +273,51 @@ export const tenderSavedSearches = tendersSchema.table(
   }),
 );
 
+/** Buscas salvas de contratos (migration 0086): os critérios da tela, menos número, ano e "Só favoritos". */
+export const tenderContractSavedSearches = tendersSchema.table(
+  'busca_salva_contrato',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: varchar('nome', { length: 120 }).notNull(),
+    terms: text('termos').array().notNull().default(sql`'{}'`),
+    termsMode: varchar('modo_termos', { length: 3 }).$type<SearchTermsMode>().notNull().default('OU'),
+    excludedTerms: text('termos_exclusao').array().notNull().default(sql`'{}'`),
+    states: char('ufs', { length: 2 }).array().notNull().default(sql`'{}'`),
+    cityIbgeCodes: varchar('municipios_ibge', { length: 7 }).array().notNull().default(sql`'{}'`),
+    agencyCnpjs: varchar('orgaos_cnpj', { length: 14 }).array().notNull().default(sql`'{}'`),
+    categories: smallint('categorias').array().notNull().default(sql`'{}'`),
+    supplierCnpjs: varchar('fornecedores_cnpj', { length: 14 }).array().notNull().default(sql`'{}'`),
+    minValue: numeric('valor_min', { precision: 18, scale: 2 }),
+    maxValue: numeric('valor_max', { precision: 18, scale: 2 }),
+    // Com faixa de valor, contrato sem valor global só entra com a opção ligada.
+    includeWithoutValue: boolean('incluir_sem_valor').default(false).notNull(),
+    notify: boolean('notificar').default(true).notNull(),
+    active: boolean('ativa').default(true).notNull(),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+    updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    accountUserIdx: index('ix_busca_contrato_conta_usuario').on(table.accountId, table.userId).where(sql`ativa`),
+  }),
+);
+
+/** Favoritos de contratos de cada pessoa na conta (migration 0086): só ela vê os seus. */
+export const tenderContractFavorites = tendersSchema.table(
+  'favorito_contrato',
+  {
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    contractId: bigint('contrato_id', { mode: 'number' }).notNull().references(() => tenderContracts.id, { onDelete: 'cascade' }),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.accountId, table.userId, table.contractId] }),
+    contractIdx: index('ix_favorito_contrato_contrato').on(table.contractId),
+  }),
+);
+
 /** Favoritos de cada pessoa na conta (migration 0078): só ela vê os seus. */
 export const tenderFavorites = tendersSchema.table(
   'favorito',
@@ -335,7 +380,10 @@ export const tenderNotifications = tendersSchema.table(
     link: text('link').notNull(),
     noticeId: bigint('edital_id', { mode: 'number' }).references(() => tenderNotices.id, { onDelete: 'cascade' }),
     savedSearchId: bigint('busca_salva_id', { mode: 'number' }).references(() => tenderSavedSearches.id, { onDelete: 'set null' }),
-    // Desambigua EDITAL_ALTERADO (data de atualização) e prazos (data de encerramento).
+    // Aviso de contrato (migration 0086): um aviso é de um edital ou de um contrato, nunca dos dois.
+    contractId: bigint('contrato_id', { mode: 'number' }).references(() => tenderContracts.id, { onDelete: 'cascade' }),
+    // Desambigua EDITAL_ALTERADO (data de atualização), prazos (data de encerramento) e
+    // os avisos de contrato (vencimento, AAAA-MM-DD).
     reference: text('referencia'),
     readAt: timestampWithZone('lida_em'),
     createdAt: timestampWithZone('criada_em').defaultNow().notNull(),
@@ -351,6 +399,10 @@ export const tenderNotifications = tendersSchema.table(
     unreadIdx: index('ix_notificacao_nao_lidas')
       .on(table.accountId, table.userId, table.createdAt.desc())
       .where(sql`lida_em IS NULL`),
+    uniqueContractNotification: uniqueIndex('ux_notificacao_contrato_unica')
+      .on(table.accountId, table.userId, table.type, table.contractId, sql`coalesce(${table.reference}, '')`)
+      .where(sql`contrato_id IS NOT NULL`),
+    contractIdx: index('ix_notificacao_contrato').on(table.contractId).where(sql`contrato_id IS NOT NULL`),
   }),
 );
 

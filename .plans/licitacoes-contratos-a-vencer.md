@@ -18,7 +18,7 @@ A API do PNCP só filtra contratos por data de publicação, data de atualizaç�
 
 A entrega é em duas partes, cada uma com o seu `/implementar` e o seu `/finalizar`:
 - **Parte A — dados:** banco, coletor, carga inicial e coleta diária, sem a área nova.
-- **Parte B — área nova:** busca, detalhe, favoritos, buscas salvas e avisos. Começa depois que a carga terminar.
+- **Parte B — área nova:** busca, detalhe, favoritos, buscas salvas e avisos. É desenvolvida no local com os dados do piloto (decisão de 14/10/2026), e vai para a produção depois que a carga terminar.
 
 ## Decisões aplicadas
 
@@ -251,7 +251,7 @@ A entrega é em duas partes, cada uma com o seu `/implementar` e o seu `/finaliz
   - `PNCP_CONTRACTS_PAGE_SIZE`: 500 (de 10 a 500);
   - `PNCP_TERMS_INTERVAL_MS`: pausa entre consultas de termos, com padrão de 500 (medido no piloto);
   - `TENDERS_CONTRACTS_BACKFILL_FROM`: `2021-01-01`;
-  - `TENDERS_CONTRACTS_BACKFILL_MINUTES`: 180;
+  - `TENDERS_CONTRACTS_BACKFILL_MINUTES`: 480 (eram 180; mudou com o piloto);
   - `TENDERS_CONTRACTS_MAX_DB_MB`: limite de tamanho do banco para a carga.
     - **Sem ela, a carga não roda.** A rotina registra "carga não iniciada: limite de espaço não definido" e segue.
     - É também o "ligar" da carga na produção: quem define é o usuário, no Cron Job.
@@ -348,7 +348,8 @@ Atenção: migrations não devem ser executadas sem confirmação explícita do 
 - Funções, com a mesma ideia da 0076 (uma regra só para a tela, a busca salva e os avisos):
   - `licitacoes.fn_contrato_atende_criterios(c, consulta, exclusão, ufs, municípios, órgãos, categorias, fornecedores, valor_min, valor_max, incluir_sem_valor)`;
   - `licitacoes.fn_contrato_vigente(c)`: `vencimento >= hoje em Brasília`;
-  - `licitacoes.fn_contrato_bate(c, b busca_salva_contrato)`: as duas juntas.
+  - **sem `fn_contrato_bate`** (mudou na implementação): ela recalcularia a consulta de texto a cada contrato. A tela, o total das buscas salvas e os avisos chamam as duas funções com a consulta calculada uma vez por busca, como em `savedSearchMatches.ts`.
+- Índice `ix_notificacao_contrato` (parcial, por `contrato_id`), para a limpeza diária apagar os avisos dos contratos vencidos sem ler a tabela inteira.
 - GRANT condicional ao `licitacoes_coletor`: `SELECT` em `favorito_contrato` e `busca_salva_contrato`, `SELECT, INSERT` em `notificacao` e `EXECUTE` nas funções novas.
 
 **Riscos de banco:** o volume (ver "Custos"), o nome da constraint do CHECK, e as expressões dos índices de número, que precisam ser idênticas às da consulta (senão o índice não é usado).
@@ -481,7 +482,9 @@ Atenção: migrations não devem ser executadas sem confirmação explícita do 
     - com a confirmação do usuário, aplicar a 0085 na produção antes do merge;
     - depois do merge, o usuário define `TENDERS_CONTRACTS_MAX_DB_MB` no Cron Job para começar a carga.
 
-**Parte B — área nova** (outro `/implementar` e outro `/finalizar`, depois da carga concluída)
+**Parte B — área nova** (outro `/implementar` e outro `/finalizar`)
+- **Decidido em 14/10/2026:** desenvolver no local já, com os dados do piloto (59,5 mil contratos), na branch `feat/R/licitacoes-contratos-parte-b`, criada a partir da Parte A (commit `09cb8076`).
+- **Produção:** a ordem não muda: 0085 → merge da Parte A → carga (~10 dias) → 0086 → merge da Parte B. O `/finalizar` da Parte B faz o commit e o push, e o merge espera a carga.
 16. Escrever a 0086, aplicar só no banco local, e atualizar `schema.ts` e `domains.ts` (tipos de notificação, ordenações e categorias).
 17. `contractSearch.ts`, com os testes de cada filtro e a paridade com a busca salva.
 18. `contractDetail.ts`: detalhe, edital de origem e favoritos.
@@ -732,7 +735,7 @@ npm --prefix backend run test:tenders-db
 ## Observações para a skill implementar
 
 - Usar este plano como fonte principal de contexto.
-- **Implementar só a Parte A no primeiro `/implementar`** e parar na etapa 12, para o relatório do piloto. A Parte B é outro `/implementar`, depois da carga concluída na produção.
+- **Implementar só a Parte A no primeiro `/implementar`** e parar na etapa 12, para o relatório do piloto. A Parte B é outro `/implementar`: desenvolvida no local, ela só vai para a produção depois da carga concluída.
 - Não executar migrations sem confirmação explícita. Durante a implementação, só no banco local (`--banco local`). A produção fica para o `/finalizar`, com a confirmação do usuário e antes do merge.
 - Não alterar `.env` nem variáveis do Render. Definir `TENDERS_CONTRACTS_MAX_DB_MB` na produção é ação do usuário.
 - O piloto só lê do PNCP e grava no banco local. Não rodar a carga apontando para a produção.

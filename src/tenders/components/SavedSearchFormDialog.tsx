@@ -68,20 +68,20 @@ export interface SavedSearchFormTarget {
   leftOut?: string[];
 }
 
-function parseTerm(text: string): TagParseResult {
+export function parseTerm(text: string): TagParseResult {
   const term = normalizeTerm(text);
   return term.length >= MIN_TERM_LENGTH && term.length <= MAX_TERM_LENGTH
     ? { value: term }
     : { error: `Cada termo precisa ter de ${MIN_TERM_LENGTH} a ${MAX_TERM_LENGTH} caracteres.` };
 }
 
-function parseCnpj(text: string): TagParseResult {
+export function parseCnpj(text: string): TagParseResult {
   const digits = normalizeCnpj(text);
   return isValidCnpj(digits) ? { value: digits } : { error: 'Informe o CNPJ com 14 dígitos.' };
 }
 
 /** Mensagem do campo, também de listas (erro num item). */
-function errorMessage(error: unknown): string | undefined {
+export function errorMessage(error: unknown): string | undefined {
   if (!error || typeof error !== 'object') return undefined;
   const record = error as Record<string, unknown>;
   if (typeof record['message'] === 'string' && record['message']) return record['message'];
@@ -92,7 +92,7 @@ function errorMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-function joinWithAnd(items: string[]): string {
+export function joinWithAnd(items: string[]): string {
   return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
 }
 
