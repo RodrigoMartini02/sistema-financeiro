@@ -150,7 +150,7 @@ npm --prefix backend run test:tenders-db
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
-  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado e trava própria;
+  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado (na coleta e na reconsulta) e trava própria;
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
@@ -273,7 +273,7 @@ Parte B do mesmo plano, migration `0086_licitacoes_contratos_favoritos_buscas.sq
 - só para contas com acesso (`fn_conta_com_acesso`), sem repetir: o índice único de `notificacao` usa como referência o vencimento (AAAA-MM-DD). Um vencimento novo gera os avisos de novo;
 - **buscas salvas** ativas com Notificar: `CONTRATO_VENCE_90D` para vencimento entre hoje + 84 e + 90 dias, e `CONTRATO_VENCE_30D` entre hoje + 24 e + 30. Assim, ao criar a busca, não chegam avisos em massa dos contratos que já estavam na janela;
 - **favoritos:** `CONTRATO_VENCE_90D` entre hoje + 31 e + 90, e `CONTRATO_VENCE_30D` de hoje até + 30, um aviso por janela. O favorito avisa primeiro: o mesmo contrato não recebe de novo pela busca salva;
-- **`CONTRATO_ALTERADO`:** quando a coleta grava um vencimento diferente do anterior, quem favoritou recebe "Vencimento de contrato favorito mudou para dd/mm/aaaa";
+- **`CONTRATO_ALTERADO`:** quando a coleta ou a reconsulta dos termos grava um vencimento diferente do anterior, quem favoritou recebe "Vencimento de contrato favorito mudou para dd/mm/aaaa";
 - link `/contratos/<id>`. Os avisos de um contrato apagado saem junto (ON DELETE CASCADE).
 
 **Sem `fn_contrato_bate`:** a tela, o total das buscas salvas e os avisos chamam `fn_contrato_atende_criterios` com a consulta de texto calculada uma vez por busca (CTE materializada, como em `savedSearchMatches.ts`).

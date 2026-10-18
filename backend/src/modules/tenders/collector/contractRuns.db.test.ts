@@ -711,6 +711,7 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
 
   test('vencimento alterado: CONTRATO_ALTERADO só para quem favoritou, e só quando o vencimento muda', async () => {
     await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
       // Gravado com o fim original (30/06/2026); o aditivo do PNCP prorroga até 31/12/2026.
       const record = contractRecord({
         dataVigenciaInicio: '2025-07-01',
@@ -757,6 +758,56 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
         .from(tenderNotifications)
         .where(and(eq(tenderNotifications.contractId, contractId), eq(tenderNotifications.type, 'CONTRATO_ALTERADO')));
       assert.equal(row?.total, 1);
+    });
+  });
+
+  test('vencimento alterado pela reconsulta: CONTRATO_ALTERADO para quem favoritou; sem mudança, nenhum aviso', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      // Os dois com termos pendentes (atualização global nova, sem conferência); o aditivo do PNCP prorroga até 31/12/2026.
+      const pending = { originalTermEnd: '2026-06-30', publishedAt: '2025-07-02T10:00:00', pncpGlobalUpdatedAt: '2026-10-05T10:00:00' };
+      // A falha deixou o fim original: o vencimento muda.
+      const changed = await insertTestContract(tx, { ...pending, contractSequence: 930_001, expiresOn: '2026-06-30' });
+      // Já tinha o vencimento do aditivo, conferido numa atualização anterior: não muda.
+      const unchanged = await insertTestContract(tx, {
+        ...pending,
+        contractSequence: 930_002,
+        expiresOn: '2026-12-31',
+        amendmentsReference: '2026-09-01T10:00:00',
+      });
+      const fan = await createTestAccount(tx, 'reconsulta-favorito');
+      await tx.insert(tenderContractFavorites).values([
+        { accountId: fan.accountId, userId: fan.ownerId, contractId: changed },
+        { accountId: fan.accountId, userId: fan.ownerId, contractId: unchanged },
+      ]);
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: () => pageOf([]),
+        termsFetch: () => new Response(prorrogacao, { status: 200 }),
+        now: () => NOW,
+      });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.deepEqual(pick(outcome.details['termsRetry'], ['checked', 'resolved', 'expiryChanged']), { checked: 2, resolved: 2, expiryChanged: 1 });
+      assert.equal(outcome.notificationCount, 1);
+      const notices = await tx
+        .select({
+          accountId: tenderNotifications.accountId,
+          contractId: tenderNotifications.contractId,
+          type: tenderNotifications.type,
+          title: tenderNotifications.title,
+          reference: tenderNotifications.reference,
+        })
+        .from(tenderNotifications)
+        .where(inArray(tenderNotifications.contractId, [changed, unchanged]));
+      assert.deepEqual(notices, [
+        {
+          accountId: fan.accountId,
+          contractId: changed,
+          type: 'CONTRATO_ALTERADO',
+          title: 'Vencimento de contrato favorito mudou para 31/12/2026',
+          reference: '2026-12-31',
+        },
+      ]);
     });
   });
 });

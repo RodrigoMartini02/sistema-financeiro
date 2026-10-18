@@ -282,6 +282,8 @@ export interface TermsRetryDetail {
  * `limit` contratos, da atualização global mais antiga para a mais nova, menos
  * os que falharam nesta execução. Para depois de 3 falhas seguidas do PNCP.
  * Grava no fim, numa transação; o que continuar pendente fica para amanhã.
+ * Como na coleta, quem favoritou um contrato que mudou de vencimento recebe
+ * CONTRATO_ALTERADO.
  */
 async function retryPendingTerms(context: CollectorContext, tally: RunTally, limit: number, failedInThisRun: string[]): Promise<void> {
   const summary: TermsRetryDetail = {
@@ -299,6 +301,7 @@ async function retryPendingTerms(context: CollectorContext, tally: RunTally, lim
 
   const pending = await readContractsWithPendingTerms(context.db, limit, failedInThisRun);
   const checked: CheckedContractTerms[] = [];
+  const expiryChanged: string[] = [];
   let consecutiveFailures = 0;
   for (const contract of pending) {
     summary.checked += 1;
@@ -315,13 +318,15 @@ async function retryPendingTerms(context: CollectorContext, tally: RunTally, lim
     consecutiveFailures = 0;
     checked.push({ pncpControlNumber: contract.pncpControlNumber, expiresOn: check.expiresOn, amendments: check.amendments });
     if (check.expiresOn !== contract.expiresOn) {
-      summary.expiryChanged += 1;
+      expiryChanged.push(contract.pncpControlNumber);
     }
   }
+  summary.expiryChanged = expiryChanged.length;
 
   await saveCheckedContractTerms(context.db, checked);
   summary.resolved = checked.length;
   tally.updatedCount += checked.length;
+  tally.notificationCount += await notifyChangedContractExpiry(context.db, expiryChanged);
   context.logger.info('Reconsulta dos termos de contratos', { ...summary });
 }
 
