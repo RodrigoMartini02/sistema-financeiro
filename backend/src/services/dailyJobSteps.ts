@@ -8,7 +8,6 @@ export const DAILY_JOB_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
-  'tenders-contracts-cleanup',
   'tenders-contract-reminders',
   'tenders-cleanup',
   'tenders-contracts-backfill',
@@ -26,10 +25,11 @@ function isSundayInBrasilia(instant: Date): boolean {
 
 /**
  * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
- * varredura de Licitações, os lembretes de prazo, a coleta e a limpeza dos
- * contratos, os avisos de vencimento dos contratos, aos domingos a limpeza dos
- * editais e, por último, a carga inicial de contratos (a mais longa: só roda
- * com dias pendentes e com TENDERS_CONTRACTS_MAX_DB_MB definida).
+ * varredura de Licitações, os lembretes de prazo, a coleta dos contratos, os
+ * avisos de vencimento dos contratos, aos domingos a limpeza dos editais e,
+ * por último, a carga inicial de contratos (a mais longa: só roda com dias
+ * pendentes e com TENDERS_CONTRACTS_MAX_DB_MB definida). Os contratos não têm
+ * limpeza: os encerrados ficam na base (plano .plans/licitacoes-base-nacional.md).
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {
   const steps: DailyJobStep[] = [
@@ -37,7 +37,6 @@ export function dailyJobSteps(now: Date): DailyJobStep[] {
     'tenders-sweep',
     'tenders-deadline-reminders',
     'tenders-contracts-daily',
-    'tenders-contracts-cleanup',
     'tenders-contract-reminders',
   ];
   if (isSundayInBrasilia(now)) {

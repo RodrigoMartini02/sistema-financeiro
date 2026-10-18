@@ -22,7 +22,8 @@ export function contractRoutes(deps: TendersApiDeps): Router {
 
   // GET /api/tenders/contracts?q=&termsMode=&state=&municipalityCode=&agencyCnpj=&category=&supplierCnpj=&minValue=
   //   &maxValue=&includeWithoutValue=&publishedFrom=&publishedTo=&expiryFrom=&expiryTo=&favoritesOnly=&number=
-  //   &contractYear=&savedSearchId=&sort=&page=&perPage=
+  //   &contractYear=&contractType=&includeClosed=&savedSearchId=&sort=&page=&perPage=
+  // Sem `sort`: o vencimento mais próximo; com `includeClosed`, a publicação mais recente.
   router.get(
     '/',
     [...contractSearchValidators, validate],

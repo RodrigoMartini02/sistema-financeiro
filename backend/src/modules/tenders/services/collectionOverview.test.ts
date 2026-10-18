@@ -25,10 +25,11 @@ test('limpeza: domingo às 06:00', () => {
   assert.equal(nextScheduledRun('LIMPEZA', at('2026-10-11T09:00:00Z')), '2026-10-18T06:00:00-03:00');
 });
 
-test('contratos: coleta diária, limpeza e carga todo dia às 06:00 (rotina diária)', () => {
-  for (const type of ['CONTRATOS_DIARIA', 'CONTRATOS_LIMPEZA', 'CONTRATOS_CARGA'] as const) {
+test('contratos: coleta diária e carga todo dia às 06:00 (rotina diária); a limpeza saiu da agenda', () => {
+  for (const type of ['CONTRATOS_DIARIA', 'CONTRATOS_CARGA'] as const) {
     assert.equal(nextScheduledRun(type, at('2026-10-05T12:00:00Z')), '2026-10-06T06:00:00-03:00');
   }
+  assert.equal(nextScheduledRun('CONTRATOS_LIMPEZA', at('2026-10-05T12:00:00Z')), null);
 });
 
 test('carga de contratos: lê a faixa, os dias pendentes e o motivo da parada nos detalhes da execução', () => {

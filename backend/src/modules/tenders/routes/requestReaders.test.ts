@@ -109,6 +109,17 @@ test('contratos sem parâmetros: só vigentes (sem "só favoritos"), vencimento 
   assert.equal(filters.criteria.termsMode, 'E');
   assert.deepEqual(filters.numberGroups, []);
   assert.equal(filters.contractYear, null);
+  assert.equal(filters.includeClosed, false);
+  assert.deepEqual(filters.contractTypes, []);
+});
+
+test('contratos com encerrados: a ordem padrão passa a ser a publicação mais recente; tipos sem repetição', () => {
+  const { filters } = readContractSearchRequest({ includeClosed: 'true', contractType: ['7', '1', '7'] });
+  assert.equal(filters.includeClosed, true);
+  assert.equal(filters.sort, 'publishedDesc');
+  assert.deepEqual(filters.contractTypes, [7, 1]);
+  assert.equal(readContractSearchRequest({ includeClosed: 'true', sort: 'expiryAsc' }).filters.sort, 'expiryAsc', 'a ordem pedida vale');
+  assert.equal(readContractSearchRequest({ contractType: '12' }).filters.sort, 'expiryAsc', 'só com tipo, continua o vencimento');
 });
 
 test('contratos com todos os filtros', () => {

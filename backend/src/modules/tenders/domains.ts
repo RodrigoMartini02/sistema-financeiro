@@ -111,8 +111,26 @@ export const COLLECTION_RUN_TYPES = [
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 
-/** Tipo de contrato do PNCP (`tipoContrato.id`) que entra em "Contratos a vencer": o termo inicial. */
-export const PNCP_INITIAL_CONTRACT_TYPE_ID = 1;
+/**
+ * Tipos de contrato do PNCP (`tipoContrato.id`, lista /v1/tipos-contratos de
+ * 18/10/2026), com nomes curtos para a tela. Convênio, TED, ACT e termo de
+ * compromisso estão inativos no PNCP, mas aparecem em registros antigos.
+ */
+export const CONTRACT_TYPES = [
+  { id: 1, name: 'Contrato' },
+  { id: 2, name: 'Comodato' },
+  { id: 3, name: 'Arrendamento' },
+  { id: 4, name: 'Concessão' },
+  { id: 5, name: 'Termo de adesão' },
+  { id: 6, name: 'Convênio' },
+  { id: 7, name: 'Empenho' },
+  { id: 8, name: 'Outros' },
+  { id: 9, name: 'Termo de execução descentralizada' },
+  { id: 10, name: 'Acordo de cooperação técnica' },
+  { id: 11, name: 'Termo de compromisso' },
+  { id: 12, name: 'Carta contrato' },
+] as const;
+export const CONTRACT_TYPE_IDS: readonly number[] = CONTRACT_TYPES.map((type) => type.id);
 
 /** Tipo de pessoa do fornecedor no PNCP: jurídica, física ou estrangeira. */
 export const SUPPLIER_PERSON_TYPES = ['PJ', 'PF', 'PE'] as const;

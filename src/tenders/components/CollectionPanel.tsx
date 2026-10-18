@@ -94,6 +94,8 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
             <dd className={VALUE_CLASS}>{archiveLabel}</dd>
           </>
         )}
+        <dt className={TERM_CLASS}>Contratos na base</dt>
+        <dd className={VALUE_CLASS}>{formatCount(status.contracts.contracts)}</dd>
         <dt className={TERM_CLASS}>Contratos vigentes na base</dt>
         <dd className={VALUE_CLASS}>{formatCount(status.contracts.activeContracts)}</dd>
         <dt className={TERM_CLASS}>Carga inicial</dt>

@@ -22,7 +22,9 @@ import {
 // Estado da tela "Contratos a vencer" (plano .plans/licitacoes-contratos-a-vencer.md,
 // Parte B), no modelo de Buscar (searchFilters.ts): mora na URL, para o link ser
 // compartilhável e o voltar do navegador funcionar; os valores padrão ficam fora
-// dela. Daqui saem também a query da API e os chips dos filtros ativos.
+// dela. Daqui saem também a query da API e os chips dos filtros ativos. O tipo
+// de contrato e "Incluir encerrados" são da parte 2 do plano
+// .plans/licitacoes-base-nacional.md: valem na tela, não na busca salva.
 
 /** Atalhos do vencimento: de hoje até hoje + N dias. */
 export const EXPIRY_SHORTCUT_DAYS = [30, 90, 180, 365] as const;
@@ -48,6 +50,10 @@ export interface ContractSearchState {
   expiryTo: string | null;
   /** Só os contratos que a pessoa favoritou, inclusive os vencidos. */
   favoritesOnly: boolean;
+  /** Também os encerrados e os sem data de fim; sem ele, só os vigentes. */
+  includeClosed: boolean;
+  /** Tipos de contrato; vazio = todos. */
+  contractTypes: number[];
   /** Número do contrato, processo ou controle PNCP, como digitado; vazio = sem filtro. */
   number: string;
   /** Ano do contrato; null = qualquer ano. */
@@ -75,6 +81,8 @@ export const DEFAULT_CONTRACT_SEARCH_STATE: ContractSearchState = {
   expiryFrom: null,
   expiryTo: null,
   favoritesOnly: false,
+  includeClosed: false,
+  contractTypes: [],
   number: '',
   contractYear: null,
   savedSearchId: null,
@@ -82,6 +90,11 @@ export const DEFAULT_CONTRACT_SEARCH_STATE: ContractSearchState = {
   page: 1,
   perPage: DEFAULT_PER_PAGE,
 };
+
+/** Ordem padrão, como na API: o vencimento mais próximo; com os encerrados, a publicação mais recente. */
+export function defaultContractSort(includeClosed: boolean): ContractSort {
+  return includeClosed ? 'publishedDesc' : 'expiryAsc';
+}
 
 /** Parâmetros da URL de "Contratos a vencer", em português como os de Buscar. */
 export const CONTRACT_URL_PARAMS = {
@@ -100,6 +113,8 @@ export const CONTRACT_URL_PARAMS = {
   expiryFrom: 'vencimentoDe',
   expiryTo: 'vencimentoAte',
   favoritesOnly: 'favoritos',
+  includeClosed: 'encerrados',
+  contractType: 'tipo',
   number: 'numero',
   contractYear: 'ano',
   savedSearch: 'busca',
@@ -125,9 +140,9 @@ function contractYearParam(text: string | null): number | null {
   return year >= MIN_PURCHASE_YEAR && year <= MAX_PURCHASE_YEAR ? year : null;
 }
 
-/** Busca sem texto não ordena por relevância (a API exige termos). */
-function sortFor(sort: ContractSort, q: string): ContractSort {
-  return sort === 'relevance' && !q.trim() ? 'expiryAsc' : sort;
+/** Busca sem texto não ordena por relevância (a API exige termos): vale a ordem padrão. */
+function sortFor(sort: ContractSort, q: string, includeClosed: boolean): ContractSort {
+  return sort === 'relevance' && !q.trim() ? defaultContractSort(includeClosed) : sort;
 }
 
 /** URL → estado. Valor inválido ou repetido fica de fora; os padrões preenchem o resto. */
@@ -136,8 +151,9 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
   const savedSearchId = positiveInt(params.get(P.savedSearch));
   const [publishedFrom, publishedTo] = datePair(dateParam(params.get(P.publishedFrom)), dateParam(params.get(P.publishedTo)));
   const [expiryFrom, expiryTo] = datePair(dateParam(params.get(P.expiryFrom)), dateParam(params.get(P.expiryTo)));
+  const includeClosed = params.get(P.includeClosed) === '1';
   const sortValue = params.get(P.sort);
-  const sort = CONTRACT_SORTS.find((option) => SORT_URL_VALUES[option] === sortValue) ?? DEFAULT_CONTRACT_SEARCH_STATE.sort;
+  const sort = CONTRACT_SORTS.find((option) => SORT_URL_VALUES[option] === sortValue) ?? defaultContractSort(includeClosed);
   const perPage = PER_PAGE_OPTIONS.find((option) => String(option) === params.get(P.perPage)) ?? DEFAULT_PER_PAGE;
 
   const minValue = decimalParam(params.get(P.minValue));
@@ -166,13 +182,15 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
     expiryFrom,
     expiryTo,
     favoritesOnly: params.get(P.favoritesOnly) === '1',
+    includeClosed,
+    contractTypes: uniqueValid(params.getAll(P.contractType), (value) => value, (value) => positiveInt(value) !== null).map(Number),
     number: numberParam(params.get(P.number)),
     contractYear: contractYearParam(params.get(P.contractYear)),
     savedSearchId,
     page: positiveInt(params.get(P.page)) ?? 1,
     perPage,
   };
-  return { ...state, sort: sortFor(sort, state.q) };
+  return { ...state, sort: sortFor(sort, state.q, includeClosed) };
 }
 
 /** Estado → URL, sem os valores padrão. */
@@ -195,10 +213,12 @@ export function toContractSearchParams(state: ContractSearchState): URLSearchPar
   if (state.expiryFrom) params.set(P.expiryFrom, state.expiryFrom);
   if (state.expiryTo) params.set(P.expiryTo, state.expiryTo);
   if (state.favoritesOnly) params.set(P.favoritesOnly, '1');
+  if (state.includeClosed) params.set(P.includeClosed, '1');
+  state.contractTypes.forEach((value) => params.append(P.contractType, String(value)));
   if (state.number) params.set(P.number, state.number);
   if (state.contractYear !== null) params.set(P.contractYear, String(state.contractYear));
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
-  if (state.sort !== DEFAULT_CONTRACT_SEARCH_STATE.sort) params.set(P.sort, SORT_URL_VALUES[state.sort]);
+  if (state.sort !== defaultContractSort(state.includeClosed)) params.set(P.sort, SORT_URL_VALUES[state.sort]);
   if (state.page > 1) params.set(P.page, String(state.page));
   if (state.perPage !== DEFAULT_PER_PAGE) params.set(P.perPage, String(state.perPage));
   return params;
@@ -231,6 +251,8 @@ export function toContractApiQuery(state: ContractSearchState): string {
   if (state.expiryFrom) params.set('expiryFrom', state.expiryFrom);
   if (state.expiryTo) params.set('expiryTo', state.expiryTo);
   if (state.favoritesOnly) params.set('favoritesOnly', 'true');
+  if (state.includeClosed) params.set('includeClosed', 'true');
+  state.contractTypes.forEach((value) => params.append('contractType', String(value)));
   if (state.number) params.set('number', state.number);
   if (state.contractYear !== null) params.set('contractYear', String(state.contractYear));
   params.set('sort', state.sort);
@@ -244,13 +266,21 @@ export function contractFavoritesApiQuery(page: number, perPage: number): string
   return toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, favoritesOnly: true, page, perPage });
 }
 
-/** Muda filtros: a página volta para a 1, e a relevância sai se a busca ficou sem texto. */
+/**
+ * Muda filtros: a página volta para a 1, e a relevância sai se a busca ficou
+ * sem texto. Ao ligar ou desligar "Incluir encerrados" com a ordem padrão, a
+ * ordem passa a ser o padrão do outro modo; uma ordem escolhida fica.
+ */
 export function withContractFilters(
   state: ContractSearchState,
   changes: Partial<Omit<ContractSearchState, 'page'>>,
 ): ContractSearchState {
   const next = { ...state, ...changes, page: 1 };
-  return { ...next, sort: sortFor(next.sort, next.q) };
+  const followsDefault = changes.sort === undefined && state.sort === defaultContractSort(state.includeClosed);
+  if (next.includeClosed !== state.includeClosed && followsDefault) {
+    next.sort = defaultContractSort(next.includeClosed);
+  }
+  return { ...next, sort: sortFor(next.sort, next.q, next.includeClosed) };
 }
 
 /** "Limpar tudo": filtros e busca salva saem; ordenação e itens por página ficam. */
@@ -288,8 +318,9 @@ export function daysUntilExpiry(expiresOn: string, todayIso: string): number {
   return Math.round((Date.parse(`${expiresOn}T00:00:00Z`) - Date.parse(`${todayIso}T00:00:00Z`)) / 86_400_000);
 }
 
-/** "Vence hoje", "Vence amanhã", "Vence em 45 dias" ou "Vencido". */
-export function expiryLabel(expiresOn: string, todayIso: string): string {
+/** "Vence hoje", "Vence amanhã", "Vence em 45 dias", "Vencido" ou, sem vencimento, "Sem data de fim". */
+export function expiryLabel(expiresOn: string | null, todayIso: string): string {
+  if (expiresOn === null) return 'Sem data de fim';
   const days = daysUntilExpiry(expiresOn, todayIso);
   if (days < 0) return 'Vencido';
   if (days === 0) return 'Vence hoje';
@@ -308,6 +339,7 @@ export interface ContractFilterChip {
 export interface ContractChipLookups {
   municipalityName?: (code: string) => string | undefined;
   categoryName?: (id: number) => string | undefined;
+  contractTypeName?: (id: number) => string | undefined;
   savedSearchName?: (id: number) => string | undefined;
 }
 
@@ -366,6 +398,14 @@ export function contractFilterChips(state: ContractSearchState, lookups: Contrac
   }
   if (state.favoritesOnly) {
     add('favoritesOnly', 'Só favoritos', { favoritesOnly: false });
+  }
+  state.contractTypes.forEach((id) =>
+    add(`contractType:${id}`, `Tipo: ${lookups.contractTypeName?.(id) ?? id}`, {
+      contractTypes: state.contractTypes.filter((item) => item !== id),
+    }),
+  );
+  if (state.includeClosed) {
+    add('includeClosed', 'Com encerrados', { includeClosed: false });
   }
   return chips;
 }

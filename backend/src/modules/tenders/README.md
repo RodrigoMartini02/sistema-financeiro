@@ -8,8 +8,8 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria) e `.plans/licitacoes-contratos-a-vencer.md` (contratos);
-- migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos).
+- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos) e `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta);
+- migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos), `0087` (contratos de todos os tipos) e `0088` (edital sem o JSON bruto).
 
 ## Estrutura
 
@@ -31,10 +31,11 @@ backend/src/modules/tenders/
 │   ├── notifications.ts             NOVO_EDITAL, EDITAL_ALTERADO, PRAZO_3D, PRAZO_1D
 │   ├── runs.ts                      varredura, incremental, lembretes, limpeza
 │   ├── contractMapping.ts           contrato do PNCP → licitacoes.contrato; vencimento pelos termos
-│   ├── contractRepository.ts        upsert de contratos, dias da carga, limpeza e tamanho do banco
-│   ├── contractRuns.ts              contratos: coleta diária, carga inicial, limpeza e avisos
+│   ├── contractRepository.ts        upsert de contratos, dias da carga e tamanho do banco
+│   ├── contractRuns.ts              contratos: coleta diária, carga inicial e avisos
 │   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO
 │   ├── archive.ts                   arquivo bruto das coletas no Cloudflare R2 (JSON Lines compactado)
+│   ├── noticePayloadExport.ts       exportação do JSON dos editais do banco para o R2 (antes da 0088)
 │   ├── runtime.ts                   config, log, banco, PNCP e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
@@ -84,9 +85,9 @@ npm --prefix backend run tenders -- status                    # última execuç�
 npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2   # depuração
 npm --prefix backend run tenders -- contracts-daily           # contratos publicados e atualizados de ontem a hoje
-npm --prefix backend run tenders -- contracts-cleanup         # apaga os contratos vencidos, menos os favoritados
 npm --prefix backend run tenders -- contract-reminders        # avisos de 90 e 30 dias antes do vencimento
 npm --prefix backend run tenders -- contracts-backfill [--from 2026-09-01] [--to 2026-09-30] [--max-minutes 90] [--max-db-mb 2000]
+npm --prefix backend run tenders -- notices-payload-export    # JSON dos editais do banco para o R2, antes da 0088
 ```
 
 No banco local, o mesmo comando vai com `tenders:dev`, que lê o `../.env.dev`:
@@ -96,7 +97,7 @@ npm --prefix backend run tenders:dev -- sweep
 ```
 
 - **Saída:** cada execução fica em `licitacoes.coleta_execucao` com tipo, status (`SUCESSO`, `PARCIAL` ou `FALHA`), requisições, registros lidos, novos, atualizados, notificações, erros e detalhes. O código de saída é 1 em `FALHA`.
-- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava, e os contratos uma terceira: a carga manual e a rotina não rodam juntas.
+- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava, os contratos uma terceira (a carga manual e a rotina não rodam juntas) e a exportação do JSON dos editais uma quarta.
 
 ## Agendamento (Render Cron Job, horário em UTC)
 
@@ -113,10 +114,11 @@ Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um
 2. varredura (`sweep`);
 3. lembretes de prazo (`deadline-reminders`);
 4. coleta diária de contratos (`contracts-daily`);
-5. limpeza dos contratos vencidos (`contracts-cleanup`), todo dia;
-6. avisos de vencimento dos contratos (`contract-reminders`);
-7. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
-8. carga inicial de contratos (`contracts-backfill`), por último: só roda com `TENDERS_CONTRACTS_MAX_DB_MB` definida e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
+5. avisos de vencimento dos contratos (`contract-reminders`);
+6. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
+7. carga inicial de contratos (`contracts-backfill`), por último: só roda com `TENDERS_CONTRACTS_MAX_DB_MB` definida e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
+
+Os contratos não têm mais limpeza (parte 2 do plano `.plans/licitacoes-base-nacional.md`): os encerrados ficam na base. O tipo `CONTRATOS_LIMPEZA` fica só no histórico.
 
 Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração.
 
@@ -155,8 +157,9 @@ npm --prefix backend run test:tenders-db
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
-  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado (na coleta e na reconsulta), trava própria e o arquivo bruto com o R2 simulado (o que vai, falha no envio, execução que falha e desligado);
-  - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
+  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, todos os tipos e os vencidos entram com o tipo, sem data de fim entra sem vencimento (e ganha o do aditivo), termos não reconsultados com a mesma data global, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, vencimento alterado (na coleta e na reconsulta), trava própria e o arquivo bruto com o R2 simulado (o que vai, falha no envio, execução que falha e desligado);
+  - exportação do JSON dos editais (`collector/noticePayloadExport.db.test.ts`): sem R2 não roda; lotes em partes, com o JSON e as datas de coleta; falha no envio para sem avançar, e a seguinte continua e confere (`verified`);
+  - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, tipo de contrato e "Incluir encerrados" (com os sem vencimento), ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
@@ -218,20 +221,23 @@ Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): 
 - **Cliente:** `@aws-sdk/client-s3` (instalado só com versões de pelo menos 2 semanas), com região `auto`, caminho `/<bucket>/<chave>` e checksums só quando a operação exige.
 - **Ligar:** criar o bucket privado e um token "Object Read & Write" restrito a ele, e definir as 4 variáveis no Cron Job, que roda as coletas, e no `.env.dev`, para testar no local. O plano também as põe no Web Service, para os comandos manuais das próximas partes. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
 
+**Editais sem o JSON no banco** (parte 2 do mesmo plano): o coletor não grava mais `licitacoes.edital.payload`, só o hash dele. O que já estava gravado sai em três passos, banco por banco:
+1. **migration 0087:** a coluna passa a aceitar NULL;
+2. **`notices-payload-export`:** lê o JSON gravado em ordem de id, em lotes de 2.000 (um arquivo por lote), e envia para `pncp/editais-legado/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com `controlNumber`, `firstCollectedAt` e `lastCollectedAt` em cada linha. É uma execução `MANUAL`, retomável (continua do maior `lastId` das anteriores). No fim, confere que não sobrou JSON depois do último id e grava `detalhes.verified`. Sem o R2, não roda;
+3. **migration 0088:** remove a coluna. Ela recusa rodar se ainda houver JSON sem uma exportação com `verified: true` no mesmo banco.
+
+A ordem na produção: deploy do código da parte 2, exportação, conferência e só então a 0088. A remoção não tem volta: o JSON fica só no R2.
+
 ## Contratos a vencer (dados)
 
-Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos vigentes do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria (`licitacoes.contrato`, migration 0085), com uma carga inicial e uma coleta diária.
+Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria (`licitacoes.contrato`, migration 0085), com uma carga inicial e uma coleta diária.
 
-**O que entra** (`collector/contractMapping.ts`):
-- só "Contrato (termo inicial)" (`tipoContrato.id = 1`), com vigência original de 180 dias ou mais e vencimento de hoje em diante;
-- ficam de fora, contados nos detalhes da execução, sem erro:
-  - outro tipo (`skippedNotInitialTerm`);
-  - contrato curto (`skippedShortTerm`);
-  - sem data de fim (`skippedWithoutEndDate`);
-  - vigência de mais de 35 anos (`skippedImplausibleTerm`): digitação como 2227, ou água e energia com 2100 e 3024;
-  - vencido ainda não gravado (`skippedExpired`);
+**O que entra** (`collector/contractMapping.ts`; desde a parte 2 do plano `.plans/licitacoes-base-nacional.md`, migration 0087):
+- todos os tipos (contrato, empenho, carta contrato, termo de adesão, "Outros"...), de qualquer duração, vigentes e encerrados, com o tipo gravado (`tipo_contrato_id` e `tipo_contrato_nome`). Antes, só o "Contrato (termo inicial)" com 180 dias ou mais e ainda vigente; os gravados antes ficaram com o tipo 1;
+- **sem vencimento**, contados nos detalhes da execução, sem erro: sem data de fim (`withoutEndDate`) e vigência de mais de 35 anos (`implausibleTerm`: digitação como 2227, ou água e energia com 2100 e 3024). Entram com `vigencia_fim_original` e `vencimento` nulos; um aditivo de prazo ou uma rescisão dá o vencimento depois;
 - registro fora do formato (CNPJ, datas, fim antes do início) conta erro, como nos editais;
 - fornecedor pessoa física: o CPF fica só mascarado (`***.456.789-**`).
+- **Medido em 15/10/2026** (PNCP, um dia): 8.959 publicados (3.524 termos iniciais, 3.059 empenhos, 2.337 "Outros") e 11.658 atualizados. Com sinal de alteração, 2.752 (2.382 do termo inicial): cerca de 16% mais consultas de termos que antes. Pela conta (o piloto levou de 25 a 30 min com ~1.900 consultas), a coleta diária deve ficar abaixo da meta de 1 h, e por isso os termos continuam consultados para todos os tipos.
 
 **Vencimento pelos termos:**
 - **Sinal de alteração:** a atualização global mais de 24 h depois da publicação. Só com o sinal os termos são consultados (`GET /v1/orgaos/{cnpj}/contratos/{ano}/{sequencial}/termos`, na API principal). Eles só voltam a ser consultados quando a data de atualização global muda (`aditivos_referencia`).
@@ -252,15 +258,15 @@ Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos vigente
 - **Ligar na produção:** definir `TENDERS_CONTRACTS_MAX_DB_MB` no Cron Job. Sem ela, a etapa sai com "carga não iniciada". Sem dia pendente, sai com "carga concluída".
 - **Andamento:** em Configurações › Coleta (bloco Contratos) ou no comando `status`.
 
-**Coleta diária e limpeza:**
+**Coleta diária:**
 - **Coleta** (plano `.plans/licitacoes-contratos-coleta-sem-perda.md`): os contratos publicados e os atualizados, cada consulta na sua janela:
   - **início:** o último dia que aquela consulta leu sem falha do PNCP, que é o fim gravado em `detalhes.queries` da última `CONTRATOS_DIARIA` em que ela terminou. Sem nenhuma, ou se for depois de ontem, ontem. Num dia normal, de ontem a hoje;
   - **fim:** hoje, ou no máximo 7 dias depois do início (`DAILY_MAX_WINDOW_DAYS`). Uma parada longa é recuperada em etapas, sem dia perdido, e Configurações › Coleta mostra "Recuperando dias sem coleta";
   - erro de registro ou de termos não segura o início. Reler um dia já lido não duplica nada.
 - **Reconsulta dos termos:** depois das consultas, até 200 contratos (`TERMS_RETRY_LIMIT`) com sinal de alteração e termos não conferidos para a atualização global atual, que sobram quando o PNCP falhou antes, na coleta ou na carga. Vão da atualização mais antiga para a mais nova, sem os que falharam na própria execução, e a reconsulta para depois de 3 falhas seguidas. O resumo fica em `detalhes.termsRetry`.
-- **Limpeza:** todo dia, apaga os contratos com vencimento antes de hoje. Se um aditivo for publicado depois, a coleta diária traz o contrato de volta.
+- **Sem limpeza:** os encerrados ficam na base (parte 2 do plano `.plans/licitacoes-base-nacional.md`). Até a parte 2, a limpeza apagava todo dia os vencidos, menos os favoritados.
 
-**Medido no piloto** (13 e 14/10/2026, banco local; números completos no plano):
+**Medido no piloto** (13 e 14/10/2026, banco local, ainda só com o termo inicial; números completos no plano):
 - **Ritmo:** nenhum 429 com termos a 4 s, 1 s e 0,5 s (mais de 10 mil consultas a 0,5 s). A consulta de contratos, a 4 s entre páginas de 500, levou de 1 a 3 s por página.
 - **Espaço:** 1.797 bytes por contrato com os índices (tabela 1.203, TOAST 51 e índices 543).
 - **Setembro/2026:** 175.638 registros e 43.386 contratos (24,7%), ~2,6 min por dia útil.
@@ -282,13 +288,15 @@ SELECT count(*) AS contratos,
 Parte B do mesmo plano, migration `0086_licitacoes_contratos_favoritos_buscas.sql`.
 
 **Busca** (`services/contractSearch.ts`):
-- mostra só os contratos vigentes (`licitacoes.fn_contrato_vigente`: vencimento de hoje em diante, em Brasília). Com "Só favoritos", aparecem também os favoritos vencidos;
+- mostra só os contratos vigentes (`licitacoes.fn_contrato_vigente`: vencimento de hoje em diante, em Brasília; sem vencimento, fica de fora). Com "Só favoritos", aparecem também os favoritos vencidos;
+- **"Incluir encerrados"** (`includeClosed`, parte 2 do plano `.plans/licitacoes-base-nacional.md`): todos, inclusive os vencidos e os sem vencimento. A ordem padrão passa a ser a publicação mais recente;
+- **tipo de contrato** (`contractType`, repetível): os ids da lista `CONTRACT_TYPES` (`domains.ts`, a mesma do PNCP), com nomes curtos para a tela. O tipo e os encerrados são só da tela: a busca salva e os avisos continuam com os vigentes;
 - palavras como na busca de editais, no objeto e na informação complementar;
 - **número** (grupos de dígitos, como na 0079): número do contrato + ano, processo + ano, controle PNCP do contrato ou controle da compra. A consulta usa as mesmas expressões dos índices da 0085;
 - critérios em comum com a busca salva pela função `licitacoes.fn_contrato_atende_criterios`: termos, exclusões, UF, município, órgão, categoria, fornecedor (CNPJ) e faixa de valor global, com "incluir sem valor";
-- ordem padrão: o vencimento mais próximo. A relevância só vale com palavras.
+- ordem padrão: o vencimento mais próximo (os sem vencimento por último). A relevância só vale com palavras.
 
-**Favoritos** (`favorito_contrato`): de cada pessoa na conta e idempotentes. A limpeza não apaga contrato favoritado.
+**Favoritos** (`favorito_contrato`): de cada pessoa na conta e idempotentes.
 
 **Buscas salvas** (`busca_salva_contrato`): os mesmos critérios da tela, menos número, ano e "Só favoritos", com até 50 por pessoa e conta, contadas à parte das de editais. O total `activeCount` são os vigentes que batem agora.
 

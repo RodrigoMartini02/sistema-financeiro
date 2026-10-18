@@ -4,14 +4,13 @@ import { eq, inArray } from 'drizzle-orm';
 import { tenderContracts } from '../db/schema';
 import {
   databaseSizeMb,
-  deleteExpiredContracts,
   markBackfillDayCompleted,
   readCompletedBackfillDays,
   readNewestBackfillDay,
   readStoredContracts,
   upsertContractPage,
 } from './contractRepository';
-import { buildContractRow, closeLocalTestDatabase, databaseTestsSkipReason, insertTestContract, withRollback } from './dbTestSupport';
+import { buildContractRow, closeLocalTestDatabase, databaseTestsSkipReason, withRollback } from './dbTestSupport';
 
 describe('repositório de contratos (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
@@ -87,19 +86,17 @@ describe('repositório de contratos (banco local)', { skip: databaseTestsSkipRea
     });
   });
 
-  test('limpeza: apaga só os contratos com vencimento antes de hoje', async () => {
+  test('sem vencimento: o contrato sem data de fim é gravado e lido com vencimento nulo', async () => {
     await withRollback(async (tx) => {
-      const expired = await insertTestContract(tx, { expiresOn: '2026-10-12' });
-      const dueToday = await insertTestContract(tx, { expiresOn: '2026-10-13' });
-      const future = await insertTestContract(tx, { expiresOn: '2027-01-01' });
-
-      const removed = await deleteExpiredContracts(tx, '2026-10-13');
-      assert.ok(removed >= 1);
-      const remaining = await tx
-        .select({ id: tenderContracts.id })
+      const row = buildContractRow({ originalTermEnd: null, expiresOn: null, contractTypeId: 7, contractTypeName: 'Empenho' });
+      assert.deepEqual(await upsertContractPage(tx, [row]), { insertedCount: 1, updatedCount: 0, unchangedCount: 0 });
+      const stored = await readStoredContracts(tx, [row.pncpControlNumber]);
+      assert.deepEqual(stored.get(row.pncpControlNumber), { amendments: null, amendmentsReference: null, expiresOn: null });
+      const [saved] = await tx
+        .select({ typeId: tenderContracts.contractTypeId, typeName: tenderContracts.contractTypeName })
         .from(tenderContracts)
-        .where(inArray(tenderContracts.id, [expired, dueToday, future]));
-      assert.deepEqual(remaining.map((row) => row.id).sort((a, b) => a - b), [dueToday, future].sort((a, b) => a - b));
+        .where(eq(tenderContracts.pncpControlNumber, row.pncpControlNumber));
+      assert.deepEqual(saved, { typeId: 7, typeName: 'Empenho' });
     });
   });
 

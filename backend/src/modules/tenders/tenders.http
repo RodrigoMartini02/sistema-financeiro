@@ -162,6 +162,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/contracts?accountId={{accountId}}&favoritesOnly=true
 Authorization: Bearer {{token}}
 
+### Contratos: empenhos e cartas contrato, com os encerrados e os sem data de fim (ordem padrão: publicação mais recente)
+GET {{baseUrl}}/contracts?accountId={{accountId}}&contractType=7&contractType=12&includeClosed=true
+Authorization: Bearer {{token}}
+
 ### Detalhe do contrato (aditivos, edital de origem e favorito)
 GET {{baseUrl}}/contracts/{{contractId}}?accountId={{accountId}}
 Authorization: Bearer {{token}}

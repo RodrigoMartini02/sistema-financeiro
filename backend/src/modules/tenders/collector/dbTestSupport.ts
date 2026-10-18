@@ -102,9 +102,10 @@ export async function createTestAccount(
   return { accountId: account.id, ownerId };
 }
 
+/** Edital de teste; o hash sai de um registro com o número e o objeto, como o do PNCP sairia do JSON. */
 export function buildNoticeRow(overrides: Partial<TenderNoticeRow> = {}): TenderNoticeRow {
   const pncpControlNumber = overrides.pncpControlNumber ?? `TESTE-${randomUUID().slice(0, 18)}`;
-  const payload = overrides.payload ?? { numeroControlePNCP: pncpControlNumber, objetoCompra: overrides.procurementObject };
+  const record = { numeroControlePNCP: pncpControlNumber, objetoCompra: overrides.procurementObject };
   return {
     pncpControlNumber,
     procurementObject: 'Objeto de teste',
@@ -114,8 +115,7 @@ export function buildNoticeRow(overrides: Partial<TenderNoticeRow> = {}): Tender
     estimatedTotalValue: '100000.00',
     proposalClosesAt: null,
     ...overrides,
-    payload,
-    payloadHash: overrides.payloadHash ?? payloadHash(payload),
+    payloadHash: overrides.payloadHash ?? payloadHash(record),
   };
 }
 
@@ -150,6 +150,9 @@ export function buildContractRow(overrides: Partial<TenderContractRow> = {}): Te
     contractSequence: 1,
     agencyCnpj: '03353358000196',
     contractObject: 'Contrato de teste',
+    // O termo inicial, como os gravados antes da migration 0087.
+    contractTypeId: 1,
+    contractTypeName: 'Contrato (termo inicial)',
     termStart: '2026-01-01',
     originalTermEnd: '2027-01-01',
     expiresOn: '2027-01-01',

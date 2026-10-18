@@ -40,7 +40,8 @@ interface ContractFiltersPanelProps {
 /**
  * Filtros de "Contratos a vencer", como os de Buscar: escolhas valem na hora;
  * valores, datas e número, ao sair do campo. Com busca salva, os critérios vêm
- * dela e ficam travados aqui.
+ * dela e ficam travados aqui; o tipo e os encerrados são só da tela e valem
+ * também com ela.
  */
 export function ContractFiltersPanel({ state, onChange, domains, lookups, todayIso }: ContractFiltersPanelProps) {
   const update = (changes: Partial<Omit<ContractSearchState, 'page'>>) => onChange(withContractFilters(state, changes));
@@ -139,6 +140,12 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
           checked={state.favoritesOnly}
           onChange={() => update({ favoritesOnly: !state.favoritesOnly })}
         />
+        <ToggleRow
+          label="Incluir encerrados"
+          description="Também os vencidos e os sem data de fim, com a publicação mais recente primeiro."
+          checked={state.includeClosed}
+          onChange={() => update({ includeClosed: !state.includeClosed })}
+        />
       </FilterSection>
 
       <FilterSection title="Número e ano" error={numberError}>
@@ -206,6 +213,15 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
               selected={state.categories}
               onChange={(categories) => update({ categories })}
               disabled={locked}
+            />
+          </FilterSection>
+
+          <FilterSection title="Tipo de contrato">
+            <CheckList
+              label="Tipo de contrato"
+              options={domainLists.contractTypes.map((type) => ({ value: type.id, label: type.name }))}
+              selected={state.contractTypes}
+              onChange={(contractTypes) => update({ contractTypes })}
             />
           </FilterSection>
         </>

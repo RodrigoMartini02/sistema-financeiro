@@ -1,8 +1,8 @@
-import { and, asc, count, eq, exists, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, exists, inArray, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { TendersDb } from '../collector/database';
 import { tenderContractFavorites, tenderContracts } from '../db/schema';
-import type { ContractSort, SearchTermsMode } from '../domains';
+import { CONTRACT_TYPES, type ContractSort, type SearchTermsMode } from '../domains';
 import { toBrasiliaIso } from './dates';
 import { termsQuery, type Paginated, type SearchRequester } from './noticeSearch';
 
@@ -12,7 +12,10 @@ import { termsQuery, type Paginated, type SearchRequester } from './noticeSearch
 // licitacoes.fn_contrato_atende_criterios e licitacoes.fn_contrato_vigente.
 // Assim a tela, o total "vigentes agora" das buscas salvas e os avisos dão o
 // mesmo resultado por construção. A tela mostra só os vigentes; com "Só
-// favoritos", aparecem também os favoritos vencidos.
+// favoritos", aparecem também os favoritos vencidos, e com "Incluir
+// encerrados" (parte 2 do plano .plans/licitacoes-base-nacional.md), todos,
+// inclusive os sem vencimento. O tipo de contrato e os encerrados são só da
+// tela: a busca salva e os avisos continuam com os vigentes.
 
 /** Critérios que a busca da tela e a busca salva de contratos têm em comum. */
 export interface ContractCriteria {
@@ -53,6 +56,10 @@ export interface ContractSearchFilters {
   expiryTo: string | null;
   /** Só os favoritos de quem busca, inclusive os vencidos. */
   favoritesOnly: boolean;
+  /** Também os encerrados e os sem vencimento; sem ele, só os vigentes. */
+  includeClosed: boolean;
+  /** Tipos de contrato (`CONTRACT_TYPES`); vazio = todos. */
+  contractTypes: number[];
   /** Grupos de dígitos do "Número, processo ou controle PNCP" (`numberGroupsOf`); vazio = sem filtro. */
   numberGroups: string[];
   /** Ano do contrato no PNCP; null = qualquer ano. */
@@ -73,14 +80,18 @@ export interface ContractListItem {
   cityIbgeCode: string | null;
   categoryId: number | null;
   categoryName: string | null;
+  contractTypeId: number | null;
+  /** Nome curto do tipo (`CONTRACT_TYPES`); tipo fora da lista, o nome que veio. */
+  contractTypeName: string | null;
   supplierName: string | null;
   /** CNPJ (14 dígitos) ou, na pessoa física, o CPF mascarado. */
   supplierDocument: string | null;
   globalValue: number | null;
   termStart: string;
-  originalTermEnd: string;
-  /** Vencimento atual: o fim original ou o do aditivo mais recente que muda a vigência. */
-  expiresOn: string;
+  /** null: sem data de fim, ou com uma fora do normal. */
+  originalTermEnd: string | null;
+  /** Vencimento atual: o fim original ou o do aditivo mais recente que muda a vigência; null = sem vencimento. */
+  expiresOn: string | null;
   publishedAt: string | null;
   /** O vencimento atual é diferente do fim original (aditivo de prazo ou rescisão). */
   isExtended: boolean;
@@ -101,6 +112,13 @@ const HEADLINE_OPTIONS = 'StartSel=<<, StopSel=>>, MinWords=15, MaxWords=35, Max
 /** Página do contrato no site do PNCP (conferida no piloto: rota `contratos/:cnpj/:ano/:sequencial`). */
 export function contractPncpLink(agencyCnpj: string, year: number, sequence: number): string {
   return `https://pncp.gov.br/app/contratos/${agencyCnpj}/${year}/${sequence}`;
+}
+
+const CONTRACT_TYPE_NAMES = new Map<number, string>(CONTRACT_TYPES.map((type) => [type.id, type.name]));
+
+/** Nome curto do tipo para a tela; tipo fora da lista fica com o nome gravado. */
+export function contractTypeLabel(id: number | null, storedName: string | null): string | null {
+  return (id !== null ? CONTRACT_TYPE_NAMES.get(id) : undefined) ?? storedName;
 }
 
 /** Critérios da busca, pela mesma função do banco que a busca salva e os avisos usam. */
@@ -163,8 +181,15 @@ function startOfNextBrasiliaDay(date: string): SQL {
 
 function filterConditions(filters: ContractSearchFilters, favorite: SQL): SQL[] {
   const conditions: SQL[] = [contractCriteriaCondition(filters.criteria)];
-  // Só os vigentes; "Só favoritos" mostra também os favoritos vencidos.
-  conditions.push(filters.favoritesOnly ? favorite : activeContractCondition);
+  // Só os vigentes; "Só favoritos" mostra também os favoritos vencidos, e "Incluir encerrados", todos.
+  if (filters.favoritesOnly) {
+    conditions.push(favorite);
+  } else if (!filters.includeClosed) {
+    conditions.push(activeContractCondition);
+  }
+  if (filters.contractTypes.length > 0) {
+    conditions.push(inArray(searchedContract.contractTypeId, filters.contractTypes));
+  }
   if (filters.numberGroups.length > 0) {
     conditions.push(numberCondition(filters.numberGroups));
   }
@@ -229,6 +254,8 @@ export async function searchContracts(
         cityIbgeCode: searchedContract.cityIbgeCode,
         categoryId: searchedContract.categoryId,
         categoryName: searchedContract.categoryName,
+        contractTypeId: searchedContract.contractTypeId,
+        contractTypeName: searchedContract.contractTypeName,
         supplierName: searchedContract.supplierName,
         supplierDocument: searchedContract.supplierDocument,
         globalValue: searchedContract.globalValue,
@@ -253,6 +280,7 @@ export async function searchContracts(
   return {
     items: rows.map(({ contractYear, contractSequence, ...row }) => ({
       ...row,
+      contractTypeName: contractTypeLabel(row.contractTypeId, row.contractTypeName),
       state: row.state?.trim() ?? null,
       globalValue: row.globalValue === null ? null : Number(row.globalValue),
       publishedAt: toBrasiliaIso(row.publishedAt),
@@ -277,6 +305,8 @@ export function contractCriteriaOnlyFilters(criteria: ContractCriteria, perPage:
     expiryFrom: null,
     expiryTo: null,
     favoritesOnly: false,
+    includeClosed: false,
+    contractTypes: [],
     numberGroups: [],
     contractYear: null,
     sort: 'expiryAsc',

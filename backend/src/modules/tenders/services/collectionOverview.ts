@@ -25,9 +25,10 @@ const DAILY_JOBS_SLOT: DailySlot = { hour: 6, minute: 0 };
 
 /**
  * Agenda em Brasília: a rotina diária das 06:00 faz a varredura, os lembretes
- * de prazo, a coleta, a limpeza e os avisos dos contratos, a carga de
- * contratos (enquanto houver dias pendentes) e, aos domingos, a limpeza dos
- * editais. A incremental não está agendada.
+ * de prazo, a coleta e os avisos dos contratos, a carga de contratos
+ * (enquanto houver dias pendentes) e, aos domingos, a limpeza dos editais. A
+ * incremental não está agendada, e a limpeza dos contratos saiu (os
+ * encerrados ficam na base): o tipo fica só no histórico.
  */
 export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   VARREDURA: [DAILY_JOBS_SLOT],
@@ -36,7 +37,7 @@ export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   LIMPEZA: [{ ...DAILY_JOBS_SLOT, weekday: 0 }],
   CONTRATOS_DIARIA: [DAILY_JOBS_SLOT],
   CONTRATOS_CARGA: [DAILY_JOBS_SLOT],
-  CONTRATOS_LIMPEZA: [DAILY_JOBS_SLOT],
+  CONTRATOS_LIMPEZA: [],
   CONTRATOS_AVISOS: [DAILY_JOBS_SLOT],
 };
 

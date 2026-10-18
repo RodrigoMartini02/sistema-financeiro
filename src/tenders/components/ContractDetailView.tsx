@@ -47,9 +47,15 @@ function supplierDocumentLabel(contract: ContractDetail): string | null {
   return contract.supplierPersonType === 'PJ' ? `CNPJ ${formatCnpj(contract.supplierDocument)}` : contract.supplierDocument;
 }
 
-function AmendmentsList({ amendments }: { amendments: ContractAmendment[] | null }) {
+function AmendmentsList({ amendments, hasOriginalEnd }: { amendments: ContractAmendment[] | null; hasOriginalEnd: boolean }) {
   if (amendments === null) {
-    return <p className="text-sm text-slate-600 dark:text-slate-300">Sem alteração registrada no PNCP: vale o fim original da vigência.</p>;
+    return (
+      <p className="text-sm text-slate-600 dark:text-slate-300">
+        {hasOriginalEnd
+          ? 'Sem alteração registrada no PNCP: vale o fim original da vigência.'
+          : 'Sem alteração registrada no PNCP, e o contrato não informa a data de fim.'}
+      </p>
+    );
   }
   if (amendments.length === 0) {
     return <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum aditivo ou rescisão publicado no PNCP.</p>;
@@ -142,15 +148,15 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
       <Section title="Vigência">
         <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <InfoItem label="Início">{formatIsoDate(contract.termStart)}</InfoItem>
-          <InfoItem label="Fim original">{formatIsoDate(contract.originalTermEnd)}</InfoItem>
+          <InfoItem label="Fim original">{contract.originalTermEnd ? formatIsoDate(contract.originalTermEnd) : 'Sem data de fim'}</InfoItem>
           <InfoItem label="Vencimento atual">
-            <span className="font-semibold">{formatIsoDate(contract.expiresOn)}</span>
+            <span className="font-semibold">{contract.expiresOn ? formatIsoDate(contract.expiresOn) : 'Sem data de fim'}</span>
           </InfoItem>
         </dl>
       </Section>
 
       <Section title="Aditivos e rescisões">
-        <AmendmentsList amendments={contract.amendments} />
+        <AmendmentsList amendments={contract.amendments} hasOriginalEnd={contract.originalTermEnd !== null} />
       </Section>
 
       <Section title="Contrato">
@@ -164,6 +170,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
           </InfoItem>
           {contract.unitName && contract.unitName !== contract.agencyName && <InfoItem label="Unidade">{contract.unitName}</InfoItem>}
           <InfoItem label="Município/UF">{city || 'Não informado'}</InfoItem>
+          <InfoItem label="Tipo">{contract.contractTypeName ?? 'Não informado'}</InfoItem>
           <InfoItem label="Categoria">{contract.categoryName ?? 'Não informada'}</InfoItem>
           <InfoItem label="Número do contrato">{contract.contractNumber ?? 'Não informado'}</InfoItem>
           <InfoItem label="Processo">{contract.processNumber ?? 'Não informado'}</InfoItem>
@@ -207,7 +214,7 @@ export function ContractDetailView({ contractId, inDrawer }: { contractId: numbe
         <EmptyState
           icon={FileSearch}
           title="Contrato não encontrado."
-          description="Ele pode ter saído da base: os contratos vencidos saem no dia seguinte ao vencimento, menos os favoritos."
+          description="Confira o link ou procure o contrato pelo número em Contratos a vencer."
           action={
             <Link to="/contratos" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
               Ir para Contratos a vencer

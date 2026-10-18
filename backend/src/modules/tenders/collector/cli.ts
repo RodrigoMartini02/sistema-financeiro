@@ -2,8 +2,9 @@ import { parseArgs } from 'node:util';
 import * as dotenv from 'dotenv';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
 import { CollectorConfigError, databaseHost } from './config';
-import { runContractReminders, runContractsBackfill, runContractsCleanup, runContractsDaily } from './contractRuns';
+import { runContractReminders, runContractsBackfill, runContractsDaily } from './contractRuns';
 import { errorMessage } from './logger';
+import { runNoticesPayloadExport } from './noticePayloadExport';
 import {
   readStatus,
   runCleanup,
@@ -21,8 +22,9 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix backend run tenders -- sweep | incremental | deadline-reminders | cleanup | status
 //   npm --prefix backend run tenders -- reprocess-notifications --since 2026-10-01
 //   npm --prefix backend run tenders -- collect --modality 6 --state MA --max-pages 2
-//   npm --prefix backend run tenders -- contracts-daily | contracts-cleanup | contract-reminders
+//   npm --prefix backend run tenders -- contracts-daily | contract-reminders
 //   npm --prefix backend run tenders -- contracts-backfill --from 2026-09-01 --to 2026-09-30 --max-db-mb 2000
+//   npm --prefix backend run tenders -- notices-payload-export   (JSON dos editais para o R2, antes da 0088)
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
 
@@ -36,14 +38,22 @@ export const CLI_COMMANDS = [
   'cleanup',
   'contracts-daily',
   'contracts-backfill',
-  'contracts-cleanup',
   'contract-reminders',
+  'notices-payload-export',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
 export type CliCommand =
   | {
-      name: 'sweep' | 'incremental' | 'deadline-reminders' | 'status' | 'cleanup' | 'contracts-daily' | 'contracts-cleanup' | 'contract-reminders';
+      name:
+        | 'sweep'
+        | 'incremental'
+        | 'deadline-reminders'
+        | 'status'
+        | 'cleanup'
+        | 'contracts-daily'
+        | 'contract-reminders'
+        | 'notices-payload-export';
     }
   | { name: 'reprocess-notifications'; since: string }
   | { name: 'collect'; modality: number; state: BrazilianState | null; maxPages: number | null }
@@ -61,8 +71,9 @@ const USAGE = [
   '  sweep | incremental | deadline-reminders | cleanup | status',
   '  reprocess-notifications --since AAAA-MM-DD',
   '  collect --modality N [--state UF] [--max-pages N]',
-  '  contracts-daily | contracts-cleanup | contract-reminders',
+  '  contracts-daily | contract-reminders',
   '  contracts-backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--max-minutes N] [--max-db-mb N]',
+  '  notices-payload-export',
 ].join('\n');
 
 const CLI_OPTIONS = {
@@ -86,9 +97,9 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   'reprocess-notifications': ['since'],
   collect: ['modality', 'state', 'max-pages'],
   'contracts-daily': [],
-  'contracts-cleanup': [],
   'contract-reminders': [],
   'contracts-backfill': ['from', 'to', 'max-minutes', 'max-db-mb'],
+  'notices-payload-export': [],
 };
 
 const MAX_PAGES_LIMIT = 10_000;
@@ -209,8 +220,8 @@ async function runCommand(context: CollectorContext, command: CliCommand): Promi
       return runManualCollect(context, command);
     case 'contracts-daily':
       return runContractsDaily(context);
-    case 'contracts-cleanup':
-      return runContractsCleanup(context);
+    case 'notices-payload-export':
+      return runNoticesPayloadExport(context);
     case 'contract-reminders':
       return runContractReminders(context);
     case 'contracts-backfill':
@@ -240,6 +251,10 @@ async function main(): Promise<void> {
   try {
     const outcome = await runCommand(context, command);
     if (outcome && !outcome.skipped && outcome.status === 'FALHA') {
+      process.exitCode = 1;
+    }
+    // A exportação pedida à mão que não pôde rodar (sem R2 ou depois da 0088) não é sucesso.
+    if (outcome?.skipped && command.name === 'notices-payload-export') {
       process.exitCode = 1;
     }
   } finally {

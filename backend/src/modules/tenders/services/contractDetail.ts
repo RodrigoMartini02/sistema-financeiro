@@ -3,7 +3,7 @@ import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderContractFavorites, tenderContracts, tenderNotices } from '../db/schema';
 import type { SupplierPersonType } from '../domains';
-import { contractPncpLink } from './contractSearch';
+import { contractPncpLink, contractTypeLabel } from './contractSearch';
 import { toBrasiliaIso } from './dates';
 
 // Detalhe do contrato e favoritos (plano .plans/licitacoes-contratos-a-vencer.md,
@@ -49,6 +49,9 @@ export interface ContractDetail {
   cityIbgeCode: string | null;
   categoryId: number | null;
   categoryName: string | null;
+  contractTypeId: number | null;
+  /** Nome curto do tipo (`CONTRACT_TYPES`); tipo fora da lista, o nome que veio. */
+  contractTypeName: string | null;
   contractObject: string;
   additionalInformation: string | null;
   supplierPersonType: SupplierPersonType | null;
@@ -59,8 +62,10 @@ export interface ContractDetail {
   globalValue: number | null;
   signedAt: string | null;
   termStart: string;
-  originalTermEnd: string;
-  expiresOn: string;
+  /** null: sem data de fim, ou com uma fora do normal. */
+  originalTermEnd: string | null;
+  /** null: sem vencimento. */
+  expiresOn: string | null;
   isExtended: boolean;
   /** Termos conferidos no PNCP; null = sem sinal de alteração (termos não consultados). */
   amendments: ContractAmendmentView[] | null;
@@ -138,6 +143,8 @@ export async function getContractDetail(db: TendersDb, requester: Requester, con
     cityIbgeCode: data.cityIbgeCode,
     categoryId: data.categoryId,
     categoryName: data.categoryName,
+    contractTypeId: data.contractTypeId,
+    contractTypeName: contractTypeLabel(data.contractTypeId, data.contractTypeName),
     contractObject: data.contractObject,
     additionalInformation: data.additionalInformation,
     supplierPersonType: data.supplierPersonType,

@@ -1,8 +1,7 @@
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, max, min, ne, notExists, notInArray, sql, getTableColumns } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lte, max, min, ne, notInArray, sql, getTableColumns } from 'drizzle-orm';
 import {
   tenderCollectionRuns,
   tenderContractBackfillDays,
-  tenderContractFavorites,
   tenderContracts,
   type CollectionRunDetails,
   type ContractTermSummary,
@@ -13,8 +12,9 @@ import { PNCP_CONTRACT_ENDPOINTS, type PncpContractEndpoint } from './pncpClient
 
 // Gravação dos contratos (plano .plans/licitacoes-contratos-a-vencer.md):
 // upsert por página, leitura em lote do que já está gravado (para não
-// reconsultar termos), dias da carga inicial, limpeza dos vencidos e tamanho
-// do banco, que a carga confere antes de cada dia. Do plano
+// reconsultar termos), dias da carga inicial e tamanho do banco, que a carga
+// confere antes de cada dia. Não há limpeza: desde a parte 2 do plano
+// .plans/licitacoes-base-nacional.md, os encerrados ficam na base. Do plano
 // .plans/licitacoes-contratos-coleta-sem-perda.md: o último dia que cada
 // consulta da coleta diária leu sem falha e os contratos com termos pendentes,
 // para a reconsulta.
@@ -35,7 +35,8 @@ export interface StoredContractState {
   amendments: ContractTermSummary[] | null;
   /** Data de atualização global da última conferência dos termos, no formato do PNCP (Brasília). */
   amendmentsReference: string | null;
-  expiresOn: string;
+  /** null: sem vencimento (sem data de fim). */
+  expiresOn: string | null;
 }
 
 /** Contratos já gravados entre os números da página, numa consulta só (sem N+1). */
@@ -120,8 +121,8 @@ export interface PendingTermsContract {
   agencyCnpj: string;
   contractYear: number;
   contractSequence: number;
-  originalTermEnd: string;
-  expiresOn: string;
+  originalTermEnd: string | null;
+  expiresOn: string | null;
 }
 
 /** Total de contratos com termos pendentes, para os detalhes da reconsulta. */
@@ -159,7 +160,7 @@ export async function readContractsWithPendingTerms(
 /** Resultado da reconsulta de um contrato: o vencimento e os termos conferidos. */
 export interface CheckedContractTerms {
   pncpControlNumber: string;
-  expiresOn: string;
+  expiresOn: string | null;
   amendments: ContractTermSummary[];
 }
 
@@ -268,20 +269,6 @@ export async function markBackfillDayCompleted(db: TendersDb, day: string, count
       target: tenderContractBackfillDays.day,
       set: { ...counts, completedAt: sql`now()` },
     });
-}
-
-/**
- * Apaga os contratos com vencimento antes de `today` (AAAA-MM-DD, Brasília),
- * menos os favoritados (a pessoa continua vendo o favorito vencido). Os avisos
- * do contrato apagado saem junto (ON DELETE CASCADE).
- */
-export async function deleteExpiredContracts(db: TendersDb, today: string): Promise<number> {
-  const favorited = db
-    .select({ found: sql`1` })
-    .from(tenderContractFavorites)
-    .where(eq(tenderContractFavorites.contractId, tenderContracts.id));
-  const result = await db.delete(tenderContracts).where(and(lt(tenderContracts.expiresOn, today), notExists(favorited)));
-  return result.rowCount ?? 0;
 }
 
 /** Tamanho do banco inteiro em MB, como o plano do Render conta o espaço. */

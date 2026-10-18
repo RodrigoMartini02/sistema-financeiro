@@ -99,6 +99,47 @@ describe('busca de contratos (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
+  test('tipo de contrato e "Incluir encerrados", que traz também os sem vencimento', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'contrato-tipos');
+      const token = uniqueToken();
+      const object = `Fornecimento de material ${token}`;
+      const activeContract = await insertTestContract(tx, { contractObject: object, expiresOn: FUTURE });
+      const activeEmpenho = await insertTestContract(tx, { contractObject: object, expiresOn: FUTURE, contractTypeId: 7, contractTypeName: 'Empenho' });
+      const closedContract = await insertTestContract(tx, { contractObject: object, termStart: '2024-01-01', originalTermEnd: PAST, expiresOn: PAST });
+      const withoutExpiry = await insertTestContract(tx, {
+        contractObject: object,
+        originalTermEnd: null,
+        expiresOn: null,
+        contractTypeId: 8,
+        contractTypeName: 'Outros',
+      });
+      const requester = requesterOf(account);
+      const byId = (ids: number[]) => [...ids].sort((a, b) => a - b);
+
+      assert.deepEqual(byId(await idsFor(tx, requester, filtersFor({ terms: [token] }))), byId([activeContract, activeEmpenho]), 'padrão: só os vigentes');
+      assert.deepEqual(await idsFor(tx, requester, filtersFor({ terms: [token] }, { contractTypes: [7] })), [activeEmpenho]);
+
+      const all = await searchContracts(tx, requester, filtersFor({ terms: [token] }, { includeClosed: true, sort: 'publishedDesc' }));
+      assert.deepEqual(byId(all.items.map((item) => item.id)), byId([activeContract, activeEmpenho, closedContract, withoutExpiry]));
+      assert.deepEqual(
+        byId(await idsFor(tx, requester, filtersFor({ terms: [token] }, { includeClosed: true, contractTypes: [1] }))),
+        byId([activeContract, closedContract]),
+      );
+
+      const empenho = all.items.find((item) => item.id === activeEmpenho);
+      assert.equal(empenho?.contractTypeName, 'Empenho');
+      assert.equal(all.items.find((item) => item.id === activeContract)?.contractTypeName, 'Contrato', 'o nome curto da lista');
+      const noExpiry = all.items.find((item) => item.id === withoutExpiry);
+      assert.equal(noExpiry?.expiresOn, null);
+      assert.equal(noExpiry?.originalTermEnd, null);
+      assert.equal(noExpiry?.isExtended, false);
+
+      const byExpiry = await idsFor(tx, requester, filtersFor({ terms: [token] }, { includeClosed: true, sort: 'expiryAsc' }));
+      assert.equal(byExpiry.at(-1), withoutExpiry, 'pelo vencimento, o sem vencimento fica por último');
+    });
+  });
+
   test('número: contrato + ano, processo + ano, controle PNCP e controle da compra; e o ano do contrato', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'contrato-numero');

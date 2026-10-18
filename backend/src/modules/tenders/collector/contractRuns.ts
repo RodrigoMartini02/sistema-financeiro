@@ -1,12 +1,11 @@
 import type { ContractTermSummary } from '../db/schema';
 import { ARCHIVE_DATASETS, type RunArchive } from './archive';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
-import { contractExpiryFromTerms, mapPncpContract, type ContractSkipReason, type TenderContractRow } from './contractMapping';
+import { contractExpiryFromTerms, mapPncpContract, type ContractWithoutExpiryReason, type TenderContractRow } from './contractMapping';
 import { notifyChangedContractExpiry, notifyContractExpirations } from './contractNotifications';
 import {
   countContractsWithPendingTerms,
   databaseSizeMb,
-  deleteExpiredContracts,
   markBackfillDayCompleted,
   readCompletedBackfillDays,
   readContractsWithPendingTerms,
@@ -25,20 +24,20 @@ import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTall
 
 // Execuções de contratos (plano .plans/licitacoes-contratos-a-vencer.md):
 // coleta diária, carga inicial (um dia de publicação por vez, do mais recente
-// para o mais antigo, em blocos com limite de tempo e de espaço), limpeza dos
-// vencidos e avisos de vencimento (parte B). Todas com a trava própria dos
-// contratos e registradas em licitacoes.coleta_execucao. A coleta diária (plano
+// para o mais antigo, em blocos com limite de tempo e de espaço) e avisos de
+// vencimento (parte B). Todas com a trava própria dos contratos e registradas
+// em licitacoes.coleta_execucao. Desde a parte 2 do plano
+// .plans/licitacoes-base-nacional.md, todos os tipos e os encerrados ficam na
+// base, e não há mais limpeza dos vencidos. A coleta diária (plano
 // .plans/licitacoes-contratos-coleta-sem-perda.md) lê cada consulta desde o
 // último dia que ela leu sem falha do PNCP, com até 7 dias por execução, e
 // depois reconsulta os termos que falharam antes. Todo contrato lido e a
 // resposta de cada consulta de termos vão para o arquivo bruto (archive.ts).
 
-const SKIP_DETAIL_KEYS: Record<ContractSkipReason, string> = {
-  notInitialTerm: 'skippedNotInitialTerm',
-  shortTerm: 'skippedShortTerm',
-  withoutEndDate: 'skippedWithoutEndDate',
-  implausibleTerm: 'skippedImplausibleTerm',
-  expired: 'skippedExpired',
+/** Contratos que entraram sem vencimento, por motivo, nos detalhes da execução. */
+const WITHOUT_EXPIRY_DETAIL_KEYS: Record<ContractWithoutExpiryReason, string> = {
+  withoutEndDate: 'withoutEndDate',
+  implausibleTerm: 'implausibleTerm',
 };
 
 /** Dias seguidos com falha do PNCP que encerram o bloco da carga (o PNCP está fora do ar). */
@@ -75,7 +74,7 @@ interface QueryCounts {
 /** O que a consulta dos termos precisa do contrato (na coleta e na reconsulta). */
 type ContractTermsKey = Pick<TenderContractRow, 'pncpControlNumber' | 'agencyCnpj' | 'contractYear' | 'contractSequence' | 'originalTermEnd'>;
 
-type TermsCheck = { ok: true; expiresOn: string; amendments: ContractTermSummary[] } | { ok: false };
+type TermsCheck = { ok: true; expiresOn: string | null; amendments: ContractTermSummary[] } | { ok: false };
 
 /**
  * Consulta e interpreta os termos de um contrato. Sem termos no PNCP (404),
@@ -96,11 +95,13 @@ async function checkContractTerms(
       sequence: contract.contractSequence,
     });
     await archive.append(ARCHIVE_DATASETS.contractTerms, [terms], { controlNumber: contract.pncpControlNumber });
+    // Sem data de fim (null), o vencimento só sai dos termos.
+    const originalTermEnd = contract.originalTermEnd ?? null;
     if (terms === null) {
       tally.addDetailCount('termsNotFound', 1);
-      return { ok: true, expiresOn: contract.originalTermEnd, amendments: [] };
+      return { ok: true, expiresOn: originalTermEnd, amendments: [] };
     }
-    const expiry = contractExpiryFromTerms(contract.originalTermEnd, terms);
+    const expiry = contractExpiryFromTerms(originalTermEnd, terms);
     for (const reason of expiry.invalidTerms) {
       tally.addError({ kind: 'term', controlNumber: contract.pncpControlNumber, reason });
     }
@@ -154,32 +155,29 @@ async function resolveContractExpiry(
 }
 
 /**
- * Uma página de contratos, na sequência do plano: mapear e validar; tirar os
- * que não são termo inicial e os curtos; ler o que já está gravado (uma
- * consulta para a página); consultar os termos de quem precisa; calcular o
- * vencimento; tirar os vencidos que não estão gravados; gravar. O vencido já
- * gravado é atualizado, e a limpeza o tira. Quem favoritou um contrato que
- * mudou de vencimento recebe CONTRATO_ALTERADO.
+ * Uma página de contratos, na sequência do plano: mapear e validar; ler o que
+ * já está gravado (uma consulta para a página); consultar os termos de quem
+ * precisa; calcular o vencimento; gravar. Entram todos, de qualquer tipo,
+ * vigentes ou encerrados; os sem vencimento são contados à parte. Quem
+ * favoritou um contrato que mudou de vencimento recebe CONTRATO_ALTERADO.
  */
 async function collectContractPage(
   context: CollectorContext,
   tally: RunTally,
   archive: RunArchive,
   records: unknown[],
-  today: string,
   counts: QueryCounts,
 ): Promise<void> {
-  const skipped: Record<ContractSkipReason, number> = { notInitialTerm: 0, shortTerm: 0, withoutEndDate: 0, implausibleTerm: 0, expired: 0 };
+  const withoutExpiry: Record<ContractWithoutExpiryReason, number> = { withoutEndDate: 0, implausibleTerm: 0 };
   const candidates: Array<{ row: TenderContractRow; hasChangeSignal: boolean }> = [];
   for (const record of records) {
     const mapped = mapPncpContract(record);
-    if (mapped.ok === 'skipped') {
-      skipped[mapped.reason] += 1;
-      continue;
-    }
     if (!mapped.ok) {
       tally.addError({ kind: 'record', controlNumber: mapped.controlNumber, reason: mapped.reason });
       continue;
+    }
+    if (mapped.withoutExpiry) {
+      withoutExpiry[mapped.withoutExpiry] += 1;
     }
     candidates.push(mapped);
   }
@@ -193,10 +191,6 @@ async function collectContractPage(
   for (const { row, hasChangeSignal } of candidates) {
     const previous = stored.get(row.pncpControlNumber);
     const resolved = await resolveContractExpiry(context, tally, archive, row, hasChangeSignal, previous, counts);
-    if (!previous && resolved.expiresOn < today) {
-      skipped.expired += 1;
-      continue;
-    }
     if (previous && previous.expiresOn !== resolved.expiresOn) {
       expiryChanged.push(resolved.pncpControlNumber);
     }
@@ -208,8 +202,8 @@ async function collectContractPage(
   tally.updatedCount += result.updatedCount;
   tally.notificationCount += await notifyChangedContractExpiry(context.db, expiryChanged);
   counts.storedCount += rows.length;
-  for (const reason of Object.keys(skipped) as ContractSkipReason[]) {
-    tally.addDetailCount(SKIP_DETAIL_KEYS[reason], skipped[reason]);
+  for (const reason of Object.keys(withoutExpiry) as ContractWithoutExpiryReason[]) {
+    tally.addDetailCount(WITHOUT_EXPIRY_DETAIL_KEYS[reason], withoutExpiry[reason]);
   }
 }
 
@@ -224,7 +218,6 @@ async function collectContractQuery(
   archive: RunArchive,
   endpoint: PncpContractEndpoint,
   params: PncpQueryParams,
-  today: string,
 ): Promise<QueryCounts> {
   const counts: QueryCounts = { completed: true, recordsRead: 0, storedCount: 0, termsChecked: 0, failedTerms: [] };
   try {
@@ -232,7 +225,7 @@ async function collectContractQuery(
       tally.recordsRead += page.records.length;
       counts.recordsRead += page.records.length;
       await archive.append(ARCHIVE_DATASETS.contracts, page.records);
-      await collectContractPage(context, tally, archive, page.records, today, counts);
+      await collectContractPage(context, tally, archive, page.records, counts);
       context.logger.debug('Página de contratos gravada', {
         endpoint,
         params,
@@ -388,7 +381,7 @@ export function runContractsDaily(context: CollectorContext, options: DailyOptio
       const failedTerms: string[] = [];
       for (const { endpoint, from, to } of windows) {
         const params = { dataInicial: toPncpDate(from), dataFinal: toPncpDate(to) };
-        const counts = await collectContractQuery(context, tally, archive, endpoint, params, today);
+        const counts = await collectContractQuery(context, tally, archive, endpoint, params);
         queries.push({ endpoint, from, to, completed: counts.completed, recordsRead: counts.recordsRead });
         failedTerms.push(...counts.failedTerms);
       }
@@ -464,7 +457,6 @@ export async function runContractsBackfill(context: CollectorContext, options: B
     COLLECTOR_LOCK_KEYS.contracts,
     async (tally, archive) => {
       const startedAt = context.now().getTime();
-      const today = brasiliaDate(context.now());
       const { from, to } = range;
       const maxMinutes = options.maxMinutes ?? context.config.contracts.backfillMinutes;
       const pendingDays = await pendingBackfillDays(context.db, range);
@@ -487,7 +479,7 @@ export async function runContractsBackfill(context: CollectorContext, options: B
         }
 
         const pncpDay = toPncpDate(day);
-        const counts = await collectContractQuery(context, tally, archive, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay }, today);
+        const counts = await collectContractQuery(context, tally, archive, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay });
         if (!counts.completed) {
           failedDays += 1;
           consecutiveFailures += 1;
@@ -534,19 +526,4 @@ export function runContractReminders(context: CollectorContext): Promise<RunOutc
     tally.details['today'] = today;
     tally.notificationCount += await notifyContractExpirations(context.db, today);
   });
-}
-
-/** Limpeza diária: apaga os contratos com vencimento antes de hoje (Brasília), menos os favoritados. */
-export function runContractsCleanup(context: CollectorContext): Promise<RunOutcome> {
-  return withCollectionRun(
-    context,
-    'CONTRATOS_LIMPEZA',
-    COLLECTOR_LOCK_KEYS.contracts,
-    async (tally) => {
-      const today = brasiliaDate(context.now());
-      tally.details['expiredBefore'] = today;
-      tally.details['removedContracts'] = await deleteExpiredContracts(context.db, today);
-    },
-    () => contractRequests(context),
-  );
 }

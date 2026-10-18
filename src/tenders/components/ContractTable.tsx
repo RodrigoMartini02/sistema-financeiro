@@ -74,7 +74,9 @@ export function ContractTable({ contracts, todayIso, compact, detailLinkFor, det
               </td>
               <td className={cellPadding}>
                 <div className={`flex ${compact ? 'flex-row flex-wrap items-center' : 'flex-col items-start'} gap-1`}>
-                  <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{formatIsoDate(contract.expiresOn)}</span>
+                  {contract.expiresOn && (
+                    <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{formatIsoDate(contract.expiresOn)}</span>
+                  )}
                   <ExpiryBadge expiresOn={contract.expiresOn} todayIso={todayIso} />
                 </div>
               </td>

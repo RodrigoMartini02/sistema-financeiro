@@ -194,6 +194,10 @@ export function readContractSearchRequest(query: RequestValues): ContractSearchR
     includeWithoutValue: readBoolean(query['includeWithoutValue'], false),
   };
 
+  const includeClosed = readBoolean(query['includeClosed'], false);
+  // Com os encerrados, a ordem padrão é a publicação mais recente; só com os vigentes, o vencimento mais próximo.
+  const defaultSort: ContractSort = includeClosed ? 'publishedDesc' : 'expiryAsc';
+
   return {
     filters: {
       criteria,
@@ -202,9 +206,11 @@ export function readContractSearchRequest(query: RequestValues): ContractSearchR
       expiryFrom,
       expiryTo,
       favoritesOnly: readBoolean(query['favoritesOnly'], false),
+      includeClosed,
+      contractTypes: uniqueList(stringList(query['contractType'])).map(Number),
       numberGroups: typeof query['number'] === 'string' ? numberGroupsOf(query['number']) : [],
       contractYear: query['contractYear'] === undefined ? null : Number(query['contractYear']),
-      sort: (typeof query['sort'] === 'string' ? query['sort'] : 'expiryAsc') as ContractSort,
+      sort: (typeof query['sort'] === 'string' ? query['sort'] : defaultSort) as ContractSort,
       ...readPagination(query),
     },
     savedSearchId: query['savedSearchId'] === undefined ? null : Number(query['savedSearchId']),

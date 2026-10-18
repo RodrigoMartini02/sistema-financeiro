@@ -498,6 +498,8 @@ Atenção: migrations não devem ser executadas sem confirmação explícita do 
 
 ## Regras de negócio identificadas
 
+> **Mudou em 18/10/2026** (parte 2 do plano `.plans/licitacoes-base-nacional.md`, migration 0087): entram todos os tipos, de qualquer duração, vigentes e encerrados, com o tipo gravado. O contrato sem data de fim, ou com mais de 35 anos de vigência, entra sem vencimento (contado à parte). A limpeza dos vencidos acabou. A tela mostra os vigentes por padrão, com os filtros "Tipo de contrato" e "Incluir encerrados"; a busca salva e os avisos continuam só com os vigentes. As regras de entrada abaixo valem até essa data.
+
 **Entrada na base**
 - Só entra `tipoContrato.id = 1` ("Contrato (termo inicial)").
 - A vigência original tem de ter pelo menos 180 dias (`vigencia_fim_original - vigencia_inicio >= 180`).

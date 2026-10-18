@@ -240,14 +240,18 @@ export interface ContractListItem {
   cityIbgeCode: string | null;
   categoryId: number | null;
   categoryName: string | null;
+  /** Tipo do PNCP (contrato, empenho, carta contrato...); null em registro sem tipo. */
+  contractTypeId: number | null;
+  contractTypeName: string | null;
   supplierName: string | null;
   /** CNPJ (14 dígitos) ou, na pessoa física, o CPF mascarado. */
   supplierDocument: string | null;
   globalValue: number | null;
   termStart: string;
-  originalTermEnd: string;
-  /** Vencimento atual: o fim original ou o do aditivo mais recente que muda a vigência. */
-  expiresOn: string;
+  /** null: sem data de fim, ou com uma fora do normal. */
+  originalTermEnd: string | null;
+  /** Vencimento atual: o fim original ou o do aditivo mais recente que muda a vigência; null = sem vencimento. */
+  expiresOn: string | null;
   publishedAt: string | null;
   /** O vencimento atual é diferente do fim original (aditivo de prazo ou rescisão). */
   isExtended: boolean;
@@ -290,6 +294,8 @@ export interface ContractDetail {
   cityIbgeCode: string | null;
   categoryId: number | null;
   categoryName: string | null;
+  contractTypeId: number | null;
+  contractTypeName: string | null;
   contractObject: string;
   additionalInformation: string | null;
   supplierPersonType: 'PJ' | 'PF' | 'PE' | null;
@@ -299,8 +305,10 @@ export interface ContractDetail {
   globalValue: number | null;
   signedAt: string | null;
   termStart: string;
-  originalTermEnd: string;
-  expiresOn: string;
+  /** null: sem data de fim, ou com uma fora do normal. */
+  originalTermEnd: string | null;
+  /** null: sem vencimento. */
+  expiresOn: string | null;
   isExtended: boolean;
   /** Termos conferidos no PNCP; null = sem sinal de alteração (termos não consultados). */
   amendments: ContractAmendment[] | null;
@@ -392,6 +400,8 @@ export interface DomainLists {
   notificationTypes: string[];
   /** Categorias dos contratos do PNCP. */
   contractCategories: Array<{ id: number; name: string }>;
+  /** Tipos de contrato do PNCP, com nomes curtos (contrato, empenho, carta contrato...). */
+  contractTypes: Array<{ id: number; name: string }>;
   municipalities: Municipality[];
 }
 

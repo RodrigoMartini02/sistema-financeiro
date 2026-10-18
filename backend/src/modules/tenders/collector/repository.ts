@@ -15,13 +15,15 @@ import type { TenderNoticeRow } from './mapping';
 
 /**
  * Chaves do pg_try_advisory_lock: uma para as coletas de editais, outra para
- * lembretes, limpeza e reprocessamento, e a dos contratos (coleta diária,
- * carga e limpeza), que não bloqueia a varredura de editais nem é bloqueada por ela.
+ * lembretes, limpeza e reprocessamento, a dos contratos (coleta diária, carga
+ * e avisos), que não bloqueia a varredura de editais nem é bloqueada por ela,
+ * e a da exportação do JSON dos editais, que só impede duas exportações juntas.
  */
 export const COLLECTOR_LOCK_KEYS = {
   collection: 7_274_001,
   maintenance: 7_274_002,
   contracts: 7_274_003,
+  noticesExport: 7_274_004,
 } as const;
 
 export interface CollectorLock {

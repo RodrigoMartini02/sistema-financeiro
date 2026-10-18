@@ -86,7 +86,8 @@ export const tenderNotices = tendersSchema.table(
     pncpUpdatedAt: timestampWithZone('data_atualizacao_pncp'),
     sourceSystemLink: text('link_sistema_origem'),
     pncpLink: text('link_pncp'),
-    payload: jsonb('payload').$type<unknown>().notNull(),
+    // O JSON bruto não fica mais aqui: vai para o arquivo no R2. A coluna `payload`
+    // continua no banco até a migration 0088 (só a exportação a lê, com SQL próprio).
     payloadHash: char('hash_payload', { length: 64 }).notNull(),
     searchVector: tsvector('busca_tsv').generatedAlwaysAs(
       sql`to_tsvector('licitacoes.pt_unaccent', coalesce(objeto, '') || ' ' || coalesce(informacao_complementar, ''))`,
@@ -163,8 +164,11 @@ export const tenderContracts = tendersSchema.table(
     globalValue: numeric('valor_global', { precision: 18, scale: 2 }),
     signedAt: date('data_assinatura', { mode: 'string' }),
     termStart: date('vigencia_inicio', { mode: 'string' }).notNull(),
-    originalTermEnd: date('vigencia_fim_original', { mode: 'string' }).notNull(),
-    expiresOn: date('vencimento', { mode: 'string' }).notNull(),
+    // Sem data de fim, ou com vigência fora do normal, os dois ficam nulos (migration 0087).
+    originalTermEnd: date('vigencia_fim_original', { mode: 'string' }),
+    expiresOn: date('vencimento', { mode: 'string' }),
+    contractTypeId: smallint('tipo_contrato_id'),
+    contractTypeName: text('tipo_contrato_nome'),
     publishedAt: timestampWithZone('data_publicacao_pncp').notNull(),
     pncpUpdatedAt: timestampWithZone('data_atualizacao_pncp'),
     pncpGlobalUpdatedAt: timestampWithZone('data_atualizacao_global'),
@@ -187,6 +191,7 @@ export const tenderContracts = tendersSchema.table(
     publishedAtIdx: index('ix_contrato_publicacao').on(table.publishedAt.desc()),
     valueIdx: index('ix_contrato_valor').on(table.globalValue),
     supplierIdx: index('ix_contrato_fornecedor').on(table.supplierDocument),
+    contractTypeIdx: index('ix_contrato_tipo').on(table.contractTypeId),
     // Busca por número (parte B): as mesmas expressões da migration 0085.
     numberGroupsIdx: index('ix_contrato_numero_grupos').using(
       'gin',

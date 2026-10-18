@@ -11,7 +11,6 @@ import {
   BACKFILL_NOT_STARTED,
   runContractReminders,
   runContractsBackfill,
-  runContractsCleanup,
   runContractsDaily,
   type DailyQueryDetail,
 } from './contractRuns';
@@ -153,14 +152,14 @@ function archivedLines(body: Uint8Array | undefined): ArchivedLine[] {
 describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
 
-  test('diária: grava o termo inicial longo e conta os que ficam de fora, por motivo', async () => {
+  test('diária: grava todos os tipos, os curtos e os vencidos, com o tipo; os sem vencimento são contados à parte', async () => {
     await withRollback(async (tx) => {
       await settleLocalPendingTerms(tx);
       const kept = contractRecord();
       const empenho = contractRecord({ tipoContrato: { id: 7, nome: 'Empenho' } });
       const short = contractRecord({ dataVigenciaFim: '2027-01-15' });
       const expired = contractRecord({ dataVigenciaInicio: '2025-01-01', dataVigenciaFim: '2026-10-01' });
-      // Dado que falta na origem: conta à parte e não deixa a execução "Parcial".
+      // Dado que falta na origem: entra sem vencimento, conta à parte e não deixa a execução "Parcial".
       const withoutEnd = contractRecord({ dataVigenciaFim: null });
       const implausible = contractRecord({ dataVigenciaFim: '2227-09-29' });
       const context = createTestCollectorContext(tx, {
@@ -172,15 +171,39 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
       assert.equal(outcome.status, 'SUCESSO');
       assert.equal(outcome.errorCount, 0);
       assert.equal(outcome.recordsRead, 6);
-      assert.equal(outcome.newCount, 1);
-      assert.equal(outcome.details['skippedNotInitialTerm'], 1);
-      assert.equal(outcome.details['skippedShortTerm'], 1);
-      assert.equal(outcome.details['skippedExpired'], 1);
-      assert.equal(outcome.details['skippedWithoutEndDate'], 1);
-      assert.equal(outcome.details['skippedImplausibleTerm'], 1);
+      assert.equal(outcome.newCount, 6);
+      assert.equal(outcome.details['withoutEndDate'], 1);
+      assert.equal(outcome.details['implausibleTerm'], 1);
       assert.deepEqual(outcome.details['period'], { dataInicial: '20261012', dataFinal: '20261013' });
-      assert.ok(await storedContract(tx, kept.numeroControlePNCP));
-      assert.equal(await storedContract(tx, expired.numeroControlePNCP), undefined);
+
+      const typeOf = async (record: Record<string, unknown>) => (await storedContract(tx, record.numeroControlePNCP))?.contractTypeId;
+      assert.equal(await typeOf(kept), 1);
+      assert.equal(await typeOf(empenho), 7);
+      assert.equal((await storedContract(tx, short.numeroControlePNCP))?.expiresOn, '2027-01-15');
+      assert.equal((await storedContract(tx, expired.numeroControlePNCP))?.expiresOn, '2026-10-01', 'o vencido entra');
+      for (const record of [withoutEnd, implausible]) {
+        const stored = await storedContract(tx, record.numeroControlePNCP);
+        assert.equal(stored?.originalTermEnd, null);
+        assert.equal(stored?.expiresOn, null);
+      }
+    });
+  });
+
+  test('sem data de fim: entra sem vencimento e ganha o do aditivo de prazo quando os termos são consultados', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      // Com sinal de alteração: os termos são consultados, e o aditivo prorroga até 31/12/2026.
+      const record = contractRecord({ dataVigenciaFim: null, dataPublicacaoPncp: '2026-09-01T10:00:00', dataAtualizacaoGlobal: '2026-10-05T10:00:00' });
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: publicationOnly([record]),
+        termsFetch: () => new Response(prorrogacao, { status: 200 }),
+        now: () => NOW,
+      });
+
+      assertRan(await runContractsDaily(context));
+      const stored = await storedContract(tx, record.numeroControlePNCP);
+      assert.equal(stored?.originalTermEnd, null);
+      assert.equal(stored?.expiresOn, '2026-12-31');
     });
   });
 
@@ -221,7 +244,7 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
     });
   });
 
-  test('vencido não gravado fica de fora; vencido já gravado é atualizado (a limpeza o tira)', async () => {
+  test('vencido: o novo entra, e o já gravado é atualizado e fica na base', async () => {
     await withRollback(async (tx) => {
       await settleLocalPendingTerms(tx);
       const alreadyStored = contractRecord({ dataVigenciaInicio: '2025-01-01', dataVigenciaFim: '2026-10-01' });
@@ -236,9 +259,9 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
 
       const outcome = assertRan(await runContractsDaily(context));
       assert.equal(outcome.updatedCount, 1);
-      assert.equal(outcome.details['skippedExpired'], 1);
+      assert.equal(outcome.newCount, 1);
       assert.equal((await storedContract(tx, alreadyStored.numeroControlePNCP))?.expiresOn, '2026-10-01');
-      assert.equal(await storedContract(tx, notStored.numeroControlePNCP), undefined);
+      assert.equal((await storedContract(tx, notStored.numeroControlePNCP))?.expiresOn, '2026-10-01');
     });
   });
 
@@ -707,38 +730,6 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
         .from(tenderNotifications)
         .where(and(eq(tenderNotifications.contractId, contractId), eq(tenderNotifications.accountId, account.accountId)));
       assert.equal(notice?.type, 'CONTRATO_VENCE_30D');
-    });
-  });
-
-  test('limpeza: registra a execução e apaga os vencidos antes de hoje', async () => {
-    await withRollback(async (tx) => {
-      const expired = await insertTestContract(tx, { expiresOn: '2026-10-12' });
-      const valid = await insertTestContract(tx, { expiresOn: '2026-10-13' });
-      const context = createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), now: () => NOW });
-
-      const outcome = assertRan(await runContractsCleanup(context));
-      assert.equal(outcome.status, 'SUCESSO');
-      assert.equal(outcome.details['expiredBefore'], '2026-10-13');
-      assert.ok(Number(outcome.details['removedContracts']) >= 1);
-      const remaining = await tx.select({ id: tenderContracts.id }).from(tenderContracts).where(inArray(tenderContracts.id, [expired, valid]));
-      assert.deepEqual(remaining.map((row) => row.id), [valid]);
-    });
-  });
-
-  test('limpeza: o contrato vencido favoritado fica (a pessoa continua vendo o favorito)', async () => {
-    await withRollback(async (tx) => {
-      const account = await createTestAccount(tx, 'limpeza-favorito');
-      const favorited = await insertTestContract(tx, { termStart: '2024-01-01', originalTermEnd: '2026-10-12', expiresOn: '2026-10-12' });
-      const notFavorited = await insertTestContract(tx, { termStart: '2024-01-01', originalTermEnd: '2026-10-12', expiresOn: '2026-10-12' });
-      await tx.insert(tenderContractFavorites).values({ accountId: account.accountId, userId: account.ownerId, contractId: favorited });
-      const context = createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), now: () => NOW });
-
-      assertRan(await runContractsCleanup(context));
-      const remaining = await tx
-        .select({ id: tenderContracts.id })
-        .from(tenderContracts)
-        .where(inArray(tenderContracts.id, [favorited, notFavorited]));
-      assert.deepEqual(remaining.map((row) => row.id), [favorited]);
     });
   });
 

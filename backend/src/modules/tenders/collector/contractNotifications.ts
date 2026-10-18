@@ -54,7 +54,11 @@ function expiryBetween(today: string, range: DayRange) {
   return sql`c.vencimento BETWEEN ${today}::date + ${range.from}::int AND ${today}::date + ${range.to}::int`;
 }
 
-/** CONTRATO_ALTERADO para quem favoritou, quando o vencimento muda. Referência: o vencimento novo. */
+/**
+ * CONTRATO_ALTERADO para quem favoritou, quando o vencimento muda. Referência:
+ * o vencimento novo. Contrato que ficou sem vencimento não gera aviso: o título
+ * e a referência são a data.
+ */
 export async function notifyChangedContractExpiry(db: TendersDb, controlNumbers: string[]): Promise<number> {
   if (controlNumbers.length === 0) {
     return 0;
@@ -69,6 +73,7 @@ export async function notifyChangedContractExpiry(db: TendersDb, controlNumbers:
       JOIN licitacoes.favorito_contrato f ON f.contrato_id = c.id
       JOIN licitacoes.conta_habilitada h ON h.conta_id = f.conta_id AND licitacoes.fn_conta_com_acesso(h)
      WHERE c.numero_controle_pncp = ANY (${sql.param(controlNumbers)}::text[])
+       AND c.vencimento IS NOT NULL
     ON CONFLICT DO NOTHING`);
   return result.rowCount ?? 0;
 }

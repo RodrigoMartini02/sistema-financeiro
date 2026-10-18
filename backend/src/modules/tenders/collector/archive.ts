@@ -18,6 +18,8 @@ export const ARCHIVE_DATASETS = {
   contracts: { source: 'pncp', name: 'contratos' },
   contractTerms: { source: 'pncp', name: 'contratos-termos' },
   notices: { source: 'pncp', name: 'editais' },
+  /** O JSON dos editais que estava no banco, exportado antes da migration 0088. */
+  legacyNotices: { source: 'pncp', name: 'editais-legado' },
 } as const;
 export type ArchiveDataset = (typeof ARCHIVE_DATASETS)[keyof typeof ARCHIVE_DATASETS];
 

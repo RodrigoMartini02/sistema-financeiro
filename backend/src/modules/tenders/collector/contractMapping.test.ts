@@ -50,22 +50,28 @@ test('contrato real (termo inicial de 1 ano) vira a linha do contrato', () => {
   assert.equal(row.supplierPersonType, 'PJ');
   assert.match(row.supplierDocument ?? '', /^\d{14}$/);
   assert.match(row.payloadHash, /^[0-9a-f]{64}$/);
+  assert.equal(row.contractTypeId, 1);
+  assert.equal(row.contractTypeName, 'Contrato (termo inicial)');
   assert.equal(signal, false);
 });
 
-test('empenho e "Outros" ficam de fora sem contar erro', () => {
-  assert.deepEqual(mapPncpContract(realRecord('08036157000189-2-000354/2026')), { ok: 'skipped', reason: 'notInitialTerm' });
-  assert.deepEqual(mapPncpContract(realRecord('17577524000142-2-000090/2026')), { ok: 'skipped', reason: 'notInitialTerm' });
-  assert.deepEqual(mapPncpContract({ objetoContrato: 'sem tipo' }), { ok: 'skipped', reason: 'notInitialTerm' });
+test('empenho e "Outros" entram, com o tipo gravado (registros reais)', () => {
+  const empenho = assertMapped(mapPncpContract(realRecord('08036157000189-2-000354/2026')));
+  assert.equal(empenho.row.contractTypeId, 7);
+  assert.equal(empenho.row.contractTypeName, 'Empenho');
+  const others = assertMapped(mapPncpContract(realRecord('17577524000142-2-000090/2026')));
+  assert.equal(others.row.contractTypeId, 8);
+  // Sem o tipo, o registro também entra; registro sem os campos obrigatórios conta erro.
+  assert.equal(assertMapped(mapPncpContract(realRecord(PJ_CONTRACT, { tipoContrato: null }))).row.contractTypeId, null);
+  assert.equal(mapPncpContract({ objetoContrato: 'sem tipo' }).ok, false);
 });
 
-test('vigência original: 180 dias entram, 179 ficam de fora', () => {
-  const at180 = mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaInicio: '2026-01-01', dataVigenciaFim: '2026-06-30' }));
-  assert.equal(at180.ok, true);
-  const at179 = mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaInicio: '2026-01-01', dataVigenciaFim: '2026-06-29' }));
-  assert.deepEqual(at179, { ok: 'skipped', reason: 'shortTerm' });
-  // Registro real com 4 meses de vigência.
-  assert.deepEqual(mapPncpContract(realRecord('03236066000173-2-000147/2026')), { ok: 'skipped', reason: 'shortTerm' });
+test('vigência curta entra: não há mais duração mínima (registro real de 4 meses)', () => {
+  const short = assertMapped(mapPncpContract(realRecord('03236066000173-2-000147/2026')));
+  assert.ok(short.row.expiresOn);
+  assert.equal(short.withoutExpiry, null);
+  const oneDay = assertMapped(mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaInicio: '2026-01-01', dataVigenciaFim: '2026-01-01' })));
+  assert.equal(oneDay.row.expiresOn, '2026-01-01');
 });
 
 test('registro inválido conta erro com o número de controle e o motivo', () => {
@@ -80,12 +86,18 @@ test('registro inválido conta erro com o número de controle e o motivo', () =>
   assert.equal(invalid.ok === false ? invalid.controlNumber : null, PJ_CONTRACT);
 });
 
-test('sem data de fim e vigência de mais de 35 anos ficam de fora sem contar erro (dado que falta na origem)', () => {
-  assert.deepEqual(mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaFim: null })), { ok: 'skipped', reason: 'withoutEndDate' });
-  assert.deepEqual(mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaFim: '' })), { ok: 'skipped', reason: 'withoutEndDate' });
+test('sem data de fim e vigência de mais de 35 anos entram sem vencimento, contados à parte, sem erro (dado que falta na origem)', () => {
+  const withoutExpiry = (overrides: Record<string, unknown>) => {
+    const mapped = assertMapped(mapPncpContract(realRecord(PJ_CONTRACT, overrides)));
+    assert.equal(mapped.row.originalTermEnd, null);
+    assert.equal(mapped.row.expiresOn, null);
+    return mapped.withoutExpiry;
+  };
+  assert.equal(withoutExpiry({ dataVigenciaFim: null }), 'withoutEndDate');
+  assert.equal(withoutExpiry({ dataVigenciaFim: '' }), 'withoutEndDate');
   // Vistos no piloto: 2227 no lugar de 2027, e água e energia com 2100 e 3024.
-  assert.deepEqual(mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaFim: '2227-09-24' })), { ok: 'skipped', reason: 'implausibleTerm' });
-  assert.deepEqual(mapPncpContract(realRecord(PJ_CONTRACT, { dataVigenciaFim: '7203-01-01' })), { ok: 'skipped', reason: 'implausibleTerm' });
+  assert.equal(withoutExpiry({ dataVigenciaFim: '2227-09-24' }), 'implausibleTerm');
+  assert.equal(withoutExpiry({ dataVigenciaFim: '7203-01-01' }), 'implausibleTerm');
 });
 
 test('data opcional vazia vale como não informada', () => {
@@ -210,4 +222,12 @@ test('vencimento: aditivo de prazo sem a data nova mantém o vencimento anterior
 
 test('vencimento: sem termos, vale o fim original', () => {
   assert.deepEqual(contractExpiryFromTerms('2026-12-31', []), { expiresOn: '2026-12-31', amendments: [], invalidTerms: [], undatedTerms: 0 });
+});
+
+test('vencimento sem fim original: o termo que muda a vigência define; sem ele, continua sem vencimento', () => {
+  assert.equal(contractExpiryFromTerms(null, fixture<unknown[]>('termos-prorrogacao.json')).expiresOn, '2026-12-31');
+  const rescission = contractExpiryFromTerms(null, [term({ tipoTermoContratoNome: 'Termo de Rescisão', dataAssinatura: '2026-05-02' })]);
+  assert.equal(rescission.expiresOn, '2026-05-02');
+  assert.equal(contractExpiryFromTerms(null, []).expiresOn, null);
+  assert.equal(contractExpiryFromTerms(null, [term({ qualificacaoVigencia: true, dataVigenciaFim: null })]).expiresOn, null);
 });

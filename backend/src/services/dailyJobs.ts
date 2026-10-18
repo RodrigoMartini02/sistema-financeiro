@@ -1,5 +1,5 @@
 import { databaseHost } from '../modules/tenders/collector/config';
-import { runContractReminders, runContractsBackfill, runContractsCleanup, runContractsDaily } from '../modules/tenders/collector/contractRuns';
+import { runContractReminders, runContractsBackfill, runContractsDaily } from '../modules/tenders/collector/contractRuns';
 import { createCollectorLogger, type CollectorLogger } from '../modules/tenders/collector/logger';
 import { runCleanup, runDeadlineReminders, runSweep, type CollectorContext, type RunOutcome } from '../modules/tenders/collector/runs';
 import { createCollectorRuntime, type CollectorRuntime } from '../modules/tenders/collector/runtime';
@@ -15,7 +15,6 @@ const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext) => Promise<R
   'tenders-sweep': runSweep,
   'tenders-deadline-reminders': runDeadlineReminders,
   'tenders-contracts-daily': runContractsDaily,
-  'tenders-contracts-cleanup': runContractsCleanup,
   'tenders-contract-reminders': runContractReminders,
   'tenders-cleanup': runCleanup,
   // Sem TENDERS_CONTRACTS_MAX_DB_MB, ou sem dia pendente, a etapa é pulada com o motivo no log.

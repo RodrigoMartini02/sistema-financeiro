@@ -30,13 +30,8 @@ describe('repositório do coletor (banco local)', { skip: databaseTestsSkipReaso
       const unchanged = await upsertNoticePage(tx, [first, second]);
       assert.deepEqual(unchanged, { insertedIds: [], updatedIds: [], changedControlNumbers: [], unchangedCount: 2 });
 
-      const changedPayload = { ...(first.payload as object), objetoCompra: 'Sistema de gestão tributária e ISS' };
-      const changedFirst = buildNoticeRow({
-        ...first,
-        procurementObject: 'Sistema de gestão tributária e ISS',
-        payload: changedPayload,
-        payloadHash: undefined,
-      });
+      // Objeto novo: o hash recalculado muda.
+      const changedFirst = buildNoticeRow({ ...first, procurementObject: 'Sistema de gestão tributária e ISS', payloadHash: undefined });
       const updated = await upsertNoticePage(tx, [changedFirst, second]);
       assert.equal(updated.insertedIds.length, 0);
       assert.equal(updated.updatedIds.length, 1);

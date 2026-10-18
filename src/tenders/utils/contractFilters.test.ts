@@ -8,6 +8,7 @@ import {
   contractFilterChips,
   contractYearOptions,
   daysUntilExpiry,
+  defaultContractSort,
   expiryLabel,
   expiryWithinDays,
   parseContractSearchParams,
@@ -38,6 +39,8 @@ test('contratos: URL ↔ estado ida e volta, sem os padrões na URL', () => {
     expiryFrom: '2026-10-14',
     expiryTo: '2027-01-12',
     favoritesOnly: true,
+    includeClosed: true,
+    contractTypes: [7, 12],
     number: '352/2026',
     contractYear: 2026,
     sort: 'valueDesc',
@@ -46,6 +49,27 @@ test('contratos: URL ↔ estado ida e volta, sem os padrões na URL', () => {
   };
   assert.deepEqual(parseContractSearchParams(toContractSearchParams(state)), state);
   assert.equal(toContractSearchParams(DEFAULT_CONTRACT_SEARCH_STATE).toString(), '', 'o padrão não vai para a URL');
+});
+
+test('contratos: com encerrados, a ordem padrão é a publicação mais recente, e ela não vai para a URL', () => {
+  assert.equal(defaultContractSort(false), 'expiryAsc');
+  assert.equal(defaultContractSort(true), 'publishedDesc');
+  const closed = parseContractSearchParams(params('encerrados=1&tipo=7&tipo=x&tipo=7'));
+  assert.equal(closed.includeClosed, true);
+  assert.equal(closed.sort, 'publishedDesc');
+  assert.deepEqual(closed.contractTypes, [7]);
+  assert.equal(toContractSearchParams(closed).toString(), 'encerrados=1&tipo=7');
+  assert.equal(parseContractSearchParams(params('encerrados=1&ordem=vencimento')).sort, 'expiryAsc', 'a ordem escolhida vale');
+  assert.equal(parseContractSearchParams(params('encerrados=1&ordem=relevancia')).sort, 'publishedDesc', 'sem texto, o padrão do modo');
+});
+
+test('contratos: ligar e desligar "Incluir encerrados" troca a ordem padrão; a ordem escolhida fica', () => {
+  const opened = withContractFilters(DEFAULT_CONTRACT_SEARCH_STATE, { includeClosed: true });
+  assert.equal(opened.sort, 'publishedDesc');
+  assert.equal(withContractFilters(opened, { includeClosed: false }).sort, 'expiryAsc');
+  const chosen = withContractFilters({ ...DEFAULT_CONTRACT_SEARCH_STATE, sort: 'valueDesc' }, { includeClosed: true });
+  assert.equal(chosen.sort, 'valueDesc');
+  assert.equal(withContractFilters(opened, { includeClosed: false, sort: 'valueAsc' }).sort, 'valueAsc');
 });
 
 test('contratos: valores inválidos da URL ficam de fora', () => {
@@ -103,6 +127,11 @@ test('contratos: query da API, com e sem busca salva', () => {
     'sort=expiryAsc&page=1&perPage=20',
     '"incluir sem valor" só vale com faixa de valor',
   );
+  assert.equal(
+    toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, savedSearchId: 3, includeClosed: true, contractTypes: [1, 7], sort: 'publishedDesc' }),
+    'savedSearchId=3&includeClosed=true&contractType=1&contractType=7&sort=publishedDesc&page=1&perPage=20',
+    'tipo e encerrados valem também com a busca salva',
+  );
 });
 
 test('contratos: aba de Favoritos traz todos os favoritos, pelo vencimento', () => {
@@ -122,6 +151,7 @@ test('contratos: dias até o vencimento e o texto do selo', () => {
   assert.equal(expiryLabel('2026-10-15', TODAY), 'Vence amanhã');
   assert.equal(expiryLabel('2027-10-14', TODAY), 'Vence em 365 dias');
   assert.equal(expiryLabel('2026-10-01', TODAY), 'Vencido');
+  assert.equal(expiryLabel(null, TODAY), 'Sem data de fim');
 });
 
 test('contratos: mudar filtro volta para a página 1; Limpar tudo mantém ordem e itens por página', () => {
@@ -151,6 +181,19 @@ test('contratos: chips dos filtros ativos, cada um sem o seu filtro', () => {
   assert.equal(withoutExpiry?.expiryFrom, null);
   assert.equal(withoutExpiry?.expiryTo, null);
   assert.deepEqual(contractFilterChips(DEFAULT_CONTRACT_SEARCH_STATE), []);
+});
+
+test('contratos: chips do tipo e de "Com encerrados"; tirar os encerrados volta à ordem do vencimento', () => {
+  const state = withContractFilters(DEFAULT_CONTRACT_SEARCH_STATE, { includeClosed: true, contractTypes: [7] });
+  const chips = contractFilterChips(state, { contractTypeName: (id) => (id === 7 ? 'Empenho' : undefined) });
+  assert.deepEqual(
+    chips.map((chip) => chip.label),
+    ['Tipo: Empenho', 'Com encerrados'],
+  );
+  const withoutClosed = chips.find((chip) => chip.key === 'includeClosed')?.without;
+  assert.equal(withoutClosed?.includeClosed, false);
+  assert.equal(withoutClosed?.sort, 'expiryAsc');
+  assert.deepEqual(chips.find((chip) => chip.key === 'contractType:7')?.without.contractTypes, []);
 });
 
 test('contratos: anos da lista, do próximo até 6 anos atrás, com o escolhido fora da faixa', () => {

@@ -1,40 +1,34 @@
 import { z } from 'zod/v4';
 import type { ContractTermSummary, NewTenderContract } from '../db/schema';
-import { PNCP_INITIAL_CONTRACT_TYPE_ID, SUPPLIER_PERSON_TYPES, type SupplierPersonType } from '../domains';
+import { SUPPLIER_PERSON_TYPES, type SupplierPersonType } from '../domains';
 import { payloadHash } from './mapping';
 
-// Registro de contrato do PNCP → linha de licitacoes.contrato (plano
-// .plans/licitacoes-contratos-a-vencer.md). Como nos editais, o PNCP é dado
-// externo: tudo é validado, e um registro inválido vira erro contado na
-// execução, sem derrubar a página. Só o "Contrato (termo inicial)" com 180 dias
-// ou mais de vigência original entra; o vencimento atual sai dos termos
-// (aditivos e rescisões), consultados só quando há sinal de alteração. O dado
-// que falta com frequência na origem (contrato sem data de fim, vigência fora
-// do normal, aditivo de prazo sem a data nova) é contado à parte, como o
-// edital sem prazo, e não como erro: medido no piloto, ele deixaria toda
-// execução "Parcial".
+// Registro de contrato do PNCP → linha de licitacoes.contrato (planos
+// .plans/licitacoes-contratos-a-vencer.md e .plans/licitacoes-base-nacional.md,
+// parte 2). Como nos editais, o PNCP é dado externo: tudo é validado, e um
+// registro inválido vira erro contado na execução, sem derrubar a página.
+// Entram todos os tipos (contrato, empenho, carta contrato e outros), de
+// qualquer duração, vigentes e encerrados, com o tipo gravado. O vencimento
+// atual sai dos termos (aditivos e rescisões), consultados só quando há sinal
+// de alteração. O dado que falta com frequência na origem (contrato sem data
+// de fim, vigência fora do normal, aditivo de prazo sem a data nova) é contado
+// à parte, como o edital sem prazo, e não como erro: medido no piloto, ele
+// deixaria toda execução "Parcial".
 
 export type TenderContractRow = Omit<NewTenderContract, 'id' | 'firstCollectedAt' | 'lastCollectedAt'>;
 
-/**
- * Por que um contrato não entra: não é termo inicial, é curto, não tem data de
- * fim, tem vigência fora do normal (mais de 35 anos) ou já venceu.
- */
-export type ContractSkipReason = 'notInitialTerm' | 'shortTerm' | 'withoutEndDate' | 'implausibleTerm' | 'expired';
+/** Por que o contrato entra sem vencimento: não tem data de fim, ou a vigência passa de 35 anos. */
+export type ContractWithoutExpiryReason = 'withoutEndDate' | 'implausibleTerm';
 
 export type MappedContract =
-  | { ok: true; row: TenderContractRow; hasChangeSignal: boolean }
-  | { ok: false; controlNumber: string | null; reason: string }
-  | { ok: 'skipped'; reason: Exclude<ContractSkipReason, 'expired'> };
+  | { ok: true; row: TenderContractRow; hasChangeSignal: boolean; withoutExpiry: ContractWithoutExpiryReason | null }
+  | { ok: false; controlNumber: string | null; reason: string };
 
-/** Vigência original mínima, em dias (6 meses). */
-export const MIN_CONTRACT_TERM_DAYS = 180;
 /** Vigência acima disso é cadastro fora do normal na origem (2227 no lugar de 2027; água e energia com 2100 ou 3024). */
 const MAX_CONTRACT_TERM_YEARS = 35;
 const MIN_VALID_DATE = '1990-01-01';
 /** Sinal de alteração: a atualização global mais de 24 h depois da publicação. */
 const CHANGE_SIGNAL_MS = 24 * 60 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const PNCP_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const PNCP_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?$/;
@@ -74,8 +68,6 @@ const pncpDateTime = z.string().trim().regex(PNCP_DATE_TIME, 'data e hora fora d
 /** Data opcional: vazia ("") vale como não informada, e a inválida mantém a mensagem do formato. */
 const optionalPncpDate = z.preprocess((value) => (typeof value === 'string' && value.trim() === '' ? null : value), pncpDate.nullish());
 
-const contractTypeSchema = z.looseObject({ tipoContrato: z.looseObject({ id: z.unknown() }).nullish() });
-
 const pncpContractSchema = z.looseObject({
   numeroControlePNCP: z.string().trim().min(1, 'sem número de controle').max(60),
   numeroControlePncpCompra: z.string().trim().max(60).nullish(),
@@ -98,6 +90,7 @@ const pncpContractSchema = z.looseObject({
     })
     .nullish(),
   categoriaProcesso: z.looseObject({ id: integerUpTo(SMALLINT_MAX).nullish(), nome: optionalText }).nullish(),
+  tipoContrato: z.looseObject({ id: integerUpTo(SMALLINT_MAX).nullish(), nome: optionalText }).nullish(),
   objetoContrato: z.string(),
   informacaoComplementar: optionalText,
   tipoPessoa: optionalText,
@@ -107,7 +100,7 @@ const pncpContractSchema = z.looseObject({
   valorGlobal: pncpValue,
   dataAssinatura: optionalPncpDate,
   dataVigenciaInicio: pncpDate,
-  // Sem data de fim, o contrato não vence: fica de fora, contado à parte.
+  // Sem data de fim, o contrato entra sem vencimento, contado à parte.
   dataVigenciaFim: optionalPncpDate,
   dataPublicacaoPncp: pncpDateTime,
   dataAtualizacao: z.union([z.literal(''), pncpDateTime]).nullish(),
@@ -131,11 +124,6 @@ function readControlNumber(raw: unknown): string | null {
     return typeof value === 'string' ? value : null;
   }
   return null;
-}
-
-/** Dias entre duas datas AAAA-MM-DD. */
-export function daysBetween(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
 }
 
 function addYears(date: string, years: number): string {
@@ -172,18 +160,12 @@ export function supplierDocument(personType: SupplierPersonType | null, document
   return cleanText(document)?.slice(0, 30) ?? null;
 }
 
-function contractTypeId(raw: unknown): number | null {
-  const parsed = contractTypeSchema.safeParse(raw);
-  const id = parsed.success ? Number(parsed.data.tipoContrato?.id) : Number.NaN;
-  return Number.isInteger(id) ? id : null;
+/** Fim informado fora do normal: mais de 35 anos depois do início. */
+function isImplausibleEnd(termStart: string, termEnd: string): boolean {
+  return termEnd > addYears(termStart, MAX_CONTRACT_TERM_YEARS);
 }
 
 export function mapPncpContract(raw: unknown): MappedContract {
-  // O tipo vem antes da validação: empenho e "Outros" ficam de fora sem contar erro.
-  if (contractTypeId(raw) !== PNCP_INITIAL_CONTRACT_TYPE_ID) {
-    return { ok: 'skipped', reason: 'notInitialTerm' };
-  }
-
   const parsed = pncpContractSchema.safeParse(raw);
   if (!parsed.success) {
     const reason = parsed.error.issues
@@ -195,19 +177,18 @@ export function mapPncpContract(raw: unknown): MappedContract {
 
   const record = parsed.data;
   const termStart = record.dataVigenciaInicio;
-  const originalTermEnd = record.dataVigenciaFim;
-  if (!originalTermEnd) {
-    return { ok: 'skipped', reason: 'withoutEndDate' };
-  }
-  if (originalTermEnd < termStart) {
+  const statedEnd = record.dataVigenciaFim ?? null;
+  if (statedEnd !== null && statedEnd < termStart) {
     return { ok: false, controlNumber: record.numeroControlePNCP, reason: 'fim da vigência antes do início' };
   }
-  if (originalTermEnd > addYears(termStart, MAX_CONTRACT_TERM_YEARS)) {
-    return { ok: 'skipped', reason: 'implausibleTerm' };
+  let withoutExpiry: ContractWithoutExpiryReason | null = null;
+  if (statedEnd === null) {
+    withoutExpiry = 'withoutEndDate';
+  } else if (isImplausibleEnd(termStart, statedEnd)) {
+    withoutExpiry = 'implausibleTerm';
   }
-  if (daysBetween(termStart, originalTermEnd) < MIN_CONTRACT_TERM_DAYS) {
-    return { ok: 'skipped', reason: 'shortTerm' };
-  }
+  // Sem data de fim, ou com uma fora do normal, o contrato entra sem vencimento.
+  const originalTermEnd = withoutExpiry === null ? statedEnd : null;
 
   const unit = record.unidadeOrgao;
   const personTypeText = cleanText(record.tipoPessoa)?.toUpperCase() ?? '';
@@ -216,6 +197,7 @@ export function mapPncpContract(raw: unknown): MappedContract {
   return {
     ok: true,
     hasChangeSignal: hasChangeSignal(record.dataPublicacaoPncp, record.dataAtualizacaoGlobal),
+    withoutExpiry,
     row: {
       pncpControlNumber: record.numeroControlePNCP,
       purchaseControlNumber: cleanText(record.numeroControlePncpCompra),
@@ -233,6 +215,8 @@ export function mapPncpContract(raw: unknown): MappedContract {
       cityIbgeCode: unit?.codigoIbge ?? null,
       categoryId: record.categoriaProcesso?.id ?? null,
       categoryName: cleanText(record.categoriaProcesso?.nome),
+      contractTypeId: record.tipoContrato?.id ?? null,
+      contractTypeName: cleanText(record.tipoContrato?.nome),
       contractObject: record.objetoContrato.trim(),
       additionalInformation: cleanText(record.informacaoComplementar),
       supplierPersonType: personType,
@@ -266,8 +250,8 @@ const pncpTermSchema = z.looseObject({
 });
 
 export interface ContractExpiry {
-  /** Vencimento atual: o fim original ou o do termo mais recente que muda a vigência. */
-  expiresOn: string;
+  /** Vencimento atual: o fim original ou o do termo mais recente que muda a vigência; null = sem vencimento. */
+  expiresOn: string | null;
   /** Resumo dos aditivos e rescisões, para o detalhe (sem os apostilamentos). */
   amendments: ContractTermSummary[];
   /** Termos fora do formato (inclusive data de fim que não é data), contados como erro na execução. */
@@ -293,9 +277,9 @@ function termDate(value: string | null | undefined): string | null {
  * rescisão, a `dataVigenciaFim` ou, sem ela, a data de assinatura. Termo sem
  * a data nova mantém o vencimento anterior: conta à parte quando a data veio
  * vazia e conta erro quando veio fora do formato. Sem termo assim, vale o fim
- * original.
+ * original, que pode ser null (contrato sem data de fim).
  */
-export function contractExpiryFromTerms(originalTermEnd: string, rawTerms: unknown[]): ContractExpiry {
+export function contractExpiryFromTerms(originalTermEnd: string | null, rawTerms: unknown[]): ContractExpiry {
   const invalidTerms: string[] = [];
   const amendments: ContractTermSummary[] = [];
   const malformedEnd = new Set<ContractTermSummary>();
@@ -328,7 +312,7 @@ export function contractExpiryFromTerms(originalTermEnd: string, rawTerms: unkno
 
   amendments.sort((a, b) => (a.signedAt ?? '').localeCompare(b.signedAt ?? '') || (a.sequence ?? 0) - (b.sequence ?? 0));
 
-  let expiresOn = originalTermEnd;
+  let expiresOn: string | null = originalTermEnd;
   let undatedTerms = 0;
   for (const term of amendments.filter((item) => item.changesTerm)) {
     if (malformedEnd.has(term)) {

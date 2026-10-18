@@ -3,6 +3,7 @@ import {
   BRAZILIAN_STATES,
   CONTRACT_CATEGORY_IDS,
   CONTRACT_SORTS,
+  CONTRACT_TYPE_IDS,
   NOTICE_SORTS,
   SEARCH_TERMS_MODES,
   TENDER_MODALITY_IDS,
@@ -22,6 +23,7 @@ export const MAX_MUNICIPALITIES = 100;
 export const MAX_AGENCIES = 50;
 export const MAX_MODALITIES = TENDER_MODALITY_IDS.length;
 export const MAX_CONTRACT_CATEGORIES = CONTRACT_CATEGORY_IDS.length;
+export const MAX_CONTRACT_TYPES = CONTRACT_TYPE_IDS.length;
 export const MAX_SUPPLIERS = 50;
 /** "Número, processo ou controle PNCP" da busca. */
 export const MAX_NUMBER_LENGTH = 60;
@@ -38,6 +40,7 @@ const isMunicipalityCode = (value: unknown) => typeof value === 'string' && /^\d
 const isCnpj = (value: unknown) => typeof value === 'string' && /^\d{14}$/.test(value);
 const isModality = (value: unknown) => TENDER_MODALITY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 const isContractCategory = (value: unknown) => CONTRACT_CATEGORY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
+const isContractType = (value: unknown) => CONTRACT_TYPE_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 
 export function isValidIsoDate(value: unknown): boolean {
   if (typeof value !== 'string' || !ISO_DATE.test(value)) {
@@ -143,6 +146,8 @@ export const noticeSearchValidators: ValidationChain[] = [
 export const contractSearchValidators: ValidationChain[] = [
   ...sharedSearchQueryValidators(),
   listQuery('category', isContractCategory, 'Categoria inválida', MAX_CONTRACT_CATEGORIES),
+  listQuery('contractType', isContractType, 'Tipo de contrato inválido', MAX_CONTRACT_TYPES),
+  booleanQuery('includeClosed'),
   listQuery('supplierCnpj', isCnpj, 'CNPJ do fornecedor inválido (14 dígitos)', MAX_SUPPLIERS, (item) => item.replace(/\D/g, '')),
   ...dateQueries(['expiryFrom', 'expiryTo']),
   yearQuery('contractYear'),

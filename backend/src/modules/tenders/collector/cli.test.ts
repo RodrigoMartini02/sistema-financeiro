@@ -10,9 +10,13 @@ function assertUsageError(argv: string[], message?: RegExp): void {
 }
 
 test('comandos sem opções', () => {
-  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup', 'contracts-daily', 'contracts-cleanup', 'contract-reminders'] as const) {
+  for (const name of ['sweep', 'incremental', 'deadline-reminders', 'status', 'cleanup', 'contracts-daily', 'contract-reminders', 'notices-payload-export'] as const) {
     assert.deepEqual(parseCliArgs([name]), { name });
   }
+});
+
+test('contracts-cleanup saiu: os contratos encerrados ficam na base', () => {
+  assertUsageError(['contracts-cleanup'], /Comando desconhecido/);
 });
 
 test('contracts-backfill: faixa, tempo e espaço opcionais', () => {

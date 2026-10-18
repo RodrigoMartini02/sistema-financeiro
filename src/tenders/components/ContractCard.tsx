@@ -15,7 +15,7 @@ interface ContractCardProps {
   detailLinkState?: unknown;
 }
 
-/** Card do resultado de "Contratos a vencer": objeto, órgão e local, fornecedor, valor e vencimento. */
+/** Card do resultado de "Contratos a vencer": tipo, objeto, órgão e local, fornecedor, valor e vencimento. */
 export function ContractCard({ contract, todayIso, detailLink, detailLinkState }: ContractCardProps) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500/40">
@@ -47,7 +47,7 @@ export function ContractCard({ contract, todayIso, detailLink, detailLinkState }
         <div>
           <dt className="text-slate-500 dark:text-slate-400">Vencimento</dt>
           <dd className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
-            <span>{formatIsoDate(contract.expiresOn)}</span>
+            {contract.expiresOn && <span>{formatIsoDate(contract.expiresOn)}</span>}
             <ExpiryBadge expiresOn={contract.expiresOn} todayIso={todayIso} />
           </dd>
         </div>

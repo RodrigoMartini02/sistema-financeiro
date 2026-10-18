@@ -7,7 +7,6 @@ const WEEKDAY_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
-  'tenders-contracts-cleanup',
   'tenders-contract-reminders',
   'tenders-contracts-backfill',
 ];
@@ -16,7 +15,6 @@ const SUNDAY_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
-  'tenders-contracts-cleanup',
   'tenders-contract-reminders',
   'tenders-cleanup',
   'tenders-contracts-backfill',
