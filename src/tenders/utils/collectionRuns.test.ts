@@ -113,7 +113,7 @@ test('coleta diária de contratos: reconsulta dos aditivos, com e sem pendentes,
   ]);
   assert.deepEqual(notesOf({ pendingAtStart: 40, checked: 3, resolved: 0, stoppedByFailures: true }), [
     'Aditivos reconsultados em 3 contratos; 40 ainda pendentes.',
-    'A reconsulta dos aditivos parou porque o PNCP não respondeu; continua na próxima rotina.',
+    'A reconsulta dos aditivos parou porque a fonte dos dados não respondeu; continua na próxima rotina.',
   ]);
 });
 

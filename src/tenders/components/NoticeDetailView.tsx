@@ -137,14 +137,14 @@ export function NoticeDetailContent({ notice, inDrawer }: NoticeDetailContentPro
           <InfoItem label="Município/UF">{city || 'Não informado'}</InfoItem>
           <InfoItem label="Número da compra">{purchase ?? 'Não informado'}</InfoItem>
           <InfoItem label="Processo">{notice.processNumber ?? 'Não informado'}</InfoItem>
-          <InfoItem label="Controle PNCP">{notice.pncpControlNumber}</InfoItem>
+          <InfoItem label="Número de controle">{notice.pncpControlNumber}</InfoItem>
         </dl>
         <div className="flex flex-wrap items-start gap-2">
           <FavoriteButton notice={notice} variant="labeled" />
           {notice.pncpLink && (
             <a href={notice.pncpLink} target="_blank" rel="noopener noreferrer" className={externalLinkClass}>
               <ExternalLink size={14} aria-hidden="true" />
-              Abrir no PNCP
+              Abrir edital original
             </a>
           )}
           {notice.sourceSystemLink && (

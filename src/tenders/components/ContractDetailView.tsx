@@ -52,13 +52,13 @@ function AmendmentsList({ amendments, hasOriginalEnd }: { amendments: ContractAm
     return (
       <p className="text-sm text-slate-600 dark:text-slate-300">
         {hasOriginalEnd
-          ? 'Sem alteração registrada no PNCP: vale o fim original da vigência.'
-          : 'Sem alteração registrada no PNCP, e o contrato não informa a data de fim.'}
+          ? 'Nenhuma alteração registrada: vale o fim original da vigência.'
+          : 'Nenhuma alteração registrada, e o contrato não informa a data de fim.'}
       </p>
     );
   }
   if (amendments.length === 0) {
-    return <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum aditivo ou rescisão publicado no PNCP.</p>;
+    return <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum aditivo ou rescisão publicado.</p>;
   }
   return (
     <ol className="grid grid-cols-1 gap-2">
@@ -81,7 +81,7 @@ function AmendmentsList({ amendments, hasOriginalEnd }: { amendments: ContractAm
             {term.changesTerm && (
               <div>
                 <dt className="inline">Nova vigência até: </dt>
-                <dd className="inline font-semibold tabular-nums">{term.endDate ? formatIsoDate(term.endDate) : 'não informada no PNCP'}</dd>
+                <dd className="inline font-semibold tabular-nums">{term.endDate ? formatIsoDate(term.endDate) : 'não informada'}</dd>
               </div>
             )}
             {term.addedValue !== null && (
@@ -121,7 +121,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
           <ContractFavoriteButton contract={contract} variant="labeled" />
           <a href={contract.pncpLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
             <ExternalLink size={14} aria-hidden="true" />
-            Ver no PNCP
+            Ver documento original
           </a>
           {contract.originNoticeId !== null ? (
             <Link to={`/editais/${contract.originNoticeId}`} className={linkClass}>
@@ -132,7 +132,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
             contract.originPncpLink && (
               <a href={contract.originPncpLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
                 <ExternalLink size={14} aria-hidden="true" />
-                Edital de origem no PNCP
+                Ver edital de origem
               </a>
             )
           )}
@@ -176,7 +176,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
           <InfoItem label="Processo">{contract.processNumber ?? 'Não informado'}</InfoItem>
           <InfoItem label="Ano">{contract.contractYear}</InfoItem>
           <InfoItem label="Assinatura">{formatIsoDate(contract.signedAt)}</InfoItem>
-          <InfoItem label="Controle PNCP">{contract.pncpControlNumber}</InfoItem>
+          <InfoItem label="Número de controle">{contract.pncpControlNumber}</InfoItem>
           {contract.purchaseControlNumber && <InfoItem label="Compra de origem">{contract.purchaseControlNumber}</InfoItem>}
         </dl>
       </Section>

@@ -133,7 +133,7 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
       <FilterSection title="Número e ano" error={numberError}>
         <input
           type="text"
-          aria-label="Número, processo ou controle PNCP"
+          aria-label="Número da compra, processo ou número de controle"
           aria-invalid={Boolean(numberError) || undefined}
           value={numberDraft}
           maxLength={MAX_NUMBER_LENGTH}
@@ -142,7 +142,7 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
-          placeholder="Número, processo ou controle PNCP"
+          placeholder="Número, processo ou controle"
           className={`${inputBase} ${numberError ? '!border-red-400' : ''}`}
         />
         <Select

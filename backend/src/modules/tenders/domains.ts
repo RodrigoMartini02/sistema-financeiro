@@ -24,9 +24,12 @@ export const TENDER_MODALITY_IDS: readonly number[] = TENDER_MODALITIES.map((mod
 /** Modalidades coletadas quando PNCP_MODALITIES não é informada. */
 export const DEFAULT_COLLECTED_MODALITIES = [6, 8, 4, 7] as const;
 
-/** Situação da contratação no PNCP (`situacaoCompraId`). Só a 1 entra nas buscas. */
+/**
+ * Situação da contratação no PNCP (`situacaoCompraId`). Só a 1 entra nas
+ * buscas. Os nomes são os da tela (a 1 chega do PNCP como "Divulgada no PNCP").
+ */
 export const TENDER_SITUATIONS = [
-  { id: 1, name: 'Divulgada no PNCP' },
+  { id: 1, name: 'Divulgada' },
   { id: 2, name: 'Revogada' },
   { id: 3, name: 'Anulada' },
   { id: 4, name: 'Suspensa' },

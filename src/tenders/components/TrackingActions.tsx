@@ -4,7 +4,7 @@ import { TRACKING_STATUSES, type NoticeListItem, type TrackingStatus } from '../
 import { TRACKING_ACTION_LABELS } from '../utils/labels';
 
 // Ações rápidas do edital na lista: Analisar, Vou participar, Descartar e
-// Abrir no PNCP. O mesmo status de novo não muda nada; remover o
+// abrir o edital original. O mesmo status de novo não muda nada; remover o
 // acompanhamento fica no detalhe.
 
 const ACTION_ICONS: Record<TrackingStatus, LucideIcon> = {
@@ -75,12 +75,12 @@ export function TrackingActions({ notice, variant = 'buttons' }: TrackingActions
             href={notice.pncpLink}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Abrir no PNCP (abre em nova aba)"
-            title="Abrir no PNCP"
+            aria-label="Abrir edital original (abre em nova aba)"
+            title="Abrir edital original"
             className={`${BASE_CLASS} ${sizeClass} ${IDLE_CLASS}`}
           >
             <ExternalLink size={14} aria-hidden="true" />
-            {!iconsOnly && 'PNCP'}
+            {!iconsOnly && 'Edital'}
           </a>
         )}
       </div>

@@ -223,7 +223,8 @@ export class PncpClient {
           throw error;
         }
         if (attempt >= this.options.maxAttempts) {
-          throw new PncpRequestError(`PNCP falhou após ${attempt} tentativa(s): ${error.message}`, {
+          // As mensagens vão para os detalhes da execução, que Configurações › Coleta mostra: sem o nome da fonte.
+          throw new PncpRequestError(`A consulta falhou após ${attempt} tentativa(s): ${error.message}`, {
             endpoint: target,
             page: pageNumber,
             attempts: attempt,
@@ -304,7 +305,7 @@ export class PncpClient {
     if (isRetryableStatus(response.status)) {
       throw new RetryableFailure(`HTTP ${response.status}`, response.status, this.retryAfterDelay(response.headers.get('retry-after')));
     }
-    throw new PncpRequestError(`PNCP respondeu HTTP ${response.status}: ${body.slice(0, ERROR_BODY_PREVIEW_LENGTH)}`, {
+    throw new PncpRequestError(`A consulta recebeu HTTP ${response.status}: ${body.slice(0, ERROR_BODY_PREVIEW_LENGTH)}`, {
       endpoint: target,
       page: pageNumber,
       attempts: attempt,

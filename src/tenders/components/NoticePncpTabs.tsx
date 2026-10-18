@@ -11,7 +11,8 @@ import { formatMoneyValue } from '../utils/money';
 import { LoadError, LoadingBlock } from './LoadStates';
 
 // Abas Itens e Arquivos: buscadas no PNCP só quando abertas (a API guarda por
-// 24 h e serve a cópia quando o PNCP falha).
+// 24 h e serve a cópia quando o PNCP falha). Os textos da tela não citam a
+// fonte (plano .plans/licitacoes-base-nacional.md, parte 7).
 
 const DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -31,19 +32,19 @@ function PncpLink({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
-/** Avisos da lista: cópia guardada (PNCP falhou) e "há mais no PNCP". */
+/** Avisos da lista: cópia guardada (a fonte falhou) e "há mais do que os mostrados". */
 function ListNotes<T>({ list, moreLabel }: { list: NoticeDetailList<T>; moreLabel: string }) {
   return (
     <>
       {list.stale && (
         <Notice tone="warning" icon={<TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />}>
-          O PNCP não respondeu agora. Mostrando a cópia guardada em {formatIsoDateTime(list.fetchedAt)}.
+          Não foi possível atualizar agora. Mostrando a cópia guardada em {formatIsoDateTime(list.fetchedAt)}.
         </Notice>
       )}
       {list.hasMore && (
         <Notice tone="info" icon={<Info size={14} className="mt-px shrink-0" aria-hidden="true" />}>
-          Há mais {moreLabel} no PNCP do que os mostrados aqui.{' '}
-          {list.pncpLink && <PncpLink href={list.pncpLink}>Ver todos no PNCP</PncpLink>}
+          Há mais {moreLabel} do que os mostrados aqui.{' '}
+          {list.pncpLink && <PncpLink href={list.pncpLink}>Ver todos na publicação original</PncpLink>}
         </Notice>
       )}
     </>
@@ -54,9 +55,9 @@ function NotOnPncp({ pncpLink }: { pncpLink: string | null }) {
   return (
     <EmptyState
       icon={Info}
-      title="O PNCP ainda não tem esta compra."
-      description="Os dados de itens e arquivos aparecem quando o órgão publicar no PNCP."
-      action={pncpLink ? <PncpLink href={pncpLink}>Abrir no PNCP</PncpLink> : undefined}
+      title="Itens e arquivos ainda não publicados."
+      description="Eles aparecem aqui quando o órgão publicar a compra."
+      action={pncpLink ? <PncpLink href={pncpLink}>Abrir edital original</PncpLink> : undefined}
     />
   );
 }
@@ -72,7 +73,7 @@ export function NoticeItemsTab({ noticeId }: { noticeId: number }) {
     staleTime: DETAIL_STALE_MS,
   });
 
-  if (items.isPending) return <LoadingBlock label="Buscando os itens no PNCP…" />;
+  if (items.isPending) return <LoadingBlock label="Buscando os itens…" />;
   if (items.isError) {
     return <LoadError title="Não foi possível carregar os itens" message={items.error.message} onRetry={() => void items.refetch()} retrying={items.isFetching} />;
   }
@@ -83,7 +84,7 @@ export function NoticeItemsTab({ noticeId }: { noticeId: number }) {
     <div className="grid grid-cols-1 gap-3">
       <ListNotes list={list} moreLabel="itens" />
       {list.records.length === 0 ? (
-        <EmptyState icon={FileText} title="O PNCP não informa itens para esta compra." />
+        <EmptyState icon={FileText} title="Esta compra não tem itens informados." />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
           <table className="w-full min-w-[640px] text-sm">
@@ -132,7 +133,7 @@ export function NoticeFilesTab({ noticeId }: { noticeId: number }) {
     staleTime: DETAIL_STALE_MS,
   });
 
-  if (files.isPending) return <LoadingBlock label="Buscando os arquivos no PNCP…" />;
+  if (files.isPending) return <LoadingBlock label="Buscando os arquivos…" />;
   if (files.isError) {
     return <LoadError title="Não foi possível carregar os arquivos" message={files.error.message} onRetry={() => void files.refetch()} retrying={files.isFetching} />;
   }
@@ -143,7 +144,7 @@ export function NoticeFilesTab({ noticeId }: { noticeId: number }) {
     <div className="grid grid-cols-1 gap-3">
       <ListNotes list={list} moreLabel="arquivos" />
       {list.records.length === 0 ? (
-        <EmptyState icon={FileText} title="O PNCP não tem arquivos para esta compra." />
+        <EmptyState icon={FileText} title="Esta compra não tem arquivos publicados." />
       ) : (
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
           {list.records.map((file) => {

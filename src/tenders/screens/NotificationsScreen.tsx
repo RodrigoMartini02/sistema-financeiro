@@ -67,7 +67,7 @@ export function NotificationsScreen() {
       <EmptyState
         icon={BellOff}
         title="Você ainda não tem notificações."
-        description="Elas chegam quando um edital novo bate com uma busca salva com Notificar ligado, quando um edital acompanhado muda no PNCP, quando o prazo de um edital em Vou participar se aproxima e 90 e 30 dias antes do vencimento dos contratos favoritos ou das buscas salvas de contratos."
+        description="Elas chegam quando um edital novo bate com uma busca salva com Notificar ligado, quando um edital acompanhado muda, quando o prazo de um edital em Vou participar se aproxima e 90 e 30 dias antes do vencimento dos contratos favoritos ou das buscas salvas de contratos."
       />
     );
   } else {

@@ -473,14 +473,20 @@ Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta,
   - cards ou tabela, com a opção compacta guardada no navegador;
   - ações rápidas, coração de favorito e "Salvar esta busca";
   - filtro "Só favoritos" (`favoritos=1`);
-  - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle PNCP" vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
+  - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle" (número da compra, processo ou número de controle) vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
 - **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
 - **Contratos a vencer (`/contratos`):**
   - os contratos vigentes, no modelo de Buscar: filtros na URL, chips, "Limpar tudo", cards ou tabela, coração de favorito, "Salvar esta busca" e paginação no fim da página;
   - filtros: vencimento de/até, com os atalhos de 30, 90, 180 e 365 dias, "Só favoritos", número e ano do contrato, UF, município, categoria, valor global, publicação, órgão e fornecedor (CNPJ);
   - o card mostra o objeto, o órgão e o local, o fornecedor, o valor global e o vencimento, com "Vence em N dias" (vermelho até 30, âmbar até 90) e os selos "Prorrogado" e "Vencido";
-  - detalhe no painel lateral (`?contrato=<id>`) e na rota `/contratos/:id`: vigência, aditivos e rescisões, dados do contrato, fornecedor e valores, "Ver no PNCP" e "Edital de origem";
+  - detalhe no painel lateral (`?contrato=<id>`) e na rota `/contratos/:id`: vigência, aditivos e rescisões, dados do contrato, fornecedor e valores, "Ver documento original" e "Edital de origem";
   - no rodapé, a última coleta diária de contratos.
+- **Telas sem a marca da fonte** (parte 7 do plano `.plans/licitacoes-base-nacional.md`):
+  - nenhum texto de tela cita o PNCP: "Número de controle", "Abrir edital original", "Ver documento original", "Buscando os itens…", "Edital" nas ações rápidas e avisos neutros;
+  - os links ao documento original continuam, para o site oficial;
+  - a API também não cita a fonte no que chega à tela: a situação 1 vira "Divulgada", a falha nos itens e arquivos diz "Não foi possível buscar os dados da compra agora", o aviso de edital alterado é "Edital acompanhado foi alterado", e os erros das consultas na Coleta dizem "A consulta falhou…". O que já estava gravado com o texto antigo (avisos e erros) aparece com o texto novo na leitura;
+  - a fonte fica nos Termos de Uso e na Política de Privacidade (`src/screens/public/legalContent.ts`), como pede a política de dados abertos (Decreto 8.777/2016, art. 1º, III: livre uso, "limitando-se a creditar a autoria ou a fonte");
+  - `src/tenders/screenTexts.test.ts` confere que nenhum texto das telas do módulo cita o PNCP (nomes de código, comentários e endereços não contam).
 - **Favoritos (`/favoritos`):** abas Editais e Contratos (`aba=contratos`). Editais: todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento. Contratos: inclusive os vencidos, pelo vencimento. Paginados, um card por linha. O coração fica no card, na tabela e no detalhe.
 - **Buscas salvas (`/buscas`):**
   - abas Editais e Contratos (`aba=contratos`), cada uma com o seu limite de 50;

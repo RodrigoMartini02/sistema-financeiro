@@ -85,6 +85,31 @@ export interface CollectionRunView {
   details: CollectionRunDetails;
 }
 
+// Mensagens de erro gravadas antes da parte 7 do plano .plans/licitacoes-base-nacional.md
+// citavam a fonte; o titular vê o histórico, então a leitura usa o texto atual.
+const LEGACY_ERROR_PREFIXES: ReadonlyArray<[RegExp, string]> = [
+  [/^PNCP falhou após/, 'A consulta falhou após'],
+  [/^PNCP respondeu HTTP/, 'A consulta recebeu HTTP'],
+];
+
+/** Detalhes da execução com as mensagens de erro antigas no texto atual. */
+export function neutralRunDetails(details: CollectionRunDetails): CollectionRunDetails {
+  if (!Array.isArray(details.errors)) {
+    return details;
+  }
+  return {
+    ...details,
+    errors: details.errors.map((error) => {
+      const message = error['message'];
+      if (typeof message !== 'string') {
+        return error;
+      }
+      const neutral = LEGACY_ERROR_PREFIXES.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), message);
+      return neutral === message ? error : { ...error, message: neutral };
+    }),
+  };
+}
+
 function toRunView(row: typeof tenderCollectionRuns.$inferSelect): CollectionRunView {
   return {
     id: row.id,
@@ -98,7 +123,7 @@ function toRunView(row: typeof tenderCollectionRuns.$inferSelect): CollectionRun
     updatedCount: row.updatedCount,
     notificationCount: row.notificationCount,
     errorCount: row.errorCount,
-    details: row.details,
+    details: neutralRunDetails(row.details),
   };
 }
 

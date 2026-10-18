@@ -67,7 +67,7 @@ function ActivationOffer({ activation }: { activation: TenderActivation }) {
       <Sparkles size={28} className="mx-auto text-brand-600" aria-hidden="true" />
       <h1 className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-100">Comece a usar Licitações</h1>
       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-        Editais do PNCP com as suas buscas salvas, avisos de novos editais e prazos. São 15 dias grátis, sem cartão de crédito.
+        Editais de todo o país com as suas buscas salvas, avisos de novos editais e prazos. São 15 dias grátis, sem cartão de crédito.
       </p>
       {activation.accounts.length > 1 && (
         <div className="mt-4 text-left">

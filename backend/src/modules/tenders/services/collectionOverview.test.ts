@@ -1,6 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { backfillRunView, nextScheduledRun } from './collectionOverview';
+import { backfillRunView, neutralRunDetails, nextScheduledRun } from './collectionOverview';
+
+test('histórico: mensagens de erro antigas aparecem sem o nome da fonte; as outras ficam como estão', () => {
+  const details = {
+    dataFinal: '20261217',
+    errors: [
+      { kind: 'request', message: 'PNCP falhou após 5 tentativa(s): HTTP 503' },
+      { kind: 'request', message: 'PNCP respondeu HTTP 400: data inválida' },
+      { kind: 'record', controlNumber: 'X-1', reason: 'CNPJ do órgão deve ter 14 dígitos' },
+      { kind: 'archive', key: 'pncp/contratos/2026/10/18/1-0001.jsonl.gz', message: 'R2 fora do ar' },
+    ],
+  };
+  assert.deepEqual(neutralRunDetails(details), {
+    dataFinal: '20261217',
+    errors: [
+      { kind: 'request', message: 'A consulta falhou após 5 tentativa(s): HTTP 503' },
+      { kind: 'request', message: 'A consulta recebeu HTTP 400: data inválida' },
+      { kind: 'record', controlNumber: 'X-1', reason: 'CNPJ do órgão deve ter 14 dígitos' },
+      { kind: 'archive', key: 'pncp/contratos/2026/10/18/1-0001.jsonl.gz', message: 'R2 fora do ar' },
+    ],
+  });
+  const withoutErrors = { today: '2026-10-18' };
+  assert.equal(neutralRunDetails(withoutErrors), withoutErrors);
+});
 
 // 2026-10-05 é segunda-feira. Horários em UTC; Brasília = UTC−3.
 const at = (isoUtc: string) => new Date(isoUtc);

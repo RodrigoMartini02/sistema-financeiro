@@ -40,6 +40,15 @@ function ownNotifications(requester: Requester) {
   return and(eq(tenderNotifications.accountId, requester.accountId), eq(tenderNotifications.userId, requester.userId));
 }
 
+// Título antigo do EDITAL_ALTERADO, gravado antes da parte 7 do plano
+// .plans/licitacoes-base-nacional.md: a tela mostra o título atual, sem citar a fonte.
+const LEGACY_CHANGED_NOTICE_TITLE = 'Edital acompanhado foi alterado no PNCP';
+const CHANGED_NOTICE_TITLE = 'Edital acompanhado foi alterado';
+
+export function notificationTitle(storedTitle: string): string {
+  return storedTitle === LEGACY_CHANGED_NOTICE_TITLE ? CHANGED_NOTICE_TITLE : storedTitle;
+}
+
 export async function listNotifications(
   db: TendersDb,
   requester: Requester,
@@ -65,7 +74,7 @@ export async function listNotifications(
     items: rows.map((row) => ({
       id: row.id,
       type: row.type,
-      title: row.title,
+      title: notificationTitle(row.title),
       message: row.message,
       link: row.link,
       noticeId: row.noticeId,

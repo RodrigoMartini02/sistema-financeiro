@@ -46,7 +46,7 @@ export function runErrorLines(run: Pick<CollectionRun, 'details'>): string[] {
 const BACKFILL_STOP_LABELS: Record<BackfillStopReason, string> = {
   time: 'Parou no limite de tempo do bloco; continua na próxima rotina.',
   space: 'Parou no limite de espaço do banco.',
-  pncp: 'Parou porque o PNCP não respondeu; continua na próxima rotina.',
+  pncp: 'Parou porque a fonte dos dados não respondeu; continua na próxima rotina.',
 };
 
 export interface BackfillSummary {
@@ -112,7 +112,7 @@ function termsRetryNotes(retry: unknown): string[] {
     notes.push(`${contractCount(remaining)} com aditivos pendentes; reconsulta na próxima rotina.`);
   }
   if (retry['stoppedByFailures'] === true) {
-    notes.push('A reconsulta dos aditivos parou porque o PNCP não respondeu; continua na próxima rotina.');
+    notes.push('A reconsulta dos aditivos parou porque a fonte dos dados não respondeu; continua na próxima rotina.');
   }
   return notes;
 }

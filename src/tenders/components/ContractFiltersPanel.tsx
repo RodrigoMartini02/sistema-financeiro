@@ -151,7 +151,7 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
       <FilterSection title="Número e ano" error={numberError}>
         <input
           type="text"
-          aria-label="Número do contrato, processo ou controle PNCP"
+          aria-label="Número do contrato, processo ou número de controle"
           aria-invalid={Boolean(numberError) || undefined}
           value={numberDraft}
           maxLength={MAX_NUMBER_LENGTH}
@@ -160,7 +160,7 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
-          placeholder="Número, processo ou controle PNCP"
+          placeholder="Número, processo ou controle"
           className={`${inputBase} ${numberError ? '!border-red-400' : ''}`}
         />
         <Select
