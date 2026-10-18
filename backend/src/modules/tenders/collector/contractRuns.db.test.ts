@@ -3,7 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { tenderCollectionRuns, tenderContractBackfillDays, tenderContractFavorites, tenderContracts, tenderNotifications } from '../db/schema';
 import {
   BACKFILL_FINISHED,
@@ -12,8 +12,9 @@ import {
   runContractsBackfill,
   runContractsCleanup,
   runContractsDaily,
+  type DailyQueryDetail,
 } from './contractRuns';
-import { markBackfillDayCompleted } from './contractRepository';
+import { markBackfillDayCompleted, pendingTermsCondition } from './contractRepository';
 import {
   closeLocalTestDatabase,
   createTestAccount,
@@ -25,7 +26,7 @@ import {
 } from './dbTestSupport';
 import type { TendersDb } from './database';
 import { COLLECTOR_LOCK_KEYS, tryAcquireCollectorLock } from './repository';
-import type { RunOutcome } from './runs';
+import type { CollectorContext, RunOutcome } from './runs';
 
 // Execuções de contratos sobre o banco local, com o PNCP simulado: cada teste
 // numa transação desfeita no fim. Os contratos de teste têm número de controle
@@ -76,11 +77,52 @@ async function storedContract(tx: TendersDb, controlNumber: unknown) {
   return row;
 }
 
+/**
+ * A coleta diária reconsulta os termos pendentes de toda a base, e o banco
+ * local pode ter contratos reais assim: no teste, eles ficam conferidos (a
+ * transação é desfeita no fim).
+ */
+async function settleLocalPendingTerms(tx: TendersDb): Promise<void> {
+  await tx.update(tenderContracts).set({ amendmentsReference: sql`${tenderContracts.pncpGlobalUpdatedAt}` }).where(pendingTermsCondition);
+}
+
+/** A janela parte das coletas diárias anteriores: no teste, sem as do banco local (o piloto deixou algumas). */
+async function withoutLocalDailyRuns(tx: TendersDb): Promise<void> {
+  await tx.delete(tenderCollectionRuns).where(eq(tenderCollectionRuns.type, 'CONTRATOS_DIARIA'));
+}
+
+/** Coleta diária anterior, terminada, com as consultas nos detalhes. */
+async function insertDailyRun(tx: TendersDb, queries: Array<Omit<DailyQueryDetail, 'recordsRead'>>): Promise<void> {
+  await tx.insert(tenderCollectionRuns).values({
+    type: 'CONTRATOS_DIARIA',
+    status: 'SUCESSO',
+    details: { queries: queries.map((query) => ({ ...query, recordsRead: 0 })) },
+  });
+}
+
+/** Consulta de contratos simulada que anota cada pedido: [consulta, dataInicial, dataFinal]. */
+function recordingFetch(requests: string[][], respond: (endpoint: string) => Response = () => pageOf([])) {
+  return (url: URL) => {
+    const endpoint = url.pathname.endsWith('/atualizacao') ? 'contratos-atualizacao' : 'contratos';
+    requests.push([endpoint, url.searchParams.get('dataInicial') ?? '', url.searchParams.get('dataFinal') ?? '']);
+    return respond(endpoint);
+  };
+}
+
+/** As consultas gravadas nos detalhes: [consulta, início, fim, terminou]. */
+function queriesOf(outcome: { details: Record<string, unknown> }): unknown[][] {
+  const queries = (outcome.details['queries'] ?? []) as Array<Record<string, unknown>>;
+  return queries.map((query) => [query['endpoint'], query['from'], query['to'], query['completed']]);
+}
+
+const atNoon = (day: string) => () => new Date(`${day}T12:00:00Z`);
+
 describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
 
   test('diária: grava o termo inicial longo e conta os que ficam de fora, por motivo', async () => {
     await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
       const kept = contractRecord();
       const empenho = contractRecord({ tipoContrato: { id: 7, nome: 'Empenho' } });
       const short = contractRecord({ dataVigenciaFim: '2027-01-15' });
@@ -111,6 +153,7 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
 
   test('termos: não são reconsultados com a mesma data global, e são quando ela muda', async () => {
     await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
       // Vencido pela data original (30/06/2026), mas prorrogado pelo aditivo: entra na base.
       const record = contractRecord({
         dataVigenciaInicio: '2025-07-01',
@@ -147,6 +190,7 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
 
   test('vencido não gravado fica de fora; vencido já gravado é atualizado (a limpeza o tira)', async () => {
     await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
       const alreadyStored = contractRecord({ dataVigenciaInicio: '2025-01-01', dataVigenciaFim: '2026-10-01' });
       await insertTestContract(tx, {
         pncpControlNumber: String(alreadyStored.numeroControlePNCP),
@@ -167,6 +211,7 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
 
   test('falha do PNCP nos termos conta erro e grava o fim original, sem marcar a conferência', async () => {
     await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
       const record = contractRecord({ dataPublicacaoPncp: '2026-09-01T10:00:00', dataAtualizacaoGlobal: '2026-10-05T10:00:00' });
       const context = createTestCollectorContext(tx, {
         contractsFetch: publicationOnly([record]),
@@ -181,6 +226,316 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
       assert.equal(stored?.expiresOn, '2027-09-29');
       assert.equal(stored?.amendments, null);
       assert.equal(stored?.amendmentsReference, null);
+    });
+  });
+
+  test('janela: grava cada consulta nos detalhes; sem coleta completa anterior, de ontem a hoje', async () => {
+    await withRollback(async (tx) => {
+      await withoutLocalDailyRuns(tx);
+      await settleLocalPendingTerms(tx);
+      const requests: string[][] = [];
+
+      const first = assertRan(await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: () => NOW })));
+      assert.deepEqual(requests, [
+        ['contratos', '20261012', '20261013'],
+        ['contratos-atualizacao', '20261012', '20261013'],
+      ]);
+      assert.equal(first.details['today'], '2026-10-13');
+      assert.deepEqual(first.details['queries'], [
+        { endpoint: 'contratos', from: '2026-10-12', to: '2026-10-13', completed: true, recordsRead: 0 },
+        { endpoint: 'contratos-atualizacao', from: '2026-10-12', to: '2026-10-13', completed: true, recordsRead: 0 },
+      ]);
+
+      requests.length = 0;
+      await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: atNoon('2026-10-14') }));
+      assert.deepEqual(
+        requests,
+        [
+          ['contratos', '20261013', '20261014'],
+          ['contratos-atualizacao', '20261013', '20261014'],
+        ],
+        'dia normal: de ontem a hoje',
+      );
+    });
+  });
+
+  test('janela: falha do PNCP só nos atualizados; a próxima relê os atualizados desde a última completa', async () => {
+    await withRollback(async (tx) => {
+      await withoutLocalDailyRuns(tx);
+      await settleLocalPendingTerms(tx);
+      const requests: string[][] = [];
+      let updatesDown = false;
+      const contextAt = (day: string) =>
+        createTestCollectorContext(tx, {
+          contractsFetch: recordingFetch(requests, (endpoint) =>
+            updatesDown && endpoint === 'contratos-atualizacao' ? new Response('erro', { status: 500 }) : pageOf([]),
+          ),
+          now: atNoon(day),
+        });
+
+      await runContractsDaily(contextAt('2026-10-14'));
+      updatesDown = true;
+      const failed = assertRan(await runContractsDaily(contextAt('2026-10-15')));
+      assert.deepEqual(queriesOf(failed), [
+        ['contratos', '2026-10-14', '2026-10-15', true],
+        ['contratos-atualizacao', '2026-10-14', '2026-10-15', false],
+      ]);
+
+      updatesDown = false;
+      requests.length = 0;
+      await runContractsDaily(contextAt('2026-10-16'));
+      assert.deepEqual(requests, [
+        ['contratos', '20261015', '20261016'],
+        ['contratos-atualizacao', '20261014', '20261016'],
+      ]);
+    });
+  });
+
+  test('janela: falha fora do PNCP na segunda consulta; a primeira, que terminou, conta para a próxima', async () => {
+    await withRollback(async (tx) => {
+      await withoutLocalDailyRuns(tx);
+      await settleLocalPendingTerms(tx);
+      await insertDailyRun(tx, [
+        { endpoint: 'contratos', from: '2026-10-09', to: '2026-10-10', completed: true },
+        { endpoint: 'contratos-atualizacao', from: '2026-10-09', to: '2026-10-10', completed: true },
+      ]);
+      const base = createTestCollectorContext(tx, {
+        contractsFetch: (url) => (url.pathname.endsWith('/atualizacao') ? pageOf([contractRecord()]) : pageOf([])),
+        now: () => NOW,
+      });
+      // O registro da página dos atualizados falha: erro fora do PNCP, que interrompe a execução.
+      const context: CollectorContext = {
+        ...base,
+        logger: {
+          ...base.logger,
+          debug: (_message, fields) => {
+            if (fields?.['endpoint'] === 'contratos-atualizacao') {
+              throw new Error('falha simulada fora do PNCP');
+            }
+          },
+        },
+      };
+
+      const failed = assertRan(await runContractsDaily(context));
+      assert.equal(failed.status, 'FALHA');
+      assert.deepEqual(queriesOf(failed), [['contratos', '2026-10-10', '2026-10-13', true]]);
+
+      const requests: string[][] = [];
+      await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: atNoon('2026-10-14') }));
+      assert.deepEqual(requests, [
+        ['contratos', '20261013', '20261014'],
+        ['contratos-atualizacao', '20261010', '20261014'],
+      ]);
+    });
+  });
+
+  test('janela: execução sem as consultas nos detalhes, ou ainda executando, não conta', async () => {
+    await withRollback(async (tx) => {
+      await withoutLocalDailyRuns(tx);
+      await settleLocalPendingTerms(tx);
+      await tx.insert(tenderCollectionRuns).values([
+        { type: 'CONTRATOS_DIARIA', status: 'SUCESSO', details: { period: { dataInicial: '20261001', dataFinal: '20261002' } } },
+        {
+          type: 'CONTRATOS_DIARIA',
+          status: 'EXECUTANDO',
+          details: { queries: [{ endpoint: 'contratos', from: '2026-10-01', to: '2026-10-02', completed: true, recordsRead: 0 }] },
+        },
+      ]);
+      const requests: string[][] = [];
+
+      await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: () => NOW }));
+      assert.deepEqual(requests, [
+        ['contratos', '20261012', '20261013'],
+        ['contratos-atualizacao', '20261012', '20261013'],
+      ]);
+    });
+  });
+
+  test('janela: parada longa é recuperada em etapas de até 8 dias; a seguinte fica em dia', async () => {
+    await withRollback(async (tx) => {
+      await withoutLocalDailyRuns(tx);
+      await settleLocalPendingTerms(tx);
+      await insertDailyRun(tx, [
+        { endpoint: 'contratos', from: '2026-10-02', to: '2026-10-03', completed: true },
+        { endpoint: 'contratos-atualizacao', from: '2026-10-02', to: '2026-10-03', completed: true },
+      ]);
+      const requests: string[][] = [];
+
+      const catchingUp = assertRan(await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: () => NOW })));
+      assert.deepEqual(requests, [
+        ['contratos', '20261003', '20261010'],
+        ['contratos-atualizacao', '20261003', '20261010'],
+      ]);
+      assert.equal(catchingUp.details['today'], '2026-10-13', 'o fim antes de hoje é o que a tela mostra como recuperação');
+      assert.deepEqual(catchingUp.details['period'], { dataInicial: '20261003', dataFinal: '20261010' });
+
+      requests.length = 0;
+      await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: recordingFetch(requests), now: atNoon('2026-10-14') }));
+      assert.deepEqual(requests, [
+        ['contratos', '20261010', '20261014'],
+        ['contratos-atualizacao', '20261010', '20261014'],
+      ]);
+    });
+  });
+
+  test('reconsulta: os termos que falharam antes são consultados de novo e o vencimento é corrigido', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      // Com sinal de alteração e sem conferência: a falha deixou o fim original.
+      const failed = await insertTestContract(tx, {
+        contractSequence: 910_001,
+        originalTermEnd: '2026-06-30',
+        expiresOn: '2026-06-30',
+        publishedAt: '2025-07-02T10:00:00',
+        pncpGlobalUpdatedAt: '2026-10-05T10:00:00',
+      });
+      // O PNCP não conhece os termos (404): conferido, sem termo.
+      const notFound = await insertTestContract(tx, {
+        contractSequence: 910_002,
+        publishedAt: '2025-07-02T10:00:00',
+        pncpGlobalUpdatedAt: '2026-10-05T10:00:00',
+      });
+      // Sem sinal de alteração, e com a conferência em dia: ficam de fora.
+      const withoutSignal = await insertTestContract(tx, {
+        contractSequence: 910_003,
+        publishedAt: '2026-09-30T07:13:38',
+        pncpGlobalUpdatedAt: '2026-09-30T07:23:32',
+      });
+      const alreadyChecked = await insertTestContract(tx, {
+        contractSequence: 910_004,
+        publishedAt: '2025-07-02T10:00:00',
+        pncpGlobalUpdatedAt: '2026-10-05T10:00:00',
+        amendmentsReference: '2026-10-05T10:00:00',
+        amendments: [],
+      });
+      const termsRequested: string[] = [];
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: () => pageOf([]),
+        termsFetch: (url) => {
+          termsRequested.push(url.pathname);
+          return url.pathname.includes('/910002/') ? new Response('', { status: 404 }) : new Response(prorrogacao, { status: 200 });
+        },
+        now: () => NOW,
+      });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.deepEqual(outcome.details['termsRetry'], {
+        pendingAtStart: 2,
+        checked: 2,
+        resolved: 2,
+        expiryChanged: 1,
+        failed: 0,
+        stoppedByFailures: false,
+      });
+      assert.equal(outcome.updatedCount, 2);
+      assert.equal(termsRequested.length, 2, 'sem sinal e já conferido não são consultados');
+
+      const [fixed, notFoundRow, withoutSignalRow, alreadyCheckedRow] = await Promise.all(
+        [failed, notFound, withoutSignal, alreadyChecked].map(async (id) => {
+          const [row] = await tx.select().from(tenderContracts).where(eq(tenderContracts.id, id));
+          return row;
+        }),
+      );
+      assert.equal(fixed?.expiresOn, '2026-12-31', 'o aditivo prorroga até 31/12/2026');
+      assert.equal(fixed?.amendments?.length, 1);
+      assert.equal(fixed?.amendmentsReference, fixed?.pncpGlobalUpdatedAt);
+      assert.deepEqual(notFoundRow?.amendments, []);
+      assert.equal(notFoundRow?.amendmentsReference, notFoundRow?.pncpGlobalUpdatedAt);
+      assert.equal(withoutSignalRow?.amendmentsReference, null);
+      assert.deepEqual(alreadyCheckedRow?.amendments, []);
+
+      const next = assertRan(await runContractsDaily(context));
+      assert.equal(pick(next.details['termsRetry'], ['pendingAtStart']).pendingAtStart, 0, 'nada mais pendente');
+    });
+  });
+
+  test('reconsulta: falha mantém pendente e conta erro; 3 falhas seguidas param; o limite vale, do mais antigo ao mais novo', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const pendingNumbers: string[] = [];
+      for (let day = 1; day <= 5; day += 1) {
+        const pncpControlNumber = `TESTE-RECONSULTA-${randomUUID().slice(0, 8)}-${day}`;
+        await insertTestContract(tx, {
+          pncpControlNumber,
+          contractSequence: 920_000 + day,
+          publishedAt: '2026-01-02T10:00:00',
+          pncpGlobalUpdatedAt: `2026-10-0${day}T10:00:00`,
+        });
+        pendingNumbers.push(pncpControlNumber);
+      }
+      let termsUp = false;
+      let termsRequests = 0;
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: () => pageOf([]),
+        termsFetch: () => {
+          termsRequests += 1;
+          return termsUp ? new Response(prorrogacao, { status: 200 }) : new Response('erro', { status: 500 });
+        },
+        now: () => NOW,
+      });
+
+      const down = assertRan(await runContractsDaily(context));
+      assert.deepEqual(down.details['termsRetry'], {
+        pendingAtStart: 5,
+        checked: 3,
+        resolved: 0,
+        expiryChanged: 0,
+        failed: 3,
+        stoppedByFailures: true,
+      });
+      assert.equal(down.errorCount, 3);
+      assert.equal(termsRequests, 3);
+
+      termsUp = true;
+      const limited = assertRan(await runContractsDaily(context, { termsRetryLimit: 2 }));
+      assert.deepEqual(pick(limited.details['termsRetry'], ['pendingAtStart', 'checked', 'resolved', 'failed']), {
+        pendingAtStart: 5,
+        checked: 2,
+        resolved: 2,
+        failed: 0,
+      });
+      const stillPending = await tx
+        .select({ controlNumber: tenderContracts.pncpControlNumber })
+        .from(tenderContracts)
+        .where(and(inArray(tenderContracts.pncpControlNumber, pendingNumbers), pendingTermsCondition));
+      assert.deepEqual(
+        stillPending.map((row) => row.controlNumber).sort(),
+        pendingNumbers.slice(2).sort(),
+        'os dois de atualização mais antiga saíram primeiro',
+      );
+    });
+  });
+
+  test('reconsulta: o contrato que falhou na coleta não repete na mesma execução e é conferido na seguinte', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const record = contractRecord({ dataPublicacaoPncp: '2026-09-01T10:00:00', dataAtualizacaoGlobal: '2026-10-05T10:00:00' });
+      let termsUp = false;
+      let termsRequests = 0;
+      const termsFetch = () => {
+        termsRequests += 1;
+        return termsUp ? new Response(prorrogacao, { status: 200 }) : new Response('erro', { status: 500 });
+      };
+
+      const first = assertRan(
+        await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: publicationOnly([record]), termsFetch, now: () => NOW })),
+      );
+      assert.equal(termsRequests, 1, 'a reconsulta pula quem falhou nesta execução');
+      assert.deepEqual(pick(first.details['termsRetry'], ['pendingAtStart', 'checked']), { pendingAtStart: 1, checked: 0 });
+
+      termsUp = true;
+      const second = assertRan(
+        await runContractsDaily(createTestCollectorContext(tx, { contractsFetch: () => pageOf([]), termsFetch, now: atNoon('2026-10-14') })),
+      );
+      assert.deepEqual(pick(second.details['termsRetry'], ['pendingAtStart', 'checked', 'resolved', 'expiryChanged']), {
+        pendingAtStart: 1,
+        checked: 1,
+        resolved: 1,
+        expiryChanged: 1,
+      });
+      const stored = await storedContract(tx, record.numeroControlePNCP);
+      assert.equal(stored?.expiresOn, '2026-12-31');
+      assert.equal(stored?.amendmentsReference, stored?.pncpGlobalUpdatedAt);
     });
   });
 

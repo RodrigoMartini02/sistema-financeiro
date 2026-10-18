@@ -540,6 +540,7 @@ Atenção: migrations não devem ser executadas sem confirmação explícita do 
 
 **Coleta**
 - **Diária:** publicação e atualização de ontem a hoje.
+  - Desde 2026-10-14 (plano `.plans/licitacoes-contratos-coleta-sem-perda.md`): cada consulta começa no último dia que leu sem falha do PNCP, com até 7 dias por execução, e a coleta reconsulta os termos que falharam antes (até 200 por dia).
 - **Carga:**
   - um dia de publicação por vez, do mais recente (ontem, na primeira execução) para o mais antigo (`2021-01-01`);
   - o dia só é marcado ao terminar, e um dia com falha do PNCP fica pendente para a próxima execução;

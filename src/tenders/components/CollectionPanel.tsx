@@ -7,7 +7,7 @@ import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settings
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { CollectionRun, CollectionRunStatus, CollectionStatus, Paginated } from '../types';
-import { backfillSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
+import { backfillSummary, dailyCollectionSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
 import { formatIsoDateTime } from '../utils/dates';
 import { RUN_STATUS_LABELS, RUN_TYPE_LABELS } from '../utils/labels';
 import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
@@ -61,6 +61,8 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
   const backfillRunning = status.latestRuns.some((run) => run.type === 'CONTRATOS_CARGA' && run.status === 'EXECUTANDO');
   const summary = backfillSummary(status.contracts.backfill);
   const backfillStatus = backfillRunning ? 'Carga em andamento' : summary.status;
+  const dailySummary = daily ? dailyCollectionSummary(daily) : null;
+  const notes = [...(dailySummary?.notes ?? []), ...summary.notes];
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2 dark:border-slate-700 dark:bg-slate-800">
@@ -71,6 +73,12 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
       <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
         <dt className={TERM_CLASS}>Última coleta diária</dt>
         <dd className={VALUE_CLASS}>{daily ? formatIsoDateTime(daily.startedAt) : 'Ainda não rodou.'}</dd>
+        {dailySummary?.period && (
+          <>
+            <dt className={TERM_CLASS}>Período lido</dt>
+            <dd className={VALUE_CLASS}>{dailySummary.period}</dd>
+          </>
+        )}
         {daily && (
           <>
             <dt className={TERM_CLASS}>Lidos · novos · atualizados</dt>
@@ -87,9 +95,9 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
           {summary.progress ? ` · ${summary.progress}` : ''}
         </dd>
       </dl>
-      {summary.notes.length > 0 && (
+      {notes.length > 0 && (
         <ul className="mt-2 grid grid-cols-1 gap-0.5 text-xs text-slate-600 dark:text-slate-300">
-          {summary.notes.map((note) => (
+          {notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
         </ul>

@@ -1,27 +1,35 @@
+import type { ContractTermSummary } from '../db/schema';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import { contractExpiryFromTerms, mapPncpContract, type ContractSkipReason, type TenderContractRow } from './contractMapping';
 import { notifyChangedContractExpiry, notifyContractExpirations } from './contractNotifications';
 import {
+  countContractsWithPendingTerms,
   databaseSizeMb,
   deleteExpiredContracts,
   markBackfillDayCompleted,
   readCompletedBackfillDays,
+  readContractsWithPendingTerms,
+  readLastCompletedDailyDays,
   readNewestBackfillDay,
   readStoredContracts,
+  saveCheckedContractTerms,
   upsertContractPage,
+  type CheckedContractTerms,
   type StoredContractState,
 } from './contractRepository';
 import type { TendersDb } from './database';
-import { PncpRequestError, type PncpContractEndpoint, type PncpQueryParams } from './pncpClient';
+import { PNCP_CONTRACT_ENDPOINTS, PncpRequestError, type PncpContractEndpoint, type PncpQueryParams } from './pncpClient';
 import { COLLECTOR_LOCK_KEYS } from './repository';
 import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTally } from './runs';
 
 // Execuções de contratos (plano .plans/licitacoes-contratos-a-vencer.md):
-// coleta diária (publicados e atualizados de ontem a hoje), carga inicial (um
-// dia de publicação por vez, do mais recente para o mais antigo, em blocos com
-// limite de tempo e de espaço), limpeza dos vencidos e avisos de vencimento
-// (parte B). Todas com a trava própria dos contratos e registradas em
-// licitacoes.coleta_execucao.
+// coleta diária, carga inicial (um dia de publicação por vez, do mais recente
+// para o mais antigo, em blocos com limite de tempo e de espaço), limpeza dos
+// vencidos e avisos de vencimento (parte B). Todas com a trava própria dos
+// contratos e registradas em licitacoes.coleta_execucao. A coleta diária (plano
+// .plans/licitacoes-contratos-coleta-sem-perda.md) lê cada consulta desde o
+// último dia que ela leu sem falha do PNCP, com até 7 dias por execução, e
+// depois reconsulta os termos que falharam antes.
 
 const SKIP_DETAIL_KEYS: Record<ContractSkipReason, string> = {
   notInitialTerm: 'skippedNotInitialTerm',
@@ -33,6 +41,13 @@ const SKIP_DETAIL_KEYS: Record<ContractSkipReason, string> = {
 
 /** Dias seguidos com falha do PNCP que encerram o bloco da carga (o PNCP está fora do ar). */
 const MAX_CONSECUTIVE_FAILED_DAYS = 3;
+
+/** A janela da coleta diária vai no máximo até o início + 7 dias; o resto fica para a execução seguinte. */
+export const DAILY_MAX_WINDOW_DAYS = 7;
+/** Reconsulta dos termos que falharam: contratos por execução. */
+export const TERMS_RETRY_LIMIT = 200;
+/** Falhas seguidas do PNCP que encerram a reconsulta (o PNCP está fora do ar). */
+const MAX_CONSECUTIVE_TERMS_FAILURES = 3;
 
 export const BACKFILL_NOT_STARTED = 'carga não iniciada: limite de espaço não definido';
 export const BACKFILL_FINISHED = 'carga concluída: nenhum dia pendente';
@@ -51,6 +66,44 @@ interface QueryCounts {
   recordsRead: number;
   storedCount: number;
   termsChecked: number;
+  /** Contratos com falha do PNCP nos termos: a reconsulta da mesma execução os pula. */
+  failedTerms: string[];
+}
+
+/** O que a consulta dos termos precisa do contrato (na coleta e na reconsulta). */
+type ContractTermsKey = Pick<TenderContractRow, 'pncpControlNumber' | 'agencyCnpj' | 'contractYear' | 'contractSequence' | 'originalTermEnd'>;
+
+type TermsCheck = { ok: true; expiresOn: string; amendments: ContractTermSummary[] } | { ok: false };
+
+/**
+ * Consulta e interpreta os termos de um contrato. Sem termos no PNCP (404),
+ * vale o fim original. Termo fora do formato conta erro; aditivo de prazo sem
+ * a data nova conta à parte. Falha do PNCP conta erro e devolve `ok: false`.
+ */
+async function checkContractTerms(context: CollectorContext, tally: RunTally, contract: ContractTermsKey): Promise<TermsCheck> {
+  try {
+    const terms = await context.termsPncp.fetchContractTerms({
+      agencyCnpj: contract.agencyCnpj,
+      year: contract.contractYear,
+      sequence: contract.contractSequence,
+    });
+    if (terms === null) {
+      tally.addDetailCount('termsNotFound', 1);
+      return { ok: true, expiresOn: contract.originalTermEnd, amendments: [] };
+    }
+    const expiry = contractExpiryFromTerms(contract.originalTermEnd, terms);
+    for (const reason of expiry.invalidTerms) {
+      tally.addError({ kind: 'term', controlNumber: contract.pncpControlNumber, reason });
+    }
+    tally.addDetailCount('termsWithoutEndDate', expiry.undatedTerms);
+    return { ok: true, expiresOn: expiry.expiresOn, amendments: expiry.amendments };
+  } catch (error) {
+    if (!(error instanceof PncpRequestError)) {
+      throw error;
+    }
+    tally.addError({ kind: 'terms', controlNumber: contract.pncpControlNumber, ...error.details, message: error.message });
+    return { ok: false };
+  }
 }
 
 /**
@@ -59,7 +112,7 @@ interface QueryCounts {
  * contrato não está gravado ou se a data de atualização global mudou desde a
  * última conferência; senão, vale o que já foi conferido. Falha do PNCP nos
  * termos conta erro e mantém o que estava gravado (ou o fim original, sem
- * marcar a conferência, para tentar de novo depois).
+ * marcar a conferência): a reconsulta da coleta diária tenta de novo depois.
  */
 async function resolveContractExpiry(
   context: CollectorContext,
@@ -78,33 +131,16 @@ async function resolveContractExpiry(
     return { ...row, expiresOn: previous.expiresOn, amendments: previous.amendments, amendmentsReference: reference };
   }
 
-  try {
-    const terms = await context.termsPncp.fetchContractTerms({
-      agencyCnpj: row.agencyCnpj,
-      year: row.contractYear,
-      sequence: row.contractSequence,
-    });
+  const check = await checkContractTerms(context, tally, row);
+  if (check.ok) {
     counts.termsChecked += 1;
-    if (terms === null) {
-      tally.addDetailCount('termsNotFound', 1);
-      return { ...row, expiresOn: row.originalTermEnd, amendments: [], amendmentsReference: reference };
-    }
-    const expiry = contractExpiryFromTerms(row.originalTermEnd, terms);
-    for (const reason of expiry.invalidTerms) {
-      tally.addError({ kind: 'term', controlNumber: row.pncpControlNumber, reason });
-    }
-    tally.addDetailCount('termsWithoutEndDate', expiry.undatedTerms);
-    return { ...row, expiresOn: expiry.expiresOn, amendments: expiry.amendments, amendmentsReference: reference };
-  } catch (error) {
-    if (!(error instanceof PncpRequestError)) {
-      throw error;
-    }
-    tally.addError({ kind: 'terms', controlNumber: row.pncpControlNumber, ...error.details, message: error.message });
-    if (previous) {
-      return { ...row, expiresOn: previous.expiresOn, amendments: previous.amendments, amendmentsReference: previous.amendmentsReference };
-    }
-    return { ...row, expiresOn: row.originalTermEnd, amendments: null, amendmentsReference: null };
+    return { ...row, expiresOn: check.expiresOn, amendments: check.amendments, amendmentsReference: reference };
   }
+  counts.failedTerms.push(row.pncpControlNumber);
+  if (previous) {
+    return { ...row, expiresOn: previous.expiresOn, amendments: previous.amendments, amendmentsReference: previous.amendmentsReference };
+  }
+  return { ...row, expiresOn: row.originalTermEnd, amendments: null, amendmentsReference: null };
 }
 
 /**
@@ -174,7 +210,7 @@ async function collectContractQuery(
   params: PncpQueryParams,
   today: string,
 ): Promise<QueryCounts> {
-  const counts: QueryCounts = { completed: true, recordsRead: 0, storedCount: 0, termsChecked: 0 };
+  const counts: QueryCounts = { completed: true, recordsRead: 0, storedCount: 0, termsChecked: 0, failedTerms: [] };
   try {
     for await (const page of context.contractsPncp.pages(endpoint, params)) {
       tally.recordsRead += page.records.length;
@@ -199,19 +235,136 @@ async function collectContractQuery(
   return counts;
 }
 
-/** Coleta diária: contratos publicados e atualizados de ontem a hoje (Brasília). */
-export function runContractsDaily(context: CollectorContext): Promise<RunOutcome> {
+/** Janela de uma consulta da coleta diária (dias AAAA-MM-DD, Brasília, inclusive). */
+export interface DailyWindow {
+  from: string;
+  to: string;
+}
+
+/**
+ * Janela da coleta diária de uma consulta: do último dia que ela leu sem falha
+ * do PNCP (sem ele, ou se for depois de ontem, ontem) até hoje, com no máximo
+ * DAILY_MAX_WINDOW_DAYS dias depois do início. Num dia normal, de ontem a
+ * hoje; depois de uma parada longa, a execução seguinte continua do fim desta.
+ */
+export function dailyContractWindow(today: string, lastCompletedDay: string | null): DailyWindow {
+  const yesterday = addCalendarDays(today, -1);
+  const from = lastCompletedDay !== null && lastCompletedDay < yesterday ? lastCompletedDay : yesterday;
+  const latestEnd = addCalendarDays(from, DAILY_MAX_WINDOW_DAYS);
+  return { from, to: latestEnd < today ? latestEnd : today };
+}
+
+/** Uma consulta da coleta diária nos detalhes da execução: de onde a próxima continua. */
+export interface DailyQueryDetail extends DailyWindow {
+  endpoint: PncpContractEndpoint;
+  /** Sem interrupção do PNCP. Erro de registro ou de termos não conta. */
+  completed: boolean;
+  recordsRead: number;
+}
+
+/** A reconsulta dos termos nos detalhes da execução. */
+export interface TermsRetryDetail {
+  /** Contratos com termos pendentes antes da reconsulta. */
+  pendingAtStart: number;
+  /** Contratos com os termos consultados de novo, com ou sem sucesso. */
+  checked: number;
+  /** Conferidos e gravados: deixam de estar pendentes. */
+  resolved: number;
+  /** Conferidos com vencimento diferente do gravado. */
+  expiryChanged: number;
+  failed: number;
+  /** Parou depois de MAX_CONSECUTIVE_TERMS_FAILURES falhas seguidas. */
+  stoppedByFailures: boolean;
+}
+
+/**
+ * Reconsulta dos termos que falharam antes (na coleta diária ou na carga): até
+ * `limit` contratos, da atualização global mais antiga para a mais nova, menos
+ * os que falharam nesta execução. Para depois de 3 falhas seguidas do PNCP.
+ * Grava no fim, numa transação; o que continuar pendente fica para amanhã.
+ */
+async function retryPendingTerms(context: CollectorContext, tally: RunTally, limit: number, failedInThisRun: string[]): Promise<void> {
+  const summary: TermsRetryDetail = {
+    pendingAtStart: await countContractsWithPendingTerms(context.db),
+    checked: 0,
+    resolved: 0,
+    expiryChanged: 0,
+    failed: 0,
+    stoppedByFailures: false,
+  };
+  tally.details['termsRetry'] = summary;
+  if (summary.pendingAtStart === 0) {
+    return;
+  }
+
+  const pending = await readContractsWithPendingTerms(context.db, limit, failedInThisRun);
+  const checked: CheckedContractTerms[] = [];
+  let consecutiveFailures = 0;
+  for (const contract of pending) {
+    summary.checked += 1;
+    const check = await checkContractTerms(context, tally, contract);
+    if (!check.ok) {
+      summary.failed += 1;
+      consecutiveFailures += 1;
+      if (consecutiveFailures >= MAX_CONSECUTIVE_TERMS_FAILURES) {
+        summary.stoppedByFailures = true;
+        break;
+      }
+      continue;
+    }
+    consecutiveFailures = 0;
+    checked.push({ pncpControlNumber: contract.pncpControlNumber, expiresOn: check.expiresOn, amendments: check.amendments });
+    if (check.expiresOn !== contract.expiresOn) {
+      summary.expiryChanged += 1;
+    }
+  }
+
+  await saveCheckedContractTerms(context.db, checked);
+  summary.resolved = checked.length;
+  tally.updatedCount += checked.length;
+  context.logger.info('Reconsulta dos termos de contratos', { ...summary });
+}
+
+export interface DailyOptions {
+  /** Contratos da reconsulta dos termos; sem ele, TERMS_RETRY_LIMIT. */
+  termsRetryLimit?: number;
+}
+
+/**
+ * Coleta diária: os contratos publicados e os atualizados, cada consulta na
+ * sua janela (dailyContractWindow), e depois a reconsulta dos termos que
+ * falharam antes. Cada consulta entra nos detalhes assim que termina: se a
+ * execução falhar depois (erro do banco), a consulta que terminou ainda conta
+ * para a próxima. Processo derrubado não grava detalhes, e a próxima relê
+ * desde a última execução completa.
+ */
+export function runContractsDaily(context: CollectorContext, options: DailyOptions = {}): Promise<RunOutcome> {
   return withCollectionRun(
     context,
     'CONTRATOS_DIARIA',
     COLLECTOR_LOCK_KEYS.contracts,
     async (tally) => {
       const today = brasiliaDate(context.now());
-      const period = { dataInicial: toPncpDate(addCalendarDays(today, -1)), dataFinal: toPncpDate(today) };
-      tally.details['period'] = period;
-      for (const endpoint of ['contratos', 'contratos-atualizacao'] as const) {
-        await collectContractQuery(context, tally, endpoint, period, today);
+      const lastCompleted = await readLastCompletedDailyDays(context.db);
+      const windows = PNCP_CONTRACT_ENDPOINTS.map((endpoint) => ({
+        endpoint,
+        ...dailyContractWindow(today, lastCompleted[endpoint] ?? null),
+      }));
+      const froms = windows.map((window) => window.from).sort();
+      const tos = windows.map((window) => window.to).sort();
+      const queries: DailyQueryDetail[] = [];
+      tally.details['today'] = today;
+      tally.details['period'] = { dataInicial: toPncpDate(froms[0] ?? today), dataFinal: toPncpDate(tos.at(-1) ?? today) };
+      tally.details['queries'] = queries;
+
+      const failedTerms: string[] = [];
+      for (const { endpoint, from, to } of windows) {
+        const params = { dataInicial: toPncpDate(from), dataFinal: toPncpDate(to) };
+        const counts = await collectContractQuery(context, tally, endpoint, params, today);
+        queries.push({ endpoint, from, to, completed: counts.completed, recordsRead: counts.recordsRead });
+        failedTerms.push(...counts.failedTerms);
       }
+      await retryPendingTerms(context, tally, options.termsRetryLimit ?? TERMS_RETRY_LIMIT, failedTerms);
     },
     () => contractRequests(context),
   );
