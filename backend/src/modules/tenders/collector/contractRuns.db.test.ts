@@ -3,6 +3,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
+import { gunzipSync } from 'node:zlib';
 import { and, count, eq, inArray, sql } from 'drizzle-orm';
 import { tenderCollectionRuns, tenderContractBackfillDays, tenderContractFavorites, tenderContracts, tenderNotifications } from '../db/schema';
 import {
@@ -24,6 +25,7 @@ import {
   localTestPool,
   withRollback,
 } from './dbTestSupport';
+import type { ArchiveStorage } from './archive';
 import type { TendersDb } from './database';
 import { COLLECTOR_LOCK_KEYS, tryAcquireCollectorLock } from './repository';
 import type { CollectorContext, RunOutcome } from './runs';
@@ -116,6 +118,37 @@ function queriesOf(outcome: { details: Record<string, unknown> }): unknown[][] {
 }
 
 const atNoon = (day: string) => () => new Date(`${day}T12:00:00Z`);
+
+/** R2 simulado: guarda cada parte enviada; com `failing`, recusa todas. */
+function memoryArchive(failing = false) {
+  const objects = new Map<string, Uint8Array>();
+  const storage: ArchiveStorage = {
+    async putObject(key, body) {
+      if (failing) {
+        throw new Error('R2 fora do ar');
+      }
+      objects.set(key, body);
+    },
+    close: () => {},
+  };
+  return { storage, objects };
+}
+
+interface ArchivedLine {
+  collectedAt: string;
+  controlNumber?: string;
+  record: unknown;
+}
+
+/** As linhas de uma parte do arquivo, descompactadas. */
+function archivedLines(body: Uint8Array | undefined): ArchivedLine[] {
+  assert.ok(body, 'a parte foi enviada');
+  return gunzipSync(body)
+    .toString('utf8')
+    .trimEnd()
+    .split('\n')
+    .map((line) => JSON.parse(line) as ArchivedLine);
+}
 
 describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
@@ -808,6 +841,100 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
           reference: '2026-12-31',
         },
       ]);
+    });
+  });
+
+  test('arquivo bruto: a coleta diária grava todo contrato lido, também os que ficam de fora, e a resposta dos termos', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const kept = contractRecord();
+      const empenho = contractRecord({ tipoContrato: { id: 7, nome: 'Empenho' } });
+      // Com sinal de alteração: os termos são consultados.
+      const amended = contractRecord({ dataPublicacaoPncp: '2026-09-01T10:00:00', dataAtualizacaoGlobal: '2026-10-05T10:00:00' });
+      const { storage, objects } = memoryArchive();
+      const context = createTestCollectorContext(tx, {
+        contractsFetch: publicationOnly([kept, empenho, amended]),
+        termsFetch: () => new Response(prorrogacao, { status: 200 }),
+        now: () => NOW,
+        archive: storage,
+      });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.equal(outcome.status, 'SUCESSO');
+      const contractsKey = `pncp/contratos/2026/10/13/${outcome.runId}-0001.jsonl.gz`;
+      const termsKey = `pncp/contratos-termos/2026/10/13/${outcome.runId}-0001.jsonl.gz`;
+      assert.deepEqual([...objects.keys()].sort(), [contractsKey, termsKey].sort());
+      assert.deepEqual(
+        archivedLines(objects.get(contractsKey)).map((line) => line.record),
+        [kept, empenho, amended],
+        'o empenho fica fora da base, mas entra no arquivo',
+      );
+      assert.deepEqual(archivedLines(objects.get(termsKey)), [
+        { collectedAt: NOW.toISOString(), controlNumber: amended.numeroControlePNCP, record: JSON.parse(prorrogacao) },
+      ]);
+      const bytes = [...objects.values()].reduce((total, body) => total + body.length, 0);
+      assert.deepEqual(outcome.details['archive'], { enabled: true, files: 2, records: 4, bytes, failures: 0 });
+    });
+  });
+
+  test('arquivo bruto: falha no R2 conta erro e a coleta segue, com o contrato gravado', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const record = contractRecord();
+      const { storage } = memoryArchive(true);
+      const context = createTestCollectorContext(tx, { contractsFetch: publicationOnly([record]), now: () => NOW, archive: storage });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.equal(outcome.status, 'PARCIAL');
+      assert.deepEqual(outcome.details.errors, [
+        { kind: 'archive', key: `pncp/contratos/2026/10/13/${outcome.runId}-0001.jsonl.gz`, message: 'R2 fora do ar' },
+      ]);
+      assert.deepEqual(outcome.details['archive'], { enabled: true, files: 0, records: 0, bytes: 0, failures: 1 });
+      assert.ok(await storedContract(tx, record.numeroControlePNCP), 'o contrato entra na base mesmo sem o arquivo');
+    });
+  });
+
+  test('arquivo bruto: a execução que falha fora do PNCP ainda envia o que já leu', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const record = contractRecord();
+      const { storage, objects } = memoryArchive();
+      const base = createTestCollectorContext(tx, {
+        contractsFetch: (url) => (url.pathname.endsWith('/atualizacao') ? pageOf([record]) : pageOf([])),
+        now: () => NOW,
+        archive: storage,
+      });
+      // Erro fora do PNCP depois de gravar a página dos atualizados: interrompe a execução.
+      const context: CollectorContext = {
+        ...base,
+        logger: {
+          ...base.logger,
+          debug: (_message, fields) => {
+            if (fields?.['endpoint'] === 'contratos-atualizacao') {
+              throw new Error('falha simulada fora do PNCP');
+            }
+          },
+        },
+      };
+
+      const failed = assertRan(await runContractsDaily(context));
+      assert.equal(failed.status, 'FALHA');
+      assert.deepEqual(
+        archivedLines(objects.get(`pncp/contratos/2026/10/13/${failed.runId}-0001.jsonl.gz`)).map((line) => line.record),
+        [record],
+      );
+      assert.equal(pick(failed.details['archive'], ['files']).files, 1);
+    });
+  });
+
+  test('arquivo bruto desligado (sem as variáveis do R2): a coleta segue, e o resumo diz que está desligado', async () => {
+    await withRollback(async (tx) => {
+      await settleLocalPendingTerms(tx);
+      const context = createTestCollectorContext(tx, { contractsFetch: publicationOnly([contractRecord()]), now: () => NOW });
+
+      const outcome = assertRan(await runContractsDaily(context));
+      assert.equal(outcome.status, 'SUCESSO');
+      assert.deepEqual(outcome.details['archive'], { enabled: false, files: 0, records: 0, bytes: 0, failures: 0 });
     });
   });
 });

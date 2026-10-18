@@ -30,10 +30,21 @@ export interface ContractsSettings {
   maxDatabaseMb: number | null;
 }
 
+/** Arquivo bruto no Cloudflare R2 (plano .plans/licitacoes-base-nacional.md, parte 1). */
+export interface ArchiveSettings {
+  /** Endpoint S3 da conta no R2 (https://<conta>.r2.cloudflarestorage.com). */
+  endpoint: string;
+  bucket: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+}
+
 export interface CollectorConfig {
   databaseUrl: string;
   pncp: PncpSettings;
   contracts: ContractsSettings;
+  /** Sem as variáveis do R2, o arquivo bruto fica desligado. */
+  archive: ArchiveSettings | null;
   logLevel: LogLevel;
 }
 
@@ -90,10 +101,52 @@ const collectorEnvSchema = z.object({
   // rotina fica abaixo do limite de 12 h do Cron Job do Render.
   TENDERS_CONTRACTS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(480),
   TENDERS_CONTRACTS_MAX_DB_MB: z.coerce.number().int().positive().optional(),
+  TENDERS_ARCHIVE_ENDPOINT: z.url({ protocol: /^https$/, error: 'deve ser uma URL https://' }).optional(),
+  // Regra de nome de bucket do R2: minúsculas, números e hífen, de 3 a 63 caracteres.
+  TENDERS_ARCHIVE_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, 'nome de bucket inválido (minúsculas, números e hífen)')
+    .optional(),
+  TENDERS_ARCHIVE_ACCESS_KEY_ID: z.string().optional(),
+  TENDERS_ARCHIVE_SECRET_ACCESS_KEY: z.string().optional(),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
 const ENV_KEYS = Object.keys(collectorEnvSchema.shape);
+
+type CollectorEnv = z.infer<typeof collectorEnvSchema>;
+
+const ARCHIVE_ENV_KEYS = [
+  'TENDERS_ARCHIVE_ENDPOINT',
+  'TENDERS_ARCHIVE_BUCKET',
+  'TENDERS_ARCHIVE_ACCESS_KEY_ID',
+  'TENDERS_ARCHIVE_SECRET_ACCESS_KEY',
+] as const;
+
+/**
+ * As 4 variáveis do R2, todas ou nenhuma: sem nenhuma, o arquivo fica
+ * desligado; parte delas é erro de configuração. A mensagem só cita os nomes
+ * das que faltam, nunca os valores.
+ */
+function readArchiveSettings(values: CollectorEnv): ArchiveSettings | null {
+  const {
+    TENDERS_ARCHIVE_ENDPOINT: endpoint,
+    TENDERS_ARCHIVE_BUCKET: bucket,
+    TENDERS_ARCHIVE_ACCESS_KEY_ID: accessKeyId,
+    TENDERS_ARCHIVE_SECRET_ACCESS_KEY: secretAccessKey,
+  } = values;
+  if (endpoint && bucket && accessKeyId && secretAccessKey) {
+    return { endpoint: endpoint.replace(/\/+$/, ''), bucket, accessKeyId, secretAccessKey };
+  }
+
+  const missing = ARCHIVE_ENV_KEYS.filter((key) => !values[key]);
+  if (missing.length === ARCHIVE_ENV_KEYS.length) {
+    return null;
+  }
+  throw new CollectorConfigError(
+    `Configuração do coletor inválida: o arquivo bruto precisa das 4 variáveis do R2 (todas ou nenhuma); faltam ${missing.join(', ')}`,
+  );
+}
 
 /** Lê e valida as variáveis do coletor. Variável vazia vale como não informada. */
 export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
@@ -130,6 +183,7 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       backfillMinutes: values.TENDERS_CONTRACTS_BACKFILL_MINUTES,
       maxDatabaseMb: values.TENDERS_CONTRACTS_MAX_DB_MB ?? null,
     },
+    archive: readArchiveSettings(values),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,
   };
 }

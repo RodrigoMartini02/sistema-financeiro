@@ -2,9 +2,9 @@ import type { BackfillStopReason, CollectionRun, ContractsCollection } from '../
 import { formatIsoDate } from './dates';
 
 // Histórico da coleta (Configurações → Coleta): duração e erros de cada
-// execução, o andamento da carga inicial de contratos e o período lido pela
+// execução, o andamento da carga inicial de contratos, o período lido pela
 // coleta diária de contratos, com a recuperação de dias e a reconsulta dos
-// aditivos.
+// aditivos, e o arquivo bruto de cada coleta.
 
 const MINUTE_SECONDS = 60;
 const HOUR_SECONDS = 60 * MINUTE_SECONDS;
@@ -139,4 +139,37 @@ export function dailyCollectionSummary(run: Pick<CollectionRun, 'details'>): Dai
   notes.push(...termsRetryNotes(run.details['termsRetry']));
 
   return { period: from && to ? `${formatIsoDate(from)} a ${formatIsoDate(to)}` : null, notes };
+}
+
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1024 * 1024;
+
+/** "512 KB" abaixo de 1 MB; acima, "12,4 MB". */
+function sizeLabel(bytes: number): string {
+  if (bytes < BYTES_PER_MB) {
+    return `${Math.max(1, Math.round(bytes / BYTES_PER_KB)).toLocaleString('pt-BR')} KB`;
+  }
+  return `${(bytes / BYTES_PER_MB).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`;
+}
+
+/**
+ * Arquivo bruto da execução (`detalhes.archive`), em texto: "Desligado",
+ * "Nenhum arquivo" ou "3 arquivos · 12,4 MB", com as falhas de envio. Sem o
+ * resumo (execução antiga, ou que não grava no arquivo), null.
+ */
+export function archiveSummaryLabel(run: Pick<CollectionRun, 'details'>): string | null {
+  const archive = run.details['archive'];
+  if (!isRecord(archive) || typeof archive['enabled'] !== 'boolean') {
+    return null;
+  }
+  if (!archive['enabled']) {
+    return 'Desligado';
+  }
+  const files = countOf(archive['files']);
+  const failures = countOf(archive['failures']);
+  const sent = files === 0 ? 'Nenhum arquivo' : `${files.toLocaleString('pt-BR')} ${files === 1 ? 'arquivo' : 'arquivos'} · ${sizeLabel(countOf(archive['bytes']))}`;
+  if (failures === 0) {
+    return sent;
+  }
+  return `${sent} · ${failures.toLocaleString('pt-BR')} ${failures === 1 ? 'falha' : 'falhas'} no envio`;
 }

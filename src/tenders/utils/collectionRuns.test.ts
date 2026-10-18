@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ContractsCollection } from '../types';
-import { backfillSummary, dailyCollectionSummary, runErrorLines } from './collectionRuns';
+import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runErrorLines } from './collectionRuns';
 import { RUN_TYPE_LABELS } from './labels';
 
 type Backfill = ContractsCollection['backfill'];
@@ -115,4 +115,19 @@ test('coleta diária de contratos: reconsulta dos aditivos, com e sem pendentes,
     'Aditivos reconsultados em 3 contratos; 40 ainda pendentes.',
     'A reconsulta dos aditivos parou porque o PNCP não respondeu; continua na próxima rotina.',
   ]);
+});
+
+test('arquivo bruto: arquivos e tamanho, em KB abaixo de 1 MB, com as falhas de envio', () => {
+  const labelOf = (archive: Record<string, unknown>) => archiveSummaryLabel({ details: { archive } });
+  assert.equal(labelOf({ enabled: true, files: 3, records: 120, bytes: 13_002_342, failures: 0 }), '3 arquivos · 12,4 MB');
+  assert.equal(labelOf({ enabled: true, files: 1, records: 2, bytes: 524_288, failures: 0 }), '1 arquivo · 512 KB');
+  assert.equal(labelOf({ enabled: true, files: 1, records: 1, bytes: 300, failures: 0 }), '1 arquivo · 1 KB');
+  assert.equal(labelOf({ enabled: true, files: 2, records: 9, bytes: 2_097_152, failures: 1 }), '2 arquivos · 2 MB · 1 falha no envio');
+  assert.equal(labelOf({ enabled: true, files: 0, records: 0, bytes: 0, failures: 3 }), 'Nenhum arquivo · 3 falhas no envio');
+});
+
+test('arquivo bruto: desligado; sem o resumo nos detalhes, sem linha', () => {
+  assert.equal(archiveSummaryLabel({ details: { archive: { enabled: false, files: 0, records: 0, bytes: 0, failures: 0 } } }), 'Desligado');
+  assert.equal(archiveSummaryLabel({ details: {} }), null);
+  assert.equal(archiveSummaryLabel({ details: { archive: 'texto' } }), null);
 });

@@ -1,4 +1,5 @@
 import type { ContractTermSummary } from '../db/schema';
+import { ARCHIVE_DATASETS, type RunArchive } from './archive';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import { contractExpiryFromTerms, mapPncpContract, type ContractSkipReason, type TenderContractRow } from './contractMapping';
 import { notifyChangedContractExpiry, notifyContractExpirations } from './contractNotifications';
@@ -29,7 +30,8 @@ import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTall
 // contratos e registradas em licitacoes.coleta_execucao. A coleta diária (plano
 // .plans/licitacoes-contratos-coleta-sem-perda.md) lê cada consulta desde o
 // último dia que ela leu sem falha do PNCP, com até 7 dias por execução, e
-// depois reconsulta os termos que falharam antes.
+// depois reconsulta os termos que falharam antes. Todo contrato lido e a
+// resposta de cada consulta de termos vão para o arquivo bruto (archive.ts).
 
 const SKIP_DETAIL_KEYS: Record<ContractSkipReason, string> = {
   notInitialTerm: 'skippedNotInitialTerm',
@@ -79,14 +81,21 @@ type TermsCheck = { ok: true; expiresOn: string; amendments: ContractTermSummary
  * Consulta e interpreta os termos de um contrato. Sem termos no PNCP (404),
  * vale o fim original. Termo fora do formato conta erro; aditivo de prazo sem
  * a data nova conta à parte. Falha do PNCP conta erro e devolve `ok: false`.
+ * A resposta vai para o arquivo bruto com o número de controle (`null` no 404).
  */
-async function checkContractTerms(context: CollectorContext, tally: RunTally, contract: ContractTermsKey): Promise<TermsCheck> {
+async function checkContractTerms(
+  context: CollectorContext,
+  tally: RunTally,
+  archive: RunArchive,
+  contract: ContractTermsKey,
+): Promise<TermsCheck> {
   try {
     const terms = await context.termsPncp.fetchContractTerms({
       agencyCnpj: contract.agencyCnpj,
       year: contract.contractYear,
       sequence: contract.contractSequence,
     });
+    await archive.append(ARCHIVE_DATASETS.contractTerms, [terms], { controlNumber: contract.pncpControlNumber });
     if (terms === null) {
       tally.addDetailCount('termsNotFound', 1);
       return { ok: true, expiresOn: contract.originalTermEnd, amendments: [] };
@@ -117,6 +126,7 @@ async function checkContractTerms(context: CollectorContext, tally: RunTally, co
 async function resolveContractExpiry(
   context: CollectorContext,
   tally: RunTally,
+  archive: RunArchive,
   row: TenderContractRow,
   hasChangeSignal: boolean,
   previous: StoredContractState | undefined,
@@ -131,7 +141,7 @@ async function resolveContractExpiry(
     return { ...row, expiresOn: previous.expiresOn, amendments: previous.amendments, amendmentsReference: reference };
   }
 
-  const check = await checkContractTerms(context, tally, row);
+  const check = await checkContractTerms(context, tally, archive, row);
   if (check.ok) {
     counts.termsChecked += 1;
     return { ...row, expiresOn: check.expiresOn, amendments: check.amendments, amendmentsReference: reference };
@@ -154,6 +164,7 @@ async function resolveContractExpiry(
 async function collectContractPage(
   context: CollectorContext,
   tally: RunTally,
+  archive: RunArchive,
   records: unknown[],
   today: string,
   counts: QueryCounts,
@@ -181,7 +192,7 @@ async function collectContractPage(
   const expiryChanged: string[] = [];
   for (const { row, hasChangeSignal } of candidates) {
     const previous = stored.get(row.pncpControlNumber);
-    const resolved = await resolveContractExpiry(context, tally, row, hasChangeSignal, previous, counts);
+    const resolved = await resolveContractExpiry(context, tally, archive, row, hasChangeSignal, previous, counts);
     if (!previous && resolved.expiresOn < today) {
       skipped.expired += 1;
       continue;
@@ -202,10 +213,15 @@ async function collectContractPage(
   }
 }
 
-/** Percorre uma consulta de contratos. Falha do PNCP encerra só a consulta; falha do banco, a execução. */
+/**
+ * Percorre uma consulta de contratos. Toda página lida vai para o arquivo
+ * bruto, inclusive os registros que não entram na base. Falha do PNCP encerra
+ * só a consulta; falha do banco, a execução.
+ */
 async function collectContractQuery(
   context: CollectorContext,
   tally: RunTally,
+  archive: RunArchive,
   endpoint: PncpContractEndpoint,
   params: PncpQueryParams,
   today: string,
@@ -215,7 +231,8 @@ async function collectContractQuery(
     for await (const page of context.contractsPncp.pages(endpoint, params)) {
       tally.recordsRead += page.records.length;
       counts.recordsRead += page.records.length;
-      await collectContractPage(context, tally, page.records, today, counts);
+      await archive.append(ARCHIVE_DATASETS.contracts, page.records);
+      await collectContractPage(context, tally, archive, page.records, today, counts);
       context.logger.debug('Página de contratos gravada', {
         endpoint,
         params,
@@ -285,7 +302,13 @@ export interface TermsRetryDetail {
  * Como na coleta, quem favoritou um contrato que mudou de vencimento recebe
  * CONTRATO_ALTERADO.
  */
-async function retryPendingTerms(context: CollectorContext, tally: RunTally, limit: number, failedInThisRun: string[]): Promise<void> {
+async function retryPendingTerms(
+  context: CollectorContext,
+  tally: RunTally,
+  archive: RunArchive,
+  limit: number,
+  failedInThisRun: string[],
+): Promise<void> {
   const summary: TermsRetryDetail = {
     pendingAtStart: await countContractsWithPendingTerms(context.db),
     checked: 0,
@@ -305,7 +328,7 @@ async function retryPendingTerms(context: CollectorContext, tally: RunTally, lim
   let consecutiveFailures = 0;
   for (const contract of pending) {
     summary.checked += 1;
-    const check = await checkContractTerms(context, tally, contract);
+    const check = await checkContractTerms(context, tally, archive, contract);
     if (!check.ok) {
       summary.failed += 1;
       consecutiveFailures += 1;
@@ -348,7 +371,7 @@ export function runContractsDaily(context: CollectorContext, options: DailyOptio
     context,
     'CONTRATOS_DIARIA',
     COLLECTOR_LOCK_KEYS.contracts,
-    async (tally) => {
+    async (tally, archive) => {
       const today = brasiliaDate(context.now());
       const lastCompleted = await readLastCompletedDailyDays(context.db);
       const windows = PNCP_CONTRACT_ENDPOINTS.map((endpoint) => ({
@@ -365,11 +388,11 @@ export function runContractsDaily(context: CollectorContext, options: DailyOptio
       const failedTerms: string[] = [];
       for (const { endpoint, from, to } of windows) {
         const params = { dataInicial: toPncpDate(from), dataFinal: toPncpDate(to) };
-        const counts = await collectContractQuery(context, tally, endpoint, params, today);
+        const counts = await collectContractQuery(context, tally, archive, endpoint, params, today);
         queries.push({ endpoint, from, to, completed: counts.completed, recordsRead: counts.recordsRead });
         failedTerms.push(...counts.failedTerms);
       }
-      await retryPendingTerms(context, tally, options.termsRetryLimit ?? TERMS_RETRY_LIMIT, failedTerms);
+      await retryPendingTerms(context, tally, archive, options.termsRetryLimit ?? TERMS_RETRY_LIMIT, failedTerms);
     },
     () => contractRequests(context),
   );
@@ -439,7 +462,7 @@ export async function runContractsBackfill(context: CollectorContext, options: B
     context,
     'CONTRATOS_CARGA',
     COLLECTOR_LOCK_KEYS.contracts,
-    async (tally) => {
+    async (tally, archive) => {
       const startedAt = context.now().getTime();
       const today = brasiliaDate(context.now());
       const { from, to } = range;
@@ -464,7 +487,7 @@ export async function runContractsBackfill(context: CollectorContext, options: B
         }
 
         const pncpDay = toPncpDate(day);
-        const counts = await collectContractQuery(context, tally, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay }, today);
+        const counts = await collectContractQuery(context, tally, archive, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay }, today);
         if (!counts.completed) {
           failedDays += 1;
           consecutiveFailures += 1;

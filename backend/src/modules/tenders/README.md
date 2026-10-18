@@ -34,7 +34,8 @@ backend/src/modules/tenders/
 │   ├── contractRepository.ts        upsert de contratos, dias da carga, limpeza e tamanho do banco
 │   ├── contractRuns.ts              contratos: coleta diária, carga inicial, limpeza e avisos
 │   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO
-│   ├── runtime.ts                   config, log, banco e PNCP de uma execução (CLI e rotina diária)
+│   ├── archive.ts                   arquivo bruto das coletas no Cloudflare R2 (JSON Lines compactado)
+│   ├── runtime.ts                   config, log, banco, PNCP e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
 ├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...)
@@ -59,6 +60,10 @@ backend/src/modules/tenders/
 | `TENDERS_CONTRACTS_BACKFILL_FROM` | `2021-01-01` | Dia de publicação mais antigo da carga inicial. |
 | `TENDERS_CONTRACTS_BACKFILL_MINUTES` | `480` | Tempo de cada bloco da carga (1 a 600). |
 | `TENDERS_CONTRACTS_MAX_DB_MB` | — (sem ela, a carga não roda) | Tamanho do banco em que a carga para. É o "ligar" da carga: sugestão de 70% do espaço do plano do Postgres. |
+| `TENDERS_ARCHIVE_ENDPOINT` | — (sem as 4 do R2, o arquivo bruto fica desligado) | Endpoint S3 da conta no Cloudflare R2, `https://<conta>.r2.cloudflarestorage.com`. Só `https`. |
+| `TENDERS_ARCHIVE_BUCKET` | — | Bucket privado do arquivo bruto (minúsculas, números e hífen). |
+| `TENDERS_ARCHIVE_ACCESS_KEY_ID` | — | Chave do token do R2 ("Object Read & Write", restrito ao bucket). Só no ambiente, nunca no repositório. |
+| `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` | — | Segredo do mesmo token. As 4 vão juntas: parte delas é erro de configuração, e a mensagem só cita os nomes. |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
@@ -150,7 +155,7 @@ npm --prefix backend run test:tenders-db
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
-  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado (na coleta e na reconsulta) e trava própria;
+  - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, termos não reconsultados com a mesma data global, vencido não gravado fica de fora, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, limpeza (o favorito vencido fica), vencimento alterado (na coleta e na reconsulta), trava própria e o arquivo bruto com o R2 simulado (o que vai, falha no envio, execução que falha e desligado);
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
@@ -194,6 +199,24 @@ SELECT count(*) AS editais,
 - **`hash_payload`:** SHA-256 do JSON com as chaves ordenadas. A mesma resposta em outra ordem dá o mesmo hash.
 - **`link_pncp`:** `https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}`.
 - **`link` das notificações:** `/editais/<id>`, a partir do início do app do módulo. A tela completa com `/licitacoes/app` (decisão 24).
+
+## Arquivo bruto no R2
+
+Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): o que as coletas leem do PNCP fica guardado no Cloudflare R2, barato e completo, e o Postgres guarda só o que a busca usa.
+
+- **O que vai:**
+  - contratos (coleta diária e carga): todos os registros lidos, inclusive os que não entram na base;
+  - termos dos contratos: a resposta de cada consulta, com o número de controle (`null` quando o PNCP não conhece o contrato);
+  - editais (varredura, incremental e `collect`): só os novos ou alterados, pelo hash ou pela data de atualização.
+  - Itens e arquivos abertos na tela não vão.
+- **Chave:** `<fonte>/<conjunto>/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com o dia da coleta em Brasília. Exemplo: `pncp/contratos/2026/10/18/412-0001.jsonl.gz`. Conjuntos: `contratos`, `contratos-termos` e `editais`.
+- **Formato:** JSON Lines compactado com gzip. Cada linha é `{ "collectedAt": "<ISO>", "record": <o registro como veio> }`; nos termos, também `controlNumber`.
+- **Partes:** a execução junta as linhas na memória e envia a parte ao passar de 16 MB brutos (`ARCHIVE_PART_BYTES`). O que sobra vai no fim, inclusive quando a execução falha.
+- **Detalhes da execução:** `detalhes.archive = { enabled, files, records, bytes, failures }`, com o tamanho compactado. Configurações › Coleta mostra a linha "Arquivo bruto" na varredura e na coleta diária de contratos.
+- **Falha no envio:** o SDK repete o envio. Se ainda falhar, a parte é descartada e conta um erro (`kind: 'archive'`, com a chave). A coleta segue, e a execução fica "Parcial".
+- **Desligado:** sem as 4 variáveis `TENDERS_ARCHIVE_*`, a coleta segue sem arquivo, avisa no log e grava `enabled: false`.
+- **Cliente:** `@aws-sdk/client-s3` (instalado só com versões de pelo menos 2 semanas), com região `auto`, caminho `/<bucket>/<chave>` e checksums só quando a operação exige.
+- **Ligar:** criar o bucket privado e um token "Object Read & Write" restrito a ele, e definir as 4 variáveis no Cron Job, que roda as coletas, e no `.env.dev`, para testar no local. O plano também as põe no Web Service, para os comandos manuais das próximas partes. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
 
 ## Contratos a vencer (dados)
 

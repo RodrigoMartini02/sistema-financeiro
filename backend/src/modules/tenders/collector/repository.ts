@@ -71,6 +71,8 @@ const REFRESH_FROM_EXCLUDED = Object.fromEntries(
 export interface NoticePageResult {
   insertedIds: number[];
   updatedIds: number[];
+  /** Números de controle dos inseridos e dos atualizados: o que vai para o arquivo bruto. */
+  changedControlNumbers: string[];
   unchangedCount: number;
 }
 
@@ -87,7 +89,7 @@ function keepLastByControlNumber(rows: TenderNoticeRow[]): TenderNoticeRow[] {
 export async function upsertNoticePage(db: TendersDb, rows: TenderNoticeRow[]): Promise<NoticePageResult> {
   const uniqueRows = keepLastByControlNumber(rows);
   if (uniqueRows.length === 0) {
-    return { insertedIds: [], updatedIds: [], unchangedCount: 0 };
+    return { insertedIds: [], updatedIds: [], changedControlNumbers: [], unchangedCount: 0 };
   }
 
   return db.transaction(async (tx) => {
@@ -120,6 +122,7 @@ export async function upsertNoticePage(db: TendersDb, rows: TenderNoticeRow[]): 
     return {
       insertedIds: changed.filter((row) => row.inserted).map((row) => row.id),
       updatedIds: changed.filter((row) => !row.inserted).map((row) => row.id),
+      changedControlNumbers: [...changedNumbers],
       unchangedCount: unchangedNumbers.length,
     };
   });

@@ -1,4 +1,5 @@
 import { PNCP_API_BASE_URL } from '../services/pncpDetails';
+import { createR2Storage } from './archive';
 import { loadCollectorConfig } from './config';
 import { createCollectorDatabase } from './database';
 import { createCollectorLogger } from './logger';
@@ -6,12 +7,12 @@ import { PncpClient } from './pncpClient';
 import type { CollectorContext } from './runs';
 
 // Ambiente de uma execução do coletor: configuração (variáveis de ambiente),
-// log, conexão própria com o banco e clientes do PNCP. Usado pelo CLI do
-// coletor e pela rotina diária (src/services/dailyJobs.ts).
+// log, conexão própria com o banco, clientes do PNCP e o arquivo bruto no R2.
+// Usado pelo CLI do coletor e pela rotina diária (src/services/dailyJobs.ts).
 
 export interface CollectorRuntime {
   context: CollectorContext;
-  /** Fecha a conexão com o banco: chamar no fim da execução. */
+  /** Fecha as conexões com o banco e com o R2: chamar no fim da execução. */
   close: () => Promise<void>;
 }
 
@@ -35,9 +36,16 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
     requestIntervalMs: config.contracts.termsIntervalMs,
     onRetry,
   });
+  const archive = config.archive ? createR2Storage(config.archive) : null;
+  if (!archive) {
+    logger.warn('Arquivo bruto desligado: as variáveis TENDERS_ARCHIVE_* do R2 não estão definidas');
+  }
 
   return {
-    context: { db, pool, pncp, contractsPncp, termsPncp, config, logger, now: () => new Date() },
-    close: () => pool.end(),
+    context: { db, pool, pncp, contractsPncp, termsPncp, archive, config, logger, now: () => new Date() },
+    close: async () => {
+      archive?.close();
+      await pool.end();
+    },
   };
 }

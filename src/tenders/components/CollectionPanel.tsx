@@ -7,7 +7,7 @@ import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settings
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { CollectionRun, CollectionRunStatus, CollectionStatus, Paginated } from '../types';
-import { backfillSummary, dailyCollectionSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
+import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
 import { formatIsoDateTime } from '../utils/dates';
 import { RUN_STATUS_LABELS, RUN_TYPE_LABELS } from '../utils/labels';
 import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
@@ -17,8 +17,8 @@ import { Pill, type PillTone } from './Pill';
 
 // Coleta (titular ou admin): última varredura, últimos lembretes de prazo e os
 // contratos (coleta diária e andamento da carga inicial), todos da rotina
-// diária das 06:00, próxima execução prevista e o histórico das execuções,
-// com totais e erros.
+// diária das 06:00, com o arquivo bruto de cada coleta, próxima execução
+// prevista e o histórico das execuções, com totais e erros.
 
 const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
   EXECUTANDO: 'brand',
@@ -62,6 +62,7 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
   const summary = backfillSummary(status.contracts.backfill);
   const backfillStatus = backfillRunning ? 'Carga em andamento' : summary.status;
   const dailySummary = daily ? dailyCollectionSummary(daily) : null;
+  const archiveLabel = daily ? archiveSummaryLabel(daily) : null;
   const notes = [...(dailySummary?.notes ?? []), ...summary.notes];
 
   return (
@@ -85,6 +86,12 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
             <dd className={VALUE_CLASS}>
               {formatCount(daily.recordsRead)} · {formatCount(daily.newCount)} · {formatCount(daily.updatedCount)}
             </dd>
+          </>
+        )}
+        {archiveLabel && (
+          <>
+            <dt className={TERM_CLASS}>Arquivo bruto</dt>
+            <dd className={VALUE_CLASS}>{archiveLabel}</dd>
           </>
         )}
         <dt className={TERM_CLASS}>Contratos vigentes na base</dt>
@@ -115,6 +122,7 @@ function StatusCards({ status }: { status: CollectionStatus }) {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {SUMMARY_TYPES.map((type) => {
           const run = status.latestRuns.find((item) => item.type === type);
+          const archiveLabel = run ? archiveSummaryLabel(run) : null;
           return (
             <section key={type} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div className="flex items-center justify-between gap-2">
@@ -138,6 +146,12 @@ function StatusCards({ status }: { status: CollectionStatus }) {
                       <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">
                         {formatCount(run.recordsRead)} · {formatCount(run.newCount)} · {formatCount(run.updatedCount)}
                       </dd>
+                    </>
+                  )}
+                  {archiveLabel && (
+                    <>
+                      <dt className="text-slate-500 dark:text-slate-400">Arquivo bruto</dt>
+                      <dd className="text-right tabular-nums text-slate-800 dark:text-slate-100">{archiveLabel}</dd>
                     </>
                   )}
                   <dt className="text-slate-500 dark:text-slate-400">Erros</dt>

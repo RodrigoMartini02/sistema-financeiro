@@ -65,3 +65,55 @@ test('contratos: valores fora da faixa são recusados', () => {
     assert.throws(() => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, [key]: value }), CollectorConfigError, `${key}=${value}`);
   }
 });
+
+// Valores de mentira, só para os testes.
+const archiveEnv = {
+  TENDERS_ARCHIVE_ENDPOINT: 'https://conta-teste.r2.cloudflarestorage.com/',
+  TENDERS_ARCHIVE_BUCKET: 'licitacoes-dados',
+  TENDERS_ARCHIVE_ACCESS_KEY_ID: 'chave-de-teste',
+  TENDERS_ARCHIVE_SECRET_ACCESS_KEY: 'segredo-de-teste',
+};
+
+test('arquivo bruto: sem nenhuma variável do R2 (ou com todas vazias), desligado', () => {
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).archive, null);
+  const blank = Object.fromEntries(Object.keys(archiveEnv).map((key) => [key, ' ']));
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...blank }).archive, null);
+});
+
+test('arquivo bruto: as 4 variáveis ligam, com o endpoint sem a barra do fim', () => {
+  assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...archiveEnv }).archive, {
+    endpoint: 'https://conta-teste.r2.cloudflarestorage.com',
+    bucket: 'licitacoes-dados',
+    accessKeyId: 'chave-de-teste',
+    secretAccessKey: 'segredo-de-teste',
+  });
+});
+
+test('arquivo bruto: parte das variáveis é recusada, citando só os nomes das que faltam', () => {
+  const partial = { ...archiveEnv, TENDERS_ARCHIVE_BUCKET: '', TENDERS_ARCHIVE_ACCESS_KEY_ID: undefined };
+  assert.throws(
+    () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...partial }),
+    (error: unknown) => {
+      assert.ok(error instanceof CollectorConfigError);
+      assert.match(error.message, /TENDERS_ARCHIVE_BUCKET, TENDERS_ARCHIVE_ACCESS_KEY_ID/);
+      assert.doesNotMatch(error.message, /segredo-de-teste|conta-teste/, 'a mensagem não mostra valores');
+      return true;
+    },
+  );
+});
+
+test('arquivo bruto: endpoint sem https e bucket fora da regra do R2 são recusados', () => {
+  const invalid: Array<[string, string]> = [
+    ['TENDERS_ARCHIVE_ENDPOINT', 'http://conta-teste.r2.cloudflarestorage.com'],
+    ['TENDERS_ARCHIVE_ENDPOINT', 'conta-teste.r2.cloudflarestorage.com'],
+    ['TENDERS_ARCHIVE_BUCKET', 'Licitacoes_Dados'],
+    ['TENDERS_ARCHIVE_BUCKET', 'ab'],
+  ];
+  for (const [key, value] of invalid) {
+    assert.throws(
+      () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...archiveEnv, [key]: value }),
+      CollectorConfigError,
+      `${key}=${value}`,
+    );
+  }
+});

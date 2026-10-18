@@ -13,6 +13,7 @@ import {
   tenderTrackings,
 } from '../db/schema';
 import type { TrackingStatus } from '../domains';
+import type { ArchiveStorage } from './archive';
 import { loadCollectorConfig, type ContractsSettings } from './config';
 import type { TenderContractRow } from './contractMapping';
 import { createCollectorDatabase, type TendersDb } from './database';
@@ -172,7 +173,7 @@ export type FakePncpFetch = (url: URL) => Response | Promise<Response>;
 /**
  * Contexto do coletor sobre a transação do teste, com clientes do PNCP
  * simulados (sem rede e sem espera) e log desligado. As travas usam o pool
- * local, como na execução real.
+ * local, como na execução real. Sem `archive`, o arquivo bruto fica desligado.
  */
 export function createTestCollectorContext(
   tx: TendersDb,
@@ -181,6 +182,7 @@ export function createTestCollectorContext(
     termsFetch?: FakePncpFetch;
     now?: () => Date;
     contracts?: Partial<ContractsSettings>;
+    archive?: ArchiveStorage;
   },
 ): CollectorContext {
   const config = loadCollectorConfig({
@@ -203,6 +205,7 @@ export function createTestCollectorContext(
       pageSize: 500,
       fetch: fakeFetch(options.termsFetch ?? unexpected),
     }),
+    archive: options.archive ?? null,
     config: { ...config, contracts: { ...config.contracts, ...options.contracts } },
     logger: createCollectorLogger('error', () => {}),
     now: options.now ?? (() => new Date()),
