@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ContractsCollection } from '../types';
-import { backfillSummary, runErrorLines } from './collectionRuns';
+import { backfillSummary, dailyCollectionSummary, runErrorLines } from './collectionRuns';
 import { RUN_TYPE_LABELS } from './labels';
 
 type Backfill = ContractsCollection['backfill'];
@@ -61,4 +61,57 @@ test('erro de termo de contrato aparece com o número de controle', () => {
     details: { errors: [{ kind: 'term', controlNumber: '83102277000152-2-000028/2024', reason: 'termo 4: data de fim fora do formato' }] },
   });
   assert.deepEqual(lines, ['83102277000152-2-000028/2024: termo 4: data de fim fora do formato']);
+});
+
+test('coleta diária de contratos: período lido pelas consultas gravadas, sem nota num dia normal', () => {
+  const summary = dailyCollectionSummary({
+    details: {
+      today: '2026-10-13',
+      queries: [
+        { endpoint: 'contratos', from: '2026-10-12', to: '2026-10-13', completed: true, recordsRead: 10 },
+        { endpoint: 'contratos-atualizacao', from: '2026-10-11', to: '2026-10-13', completed: true, recordsRead: 5 },
+      ],
+      termsRetry: { pendingAtStart: 0, checked: 0, resolved: 0, expiryChanged: 0, failed: 0, stoppedByFailures: false },
+    },
+  });
+  assert.deepEqual(summary, { period: '11/10/2026 a 13/10/2026', notes: [] });
+});
+
+test('coleta diária de contratos: execução antiga mostra o período do PNCP; sem nada, sem linha', () => {
+  assert.equal(
+    dailyCollectionSummary({ details: { period: { dataInicial: '20261012', dataFinal: '20261013' } } }).period,
+    '12/10/2026 a 13/10/2026',
+  );
+  assert.deepEqual(dailyCollectionSummary({ details: {} }), { period: null, notes: [] });
+});
+
+test('coleta diária de contratos: fim antes de hoje é recuperação de dias sem coleta', () => {
+  const summary = dailyCollectionSummary({
+    details: {
+      today: '2026-10-15',
+      queries: [
+        { endpoint: 'contratos', from: '2026-10-04', to: '2026-10-11', completed: true, recordsRead: 0 },
+        { endpoint: 'contratos-atualizacao', from: '2026-10-04', to: '2026-10-11', completed: false, recordsRead: 0 },
+      ],
+    },
+  });
+  assert.equal(summary.period, '04/10/2026 a 11/10/2026');
+  assert.deepEqual(summary.notes, ['Recuperando dias sem coleta: lido até 11/10/2026; continua na próxima rotina.']);
+});
+
+test('coleta diária de contratos: reconsulta dos aditivos, com e sem pendentes, e a parada por falhas', () => {
+  const notesOf = (termsRetry: Record<string, unknown>) => dailyCollectionSummary({ details: { termsRetry } }).notes;
+  assert.deepEqual(notesOf({ pendingAtStart: 15, checked: 12, resolved: 12, stoppedByFailures: false }), [
+    'Aditivos reconsultados em 12 contratos; 3 ainda pendentes.',
+  ]);
+  assert.deepEqual(notesOf({ pendingAtStart: 1, checked: 1, resolved: 1, stoppedByFailures: false }), [
+    'Aditivos reconsultados em 1 contrato; nenhum pendente.',
+  ]);
+  assert.deepEqual(notesOf({ pendingAtStart: 1, checked: 0, resolved: 0, stoppedByFailures: false }), [
+    '1 contrato com aditivos pendentes; reconsulta na próxima rotina.',
+  ]);
+  assert.deepEqual(notesOf({ pendingAtStart: 40, checked: 3, resolved: 0, stoppedByFailures: true }), [
+    'Aditivos reconsultados em 3 contratos; 40 ainda pendentes.',
+    'A reconsulta dos aditivos parou porque o PNCP não respondeu; continua na próxima rotina.',
+  ]);
 });

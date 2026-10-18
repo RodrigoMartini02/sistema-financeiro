@@ -2,7 +2,9 @@ import type { BackfillStopReason, CollectionRun, ContractsCollection } from '../
 import { formatIsoDate } from './dates';
 
 // Histórico da coleta (Configurações → Coleta): duração e erros de cada
-// execução, e o andamento da carga inicial de contratos.
+// execução, o andamento da carga inicial de contratos e o período lido pela
+// coleta diária de contratos, com a recuperação de dias e a reconsulta dos
+// aditivos.
 
 const MINUTE_SECONDS = 60;
 const HOUR_SECONDS = 60 * MINUTE_SECONDS;
@@ -74,4 +76,67 @@ export function backfillSummary(backfill: ContractsCollection['backfill']): Back
     return { status: 'Carga concluída', progress, notes };
   }
   return { status: 'Carga em andamento', progress, notes: run.stoppedBy ? [...notes, BACKFILL_STOP_LABELS[run.stoppedBy]] : notes };
+}
+
+export interface DailyCollectionSummary {
+  /** "12/10/2026 a 13/10/2026"; sem as consultas nem o período nos detalhes, null. */
+  period: string | null;
+  /** Recuperação de dias sem coleta e reconsulta dos aditivos, quando houver. */
+  notes: string[];
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const PNCP_DAY = /^(\d{4})(\d{2})(\d{2})$/;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const isoDay = (value: unknown): string | null => (typeof value === 'string' && ISO_DAY.test(value) ? value : null);
+const countOf = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0);
+const contractCount = (total: number) => `${total.toLocaleString('pt-BR')} ${total === 1 ? 'contrato' : 'contratos'}`;
+
+/** Dia do PNCP (AAAAMMDD) em AAAA-MM-DD; fora do formato, null. */
+function pncpDayAsIso(value: unknown): string | null {
+  const parts = typeof value === 'string' ? PNCP_DAY.exec(value) : null;
+  return parts ? `${parts[1]}-${parts[2]}-${parts[3]}` : null;
+}
+
+/** Reconsulta dos aditivos que falharam antes, em texto; sem nada a dizer, nenhuma linha. */
+function termsRetryNotes(retry: unknown): string[] {
+  if (!isRecord(retry)) return [];
+  const checked = countOf(retry['checked']);
+  const remaining = Math.max(0, countOf(retry['pendingAtStart']) - countOf(retry['resolved']));
+  const notes: string[] = [];
+  if (checked > 0) {
+    const pending = remaining === 0 ? 'nenhum pendente' : `${remaining.toLocaleString('pt-BR')} ainda ${remaining === 1 ? 'pendente' : 'pendentes'}`;
+    notes.push(`Aditivos reconsultados em ${contractCount(checked)}; ${pending}.`);
+  } else if (remaining > 0) {
+    notes.push(`${contractCount(remaining)} com aditivos pendentes; reconsulta na próxima rotina.`);
+  }
+  if (retry['stoppedByFailures'] === true) {
+    notes.push('A reconsulta dos aditivos parou porque o PNCP não respondeu; continua na próxima rotina.');
+  }
+  return notes;
+}
+
+/**
+ * Coleta diária de contratos, para o bloco "Contratos" da coleta: o período
+ * lido (das consultas gravadas; execução antiga, do período) e as notas. Uma
+ * consulta que terminou antes de hoje está recuperando dias sem coleta.
+ */
+export function dailyCollectionSummary(run: Pick<CollectionRun, 'details'>): DailyCollectionSummary {
+  const queries = Array.isArray(run.details['queries']) ? run.details['queries'].filter(isRecord) : [];
+  const starts = queries.map((query) => isoDay(query['from'])).filter((day): day is string => day !== null).sort();
+  const ends = queries.map((query) => isoDay(query['to'])).filter((day): day is string => day !== null).sort();
+  const period = isRecord(run.details['period']) ? run.details['period'] : {};
+  const from = starts[0] ?? pncpDayAsIso(period['dataInicial']);
+  const to = ends.at(-1) ?? pncpDayAsIso(period['dataFinal']);
+
+  const notes: string[] = [];
+  const today = isoDay(run.details['today']);
+  const earliestEnd = ends[0];
+  if (today && earliestEnd && earliestEnd < today) {
+    notes.push(`Recuperando dias sem coleta: lido até ${formatIsoDate(earliestEnd)}; continua na próxima rotina.`);
+  }
+  notes.push(...termsRetryNotes(run.details['termsRetry']));
+
+  return { period: from && to ? `${formatIsoDate(from)} a ${formatIsoDate(to)}` : null, notes };
 }

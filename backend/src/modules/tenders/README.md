@@ -226,7 +226,11 @@ Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos vigente
 - **Andamento:** em Configurações › Coleta (bloco Contratos) ou no comando `status`.
 
 **Coleta diária e limpeza:**
-- **Coleta:** os contratos publicados e atualizados de ontem a hoje.
+- **Coleta** (plano `.plans/licitacoes-contratos-coleta-sem-perda.md`): os contratos publicados e os atualizados, cada consulta na sua janela:
+  - **início:** o último dia que aquela consulta leu sem falha do PNCP, que é o fim gravado em `detalhes.queries` da última `CONTRATOS_DIARIA` em que ela terminou. Sem nenhuma, ou se for depois de ontem, ontem. Num dia normal, de ontem a hoje;
+  - **fim:** hoje, ou no máximo 7 dias depois do início (`DAILY_MAX_WINDOW_DAYS`). Uma parada longa é recuperada em etapas, sem dia perdido, e Configurações › Coleta mostra "Recuperando dias sem coleta";
+  - erro de registro ou de termos não segura o início. Reler um dia já lido não duplica nada.
+- **Reconsulta dos termos:** depois das consultas, até 200 contratos (`TERMS_RETRY_LIMIT`) com sinal de alteração e termos não conferidos para a atualização global atual, que sobram quando o PNCP falhou antes, na coleta ou na carga. Vão da atualização mais antiga para a mais nova, sem os que falharam na própria execução, e a reconsulta para depois de 3 falhas seguidas. O resumo fica em `detalhes.termsRetry`.
 - **Limpeza:** todo dia, apaga os contratos com vencimento antes de hoje. Se um aditivo for publicado depois, a coleta diária traz o contrato de volta.
 
 **Medido no piloto** (13 e 14/10/2026, banco local; números completos no plano):

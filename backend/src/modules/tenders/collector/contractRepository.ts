@@ -1,12 +1,22 @@
-import { and, count, gte, inArray, lt, lte, max, min, sql, getTableColumns } from 'drizzle-orm';
-import { tenderContractBackfillDays, tenderContracts, type ContractTermSummary } from '../db/schema';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, max, min, ne, notInArray, sql, getTableColumns } from 'drizzle-orm';
+import {
+  tenderCollectionRuns,
+  tenderContractBackfillDays,
+  tenderContracts,
+  type CollectionRunDetails,
+  type ContractTermSummary,
+} from '../db/schema';
 import type { TendersDb } from './database';
 import type { TenderContractRow } from './contractMapping';
+import { PNCP_CONTRACT_ENDPOINTS, type PncpContractEndpoint } from './pncpClient';
 
 // Gravação dos contratos (plano .plans/licitacoes-contratos-a-vencer.md):
 // upsert por página, leitura em lote do que já está gravado (para não
 // reconsultar termos), dias da carga inicial, limpeza dos vencidos e tamanho
-// do banco, que a carga confere antes de cada dia.
+// do banco, que a carga confere antes de cada dia. Do plano
+// .plans/licitacoes-contratos-coleta-sem-perda.md: o último dia que cada
+// consulta da coleta diária leu sem falha e os contratos com termos pendentes,
+// para a reconsulta.
 
 const BYTES_PER_MB = 1024 * 1024;
 
@@ -92,6 +102,139 @@ export async function upsertContractPage(db: TendersDb, rows: TenderContractRow[
     const insertedCount = changed.filter((row) => row.inserted).length;
     return { insertedCount, updatedCount: changed.length - insertedCount, unchangedCount: unchangedNumbers.length };
   });
+}
+
+/**
+ * Termos pendentes: contrato com sinal de alteração (a atualização global mais
+ * de 24 h depois da publicação, como hasChangeSignal) cujos termos não foram
+ * conferidos para a atualização global atual. Sobra quando o PNCP falhou nos
+ * termos, na coleta diária ou na carga.
+ */
+export const pendingTermsCondition = sql`${tenderContracts.pncpGlobalUpdatedAt} > ${tenderContracts.publishedAt} + interval '24 hours'
+  AND ${tenderContracts.amendmentsReference} IS DISTINCT FROM ${tenderContracts.pncpGlobalUpdatedAt}`;
+
+/** O que a reconsulta precisa de um contrato com termos pendentes. */
+export interface PendingTermsContract {
+  pncpControlNumber: string;
+  agencyCnpj: string;
+  contractYear: number;
+  contractSequence: number;
+  originalTermEnd: string;
+  expiresOn: string;
+}
+
+/** Total de contratos com termos pendentes, para os detalhes da reconsulta. */
+export async function countContractsWithPendingTerms(db: TendersDb): Promise<number> {
+  const [row] = await db.select({ total: count() }).from(tenderContracts).where(pendingTermsCondition);
+  return row?.total ?? 0;
+}
+
+/**
+ * Contratos com termos pendentes, da atualização global mais antiga para a
+ * mais nova, menos os que falharam na própria execução: esses voltam no dia
+ * seguinte.
+ */
+export async function readContractsWithPendingTerms(
+  db: TendersDb,
+  limit: number,
+  excludedControlNumbers: string[],
+): Promise<PendingTermsContract[]> {
+  const notExcluded = excludedControlNumbers.length > 0 ? notInArray(tenderContracts.pncpControlNumber, excludedControlNumbers) : undefined;
+  return db
+    .select({
+      pncpControlNumber: tenderContracts.pncpControlNumber,
+      agencyCnpj: tenderContracts.agencyCnpj,
+      contractYear: tenderContracts.contractYear,
+      contractSequence: tenderContracts.contractSequence,
+      originalTermEnd: tenderContracts.originalTermEnd,
+      expiresOn: tenderContracts.expiresOn,
+    })
+    .from(tenderContracts)
+    .where(and(pendingTermsCondition, notExcluded))
+    .orderBy(asc(tenderContracts.pncpGlobalUpdatedAt), asc(tenderContracts.id))
+    .limit(limit);
+}
+
+/** Resultado da reconsulta de um contrato: o vencimento e os termos conferidos. */
+export interface CheckedContractTerms {
+  pncpControlNumber: string;
+  expiresOn: string;
+  amendments: ContractTermSummary[];
+}
+
+/**
+ * Grava a reconsulta numa transação: o vencimento, os termos e a conferência,
+ * que passa a ser a atualização global atual. São no máximo os contratos de
+ * uma reconsulta (o limite dela), um UPDATE por contrato.
+ */
+export async function saveCheckedContractTerms(db: TendersDb, checked: CheckedContractTerms[]): Promise<void> {
+  if (checked.length === 0) {
+    return;
+  }
+  await db.transaction(async (tx) => {
+    for (const contract of checked) {
+      await tx
+        .update(tenderContracts)
+        .set({
+          expiresOn: contract.expiresOn,
+          amendments: contract.amendments,
+          amendmentsReference: sql`${tenderContracts.pncpGlobalUpdatedAt}`,
+        })
+        .where(eq(tenderContracts.pncpControlNumber, contract.pncpControlNumber));
+    }
+  });
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** O fim (AAAA-MM-DD) da consulta completa nos detalhes de uma coleta diária; fora do formato, nada. */
+function completedDayOf(details: CollectionRunDetails | undefined, endpoint: PncpContractEndpoint): string | null {
+  const queries = details?.['queries'];
+  if (!Array.isArray(queries)) {
+    return null;
+  }
+  for (const query of queries) {
+    if (typeof query !== 'object' || query === null) {
+      continue;
+    }
+    const entry = query as Record<string, unknown>;
+    const to = entry['to'];
+    if (entry['endpoint'] === endpoint && entry['completed'] === true && typeof to === 'string' && ISO_DAY.test(to)) {
+      return to;
+    }
+  }
+  return null;
+}
+
+/**
+ * Último dia lido sem falha do PNCP em cada consulta da coleta diária: o fim
+ * da execução mais recente em que a consulta aparece em `detalhes.queries` com
+ * `completed: true`. Execuções sem esse registro (anteriores à regra, ou
+ * interrompidas antes de gravar) não contam.
+ */
+export async function readLastCompletedDailyDays(db: TendersDb): Promise<Partial<Record<PncpContractEndpoint, string>>> {
+  const days: Partial<Record<PncpContractEndpoint, string>> = {};
+  for (const endpoint of PNCP_CONTRACT_ENDPOINTS) {
+    const completedQuery = JSON.stringify({ queries: [{ endpoint, completed: true }] });
+    const [run] = await db
+      .select({ details: tenderCollectionRuns.details })
+      .from(tenderCollectionRuns)
+      .where(
+        and(
+          eq(tenderCollectionRuns.type, 'CONTRATOS_DIARIA'),
+          ne(tenderCollectionRuns.status, 'EXECUTANDO'),
+          // Contenção do JSONB (@>): o Drizzle não tem esse operador, e o valor vai como parâmetro.
+          sql`${tenderCollectionRuns.details} @> ${completedQuery}::jsonb`,
+        ),
+      )
+      .orderBy(desc(tenderCollectionRuns.startedAt), desc(tenderCollectionRuns.id))
+      .limit(1);
+    const day = completedDayOf(run?.details, endpoint);
+    if (day) {
+      days[endpoint] = day;
+    }
+  }
+  return days;
 }
 
 /** Dias da carga já concluídos entre `from` e `to` (AAAA-MM-DD, inclusive). */
