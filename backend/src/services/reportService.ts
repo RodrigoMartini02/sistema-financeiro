@@ -1,8 +1,9 @@
-import { and, asc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import { cards, categories, clients, expenses, incomeClassifications, incomes, representatives } from '../db/schema';
 import { addDaysToIsoDate } from '../utils/date';
+import { expenseCashDateColumn } from './cashDate';
 import {
   ACTIVE_STATUS,
   RECEIVABLE_STATUSES,
@@ -167,6 +168,7 @@ const expenseCategoryGroup = alias(categories, 'expense_category_group');
 const incomeCategoryGroup = alias(incomeClassifications, 'income_category_group');
 
 async function loadExpenses(input: ReportInput) {
+  const cashDate = expenseCashDateColumn();
   return db.select({
     id: expenses.id,
     description: expenses.description,
@@ -193,10 +195,10 @@ async function loadExpenses(input: ReportInput) {
     .leftJoin(cards, eq(cards.id, expenses.cardId))
     .where(and(
       ...expenseBaseConditions(input.scope, input.accountId),
-      gte(expenses.dueDate, input.period.start),
-      lte(expenses.dueDate, input.period.end),
+      // O período é de caixa (cashDate.ts): a paga entra pelo dia do pagamento, a em aberto pelo vencimento.
+      sql`${cashDate} BETWEEN ${input.period.start} AND ${input.period.end}`,
     ))
-    .orderBy(asc(expenses.dueDate), asc(expenses.id));
+    .orderBy(asc(cashDate), asc(expenses.id));
 }
 
 async function loadIncomes(input: ReportInput) {

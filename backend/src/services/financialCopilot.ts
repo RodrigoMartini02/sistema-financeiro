@@ -1,5 +1,6 @@
-import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
+import { expenseCashDateColumn, monthRange } from './cashDate';
 import { countedExpenseCondition } from './expenseCounting';
 import { db } from '../db/client';
 import { categories, copilotConversations, copilotMessages, expenses, incomes } from '../db/schema';
@@ -128,9 +129,11 @@ function isMissingTableError(error: unknown): boolean {
 /** Despesas do mês que o usuário paga (o dono do cartão, ou quem cadastrou sem cartão), como no Painel. */
 /** Despesas vigentes do mês, de quem paga: a cancelada fica fora de todos os cards. */
 /** Despesas do mês que contam: a recorrente em aberto só entra depois da data dela (expenseCounting). */
+/** O mês é o de caixa (cashDate.ts): a paga no mês do pagamento, a em aberto no do vencimento. */
 function accountExpenseCondition(userId: number, account: FinancialAccount, month: number, year: number) {
+  const { start, end } = monthRange(month, year);
   const conditions = [
-    eq(expensePayer, userId), eq(expenses.status, ACTIVE_STATUS), eq(expenses.month, month), eq(expenses.year, year),
+    eq(expensePayer, userId), eq(expenses.status, ACTIVE_STATUS), sql`${expenseCashDateColumn()} BETWEEN ${start} AND ${end}`,
     countedExpenseCondition(),
   ];
   if (account.type === 'pessoal') conditions.push(or(eq(expenses.accountId, account.id), isNull(expenses.accountId))!);

@@ -7,6 +7,7 @@
 // `date`), e a comparação entre elas é lexicográfica. Toda aritmética de data
 // usa UTC para não depender do fuso do servidor.
 
+import { expenseCashDate } from './cashDate';
 import { dataDoLancamento } from './fixedIncomeSchedule';
 
 export interface Periodo {
@@ -358,14 +359,8 @@ function somar<T>(itens: T[], valor: (item: T) => number): number {
   return itens.reduce((total, item) => total + valor(item), 0);
 }
 
-/**
- * O dia em que a despesa conta nos resultados (regime de caixa): a paga conta no dia do
- * pagamento, pelo valor pago; a em aberto conta no vencimento. Assim pagar em outubro uma conta
- * de março muda outubro, e não março.
- */
-export function dataDeCaixa(despesa: Pick<DespesaPainel, 'pago' | 'dataPagamento' | 'dataVencimento'>): string {
-  return despesa.pago ? (despesa.dataPagamento ?? despesa.dataVencimento) : despesa.dataVencimento;
-}
+/** O dia em que a despesa conta nos resultados (regime de caixa): a regra única de cashDate.ts. */
+export const dataDeCaixa = expenseCashDate;
 
 export function despesasDoPeriodo(despesas: DespesaPainel[], periodo: Periodo): DespesaPainel[] {
   return despesas.filter((despesa) => dentroDoPeriodo(dataDeCaixa(despesa), periodo));

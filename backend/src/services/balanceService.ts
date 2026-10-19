@@ -1,6 +1,7 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, gte, lt, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { expenses, incomes } from '../db/schema';
+import { expenseCashDateColumn, monthRange } from './cashDate';
 import { expenseBaseConditions, incomeBaseConditions, toNumber } from './entryQueries';
 
 export interface BalanceBreakdown {
@@ -21,21 +22,23 @@ const expenseValue = sql`CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.amo
 // de quem a lançou.
 
 // Saldo acumulado de tudo que aconteceu ANTES de (year, month): receitas −
-// despesas de todo o histórico anterior. Não há snapshot gravado (tabela
-// `meses`, removida), então este valor é sempre recalculado a partir dos
-// lançamentos reais. A conta não tem saldo de abertura: o capital dos sócios
-// só entra aqui quando é lançado como receita.
+// despesas de todo o histórico anterior, pela data de caixa (cashDate.ts): a
+// receita no dia do recebimento, a despesa paga no dia do pagamento e a em
+// aberto no vencimento. Não há snapshot gravado (tabela `meses`, removida),
+// então este valor é sempre recalculado a partir dos lançamentos reais. A conta
+// não tem saldo de abertura: o capital dos sócios só entra aqui quando é
+// lançado como receita.
 export async function calculatePreviousBalance(userId: number, year: number, month: number, accountId: number | null): Promise<number> {
-  const monthKey = year * 12 + month;
+  const { start } = monthRange(month, year);
 
   const [incomeRows, expenseRows] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${incomes.netAmount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions([userId], accountId),
-      sql`(${incomes.year} * 12 + ${incomes.month}) < ${monthKey}`,
+      lt(incomes.receiptDate, start),
     )),
     db.select({ total: sql<string>`COALESCE(SUM(${expenseValue}), 0)` }).from(expenses).where(and(
       ...expenseBaseConditions([userId], accountId),
-      sql`(${expenses.year} * 12 + ${expenses.month}) < ${monthKey}`,
+      sql`${expenseCashDateColumn()} < ${start}`,
     )),
   ]);
 
@@ -45,11 +48,12 @@ export async function calculatePreviousBalance(userId: number, year: number, mon
 // Saldo detalhado de um mês específico: o que veio de antes (calculado em
 // tempo real, sem snapshot) + o que aconteceu no próprio mês.
 export async function calculateBalanceBreakdown(userId: number, year: number, month: number, accountId: number | null): Promise<BalanceBreakdown> {
+  const { start, end } = monthRange(month, year);
   const [incomeRows, expenseRows, previousBalance] = await Promise.all([
     db.select({ total: sql<string>`COALESCE(SUM(${incomes.netAmount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions([userId], accountId),
-      eq(incomes.year, year),
-      eq(incomes.month, month),
+      gte(incomes.receiptDate, start),
+      lte(incomes.receiptDate, end),
     )),
     // O total pago sai na mesma consulta: base do Saldo Atual.
     db.select({
@@ -57,8 +61,7 @@ export async function calculateBalanceBreakdown(userId: number, year: number, mo
       paidTotal: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.paid} THEN ${expenseValue} ELSE 0 END), 0)`,
     }).from(expenses).where(and(
       ...expenseBaseConditions([userId], accountId),
-      eq(expenses.year, year),
-      eq(expenses.month, month),
+      sql`${expenseCashDateColumn()} BETWEEN ${start} AND ${end}`,
     )),
     calculatePreviousBalance(userId, year, month, accountId),
   ]);

@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
+import { expenseCashDateColumn, monthRange } from './cashDate';
 import { expensePayer } from './entryQueries';
 import { countedExpenseCondition } from './expenseCounting';
 import { db } from '../db/client';
@@ -151,6 +152,23 @@ export async function resolveFinancialAccount(userId: number, requestedAccountId
   throw new BudgetInputError('Conta financeira não encontrada.');
 }
 
+// Chave do mês (ano * 12 + mês de 0 a 11) em primeiro e último dia do mês.
+function monthRangeOfKey(chave: number): { start: string; end: string } {
+  return monthRange(((chave % 12) + 12) % 12, Math.floor(chave / 12));
+}
+
+function monthKeyOfDate(isoDate: string): number {
+  return Number(isoDate.slice(0, 4)) * 12 + Number(isoDate.slice(5, 7)) - 1;
+}
+
+/** Limites do período na data de caixa da despesa; chave nula = sem limite naquele extremo. */
+function cashMonthBounds(deChave: number | null, ateChave: number | null): SQL[] {
+  const bounds: SQL[] = [];
+  if (deChave !== null) bounds.push(sql`${expenseCashDateColumn()} >= ${monthRangeOfKey(deChave).start}`);
+  if (ateChave !== null) bounds.push(sql`${expenseCashDateColumn()} <= ${monthRangeOfKey(ateChave).end}`);
+  return bounds;
+}
+
 // deChave/ateChave nulos representam "sem limite" naquele extremo — mesma semântica de
 // COALESCE($n, ±infinito), aqui expressa via sql template
 // porque o Drizzle não tem uma coluna computada ano*12+mes para comparar diretamente.
@@ -161,7 +179,8 @@ function expenseAccountCondition(userIds: number[], account: FinancialAccount, d
     // Lancamento cancelado nao entra no teto: o total precisa bater com o que a
     // tela de despesas mostra.
     eq(expenses.status, 'ativa'),
-    sql`(${expenses.year} * 12 + ${expenses.month}) BETWEEN ${deChave ?? -2147483648} AND ${ateChave ?? 2147483647}`,
+    // O mês é o de caixa (cashDate.ts): a despesa paga conta no mês do pagamento, a em aberto no do vencimento.
+    ...cashMonthBounds(deChave, ateChave),
     // Recorrente em aberto só entra no gasto depois da data dela (expenseCounting).
     countedExpenseCondition(),
   ];
@@ -273,8 +292,7 @@ export async function getBudgetOverview(input: {
     db.select({
       categoryId: expenses.categoryId,
       amount: effectiveExpenseAmount(),
-      month: expenses.month,
-      year: expenses.year,
+      cashDate: expenseCashDateColumn(),
     }).from(expenses).where(expenseAccountCondition(scopeIds, account, null, null)),
   ]);
 
@@ -286,7 +304,7 @@ export async function getBudgetOverview(input: {
   if (resolved.deChave !== null && resolved.ateChave !== null) {
     mesesNoIntervalo = resolved.ateChave - resolved.deChave + 1;
   } else {
-    const chaves = historicalRows.map((row) => row.year * 12 + row.month);
+    const chaves = historicalRows.map((row) => monthKeyOfDate(String(row.cashDate)));
     const primeiraChave = chaves.length > 0 ? Math.min(...chaves) : null;
     const hojeChave = new Date().getFullYear() * 12 + new Date().getMonth();
     mesesNoIntervalo = primeiraChave !== null ? Math.max(1, hojeChave - primeiraChave + 1) : 1;
@@ -305,7 +323,8 @@ export async function getBudgetOverview(input: {
   const priorPeriods = previousThreePeriods(resolved.referenceMonth, resolved.referenceYear);
   const historicByCategory = new Map<number, number>();
   for (const row of historicalRows) {
-    if (!row.categoryId || !priorPeriods.some((period) => period.month === row.month && period.year === row.year)) continue;
+    const rowKey = monthKeyOfDate(String(row.cashDate));
+    if (!row.categoryId || !priorPeriods.some((period) => period.year * 12 + period.month === rowKey)) continue;
     historicByCategory.set(row.categoryId, (historicByCategory.get(row.categoryId) ?? 0) + asNumber(row.amount));
   }
 

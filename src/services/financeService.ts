@@ -181,9 +181,15 @@ export async function processarReceitasFixas(): Promise<{ registered: number }> 
   return apiRequest<{ registered: number }>('/incomes/fixas/processar', { method: 'POST' });
 }
 
-/** Receita prevista/faturada passa a recebida (mesma ação da lista de receitas). */
-export async function receberReceita(id: number): Promise<void> {
-  return apiRequest<void>(`/incomes/${id}/receber`, { method: 'PUT' });
+/**
+ * Receita prevista/faturada passa a recebida (mesma ação da lista de receitas), na data informada: a receita
+ * conta no mês dessa data. Sem data, o servidor usa a prevista se é do mês atual, senão hoje.
+ */
+export async function receberReceita(id: number, receivedDate?: string): Promise<void> {
+  return apiRequest<void>(`/incomes/${id}/receber`, {
+    method: 'PUT',
+    ...(receivedDate ? { body: JSON.stringify({ data_recebimento: receivedDate }) } : {}),
+  });
 }
 
 export async function deleteIncome(id: number) {

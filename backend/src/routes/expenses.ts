@@ -21,6 +21,7 @@ import {
   getExpenseSuggestions,
   updateExpense,
 } from '../services/expenseService';
+import { expenseCashDateSql } from '../services/cashDate';
 import { MAX_MOVE_BATCH, listOverdueExpenses, moveOverdueExpenses } from '../services/overdueExpenses';
 import { BudgetInputError, resolveFinancialAccount, type FinancialAccount } from '../services/budgetService';
 import { despesasEmAberto } from '../services/assistantQueries';
@@ -41,8 +42,9 @@ function buildWhereClause(
   tableAlias: string = 'd',
   visibleUserIds?: number[],
   cardOwnerColumn?: string,
+  monthDateSql?: string,
 ): Promise<{ where: string; params: unknown[] }> {
-  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds, cardOwnerColumn);
+  return buildOwnerAndAccountWhere(userId, userType, queryUserId, mes, ano, accountId, tableAlias, visibleUserIds, cardOwnerColumn, monthDateSql);
 }
 
 const CATEGORY_NOT_AVAILABLE = 'Categoria indisponível para esta conta';
@@ -123,7 +125,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     // permissao correspondente.
     const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
     // Com o dono do cartão: quem paga a fatura vê também o que outros lançaram no cartão dele.
-    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id');
+    // O mês da lista é o de caixa: a despesa paga fica no mês do pagamento, a em aberto no do vencimento.
+    const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id', expenseCashDateSql('d'));
 
     const result = await pool.query(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome

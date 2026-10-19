@@ -6,6 +6,7 @@ import {
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
 import { BudgetInputError, getBudgetOverview } from './budgetService';
+import { expenseCashDateColumn } from './cashDate';
 import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import { PAYMENT_METHODS } from './expenseInput';
 import { INVOICE_EXPENSE_METHOD, invoiceDueDate } from './cardInvoiceRules';
@@ -372,8 +373,8 @@ async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
       total: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.amountPaid}, ${expenses.originalAmount}) ELSE ${expenses.originalAmount} END), 0)`,
     }).from(expenses).where(and(
       ...expenseBaseConditions(entrada.escopo, entrada.accountId),
-      // Regime de caixa (dataDeCaixa): a paga conta no pagamento, a em aberto no vencimento.
-      sql`(CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.paymentDate}, ${expenses.dueDate}) ELSE ${expenses.dueDate} END) < ${entrada.periodo.de}`,
+      // Regime de caixa (cashDate.ts): a paga conta no pagamento, a em aberto no vencimento.
+      sql`${expenseCashDateColumn()} < ${entrada.periodo.de}`,
     )),
   ]);
   return toNumber(receitasAntes[0]?.total) - toNumber(despesasAntes[0]?.total);

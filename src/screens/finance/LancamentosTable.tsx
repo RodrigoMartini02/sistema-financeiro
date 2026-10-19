@@ -15,12 +15,14 @@ import { IncomeDialog } from './income-dialog/IncomeDialog';
 import { AttachmentPreviewDialog } from '../../ui/AttachmentPreviewDialog';
 import { PaymentModal } from './PaymentModal';
 import { BatchPaymentModal } from './BatchPaymentModal';
+import { ReceiptDateDialog } from './ReceiptDateDialog';
 import { InvoicePaymentModal } from './InvoicePaymentModal';
 import { formatCurrency, formatDate } from './formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useConfirm } from '../../context/ConfirmContext';
+import { expenseCashDate } from '../../utils/cashDate';
 import { getLocalTodayIso } from '../../utils/date';
 import {
   expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable,
@@ -264,9 +266,16 @@ export function LancamentosTable({
     },
   });
 
+  // Confirmar o recebimento pede a data: a receita conta no mês dela (regime de caixa), e ela pode
+  // cair em outro mês, então todas as consultas de receita são renovadas.
+  const [receiptDialog, setReceiptDialog] = useState<Income | null>(null);
   const receberReceitaMut = useMutation({
-    mutationFn: receberReceita,
-    onSuccess: () => invalidateFinanceQueries(qc, month, year),
+    mutationFn: ({ id, date }: { id: number; date: string }) => receberReceita(id, date),
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      invalidateIncomeQueries(qc);
+      setReceiptDialog(null);
+    },
   });
 
   const handleMoverProximoMes = async (item: Expense) => {
@@ -311,15 +320,7 @@ export function LancamentosTable({
     if (ok) finance.deleteExpense.mutate({ id: item.id });
   };
 
-  const handleConfirmarRecebimento = async (item: Income) => {
-    const ok = await confirm({
-      title: 'Confirmar recebimento',
-      message: `Confirmar recebimento de "${item.descricao}"?`,
-      confirmLabel: 'Confirmar',
-      variant: 'default',
-    });
-    if (ok) receberReceitaMut.mutate(item.id);
-  };
+  const handleConfirmarRecebimento = (item: Income) => setReceiptDialog(item);
 
   const handleCancelarReceita = async (item: Income) => {
     if (item.status === 'cancelada') return;
@@ -366,10 +367,10 @@ export function LancamentosTable({
     ...incomesFiltered.map((data): LancamentoItem => ({ kind: 'receita', id: data.id, chave: `receita-${data.id}`, data })),
   ];
 
-  // Ordenacao adaptada para lista mista: "data" usa vencimento em despesa e
-  // data de recebimento em receita como equivalentes; valor usa o valor
-  // exibido de cada tipo.
-  const dataDoItem = (item: LancamentoItem): string => item.kind === 'despesa' ? item.data.dataVencimento : item.data.data;
+  // Ordenacao adaptada para lista mista: "data" usa a data de caixa em despesa
+  // (pagamento, se paga; senao vencimento) e a data de recebimento em receita
+  // como equivalentes; valor usa o valor exibido de cada tipo.
+  const dataDoItem = (item: LancamentoItem): string => item.kind === 'despesa' ? expenseCashDate(item.data) : item.data.data;
   const valorDoItem = (item: LancamentoItem): number => item.kind === 'despesa' ? effectiveExpenseValue(item.data) : item.data.valorLiquido;
 
   const filtered = [...combined].sort((a, b) => {
@@ -704,6 +705,15 @@ export function LancamentosTable({
         invoiceMonth={invoiceModal.invoiceMonth}
         initialCardId={invoiceModal.cardId}
         onClose={() => setInvoiceModal((current) => ({ ...current, open: false }))}
+      />
+      <ReceiptDateDialog
+        open={receiptDialog !== null}
+        description={receiptDialog?.descricao ?? ''}
+        plannedDate={receiptDialog?.data ?? hoje}
+        isLoading={receberReceitaMut.isPending}
+        error={receberReceitaMut.isError ? 'Não foi possível confirmar o recebimento. Tente novamente.' : null}
+        onConfirm={(date) => { if (receiptDialog) receberReceitaMut.mutate({ id: receiptDialog.id, date }); }}
+        onClose={() => { receberReceitaMut.reset(); setReceiptDialog(null); }}
       />
       <BatchPaymentModal
         open={batchModal}
