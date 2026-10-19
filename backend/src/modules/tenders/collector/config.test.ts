@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CollectorConfigError, loadCollectorConfig } from './config';
+import { CollectorConfigError, loadCollectorConfig, loadStorageSettings } from './config';
 
 const databaseUrl = 'postgres://coletor@localhost:5433/teste';
 
@@ -67,30 +67,33 @@ test('contratos: valores fora da faixa são recusados', () => {
 });
 
 // Valores de mentira, só para os testes.
-const archiveEnv = {
+const storageEnv = {
   TENDERS_ARCHIVE_ENDPOINT: 'https://conta-teste.r2.cloudflarestorage.com/',
   TENDERS_ARCHIVE_BUCKET: 'licitacoes-dados',
   TENDERS_ARCHIVE_ACCESS_KEY_ID: 'chave-de-teste',
   TENDERS_ARCHIVE_SECRET_ACCESS_KEY: 'segredo-de-teste',
+  TENDERS_STORAGE_PREFIX: 'local',
 };
+const productionDatabaseUrl = 'postgres://app:senha@dpg-teste.oregon-postgres.render.com/banco';
 
-test('arquivo bruto: sem nenhuma variável do R2 (ou com todas vazias), desligado', () => {
-  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).archive, null);
-  const blank = Object.fromEntries(Object.keys(archiveEnv).map((key) => [key, ' ']));
-  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...blank }).archive, null);
+test('R2: sem nenhuma variável (ou com todas vazias), desligado', () => {
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).storage, null);
+  const blank = Object.fromEntries(Object.keys(storageEnv).map((key) => [key, ' ']));
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...blank }).storage, null);
 });
 
-test('arquivo bruto: as 4 variáveis ligam, com o endpoint sem a barra do fim', () => {
-  assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...archiveEnv }).archive, {
+test('R2: as 5 variáveis ligam, com o endpoint sem a barra do fim e a pasta do ambiente', () => {
+  assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...storageEnv }).storage, {
     endpoint: 'https://conta-teste.r2.cloudflarestorage.com',
     bucket: 'licitacoes-dados',
     accessKeyId: 'chave-de-teste',
     secretAccessKey: 'segredo-de-teste',
+    prefix: 'local',
   });
 });
 
-test('arquivo bruto: parte das variáveis é recusada, citando só os nomes das que faltam', () => {
-  const partial = { ...archiveEnv, TENDERS_ARCHIVE_BUCKET: '', TENDERS_ARCHIVE_ACCESS_KEY_ID: undefined };
+test('R2: parte das variáveis é recusada, citando só os nomes das que faltam', () => {
+  const partial = { ...storageEnv, TENDERS_ARCHIVE_BUCKET: '', TENDERS_ARCHIVE_ACCESS_KEY_ID: undefined };
   assert.throws(
     () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...partial }),
     (error: unknown) => {
@@ -102,18 +105,37 @@ test('arquivo bruto: parte das variáveis é recusada, citando só os nomes das 
   );
 });
 
-test('arquivo bruto: endpoint sem https e bucket fora da regra do R2 são recusados', () => {
+test('R2: as 4 da conta sem a pasta do ambiente são recusadas', () => {
+  assert.throws(
+    () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...storageEnv, TENDERS_STORAGE_PREFIX: undefined }),
+    /faltam TENDERS_STORAGE_PREFIX/,
+  );
+});
+
+test('R2: endpoint sem https, bucket fora da regra do R2 e pasta fora do formato são recusados', () => {
   const invalid: Array<[string, string]> = [
     ['TENDERS_ARCHIVE_ENDPOINT', 'http://conta-teste.r2.cloudflarestorage.com'],
     ['TENDERS_ARCHIVE_ENDPOINT', 'conta-teste.r2.cloudflarestorage.com'],
     ['TENDERS_ARCHIVE_BUCKET', 'Licitacoes_Dados'],
     ['TENDERS_ARCHIVE_BUCKET', 'ab'],
+    ['TENDERS_STORAGE_PREFIX', 'Producao'],
+    ['TENDERS_STORAGE_PREFIX', 'local/teste'],
+    ['TENDERS_STORAGE_PREFIX', '-local'],
   ];
   for (const [key, value] of invalid) {
     assert.throws(
-      () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...archiveEnv, [key]: value }),
+      () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, ...storageEnv, [key]: value }),
       CollectorConfigError,
       `${key}=${value}`,
     );
   }
+});
+
+test('R2: a pasta da produção é recusada com o banco local e aceita com o banco da produção', () => {
+  const productionStorage = { ...storageEnv, TENDERS_STORAGE_PREFIX: 'producao' };
+  for (const localUrl of [databaseUrl, 'postgres://app@127.0.0.1:5432/banco']) {
+    assert.throws(() => loadStorageSettings(productionStorage, localUrl), /TENDERS_STORAGE_PREFIX=producao com o banco local/, localUrl);
+  }
+  assert.equal(loadStorageSettings(productionStorage, productionDatabaseUrl)?.prefix, 'producao');
+  assert.equal(loadStorageSettings(storageEnv, productionDatabaseUrl)?.prefix, 'local', 'outra pasta com o banco da produção é aceita');
 });

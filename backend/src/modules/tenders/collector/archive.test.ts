@@ -1,29 +1,14 @@
 import assert from 'node:assert/strict';
-import { createServer, type IncomingHttpHeaders } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import test from 'node:test';
-import { gunzipSync, gzipSync } from 'node:zlib';
-import { ARCHIVE_DATASETS, RunArchive, archiveKey, createR2Storage, type ArchiveStorage } from './archive';
+import { gunzipSync } from 'node:zlib';
+import type { ObjectStorage } from '../objectStorage';
+import { createMemoryStorage as memoryStorage } from '../objectStorageTestSupport';
+import { ARCHIVE_DATASETS, RunArchive, archiveKey } from './archive';
 import { createCollectorLogger } from './logger';
 
 const NOW = new Date('2026-10-18T09:15:00.000Z');
 
-/** R2 simulado: guarda cada parte enviada; `fails` recusa as chaves indicadas. */
-function memoryStorage(fails: (key: string) => boolean = () => false) {
-  const objects = new Map<string, Uint8Array>();
-  const storage: ArchiveStorage = {
-    async putObject(key, body) {
-      if (fails(key)) {
-        throw new Error('R2 fora do ar');
-      }
-      objects.set(key, body);
-    },
-    close: () => {},
-  };
-  return { storage, objects };
-}
-
-function runArchive(storage: ArchiveStorage | null, options: { partBytes?: number; failures?: unknown[] } = {}) {
+function runArchive(storage: ObjectStorage | null, options: { partBytes?: number; failures?: unknown[] } = {}) {
   return new RunArchive({
     storage,
     runId: 4321,
@@ -129,79 +114,4 @@ test('falha no envio: conta a falha, descarta a parte e segue com a próxima', a
   assert.equal(summary?.files, 1);
   assert.equal(summary?.records, 1);
   assert.equal(summary?.failures, 1);
-});
-
-interface ReceivedRequest {
-  method: string | undefined;
-  url: string | undefined;
-  headers: IncomingHttpHeaders;
-  body: Buffer;
-}
-
-/** S3 local para o cliente do R2: anota cada pedido e responde com `status`. */
-async function withFakeS3(status: number, run: (endpoint: string, requests: ReceivedRequest[]) => Promise<void>): Promise<void> {
-  const requests: ReceivedRequest[] = [];
-  const server = createServer((request, response) => {
-    const chunks: Buffer[] = [];
-    request.on('data', (chunk: Buffer) => chunks.push(chunk));
-    request.on('end', () => {
-      requests.push({ method: request.method, url: request.url, headers: request.headers, body: Buffer.concat(chunks) });
-      if (status === 200) {
-        response.writeHead(200, { etag: '"teste"' }).end();
-        return;
-      }
-      response
-        .writeHead(status, { 'content-type': 'application/xml' })
-        .end('<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>');
-    });
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  try {
-    await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, requests);
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
-}
-
-const fakeCredentials = { bucket: 'licitacoes-dados', accessKeyId: 'chave-de-teste', secretAccessKey: 'segredo-de-teste' };
-
-test('R2: o envio é um PUT assinado na chave do bucket, com o corpo e o tipo, sem checksum a mais', async () => {
-  await withFakeS3(200, async (endpoint, requests) => {
-    const storage = createR2Storage({ endpoint, ...fakeCredentials });
-    const body = gzipSync('{"record":1}\n');
-    try {
-      await storage.putObject('pncp/contratos/2026/10/18/1-0001.jsonl.gz', body);
-    } finally {
-      storage.close();
-    }
-
-    assert.equal(requests.length, 1);
-    const [request] = requests;
-    assert.equal(request?.method, 'PUT');
-    // O SDK acrescenta ?x-id=PutObject: vale o caminho.
-    assert.equal(new URL(request?.url ?? '', endpoint).pathname, '/licitacoes-dados/pncp/contratos/2026/10/18/1-0001.jsonl.gz');
-    assert.equal(request?.headers['content-type'], 'application/gzip');
-    assert.match(String(request?.headers.authorization), /^AWS4-HMAC-SHA256 Credential=chave-de-teste\/\d{8}\/auto\/s3\/aws4_request/);
-    assert.deepEqual(
-      Object.keys(request?.headers ?? {}).filter((name) => name.startsWith('x-amz-checksum') || name === 'x-amz-sdk-checksum-algorithm'),
-      [],
-    );
-    assert.deepEqual(request?.body, body);
-  });
-});
-
-test('R2: resposta de erro vira exceção, sem as chaves na mensagem', async () => {
-  await withFakeS3(403, async (endpoint) => {
-    const storage = createR2Storage({ endpoint, ...fakeCredentials });
-    try {
-      await assert.rejects(storage.putObject('pncp/editais/2026/10/18/1-0001.jsonl.gz', gzipSync('{}\n')), (error: unknown) => {
-        assert.ok(error instanceof Error);
-        assert.match(error.message, /Access Denied/);
-        assert.doesNotMatch(error.message, /segredo-de-teste/);
-        return true;
-      });
-    } finally {
-      storage.close();
-    }
-  });
 });

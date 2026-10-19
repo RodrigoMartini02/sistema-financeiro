@@ -101,7 +101,7 @@ async function readExportProgress(db: TendersDb): Promise<{ lastId: number; expo
  * Lote com falha no envio para a execução sem avançar o `lastId`.
  */
 export async function runNoticesPayloadExport(context: CollectorContext, options: { batchSize?: number } = {}): Promise<RunOutcome> {
-  if (!context.archive) {
+  if (!context.storage) {
     context.logger.warn('Exportação do JSON dos editais não iniciada', { reason: EXPORT_WITHOUT_ARCHIVE });
     return { skipped: true, reason: EXPORT_WITHOUT_ARCHIVE };
   }

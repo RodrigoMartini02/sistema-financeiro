@@ -4,7 +4,7 @@ import { after, describe, test, type TestContext } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import { sql } from 'drizzle-orm';
 import { tenderCollectionRuns } from '../db/schema';
-import type { ArchiveStorage } from './archive';
+import { createMemoryStorage } from '../objectStorageTestSupport';
 import type { TendersDb } from './database';
 import { closeLocalTestDatabase, createTestCollectorContext, databaseTestsSkipReason, insertTestNotice, withRollback } from './dbTestSupport';
 import { EXPORT_WITHOUT_ARCHIVE, NOTICES_PAYLOAD_EXPORT_COMMAND, runNoticesPayloadExport } from './noticePayloadExport';
@@ -18,20 +18,6 @@ import type { RunOutcome } from './runs';
 // 13/10/2026, 09:00 em Brasília: a pasta das partes é 2026/10/13.
 const NOW = new Date('2026-10-13T12:00:00Z');
 const noContracts = () => new Response(null, { status: 204 });
-
-function memoryArchive(fails: (key: string) => boolean = () => false) {
-  const objects = new Map<string, Uint8Array>();
-  const storage: ArchiveStorage = {
-    async putObject(key, body) {
-      if (fails(key)) {
-        throw new Error('R2 fora do ar');
-      }
-      objects.set(key, body);
-    },
-    close: () => {},
-  };
-  return { storage, objects };
-}
 
 interface ArchivedLine {
   collectedAt: string;
@@ -121,8 +107,8 @@ describe('exportação do JSON dos editais (banco local)', { skip: databaseTests
       }
       await startAfterExistingNotices(tx);
       const notices = await insertNoticesWithPayload(tx, 5);
-      const { storage, objects } = memoryArchive();
-      const context = createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, archive: storage });
+      const { storage, objects } = createMemoryStorage();
+      const context = createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, storage });
 
       const outcome = assertRan(await runNoticesPayloadExport(context, { batchSize: 2 }));
       assert.equal(outcome.status, 'SUCESSO');
@@ -159,10 +145,10 @@ describe('exportação do JSON dos editais (banco local)', { skip: databaseTests
       }
       await startAfterExistingNotices(tx);
       const notices = await insertNoticesWithPayload(tx, 5);
-      const failing = memoryArchive((key) => key.endsWith('-0002.jsonl.gz'));
+      const failing = createMemoryStorage((key) => key.endsWith('-0002.jsonl.gz'));
 
       const first = assertRan(
-        await runNoticesPayloadExport(createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, archive: failing.storage }), {
+        await runNoticesPayloadExport(createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, storage: failing.storage }), {
           batchSize: 2,
         }),
       );
@@ -175,9 +161,9 @@ describe('exportação do JSON dos editais (banco local)', { skip: databaseTests
         verified: false,
       });
 
-      const working = memoryArchive();
+      const working = createMemoryStorage();
       const second = assertRan(
-        await runNoticesPayloadExport(createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, archive: working.storage }), {
+        await runNoticesPayloadExport(createTestCollectorContext(tx, { contractsFetch: noContracts, now: () => NOW, storage: working.storage }), {
           batchSize: 2,
         }),
       );

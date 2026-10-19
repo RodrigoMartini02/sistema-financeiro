@@ -40,6 +40,16 @@ Depois da Parte 7 (18/10/2026):
 - **Custo mínimo até ter clientes (decisão do usuário, 18/10/2026):** levar ao R2 tudo o que for possível, aceitando consultas mais lentas. Mesmo o aumento de cerca de US$ 6 por mês no disco do Render não é viável agora. O disco fica em 1 GB. No Render ficam só os dados dos clientes e os editais abertos; contratos (vigentes e encerrados) e vencedores vão para arquivos Parquet no R2, consultados com DuckDB. O piloto da Parte 6 passa a medir esse cenário: o tempo das buscas e a memória do DuckDB no limite do Web Service atual, porque subir o plano do servidor custaria mais que o disco. Se o piloto passar, um `/planejar` novo redefine contratos, favoritos, buscas salvas, avisos e as Partes 3 a 5. Isso substitui a decisão 2 e o "Vigentes no Render" acima.
 - **Editais também, se precisar (usuário, 18/10/2026):** medido no banco local, os editais ocupam 121 MB com os índices (24.889 editais, 6.372 abertos), dos quais 37 MB são o JSON bruto, que sai com a 0088; o banco inteiro tem 348 MB. O JSON já vai para o R2 (Parte 2) e o histórico dos encerrados pode ir também, quando o espaço pedir. Os abertos ficam no Render: são poucos e deles dependem a busca, os avisos de edital novo e os lembretes de prazo.
 
+Depois do piloto (19/10/2026):
+- **Contratos no R2:** o usuário aprovou seguir com "tudo de contratos no R2, com cópia no disco temporário do Web Service". O plano novo `.plans/licitacoes-contratos-no-r2.md` substitui, neste plano:
+  - a decisão 2 e o "Vigentes no Render";
+  - o marco de produção;
+  - as Partes 3, 4 e 5;
+  - o roteiro a partir do passo 12.
+
+  Continuam valendo daqui as Partes 1, 2 e 7 e a exportação do JSON dos editais (0088).
+- **Pasta por ambiente no R2:** um bucket só, com uma pasta por ambiente (`producao/` e `local/`), definida pela variável `TENDERS_STORAGE_PREFIX`.
+
 ## Escopo
 
 ### Dentro do escopo
@@ -308,6 +318,8 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 
 ### Marco de produção (depois das partes 1, 2 e 7)
 
+**Substituído (19/10/2026)** pelo marco revisto de `.plans/licitacoes-contratos-no-r2.md`: sem aumento de disco, com a 0089 e a pasta `producao/` no R2.
+
 1. Status das migrations nos dois bancos.
 2. Produção: 0085, 0086 e 0087, uma por vez, com confirmação e fora das 06:00.
 3. Merge na `main` (Partes A, B e a branch nova), com confirmação.
@@ -319,6 +331,8 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 6. Exportação do JSON dos editais na produção, conferência e então a 0088, com confirmação.
 
 ### Parte 3: vencedores
+
+**Substituída (19/10/2026)** pela Parte 3 de `.plans/licitacoes-contratos-no-r2.md`: os vencedores ficam no armazém do R2, sem tabela no Postgres. O cliente e o piloto abaixo continuam como referência.
 
 1. `comprasGovClient.ts`.
    - Base `https://dadosabertos.compras.gov.br`.
@@ -343,6 +357,8 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 
 ### Parte 4: busca por CNPJ
 
+**Substituída (19/10/2026)** pela Parte 4 de `.plans/licitacoes-contratos-no-r2.md`: contratos e vencedores lidos do armazém, e editais do Postgres.
+
 1. `utils/cnpj.ts` (front) e a validação no backend: 14 dígitos, com ou sem máscara, e dígitos verificadores.
 2. API.
    - `GET /api/tenders/cnpj/:cnpj`: resumo com nome, papéis, totais e principais órgãos ou fornecedores.
@@ -354,6 +370,8 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 6. Testes e conferência no navegador local com o CNPJ da Diretriz (22.493.902/0001-40), depois de carregar no banco local os dias de publicação dos contratos dela.
 
 ### Parte 5: contratos federais
+
+**Substituída (19/10/2026)** pela Parte 5 de `.plans/licitacoes-contratos-no-r2.md`: os federais entram no conjunto de contratos do armazém, sem a 0090 desta versão.
 
 1. Reusar o cliente do Compras.gov.br com:
    - `modulo-uasg/2_consultarOrgao` (esfera F, 1.158 órgãos);
@@ -596,6 +614,10 @@ O usuário chama as skills; o agente pede confirmação nos pontos marcados. Nen
 | 20 | `/finalizar` | Commit, push e merge da Parte 5 | "Sim" ao merge: a 0090 na produção antes |
 
 **Mudança de 18/10/2026 (decisão do usuário):** o piloto da Parte 6 vem antes do marco de produção (passos 9 a 11). Motivo: o disco do Postgres no Render só aumenta, de 5 em 5 GB e sem parar o banco, e não pode ser reduzido depois ([documentação do Render](https://render.com/docs/postgresql-refresh)). Então o tamanho do disco se decide com os tempos medidos do histórico no R2. Pela estimativa, tudo no Render dá de 15 a 20 GB (US$ 4,50 a 6 por mês, mais uns 4 GB por ano). Só os vigentes dão de 5 a 10 GB (US$ 1,50 a 3 por mês), com a busca nos encerrados mais lenta.
+
+**Mudança de 19/10/2026 (decisão do usuário):**
+- Os passos 1 a 11 foram feitos (o 11 no commit `cba8c7e6`).
+- Os passos 12 a 20 deram lugar ao roteiro de `.plans/licitacoes-contratos-no-r2.md`: partes R1 e R2, marco de produção revisto e Partes 3, 4 e 5 no armazém do R2.
 
 Depois deste roteiro, cada tema novo começa com `/planejar`: tribunais de contas e governos estaduais (camada 2), MG, SP e SC quando chegarem as respostas da LAI, diários oficiais, estatais e Sistema S. Os planos já aprovados de outros temas ("Documentação para licitações" e "Recategorizar despesas") seguem com `/implementar` quando o usuário quiser.
 

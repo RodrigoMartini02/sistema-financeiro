@@ -1,7 +1,8 @@
 import type { Pool } from 'pg';
 import type { CollectionRunDetails } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
-import { ARCHIVE_DATASETS, RunArchive, type ArchiveStorage } from './archive';
+import type { ObjectStorage } from '../objectStorage';
+import { ARCHIVE_DATASETS, RunArchive } from './archive';
 import type { CollectorConfig } from './config';
 import type { TendersDb } from './database';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime, toPncpDate } from './dates';
@@ -34,8 +35,8 @@ export interface CollectorContext {
   contractsPncp: PncpClient;
   /** Termos dos contratos na API principal, com ritmo próprio (PNCP_TERMS_INTERVAL_MS). */
   termsPncp: PncpClient;
-  /** Arquivo bruto no R2; null quando as variáveis do R2 não estão definidas. */
-  archive: ArchiveStorage | null;
+  /** R2 (arquivo bruto e armazém de contratos), na pasta do ambiente; null quando as variáveis do R2 não estão definidas. */
+  storage: ObjectStorage | null;
   config: CollectorConfig;
   logger: CollectorLogger;
   now: () => Date;
@@ -129,7 +130,7 @@ export async function withCollectionRun(
     const runId = await startCollectionRun(context.db, type);
     const tally = new RunTally(requestCount());
     const archive = new RunArchive({
-      storage: context.archive,
+      storage: context.storage,
       runId,
       day: brasiliaDate(context.now()),
       now: context.now,

@@ -8,7 +8,7 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos) e `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta);
+- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos), `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta) e `.plans/licitacoes-contratos-no-r2.md` (contratos em Parquet no R2);
 - migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos), `0087` (contratos de todos os tipos) e `0088` (edital sem o JSON bruto).
 
 ## Estrutura
@@ -18,7 +18,17 @@ backend/src/modules/tenders/
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
 ├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
+├── objectStorage.ts        cliente do Cloudflare R2, na pasta do ambiente (arquivo bruto e armazém)
 ├── tenders.http            coleção de requisições da API (REST Client)
+├── contractStore/          armazém de contratos em Parquet no R2 (DuckDB)
+│   ├── layout.ts                    conjuntos, colunas, ordens, faixas e nomes dos arquivos
+│   ├── manifest.ts                  manifesto: os arquivos em uso e os totais
+│   ├── localCopy.ts                 cópia local dos arquivos do manifesto
+│   ├── duckdb.ts                    DuckDB sem extensões baixadas, com limite de memória
+│   ├── textSearch.ts                radicais e grupos de dígitos calculados pelo Postgres
+│   ├── criteria.ts                  a regra única dos critérios de contratos, em SQL do DuckDB
+│   ├── writer.ts                    gravação (Cron Job): mudanças, partes regravadas e publicação
+│   └── reader.ts                    leitura (Web Service): cópia local, troca de versão, fila e limite de tempo
 ├── collector/
 │   ├── docs/pncp-openapi.json       OpenAPI da API de Consultas do PNCP (05/10/2026)
 │   ├── docs/pncp-api-openapi.json   OpenAPI da API principal do PNCP (itens e arquivos, 05/10/2026)
@@ -61,10 +71,11 @@ backend/src/modules/tenders/
 | `TENDERS_CONTRACTS_BACKFILL_FROM` | `2021-01-01` | Dia de publicação mais antigo da carga inicial. |
 | `TENDERS_CONTRACTS_BACKFILL_MINUTES` | `480` | Tempo de cada bloco da carga (1 a 600). |
 | `TENDERS_CONTRACTS_MAX_DB_MB` | — (sem ela, a carga não roda) | Tamanho do banco em que a carga para. É o "ligar" da carga: sugestão de 70% do espaço do plano do Postgres. |
-| `TENDERS_ARCHIVE_ENDPOINT` | — (sem as 4 do R2, o arquivo bruto fica desligado) | Endpoint S3 da conta no Cloudflare R2, `https://<conta>.r2.cloudflarestorage.com`. Só `https`. |
-| `TENDERS_ARCHIVE_BUCKET` | — | Bucket privado do arquivo bruto (minúsculas, números e hífen). |
+| `TENDERS_ARCHIVE_ENDPOINT` | — (sem as 5 do R2, o R2 fica desligado) | Endpoint S3 da conta no Cloudflare R2, `https://<conta>.r2.cloudflarestorage.com`. Só `https`. |
+| `TENDERS_ARCHIVE_BUCKET` | — | Bucket privado do R2 (minúsculas, números e hífen). |
 | `TENDERS_ARCHIVE_ACCESS_KEY_ID` | — | Chave do token do R2 ("Object Read & Write", restrito ao bucket). Só no ambiente, nunca no repositório. |
-| `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` | — | Segredo do mesmo token. As 4 vão juntas: parte delas é erro de configuração, e a mensagem só cita os nomes. |
+| `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` | — | Segredo do mesmo token. |
+| `TENDERS_STORAGE_PREFIX` | — | Pasta do ambiente no bucket: `producao` no Render, `local` no `.env.dev`. Minúsculas, números e hífen. Com o banco local, `producao` é recusada. As 5 do R2 vão juntas: parte delas é erro de configuração, e a mensagem só cita os nomes. |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
@@ -150,6 +161,8 @@ npm --prefix backend test               # testes sem banco (inclui os do módulo
 npm --prefix backend run test:tenders-db
 ```
 
+Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `objectStorage.test.ts`) usam o R2 simulado e um S3 local: formato e ida e volta da linha, critérios, gravação (estado anterior, partes regravadas só onde mudou, divisão, mudança de UF, limpeza das versões, falha no envio e várias publicações na mesma execução) e leitura (sem cópia, armazém vazio, troca de versão, arquivos da versão anterior, limite de tempo, fila e R2 fora do ar).
+
 `test:tenders-db` roda os testes de banco do módulo:
 - **Onde:** só no banco local, e se recusa a rodar se a URL não for `localhost:5433/sistema_financas_dev`.
 - **Isolamento:** cada teste roda numa transação desfeita no fim, então nada fica gravado.
@@ -159,6 +172,7 @@ npm --prefix backend run test:tenders-db
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
   - contratos (`collector/contractRepository.db.test.ts` e `contractRuns.db.test.ts`): upsert sem regravar a linha igual, todos os tipos e os vencidos entram com o tipo, sem data de fim entra sem vencimento (e ganha o do aditivo), termos não reconsultados com a mesma data global, carga do mais recente ao mais antigo com retomada e paradas por tempo e espaço, carga sem limite de espaço não roda, vencimento alterado (na coleta e na reconsulta), trava própria e o arquivo bruto com o R2 simulado (o que vai, falha no envio, execução que falha e desligado);
   - exportação do JSON dos editais (`collector/noticePayloadExport.db.test.ts`): sem R2 não roda; lotes em partes, com o JSON e as datas de coleta; falha no envio para sem avançar, e a seguinte continua e confere (`verified`);
+  - campos de busca do armazém de contratos (`contractStore/textSearch.db.test.ts`): radicais e grupos de dígitos pelo Postgres, e a frase batendo onde a busca de hoje bate;
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`): cada filtro, só vigentes e "Só favoritos" com os vencidos, tipo de contrato e "Incluir encerrados" (com os sem vencimento), ordenações, paridade com a busca salva, limite de 50 à parte, prévia, isolamento, edital de origem, favoritos e as janelas dos avisos;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
   - API:
@@ -212,14 +226,14 @@ Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): 
   - termos dos contratos: a resposta de cada consulta, com o número de controle (`null` quando o PNCP não conhece o contrato);
   - editais (varredura, incremental e `collect`): só os novos ou alterados, pelo hash ou pela data de atualização.
   - Itens e arquivos abertos na tela não vão.
-- **Chave:** `<fonte>/<conjunto>/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com o dia da coleta em Brasília. Exemplo: `pncp/contratos/2026/10/18/412-0001.jsonl.gz`. Conjuntos: `contratos`, `contratos-termos` e `editais`.
+- **Chave:** `<pasta do ambiente>/<fonte>/<conjunto>/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com o dia da coleta em Brasília. Exemplo: `producao/pncp/contratos/2026/10/18/412-0001.jsonl.gz`. Conjuntos: `contratos`, `contratos-termos` e `editais`. A pasta do ambiente (`TENDERS_STORAGE_PREFIX`) é posta pelo cliente (`objectStorage.ts`); o resto do código usa as chaves sem ela.
 - **Formato:** JSON Lines compactado com gzip. Cada linha é `{ "collectedAt": "<ISO>", "record": <o registro como veio> }`; nos termos, também `controlNumber`.
 - **Partes:** a execução junta as linhas na memória e envia a parte ao passar de 16 MB brutos (`ARCHIVE_PART_BYTES`). O que sobra vai no fim, inclusive quando a execução falha.
 - **Detalhes da execução:** `detalhes.archive = { enabled, files, records, bytes, failures }`, com o tamanho compactado. Configurações › Coleta mostra a linha "Arquivo bruto" na varredura e na coleta diária de contratos.
 - **Falha no envio:** o SDK repete o envio. Se ainda falhar, a parte é descartada e conta um erro (`kind: 'archive'`, com a chave). A coleta segue, e a execução fica "Parcial".
-- **Desligado:** sem as 4 variáveis `TENDERS_ARCHIVE_*`, a coleta segue sem arquivo, avisa no log e grava `enabled: false`.
-- **Cliente:** `@aws-sdk/client-s3` (instalado só com versões de pelo menos 2 semanas), com região `auto`, caminho `/<bucket>/<chave>` e checksums só quando a operação exige.
-- **Ligar:** criar o bucket privado e um token "Object Read & Write" restrito a ele, e definir as 4 variáveis no Cron Job, que roda as coletas, e no `.env.dev`, para testar no local. O plano também as põe no Web Service, para os comandos manuais das próximas partes. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
+- **Desligado:** sem as 5 variáveis do R2, a coleta segue sem arquivo, avisa no log e grava `enabled: false`.
+- **Cliente:** `objectStorage.ts`, com o `@aws-sdk/client-s3` (instalado só com versões de pelo menos 2 semanas), região `auto`, caminho `/<bucket>/<chave>` e checksums só quando a operação exige. Envia, baixa, lista e apaga (um por vez: o DeleteObjects exige checksum do corpo).
+- **Ligar:** criar o bucket privado e um token "Object Read & Write" restrito a ele, e definir as 5 variáveis no Cron Job, que roda as coletas, no Web Service, que lê o armazém de contratos, e no `.env.dev` (com `TENDERS_STORAGE_PREFIX=local`), para testar no local. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
 
 **Editais sem o JSON no banco** (parte 2 do mesmo plano): o coletor não grava mais `licitacoes.edital.payload`, só o hash dele. O que já estava gravado sai em três passos, banco por banco:
 1. **migration 0087:** a coluna passa a aceitar NULL;
@@ -227,6 +241,34 @@ Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): 
 3. **migration 0088:** remove a coluna. Ela recusa rodar se ainda houver JSON sem uma exportação com `verified: true` no mesmo banco.
 
 A ordem na produção: deploy do código da parte 2, exportação, conferência e só então a 0088. A remoção não tem volta: o JSON fica só no R2.
+
+## Armazém de contratos no R2
+
+Parte R1 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`): os contratos saem do Postgres e ficam em arquivos Parquet no R2, consultados pelo DuckDB (`@duckdb/node-api`). Nesta parte o armazém existe e é testado, mas o coletor e a API ainda usam `licitacoes.contrato`; a troca é a Parte R2.
+
+- **Conjuntos** (`layout.ts`), em `contratos/arquivos/<conjunto>/<pasta>/v<versão>-<nº>.parquet`:
+  - `vigentes`: vencimento de hoje em diante, por faixa de vencimento (semana no 1º ano, mês no 2º, ano até 10 anos e `depois`; a pasta é o dia em que a faixa começa), em partes de até 30 mil linhas, por vencimento e UF. É refeito a cada publicação. A faixa da semana de 31/12 (fim do ano fiscal) pode ter centenas de milhares de contratos, por isso também é dividida;
+  - `contratos`: todos, por ano do contrato, em partes de até 30 mil linhas por faixa de UF e número de controle. No piloto, a ordem por UF deixou a busca de palavra com UF de 3 a 9 vezes mais rápida, sem piorar órgão nem detalhe;
+  - `fornecedor`: todos, só as colunas da lista, por ano, em partes de até 60 mil linhas por faixa do CNPJ do fornecedor.
+  - **Por que partes desse tamanho:** cada parte é ordenada sozinha na gravação. Na importação dos 351 mil contratos locais, uma parte de 50 mil linhas não coube em 128 MB do DuckDB; com até 30 mil, a gravação cabe em 160 MB (e também em 128 MB, mais devagar).
+- **Colunas:** as da antiga `licitacoes.contrato` (as datas e horas do PNCP como vieram, os termos em JSON), as datas da coleta, `radicais` e os grupos de dígitos de número, processo, controle e compra.
+- **Busca de texto** (`textSearch.ts`): os radicais vêm do Postgres (`licitacoes.pt_unaccent`, o mesmo dicionário dos editais), e os grupos de dígitos de `licitacoes.fn_grupos_digitos`. Cada termo da busca vira a sequência dos seus radicais e bate quando ela aparece no texto do contrato. Palavras curtas no meio da frase (como "de") não exigem a posição exata.
+- **Critérios** (`criteria.ts`): a regra única de termos (E/OU), exclusões, UF, município, órgão, categoria, fornecedor e faixa de valor, e de "vigente". O que vem da pessoa entra sempre como parâmetro.
+- **Manifesto** (`contratos/manifesto.json`, `manifest.ts`): a versão, o dia dos vigentes, os totais e os arquivos de cada conjunto, com linhas, tamanho e início da faixa.
+- **Gravação** (`writer.ts`, Cron Job, com a trava dos contratos):
+  1. baixa o manifesto e os arquivos para a cópia de trabalho;
+  2. guarda as mudanças da execução numa tabela do DuckDB, no banco de trabalho em disco (160 MB, 1 linha de execução). Contrato igual (mesmo hash, vencimento e conferência dos termos) não muda;
+  3. publica: regrava só as partes com contrato novo ou mudado (onde ele está e onde estava), divide a parte que passa do limite, refaz os vigentes (numa tabela do banco de trabalho, não na memória), envia os arquivos e, por último, o manifesto;
+  4. apaga do bucket o que nenhum dos dois últimos manifestos usa.
+
+  Falha no envio para antes do manifesto: a versão em uso não muda.
+- **Leitura** (`reader.ts`, Web Service):
+  - copia os arquivos do manifesto para uma pasta local e abre as visões `vigentes`, `contratos` e `fornecedor`;
+  - confere o manifesto a cada 10 minutos, baixa só os arquivos novos e troca as visões numa transação; os arquivos da versão anterior ficam até a troca seguinte;
+  - até 2 buscas ao mesmo tempo, 20 s por busca, DuckDB com 128 MB;
+  - sem cópia pronta: `ContractStoreUnavailableError`, que a API transforma em 503 na Parte R2;
+  - armazém sem nenhuma publicação: visões vazias.
+- **Sem extensões baixadas:** o DuckDB lê só arquivos locais, com o que vem embutido (parquet, json, icu). Os arquivos chegam pelo cliente do R2.
 
 ## Contratos a vencer (dados)
 

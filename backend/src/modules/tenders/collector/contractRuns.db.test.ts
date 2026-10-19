@@ -24,7 +24,7 @@ import {
   localTestPool,
   withRollback,
 } from './dbTestSupport';
-import type { ArchiveStorage } from './archive';
+import { createMemoryStorage } from '../objectStorageTestSupport';
 import type { TendersDb } from './database';
 import { COLLECTOR_LOCK_KEYS, tryAcquireCollectorLock } from './repository';
 import type { CollectorContext, RunOutcome } from './runs';
@@ -117,21 +117,6 @@ function queriesOf(outcome: { details: Record<string, unknown> }): unknown[][] {
 }
 
 const atNoon = (day: string) => () => new Date(`${day}T12:00:00Z`);
-
-/** R2 simulado: guarda cada parte enviada; com `failing`, recusa todas. */
-function memoryArchive(failing = false) {
-  const objects = new Map<string, Uint8Array>();
-  const storage: ArchiveStorage = {
-    async putObject(key, body) {
-      if (failing) {
-        throw new Error('R2 fora do ar');
-      }
-      objects.set(key, body);
-    },
-    close: () => {},
-  };
-  return { storage, objects };
-}
 
 interface ArchivedLine {
   collectedAt: string;
@@ -842,12 +827,12 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
       const empenho = contractRecord({ tipoContrato: { id: 7, nome: 'Empenho' } });
       // Com sinal de alteração: os termos são consultados.
       const amended = contractRecord({ dataPublicacaoPncp: '2026-09-01T10:00:00', dataAtualizacaoGlobal: '2026-10-05T10:00:00' });
-      const { storage, objects } = memoryArchive();
+      const { storage, objects } = createMemoryStorage();
       const context = createTestCollectorContext(tx, {
         contractsFetch: publicationOnly([kept, empenho, amended]),
         termsFetch: () => new Response(prorrogacao, { status: 200 }),
         now: () => NOW,
-        archive: storage,
+        storage,
       });
 
       const outcome = assertRan(await runContractsDaily(context));
@@ -872,8 +857,8 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
     await withRollback(async (tx) => {
       await settleLocalPendingTerms(tx);
       const record = contractRecord();
-      const { storage } = memoryArchive(true);
-      const context = createTestCollectorContext(tx, { contractsFetch: publicationOnly([record]), now: () => NOW, archive: storage });
+      const { storage } = createMemoryStorage(() => true);
+      const context = createTestCollectorContext(tx, { contractsFetch: publicationOnly([record]), now: () => NOW, storage });
 
       const outcome = assertRan(await runContractsDaily(context));
       assert.equal(outcome.status, 'PARCIAL');
@@ -889,11 +874,11 @@ describe('execuções de contratos (banco local)', { skip: databaseTestsSkipReas
     await withRollback(async (tx) => {
       await settleLocalPendingTerms(tx);
       const record = contractRecord();
-      const { storage, objects } = memoryArchive();
+      const { storage, objects } = createMemoryStorage();
       const base = createTestCollectorContext(tx, {
         contractsFetch: (url) => (url.pathname.endsWith('/atualizacao') ? pageOf([record]) : pageOf([])),
         now: () => NOW,
-        archive: storage,
+        storage,
       });
       // Erro fora do PNCP depois de gravar a página dos atualizados: interrompe a execução.
       const context: CollectorContext = {

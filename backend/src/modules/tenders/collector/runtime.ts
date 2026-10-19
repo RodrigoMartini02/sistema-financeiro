@@ -1,5 +1,5 @@
+import { createR2Storage } from '../objectStorage';
 import { PNCP_API_BASE_URL } from '../services/pncpDetails';
-import { createR2Storage } from './archive';
 import { loadCollectorConfig } from './config';
 import { createCollectorDatabase } from './database';
 import { createCollectorLogger } from './logger';
@@ -36,15 +36,15 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
     requestIntervalMs: config.contracts.termsIntervalMs,
     onRetry,
   });
-  const archive = config.archive ? createR2Storage(config.archive) : null;
-  if (!archive) {
-    logger.warn('Arquivo bruto desligado: as variáveis TENDERS_ARCHIVE_* do R2 não estão definidas');
+  const storage = config.storage ? createR2Storage(config.storage) : null;
+  if (!storage) {
+    logger.warn('R2 desligado: as variáveis TENDERS_ARCHIVE_* e TENDERS_STORAGE_PREFIX não estão definidas');
   }
 
   return {
-    context: { db, pool, pncp, contractsPncp, termsPncp, archive, config, logger, now: () => new Date() },
+    context: { db, pool, pncp, contractsPncp, termsPncp, storage, config, logger, now: () => new Date() },
     close: async () => {
-      archive?.close();
+      storage?.close();
       await pool.end();
     },
   };
