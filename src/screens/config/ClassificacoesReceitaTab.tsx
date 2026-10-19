@@ -134,6 +134,7 @@ export function ClassificacoesReceitaTab() {
       destaque={DESTAQUE_RECEITA}
       textos={TEXTOS}
       extensao={EXTENSAO}
+      exigeSubcategoria={localStorage.getItem('contaAtivaTipo') !== 'empresa'}
     />
   );
 }

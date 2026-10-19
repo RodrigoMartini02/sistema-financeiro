@@ -31,6 +31,7 @@ import { fetchClients, type ClientFilters } from '../../services/clientsService'
 import { fetchContractsWithHours } from '../../services/contractsService';
 import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
+import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
 import { invalidateExpenseQueries, invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
@@ -550,7 +551,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         : m
     )));
   }, [saudacaoAtual]);
-  const categories = (categoriesQuery.data ?? []).filter((category) => category.ativo);
+  // O card escolhe e resolve pelo nome só as categorias que recebem lançamento (o servidor diz quais).
+  const categoryGroups = groupSelectableCategories(categoriesQuery.data ?? []);
+  const categories = categoryGroups.flatMap((group) => group.items);
   // Mesma regra do modal: um cartao so-credito nao aparece numa compra no debito.
   const cardsForDraft = (cardsQuery.data ?? []).filter((card) => (
     card.ativo && (!card.tipo || card.tipo === 'ambos' || card.tipo === draft?.paymentMethod)
@@ -1119,6 +1122,11 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         setError('Complete a descrição e o valor antes de salvar.');
         return;
       }
+      const classificationId = draft.classificacaoId;
+      if (classificationId == null) {
+        setError('Escolha a categoria antes de salvar.');
+        return;
+      }
       if (!date) {
         setError('Informe a data antes de salvar.');
         return;
@@ -1136,7 +1144,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           // Sem conta escolhida no card, a receita entra na conta ativa.
           accountId: draft.contaId ?? getActiveAccountId(),
           description,
-          categoryId: draft.classificacaoId ?? null,
+          categoryId: classificationId,
           amount,
           receiptDate: date,
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
@@ -1699,8 +1707,15 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                                 onChange={(event) => updateDraft({ category: event.target.value || null })}
                                 className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                               >
-                                <option value="">Sem categoria</option>
-                                {categories.map((category) => <option key={category.id} value={category.nome}>{category.nome}</option>)}
+                                <option value="">Escolha a categoria</option>
+                                {categoryGroups.map((group) => {
+                                  const options = group.items.map((category) => (
+                                    <option key={category.id} value={category.nome}>{category.nome}</option>
+                                  ));
+                                  return group.parent
+                                    ? <optgroup key={group.parent.id} label={group.parent.nome}>{options}</optgroup>
+                                    : options;
+                                })}
                               </select>
                               <ChevronDown size={15} className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[#0891b2]" />
                             </span>
@@ -1884,7 +1899,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
                               onChange={(event) => updateDraft({ classificacaoId: event.target.value ? Number(event.target.value) : null })}
                               className="h-7 w-full appearance-none bg-transparent pr-6 text-base font-bold text-slate-900 outline-none transition dark:text-white"
                             >
-                              <option value="">Sem categoria</option>
+                              <option value="">Escolha a categoria</option>
                               {classificacoes.map((classificacao) => (
                                 <option key={classificacao.id} value={classificacao.id}>{classificacao.rotulo}</option>
                               ))}

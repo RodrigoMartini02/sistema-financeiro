@@ -1,3 +1,5 @@
+import { othersSubcategoryName } from './catalogRules';
+
 export type IncomeClassificationAccountType = 'pessoal' | 'empresa';
 
 export interface DefaultIncomeClassification {
@@ -5,20 +7,23 @@ export interface DefaultIncomeClassification {
   subcategorias: readonly string[];
 }
 
+/** Raiz com as subcategorias padrão e, por último, o "Outros de <raiz>". */
+function group(nome: string, subcategorias: readonly string[]): DefaultIncomeClassification {
+  return { nome, subcategorias: [...subcategorias, othersSubcategoryName(nome)] };
+}
+
 /**
- * Uma palavra por classificação; as subcategorias padrão ficam na raiz a que pertencem.
- * Raiz com subcategorias é só o nome do grupo (não se escolhe ao lançar), por isso o
- * salário do mês é uma subcategoria de "Emprego", ao lado de 13º, Férias e Vale refeição.
+ * Conta PF: a raiz é só o nome do grupo (não se escolhe ao lançar) e as subcategorias
+ * padrão ficam na raiz a que pertencem. O salário do mês é uma subcategoria de
+ * "Emprego", ao lado de 13º, Férias e Vale Refeição/Alimentação.
  */
 const PERSONAL_DEFAULT_INCOME_CLASSIFICATIONS: readonly DefaultIncomeClassification[] = [
-  { nome: 'Emprego', subcategorias: ['Salário', '13º', 'Férias', 'Vale refeição'] },
-  { nome: 'Benefícios', subcategorias: ['Aposentadoria', 'Pensão', 'Auxílio'] },
-  { nome: 'Freelance', subcategorias: [] },
-  { nome: 'Aluguéis', subcategorias: [] },
-  { nome: 'Investimentos', subcategorias: ['Juros', 'Dividendos'] },
-  { nome: 'Comissões', subcategorias: [] },
-  { nome: 'Reembolsos', subcategorias: [] },
-  { nome: 'Outros', subcategorias: [] },
+  group('Emprego', ['Salário', '13º', 'Férias', 'Vale Refeição/Alimentação', 'Bônus e PLR']),
+  group('Renda Extra', ['Freelance', 'Serviços e Bicos', 'Vendas', 'Comissões']),
+  group('Benefícios', ['Aposentadoria', 'Pensão', 'Auxílios', 'Seguro-Desemprego', 'FGTS']),
+  group('Investimentos e Rendimentos', ['Juros', 'Dividendos', 'Aluguéis', 'Venda de Ativos']),
+  group('Reembolsos e Restituições', ['Reembolso de Despesas', 'Restituição de IR', 'Cashback e Estornos']),
+  group('Outras Entradas', ['Presentes Recebidos', 'Venda de Bens Usados', 'Empréstimos Recebidos']),
 ];
 
 /** Raiz das receitas geradas por contrato e a subcategoria de cada cobrança. */

@@ -61,6 +61,13 @@ test('recusa campos obrigatórios ausentes ou inválidos', () => {
   assertRejects(() => readCreateIncomeInput('texto'), 'Pedido inválido');
 });
 
+test('a categoria é obrigatória na criação e na edição', () => {
+  assertRejects(() => readCreateIncomeInput(body({ categoryId: null })), 'Escolha a categoria');
+  assertRejects(() => readCreateIncomeInput(body({ categoryId: undefined })), 'Escolha a categoria');
+  assertRejects(() => readCreateIncomeInput(body({ categoryId: 'Salário' })), 'Escolha a categoria');
+  assertRejects(() => readUpdateIncomeInput(body({ categoryId: null })), 'Escolha a categoria');
+});
+
 test('repetir até precisa ser depois do mês da receita e no máximo 36 meses', () => {
   assertRejects(
     () => readCreateIncomeInput(body({ repeatUntil: { month: 8, year: 2026 } })),

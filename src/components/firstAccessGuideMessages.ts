@@ -5,7 +5,7 @@ export const firstAccessGuideMessages = {
   despesasFiltros: 'Use os filtros para separar despesas pagas, pendentes, atrasadas ou por categoria.',
   reportsConsult: 'Depois de alterar o per\u00edodo, clique em Consultar para atualizar o relat\u00f3rio.',
   reportsExport: 'Clique em Exportar PDF para baixar o relat\u00f3rio completo em um documento PDF.',
-  categoriasNova: 'Clique em Nova categoria para organizar seus lan\u00e7amentos por tipo.',
+  categoriasNova: 'Clique em Nova categoria para organizar seus lan\u00e7amentos por tipo. Na conta pessoal, ela nasce com a primeira subcategoria, onde ficam os lan\u00e7amentos.',
   categoriasSub: 'Crie subcategorias quando precisar detalhar melhor seus gastos.',
   perfisNovo: 'Clique em Nova conta para separar finan\u00e7as pessoais, empresas ou opera\u00e7\u00f5es diferentes.',
   usuariosFiltros: 'Use os filtros para encontrar usu\u00e1rios por status ou tipo de acesso.',

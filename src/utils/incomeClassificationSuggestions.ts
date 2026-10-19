@@ -3,8 +3,9 @@ import { normalizeCategoryText, type CategoryHistoryEntry } from './categorySugg
 
 /**
  * Categoria sugerida para a descrição digitada: a de uma receita anterior com
- * descrição parecida. Só vale se ainda estiver ativa no catálogo da conta — a
- * receita antiga pode ser de outra conta ou de uma categoria desativada.
+ * descrição parecida. Só vale se ainda estiver ativa no catálogo da conta e puder
+ * receber lançamento — a receita antiga pode ser de outra conta, de uma categoria
+ * desativada ou de um grupo que hoje é só o nome das subcategorias.
  */
 export function suggestIncomeClassificationForDescription<T extends OpcaoCatalogo>(
   description: string,
@@ -21,7 +22,7 @@ export function suggestIncomeClassificationForDescription<T extends OpcaoCatalog
       normalizedDescription.includes(normalizedPrevious) || normalizedPrevious.includes(normalizedDescription)
     );
     if (!similar) continue;
-    const category = catalog.find((item) => item.id === categoryId && item.ativo);
+    const category = catalog.find((item) => item.id === categoryId && item.ativo && item.selectable !== false);
     if (category) return category;
   }
   return null;

@@ -45,7 +45,10 @@ type Reader = Pick<typeof db, 'select'>;
 const CARD_NOT_FOUND = 'Cartão não encontrado';
 const PAYMENT_NOT_FOUND = 'Pagamento não encontrado';
 
-/** Categorias criadas na primeira vez que o pagamento da fatura precisa delas. */
+/**
+ * Categorias de sistema criadas na primeira vez que o pagamento da fatura precisa
+ * delas. Ficam fora da escolha do usuário: só as linhas geradas pelo pagamento as usam.
+ */
 const INVOICE_CATEGORIES = {
   renegotiation: { name: 'Renegociação de fatura', color: '#f97316' },
   charges: { name: 'Encargos de cartão', color: '#ef4444' },
@@ -271,7 +274,7 @@ export async function getCardInvoice(
 }
 
 /**
- * Categoria automática no catálogo do dono do cartão, no tipo da conta do
+ * Categoria de sistema no catálogo do dono do cartão, no tipo da conta do
  * cartão. SQL cru pelo ON CONFLICT no índice único funcional (usuario_id,
  * LOWER(nome), tipo), que o Drizzle não expressa — o mesmo de
  * ensureDefaultCategories.
@@ -283,8 +286,8 @@ async function findOrCreateInvoiceCategory(
   category: { name: string; color: string },
 ): Promise<number> {
   await transaction.execute(sql`
-    INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
-    VALUES (${ownerId}, ${category.name}, ${category.color}, NULL, NULL, ${accountType})
+    INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo, sistema)
+    VALUES (${ownerId}, ${category.name}, ${category.color}, NULL, NULL, ${accountType}, true)
     ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
   `);
   const [row] = await transaction.select({ id: categories.id }).from(categories).where(and(

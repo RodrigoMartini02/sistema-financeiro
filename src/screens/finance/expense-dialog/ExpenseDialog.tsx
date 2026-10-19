@@ -11,7 +11,9 @@ import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys
 import { C, chipStyle } from '../../../ui/dialogFormTokens';
 import { INVOICE_MESSAGES, invoiceEditLock } from '../../../utils/cardInvoice';
 import { installmentScopeRows, openFollowingOccurrences } from '../../../utils/expenseSeries';
-import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
+import {
+  createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
+} from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { canManageCatalog } from '../../../utils/screenAccess';
 import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
@@ -162,11 +164,11 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     return () => clearTimeout(timer);
   }, [state.toast]);
 
-  const createCategory = async (name: string): Promise<number> => {
-    const created = await saveCategoria({ nome: name });
-    qc.setQueryData<Categoria[]>(queryKeys.categorias(), (current) => [...(current ?? []), created]);
+  const createCategory = async (request: NewCategoryRequest): Promise<number> => {
+    const { subcategories = [], ...created } = await saveCategoria(newCategoryFormValues(request));
+    qc.setQueryData<Categoria[]>(queryKeys.categorias(), (current) => [...(current ?? []), created, ...subcategories]);
     void qc.invalidateQueries({ queryKey: ['categorias'] });
-    return created.id;
+    return createdCategoryId(request, { ...created, subcategories });
   };
 
   const resources: RowResources = {

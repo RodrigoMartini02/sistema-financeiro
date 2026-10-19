@@ -3,7 +3,7 @@ import type { IncomeSuggestionMatch } from '../../../services/incomeSuggestionsS
 import type { ClassificacaoReceita } from '../../../types/config';
 import { CategoryFloatingSelect } from '../../../ui/CategoryFloatingSelect';
 import { C } from '../../../ui/dialogFormTokens';
-import type { CategoryHistoryEntry } from '../../../utils/categorySuggestions';
+import type { CategoryHistoryEntry, NewCategoryRequest } from '../../../utils/categorySuggestions';
 import { isoToBrDate } from '../../../utils/date';
 import { suggestIncomeClassificationForDescription } from '../../../utils/incomeClassificationSuggestions';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
@@ -37,7 +37,7 @@ export interface IncomeRowResources {
   /** Calendário: a data da linha de entrada vem do dia clicado. */
   lockReceiptDate: boolean;
   /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
-  createCategory?: (name: string) => Promise<number>;
+  createCategory?: (request: NewCategoryRequest) => Promise<number>;
   /** Sem a permissão de Clientes, só escolhe entre os já cadastrados. */
   createClient?: (name: string) => Promise<ClientOption | null>;
   /** Edição: nome do cliente da receita, se ele não está mais entre os ativos. */
@@ -94,7 +94,8 @@ export function IncomeRow({
       patch.clientId = match.clientId;
     }
     // A receita antiga pode ser de outra conta: só vale a categoria ativa no catálogo desta.
-    if (current.categoryId === null && categories.some((category) => category.id === match.categoryId && category.ativo)) {
+    if (current.categoryId === null
+      && categories.some((category) => category.id === match.categoryId && category.ativo && category.selectable !== false)) {
       patch.categoryId = match.categoryId;
     }
     return patch;
@@ -119,14 +120,16 @@ export function IncomeRow({
           />
         </GridCell>
 
-        <GridCell label="Categoria" className="col-span-2 lg:col-span-1">
+        <GridCell label="Categoria" required className="col-span-2 lg:col-span-1">
           <CategoryFloatingSelect
             compact
             categories={categories}
             value={draft.categoryId ?? undefined}
             onChange={(id) => chooseCategory(id ?? null)}
             onCreate={resources.createCategory}
+            groupedCreation={!context.isCompany}
             recentIds={resources.recentCategoryIds}
+            invalid={errors?.category}
           />
         </GridCell>
 

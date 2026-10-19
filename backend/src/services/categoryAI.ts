@@ -74,13 +74,16 @@ export async function saveLearning(userId: number, text: string, category: strin
   }
 }
 
+/**
+ * O nome da categoria que a descrição sugere, ou nulo quando nada casa: sem
+ * "Outros" de reserva, quem escolhe é o usuário.
+ */
 export async function classifyCategory(
   description: string,
   userId: number,
-  availableCategories: string[] = [],
   instructionsText = '',
-): Promise<string> {
-  if (!description) return 'Outros';
+): Promise<string | null> {
+  if (!description) return null;
   const lower = description.toLowerCase();
 
   if (userId) {
@@ -99,20 +102,7 @@ export async function classifyCategory(
     }
   }
 
-  const heuristic = inferCategory(description);
-
-  if (availableCategories.length > 0) {
-    const match = availableCategories.find((c) => c.toLowerCase() === heuristic.toLowerCase());
-    if (match) return match;
-    const close = availableCategories.find(
-      (c) => c.toLowerCase().includes(heuristic.toLowerCase()) || heuristic.toLowerCase().includes(c.toLowerCase()),
-    );
-    if (close) return close;
-    const outros = availableCategories.find((c) => /outros/i.test(c));
-    return outros ?? availableCategories[0] ?? heuristic;
-  }
-
-  return heuristic;
+  return inferCategory(description);
 }
 
 export function suggestCategories(description: string): CategorySuggestion[] {

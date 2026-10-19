@@ -1,18 +1,27 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { OpcaoCatalogo } from '../types/config';
-import { compararNomesCatalogo, groupSelectableCategories, normalizeCategoryText } from '../utils/categorySuggestions';
+import {
+  compararNomesCatalogo, groupSelectableCategories, normalizeCategoryText, type NewCategoryRequest,
+} from '../utils/categorySuggestions';
 import { C } from './dialogFormTokens';
 import { FloatingPanel } from './FloatingPanel';
 
 const SEPARATOR = '#eef2f6';
 const INVALID_BORDER = '#fca5a5';
+/** Valor da opção "Nova categoria" na escolha do grupo. */
+const NEW_PARENT = 'new';
 
 interface Props<T extends OpcaoCatalogo> {
   categories: T[];
   value?: number;
   onChange: (id: number | undefined) => void;
-  /** Cria a categoria com o nome digitado e devolve o id dela, que já fica escolhido. */
-  onCreate?: (name: string) => Promise<number>;
+  /** Cria o que foi pedido e devolve o id que já fica escolhido. */
+  onCreate?: (request: NewCategoryRequest) => Promise<number>;
+  /**
+   * Conta pessoal: só se cria subcategoria, num grupo existente ou num grupo novo criado
+   * junto. Sem isto (conta empresa), o "+ criar" cria uma categoria solta, como sempre foi.
+   */
+  groupedCreation?: boolean;
   /** Categorias mais usadas, mostradas em chips antes da lista. */
   recentIds?: number[];
   invalid?: boolean;
@@ -26,12 +35,14 @@ interface Option<T> {
 }
 
 export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
-  categories, value, onChange, onCreate, recentIds = [], invalid = false, compact = false,
+  categories, value, onChange, onCreate, groupedCreation = false, recentIds = [], invalid = false, compact = false,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<number, boolean>>({});
   const [creatingName, setCreatingName] = useState<string | null>(null);
+  const [parentChoice, setParentChoice] = useState('');
+  const [newParentName, setNewParentName] = useState('');
   const [createError, setCreateError] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -53,12 +64,27 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
     .filter((option): option is Option<T> => option !== undefined);
   const canCreate = !!onCreate && !!normalizedQuery && creatingName === null
     && !options.some(({ category }) => normalizeCategoryText(category.nome) === normalizedQuery);
+  // Os grupos que podem receber a subcategoria nova (a categoria de sistema não).
+  const parentOptions = categories
+    .filter((category) => !category.parent_id && category.ativo && !category.is_system)
+    .sort((a, b) => compararNomesCatalogo(a.nome, b.nome));
+
+  const startCreating = (name: string) => {
+    setCreatingName(name);
+    setParentChoice('');
+    setNewParentName('');
+    setCreateError('');
+  };
+
+  const stopCreating = () => {
+    setCreatingName(null);
+    setCreateError('');
+  };
 
   const close = () => {
     setOpen(false);
     setQuery('');
-    setCreatingName(null);
-    setCreateError('');
+    stopCreating();
   };
 
   const toggleOpen = () => {
@@ -80,10 +106,23 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
   const confirmCreate = async () => {
     const name = (creatingName ?? '').trim();
     if (!name || !onCreate || isCreating) return;
+    const groupName = newParentName.trim();
+    if (groupedCreation && !parentChoice) {
+      setCreateError('Escolha a categoria da nova subcategoria.');
+      return;
+    }
+    if (groupedCreation && parentChoice === NEW_PARENT && !groupName) {
+      setCreateError('Informe o nome da nova categoria.');
+      return;
+    }
+    let request: NewCategoryRequest = { name };
+    if (groupedCreation) {
+      request = parentChoice === NEW_PARENT ? { name, newParentName: groupName } : { name, parentId: Number(parentChoice) };
+    }
     setIsCreating(true);
     setCreateError('');
     try {
-      const id = await onCreate(name);
+      const id = await onCreate(request);
       onChange(id);
       close();
       triggerRef.current?.focus();
@@ -98,7 +137,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
     if (event.key !== 'Enter') return;
     event.preventDefault();
     if (results[0]) pick(results[0].category.id);
-    else if (onCreate && query.trim()) setCreatingName(query.trim());
+    else if (onCreate && query.trim()) startCreating(query.trim());
   };
 
   const handleCreateKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -107,7 +146,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
       void confirmCreate();
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      setCreatingName(null);
+      stopCreating();
     }
   };
 
@@ -154,7 +193,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
           autoFocus
           type="text"
           value={query}
-          onChange={(event) => { setQuery(event.target.value); setCreatingName(null); }}
+          onChange={(event) => { setQuery(event.target.value); stopCreating(); }}
           onKeyDown={handleSearchKeyDown}
           placeholder="Buscar categoria..."
           className="focus:border-[#0891b2] focus:shadow-[0_0_0_3px_rgba(8,145,178,0.14)]"
@@ -232,26 +271,52 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
         {canCreate && (
           <button
             type="button"
-            onClick={() => setCreatingName(query.trim())}
+            onClick={() => startCreating(query.trim())}
             style={{
               height: 28, padding: '0 8px', border: 'none', borderTop: `1px solid ${SEPARATOR}`, background: 'transparent',
               color: C.primary, fontSize: 12, fontWeight: 500, cursor: 'pointer', textAlign: 'left',
             }}
           >
-            + criar “{query.trim()}”
+            + criar {groupedCreation ? 'subcategoria ' : ''}“{query.trim()}”
           </button>
         )}
 
         {creatingName !== null && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8, borderTop: `1px solid ${SEPARATOR}` }}>
+            {groupedCreation && (
+              <>
+                <select
+                  autoFocus
+                  value={parentChoice}
+                  onChange={(event) => setParentChoice(event.target.value)}
+                  aria-label="Categoria da nova subcategoria"
+                  style={{ height: 28, padding: '0 6px', border: `1px solid ${C.borderInput}`, borderRadius: 8, fontSize: 12, color: C.text, background: '#fff' }}
+                >
+                  <option value="">Em qual categoria?</option>
+                  {parentOptions.map((parent) => <option key={parent.id} value={parent.id}>{parent.nome}</option>)}
+                  <option value={NEW_PARENT}>+ Nova categoria</option>
+                </select>
+                {parentChoice === NEW_PARENT && (
+                  <input
+                    type="text"
+                    value={newParentName}
+                    onChange={(event) => setNewParentName(event.target.value)}
+                    onKeyDown={handleCreateKeyDown}
+                    placeholder="Nome da nova categoria"
+                    aria-label="Nome da nova categoria"
+                    style={{ height: 28, padding: '0 8px', border: `1px solid ${C.borderInput}`, borderRadius: 8, fontSize: 12, color: C.text, outline: 'none' }}
+                  />
+                )}
+              </>
+            )}
             <div style={{ display: 'flex', gap: 6 }}>
               <input
-                autoFocus
+                autoFocus={!groupedCreation}
                 type="text"
                 value={creatingName}
                 onChange={(event) => setCreatingName(event.target.value)}
                 onKeyDown={handleCreateKeyDown}
-                aria-label="Nome da nova categoria"
+                aria-label={groupedCreation ? 'Nome da nova subcategoria' : 'Nome da nova categoria'}
                 style={{ flex: 1, minWidth: 0, height: 28, padding: '0 8px', border: `1px solid ${C.primary}`, borderRadius: 8, fontSize: 12, color: C.text, outline: 'none' }}
               />
               <button
@@ -264,7 +329,7 @@ export function CategoryFloatingSelect<T extends OpcaoCatalogo>({
               </button>
               <button
                 type="button"
-                onClick={() => setCreatingName(null)}
+                onClick={stopCreating}
                 aria-label="Cancelar"
                 style={{ width: 28, height: 28, border: 'none', borderRadius: 8, background: '#f1f5f9', color: C.textSoft, cursor: 'pointer' }}
               >

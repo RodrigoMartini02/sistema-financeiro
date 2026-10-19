@@ -18,8 +18,10 @@ import {
   removeOpenFixedIncomes,
   updateOpenFixedIncomes,
 } from '../services/fixedIncomes';
+import { canReceiveEntries, readInitialSubcategoryNames, requiresInitialSubcategory, selectableEntryIds } from '../services/catalogRules';
 import {
   belongsToCatalog,
+  canClassificationReceiveEntries,
   findCatalogClassification,
   resolveIncomeClassificationCatalog,
   type IncomeClassificationCatalog,
@@ -34,7 +36,7 @@ const router = Router();
 const NOME_MAXIMO = 100;
 
 const CONTRACT_BLOCKS_FIXED = 'Classification used by an active contract: the contract already launches these incomes';
-const GROUP_CANNOT_BE_FIXED = 'Classification with active subclassifications is only a group name: set one of its subclassifications as fixed';
+const GROUP_CANNOT_BE_FIXED = 'Classification is only a group name: set one of its subclassifications as fixed';
 
 function fixToResponse(fix: IncomeClassificationFix | undefined) {
   if (!fix) return null;
@@ -44,7 +46,8 @@ function fixToResponse(fix: IncomeClassificationFix | undefined) {
   };
 }
 
-function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, inActiveContract = false) {
+/** `selectable` (quem recebe lançamento) só vai nas respostas que o calculam; a tela refaz a lista depois de editar. */
+function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, inActiveContract = false, selectable?: boolean) {
   return {
     id: row.id,
     nome: row.name,
@@ -57,6 +60,7 @@ function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, in
     // Receita fixa de quem pediu, nesta conta (a padrão é compartilhada entre contas).
     fixa: fixToResponse(fix),
     em_contrato_ativo: inActiveContract,
+    selectable,
   };
 }
 
@@ -130,7 +134,15 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       classificationsInActiveContracts(catalog.accountId),
     ]);
 
-    res.json({ success: true, data: rows.map((row) => toResponse(row, fixes.get(row.id), inContracts.has(row.id))) });
+    // Quem recebe lançamento é decidido aqui, uma vez só (catalogRules): a tela só obedece.
+    const selectable = selectableEntryIds(
+      rows.map((row) => ({ id: row.id, parentId: row.parentId, active: row.active, isSystem: false })),
+      catalog.accountType,
+    );
+    res.json({
+      success: true,
+      data: rows.map((row) => toResponse(row, fixes.get(row.id), inContracts.has(row.id), selectable.has(row.id))),
+    });
   } catch (error) {
     console.error('List income classifications error:', error);
     res.status(500).json({ success: false, message: 'Failed to list income classifications' });
@@ -138,9 +150,12 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
 });
 
 // POST /api/income-classifications
+// Cria uma subcategoria (parent_id) ou uma classificação nova. Em conta pessoal a
+// classificação nova só existe com ao menos uma subcategoria (subcategories), criadas
+// juntas: o grupo sozinho não recebe lançamento.
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nome, parent_id, conta_id } = req.body as Record<string, unknown>;
+    const { nome, parent_id, conta_id, subcategories } = req.body as Record<string, unknown>;
     const catalog = await catalogFromRequest(req, res, conta_id);
     if (!catalog) return;
 
@@ -149,8 +164,21 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, message: `Name is required (up to ${NOME_MAXIMO} characters)` });
       return;
     }
+    const subcategoryNames = readInitialSubcategoryNames(subcategories, NOME_MAXIMO);
+    if (subcategoryNames === null) {
+      res.status(400).json({ success: false, message: 'Subcategories must be a list of distinct names' });
+      return;
+    }
 
     const parentId = parent_id == null || parent_id === '' ? null : Number(parent_id);
+    if (parentId !== null && subcategoryNames.length > 0) {
+      res.status(400).json({ success: false, message: 'Cannot create subcategories together with a subcategory' });
+      return;
+    }
+    if (parentId === null && subcategoryNames.length === 0 && requiresInitialSubcategory(catalog.accountType)) {
+      res.status(400).json({ success: false, message: 'A new classification needs at least one subcategory' });
+      return;
+    }
     if (parentId !== null) {
       const parent = Number.isInteger(parentId) ? await findCatalogClassification(catalog, parentId) : null;
       if (!parent) {
@@ -163,19 +191,47 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       }
     }
 
-    if (await nameTaken(catalog, name)) {
+    // O nome vale no catálogo inteiro (padrão e criadas), e a lista nova não repete o do grupo.
+    let taken = subcategoryNames.some((subName) => subName.toLowerCase() === name.toLowerCase());
+    for (const newName of [name, ...subcategoryNames]) {
+      taken = taken || await nameTaken(catalog, newName);
+    }
+    if (taken) {
       res.status(400).json({ success: false, message: 'A classification with this name already exists' });
       return;
     }
 
     // Toda classificação criada pela tela é da conta onde foi criada; as
     // padrão só são gravadas por ensureDefaultIncomeClassifications.
-    const [created] = await db
-      .insert(incomeClassifications)
-      .values({ userId: catalog.ownerId, accountId: catalog.accountId, name, parentId })
-      .returning();
+    const created = await db.transaction(async (transaction) => {
+      const [classification] = await transaction
+        .insert(incomeClassifications)
+        .values({ userId: catalog.ownerId, accountId: catalog.accountId, name, parentId })
+        .returning();
+      const createdSubcategories = subcategoryNames.length > 0
+        ? await transaction
+          .insert(incomeClassifications)
+          .values(subcategoryNames.map((subName) => ({
+            userId: catalog.ownerId, accountId: catalog.accountId, name: subName, parentId: classification!.id,
+          })))
+          .returning()
+        : [];
+      return { classification: classification!, subcategories: createdSubcategories };
+    });
 
-    res.status(201).json({ success: true, message: 'Income classification created', data: toResponse(created!) });
+    const selectable = canReceiveEntries(
+      { id: created.classification.id, parentId, active: true, isSystem: false },
+      created.subcategories.length > 0,
+      catalog.accountType,
+    );
+    res.status(201).json({
+      success: true,
+      message: 'Income classification created',
+      data: {
+        ...toResponse(created.classification, undefined, false, selectable),
+        subcategories: created.subcategories.map((subcategory) => toResponse(subcategory, undefined, false, true)),
+      },
+    });
   } catch (error) {
     console.error('Create income classification error:', error);
     res.status(500).json({ success: false, message: 'Failed to create income classification' });
@@ -266,14 +322,9 @@ router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promi
       return;
     }
 
-    // Principal com subclassificação ativa é só o nome do grupo: não se escolhe
-    // ao lançar, então também não pode ser fixa (a receita prevista cairia nela).
-    const [subAtiva] = await db
-      .select({ id: incomeClassifications.id })
-      .from(incomeClassifications)
-      .where(and(eq(incomeClassifications.parentId, id), eq(incomeClassifications.active, true), belongsToCatalog(catalog)))
-      .limit(1);
-    if (subAtiva) {
+    // Só quem recebe lançamento pode ser fixa (a receita prevista cairia nela): o
+    // grupo é só o nome, não se escolhe ao lançar.
+    if (!(await canClassificationReceiveEntries(catalog, existing))) {
       res.status(400).json({ success: false, message: GROUP_CANNOT_BE_FIXED });
       return;
     }

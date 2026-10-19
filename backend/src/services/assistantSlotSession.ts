@@ -38,7 +38,7 @@ export async function loadSlotCatalog(userId: number, account: FinancialAccount)
  */
 async function suggestCategory(description: string, userId: number, catalog: SlotCatalog): Promise<string | null> {
   try {
-    const suggestion = await classifyCategory(description, userId, [], '');
+    const suggestion = await classifyCategory(description, userId);
     if (!suggestion) return null;
     const known = catalog.categories.find((category) => category.name.toLowerCase() === suggestion.toLowerCase());
     return known?.name ?? null;

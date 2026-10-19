@@ -17,7 +17,9 @@ import type { ClassificacaoReceita } from '../../../types/config';
 import type { FinanceDashboardData, Income } from '../../../types/finance';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { usePlanFeatures } from '../../../hooks/usePlanFeatures';
-import { getRecentCategoryIds } from '../../../utils/categorySuggestions';
+import {
+  createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
+} from '../../../utils/categorySuggestions';
 import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { CONFIG_SCOPE_CLASS } from '../../../ui/configTokens';
@@ -164,11 +166,14 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     return () => clearTimeout(timer);
   }, [state.toast]);
 
-  const createCategory = async (name: string): Promise<number> => {
-    const created = await saveClassificacaoReceita({ nome: name }, undefined, accountId);
-    qc.setQueryData<ClassificacaoReceita[]>(queryKeys.classificacoesReceita(accountId), (current) => [...(current ?? []), created]);
+  const createCategory = async (request: NewCategoryRequest): Promise<number> => {
+    const { subcategories = [], ...created } = await saveClassificacaoReceita(newCategoryFormValues(request), undefined, accountId);
+    qc.setQueryData<ClassificacaoReceita[]>(
+      queryKeys.classificacoesReceita(accountId),
+      (current) => [...(current ?? []), created, ...subcategories],
+    );
     void qc.invalidateQueries({ queryKey: ['classificacoes-receita'] });
-    return created.id;
+    return createdCategoryId(request, { ...created, subcategories });
   };
 
   const createClient = (name: string) => new Promise<ClientOption | null>((resolve) => setClientDialog({ name, resolve }));

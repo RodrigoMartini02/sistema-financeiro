@@ -292,6 +292,8 @@ export interface IncomeForUpdate {
   accountId: number | null;
   clientId: number | null;
   contractId: number | null;
+  /** A classificação que a receita já tem continua aceita na edição, mesmo que o catálogo tenha mudado. */
+  classificationId: number | null;
   /** Preenchido na receita com retenção: na edição, o valor digitado é o bruto. */
   grossAmount: string | null;
 }
@@ -302,6 +304,7 @@ export async function findIncomeForUpdate(ownerId: number, incomeId: number): Pr
       accountId: incomes.accountId,
       clientId: incomes.clientId,
       contractId: incomes.contractId,
+      classificationId: incomes.classificationId,
       grossAmount: incomes.grossAmount,
     })
     .from(incomes)

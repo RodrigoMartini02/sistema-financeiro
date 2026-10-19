@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { othersSubcategoryName } from './catalogRules';
 import {
   CAPITAL_INCOME_CLASSIFICATION,
   CONTRACT_INCOME_CLASSIFICATION,
@@ -17,12 +18,19 @@ test('listas padrão não repetem nome dentro do mesmo tipo de conta (índice ú
   }
 });
 
-test('listas padrão terminam em "Outros" e têm uma palavra por raiz', () => {
-  for (const tipo of ['pessoal', 'empresa'] as const) {
-    const raizes = getDefaultIncomeClassifications(tipo).map((item) => item.nome);
-    assert.equal(raizes.at(-1), 'Outros');
-    for (const raiz of raizes) assert.equal(raiz.trim().split(/\s+/).length, 1, `"${raiz}" tem mais de uma palavra`);
+test('PF: 6 raízes com subcategorias, cada uma terminando em "Outros de <raiz>"', () => {
+  const raizes = getDefaultIncomeClassifications('pessoal');
+  assert.equal(raizes.length, 6);
+  for (const raiz of raizes) {
+    assert.ok(raiz.subcategorias.length > 1, `"${raiz.nome}" não tem subcategorias`);
+    assert.equal(raiz.subcategorias.at(-1), othersSubcategoryName(raiz.nome));
   }
+  assert.equal(raizes.reduce((total, raiz) => total + raiz.subcategorias.length, 0), 30);
+});
+
+test('PJ: raízes soltas, terminando em "Outros"', () => {
+  const raizes = getDefaultIncomeClassifications('empresa');
+  assert.equal(raizes.at(-1)?.nome, 'Outros');
 });
 
 test('a lista da empresa traz as classificações que o contrato usa', () => {
@@ -40,10 +48,23 @@ test('a lista da empresa traz "Aportes", onde entra o capital dos sócios; a pes
   assert.equal(todosOsNomes('pessoal').includes(CAPITAL_INCOME_CLASSIFICATION), false);
 });
 
-test('PF: salário é subcategoria de "Emprego" e "Vendas" virou "Comissões"; PJ mantém "Vendas"', () => {
+test('PF: salário é subcategoria de "Emprego" e "Comissões" e "Vendas" são subcategorias de "Renda Extra"; PJ mantém "Vendas" como raiz', () => {
   const pessoal = getDefaultIncomeClassifications('pessoal');
-  assert.deepEqual(pessoal.find((item) => item.nome === 'Emprego')?.subcategorias, ['Salário', '13º', 'Férias', 'Vale refeição']);
-  assert.ok(pessoal.some((item) => item.nome === 'Comissões'));
-  assert.ok(!todosOsNomes('pessoal').includes('Vendas'));
-  assert.ok(todosOsNomes('empresa').includes('Vendas'));
+  assert.deepEqual(
+    pessoal.find((item) => item.nome === 'Emprego')?.subcategorias,
+    ['Salário', '13º', 'Férias', 'Vale Refeição/Alimentação', 'Bônus e PLR', 'Outros de Emprego'],
+  );
+  const rendaExtra = pessoal.find((item) => item.nome === 'Renda Extra');
+  assert.ok(rendaExtra?.subcategorias.includes('Comissões'));
+  assert.ok(rendaExtra?.subcategorias.includes('Vendas'));
+  assert.ok(!pessoal.some((item) => item.nome === 'Vendas'));
+  assert.ok(getDefaultIncomeClassifications('empresa').some((item) => item.nome === 'Vendas'));
+});
+
+test('PF: "FGTS" é uma subcategoria só, em "Benefícios"', () => {
+  const beneficios = getDefaultIncomeClassifications('pessoal').find((item) => item.nome === 'Benefícios');
+  assert.deepEqual(
+    beneficios?.subcategorias,
+    ['Aposentadoria', 'Pensão', 'Auxílios', 'Seguro-Desemprego', 'FGTS', 'Outros de Benefícios'],
+  );
 });

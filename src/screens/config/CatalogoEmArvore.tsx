@@ -67,12 +67,14 @@ export interface ExtensaoCatalogo<T, E> {
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
 function ItemDialog<T extends ItemCatalogo, E>({
-  open, item, initialParentId, temSubcategorias, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
+  open, item, initialParentId, temSubcategorias, exigeSubcategoria, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
 }: {
   open: boolean;
   item?: T;
   initialParentId?: number;
   temSubcategorias: boolean;
+  /** Categoria nova nasce com a primeira subcategoria (conta pessoal): o grupo sozinho não recebe lançamento. */
+  exigeSubcategoria: boolean;
   isSaving: boolean;
   error?: string;
   textos: TextosCatalogo;
@@ -82,11 +84,14 @@ function ItemDialog<T extends ItemCatalogo, E>({
   onSave: (v: CategoriaFormValues, extras?: E) => void;
   onToggle?: () => void;
 }) {
-  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item, temSubcategorias));
+  // Categoria nova que nasce com subcategoria é só o nome do grupo, como a que já tem subcategorias.
+  const grupoNovo = exigeSubcategoria && !item && !initialParentId;
+  const ehGrupo = temSubcategorias || grupoNovo;
+  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item, ehGrupo));
   // Reabrir o modal (ou trocar de item) recomeça dos valores do item.
   useEffect(() => {
-    if (open) setExtras(extensao?.estadoInicial(item, temSubcategorias));
-  }, [open, item?.id, initialParentId, temSubcategorias]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (open) setExtras(extensao?.estadoInicial(item, ehGrupo));
+  }, [open, item?.id, initialParentId, ehGrupo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const desativarGuide = useFirstAccessGuide(guiaDesativar?.chave ?? 'catalogo:sem-guia', {
     enabled: !!guiaDesativar && open && !!item && item.ativo,
@@ -111,7 +116,12 @@ function ItemDialog<T extends ItemCatalogo, E>({
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get('nome') ?? '').trim();
-    onSave(item ? { nome } : { nome, parent_id: initialParentId ?? null }, extras);
+    if (item) {
+      onSave({ nome }, extras);
+      return;
+    }
+    const subcategoria = String(fd.get('subcategoria') ?? '').trim();
+    onSave({ nome, parent_id: initialParentId ?? null, ...(grupoNovo ? { subcategories: [subcategoria] } : {}) }, extras);
   };
 
   const title = item
@@ -137,7 +147,23 @@ function ItemDialog<T extends ItemCatalogo, E>({
             />
           </div>
 
-          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras, temSubcategorias })}
+          {grupoNovo && (
+            <div>
+              <label style={labelStyle}><span>Primeira subcategoria</span><span style={{ color: C.danger }}>*</span></label>
+              <input
+                key={`subcategoria-${open}`}
+                name="subcategoria"
+                placeholder="Ex: Mercado"
+                required
+                style={fieldInputStyle}
+              />
+              <p style={{ margin: '6px 0 0', fontSize: 11.5, color: C.textMuted }}>
+                Os lançamentos ficam nas subcategorias: a {textos.singular} sozinha só reúne as subcategorias dela.
+              </p>
+            </div>
+          )}
+
+          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras, temSubcategorias: ehGrupo })}
 
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
@@ -321,10 +347,12 @@ interface CatalogoEmArvoreProps<T extends ItemCatalogo, E> {
   textos: TextosCatalogo;
   guias?: GuiasCatalogo;
   extensao?: ExtensaoCatalogo<T, E>;
+  /** Conta pessoal: a categoria nova nasce com a primeira subcategoria, porque o grupo sozinho não recebe lançamento. */
+  exigeSubcategoria?: boolean;
 }
 
 export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
-  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias, extensao,
+  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias, extensao, exigeSubcategoria = false,
 }: CatalogoEmArvoreProps<T, E>) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: T; parentId?: number }>({ open: false });
@@ -338,7 +366,8 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
   const guideSub = useFirstAccessGuide(guias?.sub.chave ?? 'catalogo:sem-guia', { enabled: !!guias });
 
   const itensQ = useQuery({ queryKey, queryFn: carregar });
-  const todos = itensQ.data ?? [];
+  // A categoria de sistema é do sistema: não aparece aqui nem se edita.
+  const todos = (itensQ.data ?? []).filter((c) => !c.is_system);
 
   // O backend devolve ativos e inativos; o filtro é aplicado aqui. Uma raiz
   // aparece se ela própria bate com o filtro, e suas subcategorias são
@@ -458,6 +487,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
         item={dialog.item}
         initialParentId={dialog.parentId}
         temSubcategorias={!!dialog.item && todos.some((c) => c.parent_id === dialog.item!.id && c.ativo)}
+        exigeSubcategoria={exigeSubcategoria}
         isSaving={saveMut.isPending}
         error={saveMut.error?.message}
         textos={textos}

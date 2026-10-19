@@ -443,12 +443,12 @@ export function BudgetPanel({ month, year, toolbarStart }: BudgetPanelProps) {
                   expanded={expanded}
                   onToggleExpand={() => toggleExpand(node.root.categoryId)}
                   subCount={node.children.length}
-                  // Categoria com subcategoria ativa nunca tem meta própria —
-                  // ela vira só o agregado, e a meta migra para cada sub.
-                  onEditTarget={!node.root.hasActiveSubcategories
+                  // O grupo nunca tem meta própria — ele vira só o agregado, e a
+                  // meta fica em cada sub.
+                  onEditTarget={!node.root.isGroup
                     ? () => setEditingCategoryId(node.root.categoryId)
                     : undefined}
-                  onRemoveTarget={!node.root.hasActiveSubcategories
+                  onRemoveTarget={!node.root.isGroup
                     ? () => removeMutation.mutate(node.root.categoryId)
                     : undefined}
                   isRemoving={removeMutation.isPending}

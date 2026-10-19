@@ -10,6 +10,10 @@ export interface Categoria {
   tipo?: 'pessoal' | 'empresa' | null;
   conta_id?: number | null;
   ativo: boolean;
+  /** Categoria que o sistema usa nos lançamentos que gera (ex.: encargos da fatura): fora da escolha e da edição. */
+  is_system?: boolean;
+  /** Quem recebe lançamento é decidido pelo servidor (conta pessoal: só subcategoria). Ausente vale "recebe". */
+  selectable?: boolean;
   data_criacao: string;
   subcategorias?: Categoria[];
 }
@@ -17,7 +21,12 @@ export interface Categoria {
 export interface CategoriaFormValues {
   nome: string;
   parent_id?: number | null;
+  /** Categoria nova em conta pessoal: as subcategorias que nascem junto, na mesma operação. */
+  subcategories?: string[];
 }
+
+/** O que o servidor devolve ao criar: o item e, numa categoria nova, as subcategorias criadas junto. */
+export type ComSubcategoriasCriadas<T> = T & { subcategories?: T[] };
 
 /** O mínimo que um item de catálogo em árvore precisa para virar opção de seleção. */
 export interface OpcaoCatalogo {
@@ -25,6 +34,10 @@ export interface OpcaoCatalogo {
   nome: string;
   parent_id?: number | null;
   ativo: boolean;
+  /** Ver `Categoria.selectable`. */
+  selectable?: boolean;
+  /** Ver `Categoria.is_system`. */
+  is_system?: boolean;
 }
 
 /** Receita fixa de quem está logado, nesta conta: valor e dia do recebimento. Ligar grava o ano como previsto. */
@@ -43,6 +56,8 @@ export interface ClassificacaoReceita {
   /** Preenchido nas criadas pelo usuário (exclusivas da conta). */
   conta_id: number | null;
   ativo: boolean;
+  /** Ver `Categoria.selectable`. */
+  selectable?: boolean;
   data_criacao: string;
   /** Receita fixa de quem consultou, nesta conta; null quando não é fixa. */
   fixa: ClassificacaoFixa | null;

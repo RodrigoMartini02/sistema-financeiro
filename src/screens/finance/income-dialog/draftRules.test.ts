@@ -192,3 +192,12 @@ test('produto sem controle de estoque não fica insuficiente nem mostra o estoqu
   assert.equal(validateIncomeDraft(venda, semControleContext).product, undefined);
   assert.deepEqual(summarizeIncomeDraft(venda, semControleContext)?.badges ?? [], []);
 });
+
+test('a categoria é obrigatória: sem ela a receita não vai para a API', () => {
+  const noCategory = validateIncomeDraft(draft({ categoryId: null }), context);
+  assert.deepEqual(noCategory, { category: true });
+  assert.equal(incomeErrorMessage(noCategory), 'Preencha categoria.');
+
+  const empty = validateIncomeDraft(draft({ description: ' ', categoryId: null, amountCents: null }), context);
+  assert.equal(incomeErrorMessage(empty), 'Preencha descrição, categoria e valor.');
+});
