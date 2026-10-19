@@ -101,7 +101,7 @@ export function isInstallmentInScope(row: SeriesOccurrence, edited: EditedOccurr
 /** Campos da despesa que passam para as outras linhas da série quando mudam. */
 export interface SeriesFields {
   description: string;
-  categoryId: number | null;
+  categoryId: number;
   paymentMethod: string | null;
   cardId: number | null;
   amount: number;
@@ -141,7 +141,7 @@ export function changedSeriesFields(current: SeriesFields, next: SeriesFields): 
 export interface SeriesRowUpdate {
   id: number;
   description?: string;
-  categoryId?: number | null;
+  categoryId?: number;
   paymentMethod?: string | null;
   cardId?: number | null;
   amount?: number;

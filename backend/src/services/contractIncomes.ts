@@ -118,6 +118,10 @@ export async function insertScheduledIncomes(
     if (chargeId === undefined) {
       throw new Error(`Contract ${context.contractId} has no ${item.chargeKind} charge`);
     }
+    const classificationId = classificationIds[item.chargeKind];
+    if (classificationId === undefined) {
+      throw new Error(`Contract ${context.contractId} has no ${item.chargeKind} income classification`);
+    }
     const amounts = incomeAmounts(item.amount, context.rates);
     const { mes, ano } = getMonthYearFromIsoDate(item.dueDate);
     return {
@@ -133,7 +137,7 @@ export async function insertScheduledIncomes(
       clientId: context.clientId,
       chargeId,
       competence: item.competence,
-      classificationId: classificationIds[item.chargeKind] ?? null,
+      classificationId,
       representativeId: context.representativeId,
       grossAmount: amounts.withholdings ? toDecimal(amounts.gross) : null,
       withholdings: amounts.withholdings,

@@ -27,7 +27,7 @@ export const expenses = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     accountId: integer('conta_id').references(() => accounts.id),
-    categoryId: integer('categoria_id').references(() => categories.id),
+    categoryId: integer('categoria_id').notNull().references(() => categories.id),
     cardId: integer('cartao_id').references(() => cards.id),
     description: varchar('descricao', { length: 255 }).notNull(),
     dueDate: date('data_vencimento').notNull(),
