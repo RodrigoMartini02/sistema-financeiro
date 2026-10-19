@@ -54,11 +54,13 @@ export const expenses = pgTable(
     sourceIncomeId: integer('receita_origem_id').references(() => incomes.id, { onDelete: 'set null' }),
     // Pagamento da fatura do cartão (cardInvoiceService). pagamento_fatura_id: o
     // pagamento que pagou ou renegociou a linha. origem: o que gerou a linha
-    // (restante, parcela ou encargos). valor_juros_fatura: a parte do valor que
-    // é juros ou encargos, só nas linhas geradas.
+    // (restante, parcela ou encargos).
     invoicePaymentId: integer('pagamento_fatura_id').references(() => invoicePayments.id, { onDelete: 'set null' }),
     invoiceOriginPaymentId: integer('origem_pagamento_fatura_id').references(() => invoicePayments.id, { onDelete: 'set null' }),
-    invoiceInterest: decimal('valor_juros_fatura', { precision: 10, scale: 2 }),
+    // valor_juros: a parte do valor da linha que é juros. Nas linhas geradas pela
+    // fatura (restante, parcela ou encargos) e nas parcelas de um parcelado com valor
+    // à vista informado (juros embutido, dividido entre as parcelas).
+    interest: decimal('valor_juros', { precision: 10, scale: 2 }),
     numeroNf: varchar('numero_nf', { length: 50 }),
     dataEmissaoNf: date('data_emissao_nf'),
     createdAt: timestamp('data_criacao').defaultNow(),

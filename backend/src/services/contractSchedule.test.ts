@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  addMonths, buildContractSchedule, dateInMonth, lastMonthlyCompetence, scheduledIncomeDescription, splitInstallments,
+  addMonths, buildContractSchedule, dateInMonth, lastMonthlyCompetence, scheduledIncomeDescription,
   type ContractScheduleTerms,
 } from './contractSchedule';
 
@@ -52,10 +52,6 @@ test('complemento do sem prazo: gera só depois do último mês existente', () =
 });
 
 test('implantação de R$ 1.000,00 em 3: 333,33 / 333,33 / 333,34, a primeira na data informada', () => {
-  assert.deepEqual(splitInstallments(1000, 3), [333.33, 333.33, 333.34]);
-  assert.deepEqual(splitInstallments(1200, 1), [1200]);
-  assert.deepEqual(splitInstallments(0.03, 3), [0.01, 0.01, 0.01]);
-
   const schedule = buildContractSchedule(terms({
     monthlyFee: null,
     setupFee: { amount: 1000, installments: 3, firstDate: '2027-01-15' },

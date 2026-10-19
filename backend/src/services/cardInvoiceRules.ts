@@ -7,8 +7,8 @@ import { addMonthsClamped } from '../utils/date';
 import { MAX_AMOUNT } from '../utils/requestInput';
 import { moveDueDateToDay } from './cardDueDate';
 import type { InvoicePaymentInput } from './cardInvoiceInput';
-import { splitInstallments } from './contractSchedule';
 import type { PaymentMethod } from './expenseInput';
+import { splitInstallments, splitInterestWithinInstallments } from './installmentSplit';
 
 /** Só a despesa nesta forma, com cartão, entra na fatura. */
 export const INVOICE_EXPENSE_METHOD: PaymentMethod = 'credito';
@@ -89,8 +89,8 @@ export function generatedDescription(kind: GeneratedRowKind, invoiceMonthStart: 
 export interface InvoiceItem {
   expenseId: number;
   amount: number;
-  /** Juros contidos no valor (restante ou parcela de uma renegociação anterior); nulo nas compras. */
-  invoiceInterest: number | null;
+  /** Juros contidos no valor (restante ou parcela de uma renegociação anterior, ou juros embutido de uma compra parcelada); nulo quando não há. */
+  interest: number | null;
 }
 
 export interface InvoiceCard {
@@ -203,7 +203,7 @@ export function proportionalShares(items: InvoiceItem[], paidCents: number): Map
 export function carriedInterestCents(items: InvoiceItem[], paidCentsById: Map<number, number>): number {
   let carried = 0;
   for (const item of items) {
-    const interestCents = toCents(item.invoiceInterest ?? 0);
+    const interestCents = toCents(item.interest ?? 0);
     const amountCents = toCents(item.amount);
     if (interestCents <= 0 || amountCents <= 0) continue;
     const paidCents = paidCentsById.get(item.expenseId) ?? 0;
@@ -211,19 +211,6 @@ export function carriedInterestCents(items: InvoiceItem[], paidCentsById: Map<nu
     carried += interestCents - paidInterest;
   }
   return carried;
-}
-
-/** Juros por parcela: partes iguais, com o resto na última, sem passar do valor de cada parcela. */
-function splitInterestWithinInstallments(interestCents: number, amountsInCents: number[]): number[] {
-  const interests = splitInstallments(fromCents(interestCents), amountsInCents.length).map(toCents);
-  let excess = 0;
-  for (let index = interests.length - 1; index >= 0; index -= 1) {
-    const wanted = interests[index]! + excess;
-    const fitted = Math.min(wanted, amountsInCents[index]!);
-    interests[index] = fitted;
-    excess = wanted - fitted;
-  }
-  return interests;
 }
 
 /**

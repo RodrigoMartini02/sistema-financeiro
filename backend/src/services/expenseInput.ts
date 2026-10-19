@@ -51,7 +51,12 @@ export interface ExpenseFieldsInput {
 
 export type ExpenseScheduleInput =
   | ({ billingType: 'single' | 'monthly'; amount: number; dueDate: string } & PaymentInput)
-  | { billingType: 'installments'; installments: InstallmentInput[] };
+  | {
+    billingType: 'installments';
+    installments: InstallmentInput[];
+    /** Valor à vista (sem juros): o que a soma das parcelas passa dele é o juros embutido. Nulo: não informado. */
+    cashPrice: number | null;
+  };
 
 export type CreateExpenseInput = ExpenseFieldsInput & ExpenseScheduleInput & { accountId: number | null };
 
@@ -102,6 +107,11 @@ function readPayment(record: Record<string, unknown>): PaymentInput {
   return { paid, paymentDate, amountPaid };
 }
 
+function readOptionalCashPrice(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  return readAmount(value, 'Valor à vista inválido');
+}
+
 function readPaymentMethod(value: unknown): PaymentMethod {
   if (!PAYMENT_METHODS.includes(value as PaymentMethod)) {
     throw new RequestInputError('Forma de pagamento inválida');
@@ -150,7 +160,7 @@ export function readCreateExpenseInput(body: unknown): CreateExpenseInput {
         ...readPayment(installment),
       };
     });
-    return { ...fields, accountId, billingType, installments };
+    return { ...fields, accountId, billingType, installments, cashPrice: readOptionalCashPrice(record['cashPrice']) };
   }
 
   if (billingType !== 'single' && billingType !== 'monthly') {

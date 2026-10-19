@@ -35,7 +35,7 @@ interface RawExpense {
   anexos?: Attachment[] | null;
   pagamento_fatura_id?: number | null;
   origem_pagamento_fatura_id?: number | null;
-  valor_juros_fatura?: string | null;
+  valor_juros?: string | null;
   pagamento_fatura_forma?: string | null;
   pagamento_fatura_parcelas?: number | null;
   pagamento_fatura_mes?: number | null;
@@ -132,7 +132,7 @@ function expenseFromApi(r: RawExpense): Expense {
     invoicePaymentInstallments: r.pagamento_fatura_parcelas ?? null,
     invoiceMonth: invoiceMonthOf(r.pagamento_fatura_mes, r.pagamento_fatura_ano),
     invoiceOriginPaymentId: r.origem_pagamento_fatura_id ?? null,
-    invoiceInterest: r.valor_juros_fatura != null ? asNumber(r.valor_juros_fatura) : null,
+    interest: r.valor_juros != null ? asNumber(r.valor_juros) : null,
   };
 }
 

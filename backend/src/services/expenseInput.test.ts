@@ -66,6 +66,35 @@ test('lê o parcelado com a lista de parcelas', () => {
   assert.equal(input.installments[2]?.amount, 33.34);
 });
 
+test('parcelado: valor à vista é opcional e, se vier, precisa ser um valor válido', () => {
+  const body = (overrides: Record<string, unknown> = {}) => singleBody({
+    billingType: 'installments',
+    amount: undefined,
+    dueDate: undefined,
+    paid: undefined,
+    installments: [installment(), installment({ dueDate: '2026-11-10' })],
+    ...overrides,
+  });
+  const without = readCreateExpenseInput(body());
+  assert.ok(without.billingType === 'installments');
+  assert.equal(without.cashPrice, null);
+  assert.equal((readCreateExpenseInput(body({ cashPrice: null })) as { cashPrice: number | null }).cashPrice, null);
+  assert.equal((readCreateExpenseInput(body({ cashPrice: 100.5 })) as { cashPrice: number | null }).cashPrice, 100.5);
+
+  const message = 'Valor à vista inválido';
+  assertRejects(() => readCreateExpenseInput(body({ cashPrice: 0 })), message);
+  assertRejects(() => readCreateExpenseInput(body({ cashPrice: -10 })), message);
+  assertRejects(() => readCreateExpenseInput(body({ cashPrice: '100' })), message);
+  assertRejects(() => readCreateExpenseInput(body({ cashPrice: Number.NaN })), message);
+  assertRejects(() => readCreateExpenseInput(body({ cashPrice: 1e12 })), 'Valor acima do limite permitido');
+});
+
+test('despesa única ignora o valor à vista', () => {
+  const input = readCreateExpenseInput(singleBody({ cashPrice: 10 }));
+  assert.ok(input.billingType === 'single');
+  assert.equal('cashPrice' in input, false);
+});
+
 test('recorrente só no crédito com cartão', () => {
   const message = 'Recorrente é só no cartão de crédito: escolha o cartão';
   assertRejects(() => readCreateExpenseInput(singleBody({ billingType: 'monthly' })), message);

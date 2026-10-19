@@ -79,7 +79,6 @@ export function toExpenseDraft(
     installmentAdjustments: {},
     installmentPayments: draft.installmentPayments ?? {},
     overdueDismissed: draft.overdueDismissed ?? false,
-    knowsCashPrice: false,
     cashPriceCents: null,
     purchaseDate: isoToBrDate(purchaseIso),
     dueDate: isoToBrDate(draft.dueDate),

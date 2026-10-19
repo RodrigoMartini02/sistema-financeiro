@@ -30,7 +30,7 @@ export interface ExpenseDraft {
   categoryId: number | null;
   /** No parcelado é o valor de cada parcela (o total, com `amountIsTotal`); no recorrente, o valor de cada mês. */
   amountCents: number | null;
-  /** "Sei o valor total" no parcelado: o valor digitado é o total, dividido nas parcelas. */
+  /** Parcelado, chave "Total": o valor digitado é o total, dividido nas parcelas (sem ela, é o de cada parcela). */
   amountIsTotal: boolean;
   billingType: ExpenseBillingType;
   installmentCount: number;
@@ -40,7 +40,7 @@ export interface ExpenseDraft {
   installmentPayments: Record<number, InstallmentPaymentDraft>;
   /** "Deixar em aberto" no aviso de parcelas vencidas. */
   overdueDismissed: boolean;
-  knowsCashPrice: boolean;
+  /** Parcelado: valor à vista (sem juros), opcional. O que a soma das parcelas passa dele é o juros embutido. */
   cashPriceCents: number | null;
   purchaseDate: string;
   /** Vazio: o vencimento é calculado. */
@@ -77,7 +77,6 @@ export function createDraft(carryOver: DraftCarryOver): ExpenseDraft {
     installmentAdjustments: {},
     installmentPayments: {},
     overdueDismissed: false,
-    knowsCashPrice: false,
     cashPriceCents: null,
     dueDate: '',
     paid: false,

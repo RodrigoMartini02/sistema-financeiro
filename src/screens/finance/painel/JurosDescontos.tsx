@@ -22,7 +22,7 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
   const saldo = periodo.descontos - periodo.juros;
   const semNadaNoPeriodo = periodo.juros === 0 && periodo.descontos === 0;
   const semNadaNoAno = doAno.juros === 0 && doAno.descontos === 0;
-  // Juros do restante e das parcelas da fatura do cartão ainda não pagos: não seguem o período.
+  // Juros guardados nas linhas ainda não pagas (restante e parcelas da fatura do cartão, parcelas com juros embutido): não seguem o período.
   const jurosAVencer = valores.upcomingInterest ?? 0;
   // Período começando em 1º de janeiro: o período já é o acumulado do ano.
   const periodoEhOAno = serie.pontos[0]?.inicio === `${ano}-01-01`;

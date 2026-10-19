@@ -3,10 +3,7 @@ import type { ExpenseBillingType } from '../../../types/finance';
 import { C } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import type { DraftPatch, ExpenseDraft } from './draftState';
-import { MoneyCell } from '../entry-dialog/MoneyCell';
-import {
-  SEPARATOR, checkboxStyle, chevronStyle, ellipsisStyle, linkButtonStyle, selectStyle,
-} from '../entry-dialog/fieldStyles';
+import { SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';
 
 const BILLING_OPTIONS: ReadonlyArray<{ type: ExpenseBillingType; label: string }> = [
   { type: 'single', label: 'Não repete' },
@@ -39,7 +36,10 @@ interface BillingPopoverProps {
   onCancelInstallmentCount: () => void;
 }
 
-/** Cobrança: não repete, parcelado (nº de parcelas, valor total e preço à vista) ou recorrente (só no crédito). */
+/**
+ * Cobrança: não repete, parcelado (nº de parcelas) ou recorrente (só no crédito). O valor
+ * do parcelado (cada parcela ou o total) e o valor à vista ficam na linha, em InstallmentValueFields.
+ */
 export function BillingPopover({
   draft, recurringAvailable, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount,
 }: BillingPopoverProps) {
@@ -152,33 +152,6 @@ export function BillingPopover({
               </div>
             )}
 
-            {/* Sem a caixa, o valor da linha é o de cada parcela; com ela, o total, dividido nas parcelas. */}
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={draft.amountIsTotal}
-              onClick={() => onUpdate((current) => ({ amountIsTotal: !current.amountIsTotal }))}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: C.text, cursor: 'pointer' }}
-            >
-              <span aria-hidden="true" style={checkboxStyle(draft.amountIsTotal)}>{draft.amountIsTotal ? '✓' : ''}</span>
-              Sei o valor total
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onUpdate((current) => ({ knowsCashPrice: !current.knowsCashPrice, cashPriceCents: null }))}
-              style={{ ...linkButtonStyle, alignSelf: 'flex-start' }}
-            >
-              {draft.knowsCashPrice ? 'Remover preço à vista' : 'Sei o preço à vista'}
-            </button>
-            {draft.knowsCashPrice && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>Preço à vista</span>
-                <div style={{ width: 110 }}>
-                  <MoneyCell label="Preço à vista" valueCents={draft.cashPriceCents} onChange={(cents) => onUpdate({ cashPriceCents: cents })} />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
