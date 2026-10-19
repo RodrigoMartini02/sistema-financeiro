@@ -59,3 +59,32 @@ export function countedExpenseSql(alias: string, todayParam: string): string {
       ELSE ${alias}.data_vencimento END) >= ${todayParam}::date
   )`;
 }
+
+/**
+ * Dívida em aberto do cartão, a mesma que a fatura lista e que ocupa o limite:
+ * não paga (pago em branco conta como em aberto, como na mudança de vencimento
+ * em routes/cards.ts) e ativa (status em branco é ativa; a coluna só é
+ * preenchida ao cancelar). `alias` é o apelido da tabela de despesas.
+ */
+export function openCardDebtSql(alias: string): string {
+  return `NOT COALESCE(${alias}.pago, false) AND COALESCE(${alias}.status, 'ativa') = 'ativa'`;
+}
+
+/** A mesma regra de openCardDebtSql, como condição das consultas Drizzle. */
+export function openCardDebtCondition(): SQL {
+  return sql`NOT COALESCE(${expenses.paid}, false) AND COALESCE(${expenses.status}, 'ativa') = 'ativa'`;
+}
+
+/**
+ * Que despesa do cartão ocupa o limite, pelo tipo cadastrado do cartão: 'credito'
+ * conta o crédito e o lançamento antigo sem forma de pagamento; 'ambos' mistura
+ * débito e crédito no mesmo cartao_id, então só o crédito conta; sem tipo, tudo
+ * (compatibilidade com lançamentos antigos). `expenseAlias` e `cardAlias` são os
+ * apelidos das tabelas de despesas e de cartões.
+ */
+export function cardLimitPaymentMethodSql(expenseAlias: string, cardAlias: string): string {
+  const method = `${expenseAlias}.forma_pagamento`;
+  return `(${cardAlias}.tipo IS NULL
+    OR (${cardAlias}.tipo = '${INVOICE_EXPENSE_METHOD}' AND (${method} IS NULL OR ${method} = '${INVOICE_EXPENSE_METHOD}'))
+    OR (${cardAlias}.tipo = 'ambos' AND ${method} = '${INVOICE_EXPENSE_METHOD}'))`;
+}
