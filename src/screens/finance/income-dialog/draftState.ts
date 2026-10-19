@@ -69,6 +69,7 @@ export function incomeDraftFromIncome(income: Income): IncomeDraft {
 /** Campos com erro, por receita. */
 export interface IncomeDraftErrors {
   description?: true;
+  category?: true;
   amount?: true;
   receiptDate?: true;
   client?: true;

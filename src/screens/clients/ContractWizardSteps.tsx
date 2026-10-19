@@ -409,9 +409,7 @@ export function OptionsStep({ draft, onChange, data, files, onFilesChange, showA
   onFilesChange: (files: File[]) => void;
   showAttachments: boolean;
 }) {
-  // Raiz com subcategorias é só o nome do grupo: não se escolhe.
-  const groups = new Set(data.classifications.filter((item) => item.ativo && item.parent_id !== null).map((item) => item.parent_id));
-  const classificationOptions = opcoesDeClassificacao(data.classifications).filter((option) => !groups.has(option.id));
+  const classificationOptions = opcoesDeClassificacao(data.classifications);
   const enabled: Record<ChargeKind, boolean> = {
     mensalidade: draft.monthly.enabled,
     implantacao: draft.setup.enabled,

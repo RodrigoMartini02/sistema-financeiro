@@ -1,5 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
-import type { ClassificacaoFixa, ClassificacaoReceita, ClassificacaoReceitaFormValues } from '../types/config';
+import type {
+  ClassificacaoFixa, ClassificacaoReceita, ClassificacaoReceitaFormValues, ComSubcategoriasCriadas,
+} from '../types/config';
 
 // Toda chamada leva a conta: o catálogo é o da conta (padrão do tipo dela +
 // criadas nela) e o servidor valida que ela pertence a quem pede.
@@ -16,18 +18,19 @@ export async function saveClassificacaoReceita(
   values: ClassificacaoReceitaFormValues,
   id?: number,
   accountId?: number | null,
-): Promise<ClassificacaoReceita> {
+): Promise<ComSubcategoriasCriadas<ClassificacaoReceita>> {
   if (id) {
     return apiRequest<ClassificacaoReceita>(`/income-classifications/${id}${contaQuery(accountId)}`, {
       method: 'PUT',
       body: JSON.stringify({ nome: values.nome.trim() }),
     });
   }
-  return apiRequest<ClassificacaoReceita>('/income-classifications', {
+  return apiRequest<ComSubcategoriasCriadas<ClassificacaoReceita>>('/income-classifications', {
     method: 'POST',
     body: JSON.stringify({
       nome: values.nome.trim(),
       parent_id: values.parent_id ?? null,
+      subcategories: values.subcategories?.map((name) => name.trim()),
       conta_id: accountId ?? getActiveAccountId(),
     }),
   });

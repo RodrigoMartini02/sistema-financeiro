@@ -41,6 +41,9 @@ export const categories = pgTable(
     favoriteCardId: integer('cartao_favorito_id'),
     parentId: integer('parent_id'),
     ativo: boolean('ativo').default(true),
+    // Categoria que o sistema usa nos lancamentos que gera (ex.: encargos da
+    // fatura do cartao): nunca aparece para escolha nem pode ser editada.
+    isSystem: boolean('sistema').notNull().default(false),
     createdAt: timestamp('data_criacao').defaultNow(),
     updatedAt: timestamp('data_atualizacao').defaultNow(),
   },

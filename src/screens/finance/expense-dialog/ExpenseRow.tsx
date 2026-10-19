@@ -5,7 +5,9 @@ import type { CardLimit } from '../../../services/cardLimitsService';
 import type { ExpenseSuggestionMatch } from '../../../services/expenseSuggestionsService';
 import { CategoryFloatingSelect } from '../../../ui/CategoryFloatingSelect';
 import { C, formatMoney } from '../../../ui/dialogFormTokens';
-import { suggestCategoryForDescription, type CategoryHistoryEntry } from '../../../utils/categorySuggestions';
+import {
+  suggestCategoryForDescription, type CategoryHistoryEntry, type NewCategoryRequest,
+} from '../../../utils/categorySuggestions';
 import { isoToBrDate } from '../../../utils/date';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
@@ -41,7 +43,7 @@ export interface RowResources {
   /** Calendário: a data da compra da linha de entrada vem do dia clicado. */
   lockPurchaseDate: boolean;
   /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
-  createCategory?: (name: string) => Promise<number>;
+  createCategory?: (request: NewCategoryRequest) => Promise<number>;
 }
 
 export function amountLabel(draft: ExpenseDraft): string {
@@ -138,7 +140,8 @@ export function ExpenseRow({
   const pickMatch = (match: ExpenseSuggestionMatch) => onUpdate((current) => {
     const patch: Partial<ExpenseDraft> = { description: match.description };
     if (current.amountCents === null && match.amount > 0) patch.amountCents = toCents(match.amount);
-    if (current.categoryId === null && match.categoryId !== null && categories.some((category) => category.id === match.categoryId)) {
+    if (current.categoryId === null && match.categoryId !== null
+      && categories.some((category) => category.id === match.categoryId && category.selectable !== false)) {
       patch.categoryId = match.categoryId;
     }
     // A forma e o cartão do histórico só entram se a pessoa ainda não escolheu a forma.
@@ -189,6 +192,7 @@ export function ExpenseRow({
             value={draft.categoryId ?? undefined}
             onChange={(id) => onUpdate({ categoryId: id ?? null })}
             onCreate={resources.createCategory}
+            groupedCreation={!resources.isCompany}
             recentIds={resources.recentCategoryIds}
             invalid={errors?.category}
           />

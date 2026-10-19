@@ -1,5 +1,7 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
-import type { Categoria, CategoriaFormValues, Cartao, CartaoFormValues, Conta, Enquadramento } from '../types/config';
+import type {
+  Categoria, CategoriaFormValues, Cartao, CartaoFormValues, ComSubcategoriasCriadas, Conta, Enquadramento,
+} from '../types/config';
 import type { AccountPartnerSaveValue } from './partnersService';
 
 export async function fetchCategorias(accountId?: number | null): Promise<Categoria[]> {
@@ -8,11 +10,16 @@ export async function fetchCategorias(accountId?: number | null): Promise<Catego
   return apiRequest<Categoria[]>(`/categorias${q}`);
 }
 
-export async function saveCategoria(values: CategoriaFormValues, id?: number, accountId?: number | null): Promise<Categoria> {
+export async function saveCategoria(
+  values: CategoriaFormValues,
+  id?: number,
+  accountId?: number | null,
+): Promise<ComSubcategoriasCriadas<Categoria>> {
   const body: Record<string, unknown> = { nome: values.nome.trim() };
   if (values.parent_id !== undefined) body.parent_id = values.parent_id;
+  if (!id && values.subcategories) body.subcategories = values.subcategories.map((name) => name.trim());
   if (!id) body.conta_id = accountId ?? getActiveAccountId();
-  return apiRequest<Categoria>(id ? `/categorias/${id}` : '/categorias', {
+  return apiRequest<ComSubcategoriasCriadas<Categoria>>(id ? `/categorias/${id}` : '/categorias', {
     method: id ? 'PUT' : 'POST',
     body: JSON.stringify(body),
   });

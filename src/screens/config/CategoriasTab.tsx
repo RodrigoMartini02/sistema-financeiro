@@ -35,6 +35,7 @@ export function CategoriasTab() {
       destaque={DESTAQUE_DESPESA}
       textos={TEXTOS}
       guias={GUIAS}
+      exigeSubcategoria={localStorage.getItem('contaAtivaTipo') !== 'empresa'}
     />
   );
 }

@@ -29,11 +29,13 @@ import type { InvoicePaymentInput, InvoicePaymentInputMethod } from './cardInvoi
 import {
   INVOICE_EXPENSE_METHOD,
   computeInvoicePayment,
+  invoiceCatalogOf,
   invoiceDueDate,
   invoiceMonthEnd,
   invoicePaymentRefusal,
   undoRefusal,
   type GeneratedRowKind,
+  type InvoiceCatalog,
   type InvoiceItem,
   type PlannedGeneratedRow,
 } from './cardInvoiceRules';
@@ -45,7 +47,10 @@ type Reader = Pick<typeof db, 'select'>;
 const CARD_NOT_FOUND = 'Cartão não encontrado';
 const PAYMENT_NOT_FOUND = 'Pagamento não encontrado';
 
-/** Categorias criadas na primeira vez que o pagamento da fatura precisa delas. */
+/**
+ * Categorias de sistema criadas na primeira vez que o pagamento da fatura precisa
+ * delas. Ficam fora da escolha do usuário: só as linhas geradas pelo pagamento as usam.
+ */
 const INVOICE_CATEGORIES = {
   renegotiation: { name: 'Renegociação de fatura', color: '#f97316' },
   charges: { name: 'Encargos de cartão', color: '#ef4444' },
@@ -271,8 +276,8 @@ export async function getCardInvoice(
 }
 
 /**
- * Categoria automática no catálogo do dono do cartão, no tipo da conta do
- * cartão. SQL cru pelo ON CONFLICT no índice único funcional (usuario_id,
+ * Categoria de sistema no catálogo do titular da conta do cartão (invoiceCatalogOf),
+ * no tipo dessa conta. SQL cru pelo ON CONFLICT no índice único funcional (usuario_id,
  * LOWER(nome), tipo), que o Drizzle não expressa — o mesmo de
  * ensureDefaultCategories.
  */
@@ -283,8 +288,8 @@ async function findOrCreateInvoiceCategory(
   category: { name: string; color: string },
 ): Promise<number> {
   await transaction.execute(sql`
-    INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo)
-    VALUES (${ownerId}, ${category.name}, ${category.color}, NULL, NULL, ${accountType})
+    INSERT INTO categorias (usuario_id, nome, cor, icone, parent_id, tipo, sistema)
+    VALUES (${ownerId}, ${category.name}, ${category.color}, NULL, NULL, ${accountType}, true)
     ON CONFLICT (usuario_id, LOWER(nome), tipo) WHERE conta_id IS NULL DO NOTHING
   `);
   const [row] = await transaction.select({ id: categories.id }).from(categories).where(and(
@@ -299,10 +304,14 @@ async function findOrCreateInvoiceCategory(
   return row.id;
 }
 
-async function cardAccountType(transaction: Transaction, card: Card): Promise<string> {
-  if (card.accountId === null) return 'pessoal';
-  const [account] = await transaction.select({ type: accounts.type }).from(accounts).where(eq(accounts.id, card.accountId)).limit(1);
-  return account?.type ?? 'pessoal';
+async function cardInvoiceCatalog(transaction: Transaction, card: Card): Promise<InvoiceCatalog> {
+  if (card.accountId === null) return invoiceCatalogOf(card, undefined);
+  const [account] = await transaction
+    .select({ type: accounts.type, userId: accounts.userId })
+    .from(accounts)
+    .where(eq(accounts.id, card.accountId))
+    .limit(1);
+  return invoiceCatalogOf(card, account);
 }
 
 function generatedRow(
@@ -421,11 +430,11 @@ export async function payCardInvoice(requesterId: number, input: InvoicePaymentI
     }
 
     if (plan.generated.length > 0) {
-      const accountType = await cardAccountType(transaction, card);
+      const { accountType, ownerId } = await cardInvoiceCatalog(transaction, card);
       const categoryByKind = new Map<GeneratedRowKind, number>();
       for (const kind of new Set(plan.generated.map((row) => row.kind))) {
         const category = kind === 'charges' ? INVOICE_CATEGORIES.charges : INVOICE_CATEGORIES.renegotiation;
-        categoryByKind.set(kind, await findOrCreateInvoiceCategory(transaction, card.userId, accountType, category));
+        categoryByKind.set(kind, await findOrCreateInvoiceCategory(transaction, ownerId, accountType, category));
       }
       await insertGeneratedRows(transaction, plan.generated.map((row) => (
         generatedRow(card, row, categoryByKind.get(row.kind)!, paymentId, input.paymentDate)

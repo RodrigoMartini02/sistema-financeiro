@@ -532,7 +532,7 @@ export async function createFinancialAssistantDraft(input: {
     ?? input.context?.amount
     ?? null;
   const category = description
-    ? await classifyCategory(description, input.userId, [], '')
+    ? await classifyCategory(description, input.userId)
     : input.context?.category ?? null;
   const paymentMethod = inferPaymentMethod(combinedText, financial, pix, input.context);
   const paid = inferPaid(combinedText, kind, financial, input.context);

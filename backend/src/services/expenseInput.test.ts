@@ -82,8 +82,15 @@ test('recusa campos obrigatórios ausentes ou inválidos', () => {
   assertRejects(() => readCreateExpenseInput(singleBody({ amount: 0 })), 'Informe o valor');
   assertRejects(() => readCreateExpenseInput(singleBody({ purchaseDate: '2026-02-30' })), 'Data da compra inválida');
   assertRejects(() => readCreateExpenseInput(singleBody({ dueDate: '05/10/2026' })), 'Data de vencimento inválida');
-  assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: 'mercado' })), 'Categoria inválida');
+  assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: 'mercado' })), 'Escolha a categoria');
   assertRejects(() => readCreateExpenseInput('texto'), 'Pedido inválido');
+});
+
+test('a categoria é obrigatória na criação e na edição', () => {
+  assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: null })), 'Escolha a categoria');
+  assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: undefined })), 'Escolha a categoria');
+  assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: 0 })), 'Escolha a categoria');
+  assertRejects(() => readUpdateExpenseInput(singleBody({ categoryId: null })), 'Escolha a categoria');
 });
 
 test('recusa valor acima do limite da coluna', () => {

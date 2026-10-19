@@ -1,4 +1,4 @@
-import type { Categoria, OpcaoCatalogo } from '../types/config';
+import type { Categoria, CategoriaFormValues, OpcaoCatalogo } from '../types/config';
 import { groupHeaderState } from './filterGroupSelection';
 
 export interface CategorySuggestionResult {
@@ -7,19 +7,39 @@ export interface CategorySuggestionResult {
   reason: 'historico' | 'palavra-chave';
 }
 
+// Nomes das subcategorias do catálogo padrão da conta pessoal e das categorias da
+// conta empresa, sem acento nem maiúsculas. A primeira regra que casar vence.
 const KEYWORD_RULES: Array<{ keywords: string[]; categories: string[] }> = [
-  { keywords: ['mercado', 'supermercado', 'ifood', 'restaurante', 'padaria', 'lanche', 'almoco', 'jantar'], categories: ['alimentacao'] },
-  { keywords: ['aluguel', 'condominio', 'energia', 'luz', 'agua', 'internet', 'iptu'], categories: ['moradia', 'operacional'] },
-  { keywords: ['uber', '99', 'combustivel', 'gasolina', 'estacionamento', 'onibus', 'transporte'], categories: ['transporte'] },
-  { keywords: ['farmacia', 'medico', 'consulta', 'exame', 'plano de saude'], categories: ['saude'] },
-  { keywords: ['curso', 'faculdade', 'escola', 'livro', 'treinamento'], categories: ['educacao'] },
-  { keywords: ['netflix', 'spotify', 'prime', 'assinatura', 'mensalidade'], categories: ['assinaturas', 'lazer'] },
-  { keywords: ['imposto', 'taxa', 'das', 'simples', 'fgts', 'inss'], categories: ['impostos e taxas'] },
+  { keywords: ['ifood', 'rappi', 'delivery'], categories: ['delivery'] },
+  { keywords: ['restaurante', 'pizza', 'almoco', 'jantar'], categories: ['restaurantes e bares'] },
+  { keywords: ['padaria', 'lanche'], categories: ['padaria e lanches'] },
+  { keywords: ['mercado', 'supermercado'], categories: ['mercado'] },
+  { keywords: ['aluguel'], categories: ['aluguel'] },
+  { keywords: ['condominio'], categories: ['condominio'] },
+  { keywords: ['energia', 'luz'], categories: ['energia'] },
+  { keywords: ['agua'], categories: ['agua e gas'] },
+  { keywords: ['internet'], categories: ['internet'] },
+  { keywords: ['iptu'], categories: ['iptu e taxas'] },
+  { keywords: ['uber', '99'], categories: ['aplicativo e taxi'] },
+  { keywords: ['combustivel', 'gasolina'], categories: ['combustivel'] },
+  { keywords: ['estacionamento'], categories: ['pedagio e estacionamento'] },
+  { keywords: ['onibus', 'transporte'], categories: ['transporte publico'] },
+  { keywords: ['farmacia'], categories: ['farmacia'] },
+  { keywords: ['medico', 'consulta'], categories: ['consultas'] },
+  { keywords: ['exame'], categories: ['exames'] },
+  { keywords: ['plano de saude'], categories: ['plano de saude'] },
+  { keywords: ['curso', 'treinamento'], categories: ['cursos'] },
+  { keywords: ['faculdade', 'escola', 'mensalidade'], categories: ['mensalidade'] },
+  { keywords: ['livro'], categories: ['livros e material'] },
+  { keywords: ['netflix', 'prime'], categories: ['streaming de video'] },
+  { keywords: ['spotify'], categories: ['musica'] },
+  { keywords: ['assinatura'], categories: ['software e apps'] },
+  { keywords: ['imposto', 'taxa', 'das', 'simples', 'fgts', 'inss'], categories: ['impostos', 'impostos e taxas'] },
   { keywords: ['fornecedor', 'compra', 'material', 'estoque'], categories: ['fornecedores', 'operacional'] },
-  { keywords: ['software', 'sistema', 'dominio', 'hospedagem', 'servidor', 'aws', 'google', 'meta'], categories: ['tecnologia'] },
+  { keywords: ['software', 'sistema', 'dominio', 'hospedagem', 'servidor', 'aws', 'google', 'meta'], categories: ['ferramentas e software', 'tecnologia'] },
   { keywords: ['contabilidade', 'contador'], categories: ['contabilidade'] },
-  { keywords: ['tarifa', 'banco', 'juros', 'cartao'], categories: ['financas', 'bancario'] },
-  { keywords: ['marketing', 'anuncio', 'trafego', 'campanha'], categories: ['marketing'] },
+  { keywords: ['tarifa', 'banco'], categories: ['tarifas bancarias', 'bancario'] },
+  { keywords: ['marketing', 'anuncio', 'trafego', 'campanha'], categories: ['despesas profissionais', 'marketing'] },
   { keywords: ['pro labore', 'retirada', 'retiradas'], categories: ['pro-labore/retiradas'] },
 ];
 
@@ -31,21 +51,22 @@ export function normalizeCategoryText(value: string): string {
     .trim();
 }
 
-/** Ordem das listas de categorias: A→Z (pt-BR), com "Outros" sempre por último no seu nível. */
+/** "Outros" e "Outros de <grupo>": a subcategoria que recebe o que não coube nas demais. */
+function isOthersName(name: string): boolean {
+  const normalized = normalizeCategoryText(name);
+  return normalized === 'outros' || normalized.startsWith('outros de ');
+}
+
+/** Ordem das listas de categorias: A→Z (pt-BR), com "Outros" e "Outros de ..." sempre por último no seu nível. */
 export function compararNomesCatalogo(a: string, b: string): number {
-  const aOutros = normalizeCategoryText(a) === 'outros';
-  const bOutros = normalizeCategoryText(b) === 'outros';
+  const aOutros = isOthersName(a);
+  const bOutros = isOthersName(b);
   if (aOutros !== bOutros) return aOutros ? 1 : -1;
   return a.localeCompare(b, 'pt-BR');
 }
 
 function tokenize(value: string): string[] {
   return normalizeCategoryText(value).split(/[^a-z0-9]+/).filter(Boolean);
-}
-
-/** Categoria com subcategoria ativa: nunca é selecionável em lançamento/filtro — só as subs. */
-export function hasActiveSubcategory(category: Categoria, categories: Categoria[]): boolean {
-  return categories.some((c) => c.parent_id === category.id && c.ativo);
 }
 
 /** Opção do grupo "Categoria" do botão de filtros (mesmo formato do MultiFilterPanel). */
@@ -64,8 +85,10 @@ export interface SelectableCategoryGroup<T extends OpcaoCatalogo = Categoria> {
 
 /**
  * Categorias ativas prontas para seleção em despesas/filtros, agrupadas por pai.
- * Uma raiz com subcategoria ativa vira só o cabeçalho do grupo (não aparece em
- * `items`, que é onde a lista de seleção de fato itera) — só suas subs entram.
+ * Quem recebe lançamento é decidido pelo servidor (`selectable`, ausente vale
+ * "recebe"): aqui só se agrupa. O pai vira o cabeçalho das subcategorias que
+ * recebem, a categoria solta que recebe entra sozinha, e o que não recebe (grupo
+ * sem opção, categoria de sistema) não aparece.
  */
 export function groupSelectableCategories<T extends OpcaoCatalogo>(categories: T[]): SelectableCategoryGroup<T>[] {
   const active = categories.filter((category) => category.ativo);
@@ -73,10 +96,10 @@ export function groupSelectableCategories<T extends OpcaoCatalogo>(categories: T
   const groups: SelectableCategoryGroup<T>[] = [];
 
   for (const root of roots) {
-    const children = active.filter((c) => c.parent_id === root.id);
+    const children = active.filter((c) => c.parent_id === root.id && c.selectable !== false);
     if (children.length > 0) {
       groups.push({ parent: root, items: children });
-    } else {
+    } else if (root.selectable !== false) {
       groups.push({ parent: null, items: [root] });
     }
   }
@@ -90,9 +113,35 @@ export interface CategoryHistoryEntry {
   categoryId: number | null | undefined;
 }
 
-/** O que se escolhe num lançamento: a categoria solta ou as subs de quem tem sub. */
+/** O que se escolhe num lançamento: as subcategorias que recebem e a categoria solta que recebe. */
 function selectableCategories<T extends OpcaoCatalogo>(categories: T[]): T[] {
   return groupSelectableCategories(categories).flatMap((group) => group.items);
+}
+
+/**
+ * O que o "+ criar" do seletor pede: a subcategoria a criar e o grupo dela, que pode
+ * ser um existente ou um novo (criado junto, na mesma operação).
+ */
+export interface NewCategoryRequest {
+  name: string;
+  parentId?: number;
+  newParentName?: string;
+}
+
+/** O pedido do "+ criar" na forma que a API de categorias e de classificações recebe. */
+export function newCategoryFormValues(request: NewCategoryRequest): CategoriaFormValues {
+  if (request.newParentName) {
+    return { nome: request.newParentName, subcategories: [request.name] };
+  }
+  return { nome: request.name, parent_id: request.parentId };
+}
+
+/** O id que fica escolhido depois de criar: a subcategoria, mesmo quando nasceu junto com o grupo novo. */
+export function createdCategoryId(
+  request: NewCategoryRequest,
+  created: { id: number; subcategories?: Array<{ id: number }> },
+): number {
+  return request.newParentName ? created.subcategories?.[0]?.id ?? created.id : created.id;
 }
 
 function findCategoryByNames(categories: Categoria[], names: string[]): Categoria | undefined {

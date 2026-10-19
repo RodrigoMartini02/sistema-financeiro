@@ -132,7 +132,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const input = readUpdateIncomeInput(req.body);
-    if (!(await isClassificationAllowed(req.user!.id, current.accountId, input.categoryId))) {
+    // A classificação que a receita já tem continua aceita: lançamentos antigos
+    // podem apontar para classificações de antes do catálogo da conta.
+    if (input.categoryId !== current.classificationId
+      && !(await isClassificationAllowed(req.user!.id, current.accountId, input.categoryId))) {
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
     const updated = await updateIncome(ownerId, incomeId, current, input);

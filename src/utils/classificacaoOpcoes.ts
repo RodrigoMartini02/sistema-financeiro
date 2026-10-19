@@ -8,14 +8,16 @@ export interface OpcaoClassificacao {
 }
 
 /**
- * Classificações ativas como lista plana para selects simples (comissão,
- * contrato): a subcategoria leva o nome da raiz para não ficar ambígua. Ordena
- * pela raiz e depois pela subcategoria, com "Outros" por último em cada nível.
+ * Classificações ativas que recebem lançamento (o servidor diz quais, em `selectable`)
+ * como lista plana para selects simples (comissão, contrato, assistente): a
+ * subcategoria leva o nome da raiz para não ficar ambígua. Ordena pela raiz e depois
+ * pela subcategoria, com "Outros" e "Outros de ..." por último em cada nível.
  */
 export function opcoesDeClassificacao(itens: ClassificacaoReceita[]): OpcaoClassificacao[] {
   const ativos = itens.filter((item) => item.ativo);
   const nomePorId = new Map(ativos.map((item) => [item.id, item.nome]));
   return ativos
+    .filter((item) => item.selectable !== false)
     .map((item) => {
       const pai = item.parent_id ? nomePorId.get(item.parent_id) : undefined;
       return { id: item.id, raiz: pai ?? item.nome, sub: pai ? item.nome : '', rotulo: pai ? `${pai} › ${item.nome}` : item.nome };

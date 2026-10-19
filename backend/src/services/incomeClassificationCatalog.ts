@@ -2,6 +2,7 @@ import { and, eq, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
 import { accounts, incomeClassifications, type IncomeClassification } from '../db/schema';
 import { canWriteToAccount } from '../utils/accountAccess';
+import { canReceiveEntries } from './catalogRules';
 import type { ChargeKind } from './contractTypes';
 import {
   CONTRACT_INCOME_CLASSIFICATION,
@@ -95,18 +96,39 @@ export async function findCatalogClassification(
 }
 
 /**
+ * Se a classificação do catálogo pode receber lançamento (catalogRules): em conta
+ * PF só a subcategoria; em conta PJ, a raiz sem subcategoria ativa. Inativa
+ * continua valendo: desativar não pode travar a edição de lançamento antigo.
+ */
+export async function canClassificationReceiveEntries(
+  catalog: IncomeClassificationCatalog,
+  classification: IncomeClassification,
+): Promise<boolean> {
+  const [activeSubclassification] = await db
+    .select({ id: incomeClassifications.id })
+    .from(incomeClassifications)
+    .where(and(eq(incomeClassifications.parentId, classification.id), eq(incomeClassifications.active, true)))
+    .limit(1);
+  return canReceiveEntries(
+    { id: classification.id, parentId: classification.parentId, active: classification.active, isSystem: false },
+    activeSubclassification !== undefined,
+    catalog.accountType,
+  );
+}
+
+/**
  * Valida o `classificacao_id` vindo do client contra o catálogo da conta do
- * lançamento. Nulo é válido (receita sem classificação).
+ * lançamento: precisa estar nele e poder receber lançamento.
  */
 export async function isClassificationAllowed(
   requesterId: number,
   accountId: number | null,
-  classificationId: number | null,
+  classificationId: number,
 ): Promise<boolean> {
-  if (classificationId === null) return true;
   const catalog = await resolveIncomeClassificationCatalog(requesterId, accountId);
   if (!catalog) return false;
-  return (await findCatalogClassification(catalog, classificationId)) !== null;
+  const classification = await findCatalogClassification(catalog, classificationId);
+  return classification !== null && canClassificationReceiveEntries(catalog, classification);
 }
 
 /** Id da classificação padrão de mesmo nome no catálogo, ou null. */

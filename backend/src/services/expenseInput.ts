@@ -3,7 +3,7 @@
 // antes de chamar o serviço, e por isso pode ser testado isoladamente.
 import {
   MAX_AMOUNT, RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId,
-  readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, roundCents,
+  readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, readRequiredId, roundCents,
 } from '../utils/requestInput';
 import { isCreditWithCard } from './cardInvoiceRules';
 
@@ -40,7 +40,7 @@ export interface InstallmentInput extends PaymentInput {
 
 export interface ExpenseFieldsInput {
   description: string;
-  categoryId: number | null;
+  categoryId: number;
   paymentMethod: PaymentMethod;
   cardId: number | null;
   purchaseDate: string;
@@ -119,7 +119,7 @@ function readFields(record: Record<string, unknown>): ExpenseFieldsInput {
 
   return {
     description,
-    categoryId: readOptionalId(record['categoryId'], 'Categoria inválida'),
+    categoryId: readRequiredId(record['categoryId'], 'Escolha a categoria'),
     paymentMethod,
     cardId,
     purchaseDate: readIsoDate(record['purchaseDate'], 'Data da compra inválida'),

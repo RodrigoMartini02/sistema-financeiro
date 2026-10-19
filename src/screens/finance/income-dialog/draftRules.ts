@@ -21,7 +21,7 @@ import type { IncomeDraft, IncomeDraftErrors } from './draftState';
 /** "Repetir até" gera no máximo 3 anos de réplicas (o mesmo limite do servidor). */
 export const MAX_REPLICAS = 36;
 
-export const EMPTY_INCOME_MESSAGE = 'Preencha descrição e valor para registrar.';
+export const EMPTY_INCOME_MESSAGE = 'Preencha descrição, categoria e valor para registrar.';
 
 export interface IncomeRuleContext {
   todayIso: string;
@@ -203,6 +203,7 @@ export function contractPrefill(draft: IncomeDraft, contract: ContractWithHours)
 export function validateIncomeDraft(draft: IncomeDraft, context: IncomeRuleContext): IncomeDraftErrors {
   const errors: IncomeDraftErrors = {};
   if (!draft.description.trim()) errors.description = true;
+  if (draft.categoryId === null) errors.category = true;
   if (!draft.amountCents) errors.amount = true;
   if (!receiptDateIso(draft, context.todayIso)) errors.receiptDate = true;
   const hours = billableHoursInfo(draft, context);
@@ -228,7 +229,7 @@ export function hasIncomeErrors(errors: IncomeDraftErrors): boolean {
 /** Mensagem do rodapé: "Preencha descrição e valor e confira a data do recebimento." */
 export function incomeErrorMessage(errors: IncomeDraftErrors): string {
   const clauses: string[] = [];
-  const missing = [errors.description && 'descrição', errors.amount && 'valor']
+  const missing = [errors.description && 'descrição', errors.category && 'categoria', errors.amount && 'valor']
     .filter((item): item is string => typeof item === 'string');
   if (missing.length) clauses.push(`preencha ${joinWithAnd(missing)}`);
   if (errors.receiptDate) clauses.push('confira a data do recebimento');

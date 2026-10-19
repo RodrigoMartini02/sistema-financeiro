@@ -4,7 +4,7 @@
 import { countMonthsUntil } from '../utils/date';
 import {
   RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId, readQueryId, readQueryText,
-  readRecord,
+  readRecord, readRequiredId,
 } from '../utils/requestInput';
 
 /** "Repetir até" gera no máximo 3 anos de réplicas. */
@@ -34,7 +34,7 @@ export interface IncomeBillableHours {
 
 export interface IncomeFieldsInput {
   description: string;
-  categoryId: number | null;
+  categoryId: number;
   amount: number;
   receiptDate: string;
   /** Cliente do cadastro da conta PJ; nulo sem cliente. */
@@ -76,7 +76,7 @@ export interface IncomeDuplicateQuery {
 function readFields(record: Record<string, unknown>): IncomeFieldsInput {
   return {
     description: readDescription(record['description']),
-    categoryId: readOptionalId(record['categoryId'], 'Categoria inválida'),
+    categoryId: readRequiredId(record['categoryId'], 'Escolha a categoria'),
     amount: readAmount(record['amount'], 'Informe o valor'),
     receiptDate: readIsoDate(record['receiptDate'], 'Data do recebimento inválida'),
     clientId: readOptionalId(record['clientId'], 'Cliente inválido'),
