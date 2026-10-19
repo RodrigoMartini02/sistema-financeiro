@@ -21,6 +21,7 @@ import {
   getExpenseSuggestions,
   updateExpense,
 } from '../services/expenseService';
+import { MAX_MOVE_BATCH, listOverdueExpenses, moveOverdueExpenses } from '../services/overdueExpenses';
 import { BudgetInputError, resolveFinancialAccount, type FinancialAccount } from '../services/budgetService';
 import { despesasEmAberto } from '../services/assistantQueries';
 import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense } from '../services/assistantPayment';
@@ -152,6 +153,38 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('List expenses error:', error);
     res.status(500).json({ success: false, message: 'Failed to list expenses' });
+  }
+});
+
+// GET /api/expenses/vencidas — vencidas e não pagas (fora o crédito com cartão), para o aviso ao abrir o sistema
+router.get('/vencidas', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { conta_id } = req.query as Record<string, string | undefined>;
+    const accountId = conta_id ? parseInt(conta_id) : null;
+    const data = await listOverdueExpenses(req.user!.id, Number.isNaN(accountId) ? null : accountId, getTodayIsoInTimezone());
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('List overdue expenses error:', error);
+    res.status(500).json({ success: false, message: 'Failed to list overdue expenses' });
+  }
+});
+
+// POST /api/expenses/mover-vencidas — move as vencidas escolhidas para o mês atual (uma ou várias)
+router.post('/mover-vencidas', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ids, conta_id } = (req.body ?? {}) as { ids?: unknown; conta_id?: unknown };
+    const validIds = Array.isArray(ids) && ids.length > 0 && ids.length <= MAX_MOVE_BATCH
+      && ids.every((id) => Number.isInteger(id) && (id as number) > 0);
+    if (!validIds) {
+      res.status(400).json({ success: false, message: `Informe de 1 a ${MAX_MOVE_BATCH} despesas para mover` });
+      return;
+    }
+    const accountId = typeof conta_id === 'number' && Number.isInteger(conta_id) ? conta_id : null;
+    const moved = await moveOverdueExpenses(req.user!.id, accountId, ids as number[], getTodayIsoInTimezone());
+    res.json({ success: true, data: { moved } });
+  } catch (error) {
+    console.error('Move overdue expenses error:', error);
+    res.status(500).json({ success: false, message: 'Failed to move overdue expenses' });
   }
 });
 
@@ -596,7 +629,7 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
     const newDueDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`;
 
     const result = await pool.query(
-      `UPDATE despesas SET data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 RETURNING *`,
+      `UPDATE despesas SET data_vencimento_original = COALESCE(data_vencimento_original, data_vencimento), data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 RETURNING *`,
       [newDueDate, nextMonth - 1, nextYear, expenseId, req.user!.id],
     );
 

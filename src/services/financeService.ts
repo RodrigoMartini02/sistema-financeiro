@@ -254,6 +254,29 @@ export async function moverDespesa(id: number) {
   return apiRequest<void>(`/expenses/${id}/mover`, { method: 'POST' });
 }
 
+/** Despesa vencida e não paga (fora o crédito com cartão), para o aviso ao abrir o sistema. */
+export interface OverdueExpense {
+  id: number;
+  description: string;
+  amount: number;
+  dueDate: string;
+  categoryName: string | null;
+  installment: string | null;
+}
+
+export async function fetchOverdueExpenses(): Promise<OverdueExpense[]> {
+  const accountId = getActiveAccountId();
+  return apiRequest<OverdueExpense[]>(`/expenses/vencidas${accountId ? `?conta_id=${accountId}` : ''}`);
+}
+
+/** Move as despesas vencidas escolhidas para o mês atual. */
+export async function moveOverdueExpenses(ids: number[]): Promise<{ moved: number }> {
+  return apiRequest<{ moved: number }>('/expenses/mover-vencidas', {
+    method: 'POST',
+    body: JSON.stringify({ ids, conta_id: getActiveAccountId() }),
+  });
+}
+
 /**
  * Painel financeiro de um período (datas ISO inclusivas). `membroId`:
  * ausente = só o próprio usuário; null = todas as pessoas visíveis; lista =

@@ -39,7 +39,7 @@ export function invalidateFinanceQueries(qc: QueryClient, month: number, year: n
 const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
   'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate', 'despesas-em-aberto',
-  'card-invoices', 'series-renewals',
+  'card-invoices', 'series-renewals', 'despesas-vencidas',
 ]);
 
 export function invalidateExpenseQueries(qc: QueryClient) {
@@ -128,6 +128,7 @@ export const queryKeys = {
   aiIntegrations: ['ai-integrations'] as const,
   assistantUltimosLancamentos: (accountId?: number | null) => ['assistant-ultimos-lancamentos', accountId ?? 'ativa'] as const,
   despesasEmAberto: (accountId?: number | null) => ['despesas-em-aberto', accountId ?? 'ativa'] as const,
+  despesasVencidas: (accountId?: number | null) => ['despesas-vencidas', accountId ?? 'ativa'] as const,
   // escopo na chave: mesmo padrao de `cartoes` — 'familia' e o default ('so
   // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>

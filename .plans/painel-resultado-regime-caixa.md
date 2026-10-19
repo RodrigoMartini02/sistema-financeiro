@@ -5,7 +5,7 @@
 - Bate-papo de 2026-10-19: o gráfico "Resultado · 2026" do Painel muda meses anteriores por causa de lançamentos e pagamentos feitos em outubro.
 - Data do planejamento: 2026-10-19
 - Classificação: `backend` (cálculo do painel) e testes. Frontend só se o texto dos cards mudar.
-- Situação: **rascunho, aguardando decisões** (seção "Decisões em aberto"). Nada foi implementado.
+- Situação: **implementado na branch `claude/determined-pascal-wrve3a`, migration 0084g criada e NÃO aplicada.** Falta o merge, a aplicação da 0084g antes do deploy e a conferência na tela.
 
 ## Problema verificado no código
 
@@ -44,6 +44,22 @@ Rodado com dados de teste sobre `montarSerie` (`backend/src/services/painelCalcu
 - Cuidar dos demais cards que reutilizam a série (`ComoDinheiroSaiu`, `EmDiaComContas`, `JurosDescontos`, `Comprometido`).
 - Testes de `painelCalculos.test.ts`: conta de março paga em outubro com juros (março não muda), pagamento retroativo, conta vencida em aberto, saldo acumulado; testes do mover em lote.
 - Sem migration.
+
+## Decisões finais (2026-10-19)
+
+- Aprovado pelo usuário: regime de caixa, lista de vencidas, vencimento original guardado, modal uma vez por dia com aviso nos outros acessos.
+- Cartão de crédito fica fora do "Mover": paga-se pela fatura (pagamento parcial já existe).
+- Destino do "Mover": o mesmo dia do mês atual, nunca antes de hoje (se o dia já passou, vai para hoje; mês curto usa o último dia).
+- Barras: seguem o resultado de cada mês; a sobra acumula no card "Saldo acumulado" (proposta aceita por não ter sido contestada).
+
+## Implementação
+
+- `0084g_despesas_vencimento_original.sql` (coluna `data_vencimento_original`, opcional). **Aplicar ANTES do deploy**: o Drizzle passa a ler a coluna em toda consulta de despesas e falha sem ela.
+- `painelCalculos.ts`: `dataDeCaixa`, `despesasDoPeriodo` e `montarSerie` pela data de caixa; `classificarPagamento` compara com o vencimento original. `painelService.ts`: coluna lida e `calcularSaldoAnterior` pela data de caixa.
+- `overdueExpenses.ts` e `overdueExpenseRules.ts`: lista e "Mover" em lote (transação); `routes/expenses.ts`: `GET /expenses/vencidas`, `POST /expenses/mover-vencidas` e o `mover` de um mês passa a gravar o vencimento original.
+- Frontend: `OverdueExpensesPrompt.tsx` (aviso discreto + modal uma vez por dia) na tela de Movimentações, só no mês atual e para quem edita lançamentos.
+- Testes: `painelCalculos.test.ts` (conta de março paga em outubro, sem data de pagamento, caixa, vencimento original) e `overdueExpenseRules.test.ts`. Lista e mover conferidos num Postgres descartável.
+- Não verificado: a tela no navegador.
 
 ## Fora do escopo
 
