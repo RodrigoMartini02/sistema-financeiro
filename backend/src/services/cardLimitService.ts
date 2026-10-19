@@ -32,9 +32,12 @@ interface CardLimitRow {
 // cadastrado do cartão) — por isso o filtro precisa considerar tanto o tipo
 // do cartão quanto a forma de pagamento da despesa.
 //
-// O JOIN filtra d.usuario_id explicitamente: cartao_id sozinho já restringe as
-// linhas, mas o filtro de usuário é a garantia de isolamento que o resto do
-// projeto aplica em toda query de despesas.
+// O limite é do cartão, não de quem comprou: ocupa o limite toda compra em aberto
+// feita nele, de qualquer pessoa (a fatura é do dono do cartão e inclui as compras
+// dos outros, cardInvoiceService). O isolamento vem do filtro dos cartões
+// (c.usuario_id = ANY($1): só os que o solicitante pode ver), e cartao_id ata cada
+// despesa a um deles. Antes a soma também exigia d.usuario_id = ANY($1), e a compra
+// de outra pessoa no cartão do titular ficava de fora da visão "só eu".
 //
 // A soma usa valor_original, a unica coluna de valor da despesa: valor_final e
 // valor eram copias dela e foram removidas. Em parcelada cada linha ja guarda o
@@ -46,10 +49,8 @@ interface CardLimitRow {
 export async function getCardLimits(userId: number, accountId: number | null, expandir: boolean): Promise<CardLimit[]> {
   // `expandir` e a intencao explicita de quem chama (ex.: o modal de despesa sempre
   // pede familia, para poder usar um cartao de outro membro; a tela de
-  // Movimentacoes repassa o filtro de Membros escolhido). Ampliar so o cartao
-  // sem ampliar as despesas mostraria o cartao do outro com limite zerado,
-  // porque as despesas dele nao entrariam na soma — por isso o mesmo
-  // `expandir` decide tanto os donos de cartao quanto os donos de despesa.
+  // Movimentacoes repassa o filtro de Membros escolhido). Ele decide so quais
+  // cartoes aparecem; o usado de cada um soma as compras de qualquer pessoa.
   const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, expandir);
   return getCardLimitsForOwners(donosVisiveis, accountId);
 }
@@ -85,7 +86,6 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
        ), 0) AS usado
      FROM cartoes c
      LEFT JOIN despesas d ON d.cartao_id = c.id
-       AND d.usuario_id = ANY($1)
        AND ${openCardDebtSql('d')}
        -- Cartao sem tipo conta tudo (lancamentos antigos); 'credito' conta credito
        -- e lancamento sem forma de pagamento; 'ambos' so o credito, senao o debito
