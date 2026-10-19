@@ -165,6 +165,7 @@ const colunasDespesa = {
   cartaoId: expenses.cardId,
   formaPagamento: expenses.paymentMethod,
   dataVencimento: expenses.dueDate,
+  dataVencimentoOriginal: expenses.originalDueDate,
   dataPagamento: expenses.paymentDate,
   pago: expenses.paid,
   valorOriginal: expenses.originalAmount,
@@ -182,6 +183,7 @@ type LinhaDespesa = {
   cartaoId: number | null;
   formaPagamento: string | null;
   dataVencimento: string;
+  dataVencimentoOriginal: string | null;
   dataPagamento: string | null;
   pago: boolean | null;
   valorOriginal: string | null;
@@ -200,6 +202,7 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
     cartaoId: linha.cartaoId,
     formaPagamento: linha.formaPagamento,
     dataVencimento: linha.dataVencimento,
+    dataVencimentoOriginal: linha.dataVencimentoOriginal,
     dataPagamento: linha.dataPagamento,
     pago: linha.pago === true,
     valorOriginal: toNumber(linha.valorOriginal),
@@ -369,7 +372,8 @@ async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
       total: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.amountPaid}, ${expenses.originalAmount}) ELSE ${expenses.originalAmount} END), 0)`,
     }).from(expenses).where(and(
       ...expenseBaseConditions(entrada.escopo, entrada.accountId),
-      lt(expenses.dueDate, entrada.periodo.de),
+      // Regime de caixa (dataDeCaixa): a paga conta no pagamento, a em aberto no vencimento.
+      sql`(CASE WHEN ${expenses.paid} THEN COALESCE(${expenses.paymentDate}, ${expenses.dueDate}) ELSE ${expenses.dueDate} END) < ${entrada.periodo.de}`,
     )),
   ]);
   return toNumber(receitasAntes[0]?.total) - toNumber(despesasAntes[0]?.total);

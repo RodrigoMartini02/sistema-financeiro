@@ -23,6 +23,8 @@ export interface DespesaPainel {
   cartaoId: number | null;
   formaPagamento: string | null;
   dataVencimento: string;
+  /** Vencimento de antes de a despesa ser movida de mês; nulo se nunca foi movida. */
+  dataVencimentoOriginal: string | null;
   dataPagamento: string | null;
   pago: boolean;
   valorOriginal: number;
@@ -254,7 +256,7 @@ export function classificarPagamento(despesa: DespesaPainel): SituacaoPagamento 
   if (!despesa.pago) {
     return 'em_aberto';
   }
-  if (despesa.dataPagamento === null || despesa.dataPagamento <= despesa.dataVencimento) {
+  if (despesa.dataPagamento === null || despesa.dataPagamento <= (despesa.dataVencimentoOriginal ?? despesa.dataVencimento)) {
     return 'em_dia';
   }
   return 'com_atraso';
@@ -356,8 +358,17 @@ function somar<T>(itens: T[], valor: (item: T) => number): number {
   return itens.reduce((total, item) => total + valor(item), 0);
 }
 
+/**
+ * O dia em que a despesa conta nos resultados (regime de caixa): a paga conta no dia do
+ * pagamento, pelo valor pago; a em aberto conta no vencimento. Assim pagar em outubro uma conta
+ * de março muda outubro, e não março.
+ */
+export function dataDeCaixa(despesa: Pick<DespesaPainel, 'pago' | 'dataPagamento' | 'dataVencimento'>): string {
+  return despesa.pago ? (despesa.dataPagamento ?? despesa.dataVencimento) : despesa.dataVencimento;
+}
+
 export function despesasDoPeriodo(despesas: DespesaPainel[], periodo: Periodo): DespesaPainel[] {
-  return despesas.filter((despesa) => dentroDoPeriodo(despesa.dataVencimento, periodo));
+  return despesas.filter((despesa) => dentroDoPeriodo(dataDeCaixa(despesa), periodo));
 }
 
 export function receitasDoPeriodo(receitas: ReceitaPainel[], periodo: Periodo): ReceitaPainel[] {
@@ -393,12 +404,12 @@ export interface PontoSerie extends BaldeSerie {
 }
 
 /**
- * Série dos gráficos do período. `despesas` e `formas` seguem o vencimento
- * (regra do painel); `pago` segue a data em que o pagamento aconteceu — é o
- * que permite comparar o cadastrado com o que de fato foi quitado no trecho.
- * `juros` e `descontos` seguem o vencimento, como o total "No período" do
- * bloco de juros: as barras somam exatamente esse total. Os juros e taxas da
- * receita entram no trecho do recebimento.
+ * Série dos gráficos do período. `despesas` e `formas` seguem a data de caixa
+ * (dataDeCaixa: paga no pagamento, em aberto no vencimento); `pago` segue a data
+ * em que o pagamento aconteceu — é o que permite comparar o cadastrado com o que
+ * de fato foi quitado no trecho. `juros` e `descontos` seguem a data de caixa,
+ * como o total "No período" do bloco de juros: as barras somam exatamente esse
+ * total. Os juros e taxas da receita entram no trecho do recebimento.
  */
 export function montarSerie(
   despesas: DespesaPainel[],
@@ -417,13 +428,13 @@ export function montarSerie(
   }
 
   for (const despesa of despesas) {
-    const pontoVencimento = pontoDe(despesa.dataVencimento);
-    if (pontoVencimento) {
-      pontoVencimento.despesas += valorEfetivo(despesa);
+    const pontoDeCaixa = pontoDe(dataDeCaixa(despesa));
+    if (pontoDeCaixa) {
+      pontoDeCaixa.despesas += valorEfetivo(despesa);
       const forma = despesa.formaPagamento || FORMA_NAO_INFORMADA;
-      pontoVencimento.formas[forma] = (pontoVencimento.formas[forma] ?? 0) + valorEfetivo(despesa);
-      pontoVencimento.juros += jurosDaDespesa(despesa);
-      pontoVencimento.descontos += descontoDaDespesa(despesa);
+      pontoDeCaixa.formas[forma] = (pontoDeCaixa.formas[forma] ?? 0) + valorEfetivo(despesa);
+      pontoDeCaixa.juros += jurosDaDespesa(despesa);
+      pontoDeCaixa.descontos += descontoDaDespesa(despesa);
     }
 
     if (despesa.pago) {

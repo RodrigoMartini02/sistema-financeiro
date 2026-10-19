@@ -18,7 +18,9 @@ import {
   resumirReceitasPainel,
   baldesDaSerie,
   classificarPagamento,
+  dataDeCaixa,
   dataIsoValida,
+  despesasDoPeriodo,
   descontoDaDespesa,
   fatorMetaProporcional,
   janelaDaSerie,
@@ -44,6 +46,7 @@ function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
     cartaoId: null,
     formaPagamento: 'pix',
     dataVencimento: '2026-09-10',
+    dataVencimentoOriginal: null,
     dataPagamento: null,
     pago: false,
     valorOriginal: 100,
@@ -178,16 +181,58 @@ test('contas em aberto: atraso antes de hoje, próximos 30 dias e comprometido e
   assert.deepEqual(resultado.comprometido[5], { ano: 2027, mes: 1, parcelas: 0, outras: 100 });
 });
 
-test('série: despesa pelo vencimento, pago pela data de pagamento', () => {
+test('série: despesa paga no mês do pagamento, em aberto no mês do vencimento', () => {
   const serie = montarSerie(
     [despesa({ dataVencimento: '2026-08-10', pago: true, dataPagamento: '2026-09-02', formaPagamento: 'credito' })],
     [receita({ dataRecebimento: '2026-09-05' })],
     { de: '2026-08-01', ate: '2026-09-30', granularidade: 'mes' },
   );
   assert.deepEqual(serie, [
-    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 100, formas: { credito: 100 }, pago: 0, juros: 0, descontos: 0 },
-    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 0, formas: {}, pago: 100, juros: 0, descontos: 0 },
+    { inicio: '2026-08-01', fim: '2026-08-31', receitas: 0, despesas: 0, formas: {}, pago: 0, juros: 0, descontos: 0 },
+    { inicio: '2026-09-01', fim: '2026-09-30', receitas: 1000, despesas: 100, formas: { credito: 100 }, pago: 100, juros: 0, descontos: 0 },
   ]);
+});
+
+test('série: pagar em outubro uma conta de março não muda março', () => {
+  const janela = { de: '2026-01-01', ate: '2026-12-31', granularidade: 'mes' as const };
+  const aberta = despesa({ dataVencimento: '2026-03-20', valorOriginal: 400 });
+  const paga = despesa({ dataVencimento: '2026-03-20', valorOriginal: 400, pago: true, dataPagamento: '2026-10-19', valorPago: 450 });
+  const antes = montarSerie([aberta], [], janela);
+  const depois = montarSerie([paga], [], janela);
+  // Em aberto, a conta fica no mês em que venceu.
+  assert.equal(antes[2]!.despesas, 400);
+  assert.equal(antes[9]!.despesas, 0);
+  // Paga em outubro, com juros: o valor pago conta em outubro e sai de março.
+  assert.equal(depois[2]!.despesas, 0);
+  assert.equal(depois[9]!.despesas, 450);
+  assert.equal(depois[9]!.pago, 450);
+});
+
+test('série: paga sem data de pagamento conta no vencimento', () => {
+  const serie = montarSerie(
+    [despesa({ dataVencimento: '2026-03-20', pago: true, dataPagamento: null, valorPago: 100 })],
+    [],
+    { de: '2026-01-01', ate: '2026-12-31', granularidade: 'mes' },
+  );
+  assert.equal(serie[2]!.despesas, 100);
+});
+
+test('dataDeCaixa e despesasDoPeriodo: a paga segue o pagamento, a em aberto o vencimento', () => {
+  const paga = despesa({ dataVencimento: '2026-03-20', pago: true, dataPagamento: '2026-10-19' });
+  const aberta = despesa({ dataVencimento: '2026-03-20' });
+  assert.equal(dataDeCaixa(paga), '2026-10-19');
+  assert.equal(dataDeCaixa(aberta), '2026-03-20');
+  const outubro = { de: '2026-10-01', ate: '2026-10-31' };
+  const marco = { de: '2026-03-01', ate: '2026-03-31' };
+  assert.deepEqual(despesasDoPeriodo([paga, aberta], outubro), [paga]);
+  assert.deepEqual(despesasDoPeriodo([paga, aberta], marco), [aberta]);
+});
+
+test('em dia: conta movida de mês é comparada com o vencimento original', () => {
+  const movida = despesa({ dataVencimento: '2026-10-19', dataVencimentoOriginal: '2026-09-10', pago: true, dataPagamento: '2026-10-15' });
+  assert.equal(classificarPagamento(movida), 'com_atraso');
+  const semMover = despesa({ dataVencimento: '2026-10-19', pago: true, dataPagamento: '2026-10-15' });
+  assert.equal(classificarPagamento(semMover), 'em_dia');
 });
 
 test('série: formas de pagamento por trecho somam as despesas do trecho e o total de cada forma', () => {
@@ -218,15 +263,15 @@ test('série semanal: o último dia da semana cai na semana certa', () => {
   assert.equal(serie[1]!.despesas, 40);
 });
 
-test('série: juros e descontos no trecho do vencimento, somando o total do período', () => {
+test('série: juros e descontos no trecho do pagamento, somando o total do período', () => {
   const despesas = [
     despesa({ dataVencimento: '2026-09-03', pago: true, dataPagamento: '2026-09-20', valorPago: 112 }),
     despesa({ dataVencimento: '2026-09-16', pago: true, dataPagamento: '2026-09-16', valorPago: 95 }),
     despesa({ dataVencimento: '2026-09-17', valorPago: 130 }),
   ];
   const serie = montarSerie(despesas, [], { de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' });
-  assert.equal(serie[0]!.juros, 12);
-  assert.equal(serie[2]!.juros, 0);
+  assert.equal(serie[0]!.juros, 0);
+  assert.equal(serie[2]!.juros, 12);
   assert.equal(serie[2]!.descontos, 5);
   const total = agregarJurosDescontos(despesas, []);
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.juros, 0), total.juros);

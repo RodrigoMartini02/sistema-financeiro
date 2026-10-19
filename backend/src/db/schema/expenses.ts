@@ -31,6 +31,8 @@ export const expenses = pgTable(
     cardId: integer('cartao_id').references(() => cards.id),
     description: varchar('descricao', { length: 255 }).notNull(),
     dueDate: date('data_vencimento').notNull(),
+    // Vencimento de antes de a despesa ser movida de mês; vazio se nunca foi movida.
+    originalDueDate: date('data_vencimento_original'),
     purchaseDate: date('data_compra'),
     paymentDate: date('data_pagamento'),
     month: integer('mes').notNull(),

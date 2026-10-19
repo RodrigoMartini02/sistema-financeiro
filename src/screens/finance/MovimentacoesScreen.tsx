@@ -23,6 +23,7 @@ import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
 import { MovementMetricCard } from './MovementMetricCard';
 import { CardLimitRow } from './CardLimitRow';
+import { OverdueExpensesPrompt } from './OverdueExpensesPrompt';
 import { formatCurrency } from './formatters';
 import { useEntryFilters } from './useEntryFilters';
 import { BudgetPanel } from './BudgetPanel';
@@ -256,6 +257,8 @@ export function MovimentacoesScreen() {
             disputava a linha com eles, então dois cartões ocupavam uma fração
             da largura. Agora a faixa inteira é dos cartões, que se redistribuem
             conforme a quantidade. */}
+        <OverdueExpensesPrompt enabled={controls.newExpense && month === now.getMonth() && year === now.getFullYear()} />
+
         {!isCalendario && (cardLimits.data?.length ?? 0) > 0 && (
           <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="grid gap-x-5 gap-y-1.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
