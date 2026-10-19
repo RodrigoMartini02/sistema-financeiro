@@ -116,7 +116,7 @@ test('compra renegociada: nota, proteção e trava', () => {
   assert.equal(renegotiationNote(total), null);
   assert.equal(isInvoiceProtected(total), true);
   assert.equal(invoiceEditLock(total), 'invoice-item');
-  const restante = expense({ invoiceOriginPaymentId: 9, invoiceInterest: 30 });
+  const restante = expense({ invoiceOriginPaymentId: 9, interest: 30 });
   assert.equal(isInvoiceProtected(restante), true);
   assert.equal(invoiceEditLock(restante), 'generated');
   assert.equal(isInvoiceProtected(expense()), false);

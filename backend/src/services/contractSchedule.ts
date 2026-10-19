@@ -4,6 +4,7 @@
 // competência pode gerar e quais meses já têm receita (travados); aqui só se
 // calcula. O valor é sempre o bruto: as retenções vêm depois.
 import { CHARGE_LABELS, OPEN_ENDED_MONTHS_AHEAD, type ChargeKind, type InstallmentChargeKind } from './contractTypes';
+import { splitInstallments } from './installmentSplit';
 
 const pad = (value: number) => String(value).padStart(2, '0');
 const MAX_DESCRIPTION_LENGTH = 255;
@@ -75,15 +76,6 @@ export function lastMonthlyCompetence(startDate: string, endDate: string | null,
   const start = competenceOf(startDate);
   const current = competenceOf(today);
   return addMonths(start > current ? start : current, OPEN_ENDED_MONTHS_AHEAD - 1);
-}
-
-/** Partes iguais, com a diferença de centavos na última: R$ 1.000,00 em 3 = 333,33 + 333,33 + 333,34. */
-export function splitInstallments(total: number, installments: number): number[] {
-  const totalCents = Math.round(total * 100);
-  const partCents = Math.floor(totalCents / installments);
-  const amounts = Array.from({ length: installments }, () => partCents / 100);
-  amounts[installments - 1] = (totalCents - partCents * (installments - 1)) / 100;
-  return amounts;
 }
 
 function canGenerate(competence: string, state: ChargeScheduleState): boolean {

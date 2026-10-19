@@ -27,6 +27,7 @@ import {
   type SuggestionsQuery,
   type UpdateExpenseInput,
 } from './expenseInput';
+import { embeddedInstallmentInterests } from './installmentSplit';
 
 const MATCH_LIMIT = 4;
 
@@ -34,6 +35,10 @@ const lowerDescription = sql<string>`lower(${expenses.description})`;
 
 function toDecimal(value: number): string {
   return value.toFixed(2);
+}
+
+function toCents(value: number): number {
+  return Math.round(value * 100);
 }
 
 function scheduleColumns(dueDate: string): Pick<NewExpense, 'dueDate' | 'month' | 'year'> {
@@ -66,7 +71,9 @@ function resolvePayment(
 
 /**
  * Linhas a gravar. Anexos e nota fiscal ficam só na primeira, como sempre foi.
- * Parcelas levam a data da compra em todas. A despesa mensal é sempre do
+ * Parcelas levam a data da compra em todas e, com o valor à vista informado, a sua
+ * parte do juros embutido (o que a soma das parcelas passa do à vista, dividido
+ * por igual entre elas). A despesa mensal é sempre do
  * crédito com cartão (`card`) e vai da primeira ocorrência até dezembro do ano
  * dela (monthlySeriesDates), cada uma com a data de compra e o vencimento da
  * fatura dela.
@@ -88,6 +95,10 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string, car
 
   if (input.billingType === 'installments') {
     const installmentCount = input.installments.length;
+    const interests = embeddedInstallmentInterests(
+      input.installments.map((installment) => toCents(installment.amount)),
+      input.cashPrice === null ? null : toCents(input.cashPrice),
+    );
     return input.installments.map((installment, index): NewExpense => ({
       ...base,
       ...scheduleColumns(installment.dueDate),
@@ -95,6 +106,7 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string, car
       ...(index === 0 ? firstRowExtras : {}),
       purchaseDate: input.purchaseDate,
       originalAmount: toDecimal(installment.amount),
+      interest: interests[index]! > 0 ? toDecimal(interests[index]! / 100) : null,
       installment: true,
       numberOfInstallments: installmentCount,
       currentInstallment: index + 1,

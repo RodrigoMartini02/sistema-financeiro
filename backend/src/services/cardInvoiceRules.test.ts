@@ -26,9 +26,9 @@ const CARD = { name: 'Nubank', dueDay: 10 };
 
 /** Fatura de outubro do exemplo: Mercado 500, Combustível 300, Farmácia 200. */
 const ITEMS: InvoiceItem[] = [
-  { expenseId: 1, amount: 500, invoiceInterest: null },
-  { expenseId: 2, amount: 300, invoiceInterest: null },
-  { expenseId: 3, amount: 200, invoiceInterest: null },
+  { expenseId: 1, amount: 500, interest: null },
+  { expenseId: 2, amount: 300, interest: null },
+  { expenseId: 3, amount: 200, interest: null },
 ];
 
 function terms(overrides: Partial<InvoicePaymentTerms> = {}): InvoicePaymentTerms {
@@ -99,9 +99,9 @@ test('parcelado com centavos que sobram na última parcela', () => {
 
 test('proporção exata em centavos: a soma das partes é o valor pago', () => {
   const items: InvoiceItem[] = [
-    { expenseId: 10, amount: 33.33, invoiceInterest: null },
-    { expenseId: 11, amount: 33.33, invoiceInterest: null },
-    { expenseId: 12, amount: 33.34, invoiceInterest: null },
+    { expenseId: 10, amount: 33.33, interest: null },
+    { expenseId: 11, amount: 33.33, interest: null },
+    { expenseId: 12, amount: 33.34, interest: null },
   ];
   const shares = proportionalShares(items, 1000);
   assert.equal([...shares.values()].reduce((sum, cents) => sum + cents, 0), 1000);
@@ -111,8 +111,8 @@ test('proporção exata em centavos: a soma das partes é o valor pago', () => {
 
 test('proporção determinística no empate: o centavo vai para o menor id', () => {
   const items: InvoiceItem[] = [
-    { expenseId: 21, amount: 1, invoiceInterest: null },
-    { expenseId: 20, amount: 1, invoiceInterest: null },
+    { expenseId: 21, amount: 1, interest: null },
+    { expenseId: 20, amount: 1, interest: null },
   ];
   assert.deepEqual([...proportionalShares(items, 101).entries()], [[21, 50], [20, 51]]);
 });
@@ -120,8 +120,8 @@ test('proporção determinística no empate: o centavo vai para o menor id', () 
 test('juros carregados: a parte dos juros que não foi paga segue para o restante', () => {
   // Novembro: o restante de outubro (430, com 30 de juros) e uma compra de 570.
   const items: InvoiceItem[] = [
-    { expenseId: 30, amount: 430, invoiceInterest: 30 },
-    { expenseId: 31, amount: 570, invoiceInterest: null },
+    { expenseId: 30, amount: 430, interest: 30 },
+    { expenseId: 31, amount: 570, interest: null },
   ];
   // Pagando metade, metade dos juros do restante (15) passa para o restante novo.
   const plan = computeInvoicePayment(items, terms({ method: 'partial', amountPaid: 500, interestAmount: 20 }), '2026-11-01', CARD);
@@ -137,7 +137,7 @@ test('juros carregados: a parte dos juros que não foi paga segue para o restant
 });
 
 test('juros por parcela nunca passam do valor da parcela', () => {
-  const items: InvoiceItem[] = [{ expenseId: 40, amount: 0.01, invoiceInterest: null }];
+  const items: InvoiceItem[] = [{ expenseId: 40, amount: 0.01, interest: null }];
   const plan = computeInvoicePayment(items, terms({ method: 'installments', amountPaid: null, interestAmount: 2.99, installmentCount: 3 }), MONTH, CARD);
   for (const row of plan.generated) {
     assert.ok(row.interestAmount <= row.amount, `parcela ${row.installmentNumber}`);
@@ -151,7 +151,7 @@ test('recusas', () => {
   assert.deepEqual(invoicePaymentRefusal(ITEMS, terms({ amountPaid: 999.99 })), { message: INVOICE_MESSAGES.totalBelowPurchases, status: 400 });
   assert.equal(invoicePaymentRefusal(ITEMS, terms({ method: 'partial', amountPaid: 999.99 })), null);
   assert.deepEqual(invoicePaymentRefusal(ITEMS, terms({ method: 'partial', amountPaid: 1000 })), { message: INVOICE_MESSAGES.partialOutOfRange, status: 400 });
-  const tiny: InvoiceItem[] = [{ expenseId: 1, amount: 0.02, invoiceInterest: null }];
+  const tiny: InvoiceItem[] = [{ expenseId: 1, amount: 0.02, interest: null }];
   assert.deepEqual(
     invoicePaymentRefusal(tiny, terms({ method: 'installments', amountPaid: null, installmentCount: 3 })),
     { message: INVOICE_MESSAGES.installmentTooSmall, status: 400 },

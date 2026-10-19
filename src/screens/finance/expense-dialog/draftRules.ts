@@ -107,7 +107,7 @@ export function effectiveDueDate(draft: ExpenseDraft, context: RuleContext): Due
 
 /**
  * Valor de cada parcela, respeitando os ajustes feitos à mão. O valor digitado
- * é o de cada parcela; com "Sei o valor total" (`amountIsTotal`), é o total,
+ * é o de cada parcela; com a chave "Total" (`amountIsTotal`), é o total,
  * dividido em n com o resto na última.
  */
 export function installmentAmounts(draft: ExpenseDraft): number[] {
@@ -246,7 +246,7 @@ export function installmentGrid(draft: ExpenseDraft, context: RuleContext): Inst
 
 /**
  * Aviso quando a soma das parcelas (com ajustes) não bate com o total digitado.
- * Só com "Sei o valor total": sem ele, não há total digitado. Não impede salvar.
+ * Só com a chave "Total": sem ela, não há total digitado. Não impede salvar.
  */
 export function installmentMismatch(draft: ExpenseDraft): string | null {
   if (draft.billingType !== 'installments' || !draft.amountIsTotal || !draft.amountCents) return null;
@@ -326,10 +326,10 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
         : credit ? 'Entra na fatura'
           : paidCount ? 'Em andamento' : 'Agendado';
 
-    if (draft.knowsCashPrice && draft.cashPriceCents && total > draft.cashPriceCents) {
+    if (draft.cashPriceCents && total > draft.cashPriceCents) {
       const interest = total - draft.cashPriceCents;
       const percent = ((interest / draft.cashPriceCents) * 100).toFixed(1).replace('.', ',');
-      badges.push({ text: `+ ${formatCents(interest)} de juros embutido (${percent}%)`, tone: 'warning' });
+      badges.push({ text: `+ ${formatCents(interest)} de juros (${percent}%) · entra em juros e taxas`, tone: 'warning' });
     }
     if (!isCreditWithCard(draft, context.cards)) {
       let interest = 0;
@@ -481,7 +481,12 @@ export function buildInstallments(draft: ExpenseDraft, context: RuleContext): Ex
 export function buildCreateInput(draft: ExpenseDraft, context: RuleContext, accountId: number | null): ExpenseCreateInput {
   const fields = { ...commonFields(draft, context), accountId };
   if (draft.billingType === 'installments') {
-    return { ...fields, billingType: 'installments', installments: buildInstallments(draft, context) };
+    return {
+      ...fields,
+      billingType: 'installments',
+      installments: buildInstallments(draft, context),
+      cashPrice: draft.cashPriceCents ? toReais(draft.cashPriceCents) : null,
+    };
   }
   return {
     ...fields,

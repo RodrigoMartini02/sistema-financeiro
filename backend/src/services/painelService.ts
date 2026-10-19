@@ -119,7 +119,7 @@ export interface PainelResposta {
   jurosDescontos: {
     periodo: { juros: number; descontos: number };
     ano: { juros: number; descontos: number };
-    /** Juros guardados no restante e nas parcelas da fatura ainda não pagos, de qualquer data (não seguem o período). */
+    /** Juros guardados nas linhas ainda não pagas (restante e parcelas da fatura, parcelas com juros embutido), de qualquer data (não seguem o período). */
     upcomingInterest: number;
   };
   /** Faturas renegociadas (pagamento parcial ou parcelado) com o mês dentro do período. */
@@ -172,7 +172,7 @@ const colunasDespesa = {
   parcelado: expenses.installment,
   recorrente: expenses.recurring,
   invoicePaymentId: expenses.invoicePaymentId,
-  invoiceInterest: expenses.invoiceInterest,
+  interest: expenses.interest,
 };
 
 type LinhaDespesa = {
@@ -189,7 +189,7 @@ type LinhaDespesa = {
   parcelado: boolean | null;
   recorrente: boolean | null;
   invoicePaymentId: number | null;
-  invoiceInterest: string | null;
+  interest: string | null;
 };
 
 function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
@@ -207,7 +207,7 @@ function paraDespesaPainel(linha: LinhaDespesa): DespesaPainel {
     parcelado: linha.parcelado === true,
     recorrente: linha.recorrente === true,
     invoicePaymentId: linha.invoicePaymentId,
-    invoiceInterest: linha.invoiceInterest === null ? null : toNumber(linha.invoiceInterest),
+    interest: linha.interest === null ? null : toNumber(linha.interest),
   };
 }
 
@@ -223,12 +223,12 @@ async function buscarDespesas(entrada: PainelEntrada, janela: Periodo): Promise<
   return linhas.map(paraDespesaPainel);
 }
 
-/** Restante e parcelas da fatura ainda não pagos, de qualquer data: a base dos "Juros a vencer". */
+/** Linhas com juros guardados ainda não pagas (restante e parcelas da fatura, parcelas com juros embutido), de qualquer data: a base dos "Juros a vencer". */
 async function buscarJurosAVencer(entrada: PainelEntrada): Promise<DespesaPainel[]> {
   const linhas = await db.select(colunasDespesa).from(expenses).where(and(
     ...expenseBaseConditions(entrada.escopo, entrada.accountId),
     eq(expenses.paid, false),
-    sql`${expenses.invoiceInterest} > 0`,
+    sql`${expenses.interest} > 0`,
   ));
   return linhas.map(paraDespesaPainel);
 }

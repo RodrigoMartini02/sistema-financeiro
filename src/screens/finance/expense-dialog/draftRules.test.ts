@@ -71,8 +71,12 @@ test('sem descrição ou sem valor não há resumo', () => {
 });
 
 test('badges: juros embutido, multa e juros, desconto', () => {
-  const withCashPrice = credit({ billingType: 'installments', installmentCount: 10, amountCents: 12000, knowsCashPrice: true, cashPriceCents: 100000 });
-  assert.deepEqual(summarizeDraft(withCashPrice, context)?.badges, [{ text: `+ ${brl(200)} de juros embutido (20,0%)`, tone: 'warning' }]);
+  const withCashPrice = credit({ billingType: 'installments', installmentCount: 10, amountCents: 12000, cashPriceCents: 100000 });
+  assert.deepEqual(summarizeDraft(withCashPrice, context)?.badges, [{ text: `+ ${brl(200)} de juros (20,0%) · entra em juros e taxas`, tone: 'warning' }]);
+
+  // À vista igual ou maior que a soma das parcelas: não há juros para avisar.
+  assert.deepEqual(summarizeDraft({ ...withCashPrice, cashPriceCents: 120000 }, context)?.badges, []);
+  assert.deepEqual(summarizeDraft({ ...withCashPrice, cashPriceCents: 150000 }, context)?.badges, []);
 
   const late = draft({ paid: true, paymentDate: '29/09/2026', amountPaidCents: 19000 });
   assert.deepEqual(summarizeDraft(late, context)?.badges, [{ text: `+ ${brl(2.6)} de multa e juros`, tone: 'warning' }]);
@@ -81,7 +85,7 @@ test('badges: juros embutido, multa e juros, desconto', () => {
   assert.deepEqual(summarizeDraft(discounted, context)?.badges, [{ text: `${brl(7.4)} de desconto`, tone: 'success' }]);
 });
 
-test('Sei o valor total: total dividido em centavos, ajuste à mão e aviso de soma diferente', () => {
+test('valor informado "Total": total dividido em centavos, ajuste à mão e aviso de soma diferente', () => {
   const installments = draft({ billingType: 'installments', installmentCount: 3, amountCents: 10000, amountIsTotal: true });
   assert.deepEqual(installmentAmounts(installments), [3333, 3333, 3334]);
   assert.equal(installmentMismatch(installments), null);
@@ -110,10 +114,26 @@ test('valor da parcela: cada parcela vale o digitado, o total é a soma e o ajus
   assert.deepEqual(input.installments.map((installment) => installment.amount), [240, 240, 240]);
 });
 
-test('Sei o valor total: R$ 720 em 3x dá 3x de R$ 240', () => {
+test('valor informado "Total": R$ 720 em 3x dá 3x de R$ 240', () => {
   const total = draft({ billingType: 'installments', installmentCount: 3, amountCents: 72000, amountIsTotal: true });
   assert.deepEqual(installmentAmounts(total), [24000, 24000, 24000]);
   assert.equal(summarizeDraft(total, context)?.totalText, `3x de ${brl(240)} = ${brl(720)} · próxima vence 29/09`);
+});
+
+test('valor à vista vai no pedido só do parcelado e só quando informado', () => {
+  const withCash = draft({ billingType: 'installments', installmentCount: 12, amountCents: 100000, cashPriceCents: 1000000 });
+  const input = buildCreateInput(withCash, context, null);
+  assert.ok(input.billingType === 'installments');
+  assert.equal(input.cashPrice, 10000);
+  assert.equal(input.installments.length, 12);
+
+  const withoutCash = buildCreateInput({ ...withCash, cashPriceCents: null }, context, null);
+  assert.ok(withoutCash.billingType === 'installments');
+  assert.equal(withoutCash.cashPrice, null);
+
+  // Despesa única e mensal ignoram o valor à vista que sobrou no rascunho.
+  const single = buildCreateInput({ ...withCash, billingType: 'single' }, context, null);
+  assert.equal('cashPrice' in single, false);
 });
 
 test('grade de parcelas: atraso, juros e situação das abertas', () => {

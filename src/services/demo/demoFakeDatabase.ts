@@ -50,7 +50,7 @@ export interface RawExpenseDemo {
   grupo_parcelamento_id?: number | null;
   pagamento_fatura_id?: number | null;
   origem_pagamento_fatura_id?: number | null;
-  valor_juros_fatura?: number | null;
+  valor_juros?: number | null;
   pagamento_fatura_forma?: string | null;
   pagamento_fatura_parcelas?: number | null;
   pagamento_fatura_mes?: number | null;

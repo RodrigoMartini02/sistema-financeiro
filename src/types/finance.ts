@@ -155,8 +155,8 @@ export interface Expense {
   invoiceMonth?: string | null;
   /** Linha gerada por um pagamento de fatura: restante, parcela ou encargos. */
   invoiceOriginPaymentId?: number | null;
-  /** Na linha gerada: a parte do valor que é juros ou encargos. */
-  invoiceInterest?: number | null;
+  /** A parte do valor da linha que é juros: encargos, restante ou parcela da fatura, ou o juros embutido da parcela. */
+  interest?: number | null;
 }
 
 /** Forma do pagamento da fatura do cartão. */
@@ -308,7 +308,8 @@ interface ExpenseFieldsInput {
 /** Corpo do POST /expenses. Datas em ISO e valores em reais. */
 export type ExpenseCreateInput = ExpenseFieldsInput & { accountId: number | null } & (
   | ({ billingType: 'single' | 'monthly'; amount: number; dueDate: string } & ExpensePaymentInput)
-  | { billingType: 'installments'; installments: ExpenseInstallmentInput[] }
+  /** `cashPrice`: o valor à vista (sem juros); o que a soma das parcelas passa dele o servidor grava como juros embutido. */
+  | { billingType: 'installments'; installments: ExpenseInstallmentInput[]; cashPrice: number | null }
 );
 
 /**

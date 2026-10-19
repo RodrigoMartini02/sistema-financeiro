@@ -231,8 +231,13 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
   };
 
   if (input.billingType === 'installments') {
+    // Juros embutido: o que a soma das parcelas passa do valor à vista, por igual entre elas.
+    const totalCents = input.installments.reduce((sum, item) => sum + Math.round(item.amount * 100), 0);
+    const interestCents = input.cashPrice == null ? 0 : Math.max(0, totalCents - Math.round(input.cashPrice * 100));
+    const interests = splitAmountInCents(interestCents, input.installments.length);
     return input.installments.map((item, index) => row(item.dueDate, item.amount, item.paid, item.paymentDate, {
       parcelado: true, numero_parcelas: input.installments.length, parcela_atual: index + 1,
+      valor_juros: interests[index]! > 0 ? interests[index]! / 100 : null,
     }));
   }
   // Fora do crédito, vencida até hoje já nasce paga, como no backend.
@@ -384,7 +389,7 @@ function demoPayInvoice(db: DemoFakeDatabase, input: InvoicePaymentInput): void 
       data_vencimento: dueDate, data_compra: input.paymentDate, data_pagamento: null, mes: rowMonth - 1, ano: rowYear,
       status: 'ativa', pago: false, parcelado: false, recorrente: false, numero_parcelas: null, parcela_atual: null,
       observacoes: null, valor_original: amount, numero_nf: null, data_emissao_nf: null, anexos: null,
-      origem_pagamento_fatura_id: paymentId, valor_juros_fatura: interestShare,
+      origem_pagamento_fatura_id: paymentId, valor_juros: interestShare,
       ...extra,
     };
   };

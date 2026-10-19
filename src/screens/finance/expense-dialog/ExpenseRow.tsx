@@ -27,6 +27,7 @@ import {
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
 import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
+import { InstallmentValueFields } from './InstallmentValueFields';
 import { InstallmentsPopover } from './InstallmentsPopover';
 import { PaymentMethodPopover } from './PaymentMethodPopover';
 import type { DraftSuggestions } from './useExpenseSuggestions';
@@ -339,6 +340,8 @@ export function ExpenseRow({
           {isEntry && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
           {variant === 'batch' && <RemoveFromBatchButton onClick={onRemove} />}
         </div>
+
+        {installments && <InstallmentValueFields draft={draft} onUpdate={onUpdate} />}
       </GridRow>
 
       {showSummary && (

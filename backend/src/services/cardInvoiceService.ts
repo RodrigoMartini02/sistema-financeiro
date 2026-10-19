@@ -344,7 +344,7 @@ function generatedRow(
     status: ACTIVE_STATUS,
     invoicePaymentId: row.paid ? paymentId : null,
     invoiceOriginPaymentId: paymentId,
-    invoiceInterest: toDecimal(row.interestAmount),
+    interest: toDecimal(row.interestAmount),
   };
 }
 
@@ -373,7 +373,7 @@ export async function payCardInvoice(requesterId: number, input: InvoicePaymentI
     }
 
     const itemRows = await transaction
-      .select({ expenseId: expenses.id, amount: expenses.originalAmount, invoiceInterest: expenses.invoiceInterest })
+      .select({ expenseId: expenses.id, amount: expenses.originalAmount, interest: expenses.interest })
       .from(expenses)
       .where(openInvoiceItemsCondition([card.id], input.invoiceMonthStart))
       .orderBy(asc(expenses.dueDate), asc(expenses.id))
@@ -381,7 +381,7 @@ export async function payCardInvoice(requesterId: number, input: InvoicePaymentI
     const items: InvoiceItem[] = itemRows.map((row) => ({
       expenseId: row.expenseId,
       amount: toNumber(row.amount),
-      invoiceInterest: row.invoiceInterest === null ? null : toNumber(row.invoiceInterest),
+      interest: row.interest === null ? null : toNumber(row.interest),
     }));
 
     const refusal = invoicePaymentRefusal(items, input);
