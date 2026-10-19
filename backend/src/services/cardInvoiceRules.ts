@@ -13,6 +13,27 @@ import type { PaymentMethod } from './expenseInput';
 /** Só a despesa nesta forma, com cartão, entra na fatura. */
 export const INVOICE_EXPENSE_METHOD: PaymentMethod = 'credito';
 
+/** Catálogo onde as linhas geradas pelo pagamento guardam a categoria de sistema. */
+export interface InvoiceCatalog {
+  accountType: string;
+  ownerId: number;
+}
+
+/**
+ * O catálogo é o do titular da conta do cartão, mesmo quando o cartão é de um membro:
+ * é o que o GET /categories lista para a conta. Cartão sem conta (cadastro antigo) ou
+ * conta que não existe mais usa o catálogo pessoal do dono do cartão.
+ */
+export function invoiceCatalogOf(
+  card: { userId: number; accountId: number | null },
+  account: { type: string; userId: number } | undefined,
+): InvoiceCatalog {
+  if (card.accountId === null || account === undefined) {
+    return { accountType: 'pessoal', ownerId: card.userId };
+  }
+  return { accountType: account.type, ownerId: account.userId };
+}
+
 export const INVOICE_MESSAGES = {
   empty: 'Esta fatura não tem valor em aberto.',
   totalBelowPurchases: 'O valor pago é menor que a soma das compras: use o pagamento parcial ou confira os lançamentos.',

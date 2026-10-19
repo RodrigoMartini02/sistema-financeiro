@@ -5,6 +5,7 @@ import {
   carriedInterestCents,
   computeInvoicePayment,
   generatedDescription,
+  invoiceCatalogOf,
   invoiceDueDate,
   invoiceEditLockOf,
   invoiceEditRefusal,
@@ -237,4 +238,18 @@ test('desfazer: recusado se uma linha gerada foi paga por outro pagamento', () =
   // Os encargos nascem pagos pelo próprio pagamento: não bloqueiam.
   assert.equal(undoRefusal(5, [{ paid: true, invoicePaymentId: 5 }]), null);
   assert.equal(undoRefusal(5, [{ paid: true, invoicePaymentId: 9 }]), INVOICE_MESSAGES.undoBlocked);
+});
+
+test('categoria de sistema da fatura: o catálogo é o do titular da conta, também para o cartão de um membro', () => {
+  // Cartão do próprio titular na conta pessoal.
+  assert.deepEqual(invoiceCatalogOf({ userId: 1, accountId: 17 }, { type: 'pessoal', userId: 1 }), { accountType: 'pessoal', ownerId: 1 });
+  // Cartão de um membro (usuário 15) na conta do titular (usuário 1): vale o catálogo do titular.
+  assert.deepEqual(invoiceCatalogOf({ userId: 15, accountId: 17 }, { type: 'pessoal', userId: 1 }), { accountType: 'pessoal', ownerId: 1 });
+  // O tipo é o da conta, não o do dono do cartão.
+  assert.deepEqual(invoiceCatalogOf({ userId: 20, accountId: 19 }, { type: 'empresa', userId: 16 }), { accountType: 'empresa', ownerId: 16 });
+});
+
+test('categoria de sistema da fatura: cartão sem conta ou conta que sumiu usa o catálogo pessoal do dono do cartão', () => {
+  assert.deepEqual(invoiceCatalogOf({ userId: 15, accountId: null }, undefined), { accountType: 'pessoal', ownerId: 15 });
+  assert.deepEqual(invoiceCatalogOf({ userId: 15, accountId: 99 }, undefined), { accountType: 'pessoal', ownerId: 15 });
 });
