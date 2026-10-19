@@ -21,7 +21,7 @@ import type { IncomeDraft, IncomeDraftErrors } from './draftState';
 /** "Repetir até" gera no máximo 3 anos de réplicas (o mesmo limite do servidor). */
 export const MAX_REPLICAS = 36;
 
-export const EMPTY_INCOME_MESSAGE = 'Preencha descrição, categoria e valor para registrar.';
+export const EMPTY_INCOME_MESSAGE = 'Preencha descrição, categoria e valor bruto para registrar.';
 
 export interface IncomeRuleContext {
   todayIso: string;
@@ -46,7 +46,7 @@ function formatQuantity(value: number): string {
 }
 
 export function isIncomeDraftFilled(draft: IncomeDraft): boolean {
-  return draft.description.trim() !== '' || !!draft.amountCents;
+  return draft.description.trim() !== '' || !!draft.grossCents;
 }
 
 export function receiptDateIso(draft: IncomeDraft, todayIso: string): string {
@@ -93,8 +93,8 @@ export function commissionPreview(draft: IncomeDraft, context: IncomeRuleContext
     representativeName: representative.nome,
     percent,
     type: rule.tipo === 'unica' ? 'unica' : 'mensal',
-    // Com retenção, a comissão sai do líquido, como no servidor.
-    amountCents: Math.round(((withholdingPreview(draft, context)?.netCents ?? draft.amountCents ?? 0) * percent) / 100),
+    // A comissão sai do líquido (o que entrou), como no servidor.
+    amountCents: Math.round(((effectiveNetCents(draft, context) ?? 0) * percent) / 100),
   };
 }
 
@@ -161,9 +161,19 @@ export interface WithholdingPreview {
 /** Horas de contrato com órgão público: o valor digitado é o bruto e a receita vale o líquido. */
 export function withholdingPreview(draft: IncomeDraft, context: IncomeRuleContext): WithholdingPreview | null {
   const rates: WithholdingRates = billableHoursInfo(draft, context)?.contract.withholdings ?? {};
-  if (!draft.amountCents || !WITHHOLDING_TAXES.some((tax) => (rates[tax] ?? 0) > 0)) return null;
-  const withheldCents = WITHHOLDING_TAXES.reduce((total, tax) => total + percentOfCents(draft.amountCents!, rates[tax] ?? 0), 0);
-  return { grossCents: draft.amountCents, withheldCents, netCents: draft.amountCents - withheldCents };
+  if (!draft.grossCents || !WITHHOLDING_TAXES.some((tax) => (rates[tax] ?? 0) > 0)) return null;
+  const withheldCents = WITHHOLDING_TAXES.reduce((total, tax) => total + percentOfCents(draft.grossCents!, rates[tax] ?? 0), 0);
+  return { grossCents: draft.grossCents, withheldCents, netCents: draft.grossCents - withheldCents };
+}
+
+/**
+ * O que entra na conta. Com retenção de contrato, o líquido calculado; senão o digitado, ou o
+ * próprio bruto enquanto o líquido não foi editado (sem taxa nem juros).
+ */
+export function effectiveNetCents(draft: IncomeDraft, context: IncomeRuleContext): number | null {
+  const withholding = withholdingPreview(draft, context);
+  if (withholding) return withholding.netCents;
+  return draft.netCents ?? draft.grossCents;
 }
 
 /** Valor calculado pela venda ou pelas horas. Preenche o campo, que continua editável (desconto, frete). */
@@ -186,7 +196,7 @@ export function fixedCategoryPatch(
   const fixed = category?.fixa;
   if (!fixed) return {};
   const patch: Partial<IncomeDraft> = {};
-  if (!draft.amountCents) patch.amountCents = toCents(fixed.valor);
+  if (!draft.grossCents) patch.grossCents = toCents(fixed.valor);
   if (!dateLocked) patch.receiptDate = isoToBrDate(dateInMonth(receiptDateIso(draft, todayIso) || todayIso, fixed.dia_recebimento));
   return patch;
 }
@@ -204,7 +214,10 @@ export function validateIncomeDraft(draft: IncomeDraft, context: IncomeRuleConte
   const errors: IncomeDraftErrors = {};
   if (!draft.description.trim()) errors.description = true;
   if (draft.categoryId === null) errors.category = true;
-  if (!draft.amountCents) errors.amount = true;
+  if (!draft.grossCents) errors.amount = true;
+  // O líquido é o que entrou: nunca passa do que era devido.
+  const net = effectiveNetCents(draft, context);
+  if (draft.grossCents && (!net || net > draft.grossCents)) errors.net = true;
   if (!receiptDateIso(draft, context.todayIso)) errors.receiptDate = true;
   const hours = billableHoursInfo(draft, context);
   // As horas são do contrato de um cliente: a receita precisa ser desse cliente.
@@ -229,9 +242,10 @@ export function hasIncomeErrors(errors: IncomeDraftErrors): boolean {
 /** Mensagem do rodapé: "Preencha descrição e valor e confira a data do recebimento." */
 export function incomeErrorMessage(errors: IncomeDraftErrors): string {
   const clauses: string[] = [];
-  const missing = [errors.description && 'descrição', errors.category && 'categoria', errors.amount && 'valor']
+  const missing = [errors.description && 'descrição', errors.category && 'categoria', errors.amount && 'valor bruto']
     .filter((item): item is string => typeof item === 'string');
   if (missing.length) clauses.push(`preencha ${joinWithAnd(missing)}`);
+  if (errors.net) clauses.push('o valor líquido não pode passar do bruto');
   if (errors.receiptDate) clauses.push('confira a data do recebimento');
   if (errors.client) clauses.push('use o cliente do contrato das horas');
   if (errors.repeatUntil) clauses.push(`escolha em "Repetir até" um mês depois do da receita, em até ${MAX_REPLICAS} meses`);
@@ -245,11 +259,11 @@ export function incomeErrorMessage(errors: IncomeDraftErrors): string {
 
 /** Linha sob a receita ativa: data, total, réplicas e avisos de comissão, estoque e horas. */
 export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleContext): SummaryContent | null {
-  if (!draft.description.trim() || !draft.amountCents) return null;
+  if (!draft.description.trim() || !draft.grossCents) return null;
   const receipt = receiptDateIso(draft, context.todayIso);
   const replicas = replicaCount(draft, context.todayIso);
   const repeats = draft.repeatUntil !== null && replicas > 0;
-  const total = formatCents(draft.amountCents)
+  const total = formatCents(draft.grossCents)
     + (repeats ? ` · todo mês até ${monthLabel(draft.repeatUntil!.month, draft.repeatUntil!.year)} · ${replicas + 1} lançamentos` : '');
 
   const badges: SummaryBadge[] = [];
@@ -276,6 +290,8 @@ export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleCont
   const withholding = withholdingPreview(draft, context);
   if (withholding) {
     badges.push({ text: `líquido ${formatCents(withholding.netCents)} · retenções de ${formatCents(withholding.withheldCents)}`, tone: 'info' });
+  } else if (draft.netCents !== null && draft.netCents < draft.grossCents) {
+    badges.push({ text: `entram ${formatCents(draft.netCents)} · juros e taxas de ${formatCents(draft.grossCents - draft.netCents)}`, tone: 'info' });
   }
 
   return {
@@ -300,7 +316,8 @@ function commonFields(draft: IncomeDraft, context: IncomeRuleContext): IncomeUpd
   return {
     description: draft.description.trim(),
     categoryId: draft.categoryId,
-    amount: toReais(draft.amountCents ?? 0),
+    grossAmount: toReais(draft.grossCents ?? 0),
+    netAmount: toReais(effectiveNetCents(draft, context) ?? 0),
     receiptDate: receiptDateIso(draft, context.todayIso),
     clientId: draft.clientId,
     representativeId: draft.representativeId,
@@ -328,6 +345,6 @@ export function buildIncomeUpdateInput(draft: IncomeDraft, context: IncomeRuleCo
 /** Consulta de duplicata no servidor; null enquanto faltam descrição ou valor. */
 export function incomeDuplicateQuery(draft: IncomeDraft, excludeId: number | null): IncomeDuplicateQuery | null {
   const description = draft.description.trim();
-  if (!description || !draft.amountCents) return null;
-  return { description, amount: toReais(draft.amountCents), clientId: draft.clientId, excludeId };
+  if (!description || !draft.grossCents) return null;
+  return { description, amount: toReais(draft.grossCents), clientId: draft.clientId, excludeId };
 }

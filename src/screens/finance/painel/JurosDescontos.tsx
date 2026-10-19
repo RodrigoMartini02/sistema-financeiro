@@ -28,7 +28,7 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
   const periodoEhOAno = serie.pontos[0]?.inicio === `${ano}-01-01`;
 
   return (
-    <Secao titulo="Quanto perdi com atraso?">
+    <Secao titulo="Quanto paguei de juros e taxas?">
       <CardPainel>
         <CabecalhoCard
           titulo="Juros e descontos"
@@ -36,11 +36,11 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
           tomValor={saldo >= 0 ? TOM_DESCONTO : TOM_JUROS}
         />
         {semNadaNoPeriodo && semNadaNoAno && jurosAVencer === 0 ? (
-          <Vazio>Nenhum juro pago nem desconto ganho em {ano}.</Vazio>
+          <Vazio>Nenhum juro ou taxa pago nem desconto ganho em {ano}.</Vazio>
         ) : (
           <>
             <Totais itens={[
-              { rotulo: 'Juros pagos', valor: formatCurrency(periodo.juros), tom: TOM_JUROS },
+              { rotulo: 'Juros e taxas pagos', valor: formatCurrency(periodo.juros), tom: TOM_JUROS },
               { rotulo: 'Descontos ganhos', valor: formatCurrency(periodo.descontos), tom: TOM_DESCONTO },
               ...(!periodoEhOAno && !semNadaNoAno
                 ? [{ rotulo: `Em ${ano} até agora`, valor: `juros ${formatCurrency(doAno.juros)} · descontos ${formatCurrency(doAno.descontos)}` }]
@@ -50,14 +50,14 @@ export function JurosDescontos({ valores, serie, ano }: JurosDescontosProps) {
                 : []),
             ]} />
             {semNadaNoPeriodo ? (
-              <Vazio>Sem juros nem descontos no período.</Vazio>
+              <Vazio>Sem juros, taxas nem descontos no período.</Vazio>
             ) : (
               <>
-                <Legenda itens={[{ cor: cores.despesa, nome: 'Juros pagos' }, { cor: cores.receita, nome: 'Descontos ganhos' }]} />
+                <Legenda itens={[{ cor: cores.despesa, nome: 'Juros e taxas pagos' }, { cor: cores.receita, nome: 'Descontos ganhos' }]} />
                 <Barras
                   altura={170}
                   series={[
-                    { chave: 'juros', rotulo: 'Juros pagos', cor: cores.despesa },
+                    { chave: 'juros', rotulo: 'Juros e taxas pagos', cor: cores.despesa },
                     { chave: 'descontos', rotulo: 'Descontos ganhos', cor: cores.receita },
                   ]}
                   pontos={serie.pontos.map((ponto) => ({

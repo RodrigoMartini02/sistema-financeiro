@@ -44,7 +44,7 @@ export function PredictedIncomesStrip({ receiptIso }: { receiptIso: string }) {
       {predicted.map((item) => (
         <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={ellipsisStyle}>
-            {item.descricao} · {isoToBrDate(item.data)} · {formatCurrency(item.valor)}
+            {item.descricao} · {isoToBrDate(item.data)} · {formatCurrency(item.valorLiquido)}
           </span>
           <button
             type="button"

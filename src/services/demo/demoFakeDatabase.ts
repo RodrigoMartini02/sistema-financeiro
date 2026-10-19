@@ -3,7 +3,8 @@ import { daysAgoLocalIso } from '../../utils/date';
 export interface RawIncomeDemo {
   id: number;
   descricao: string;
-  valor: number;
+  valor_liquido: number;
+  valor_bruto: number;
   data_recebimento: string;
   mes: number;
   ano: number;
@@ -141,7 +142,7 @@ function createSeed() {
   ];
 
   const income = (descricao: string, valor: number, dataRecebimento: string): RawIncomeDemo => ({
-    id: generateId(), descricao, valor, data_recebimento: dataRecebimento, mes, ano,
+    id: generateId(), descricao, valor_liquido: valor, valor_bruto: valor, data_recebimento: dataRecebimento, mes, ano,
     status: 'ativa', contrato_id: null, observacoes: null, cliente_id: null, cliente_nome: null, classificacao_id: null, classificacao_nome: null,
     representante_id: null, representante_nome: null, valor_comissao: null, anexos: null,
   });

@@ -5,12 +5,12 @@ import type {
 } from '../types/finance';
 
 interface RawIncome {
-  id: number; descricao: string; valor: string | number;
+  id: number; descricao: string; valor_liquido: string | number; valor_bruto: string | number;
   data_recebimento: string; mes: number; ano: number;
   status?: string | null;
   contrato_id?: number | null;
   observacoes?: string | null;
-  cliente_id?: number | null; cliente_nome?: string | null; valor_bruto?: string | number | null;
+  cliente_id?: number | null; cliente_nome?: string | null;
   classificacao_id?: number | null; classificacao_nome?: string | null; classificacao_pai_nome?: string | null;
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
@@ -74,14 +74,13 @@ function appendProfile(q: URLSearchParams) {
 
 function incomeFromApi(r: RawIncome): Income {
   return {
-    id: r.id, descricao: r.descricao, valor: asNumber(r.valor),
+    id: r.id, descricao: r.descricao, valorLiquido: asNumber(r.valor_liquido), valorBruto: asNumber(r.valor_bruto),
     data: r.data_recebimento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada' | 'prevista' | 'faturada') ?? 'ativa',
     contratoId: r.contrato_id ?? null,
     observacoes: r.observacoes,
     clienteId: r.cliente_id ?? null,
     clienteNome: r.cliente_nome ?? null,
-    valorBruto: r.valor_bruto != null ? asNumber(r.valor_bruto) : null,
     classificacaoId: r.classificacao_id ?? null,
     classificacaoNome: r.classificacao_nome ?? null,
     classificacaoPai: r.classificacao_pai_nome ?? null,

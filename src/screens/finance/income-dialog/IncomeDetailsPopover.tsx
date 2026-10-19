@@ -39,8 +39,8 @@ export function IncomeDetailsPopover({ draft, context, isEdit, invalid, onUpdate
   // Produto e horas preenchem o valor; ele continua editável depois.
   const updateAndRecalculate = (change: Partial<IncomeDraft>) => onUpdate((current) => {
     const next = { ...current, ...change };
-    const amountCents = calculatedAmountCents(next, context);
-    return amountCents ? { ...change, amountCents } : change;
+    const grossCents = calculatedAmountCents(next, context);
+    return grossCents ? { ...change, grossCents } : change;
   });
 
   const chooseContract = (contractId: number | null) => onUpdate((current) => {

@@ -25,7 +25,8 @@ export const incomes = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     accountId: integer('conta_id').references(() => accounts.id),
     description: varchar('descricao', { length: 255 }).notNull(),
-    amount: decimal('valor', { precision: 10, scale: 2 }).notNull(),
+    // O que entrou na conta: é o que vale em saldo, totais e comissão. O bruto fica em `grossAmount`.
+    netAmount: decimal('valor_liquido', { precision: 10, scale: 2 }).notNull(),
     receiptDate: date('data_recebimento').notNull(),
     month: integer('mes').notNull(),
     year: integer('ano').notNull(),
@@ -55,8 +56,9 @@ export const incomes = pgTable(
     clientId: integer('cliente_id'),
     chargeId: integer('cobranca_id'),
     competence: date('competencia'),
-    // Contrato com órgão público: bruto e retenções; `valor` é o líquido.
-    grossAmount: decimal('valor_bruto', { precision: 10, scale: 2 }),
+    // O que era devido antes de taxas, juros e retenções. A diferença para o líquido que não é retenção de tributo
+    // são juros e taxas (painel). `withholdings` só existe em contrato com órgão público.
+    grossAmount: decimal('valor_bruto', { precision: 10, scale: 2 }).notNull(),
     withholdings: jsonb('retencoes').$type<WithholdingAmounts>(),
   },
   (table) => ({

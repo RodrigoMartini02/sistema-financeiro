@@ -97,7 +97,7 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
 
       <div className="flex shrink-0 items-start gap-1">
         <span className="whitespace-nowrap text-sm font-bold text-green-700 dark:text-green-400">
-          {formatCurrency(item.valor)}
+          {formatCurrency(item.valorLiquido)}
         </span>
         <KebabMenu actions={actions} />
       </div>

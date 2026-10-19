@@ -14,7 +14,8 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     accountId: 17,
     description: '  Consultoria  ',
     categoryId: 4,
-    amount: 1500,
+    grossAmount: 1500,
+    netAmount: 1500,
     receiptDate: '2026-09-29',
     clientId: 31,
     representativeId: null,
@@ -53,8 +54,11 @@ test('lê repetir até, produto vendido e horas a faturar', () => {
 
 test('recusa campos obrigatórios ausentes ou inválidos', () => {
   assertRejects(() => readCreateIncomeInput(body({ description: ' ' })), 'Informe a descrição');
-  assertRejects(() => readCreateIncomeInput(body({ amount: 0 })), 'Informe o valor');
-  assertRejects(() => readCreateIncomeInput(body({ amount: 100_000_000 })), 'Valor acima do limite permitido');
+  assertRejects(() => readCreateIncomeInput(body({ grossAmount: 0 })), 'Informe o valor bruto');
+  assertRejects(() => readCreateIncomeInput(body({ netAmount: 0 })), 'Informe o valor líquido');
+  assertRejects(() => readCreateIncomeInput(body({ grossAmount: undefined })), 'Informe o valor bruto');
+  assertRejects(() => readCreateIncomeInput(body({ netAmount: undefined })), 'Informe o valor líquido');
+  assertRejects(() => readCreateIncomeInput(body({ grossAmount: 100_000_000 })), 'Valor acima do limite permitido');
   assertRejects(() => readCreateIncomeInput(body({ receiptDate: '2026-02-30' })), 'Data do recebimento inválida');
   assertRejects(() => readCreateIncomeInput(body({ clientId: 'Empresa XYZ' })), 'Cliente inválido');
   assertRejects(() => readCreateIncomeInput(body({ representativeId: 'Ana' })), 'Representante inválido');
@@ -97,9 +101,19 @@ test('produto e horas precisam de quantidade maior que zero', () => {
   );
 });
 
+test('o líquido pode ser menor que o bruto (taxa ou juros), mas nunca maior', () => {
+  const comTaxa = readCreateIncomeInput(body({ grossAmount: 1000, netAmount: 900 }));
+  assert.equal(comTaxa.grossAmount, 1000);
+  assert.equal(comTaxa.netAmount, 900);
+  assert.equal(readCreateIncomeInput(body({ grossAmount: 1000, netAmount: 1000 })).netAmount, 1000);
+  assertRejects(() => readCreateIncomeInput(body({ grossAmount: 900, netAmount: 1000 })), 'O valor líquido não pode passar do bruto');
+  assertRejects(() => readUpdateIncomeInput(body({ grossAmount: 900, netAmount: 1000 })), 'O valor líquido não pode passar do bruto');
+});
+
 test('edição lê só os campos da própria receita', () => {
   const input = readUpdateIncomeInput(body({ repeatUntil: { month: 11, year: 2026 } }));
-  assert.equal(input.amount, 1500);
+  assert.equal(input.grossAmount, 1500);
+  assert.equal(input.netAmount, 1500);
   assert.equal('repeatUntil' in input, false);
   assert.equal('accountId' in input, false);
 });

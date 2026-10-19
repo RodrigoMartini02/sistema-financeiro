@@ -124,7 +124,7 @@ export async function resumoPeriodo(scope: QueryScope, inicio: string, fim: stri
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), paid: expenses.paid })
       .from(expenses).where(countedExpenseRange(scope, inicio, fim)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicio, fim, RECEIVED_INCOME_STATUSES)),
+    db.select({ amount: incomes.netAmount }).from(incomes).where(incomeRange(scope, inicio, fim, RECEIVED_INCOME_STATUSES)),
   ]);
 
   const entradas = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -154,7 +154,7 @@ export async function saldoAtual(scope: QueryScope) {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount() })
       .from(expenses).where(and(expenseRange(scope, inicioDoAno, hoje), eq(expenses.paid, true))),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioDoAno, hoje, RECEIVED_INCOME_STATUSES)),
+    db.select({ amount: incomes.netAmount }).from(incomes).where(incomeRange(scope, inicioDoAno, hoje, RECEIVED_INCOME_STATUSES)),
   ]);
 
   const entradas = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -171,7 +171,7 @@ export async function saudeFinanceira(scope: QueryScope, meses: number) {
   const inicioIso = inicio.toISOString().slice(0, 10);
 
   const [incomeRows, expenseRows, futuras] = await Promise.all([
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeRange(scope, inicioIso, hoje, RECEIVED_INCOME_STATUSES)),
+    db.select({ amount: incomes.netAmount }).from(incomes).where(incomeRange(scope, inicioIso, hoje, RECEIVED_INCOME_STATUSES)),
     db.select({ amount: effectiveExpenseAmount(), recurring: expenses.recurring })
       .from(expenses).where(countedExpenseRange(scope, inicioIso, hoje)),
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate })
@@ -260,7 +260,7 @@ export async function ultimosLancamentos(scope: QueryScope) {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ descricao: expenses.description, amount: effectiveExpenseAmount() })
       .from(expenses).where(expenseAll(scope)).orderBy(desc(expenses.createdAt)).limit(1),
-    db.select({ descricao: incomes.description, amount: incomes.amount })
+    db.select({ descricao: incomes.description, amount: incomes.netAmount })
       .from(incomes).where(incomeAll(scope)).orderBy(desc(incomes.createdAt)).limit(1),
   ]);
 
@@ -296,7 +296,7 @@ export async function buscarLancamentos(
       .orderBy(desc(expenses.dueDate)).limit(limite),
     tipo === 'despesa' ? [] : db.select({
       descricao: incomes.description,
-      amount: incomes.amount,
+      amount: incomes.netAmount,
       data: incomes.receiptDate,
       status: incomes.status,
     }).from(incomes)
@@ -409,7 +409,7 @@ export async function contasAReceber(scope: QueryScope, inicio: string, fim: str
   const hoje = getTodayIsoInTimezone();
   const rows = await db.select({
     descricao: incomes.description,
-    amount: incomes.amount,
+    amount: incomes.netAmount,
     data: incomes.receiptDate,
     status: incomes.status,
   }).from(incomes).where(incomeRange(scope, inicio, fim, LIVE_INCOME_STATUSES)).orderBy(asc(incomes.receiptDate)).limit(MAX_ROWS);
@@ -563,7 +563,7 @@ export async function projecaoSaldo(scope: QueryScope, meses: number) {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate, paid: expenses.paid })
       .from(expenses).where(countedExpenseRange(scope, hoje, fim)),
-    db.select({ amount: incomes.amount, data: incomes.receiptDate })
+    db.select({ amount: incomes.netAmount, data: incomes.receiptDate })
       .from(incomes).where(incomeRange(scope, hoje, fim, LIVE_INCOME_STATUSES)),
   ]);
 

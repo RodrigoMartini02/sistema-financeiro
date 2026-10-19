@@ -324,7 +324,7 @@ export async function listClientIncomes(client: Client, visibleUserIds: number[]
     .select({
       id: incomes.id,
       description: incomes.description,
-      amount: incomes.amount,
+      amount: incomes.netAmount,
       grossAmount: incomes.grossAmount,
       withholdings: incomes.withholdings,
       receiptDate: incomes.receiptDate,
@@ -344,6 +344,7 @@ export async function listClientIncomes(client: Client, visibleUserIds: number[]
   return rows.map((row) => ({
     ...row,
     amount: Number(row.amount),
-    grossAmount: row.grossAmount === null ? null : Number(row.grossAmount),
+    // O bruto só aparece com retenção de tributo; sem ela é igual ao valor.
+    grossAmount: row.withholdings === null ? null : Number(row.grossAmount),
   }));
 }

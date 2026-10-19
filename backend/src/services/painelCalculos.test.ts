@@ -11,6 +11,7 @@ import {
   agregarGastoPorCartaoEPessoa,
   agregarCategoriasPorOutros,
   agregarJurosDescontos,
+  jurosDaReceita,
   agregarTipoGasto,
   agruparPorRaiz,
   projetarFixas,
@@ -56,7 +57,9 @@ function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
 }
 
 function receita(parcial: Partial<ReceitaPainel>): ReceitaPainel {
-  return { usuarioId: 1, dataRecebimento: '2026-09-05', valor: 1000, classificacaoId: null, ...parcial };
+  const valor = parcial.valor ?? 1000;
+  // Sem informar o bruto, a receita não teve desconto: bruto igual ao líquido.
+  return { usuarioId: 1, dataRecebimento: '2026-09-05', valor, valorBruto: valor, retencoes: 0, classificacaoId: null, ...parcial };
 }
 
 test('valida datas ISO reais e rejeita datas inexistentes', () => {
@@ -225,7 +228,7 @@ test('série: juros e descontos no trecho do vencimento, somando o total do per�
   assert.equal(serie[0]!.juros, 12);
   assert.equal(serie[2]!.juros, 0);
   assert.equal(serie[2]!.descontos, 5);
-  const total = agregarJurosDescontos(despesas);
+  const total = agregarJurosDescontos(despesas, []);
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.juros, 0), total.juros);
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.descontos, 0), total.descontos);
 });
@@ -238,7 +241,7 @@ test('fatura renegociada: compra paga em parte não vira desconto', () => {
   // Parcelado: a compra contou 0.
   const parcelada = despesa({ formaPagamento: 'credito', valorOriginal: 500, pago: true, valorPago: 0, invoicePaymentId: 9 });
   assert.equal(descontoDaDespesa(parcelada), 0);
-  assert.deepEqual(agregarJurosDescontos([parcial, parcelada]), { juros: 0, descontos: 0 });
+  assert.deepEqual(agregarJurosDescontos([parcial, parcelada], []), { juros: 0, descontos: 0 });
 });
 
 test('linhas geradas pela fatura: juros guardados contam na proporção do que foi pago', () => {
@@ -425,4 +428,40 @@ test('filtros de despesa do Painel: categoria, cartão e forma, combinados e vaz
   assert.deepEqual(valores(filtrarDespesasPainel(despesas, { categoryIds: [1], cardIds: [], paymentMethods: ['pix'] })), [30]);
   assert.equal(temFiltroDeDespesa(SEM_FILTROS_DESPESA), false);
   assert.equal(temFiltroDeDespesa({ ...SEM_FILTROS_DESPESA, cardIds: [7] }), true);
+});
+
+test('juros e taxas da receita: bruto menos o líquido que entrou, sem a retenção de tributo', () => {
+  // Empréstimo de R$ 1.000 com taxa de R$ 100: entrou R$ 900.
+  assert.equal(jurosDaReceita(receita({ valorBruto: 1000, valor: 900 })), 100);
+  // Sem desconto não há juros.
+  assert.equal(jurosDaReceita(receita({ valor: 1000 })), 0);
+  // Contrato com retenção: bruto 1.000, retenções 145,50 e líquido 854,50 não têm juros.
+  assert.equal(jurosDaReceita(receita({ valorBruto: 1000, retencoes: 145.5, valor: 854.5 })), 0);
+  // Retenção e taxa juntas: só a taxa conta.
+  assert.equal(jurosDaReceita(receita({ valorBruto: 1000, retencoes: 100, valor: 850 })), 50);
+  // Centavos não sobram de ponto flutuante.
+  assert.equal(jurosDaReceita(receita({ valorBruto: 100.1, valor: 100 })), 0.1);
+});
+
+test('juros pagos somam os das despesas e os das receitas, e os descontos são só das despesas', () => {
+  const despesas = [despesa({ dataVencimento: '2026-09-03', pago: true, dataPagamento: '2026-09-03', valorPago: 112 })];
+  const receitas = [receita({ valorBruto: 1000, valor: 900 })];
+  assert.deepEqual(agregarJurosDescontos(despesas, receitas), { juros: 112 - 100 + 100, descontos: 0 });
+  assert.deepEqual(agregarJurosDescontos([], receitas), { juros: 100, descontos: 0 });
+});
+
+test('série: o juro da receita cai no trecho do recebimento e as barras somam o total', () => {
+  const receitas = [
+    receita({ dataRecebimento: '2026-09-05', valorBruto: 1000, valor: 900 }),
+    receita({ dataRecebimento: '2026-09-20', valor: 500 }),
+  ];
+  const janela = { de: '2026-09-01', ate: '2026-09-30', granularidade: 'semana' } as const;
+  const serie = montarSerie([], receitas, janela);
+  const total = agregarJurosDescontos([], receitas);
+  assert.equal(serie.reduce((soma, ponto) => soma + ponto.juros, 0), total.juros);
+  assert.equal(serie[0]!.juros, 100);
+  // Com filtro de despesa ligado, a série deixa o juro da receita de fora.
+  assert.equal(montarSerie([], receitas, janela, false).reduce((soma, ponto) => soma + ponto.juros, 0), 0);
+  // O valor que soma nas receitas continua sendo o líquido.
+  assert.equal(serie.reduce((soma, ponto) => soma + ponto.receitas, 0), 1400);
 });

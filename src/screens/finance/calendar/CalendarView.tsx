@@ -96,7 +96,7 @@ export function CalendarView({ month, year, subView }: Props) {
       if (income.status === 'cancelada') continue;
       push(income.data, {
         kind: 'receita', id: income.id, title: income.descricao,
-        date: income.data, value: income.valor,
+        date: income.data, value: income.valorLiquido,
         status: getIncomeStatus(income),
       });
     }

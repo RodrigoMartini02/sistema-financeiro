@@ -30,7 +30,7 @@ import { HEADER_GRID_CLASS } from '../entry-dialog/fieldStyles';
 import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
-  EMPTY_INCOME_MESSAGE, buildIncomeCreateInput, buildIncomeUpdateInput, hasIncomeErrors, incomeErrorMessage,
+  EMPTY_INCOME_MESSAGE, buildIncomeCreateInput, buildIncomeUpdateInput, effectiveNetCents, hasIncomeErrors, incomeErrorMessage,
   isIncomeDraftFilled, receiptDateIso, validateIncomeDraft, type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import {
@@ -327,7 +327,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
       <span>Descrição {required && <RequiredMark />}</span>
       <span>Categoria</span>
       {isCompany && <span>Cliente</span>}
-      <span>Valor {required && <RequiredMark />}</span>
+      <span>Valor bruto {required && <RequiredMark />}</span>
+      <span>Valor líquido</span>
       <span>Recebido em {required && <RequiredMark />}</span>
       <span>Repetir</span>
       {isCompany && <span />}
@@ -358,7 +359,8 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
 
   const batch = state.batch.length > 0 ? {
     count: state.batch.length,
-    sumCents: state.batch.reduce((sum, draft) => sum + (draft.amountCents ?? 0), 0),
+    // O que vai entrar na conta: a soma dos valores líquidos.
+    sumCents: state.batch.reduce((sum, draft) => sum + (effectiveNetCents(draft, resources.context) ?? 0), 0),
     header: columnHeaders('10px 8px 4px', false),
     rows: state.batch.map((draft) => (
       <IncomeRow
