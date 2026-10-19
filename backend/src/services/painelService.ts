@@ -122,7 +122,7 @@ export interface PainelResposta {
   };
   /** Faturas renegociadas (pagamento parcial ou parcelado) com o mês dentro do período. */
   renegotiatedInvoices: RenegotiatedInvoice[];
-  categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; usuarioId: number; autorNome: string | null; total: number }>;
+  categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; parentNome: string | null; usuarioId: number; autorNome: string | null; total: number }>;
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: ReceitasPainelResumo;
   /** Para onde foi: despesas do período pela categoria principal. */
@@ -614,10 +614,13 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     renegotiatedInvoices: faturasRenegociadas,
     categorias: categoriasAgregadas.map((linha) => {
       const categoria = linha.categoriaId !== null ? categoriasPorId.get(linha.categoriaId) : undefined;
+      const pai = categoria?.parentId != null ? categoriasPorId.get(categoria.parentId) : undefined;
       return {
         categoriaId: linha.categoriaId,
         categoria: categoria?.nome ?? 'Sem categoria',
         parentId: categoria?.parentId ?? null,
+        // O pai vem junto porque o gráfico agrupa a sub sob ele mesmo quando o pai não teve gasto próprio.
+        parentNome: pai?.nome ?? null,
         usuarioId: linha.usuarioId,
         autorNome: nomesPessoas.get(linha.usuarioId) ?? null,
         total: linha.total,

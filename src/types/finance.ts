@@ -367,6 +367,8 @@ export interface PainelCategoria {
   categoriaId: number | null;
   categoria: string;
   parentId: number | null;
+  /** Nome do pai, para agrupar a sub sob ele mesmo quando o pai não teve gasto próprio. */
+  parentNome: string | null;
   usuarioId: number;
   autorNome: string | null;
   total: number;
