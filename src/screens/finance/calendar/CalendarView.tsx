@@ -17,6 +17,7 @@ import { WeekGrid } from './WeekGrid';
 import type { CalendarItemKind } from './calendarStatus';
 import { getExpenseStatus, getIncomeStatus } from './calendarStatus';
 import type { CalendarItem } from './types';
+import { expenseCashDate } from '../../../utils/cashDate';
 import { effectiveExpenseValue } from '../../../utils/expenseValue';
 
 function toIso(d: Date): string {
@@ -85,10 +86,12 @@ export function CalendarView({ month, year, subView }: Props) {
       map.set(date, list);
     };
 
+    // A despesa fica no dia de caixa (pagamento, se paga; senão vencimento): o mesmo mês da lista e dos cards.
     for (const expense of finance.dashboard.data?.expenses ?? []) {
-      push(expense.dataVencimento, {
+      const cashDate = expenseCashDate(expense);
+      push(cashDate, {
         kind: 'despesa', id: expense.id, title: expense.descricao,
-        date: expense.dataVencimento, value: effectiveExpenseValue(expense),
+        date: cashDate, value: effectiveExpenseValue(expense),
         status: getExpenseStatus(expense),
       });
     }

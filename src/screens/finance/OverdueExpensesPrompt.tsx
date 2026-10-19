@@ -98,7 +98,7 @@ export function OverdueExpensesPrompt({ enabled }: OverdueExpensesPromptProps) {
       </button>
 
       <Dialog open={open} title="Despesas vencidas" description="Mova para o mês atual as que ainda vai pagar. Fechar não muda nada." onClose={() => setOpen(false)} scrollBody={false}>
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, margin: '0 calc(-1 * var(--dialog-px))' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 var(--dialog-px) 12px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 4px', fontSize: 12.5, color: C.textMuted }}>
               <input

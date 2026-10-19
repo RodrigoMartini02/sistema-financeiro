@@ -253,12 +253,12 @@ export function MovimentacoesScreen() {
           </div>
         )}
 
+        <OverdueExpensesPrompt enabled={controls.newExpense && month === now.getMonth() && year === now.getFullYear()} />
+
         {/* Grid em vez de flex-wrap: antes o rótulo era irmão dos cartões e
             disputava a linha com eles, então dois cartões ocupavam uma fração
             da largura. Agora a faixa inteira é dos cartões, que se redistribuem
             conforme a quantidade. */}
-        <OverdueExpensesPrompt enabled={controls.newExpense && month === now.getMonth() && year === now.getFullYear()} />
-
         {!isCalendario && (cardLimits.data?.length ?? 0) > 0 && (
           <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="grid gap-x-5 gap-y-1.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">

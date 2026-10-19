@@ -11,7 +11,7 @@ import {
 import { findAccountAccessWithDocument } from '../services/documentConflicts';
 import { readMemberUpdateInput, readNewMemberInput } from '../services/memberInput';
 import { validarPeriodo } from '../services/painelCalculos';
-import { countedExpenseSql } from '../services/expenseCounting';
+import { loadAccountTotals } from '../services/accountsOverview';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { sendRequestError } from '../utils/requestInput';
 
@@ -527,50 +527,27 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
       : { rows: [] as { usuario_id: number }[] };
     const autoresFallback = [ownerId, ...membrosDaContaPadrao.rows.map((r) => r.usuario_id)];
 
-    const baseParams = [accountIds, contaPadraoId, autoresFallback, validacao.periodo.de, validacao.periodo.ate];
-
-    const [contasResult, expensesResult, incomesResult] = await Promise.all([
+    const [contasResult, totals] = await Promise.all([
       pool.query(
         `SELECT id, tipo, nome, razao_social, nome_fantasia FROM contas WHERE id = ANY($1) ORDER BY eh_padrao DESC, data_criacao, id`,
         [accountIds],
       ),
-      // Despesas de TODOS os autores das contas listadas, somadas por conta —
-      // conta_id nunca vem do client, so da lista ja resolvida acima. Fallback
-      // (conta_id nulo) so entra quando a conta padrao do dono esta no
-      // conjunto pedido, e so pelos autores vinculados a ela. Recorrente em
-      // aberto so entra depois da data dela ($6 = hoje; expenseCounting).
-      pool.query(
-        `SELECT COALESCE(d.conta_id, $2) AS conta_id,
-                COALESCE(SUM(CASE WHEN d.pago THEN COALESCE(d.valor_pago, d.valor_original) ELSE d.valor_original END), 0) AS total
-         FROM despesas d
-         WHERE d.status = 'ativa' AND d.data_vencimento BETWEEN $4::date AND $5::date
-           AND (
-             d.conta_id = ANY($1)
-             OR (d.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND d.usuario_id = ANY($3))
-           )
-           AND ${countedExpenseSql('d', '$6')}
-         GROUP BY COALESCE(d.conta_id, $2)`,
-        [...baseParams, getTodayIsoInTimezone()],
-      ),
-      pool.query(
-        `SELECT COALESCE(r.conta_id, $2) AS conta_id, COALESCE(SUM(r.valor_liquido), 0) AS total
-         FROM receitas r
-         WHERE r.status = 'ativa' AND r.data_recebimento BETWEEN $4::date AND $5::date
-           AND (
-             r.conta_id = ANY($1)
-             OR (r.conta_id IS NULL AND $2::int IS NOT NULL AND $2 = ANY($1) AND r.usuario_id = ANY($3))
-           )
-         GROUP BY COALESCE(r.conta_id, $2)`,
-        baseParams,
-      ),
+      loadAccountTotals({
+        accountIds,
+        defaultAccountId: contaPadraoId,
+        fallbackAuthorIds: autoresFallback,
+        start: validacao.periodo.de,
+        end: validacao.periodo.ate,
+        today: getTodayIsoInTimezone(),
+      }),
     ]);
 
     res.json({
       success: true,
       data: {
         contas: contasResult.rows,
-        despesas_por_conta: expensesResult.rows,
-        receitas_por_conta: incomesResult.rows,
+        despesas_por_conta: totals.expenses,
+        receitas_por_conta: totals.incomes,
       },
     });
   } catch (error) {

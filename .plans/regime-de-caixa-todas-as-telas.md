@@ -5,7 +5,7 @@
 - Bate-papo de 2026-10-19, depois do PR #2 (`.plans/painel-resultado-regime-caixa.md`): "você analisou todos os impactos? dos registros até os gráficos do painel? cards de receitas e despesas em movimentações?".
 - Data da análise: 2026-10-19
 - Classificação: `backend + frontend`. **Sem migration.**
-- Situação: **análise feita, nada implementado.** Aguarda a aprovação do usuário (seção "Decisões").
+- Situação: **implementado na branch `claude/determined-pascal-wrve3a`** (aprovado pelo usuário em 2026-10-19, as três recomendações). Sem migration. Falta o merge e a conferência na tela, em produção, depois do deploy.
 
 ## Resumo
 
@@ -76,6 +76,8 @@ Despesa do mês, por tela:
 2. **Confirmar recebimento com data** no diálogo (recomendado).
 3. Confirmar o que o PR #2 já definiu: conta vencida e em aberto continua no mês do vencimento até ser paga ou movida; pagá-la ou movê-la tira a conta daquele mês. É o único caso em que um mês passado muda por ação de hoje, e é o que o usuário pediu com a lista de vencidas.
 
+**Respostas (2026-10-19): sim às três.**
+
 ## Verificação
 
 - **Quadro de aceite**, rodado com os serviços reais no banco descartável, antes e depois: as seis telas precisam dar os mesmos números. Esperado com o mesmo conjunto de dados e R1 confirmada em 19/10:
@@ -89,7 +91,7 @@ Despesa do mês, por tela:
   | novembro | 1.100 | 0 | 0 | 1.100 |
 
 - Testes novos: paridade `cashDate` frontend × backend; data padrão do recebimento; lista por mês de caixa; saldo anterior; receita confirmada em outro mês. Os testes de banco rodam só com variável de ambiente, como os de licitações.
-- Nenhuma tela foi conferida no navegador.
+- Resultado: ver "Implementação" abaixo.
 
 ## Riscos e ordem
 
@@ -98,3 +100,30 @@ Despesa do mês, por tela:
 - Conferência antes do deploy, só leitura, no banco de produção (queries no corpo da resposta): quantas despesas pagas fora do mês do vencimento, e se há receitas com `mes/ano` diferente da data.
 - O índice `(usuario_id, mes, ano)` deixa de servir à lista; o volume por usuário é pequeno. Se pesar, índice por expressão em outra rodada.
 - Fora do escopo: pagamento de fatura, limite do cartão, vencimento original (já no PR #2), tela de "receitas atrasadas a confirmar" (simétrica da lista de vencidas; fica como sugestão).
+
+## Implementação (2026-10-19)
+
+A regra mora em `backend/src/services/cashDate.ts` (`expenseCashDate`, `expenseCashDateSql`, `expenseCashDateColumn`, `monthRange`, `defaultReceiptDate`), com o espelho `src/utils/cashDate.ts` e testes de paridade nos dois lados.
+
+- **Despesas por data de caixa:** lista (`utils/ownerAndAccountWhere.ts`, `routes/expenses.ts`), cards e saldo anterior (`balanceService.ts`), Painel (`painelCalculos.ts` usa a função única; `painelService.ts`, saldo anterior), Relatórios (`reportService.ts`), Planejamento (`budgetService.ts`), Copiloto (`financialCopilot.ts`), Assistente (`assistantQueries.ts`) e visão geral das contas.
+- **Receita:** `receiveIncome` (`incomeService.ts`) grava data e `mes/ano` do recebimento; sem data informada vale a prevista se for do mês atual, senão hoje. A lista de receitas segue por `mes/ano`, que o recebimento passa a manter.
+- **Frontend:** diálogo `ReceiptDateDialog.tsx` em "Confirmar recebimento" (tabela e faixa de previstas), calendário e ordenação pela data de caixa, comentário do `MovimentacoesScreen.tsx` de volta ao lugar, margem do modal de vencidas corrigida.
+
+### Diferenças em relação ao plano
+
+- A visão geral das contas saiu da rota para `services/accountsOverview.ts` (`loadAccountTotals`), para poder ser testada com o banco; as chaves da resposta não mudaram.
+- Assistente: o resumo, os maiores gastos, a busca e os comparativos usam a data de caixa; **contas a pagar, recorrentes previstas e projeção de saldo ficam por vencimento**, porque falam do que ainda está em aberto.
+- Alertas e notificações não mudaram (são aviso de vencimento). O "Mover para próximo mês" de uma conta na tabela continua somando um mês.
+
+### Verificação
+
+- Quadro de aceite com os serviços reais num Postgres descartável: Movimentações (cards e lista), Painel, Relatórios, Assistente, Planejamento e visão geral das contas dão os mesmos números nos cinco meses do quadro (fevereiro, março, setembro, outubro, novembro), batendo com a tabela acima.
+- Teste de banco commitado, `npm --prefix backend run test:finance-db` (só com `FINANCE_DB_TESTS=1`, só em banco local, apaga o que cria): 5 testes. Conferido que pega o defeito antigo: com a data prevista mantida ao confirmar a receita falham 3, e com a despesa paga contando no vencimento falham 2.
+- Rotas HTTP reais e a tela no navegador (Chromium) contra o banco descartável: lista, cards, calendário, diálogo da data de recebimento e modal de vencidas.
+- Suítes: backend 501 de 507 (as 6 que falham só importam o banco e não têm `DATABASE_URL`, igual antes da mudança; com a variável os 6 arquivos passam, 54 de 54); frontend 304 de 304; `tsc --noEmit` nos dois; `vite build`.
+- **Não verificado:** produção. Os dados reais não foram vistos; os números de meses passados mudam uma vez (ver riscos).
+
+### Para o deploy
+
+- Sem migration: pode ir direto, backend e site juntos (um deploy só, para as telas não divergirem).
+- Depois do deploy, conferir na tela de produção: um mês fechado com conta paga em outro mês, e o saldo acumulado do Painel.

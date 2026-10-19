@@ -5,7 +5,8 @@ import { db, pool } from '../db/client';
 import * as schema from '../db/schema';
 import { incomes, type Income, type NewIncome } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
-import { getMonthYearFromIsoDate, monthlyDatesUntil } from '../utils/date';
+import { getMonthYearFromIsoDate, getTodayIsoInTimezone, monthlyDatesUntil } from '../utils/date';
+import { defaultReceiptDate } from './cashDate';
 import { escapeLikePattern, roundCents } from '../utils/requestInput';
 import { clients, contracts } from '../modules/contracts/db/schema';
 import { RequestInputError } from '../utils/requestInput';
@@ -366,11 +367,18 @@ async function contractHadCommission(
 
 /**
  * Marca a receita prevista ou faturada como recebida, com a data e o valor
- * informados. A receita de contrato com representante gera aqui a comissão,
- * pelo valor recebido, se ainda não tem; a manual já teve a dela no
- * lançamento. Nulo quando a receita não é do dono ou já não está a receber.
+ * informados; a data e o mês gravados passam a ser os do recebimento, que é
+ * onde a receita conta (cashDate.ts). Sem data, vale defaultReceiptDate. A
+ * receita de contrato com representante gera aqui a comissão, pelo valor
+ * recebido, se ainda não tem; a manual já teve a dela no lançamento. Nulo
+ * quando a receita não é do dono ou já não está a receber.
  */
-export async function receiveIncome(ownerId: number, incomeId: number, input: ReceiveIncomeInput): Promise<Income | null> {
+export async function receiveIncome(
+  ownerId: number,
+  incomeId: number,
+  input: ReceiveIncomeInput,
+  today: string = getTodayIsoInTimezone(),
+): Promise<Income | null> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -386,7 +394,9 @@ export async function receiveIncome(ownerId: number, incomeId: number, input: Re
       return null;
     }
 
-    const receiptDate = input.receivedDate ?? income.receiptDate;
+    // Sem data informada, a prevista só vale se é do mês atual; senão, hoje: a confirmação não cai sozinha em mês fechado.
+    const receiptDate = input.receivedDate ?? defaultReceiptDate(income.receiptDate, today);
+    const { mes: receiptMonth, ano: receiptYear } = getMonthYearFromIsoDate(receiptDate);
     const amount = input.receivedAmount ?? Number(income.netAmount);
     let commissionAmount = income.commissionAmount;
     const fromContract = income.chargeId !== null || income.contractId !== null;
@@ -425,6 +435,8 @@ export async function receiveIncome(ownerId: number, incomeId: number, input: Re
       .set({
         status: INCOME_STATUS.received,
         receiptDate,
+        month: receiptMonth,
+        year: receiptYear,
         netAmount: toDecimal(amount),
         // O líquido recebido não passa do bruto: se passar, o bruto sobe junto (sem taxa).
         grossAmount: toDecimal(Math.max(amount, Number(income.grossAmount))),

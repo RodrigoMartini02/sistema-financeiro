@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
 import { cards, categories, expenses, incomes } from '../db/schema';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { effectiveExpenseAmount } from '../utils/expenseAmount';
 import { getBudgetOverview, type FinancialAccount } from './budgetService';
 import { assertValidRange, describeRange } from './assistantDateRange';
+import { expenseCashDateColumn } from './cashDate';
 import type { OpenExpenseRow } from './assistantPayment';
 import { isOverdueReceivable, matchesReceivableSituation } from './assistantReceivables';
 import { ACTIVE_STATUS, LIVE_INCOME_STATUSES, RECEIVED_INCOME_STATUSES, expensePayer } from './entryQueries';
@@ -37,17 +38,13 @@ function clampLimit(limite: number | undefined, fallback: number): number {
   return Math.min(Math.floor(limite), MAX_ROWS);
 }
 
-/**
- * Despesas do periodo, por data de vencimento. Contam para quem paga (o dono do
- * cartao, ou quem cadastrou sem cartao), como no Painel e nos Relatorios.
- */
-function expenseRange(scope: QueryScope, inicio: string, fim: string) {
+/** Condições de toda consulta de despesas do período: quem paga, vigente (a cancelada fica fora) e a conta. */
+function expenseConditions(scope: QueryScope, dateCondition: SQL) {
   const conditions = [
     eq(expensePayer, scope.userId),
     // Cancelada fica no banco, fora de toda soma (como no Painel e nos saldos).
     eq(expenses.status, ACTIVE_STATUS),
-    gte(expenses.dueDate, inicio),
-    lte(expenses.dueDate, fim),
+    dateCondition,
   ];
   if (scope.account.type === 'pessoal') {
     conditions.push(or(eq(expenses.accountId, scope.account.id), isNull(expenses.accountId))!);
@@ -58,12 +55,31 @@ function expenseRange(scope: QueryScope, inicio: string, fim: string) {
 }
 
 /**
+ * Despesas do periodo, por data de CAIXA (cashDate.ts): a paga no dia do pagamento, a em
+ * aberto no vencimento — o mesmo mes das telas. Contam para quem paga (o dono do cartao, ou
+ * quem cadastrou sem cartao), como no Painel e nos Relatorios.
+ */
+function expenseRange(scope: QueryScope, inicio: string, fim: string) {
+  return expenseConditions(scope, sql`${expenseCashDateColumn()} BETWEEN ${inicio} AND ${fim}`);
+}
+
+/** Despesas que VENCEM no periodo, paga ou nao: base das consultas de contas, vencimentos e projecao. */
+function dueDateRange(scope: QueryScope, inicio: string, fim: string) {
+  return expenseConditions(scope, and(gte(expenses.dueDate, inicio), lte(expenses.dueDate, fim))!);
+}
+
+/**
  * Despesas do periodo que contam nas somas: a recorrente em aberto so entra
  * depois da data dela (expenseCounting). As listas usam expenseRange e
  * continuam mostrando a ocorrencia futura.
  */
 function countedExpenseRange(scope: QueryScope, inicio: string, fim: string) {
   return and(expenseRange(scope, inicio, fim), countedExpenseCondition());
+}
+
+/** O mesmo recorte de countedExpenseRange, pelo vencimento. */
+function countedDueDateRange(scope: QueryScope, inicio: string, fim: string) {
+  return and(dueDateRange(scope, inicio, fim), countedExpenseCondition());
 }
 
 /**
@@ -232,7 +248,7 @@ export async function maioresGastos(scope: QueryScope, inicio: string, fim: stri
   const rows = await db.select({
     descricao: expenses.description,
     amount: effectiveExpenseAmount(),
-    dueDate: expenses.dueDate,
+    cashDate: expenseCashDateColumn(),
     categoryName: categories.name,
   }).from(expenses).leftJoin(categories, eq(expenses.categoryId, categories.id))
     .where(countedExpenseRange(scope, inicio, fim))
@@ -244,7 +260,7 @@ export async function maioresGastos(scope: QueryScope, inicio: string, fim: stri
     itens: rows.map((row) => ({
       descricao: row.descricao,
       valor: asNumber(row.amount),
-      data: String(row.dueDate),
+      data: String(row.cashDate),
       categoria: row.categoryName ?? 'Sem categoria',
     })),
   };
@@ -289,11 +305,11 @@ export async function buscarLancamentos(
     tipo === 'receita' ? [] : db.select({
       descricao: expenses.description,
       amount: effectiveExpenseAmount(),
-      data: expenses.dueDate,
+      data: expenseCashDateColumn(),
       paid: expenses.paid,
     }).from(expenses)
       .where(and(expenseRange(scope, inicio, fim), sql`lower(${expenses.description}) like ${termo}`))
-      .orderBy(desc(expenses.dueDate)).limit(limite),
+      .orderBy(desc(expenseCashDateColumn())).limit(limite),
     tipo === 'despesa' ? [] : db.select({
       descricao: incomes.description,
       amount: incomes.netAmount,
@@ -379,7 +395,7 @@ export async function contasAPagar(scope: QueryScope, inicio: string, fim: strin
     amount: effectiveExpenseAmount(),
     dueDate: expenses.dueDate,
     paid: expenses.paid,
-  }).from(expenses).where(countedExpenseRange(scope, inicio, fim)).orderBy(asc(expenses.dueDate)).limit(MAX_ROWS);
+  }).from(expenses).where(countedDueDateRange(scope, inicio, fim)).orderBy(asc(expenses.dueDate)).limit(MAX_ROWS);
 
   const itens = rows
     .filter((row) => {
@@ -447,7 +463,7 @@ export async function recorrentesPrevistas(scope: QueryScope, inicio: string, fi
     dueDate: expenses.dueDate,
     paid: expenses.paid,
   }).from(expenses)
-    .where(and(expenseRange(scope, inicio, fim), eq(expenses.recurring, true)))
+    .where(and(dueDateRange(scope, inicio, fim), eq(expenses.recurring, true)))
     .orderBy(asc(expenses.dueDate)).limit(MAX_ROWS);
 
   const itens = rows.map((row) => ({
@@ -562,7 +578,7 @@ export async function projecaoSaldo(scope: QueryScope, meses: number) {
 
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount(), dueDate: expenses.dueDate, paid: expenses.paid })
-      .from(expenses).where(countedExpenseRange(scope, hoje, fim)),
+      .from(expenses).where(countedDueDateRange(scope, hoje, fim)),
     db.select({ amount: incomes.netAmount, data: incomes.receiptDate })
       .from(incomes).where(incomeRange(scope, hoje, fim, LIVE_INCOME_STATUSES)),
   ]);

@@ -1,4 +1,5 @@
 import { accountWhere } from './accountFilter';
+import { monthRange } from '../services/cashDate';
 
 // Cláusula WHERE compartilhada por rotas de despesas/receitas: resolve o
 // usuário-alvo (permitindo `admin` consultar por outro usuário via query
@@ -27,6 +28,11 @@ export async function buildOwnerAndAccountWhere(
    * de quem pode ser visto — o dono do cartão vê a própria fatura inteira.
    */
   cardOwnerColumn?: string,
+  /**
+   * Expressão SQL da data que decide o mês do lançamento (a data de caixa da despesa:
+   * expenseCashDateSql). Sem ela, vale as colunas mes/ano do próprio lançamento.
+   */
+  monthDateSql?: string,
 ): Promise<{ where: string; params: unknown[] }> {
   const params: unknown[] = [];
   let p = 0;
@@ -44,8 +50,14 @@ export async function buildOwnerAndAccountWhere(
   }
 
   if (mes !== undefined && ano !== undefined) {
-    where += ` AND ${tableAlias}.mes = $${p + 1} AND ${tableAlias}.ano = $${p + 2}`;
-    params.push(parseInt(mes), parseInt(ano));
+    if (monthDateSql) {
+      const { start, end } = monthRange(parseInt(mes), parseInt(ano));
+      where += ` AND ${monthDateSql} BETWEEN $${p + 1}::date AND $${p + 2}::date`;
+      params.push(start, end);
+    } else {
+      where += ` AND ${tableAlias}.mes = $${p + 1} AND ${tableAlias}.ano = $${p + 2}`;
+      params.push(parseInt(mes), parseInt(ano));
+    }
     p += 2;
   }
 
