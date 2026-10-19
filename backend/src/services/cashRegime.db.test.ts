@@ -1,21 +1,16 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
-import * as dotenv from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { accounts, categories, expenses, incomeClassifications, incomes, users } from '../db/schema';
 import { getMonthYearFromIsoDate } from '../utils/date';
 import { expenseCashDateSql, monthRange } from './cashDate';
+import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 import { SEM_FILTROS_DESPESA } from './painelCalculos';
 
 // A regra de caixa (cashDate.ts) em todas as telas: o mesmo conjunto de dados dá os mesmos números na lista e
 // nos cards de Movimentações, no Painel, nos Relatórios, no Assistente, no Planejamento e na visão geral das
-// contas. Só roda pelo script test:finance-db (FINANCE_DB_TESTS=1) e só em banco local; cada teste cria a sua
-// pessoa de teste e apaga tudo dela no fim, sem tocar nos dados dos outros.
-
-const LOCAL_DATABASE_URL = /@(localhost|127\.0\.0\.1)(:\d+)?\/[\w-]+$/;
-
-const skipReason = process.env['FINANCE_DB_TESTS'] === '1' ? false : 'teste de banco: rode npm --prefix backend run test:finance-db';
+// contas. Roda pelo test:finance-db (financeDbTestSupport.ts).
 
 const YEAR = 2026;
 const TODAY = '2026-10-19';
@@ -193,14 +188,9 @@ async function listedEntries(scenario: Scenario, month: number): Promise<{ expen
   return { expenses: initials(expenseRows.rows), incomes: initials(incomeRows.rows) };
 }
 
-describe('regra de caixa em todas as telas (banco local)', { skip: skipReason }, () => {
+describe('regra de caixa em todas as telas (banco local)', { skip: databaseTestsSkipReason }, () => {
   before(async () => {
-    if (process.env['DOTENV_CONFIG_PATH']) {
-      dotenv.config({ path: process.env['DOTENV_CONFIG_PATH'] });
-    }
-    if (!LOCAL_DATABASE_URL.test(process.env['DATABASE_URL'] ?? '')) {
-      throw new Error('Os testes de banco só rodam em banco local (localhost ou 127.0.0.1).');
-    }
+    assertLocalDatabase();
     services = await loadServices();
   });
 
