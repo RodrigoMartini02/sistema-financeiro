@@ -16,26 +16,33 @@ Rodado com dados de teste sobre `montarSerie` (`backend/src/services/painelCalcu
 - Pagamento de fatura parcial ou parcelado reparte o valor pago entre as compras (cada uma com `valor_pago`), com o mesmo efeito nos meses de vencimento delas. Mesmo mecanismo; não foi rodado.
 - `buscarDespesas` (`painelService.ts`) já traz as despesas pelo vencimento **ou** pelo pagamento na janela. Os dados para a regra nova já chegam ao cálculo.
 
-## Regra proposta (regime de caixa)
+## Regra decidida (2026-10-19)
 
 - Receita: mês do recebimento (já é assim).
-- Despesa **paga**: mês do **pagamento**, pelo valor pago.
-- Despesa **em aberto** de mês atual ou futuro: mês do vencimento, como previsão.
-- Despesa **em aberto** de mês que já passou: não entra no resultado daquele mês; segue em "contas em aberto" e entra no mês em que for paga.
-- Resultado: um mês fechado não muda depois. O negativo continua negativo e o positivo vira sobra.
+- Despesa **paga**: mês da **data de pagamento**, pelo valor pago. Pagar em outubro uma conta de março, com juros, tira o valor de março e põe em outubro.
+- Despesa **em aberto**: mês do vencimento, inclusive de mês que já passou. Ela **não some** do mês em que venceu (decisão 1: não).
+- Lançamento retroativo (data de pagamento em março, registrado em outubro): entra em **março**; vale a data de pagamento (decisão 4).
+- Mês fechado = todo mês anterior ao atual (a função "fechar mês" foi removida). Uma conta vencida em aberto é resolvida pelo usuário na lista abaixo, e não pelo cálculo.
 
-## Decisões em aberto (precisam do usuário)
+## Nova função: lista de despesas vencidas ao abrir o sistema (decisão 2)
 
-1. Despesa vencida e ainda não paga some do resultado do mês passado até ser paga? (proposta: sim)
-2. Mês negativo leva a dívida para o mês seguinte, ou cada mês negativo fica isolado e o seguinte começa do zero? Hoje o "Saldo acumulado" soma tudo com sinal, então o negativo acumula.
-3. As barras mostram o resultado do mês ou o saldo acumulado até o mês? O número grande do topo continua sendo o total do ano (entrou − saiu)?
-4. Lançamento retroativo (despesa nova com data de março, registrada em outubro): entra em março ou em outubro? Mês fechado = todo mês anterior ao atual (a função "fechar mês" foi removida do projeto).
+- Ao abrir o sistema, no mês atual, se houver despesa vencida e não paga de mês anterior, abre um modal com a lista.
+- Cada linha tem "Mover" (uma por vez, como na tabela) e há "Mover selecionadas" em lote. O modal tem um botão para fechar sem fazer nada; as despesas então continuam em aberto no mês em que venceram.
+- Hoje só existe "mover" um a um: `POST /expenses/:id/mover` soma 1 mês ao vencimento e recusa despesa paga. Não existe mover em lote, e +1 mês não leva uma conta de agosto para o mês atual.
+- A lista usa o que o painel já calcula como "contas em aberto" (`agregarContasEmAberto`, `painelService.ts`).
+- Perguntas para fechar: (a) o destino é o **mês atual** (mesmo dia ou hoje)? (b) despesa de cartão de crédito entra na lista ou só se paga pela fatura? (c) o modal abre a cada acesso ou uma vez por dia?
 
-## Escopo provável (a confirmar depois das decisões)
+## Barras do gráfico (decisão 3, a confirmar)
+
+- "Barras" = as barras mensais verdes e vermelhas no fim do card escuro "Resultado · 2026". Cada uma mostra o resultado de um mês (entrou − saiu).
+- Proposta: as barras seguem mostrando o resultado de cada mês, e a sobra positiva acumula para os meses seguintes no card "Saldo acumulado", que já soma tudo com sinal. O número grande do topo continua sendo o total do ano.
+
+## Escopo provável
 
 - `montarSerie`, `resumirPeriodo`, `despesasDoPeriodo` e `calcularSaldoAnterior` passam a usar a data de pagamento para a despesa paga (`painelCalculos.ts`, `painelService.ts`).
-- Cuidar dos demais cards que reutilizam a série (`ComoDinheiroSaiu`, `EmDiaComContas`, `JurosDescontos`, `Comprometido`): conferir se mudam junto ou continuam por vencimento.
-- Testes de `painelCalculos.test.ts`: conta de março paga em outubro com juros (março não muda), parcial de fatura, mês passado em aberto, saldo acumulado.
+- Endpoint para mover em lote, o modal de despesas vencidas ao abrir o sistema e o "Mover" por linha (`routes/expenses.ts`, tela de Movimentações).
+- Cuidar dos demais cards que reutilizam a série (`ComoDinheiroSaiu`, `EmDiaComContas`, `JurosDescontos`, `Comprometido`).
+- Testes de `painelCalculos.test.ts`: conta de março paga em outubro com juros (março não muda), pagamento retroativo, conta vencida em aberto, saldo acumulado; testes do mover em lote.
 - Sem migration.
 
 ## Fora do escopo
