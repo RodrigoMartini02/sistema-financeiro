@@ -1,4 +1,5 @@
 import type { PainelCategoria, PainelData } from '../../../types/finance';
+import { agruparCategoriasPorRaiz, type CategoriaConsolidada } from '../../../utils/painelCategorias';
 import { formatCurrency } from '../formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
@@ -14,15 +15,6 @@ interface Segmento {
   nome: string;
   valor: number;
   cor: string;
-}
-
-interface CategoriaAgregada {
-  chave: string;
-  categoriaId: number | null;
-  categoria: string;
-  parentId: number | null;
-  total: number;
-  segmentos: Map<number, Segmento>;
 }
 
 interface OndeMaisGastouProps {
@@ -42,57 +34,36 @@ export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmen
   if (linhasComGasto.length === 0) return null;
   const total = linhasComGasto.reduce((soma, linha) => soma + linha.total, 0);
 
-  const somarSegmento = (destino: Map<number, Segmento>, usuarioId: number | null, nome: string | null, valor: number) => {
-    if (usuarioId === null) return;
+  const somarSegmento = (destino: Map<number, Segmento>, usuarioId: number, nome: string | null, valor: number) => {
     const atual = destino.get(usuarioId);
     if (atual) atual.valor += valor;
     else destino.set(usuarioId, { usuarioId, nome: firstName(nome ?? ''), valor, cor: coresPorPessoa.get(usuarioId) ?? cores.neutro });
   };
+  const segmentosDe = (categorias: CategoriaConsolidada[]) => {
+    if (!segmentarPorMembro) return undefined;
+    const porPessoa = new Map<number, Segmento>();
+    for (const pessoa of categorias.flatMap((categoria) => [...categoria.pessoas.values()])) {
+      somarSegmento(porPessoa, pessoa.usuarioId, pessoa.nome, pessoa.valor);
+    }
+    return [...porPessoa.values()].sort((a, b) => b.valor - a.valor).map((segmento) => ({ nome: segmento.nome, valor: segmento.valor, cor: segmento.cor }));
+  };
 
-  // A API devolve uma linha por (categoria, autor): consolida por categoria guardando a parte de cada pessoa.
-  const porChave = new Map<string, CategoriaAgregada>();
-  for (const linha of linhasComGasto) {
-    const chave = String(linha.categoriaId ?? linha.categoria);
-    const agregada = porChave.get(chave) ?? {
-      chave, categoriaId: linha.categoriaId, categoria: linha.categoria, parentId: linha.parentId, total: 0, segmentos: new Map(),
-    };
-    agregada.total += linha.total;
-    somarSegmento(agregada.segmentos, linha.usuarioId, linha.autorNome, linha.total);
-    porChave.set(chave, agregada);
-  }
-  const categorias = [...porChave.values()];
-
-  // Uma subcategoria cujo pai não teve gasto próprio ainda aparece sob ele: a
-  // raiz é quem não tem pai visível na lista, não quem teve gasto.
-  const idsVisiveis = new Set(categorias.map((categoria) => categoria.categoriaId));
-  const ehRaiz = (categoria: CategoriaAgregada) => categoria.parentId === null || !idsVisiveis.has(categoria.parentId);
-  const segmentosDe = (mapa: Map<number, Segmento>) => (segmentarPorMembro
-    ? [...mapa.values()].sort((a, b) => b.valor - a.valor).map((segmento) => ({ nome: segmento.nome, valor: segmento.valor, cor: segmento.cor }))
-    : undefined);
-
-  const linhas: LinhaHorizontal[] = categorias
-    .filter(ehRaiz)
+  // A principal soma o gasto dela mais o das subcategorias (em conta pessoal o gasto está nas subs).
+  const linhas: LinhaHorizontal[] = agruparCategoriasPorRaiz(linhasComGasto)
     .map((raiz) => {
-      const filhos = categorias.filter((categoria) => categoria.parentId !== null && categoria.parentId === raiz.categoriaId);
-      // O valor da principal é o gasto dela mais o das subcategorias (o gasto costuma estar nas subs).
-      const segmentos = new Map<number, Segmento>();
-      for (const segmento of [raiz, ...filhos].flatMap((categoria) => [...categoria.segmentos.values()])) {
-        somarSegmento(segmentos, segmento.usuarioId, segmento.nome, segmento.valor);
-      }
-      const valor = raiz.total + filhos.reduce((soma, filho) => soma + filho.total, 0);
+      const subs = [...raiz.subs].sort((a, b) => b.total - a.total);
+      const valor = (raiz.proprio?.total ?? 0) + subs.reduce((soma, sub) => soma + sub.total, 0);
       return {
         id: raiz.chave,
-        nome: raiz.categoria,
+        nome: raiz.nome,
         valor,
         parte: (valor / total) * 100,
-        segmentos: segmentosDe(segmentos),
-        observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...filhos.map((filho) => filho.categoriaId)], valor),
-        subs: filhos
-          .sort((a, b) => b.total - a.total)
-          .map((filho) => ({
-            id: filho.chave, nome: filho.categoria, valor: filho.total, parte: (filho.total / total) * 100,
-            segmentos: segmentosDe(filho.segmentos), observacoes: observacoesPorOutros(porOutros, [filho.categoriaId], filho.total),
-          })),
+        segmentos: segmentosDe([...(raiz.proprio ? [raiz.proprio] : []), ...subs]),
+        observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...subs.map((sub) => sub.categoriaId)], valor),
+        subs: subs.map((sub) => ({
+          id: sub.chave, nome: sub.categoria, valor: sub.total, parte: (sub.total / total) * 100,
+          segmentos: segmentosDe([sub]), observacoes: observacoesPorOutros(porOutros, [sub.categoriaId], sub.total),
+        })),
       };
     })
     .sort((a, b) => b.valor - a.valor);
