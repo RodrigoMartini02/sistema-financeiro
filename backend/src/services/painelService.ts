@@ -9,6 +9,7 @@ import { BudgetInputError, getBudgetOverview } from './budgetService';
 import { resolveAccountOwnerId } from '../utils/familyVisibility';
 import { PAYMENT_METHODS } from './expenseInput';
 import { INVOICE_EXPENSE_METHOD, invoiceDueDate } from './cardInvoiceRules';
+import { sumWithholdings } from './contractRetentions';
 import {
   ACTIVE_STATUS,
   RECEIVABLE_STATUSES,
@@ -38,6 +39,7 @@ import {
   janelaComprometido,
   janelaDaSerie,
   montarSerie,
+  temFiltroDeDespesa,
   periodoAnterior,
   primeiroDiaDoMes,
   projetarFixas,
@@ -295,14 +297,21 @@ async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: s
   const linhas = await db.select({
     usuarioId: incomes.userId,
     dataRecebimento: incomes.receiptDate,
-    valor: incomes.amount,
+    valor: incomes.netAmount,
+    valorBruto: incomes.grossAmount,
+    retencoes: incomes.withholdings,
     classificacaoId: incomes.classificationId,
   }).from(incomes).where(and(
     ...incomeBaseConditions(entrada.escopo, entrada.accountId, status),
     gte(incomes.receiptDate, janela.de),
     lte(incomes.receiptDate, janela.ate),
   ));
-  return linhas.map((linha) => ({ ...linha, valor: toNumber(linha.valor) }));
+  return linhas.map((linha) => ({
+    ...linha,
+    valor: toNumber(linha.valor),
+    valorBruto: toNumber(linha.valorBruto),
+    retencoes: sumWithholdings(linha.retencoes),
+  }));
 }
 
 /**
@@ -352,7 +361,7 @@ async function buscarClassificacoes(ids: number[]): Promise<Map<number, ItemArvo
  */
 async function calcularSaldoAnterior(entrada: PainelEntrada): Promise<number> {
   const [receitasAntes, despesasAntes] = await Promise.all([
-    db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
+    db.select({ total: sql<string>`COALESCE(SUM(${incomes.netAmount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions(entrada.escopo, entrada.accountId),
       lt(incomes.receiptDate, entrada.periodo.de),
     )),
@@ -553,6 +562,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const jurosAVencer = filtrarDespesasPainel(jurosAVencerSemFiltro, entrada.filtros);
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
   const receitasPeriodo = receitasDoPeriodo(receitas, periodo);
+  const receitasParaJuros = (lista: ReceitaPainel[]): ReceitaPainel[] => (temFiltroDeDespesa(entrada.filtros) ? [] : lista);
   const resumoAtual = resumirPeriodo(despesasPeriodo, receitasPeriodo);
   const resumoAnterior = resumirPeriodo(despesasDoPeriodo(despesas, anterior), receitasDoPeriodo(receitas, anterior));
   const categoriasAgregadas = agregarCategorias(despesasPeriodo);
@@ -593,7 +603,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       saldoAnterior,
       saldoFinal: saldoAnterior + resumoAtual.entrou - resumoAtual.saiu,
     },
-    serie: { granularidade: janelaSerie.granularidade, pontos: montarSerie(despesas, receitas, janelaSerie) },
+    serie: { granularidade: janelaSerie.granularidade, pontos: montarSerie(despesas, receitas, janelaSerie, !temFiltroDeDespesa(entrada.filtros)) },
     formasPagamento: agregarFormasPagamento(despesasPeriodo),
     cartoes,
     aVistaParcelado: agregarAVistaParcelado(despesasPeriodo),
@@ -607,8 +617,12 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       ...totais,
     })),
     jurosDescontos: {
-      periodo: agregarJurosDescontos(despesasPeriodo),
-      ano: agregarJurosDescontos(despesasDoPeriodo(despesas, { de: inicioDoAno, ate: periodo.ate })),
+      // Os filtros do botão valem só para as despesas: com filtro, os juros e taxas das receitas ficam fora.
+      periodo: agregarJurosDescontos(despesasPeriodo, receitasParaJuros(receitasPeriodo)),
+      ano: agregarJurosDescontos(
+        despesasDoPeriodo(despesas, { de: inicioDoAno, ate: periodo.ate }),
+        receitasParaJuros(receitasDoPeriodo(receitas, { de: inicioDoAno, ate: periodo.ate })),
+      ),
       upcomingInterest: sumUpcomingInterest(jurosAVencer),
     },
     renegotiatedInvoices: faturasRenegociadas,

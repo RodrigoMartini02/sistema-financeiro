@@ -29,7 +29,7 @@ export async function calculatePreviousBalance(userId: number, year: number, mon
   const monthKey = year * 12 + month;
 
   const [incomeRows, expenseRows] = await Promise.all([
-    db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
+    db.select({ total: sql<string>`COALESCE(SUM(${incomes.netAmount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions([userId], accountId),
       sql`(${incomes.year} * 12 + ${incomes.month}) < ${monthKey}`,
     )),
@@ -46,7 +46,7 @@ export async function calculatePreviousBalance(userId: number, year: number, mon
 // tempo real, sem snapshot) + o que aconteceu no próprio mês.
 export async function calculateBalanceBreakdown(userId: number, year: number, month: number, accountId: number | null): Promise<BalanceBreakdown> {
   const [incomeRows, expenseRows, previousBalance] = await Promise.all([
-    db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` }).from(incomes).where(and(
+    db.select({ total: sql<string>`COALESCE(SUM(${incomes.netAmount}), 0)` }).from(incomes).where(and(
       ...incomeBaseConditions([userId], accountId),
       eq(incomes.year, year),
       eq(incomes.month, month),

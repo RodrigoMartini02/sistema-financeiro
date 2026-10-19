@@ -211,7 +211,7 @@ async function loadIncomes(input: ReportInput) {
     client: clients.name,
     representative: representatives.name,
     commission: incomes.commissionAmount,
-    amount: incomes.amount,
+    amount: incomes.netAmount,
   })
     .from(incomes)
     .leftJoin(incomeClassifications, eq(incomeClassifications.id, incomes.classificationId))

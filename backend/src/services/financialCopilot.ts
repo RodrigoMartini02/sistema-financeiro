@@ -224,7 +224,7 @@ async function buildSummaryCard(userId: number, account: FinancialAccount, month
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ amount: effectiveExpenseAmount() }).from(expenses)
       .where(accountExpenseCondition(userId, account, month, year)),
-    db.select({ amount: incomes.amount }).from(incomes).where(accountIncomeCondition(userId, account, month, year, RECEIVED_INCOME_STATUSES)),
+    db.select({ amount: incomes.netAmount }).from(incomes).where(accountIncomeCondition(userId, account, month, year, RECEIVED_INCOME_STATUSES)),
   ]);
   const incomeTotal = incomeRows.reduce((total, row) => total + asNumber(row.amount), 0);
   const expenseTotal = expenseRows.reduce((total, row) => total + asNumber(row.amount), 0);
@@ -268,7 +268,7 @@ async function buildTransactionsCard(input: {
   const [expenseRows, incomeRows] = await Promise.all([
     db.select({ description: expenses.description, amount: effectiveExpenseAmount(), date: expenses.dueDate })
       .from(expenses).where(accountExpenseCondition(input.userId, input.account, input.month, input.year)).orderBy(desc(expenses.dueDate)).limit(30),
-    db.select({ description: incomes.description, amount: incomes.amount, date: incomes.receiptDate })
+    db.select({ description: incomes.description, amount: incomes.netAmount, date: incomes.receiptDate })
       .from(incomes).where(accountIncomeCondition(input.userId, input.account, input.month, input.year, LIVE_INCOME_STATUSES))
       .orderBy(desc(incomes.receiptDate)).limit(30),
   ]);

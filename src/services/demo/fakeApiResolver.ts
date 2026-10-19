@@ -66,7 +66,7 @@ export function resolveFakeApiRequest(
     const [year, month] = input.receiptDate.split('-').map(Number);
     db.receitas = db.receitas.map((item) => (item.id === id
       ? {
-          ...item, descricao: input.description, valor: input.amount, data_recebimento: input.receiptDate,
+          ...item, descricao: input.description, valor_liquido: input.netAmount, valor_bruto: input.grossAmount, data_recebimento: input.receiptDate,
           mes: month! - 1, ano: year!, cliente_id: input.clientId, classificacao_id: input.categoryId,
           representante_id: input.representativeId,
         }
@@ -134,7 +134,7 @@ export function resolveFakeApiRequest(
 
   // Saldo do mês — calculado a partir do estado fake
   if (matchEndpoint(endpoint, /^\/meses\/\d+\/\d+\/saldo$/)) {
-    const totalReceitas = db.receitas.reduce((sum, item) => sum + item.valor, 0);
+    const totalReceitas = db.receitas.reduce((sum, item) => sum + item.valor_liquido, 0);
     const totalDespesas = db.despesas.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
     return {
       saldo_anterior: 0,
@@ -434,7 +434,7 @@ function buildDemoIncomeRows(input: IncomeCreateInput): RawIncomeDemo[] {
   const row = (receiptDate: string): RawIncomeDemo => {
     const [year, month] = receiptDate.split('-').map(Number);
     return {
-      id: generateId(), descricao: input.description, valor: input.amount, data_recebimento: receiptDate,
+      id: generateId(), descricao: input.description, valor_liquido: input.netAmount, valor_bruto: input.grossAmount, data_recebimento: receiptDate,
       mes: month! - 1, ano: year!, status: 'ativa', contrato_id: null,
       observacoes: null, cliente_id: input.clientId, cliente_nome: null, classificacao_id: input.categoryId, classificacao_nome: null,
       representante_id: input.representativeId, representante_nome: null, valor_comissao: null, anexos: null,
@@ -501,7 +501,7 @@ function buildDemoReport(db: DemoFakeDatabase, params: URLSearchParams): Report 
       client: row.cliente_nome,
       representative: row.representante_nome,
       commission: row.valor_comissao,
-      amount: row.valor,
+      amount: row.valor_liquido,
     })) : [];
 
   const received = incomes.filter((row) => row.status === 'received');

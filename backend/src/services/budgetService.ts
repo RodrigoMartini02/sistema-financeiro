@@ -242,7 +242,7 @@ export async function getBudgetOverview(input: {
       amount: effectiveExpenseAmount(),
       paid: expenses.paid,
     }).from(expenses).where(expenseAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
-    db.select({ amount: incomes.amount }).from(incomes).where(incomeAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
+    db.select({ amount: incomes.netAmount }).from(incomes).where(incomeAccountCondition(scopeIds, account, resolved.deChave, resolved.ateChave)),
     // Mapa pai/filho sobre TODAS as categorias do usuário, sem os filtros de
     // conta e ativo aplicados acima: uma despesa lançada numa subcategoria que
     // depois foi desativada continua no período e precisa somar no total do pai.

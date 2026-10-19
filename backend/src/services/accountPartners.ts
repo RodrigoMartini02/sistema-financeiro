@@ -47,7 +47,8 @@ async function launchCapitalIncome(
       userId: params.ownerId,
       accountId: params.accountId,
       description: `${CAPITAL_INCOME_DESCRIPTION} — ${params.partnerName}`,
-      amount: params.amount.toFixed(2),
+      netAmount: params.amount.toFixed(2),
+      grossAmount: params.amount.toFixed(2),
       receiptDate: params.date,
       month: month!,
       year: year!,
@@ -146,7 +147,7 @@ export async function listAccountPartners(ownerId: number, accountId: number): P
       percentage: partners.percentage,
       initialCapital: partners.initialCapital,
       incomeId: incomes.id,
-      incomeAmount: incomes.amount,
+      incomeAmount: incomes.netAmount,
       incomeDate: incomes.receiptDate,
     })
     .from(partners)

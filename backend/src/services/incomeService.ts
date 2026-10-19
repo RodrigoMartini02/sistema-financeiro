@@ -12,8 +12,8 @@ import { RequestInputError } from '../utils/requestInput';
 import { findAccountClient } from './clients';
 import { cancelLinkedCommission, createCommissionExpense } from './commissionService';
 import { consumeContractHours, findHourTypeContract, type HourTypeContract } from './contractHours';
-import { contractRates, incomeAmounts, type IncomeAmounts } from './contractRetentions';
-import { INCOME_STATUS, OPEN_INCOME_STATUSES } from './contractTypes';
+import { contractRates, incomeValueColumns, resolveIncomeAmounts } from './contractRetentions';
+import { INCOME_STATUS, OPEN_INCOME_STATUSES, type WithholdingAmounts, type WithholdingRates } from './contractTypes';
 import { CANCELLED_STATUS } from './entryQueries';
 import { STOCK_REASONS, returnSoldStock, sellProductInIncome, type StockExecutor } from './stock';
 import type {
@@ -87,15 +87,6 @@ async function resolveIncomeClient(
   return clientId;
 }
 
-/** Colunas de valor: com retenção (contrato com órgão público), `valor` é o líquido e o bruto fica ao lado. */
-function amountColumns(amounts: IncomeAmounts) {
-  return {
-    amount: toDecimal(amounts.net),
-    grossAmount: amounts.withholdings ? toDecimal(amounts.gross) : null,
-    withholdings: amounts.withholdings,
-  };
-}
-
 /**
  * Grava a receita e as réplicas de "Repetir até" numa transação: ou entram
  * todas, ou nenhuma. As réplicas repetem descrição, valor, categoria, cliente,
@@ -127,7 +118,7 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
       ? await findHourTypeContract(transaction, input.accountId, input.billableHours.hourTypeId)
       : null;
     const clientId = await resolveIncomeClient(input.accountId, input.clientId, hours);
-    const amounts = incomeAmounts(input.amount, hours?.rates ?? {});
+    const amounts = resolveIncomeAmounts(input, hours?.rates ?? {});
 
     const commission = input.representativeId !== null
       ? await findCommissionRule(client, catalogOwnerId, input.representativeId, input.categoryId)
@@ -141,7 +132,7 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
         userId: authorId,
         accountId: input.accountId,
         description: input.description,
-        ...amountColumns(amounts),
+        ...incomeValueColumns(amounts),
         receiptDate,
         month: mes,
         year: ano,
@@ -293,9 +284,9 @@ export interface IncomeForUpdate {
   clientId: number | null;
   contractId: number | null;
   /** A classificação que a receita já tem continua aceita na edição, mesmo que o catálogo tenha mudado. */
-  classificationId: number | null;
-  /** Preenchido na receita com retenção: na edição, o valor digitado é o bruto. */
-  grossAmount: string | null;
+  classificationId: number;
+  /** Preenchido na receita com retenção: na edição, o valor digitado é o bruto e o líquido sai do contrato. */
+  withholdings: WithholdingAmounts | null;
 }
 
 export async function findIncomeForUpdate(ownerId: number, incomeId: number): Promise<IncomeForUpdate | null> {
@@ -305,7 +296,7 @@ export async function findIncomeForUpdate(ownerId: number, incomeId: number): Pr
       clientId: incomes.clientId,
       contractId: incomes.contractId,
       classificationId: incomes.classificationId,
-      grossAmount: incomes.grossAmount,
+      withholdings: incomes.withholdings,
     })
     .from(incomes)
     .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)));
@@ -328,18 +319,19 @@ export async function updateIncome(
     ? current.clientId
     : await resolveIncomeClient(current.accountId, input.clientId, null, current.clientId);
 
-  let amounts: IncomeAmounts = { gross: input.amount, withholdings: null, net: input.amount };
-  if (current.grossAmount !== null && current.contractId !== null) {
+  let rates: WithholdingRates = {};
+  if (current.withholdings !== null && current.contractId !== null) {
     const [contract] = await db.select().from(contracts).where(eq(contracts.id, current.contractId)).limit(1);
-    amounts = incomeAmounts(input.amount, contract ? contractRates(contract) : {});
+    rates = contract ? contractRates(contract) : {};
   }
+  const amounts = resolveIncomeAmounts(input, rates);
 
   const { mes, ano } = getMonthYearFromIsoDate(input.receiptDate);
   const [updated] = await db
     .update(incomes)
     .set({
       description: input.description,
-      ...amountColumns(amounts),
+      ...incomeValueColumns(amounts),
       receiptDate: input.receiptDate,
       month: mes,
       year: ano,
@@ -395,7 +387,7 @@ export async function receiveIncome(ownerId: number, incomeId: number, input: Re
     }
 
     const receiptDate = input.receivedDate ?? income.receiptDate;
-    const amount = input.receivedAmount ?? Number(income.amount);
+    const amount = input.receivedAmount ?? Number(income.netAmount);
     let commissionAmount = income.commissionAmount;
     const fromContract = income.chargeId !== null || income.contractId !== null;
     if (fromContract && income.representativeId !== null && income.commissionAmount === null && income.accountId !== null) {
@@ -430,7 +422,14 @@ export async function receiveIncome(ownerId: number, incomeId: number, input: Re
 
     const [updated] = await transaction
       .update(incomes)
-      .set({ status: INCOME_STATUS.received, receiptDate, amount: toDecimal(amount), commissionAmount })
+      .set({
+        status: INCOME_STATUS.received,
+        receiptDate,
+        netAmount: toDecimal(amount),
+        // O líquido recebido não passa do bruto: se passar, o bruto sobe junto (sem taxa).
+        grossAmount: toDecimal(Math.max(amount, Number(income.grossAmount))),
+        commissionAmount,
+      })
       .where(eq(incomes.id, income.id))
       .returning();
     await client.query('COMMIT');
@@ -489,7 +488,7 @@ async function findMatches(userId: number, query: IncomeSuggestionsQuery): Promi
     .selectDistinctOn([lowerDescription], {
       key: lowerDescription,
       description: incomes.description,
-      amount: incomes.amount,
+      amount: incomes.grossAmount,
       clientId: incomes.clientId,
       clientName: clients.name,
       categoryId: incomes.classificationId,
@@ -516,7 +515,7 @@ async function findMatches(userId: number, query: IncomeSuggestionsQuery): Promi
 async function findLastAmount(userId: number, query: IncomeSuggestionsQuery): Promise<number | null> {
   if (!query.description) return null;
   const [row] = await db
-    .select({ amount: incomes.amount })
+    .select({ amount: incomes.grossAmount })
     .from(incomes)
     .where(and(...historyConditions(userId, query.accountId), eq(lowerDescription, sql`lower(${query.description})`)))
     .orderBy(desc(incomes.createdAt), desc(incomes.id))
@@ -537,7 +536,7 @@ export async function findRecentIncomeDuplicate(userId: number, query: IncomeDup
   const conditions: SQL[] = [
     ...historyConditions(userId, query.accountId),
     eq(lowerDescription, sql`lower(${query.description})`),
-    eq(incomes.amount, toDecimal(query.amount)),
+    eq(incomes.grossAmount, toDecimal(query.amount)),
     query.clientId === null ? isNull(incomes.clientId) : eq(incomes.clientId, query.clientId),
     gte(incomes.createdAt, sql`now() - interval '7 days'`),
   ];

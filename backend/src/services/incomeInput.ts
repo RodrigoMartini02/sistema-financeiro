@@ -35,7 +35,10 @@ export interface IncomeBillableHours {
 export interface IncomeFieldsInput {
   description: string;
   categoryId: number;
-  amount: number;
+  /** O que era devido; o líquido não passa dele. */
+  grossAmount: number;
+  /** O que entrou na conta. Em contrato com retenção, o servidor ignora e calcula pelo bruto. */
+  netAmount: number;
   receiptDate: string;
   /** Cliente do cadastro da conta PJ; nulo sem cliente. */
   clientId: number | null;
@@ -67,6 +70,7 @@ export interface ReceiveIncomeInput {
 
 export interface IncomeDuplicateQuery {
   description: string;
+  /** O valor bruto digitado. */
   amount: number;
   clientId: number | null;
   accountId: number | null;
@@ -74,10 +78,16 @@ export interface IncomeDuplicateQuery {
 }
 
 function readFields(record: Record<string, unknown>): IncomeFieldsInput {
+  const grossAmount = readAmount(record['grossAmount'], 'Informe o valor bruto');
+  const netAmount = readAmount(record['netAmount'], 'Informe o valor líquido');
+  if (netAmount > grossAmount) {
+    throw new RequestInputError('O valor líquido não pode passar do bruto');
+  }
   return {
     description: readDescription(record['description']),
     categoryId: readRequiredId(record['categoryId'], 'Escolha a categoria'),
-    amount: readAmount(record['amount'], 'Informe o valor'),
+    grossAmount,
+    netAmount,
     receiptDate: readIsoDate(record['receiptDate'], 'Data do recebimento inválida'),
     clientId: readOptionalId(record['clientId'], 'Cliente inválido'),
     representativeId: readOptionalId(record['representativeId'], 'Representante inválido'),

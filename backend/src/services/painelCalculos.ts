@@ -38,7 +38,12 @@ export interface DespesaPainel {
 export interface ReceitaPainel {
   usuarioId: number;
   dataRecebimento: string;
+  /** O que entrou na conta (valor líquido): é o que soma nos totais. */
   valor: number;
+  /** O que era devido antes de taxas, juros e retenções. */
+  valorBruto: number;
+  /** Soma das retenções de tributo (contrato com órgão público); não são juros. */
+  retencoes: number;
   classificacaoId: number | null;
 }
 
@@ -293,6 +298,15 @@ export function descontoDaDespesa(despesa: DespesaPainel): number {
   return Math.max(0, despesa.valorOriginal - despesa.valorPago);
 }
 
+/**
+ * Juros e taxas que a receita custou: o bruto menos o líquido que entrou, sem a parte que
+ * foi retenção de tributo. Só a receita recebida entra (a prevista ainda não custou nada).
+ */
+export function jurosDaReceita(receita: ReceitaPainel): number {
+  const centavos = Math.round((receita.valorBruto - receita.valor - receita.retencoes) * 100);
+  return Math.max(0, centavos / 100);
+}
+
 /** Juros a vencer: os juros guardados nas linhas geradas pela fatura (restante e parcelas) ainda não pagas. */
 export function sumUpcomingInterest(despesas: DespesaPainel[]): number {
   return somar(despesas.filter((despesa) => !despesa.pago), (despesa) => despesa.invoiceInterest ?? 0);
@@ -381,15 +395,23 @@ export interface PontoSerie extends BaldeSerie {
  * (regra do painel); `pago` segue a data em que o pagamento aconteceu — é o
  * que permite comparar o cadastrado com o que de fato foi quitado no trecho.
  * `juros` e `descontos` seguem o vencimento, como o total "No período" do
- * bloco de juros: as barras somam exatamente esse total.
+ * bloco de juros: as barras somam exatamente esse total. Os juros e taxas da
+ * receita entram no trecho do recebimento.
  */
-export function montarSerie(despesas: DespesaPainel[], receitas: ReceitaPainel[], janela: JanelaSerie): PontoSerie[] {
+export function montarSerie(
+  despesas: DespesaPainel[],
+  receitas: ReceitaPainel[],
+  janela: JanelaSerie,
+  incluirJurosDaReceita = true,
+): PontoSerie[] {
   const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, formas: {}, pago: 0, juros: 0, descontos: 0 }));
   const pontoDe = (iso: string) => pontos.find((ponto) => iso >= ponto.inicio && iso <= ponto.fim);
 
   for (const receita of receitas) {
     const ponto = pontoDe(receita.dataRecebimento);
-    if (ponto) ponto.receitas += receita.valor;
+    if (!ponto) continue;
+    ponto.receitas += receita.valor;
+    if (incluirJurosDaReceita) ponto.juros += jurosDaReceita(receita);
   }
 
   for (const despesa of despesas) {
@@ -550,9 +572,10 @@ export function agregarPorPessoa(despesas: DespesaPainel[], receitas: ReceitaPai
   return porPessoa;
 }
 
-export function agregarJurosDescontos(despesas: DespesaPainel[]): { juros: number; descontos: number } {
+/** Juros e taxas pagos (das despesas e das receitas recebidas) e descontos ganhos (das despesas). */
+export function agregarJurosDescontos(despesas: DespesaPainel[], receitas: ReceitaPainel[]): { juros: number; descontos: number } {
   return {
-    juros: somar(despesas, jurosDaDespesa),
+    juros: somar(despesas, jurosDaDespesa) + somar(receitas, jurosDaReceita),
     descontos: somar(despesas, descontoDaDespesa),
   };
 }

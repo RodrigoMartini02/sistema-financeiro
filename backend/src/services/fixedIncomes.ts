@@ -102,7 +102,8 @@ export async function writeFixedIncomeYear(
           userId: source.userId,
           accountId: source.accountId,
           description: source.description,
-          amount: source.amount,
+          netAmount: source.amount,
+          grossAmount: source.amount,
           receiptDate,
           month: mes,
           year: ano,
@@ -149,7 +150,7 @@ export async function updateOpenFixedIncomes(
     if (!row.competence) continue;
     await executor
       .update(incomes)
-      .set({ amount: change.amount, receiptDate: dataDoLancamento(row.competence, change.dayOfMonth) })
+      .set({ netAmount: change.amount, grossAmount: change.amount, receiptDate: dataDoLancamento(row.competence, change.dayOfMonth) })
       .where(eq(incomes.id, row.id));
   }
 }
@@ -185,7 +186,7 @@ export async function ensureFixedIncomeYears(options: { userId?: number } = {}):
 /** No dia do recebimento, avisa quem é dono de cada prevista da fixa para confirmar. Só a rotina diária manda. */
 export async function sendFixedIncomeReminders(today: string = getTodayIsoInTimezone()): Promise<{ pushSent: number }> {
   const due = await db
-    .select({ userId: incomes.userId, description: incomes.description, amount: incomes.amount })
+    .select({ userId: incomes.userId, description: incomes.description, amount: incomes.netAmount })
     .from(incomes)
     .where(and(
       isNotNull(incomes.fixedClassificationId),

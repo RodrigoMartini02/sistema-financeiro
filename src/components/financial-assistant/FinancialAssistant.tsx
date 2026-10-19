@@ -337,7 +337,7 @@ function findDuplicate(
   if (draft.kind === 'income') {
     const duplicate = incomes.find((income) => (
       normalizeComparable(income.descricao) === description
-      && Math.abs(income.valor - draft.amount!) < 0.01
+      && Math.abs(income.valorBruto - draft.amount!) < 0.01
       && income.data === draft.date
     ));
     return duplicate ? 'Existe uma receita muito parecida no período selecionado. Confirme antes de salvar.' : null;
@@ -1145,7 +1145,9 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           accountId: draft.contaId ?? getActiveAccountId(),
           description,
           categoryId: classificationId,
-          amount,
+          // O assistente lança a receita sem desconto: o líquido é igual ao bruto.
+          grossAmount: amount,
+          netAmount: amount,
           receiptDate: date,
           // Campos exclusivos de conta PJ: em conta PF os blocos do card nem
           // aparecem, entao permanecem vazios aqui. A comissao sai do servidor.

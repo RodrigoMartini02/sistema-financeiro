@@ -365,7 +365,7 @@ export function LancamentosTable({
   // data de recebimento em receita como equivalentes; valor usa o valor
   // exibido de cada tipo.
   const dataDoItem = (item: LancamentoItem): string => item.kind === 'despesa' ? item.data.dataVencimento : item.data.data;
-  const valorDoItem = (item: LancamentoItem): number => item.kind === 'despesa' ? effectiveExpenseValue(item.data) : item.data.valor;
+  const valorDoItem = (item: LancamentoItem): number => item.kind === 'despesa' ? effectiveExpenseValue(item.data) : item.data.valorLiquido;
 
   const filtered = [...combined].sort((a, b) => {
     switch (ordenar) {
@@ -946,7 +946,7 @@ function IncomeRow({
         )}
       </td>
       <td className={[TD_CLASS, 'whitespace-nowrap'].join(' ')}>
-        <span className="text-xs text-green-600 dark:text-green-400">{formatCurrency(item.valor)}</span>
+        <span className="text-xs text-green-600 dark:text-green-400">{formatCurrency(item.valorLiquido)}</span>
         {isEmpresa && item.valorComissao != null && item.valorComissao > 0 && (
           <p className={SECONDARY_CLASS}>comissão {formatCurrency(item.valorComissao)}</p>
         )}

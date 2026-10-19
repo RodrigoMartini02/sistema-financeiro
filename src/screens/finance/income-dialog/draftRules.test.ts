@@ -5,10 +5,11 @@ import type { ContractWithHours } from '../../../services/contractsService';
 import type { Representante } from '../../../services/representantesService';
 import type { ClassificacaoReceita } from '../../../types/config';
 import { formatCurrency } from '../formatters';
-import { createIncomeDraft, type IncomeDraft } from './draftState';
+import type { Income } from '../../../types/finance';
+import { createIncomeDraft, incomeDraftFromIncome, type IncomeDraft } from './draftState';
 import {
   buildIncomeCreateInput, buildIncomeUpdateInput, calculatedAmountCents, commissionPreview, contractPrefill,
-  defaultRepeatUntil, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, productSaleInfo, replicaCount,
+  defaultRepeatUntil, effectiveNetCents, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, productSaleInfo, replicaCount,
   summarizeIncomeDraft, validateIncomeDraft, withholdingPreview, type IncomeRuleContext,
 } from './draftRules';
 
@@ -45,7 +46,7 @@ const context: IncomeRuleContext = {
 };
 
 function draft(overrides: Partial<IncomeDraft> = {}): IncomeDraft {
-  return { ...createIncomeDraft('29/09/2026'), description: 'Consultoria', categoryId: 4, amountCents: 150000, ...overrides };
+  return { ...createIncomeDraft('29/09/2026'), description: 'Consultoria', categoryId: 4, grossCents: 150000, ...overrides };
 }
 
 const brl = (reais: number) => formatCurrency(reais);
@@ -87,7 +88,7 @@ test('resumo: total com as réplicas e os avisos de comissão, estoque e horas',
   const overBalance = summarizeIncomeDraft(draft({ categoryId: null, contractId: 8, hourTypeId: 21, hours: 13 }), context);
   assert.deepEqual(overBalance?.badges, [{ text: 'saldo de horas insuficiente: restam 12h', tone: 'danger' }]);
 
-  assert.equal(summarizeIncomeDraft(draft({ amountCents: null }), context), null);
+  assert.equal(summarizeIncomeDraft(draft({ grossCents: null }), context), null);
 });
 
 test('valor calculado pela venda ou pelas horas, e o que o contrato preenche', () => {
@@ -100,7 +101,7 @@ test('valor calculado pela venda ou pelas horas, e o que o contrato preenche', (
 });
 
 test('horas de contrato com órgão público: o valor digitado é o bruto e a receita vale o líquido', () => {
-  const publicHours = draft({ contractId: 9, hourTypeId: 22, hours: 30, amountCents: 450000, clientId: 32, representativeId: 7 });
+  const publicHours = draft({ contractId: 9, hourTypeId: 22, hours: 30, grossCents: 450000, clientId: 32, representativeId: 7 });
   assert.deepEqual(withholdingPreview(publicHours, context), { grossCents: 450000, withheldCents: 44100, netCents: 405900 });
   assert.equal(withholdingPreview(draft({ contractId: 8, hourTypeId: 21, hours: 2 }), context), null);
   const summary = summarizeIncomeDraft(publicHours, context);
@@ -112,16 +113,16 @@ test('horas de contrato com órgão público: o valor digitado é o bruto e a re
 
 test('categoria fixa preenche o valor vazio e o dia, menos com a data travada', () => {
   const fixed = { id: 4, fixa: { valor: 4500, dia_recebimento: 31 } } as ClassificacaoReceita;
-  assert.deepEqual(fixedCategoryPatch(draft({ amountCents: null, receiptDate: '10/02/2026' }), fixed, TODAY, false), {
-    amountCents: 450000, receiptDate: '28/02/2026',
+  assert.deepEqual(fixedCategoryPatch(draft({ grossCents: null, receiptDate: '10/02/2026' }), fixed, TODAY, false), {
+    grossCents: 450000, receiptDate: '28/02/2026',
   });
   assert.deepEqual(fixedCategoryPatch(draft(), fixed, TODAY, true), {});
   assert.deepEqual(fixedCategoryPatch(draft(), { ...fixed, fixa: null }, TODAY, false), {});
 });
 
 test('validação aponta os campos e monta a mensagem do rodapé', () => {
-  const empty = validateIncomeDraft(draft({ description: ' ', amountCents: null }), context);
-  assert.equal(incomeErrorMessage(empty), 'Preencha descrição e valor.');
+  const empty = validateIncomeDraft(draft({ description: ' ', grossCents: null }), context);
+  assert.equal(incomeErrorMessage(empty), 'Preencha descrição e valor bruto.');
 
   const wrongClient = validateIncomeDraft(draft({ clientId: 32, contractId: 8, hourTypeId: 21, hours: 2 }), context);
   assert.equal(incomeErrorMessage(wrongClient), 'Use o cliente do contrato das horas.');
@@ -147,7 +148,7 @@ test('envio da receita nova: repetir até, produto e horas', () => {
     productId: 'p-1', soldQuantity: 2, contractId: 8, hourTypeId: 21, hours: 3,
   }), context, 17);
   assert.deepEqual(input, {
-    description: 'Consultoria', categoryId: 4, amount: 1500, receiptDate: '2026-09-29', clientId: 31,
+    description: 'Consultoria', categoryId: 4, grossAmount: 1500, netAmount: 1500, receiptDate: '2026-09-29', clientId: 31,
     representativeId: 7, attachments: null, accountId: 17,
     repeatUntil: { month: 11, year: 2026 },
     productSale: { productId: 'p-1', quantity: 2 },
@@ -165,7 +166,8 @@ test('edição envia só os campos da própria receita', () => {
   const input = buildIncomeUpdateInput(draft({ repeatUntil: { month: 11, year: 2026 }, productId: 'p-1', soldQuantity: 1 }), context);
   assert.equal('repeatUntil' in input, false);
   assert.equal('productSale' in input, false);
-  assert.equal(input.amount, 1500);
+  assert.equal(input.grossAmount, 1500);
+  assert.equal(input.netAmount, 1500);
 });
 
 test('duplicata compara descrição, valor e cliente', () => {
@@ -198,6 +200,58 @@ test('a categoria é obrigatória: sem ela a receita não vai para a API', () =>
   assert.deepEqual(noCategory, { category: true });
   assert.equal(incomeErrorMessage(noCategory), 'Preencha categoria.');
 
-  const empty = validateIncomeDraft(draft({ description: ' ', categoryId: null, amountCents: null }), context);
-  assert.equal(incomeErrorMessage(empty), 'Preencha descrição, categoria e valor.');
+  const empty = validateIncomeDraft(draft({ description: ' ', categoryId: null, grossCents: null }), context);
+  assert.equal(incomeErrorMessage(empty), 'Preencha descrição, categoria e valor bruto.');
+});
+
+test('o líquido acompanha o bruto até ser editado, e a receita sem desconto envia os dois iguais', () => {
+  const semDesconto = draft({ netCents: null });
+  assert.equal(effectiveNetCents(semDesconto, context), 150000);
+  const input = buildIncomeCreateInput(semDesconto, context, 17);
+  assert.equal(input.grossAmount, 1500);
+  assert.equal(input.netAmount, 1500);
+  // Mudar o bruto leva o líquido junto.
+  assert.equal(effectiveNetCents({ ...semDesconto, grossCents: 200000 }, context), 200000);
+});
+
+test('líquido menor que o bruto: a diferença são juros e taxas, e o resumo avisa', () => {
+  // Empréstimo de R$ 1.000 com taxa de R$ 100: entrou R$ 900.
+  const emprestimo = draft({ grossCents: 100000, netCents: 90000 });
+  assert.equal(effectiveNetCents(emprestimo, context), 90000);
+  const input = buildIncomeCreateInput(emprestimo, context, 17);
+  assert.equal(input.grossAmount, 1000);
+  assert.equal(input.netAmount, 900);
+  assert.deepEqual(summarizeIncomeDraft(emprestimo, context)?.badges.at(-1), {
+    text: `entram ${brl(900)} · juros e taxas de ${brl(100)}`, tone: 'info',
+  });
+  // A comissão sai do líquido.
+  const comissao = commissionPreview({ ...emprestimo, representativeId: 7 }, context);
+  assert.equal(comissao.kind === 'rule' ? comissao.amountCents : null, 9000);
+});
+
+test('líquido maior que o bruto é erro e a mensagem do rodapé explica', () => {
+  const acima = validateIncomeDraft(draft({ grossCents: 100000, netCents: 120000 }), context);
+  assert.deepEqual(acima, { net: true });
+  assert.equal(incomeErrorMessage(acima), 'O valor líquido não pode passar do bruto.');
+  assert.deepEqual(validateIncomeDraft(draft({ grossCents: 100000, netCents: 100000 }), context), {});
+  assert.deepEqual(validateIncomeDraft(draft({ grossCents: 100000, netCents: 90000 }), context), {});
+});
+
+test('contrato com retenção: o líquido é o calculado, ignora o digitado e vai no envio', () => {
+  const publicHours = draft({ contractId: 9, hourTypeId: 22, hours: 30, grossCents: 450000, netCents: 450000, clientId: 32 });
+  assert.equal(effectiveNetCents(publicHours, context), 405900);
+  assert.equal(buildIncomeCreateInput(publicHours, context, 17).netAmount, 4059);
+  assert.deepEqual(validateIncomeDraft(publicHours, context), {});
+});
+
+test('editar uma receita: bruto e líquido voltam preenchidos, e líquido igual ao bruto continua acompanhando', () => {
+  const base: Income = {
+    id: 1, descricao: 'Empréstimo', valorLiquido: 900, valorBruto: 1000, data: '2026-09-29', mes: 8, ano: 2026, classificacaoId: 4,
+  };
+  const comTaxa = incomeDraftFromIncome(base);
+  assert.equal(comTaxa.grossCents, 100000);
+  assert.equal(comTaxa.netCents, 90000);
+  const semTaxa = incomeDraftFromIncome({ ...base, valorLiquido: 1000 });
+  assert.equal(semTaxa.grossCents, 100000);
+  assert.equal(semTaxa.netCents, null);
 });

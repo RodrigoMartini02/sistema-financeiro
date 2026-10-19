@@ -81,7 +81,7 @@ export async function loadContractIndicators(
   }
 
   const overdueRows = await db
-    .select({ contractId: incomes.contractId, count: count(), amount: sum(incomes.amount) })
+    .select({ contractId: incomes.contractId, count: count(), amount: sum(incomes.netAmount) })
     .from(incomes)
     .where(and(
       eq(incomes.accountId, accountId),

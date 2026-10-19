@@ -14,7 +14,13 @@ export interface IncomeDraft {
   key: number;
   description: string;
   categoryId: number | null;
-  amountCents: number | null;
+  /** Valor bruto: o que era devido. É o campo que se digita primeiro. */
+  grossCents: number | null;
+  /**
+   * Valor líquido: o que entrou na conta. Nulo = acompanha o bruto (sem taxa nem juros) até a pessoa
+   * editá-lo; em horas de contrato com retenção ele é calculado e este campo não vale.
+   */
+  netCents: number | null;
   receiptDate: string;
   /** "Todo mês até": réplicas mensais até esse mês. */
   repeatUntil: IncomeRepeatUntil | null;
@@ -39,7 +45,8 @@ export function createIncomeDraft(receiptDate: string): IncomeDraft {
     key: nextDraftKey(),
     description: '',
     categoryId: null,
-    amountCents: null,
+    grossCents: null,
+    netCents: null,
     receiptDate,
     repeatUntil: null,
     clientId: null,
@@ -53,13 +60,15 @@ export function createIncomeDraft(receiptDate: string): IncomeDraft {
   };
 }
 
-/** A receita gravada, pronta para editar. Com retenção, o valor editado é o bruto. */
+/** A receita gravada, pronta para editar. Com retenção, o valor editado é o bruto e o líquido sai do contrato. */
 export function incomeDraftFromIncome(income: Income): IncomeDraft {
   return {
     ...createIncomeDraft(isoToBrDate(income.data)),
     description: income.descricao,
     categoryId: income.classificacaoId ?? null,
-    amountCents: toCents(income.valorBruto ?? income.valor),
+    grossCents: toCents(income.valorBruto),
+    // Líquido igual ao bruto continua acompanhando o bruto.
+    netCents: income.valorLiquido === income.valorBruto ? null : toCents(income.valorLiquido),
     clientId: income.clienteId ?? null,
     representativeId: income.representanteId ?? null,
     attachments: income.anexos ?? [],
@@ -70,7 +79,10 @@ export function incomeDraftFromIncome(income: Income): IncomeDraft {
 export interface IncomeDraftErrors {
   description?: true;
   category?: true;
+  /** Valor bruto vazio. */
   amount?: true;
+  /** Valor líquido zerado ou maior que o bruto. */
+  net?: true;
   receiptDate?: true;
   client?: true;
   repeatUntil?: true;

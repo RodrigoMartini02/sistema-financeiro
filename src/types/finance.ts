@@ -26,7 +26,8 @@ export interface Income {
   descricao: string;
   /** Quem cadastrou. Preenchido quando a conta tem mais de uma pessoa lancando. */
   autorNome?: string | null;
-  valor: number;
+  /** O que entrou na conta (valor líquido): é o que soma em saldo e totais. */
+  valorLiquido: number;
   data: string;
   mes: number;
   ano: number;
@@ -36,8 +37,8 @@ export interface Income {
   /** Cliente do cadastro (conta PJ): o nome é sempre o atual. */
   clienteId?: number | null;
   clienteNome?: string | null;
-  /** Contrato com órgão público: o valor antes das retenções (`valor` é o líquido). */
-  valorBruto?: number | null;
+  /** O que era devido antes de taxas, juros e retenções; a diferença para o líquido são juros e taxas. */
+  valorBruto: number;
   classificacaoId?: number | null;
   classificacaoNome?: string | null;
   classificacaoPai?: string | null; // nome do grupo, quando a classificação é subcategoria
@@ -70,7 +71,10 @@ export interface IncomeBillableHours {
 interface IncomeFieldsInput {
   description: string;
   categoryId: number | null;
-  amount: number;
+  /** Valor bruto: o que era devido. */
+  grossAmount: number;
+  /** Valor líquido: o que entrou na conta, nunca maior que o bruto. */
+  netAmount: number;
   receiptDate: string;
   clientId: number | null;
   representativeId: number | null;
@@ -358,7 +362,7 @@ export interface PainelPontoSerie {
   /** Despesas do trecho por forma de pagamento (mesma chave de `formasPagamento`). */
   formas: Record<string, number>;
   pago: number;
-  /** Juros e descontos das despesas que vencem no trecho. */
+  /** Juros e descontos das despesas que vencem no trecho, mais os juros e taxas das receitas recebidas nele. */
   juros: number;
   descontos: number;
 }

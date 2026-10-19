@@ -9,7 +9,7 @@ import { accountMembers, accounts, incomes, type NewIncome } from '../db/schema'
 import { clients, contractCharges, contracts, type Contract, type ContractCharge } from '../modules/contracts/db/schema';
 import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError } from '../utils/requestInput';
-import { contractRates, incomeAmounts } from './contractRetentions';
+import { contractRates, incomeAmounts, incomeValueColumns } from './contractRetentions';
 import {
   addMonths, buildContractSchedule, competenceOf, scheduledIncomeDescription,
   type ContractScheduleState, type ContractScheduleTerms, type ScheduledIncome,
@@ -128,7 +128,7 @@ export async function insertScheduledIncomes(
       userId: context.ownerId,
       accountId: context.accountId,
       description: scheduledIncomeDescription(item, context.clientName),
-      amount: toDecimal(amounts.net),
+      ...incomeValueColumns(amounts),
       receiptDate: item.dueDate,
       month: mes,
       year: ano,
@@ -139,8 +139,6 @@ export async function insertScheduledIncomes(
       competence: item.competence,
       classificationId,
       representativeId: context.representativeId,
-      grossAmount: amounts.withholdings ? toDecimal(amounts.gross) : null,
-      withholdings: amounts.withholdings,
     };
   });
   const insert = executor.insert(incomes).values(rows);

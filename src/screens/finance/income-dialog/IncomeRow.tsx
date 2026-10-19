@@ -18,7 +18,7 @@ import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
 import { ClientSelect } from './ClientSelect';
 import {
-  fixedCategoryPatch, incomeHelpText, incomeLastAmountText, isIncomeDraftFilled, summarizeIncomeDraft,
+  effectiveNetCents, fixedCategoryPatch, incomeHelpText, incomeLastAmountText, isIncomeDraftFilled, summarizeIncomeDraft, withholdingPreview,
   type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import type { IncomeDraft, IncomeDraftErrors, IncomeDraftPatch } from './draftState';
@@ -88,7 +88,7 @@ export function IncomeRow({
 
   const pickMatch = (match: IncomeSuggestionMatch) => onUpdate((current) => {
     const patch: Partial<IncomeDraft> = { description: match.description };
-    if (current.amountCents === null && match.amount > 0) patch.amountCents = toCents(match.amount);
+    if (current.grossCents === null && match.amount > 0) patch.grossCents = toCents(match.amount);
     if (context.isCompany && current.clientId === null && match.clientId !== null
       && context.clients.some((client) => client.id === match.clientId)) {
       patch.clientId = match.clientId;
@@ -101,6 +101,8 @@ export function IncomeRow({
     return patch;
   });
 
+  // Horas de contrato com retenção: o líquido sai do contrato e não se digita.
+  const netCalculated = withholdingPreview(draft, context) !== null;
   const summary = showSummary ? summarizeIncomeDraft(draft, context) : null;
   const duplicate = suggestions?.duplicateCreatedAt ? duplicateText(suggestions.duplicateCreatedAt) : null;
 
@@ -146,11 +148,24 @@ export function IncomeRow({
           </GridCell>
         )}
 
-        <GridCell label="Valor" required>
-          <MoneyCell label="Valor" valueCents={draft.amountCents} onChange={(cents) => onUpdate({ amountCents: cents })} invalid={errors?.amount} />
+        <GridCell label="Valor bruto" required>
+          <MoneyCell label="Valor bruto" valueCents={draft.grossCents} onChange={(cents) => onUpdate({ grossCents: cents })} invalid={errors?.amount} />
         </GridCell>
 
-        <GridCell label="Recebido em" required>
+        <GridCell label="Valor líquido">
+          <MoneyCell
+            label="Valor líquido (o que entrou na conta)"
+            valueCents={effectiveNetCents(draft, context)}
+            onChange={(cents) => onUpdate({ netCents: cents })}
+            invalid={errors?.net}
+            disabled={netCalculated}
+            title={netCalculated
+              ? 'Calculado pelas retenções do contrato'
+              : 'O que entrou na conta. Fica igual ao bruto até você mudar; a diferença conta como juros e taxas.'}
+          />
+        </GridCell>
+
+        <GridCell label="Recebido em" required className="col-span-2 lg:col-span-1">
           <DateField
             label="Data do recebimento"
             value={draft.receiptDate}

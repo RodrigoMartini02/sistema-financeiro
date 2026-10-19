@@ -553,7 +553,7 @@ router.get('/overview', authenticate, async (req: Request, res: Response): Promi
         [...baseParams, getTodayIsoInTimezone()],
       ),
       pool.query(
-        `SELECT COALESCE(r.conta_id, $2) AS conta_id, COALESCE(SUM(r.valor), 0) AS total
+        `SELECT COALESCE(r.conta_id, $2) AS conta_id, COALESCE(SUM(r.valor_liquido), 0) AS total
          FROM receitas r
          WHERE r.status = 'ativa' AND r.data_recebimento BETWEEN $4::date AND $5::date
            AND (

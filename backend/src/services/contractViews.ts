@@ -184,7 +184,7 @@ export async function getContractDetail(contract: Contract, today: string): Prom
       chargeKind: contractCharges.kind,
       competence: incomes.competence,
       dueDate: incomes.receiptDate,
-      amount: incomes.amount,
+      amount: incomes.netAmount,
       grossAmount: incomes.grossAmount,
       withholdings: incomes.withholdings,
       hourTypeName: contractHourTypes.name,
@@ -216,7 +216,7 @@ export async function getContractDetail(contract: Contract, today: string): Prom
     const usedByYear = await db
       .select({
         year: sql<number>`extract(year from coalesce(${incomes.competence}, ${incomes.receiptDate}))::int`,
-        total: sql<string>`sum(coalesce(${incomes.grossAmount}, ${incomes.amount}))`,
+        total: sql<string>`sum(${incomes.grossAmount})`,
       })
       .from(incomes)
       .where(and(eq(incomes.contractId, contract.id), inArray(incomes.status, [...BILLED_INCOME_STATUSES])))
@@ -282,7 +282,8 @@ export async function getContractDetail(contract: Contract, today: string): Prom
       competence: row.competence,
       dueDate: row.dueDate,
       amount: Number(row.amount),
-      grossAmount: toNumber(row.grossAmount),
+      // O bruto só aparece com retenção de tributo; sem ela é igual ao valor.
+      grossAmount: row.withholdings === null ? null : toNumber(row.grossAmount),
       withholdings: row.withholdings,
       hours: row.hourTypeName !== null && row.hours !== null ? { hourTypeName: row.hourTypeName, hours: Number(row.hours) } : null,
     })),
@@ -337,7 +338,7 @@ export async function contractPortfolio(accountId: number, month: number, year: 
       id: incomes.id,
       chargeId: incomes.chargeId,
       status: incomes.status,
-      amount: incomes.amount,
+      amount: incomes.netAmount,
       dueDate: incomes.receiptDate,
     })
     .from(incomes)

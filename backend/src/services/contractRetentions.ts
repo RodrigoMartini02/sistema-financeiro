@@ -47,9 +47,9 @@ export function hasWithholdings(rates: WithholdingRates): boolean {
 
 export interface IncomeAmounts {
   gross: number;
-  /** Nulo quando o contrato não retém nada: a receita não guarda bruto nem retenções. */
+  /** Nulo quando não há retenção de tributo (contrato que não retém, ou receita lançada à mão). */
   withholdings: WithholdingAmounts | null;
-  /** O que a receita vale (`valor`): o líquido. */
+  /** O que a receita vale (`valor_liquido`): o que entrou na conta. */
   net: number;
 }
 
@@ -60,6 +60,33 @@ export function incomeAmounts(gross: number, rates: WithholdingRates): IncomeAmo
   }
   const result = computeWithholdings(gross, rates);
   return { gross: result.gross, withholdings: result.amounts, net: result.net };
+}
+
+/**
+ * Valores de uma receita lançada à mão. Sem retenção, valem os dois digitados: o líquido
+ * é o que entrou e a diferença para o bruto são juros e taxas. Com retenção de contrato,
+ * só o bruto vale e o líquido sai dos percentuais.
+ */
+export function resolveIncomeAmounts(typed: { grossAmount: number; netAmount: number }, rates: WithholdingRates): IncomeAmounts {
+  return hasWithholdings(rates)
+    ? incomeAmounts(typed.grossAmount, rates)
+    : { gross: typed.grossAmount, withholdings: null, net: typed.netAmount };
+}
+
+/** Total retido de uma receita (R$); zero sem retenção. */
+export function sumWithholdings(amounts: WithholdingAmounts | null): number {
+  if (amounts === null) return 0;
+  const cents = WITHHOLDING_TAXES.reduce((total, tax) => total + Math.round((amounts[tax] ?? 0) * 100), 0);
+  return cents / 100;
+}
+
+/** Colunas de valor da receita (`valor_liquido`, `valor_bruto`, `retencoes`) a partir dos valores calculados. */
+export function incomeValueColumns(amounts: IncomeAmounts) {
+  return {
+    netAmount: amounts.net.toFixed(2),
+    grossAmount: amounts.gross.toFixed(2),
+    withholdings: amounts.withholdings,
+  };
 }
 
 /** Percentual ausente vale 0,00%: sem retenção daquele tributo. */

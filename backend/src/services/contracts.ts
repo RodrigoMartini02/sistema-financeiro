@@ -21,7 +21,7 @@ import {
 } from './contractIncomes';
 import { assertAmendmentStart, type ContractInput, type HourTypeInput, type ReadjustmentInput } from './contractInput';
 import { latestReachedAnniversary, readjustAmount, readjustmentState } from './contractReadjustment';
-import { contractRates, incomeAmounts } from './contractRetentions';
+import { contractRates, incomeAmounts, incomeValueColumns } from './contractRetentions';
 import {
   addMonths, buildContractSchedule, competenceOf, scheduledIncomeDescription,
   type ContractScheduleState, type ContractScheduleTerms,
@@ -566,11 +566,7 @@ export async function handleReadjustment(contractId: number, input: Readjustment
         const amounts = incomeAmounts(newFee, contractRates(contract));
         await transaction
           .update(incomes)
-          .set({
-            amount: toDecimal(amounts.net),
-            grossAmount: amounts.withholdings ? toDecimal(amounts.gross) : null,
-            withholdings: amounts.withholdings,
-          })
+          .set(incomeValueColumns(amounts))
           .where(and(
             eq(incomes.chargeId, monthly.id),
             eq(incomes.status, INCOME_STATUS.planned),
@@ -630,7 +626,7 @@ export async function invoiceContractIncome(requesterId: number, incomeId: numbe
         contractId: incomes.contractId,
         competence: incomes.competence,
         receiptDate: incomes.receiptDate,
-        amount: incomes.amount,
+        amount: incomes.netAmount,
         grossAmount: incomes.grossAmount,
       })
       .from(incomes)
@@ -659,7 +655,7 @@ export async function invoiceContractIncome(requesterId: number, incomeId: numbe
         .where(and(eq(contractCommitments.contractId, contract.id), eq(contractCommitments.year, year)))
         .limit(1);
       const [used] = await transaction
-        .select({ total: sql<string | null>`sum(coalesce(${incomes.grossAmount}, ${incomes.amount}))` })
+        .select({ total: sql<string | null>`sum(${incomes.grossAmount})` })
         .from(incomes)
         .where(and(
           eq(incomes.contractId, contract.id),
@@ -669,7 +665,7 @@ export async function invoiceContractIncome(requesterId: number, incomeId: numbe
       warning = commitmentWarning(
         commitment ? { amount: Number(commitment.amount) } : null,
         Number(used?.total ?? 0),
-        Number(income.grossAmount ?? income.amount),
+        Number(income.grossAmount),
       );
     }
 

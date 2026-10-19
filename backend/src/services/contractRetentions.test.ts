@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computeWithholdings, hasWithholdings, incomeAmounts, ratesFromColumns } from './contractRetentions';
+import {
+  computeWithholdings, hasWithholdings, incomeAmounts, incomeValueColumns, ratesFromColumns, resolveIncomeAmounts, sumWithholdings,
+} from './contractRetentions';
 
 test('valores da receita: com retenção, o líquido vale e o bruto fica ao lado; sem retenção, só o valor', () => {
   assert.deepEqual(incomeAmounts(4500, { ir: 4.8, iss: 5 }), {
@@ -46,4 +48,23 @@ test('retenção total de 100% zera o líquido', () => {
   const result = computeWithholdings(100, { inss: 100 });
   assert.equal(result.total, 100);
   assert.equal(result.net, 0);
+});
+
+test('receita lançada à mão: sem retenção valem o bruto e o líquido digitados; com retenção, só o bruto', () => {
+  // Empréstimo de R$ 1.000 com taxa de R$ 100: entrou R$ 900.
+  assert.deepEqual(resolveIncomeAmounts({ grossAmount: 1000, netAmount: 900 }, {}), { gross: 1000, withholdings: null, net: 900 });
+  // Contrato que retém: o líquido digitado é ignorado e sai dos percentuais.
+  const comRetencao = resolveIncomeAmounts({ grossAmount: 4500, netAmount: 4500 }, { ir: 4.8, iss: 5 });
+  assert.equal(comRetencao.net, 4059);
+  assert.equal(comRetencao.gross, 4500);
+  assert.notEqual(comRetencao.withholdings, null);
+});
+
+test('colunas de valor da receita: líquido e bruto sempre gravados, retenções só quando existem', () => {
+  assert.deepEqual(incomeValueColumns({ gross: 1000, withholdings: null, net: 900 }), { netAmount: '900.00', grossAmount: '1000.00', withholdings: null });
+  const colunas = incomeValueColumns(incomeAmounts(4500, { ir: 4.8, iss: 5 }));
+  assert.equal(colunas.netAmount, '4059.00');
+  assert.equal(colunas.grossAmount, '4500.00');
+  assert.equal(sumWithholdings(colunas.withholdings), 441);
+  assert.equal(sumWithholdings(null), 0);
 });
