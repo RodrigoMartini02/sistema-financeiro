@@ -37,6 +37,8 @@ Depois da Parte 7 (18/10/2026):
 - **Vigentes:** ficam no Render em qualquer caso. Deles dependem os avisos, os favoritos, as buscas salvas e a busca rápida.
 - **Histórico (encerrados e vencedores):** entra na busca do produto, porque é a base do preço praticado, da concorrência, da página do CNPJ e do ciclo de recontratação dos órgãos. O piloto decide se ele fica no Render (disco de 15 a 20 GB) ou no R2 (disco de 5 a 10 GB, busca mais lenta).
 - **CNPJ da Diretriz (22.493.902/0001-40):** é só o caso de teste das Partes 3 e 4, indicado pelo usuário. Nada no código é específico dele.
+- **Custo mínimo até ter clientes (decisão do usuário, 18/10/2026):** levar ao R2 tudo o que for possível, aceitando consultas mais lentas. Mesmo o aumento de cerca de US$ 6 por mês no disco do Render não é viável agora. O disco fica em 1 GB. No Render ficam só os dados dos clientes e os editais abertos; contratos (vigentes e encerrados) e vencedores vão para arquivos Parquet no R2, consultados com DuckDB. O piloto da Parte 6 passa a medir esse cenário: o tempo das buscas e a memória do DuckDB no limite do Web Service atual, porque subir o plano do servidor custaria mais que o disco. Se o piloto passar, um `/planejar` novo redefine contratos, favoritos, buscas salvas, avisos e as Partes 3 a 5. Isso substitui a decisão 2 e o "Vigentes no Render" acima.
+- **Editais também, se precisar (usuário, 18/10/2026):** medido no banco local, os editais ocupam 121 MB com os índices (24.889 editais, 6.372 abertos), dos quais 37 MB são o JSON bruto, que sai com a 0088; o banco inteiro tem 348 MB. O JSON já vai para o R2 (Parte 2) e o histórico dos encerrados pode ir também, quando o espaço pedir. Os abertos ficam no Render: são poucos e deles dependem a busca, os avisos de edital novo e os lembretes de prazo.
 
 ## Escopo
 
@@ -212,11 +214,14 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 8. README.
 9. Conferência real quando o bucket existir: uma coleta diária local grava no R2, e os arquivos são listados e lidos de volta.
 
-**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, sem commit.
+**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, commit `2779be5a` com push, sem merge.
 - `@aws-sdk/client-s3` 3.1146.0, de 02/10, instalado com `--before=2026-10-04`: os 25 pacotes novos têm pelo menos 2 semanas, pedem Node 18 ou 20 e não rodam script na instalação.
 - O dia da pasta é o dia da coleta (Brasília), fixo no início da execução; por isso `append(dataset, records, extra)` não recebe o dia. Conjuntos: `contratos`, `contratos-termos` e `editais`.
 - Cliente conferido contra um S3 local nos testes (PUT assinado, caminho `/<bucket>/<chave>`, sem checksum a mais). Coleta manual real no banco local com o arquivo desligado: grava `enabled: false` e avisa no log.
-- Falta a conferência real (item 9), quando as 4 variáveis estiverem no `.env.dev`.
+- **Conferência real (item 9), feita em 18/10/2026** com o bucket `licitacoes-dados` e as 4 variáveis no `.env.dev`:
+  - a execução 3330 (carga de contratos da publicação de 16/10/2026, banco local) gravou `pncp/contratos/2026/10/18/3330-0001.jsonl.gz` (1.778 KB);
+  - o arquivo foi lido de volta do R2: 8.547 linhas e 1.820.611 bytes brutos, iguais aos de `details.archive` da execução;
+  - o conjunto `contratos-termos` não entrou nessa conferência: o dia não teve termos a consultar.
 
 ### Parte 2: base enxuta e contratos completos (antes da carga na produção)
 
@@ -254,7 +259,7 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
     - os testes antigos ajustados.
 11. Atualizar o README e o plano dos contratos.
 
-**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, sem commit. A 0087 foi aplicada no banco local com o "sim" do usuário; a 0088 continua pendente (depende da exportação, que depende do R2).
+**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, commit `df98d3f6` com push, sem merge. A 0087 foi aplicada no banco local com o "sim" do usuário; a 0088 continua pendente (depende da exportação, que depende do R2).
 - **Conferência real no banco local:** carga de um dia (`contracts-backfill`, publicação de 15/10/2026) em 1 min 46 s: 8.959 registros lidos e gravados, de todos os tipos, 20 consultas de termos, nenhum erro; 2 sem data de fim e 1 com vigência fora do normal entraram sem vencimento. Na base local ficaram 3.059 empenhos (1.329 já vencidos), 2.337 "Outros", 22 cartas contrato e 15 termos de adesão.
 - **Navegador local:** filtro de tipo, "Incluir encerrados" com a ordem pela publicação, chips, selo do tipo, detalhe "Sem data de fim", "Contratos na base" na Coleta e celular sem transbordo, sem erro no console.
 - **Coleta diária não medida no local:** o banco local não coleta desde 14/10, e a próxima diária leria 5 dias (cerca de 13 mil consultas de termos, de 3 a 4 h). O tempo por dia ficou estimado pela medição do PNCP abaixo.
@@ -296,7 +301,7 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 - **Conclusão:** o reuso, inclusive comercial, é livre. A única condição possível é creditar a fonte (atribuição). Ela não precisa estar em cada tela: uma menção num lugar razoável, como os termos de uso do site, atende.
 - **A menção já existe:** os Termos de Uso (seções 2 e 6) e a Política de Privacidade citam o PNCP como fonte, por decisão anterior do usuário (decisão 4 do site, conferida por `src/utils/legalText.test.ts`). O site público não cita o PNCP (`src/utils/publicPages.test.ts`). Nada a combinar de novo.
 
-**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, sem commit.
+**Situação (18/10/2026):** implementada na branch `feat/R/licitacoes-base-nacional`, commit `1825b57c` com push, sem merge (com este plano no commit).
 - **Front:** "Número de controle", "Abrir edital original", "Ver documento original", "Ver edital de origem", "Ver todos na publicação original", "Buscando os itens…", "Edital" nas ações rápidas, filtro "Número, processo ou controle", avisos e vazios neutros, e "a fonte dos dados" nas notas da Coleta. Teste novo `src/tenders/screenTexts.test.ts` varre as telas do módulo.
 - **API:** situação 1 como "Divulgada" (`noticeSituationLabel`), mensagem de indisponível dos itens e arquivos, título do aviso de edital alterado e mensagens de erro das consultas. O texto antigo já gravado (título do aviso e erros na Coleta) aparece com o novo na leitura, sem migration.
 - **Conferência no navegador local:** Buscar, detalhe do edital (com Itens e Arquivos), detalhe do contrato, Contratos a vencer, Notificações, Acompanhamento, Coleta com os erros abertos e celular: nenhum "PNCP" no texto nem nos rótulos de acessibilidade, sem erro no console.
@@ -385,6 +390,74 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
    - Se possível, medir também de um ambiente como o do Render, com confirmação.
 4. Conferir se a extensão do DuckDB baixa e funciona no Render.
 5. Registrar tempos, tamanho e recomendação neste plano. A decisão é do usuário: tudo no Render (disco de 15 a 20 GB) ou só os vigentes no Render (5 a 10 GB) e o histórico no R2. Com o R2, um `/planejar` novo define a exportação periódica dos encerrados, a busca combinada e o favorito de um contrato do histórico.
+
+**Situação (19/10/2026):** piloto feito no cenário da decisão "custo mínimo até ter clientes": todos os contratos, vigentes e encerrados, em Parquet no R2, com o Render em 1 GB. Os scripts ficaram na pasta temporária da sessão, fora do repositório e da build.
+
+- **Dados:**
+  - 351.138 contratos reais no banco local, de todos os tipos: a carga de 15/07 a 31/08/2026 e os dias de outubro. A carga de julho parou no limite de 5 h que eu tinha posto, então ficaram de fora os dias 1º a 14/07.
+  - Para chegar aos 5 milhões da produção, as linhas foram copiadas 15 vezes. Cada cópia recua as datas de 0 a 5 anos e desloca os CNPJs do órgão e do fornecedor.
+  - As cópias comprimem igual às linhas reais: 99 contra 98 bytes por linha em todos os contratos, e 153 contra 151 nos vigentes.
+  - O resultado tem 5.000.000 de contratos, dos quais 617.181 vigentes.
+- **Arquivos:** três conjuntos, cada um na ordem da busca que atende. São arquivos de até 50 mil linhas (100 mil na busca por fornecedor), para o Cron Job regravar cada um com pouca memória. Numa regravação de uma vez só, sem partes, o DuckDB estourou o limite de 200 MB.
+
+  | Conjunto | Ordem | Arquivos | Tamanho |
+  |---|---|---|---|
+  | vigentes | um arquivo por mês de vencimento nos próximos 24 meses, depois por ano; dentro, por vencimento e UF | 35 | 90 MB |
+  | todos os contratos | uma pasta por ano do contrato; dentro, por número de controle, que começa pelo CNPJ do órgão | 139 | 473 MB |
+  | busca por fornecedor | por CNPJ do fornecedor, só as colunas da lista | 50 | 355 MB |
+  | **total** | | **224** | **918 MB** |
+
+- **Custo:** 918 MB para 5 milhões de contratos, mais cerca de 200 MB por ano. Cabe nos 10 GB grátis do R2, então são US$ 0. Os pedidos ao R2 também ficam dentro do grátis.
+- **Como medi:**
+  - DuckDB 1.5.6 (`@duckdb/node-api`), cada medida num processo novo, com o DuckDB limitado a 200 MB e 1 linha de execução, como caberia no Web Service.
+  - Cada busca faz a página e o total, como a API faz hoje.
+  - Lugares medidos: R2 direto e uma cópia dos arquivos no disco.
+  - Rodadas extras: R2 com 4 linhas de execução, e todas as buscas com o DuckDB limitado a 128 MB.
+- **Buscas da tela** (tempo em segundos; memória do processo inteiro, Node com DuckDB):
+
+  | Busca | Disco | R2 aquecido | R2 primeira vez (4 linhas) | Memória: disco / R2 |
+  |---|---|---|---|---|
+  | A vencer, padrão (617 mil) | 0,04 | 0,63 | 7,6 | 84 / 90 MB |
+  | A vencer, SP, próximos 90 dias | 0,02 | 0,60 | 3,8 | 81 / 90 MB |
+  | A vencer, palavra e 2 UFs | 0,31 | 0,83 | 13,7 | 89 / 123 MB |
+  | A vencer, frase no país | 0,29 | 0,85 | 10,6 | 88 / 121 MB |
+  | Fornecedor por CNPJ, todos os anos | 0,05 | 0,62 | 5,3 | 90 / 97 MB |
+  | Órgão por CNPJ, todos os anos | 0,12 | 1,10 | 13,3 | 98 / 105 MB |
+  | Detalhe pelo número de controle | 0,03 | 0,54 | 2,4 | 91 / 103 MB |
+  | Encerrados: ano, UF e palavra | 0,62 | 1,54 | 17,8 | 98 / 163 MB |
+  | Encerrados: palavra e UF | 2,47 | 23,4 | 85,0 | 111 / 285 MB |
+  | Encerrados: palavra no país (225 mil resultados) | 3,00 | 6,5 | 54,2 | 110 / 281 MB |
+
+  - "Aquecido" quer dizer que o servidor já leu o índice dos arquivos e guardou na memória. Nesse caso, quase só sobram os 2 pedidos de listagem dos arquivos. Com uma lista fixa de arquivos, nem eles.
+  - Com 1 linha de execução, a primeira vez direto do R2 leva de 6 a 385 s. Com 128 MB, todas as buscas funcionam: do disco, os tempos e a memória são os mesmos (até 110 MB); direto do R2, a palavra nos encerrados passa de 2 min, porque os dados não cabem na memória e são baixados de novo a cada busca.
+- **Trabalhos do dia (Cron Job, 200 MB, 1 linha de execução):**
+
+  | Trabalho | Disco | R2 daqui | Memória |
+  |---|---|---|---|
+  | Avisos de 50 buscas salvas nas janelas de 24 a 30 e 84 a 90 dias (12.808 avisos) | 0,17 s | 5,2 s | 97 / 110 MB |
+  | Regravar os vigentes inteiros (35 arquivos, 89 MB baixados e 89 MB enviados) | 3,4 s | 92 s | 205 / 217 MB |
+  | Regravar o ano mais cheio (20 arquivos, 91 MB baixados e 91 MB enviados) | 4,2 s | 62 s | 179 / 209 MB |
+
+- **Ressalvas:**
+  - Tudo foi medido deste computador, no Brasil, onde cada pedido ao R2 leva cerca de 210 ms, porque o bucket fica no oeste da América do Norte. O Render fica no Oregon, perto do bucket, então "R2 daqui" é o pior caso. Não medi do Render.
+  - O processador daqui é mais rápido que o de 0,5 CPU do Starter. No Render, conte de 2 a 4 vezes o tempo de CPU; é uma estimativa.
+  - Na produção, os vigentes devem ser mais que os 617 mil do piloto, uns 1 a 1,5 milhão (estimativa). As buscas de vigentes dobram de tempo.
+  - A busca por texto é por trecho (`LIKE`), sem os radicais do Postgres. A regra das buscas salvas (termos, modo e exclusões) teria de ser refeita no DuckDB.
+  - Memória: Node sozinho usa 47 MB e Node com DuckDB aberto, 66 MB. Lendo do disco, o DuckDB soma cerca de 20 MB parado e até cerca de 65 MB na busca mais pesada. O servidor usa hoje 166 MB no Render (conferência abaixo).
+  - Extensões (item 4): lendo do disco, o DuckDB usa só o que já vem nele (parquet, json e icu) e não baixa nada. Os arquivos chegam ao disco pelo SDK do S3 que o backend já usa, então o `httpfs` não precisa ir para o Render. O pacote do DuckDB para Windows tem 37 MB; o de Linux deve ser parecido.
+- **Recomendação:** o cenário "tudo de contratos no R2, Render em 1 GB" passa, com uma condição: o Web Service guarda uma cópia dos arquivos no disco temporário dele.
+  - O R2 é a fonte dos dados. Ao subir, o Web Service baixa os arquivos (918 MB hoje) para o disco temporário, e o DuckDB lê do disco.
+  - Pelos números daqui, as buscas de vigentes, CNPJ e detalhe levam até 0,3 s. As de palavra com encerrados ficam entre 0,6 e 3 s. No Render, de 2 a 4 vezes isso: até 6 a 12 s na palavra em todo o país com encerrados (estimativa).
+  - O Cron Job regrava por dia os vigentes e o ano corrente, em partes, envia ao R2 e avisa o Web Service para baixar a versão nova.
+  - No Postgres ficam os dados dos clientes, os editais abertos, os favoritos (com cópia dos campos do contrato que os avisos usam), as buscas salvas e os avisos.
+  - Ler direto do R2, sem cópia, fica como plano B. Detalhe, CNPJ e vigentes ficam em 0,5 a 1,5 s depois de aquecidos, mas a palavra nos encerrados vai a dezenas de segundos.
+  - A busca "palavra e UF" nos encerrados demorou quase o mesmo que a do país inteiro, porque a UF não separa os arquivos. Ordenar cada ano por UF e número de controle deve resolver isso; fica para o `/planejar` novo medir.
+- **Conferência no Render** (19/10/2026, pelo usuário, no Shell do Web Service, sem custo):
+  - **memória:** `memory.max` de 512 MB (o limite do Starter) e `memory.current` de 166 MB, com o servidor rodando. Com os até 65 MB do DuckDB, fica em cerca de 230 MB;
+  - **disco temporário:** o projeto ocupa 458 MB, e o `overlay` (dividido com a máquina) tem 57 GB livres. A cópia precisa de cerca de 1 GB, que cresce cerca de 200 MB por ano. O Render não documenta um limite por serviço (um tópico antigo do fórum fala em cerca de 2 GB), então só o download real dos arquivos confirma;
+  - `free` e `df` mostram a máquina inteira; os números do serviço vêm do cgroup (`/sys/fs/cgroup/memory.max` e `memory.current`).
+  - Se o disco temporário não der, há dois caminhos: um disco persistente no Web Service (cerca de US$ 0,25 por GB por mês, preço de um site de terceiros; com ele, o deploy passa a ter uma parada curta) ou ler direto do R2, exigindo UF ou ano na busca por palavra nos encerrados.
+- **Objetos de teste no R2:** `piloto/teste` (26 MB), `piloto/v1` (918 MB e mais cerca de 180 MB das regravações em `piloto/v1/compactacao`) e o arquivo da execução 3330. Somam cerca de 1,1 GB, dentro do grátis. Só apago com o "sim" do usuário.
 
 ## Regras de negócio identificadas
 
@@ -511,7 +584,7 @@ O usuário chama as skills; o agente pede confirmação nos pontos marcados. Nen
 | 8 | `/finalizar` | Commit e push da Parte 7, com este plano no commit | "Não" ao merge |
 | 9 | — | Conta, bucket e token do R2 | Criar e pôr as 4 variáveis `TENDERS_ARCHIVE_*` no `.env.dev` |
 | 10 | `/implementar` | Parte 6 adiantada: piloto do histórico em Parquet no R2 com DuckDB (só medição) e a conferência real da Parte 1 (coleta local grava e lê de volta no R2) | — |
-| 11 | `/finalizar` | Commit do relatório do piloto | Decidir onde fica o histórico: tudo no Render (disco de 15 a 20 GB) ou só os vigentes no Render (5 a 10 GB) e os encerrados no R2. Se for o R2, `/planejar` novo antes do marco de produção |
+| 11 | `/finalizar` | Commit do relatório do piloto | Decidir com o relatório (Parte 6). Desde a decisão "custo mínimo até ter clientes", a pergunta é se segue o "tudo de contratos no R2, com cópia no disco temporário do Web Service". O disco temporário e a memória foram conferidos no Render em 19/10/2026 (ver a Parte 6). Se seguir, `/planejar` novo antes do marco de produção |
 | 12 | `/finalizar` (pergunta do merge) | Marco de produção | Antes: o disco escolhido, as variáveis do R2 e `TENDERS_CONTRACTS_MAX_DB_MB` no Render. Depois, "sim" ao merge, saindo do modo automático: o agente aplica 0085, 0086 e 0087 na produção, uma por vez, com confirmação, e faz o merge na `main` |
 | 13 | — | Carga de contratos no Cron Job (cerca de 10 dias) | Acompanhar em Configurações › Coleta |
 | 14 | (pedido) | Exportação do JSON dos editais na produção e a 0088 | "Sim" a cada passo, fora do modo automático |
