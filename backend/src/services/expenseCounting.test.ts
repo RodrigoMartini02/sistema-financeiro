@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { countedExpenseSql, countingDate, isCountedExpense, type CountableExpense } from './expenseCounting';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import {
+  cardLimitPaymentMethodSql,
+  countedExpenseSql,
+  countingDate,
+  isCountedExpense,
+  openCardDebtCondition,
+  openCardDebtSql,
+  type CountableExpense,
+} from './expenseCounting';
 
 const TODAY = '2026-10-07';
 
@@ -42,4 +51,27 @@ test('SQL cru: a mesma regra, com o apelido e o marcador da data', () => {
   assert.match(condition, /d\.forma_pagamento = 'credito' AND d\.cartao_id IS NOT NULL/);
   assert.match(condition, /COALESCE\(d\.data_compra, d\.data_vencimento\)/);
   assert.match(condition, />= \$6::date/);
+});
+
+test('dívida em aberto do cartão: pago em branco conta e status em branco é ativa', () => {
+  const condition = openCardDebtSql('d');
+  assert.match(condition, /NOT COALESCE\(d\.pago, false\)/);
+  assert.match(condition, /COALESCE\(d\.status, 'ativa'\) = 'ativa'/);
+});
+
+test('dívida em aberto do cartão: a condição Drizzle da fatura é a mesma regra do limite', () => {
+  const { sql: text } = new PgDialect().sqlToQuery(openCardDebtCondition());
+  assert.match(text, /NOT COALESCE\("despesas"\."pago", false\)/);
+  assert.match(text, /COALESCE\("despesas"\."status", 'ativa'\) = 'ativa'/);
+});
+
+test('limite: cartão sem tipo soma tudo, de crédito soma crédito e antigo, ambos só crédito', () => {
+  const condition = cardLimitPaymentMethodSql('d', 'c').replace(/\s+/g, ' ');
+  // Sem tipo: lançamentos antigos continuam somando.
+  assert.match(condition, /c\.tipo IS NULL/);
+  // Crédito: a forma de pagamento da despesa é crédito ou nem foi informada (antigo).
+  assert.match(condition, /c\.tipo = 'credito' AND \(d\.forma_pagamento IS NULL OR d\.forma_pagamento = 'credito'\)/);
+  // Ambos: só o crédito; o débito do mesmo cartao_id não ocupa o limite.
+  assert.match(condition, /c\.tipo = 'ambos' AND d\.forma_pagamento = 'credito'/);
+  assert.doesNotMatch(condition, /'ambos'\)/);
 });

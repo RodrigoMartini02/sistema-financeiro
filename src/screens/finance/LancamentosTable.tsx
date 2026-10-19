@@ -231,19 +231,24 @@ export function LancamentosTable({
       pagarDespesa(id, dataPagamento, valorPago),
     onSuccess: () => {
       invalidateFinanceQueries(qc, month, year);
+      invalidateExpenseQueries(qc);
       setPaymentModal({ open: false });
     },
   });
 
   const moverMut = useMutation({
     mutationFn: (id: number) => moverDespesa(id),
-    onSuccess: () => invalidateFinanceQueries(qc, month, year),
+    onSuccess: () => {
+      invalidateFinanceQueries(qc, month, year);
+      invalidateExpenseQueries(qc);
+    },
   });
 
   const cancelarMut = useMutation({
     mutationFn: ({ id, ids }: { id: number; ids?: number[] }) => cancelarDespesa(id, { ids }),
     onSuccess: () => {
       invalidateFinanceQueries(qc, month, year);
+      invalidateExpenseQueries(qc);
       setInstallmentDialog({ open: false, mode: 'excluir' });
     },
   });
@@ -707,6 +712,7 @@ export function LancamentosTable({
         onSuccess={() => {
           setSelecionadas(new Set());
           qc.invalidateQueries({ queryKey: queryKeys.dashboard(month, year) });
+          invalidateExpenseQueries(qc);
         }}
       />
       <DeleteInstallmentDialog

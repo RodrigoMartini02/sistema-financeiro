@@ -39,6 +39,7 @@ import {
   type InvoiceItem,
   type PlannedGeneratedRow,
 } from './cardInvoiceRules';
+import { openCardDebtCondition } from './expenseCounting';
 import { ACTIVE_STATUS, accountFilter, findPeopleNames, toNumber } from './entryQueries';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -87,8 +88,7 @@ function openInvoiceItemsCondition(cardIds: number[], invoiceMonthStart: string)
   return and(
     inArray(expenses.cardId, cardIds),
     eq(expenses.paymentMethod, INVOICE_EXPENSE_METHOD),
-    eq(expenses.status, ACTIVE_STATUS),
-    or(eq(expenses.paid, false), isNull(expenses.paid)),
+    openCardDebtCondition(),
     gte(expenses.dueDate, invoiceMonthStart),
     lte(expenses.dueDate, invoiceMonthEnd(invoiceMonthStart)),
   );

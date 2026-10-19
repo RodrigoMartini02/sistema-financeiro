@@ -1,7 +1,7 @@
 import { pool } from '../db/client';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
-import { countedExpenseSql } from './expenseCounting';
+import { cardLimitPaymentMethodSql, countedExpenseSql, openCardDebtSql } from './expenseCounting';
 
 export interface CardLimit {
   id: number;
@@ -18,9 +18,9 @@ interface CardLimitRow {
   usado: string;
 }
 
-// Limite usado de um cartão = soma de todas as despesas em aberto (não pagas,
-// status ativa) daquele cartão, de qualquer mês — passado, presente ou
-// futuro. Isso é intencional: uma compra parcelada em N vezes já grava uma
+// Limite usado de um cartão = soma de todas as despesas em aberto (openCardDebtSql:
+// não pagas, com pago em branco incluso, e ativas) daquele cartão, de qualquer
+// mês — passado, presente ou futuro. Isso é intencional: uma compra parcelada em N vezes já grava uma
 // linha por parcela (cada uma com seu próprio mês/ano) e ocupa o limite
 // inteiro desde a compra, liberando conforme cada parcela é paga — mesma
 // lógica de uma fatura de cartão real. A despesa mensal já tem as ocorrências
@@ -86,13 +86,11 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
      FROM cartoes c
      LEFT JOIN despesas d ON d.cartao_id = c.id
        AND d.usuario_id = ANY($1)
-       AND d.pago = false
-       AND COALESCE(d.status, 'ativa') = 'ativa'
-       -- Cartao sem tipo definido conta como credito, mesmo criterio do WHERE
-       -- abaixo. Antes a soma exigia forma_pagamento = 'credito' na despesa, e
-       -- lancamentos antigos sem esse campo ficavam de fora: o cartao aparecia
-       -- na lista mas o valor usado nao subia.
-       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos') OR d.forma_pagamento = 'credito')${expenseAccountClause}${countedClause}
+       AND ${openCardDebtSql('d')}
+       -- Cartao sem tipo conta tudo (lancamentos antigos); 'credito' conta credito
+       -- e lancamento sem forma de pagamento; 'ambos' so o credito, senao o debito
+       -- do mesmo cartao_id ocuparia o limite.
+       AND ${cardLimitPaymentMethodSql('d', 'c')}${expenseAccountClause}${countedClause}
      WHERE c.usuario_id = ANY($1) AND c.ativo = true
        AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}
      GROUP BY c.id, c.nome, c.limite
