@@ -18,7 +18,7 @@ import { notificationsQuery } from '../utils/notifications';
 import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
 
 // Notificações (escopo, seção 9.4): lista paginada com filtro por tipo e por
-// não lidas. O clique marca como lida e abre o edital.
+// não lidas. O clique marca como lida e abre o edital ou o contrato.
 
 const READ_FILTER_OPTIONS = [
   { value: 'todas', label: 'Todas' },
@@ -67,7 +67,7 @@ export function NotificationsScreen() {
       <EmptyState
         icon={BellOff}
         title="Você ainda não tem notificações."
-        description="Elas chegam quando um edital novo bate com uma busca salva com Notificar ligado, quando um edital acompanhado muda no PNCP e quando o prazo de um edital em Vou participar se aproxima."
+        description="Elas chegam quando um edital novo bate com uma busca salva com Notificar ligado, quando um edital acompanhado muda, quando o prazo de um edital em Vou participar se aproxima e 90 e 30 dias antes do vencimento dos contratos favoritos ou das buscas salvas de contratos."
       />
     );
   } else {
@@ -109,7 +109,7 @@ export function NotificationsScreen() {
               const value = event.target.value;
               changeFilters({ type: TENDER_NOTIFICATION_TYPES.find((option) => option === value) ?? null });
             }}
-            className="w-[190px]"
+            className="w-[230px]"
           >
             <option value="">Todos</option>
             {TENDER_NOTIFICATION_TYPES.map((option) => (

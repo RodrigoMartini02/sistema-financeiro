@@ -4,6 +4,8 @@ import { validate } from '../../../middleware/validation';
 import { createRequireTenderAccess } from '../middleware/tenderAccess';
 import { listAccountsForTenders, setAccountCourtesy } from '../services/team';
 import { activationRoutes, billingRoutes, createBillingWebhook } from './billing';
+import { contractRoutes } from './contracts';
+import { contractSearchRoutes } from './contractSearches';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 import { noticeRoutes } from './notices';
@@ -35,6 +37,8 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use(createRequireTenderAccess(deps.db));
   routes.use('/notices', noticeRoutes(deps));
   routes.use('/saved-searches', savedSearchRoutes(deps));
+  routes.use('/contracts', contractRoutes(deps));
+  routes.use('/contract-searches', contractSearchRoutes(deps));
   routes.use('/notifications', notificationRoutes(deps));
   routes.use(overviewRoutes(deps));
 

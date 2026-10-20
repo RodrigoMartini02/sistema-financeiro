@@ -38,7 +38,7 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
   router.get(
     '/collection/status',
     tenderRoute('Tender collection status failed:', 'Não foi possível carregar o status da coleta agora.', async (_req, res) => {
-      res.json({ success: true, data: await readCollectionOverview(deps.db, deps.now()) });
+      res.json({ success: true, data: await readCollectionOverview(deps.db, deps.contractStore, deps.now()) });
     }),
   );
 

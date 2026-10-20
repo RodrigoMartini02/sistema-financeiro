@@ -1,14 +1,20 @@
 import { X } from 'lucide-react';
-import type { FilterChip, SearchState } from '../utils/searchFilters';
 
-interface FilterChipsProps {
-  chips: FilterChip[];
-  onRemove: (next: SearchState) => void;
+/** Um filtro ativo: o texto do chip e o estado da tela sem ele (Buscar ou Contratos a vencer). */
+interface Chip<State> {
+  key: string;
+  label: string;
+  without: State;
+}
+
+interface FilterChipsProps<State> {
+  chips: Array<Chip<State>>;
+  onRemove: (next: State) => void;
   onClearAll: () => void;
 }
 
 /** Filtros ativos acima dos resultados, cada um removível, e "Limpar tudo". */
-export function FilterChips({ chips, onRemove, onClearAll }: FilterChipsProps) {
+export function FilterChips<State>({ chips, onRemove, onClearAll }: FilterChipsProps<State>) {
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">

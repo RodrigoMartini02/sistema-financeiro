@@ -65,8 +65,8 @@ test('campos do registro: tamanhos, textos aparados, vazios nulos, datas sem fus
   assert.equal(row.pncpUpdatedAt, '2026-09-24T09:45:28');
   assert.equal(row.sourceSystemLink, null);
   assert.equal(row.pncpLink, 'https://pncp.gov.br/app/editais/45132495000140/2024/942');
-  assert.deepEqual(row.payload, record);
-  assert.match(row.payloadHash, /^[0-9a-f]{64}$/);
+  assert.equal('payload' in row, false, 'o JSON bruto vai para o arquivo no R2, não para a linha');
+  assert.equal(row.payloadHash, payloadHash(record));
 });
 
 test('valor estimado 0 (sigiloso ou não informado) fica nulo', () => {

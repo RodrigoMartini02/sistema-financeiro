@@ -71,7 +71,7 @@ export async function notifyChangedNotices(db: TendersDb, noticeIds: number[]): 
   const type: TenderNotificationType = 'EDITAL_ALTERADO';
   const result = await db.execute(sql`
     INSERT INTO licitacoes.notificacao (conta_id, usuario_id, tipo, titulo, mensagem, link, edital_id, referencia)
-    SELECT a.conta_id, r.usuario_id, ${type}, 'Edital acompanhado foi alterado no PNCP', left(e.objeto, ${MESSAGE_LENGTH}),
+    SELECT a.conta_id, r.usuario_id, ${type}, 'Edital acompanhado foi alterado', left(e.objeto, ${MESSAGE_LENGTH}),
            '/editais/' || e.id, e.id,
            coalesce(to_char(e.data_atualizacao_pncp AT TIME ZONE 'America/Sao_Paulo', ${BRASILIA_REFERENCE_FORMAT}), e.hash_payload)
       FROM licitacoes.edital e

@@ -19,9 +19,11 @@ export interface NotificationView {
   type: TenderNotificationType;
   title: string;
   message: string | null;
-  /** Caminho a partir do início do app do módulo (ex.: /editais/123). */
+  /** Caminho a partir do início do app do módulo (ex.: /editais/123 ou /contratos/<chave codificada>). */
   link: string;
   noticeId: number | null;
+  /** Aviso de contrato (vencimento ou vencimento alterado): o número de controle do contrato. */
+  contractKey: string | null;
   savedSearchId: number | null;
   readAt: string | null;
   createdAt: string | null;
@@ -36,6 +38,15 @@ export interface NotificationListFilters {
 
 function ownNotifications(requester: Requester) {
   return and(eq(tenderNotifications.accountId, requester.accountId), eq(tenderNotifications.userId, requester.userId));
+}
+
+// Título antigo do EDITAL_ALTERADO, gravado antes da parte 7 do plano
+// .plans/licitacoes-base-nacional.md: a tela mostra o título atual, sem citar a fonte.
+const LEGACY_CHANGED_NOTICE_TITLE = 'Edital acompanhado foi alterado no PNCP';
+const CHANGED_NOTICE_TITLE = 'Edital acompanhado foi alterado';
+
+export function notificationTitle(storedTitle: string): string {
+  return storedTitle === LEGACY_CHANGED_NOTICE_TITLE ? CHANGED_NOTICE_TITLE : storedTitle;
 }
 
 export async function listNotifications(
@@ -63,10 +74,11 @@ export async function listNotifications(
     items: rows.map((row) => ({
       id: row.id,
       type: row.type,
-      title: row.title,
+      title: notificationTitle(row.title),
       message: row.message,
       link: row.link,
       noticeId: row.noticeId,
+      contractKey: row.contractKey,
       savedSearchId: row.savedSearchId,
       readAt: toBrasiliaIso(row.readAt),
       createdAt: toBrasiliaIso(row.createdAt),

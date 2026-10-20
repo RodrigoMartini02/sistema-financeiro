@@ -1,8 +1,10 @@
 import type { NotificationFilters, TenderNotification } from '../types';
+import { contractPath, isContractKey } from './contractKey';
 import { TENDERS_APP_BASE } from './modulePaths';
 
 // Notificações (escopo, seção 9.4): o clique marca como lida e abre o edital
-// pelo link gravado, que é relativo ao início do app (/editais/123).
+// ou o contrato pelo link gravado, que é relativo ao início do app
+// (/editais/123 ou /contratos/<chave codificada>).
 
 /** Painel do sino: as 10 mais recentes. */
 export const NOTIFICATION_PANEL_FILTERS: NotificationFilters = { unreadOnly: false, type: null, page: 1, perPage: 10 };
@@ -21,12 +23,15 @@ const APP_PATH = /^\/(?!\/)\S*$/;
 
 /**
  * Destino do clique, relativo à base do app: o link gravado quando é um
- * caminho do app (com a base, ela sai); sem link válido, o edital; sem os
- * dois, null (a notificação só é marcada como lida).
+ * caminho do app (com a base, ela sai); sem link válido, o edital ou o
+ * contrato; sem nenhum, null (a notificação só é marcada como lida).
  */
-export function notificationTarget(notification: Pick<TenderNotification, 'link' | 'noticeId'>): string | null {
+export function notificationTarget(
+  notification: Pick<TenderNotification, 'link' | 'noticeId'> & Partial<Pick<TenderNotification, 'contractKey'>>,
+): string | null {
   const link = notification.link.trim();
   const withoutBase = link === TENDERS_APP_BASE ? '/' : link.startsWith(`${TENDERS_APP_BASE}/`) ? link.slice(TENDERS_APP_BASE.length) : link;
   if (APP_PATH.test(withoutBase)) return withoutBase;
-  return notification.noticeId ? `/editais/${notification.noticeId}` : null;
+  if (notification.noticeId) return `/editais/${notification.noticeId}`;
+  return isContractKey(notification.contractKey) ? contractPath(notification.contractKey) : null;
 }

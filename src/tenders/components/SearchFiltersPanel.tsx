@@ -27,10 +27,10 @@ import { MoneyField } from './MoneyField';
 import { MunicipalityPicker } from './MunicipalityPicker';
 import { TagInput } from './TagInput';
 
-const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
-const NUMBER_MESSAGE = 'Informe ao menos um número.';
+export const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
+export const NUMBER_MESSAGE = 'Informe ao menos um número.';
 
-function FilterSection({ title, children, error }: { title: string; children: ReactNode; error?: string | null }) {
+export function FilterSection({ title, children, error }: { title: string; children: ReactNode; error?: string | null }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="grid grid-cols-1 gap-2">
@@ -133,7 +133,7 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
       <FilterSection title="Número e ano" error={numberError}>
         <input
           type="text"
-          aria-label="Número, processo ou controle PNCP"
+          aria-label="Número da compra, processo ou número de controle"
           aria-invalid={Boolean(numberError) || undefined}
           value={numberDraft}
           maxLength={MAX_NUMBER_LENGTH}
@@ -142,7 +142,7 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           onKeyDown={(event) => {
             if (event.key === 'Enter') event.currentTarget.blur();
           }}
-          placeholder="Número, processo ou controle PNCP"
+          placeholder="Número, processo ou controle"
           className={`${inputBase} ${numberError ? '!border-red-400' : ''}`}
         />
         <Select

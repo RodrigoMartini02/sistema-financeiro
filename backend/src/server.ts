@@ -95,6 +95,8 @@ import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
 import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
+import { createCollectorLogger } from './modules/tenders/collector/logger';
+import { startContractStoreFromEnv } from './modules/tenders/contractStore/service';
 import { createTendersRoutes, tendersApiDepsFromPool } from './modules/tenders/routes';
 import { authenticate, requireActivePlan, requireAdmin, requirePremiumPlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
@@ -159,7 +161,10 @@ app.use('/api/contracts', authenticate, requireActivePlan, requirePremiumPlan, r
 app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('services'), serviceCatalogRoutes);
 // Licitações: assinatura e trava próprias (dentro do roteador), sem requireActivePlan.
 // O aviso do Mercado Pago sobre a assinatura do módulo é público e vem antes das rotas com login.
-const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool));
+// Os contratos moram em arquivos no R2: a cópia local começa aqui, em segundo plano, sem atrasar o servidor
+// (até ficar pronta, a busca de contratos responde "atualizando").
+const contractStore = startContractStoreFromEnv(process.env, createCollectorLogger('info'));
+const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool, contractStore));
 app.post('/api/tenders/billing/webhook', tendersApi.billingWebhook);
 app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);
 app.use('/api/tenders', authenticate, tendersApi.routes);

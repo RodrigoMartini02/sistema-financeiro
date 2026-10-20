@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { numberGroupsOf } from './noticeSearch';
+import { noticeSituationLabel, numberGroupsOf } from './noticeSearch';
+
+test('situação: nome da tela pela lista (a 1 chega do PNCP como "Divulgada no PNCP"); fora da lista, o nome gravado', () => {
+  assert.equal(noticeSituationLabel(1, 'Divulgada no PNCP'), 'Divulgada');
+  assert.equal(noticeSituationLabel(4, 'Suspensa'), 'Suspensa');
+  assert.equal(noticeSituationLabel(99, 'Outra situação'), 'Outra situação');
+  assert.equal(noticeSituationLabel(null, null), null);
+});
 
 // Busca por número: os grupos seguem a regra de licitacoes.fn_grupos_digitos (migration 0079).
 

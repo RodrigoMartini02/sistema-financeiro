@@ -34,6 +34,7 @@ test('menu: Configurações só para quem administra o módulo', () => {
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), [
     'inicio',
     'buscar',
+    'contratos',
     'buscas',
     'favoritos',
     'acompanhamento',
@@ -43,6 +44,7 @@ test('menu: Configurações só para quem administra o módulo', () => {
   assert.equal(canOpenSettings(admin), true);
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'configuracoes'), false);
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'edital'), false, 'o edital abre pela lista');
+  assert.equal(menuRoutes(colaborador).some((route) => route.key === 'contrato'), false, 'o contrato abre pela lista');
 });
 
 test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', () => {
@@ -58,6 +60,8 @@ test('título da barra pela rota; rota desconhecida não tem título de menu', (
   assert.equal(routeForPath('/buscar')?.title, 'Buscar');
   assert.equal(routeForPath('/buscar/')?.title, 'Buscar');
   assert.equal(routeForPath('/editais/123')?.title, 'Edital');
+  assert.equal(routeForPath('/contratos')?.title, 'Contratos a vencer');
+  assert.equal(routeForPath('/contratos/45')?.title, 'Contrato');
   assert.equal(routeForPath('/favoritos')?.title, 'Favoritos');
   assert.equal(routeForPath('/nao-existe'), null);
   assert.equal(NOT_FOUND_TITLE, 'Página não encontrada');

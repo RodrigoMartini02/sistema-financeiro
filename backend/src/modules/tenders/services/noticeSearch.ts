@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { TendersDb } from '../collector/database';
 import { tenderFavorites, tenderNotices, tenderTrackings } from '../db/schema';
 import {
+  TENDER_SITUATIONS,
   TRACKING_FILTER_NONE,
   type NoticeSort,
   type SearchTermsMode,
@@ -10,6 +11,13 @@ import {
   type TrackingStatus,
 } from '../domains';
 import { toBrasiliaIso } from './dates';
+
+const SITUATION_NAMES = new Map<number, string>(TENDER_SITUATIONS.map((situation) => [situation.id, situation.name]));
+
+/** Nome da situação para a tela (`TENDER_SITUATIONS`); situação fora da lista fica com o nome gravado. */
+export function noticeSituationLabel(id: number | null, storedName: string | null): string | null {
+  return (id !== null ? SITUATION_NAMES.get(id) : undefined) ?? storedName;
+}
 
 // Busca de editais da tela. Os critérios em comum com a busca salva passam
 // pelas funções do banco (migration 0076): licitacoes.fn_edital_atende_criterios
@@ -316,6 +324,7 @@ export async function searchNotices(
   return {
     items: rows.map(({ trackingStatus, trackingUpdatedAt, ...row }) => ({
       ...row,
+      situationName: noticeSituationLabel(row.situationId, row.situationName),
       state: row.state?.trim() ?? null,
       estimatedTotalValue: row.estimatedTotalValue === null ? null : Number(row.estimatedTotalValue),
       publishedAt: toBrasiliaIso(row.publishedAt),

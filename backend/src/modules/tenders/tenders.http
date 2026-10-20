@@ -17,6 +17,8 @@
 @token = cole-aqui-o-token
 @accountId = 18
 @noticeId = 1
+# Número de controle do contrato (a "chave"), com a barra codificada (%2F) no caminho.
+@contractKey = 03353358000196-2-000216%2F2026
 
 ### Login (pegue data.token da resposta)
 POST {{host}}/api/auth/login
@@ -145,7 +147,89 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/saved-searches/{{createSearch.response.body.data.id}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
-### Notificações (unreadOnly, type, paginação)
+### Contratos a vencer: só os vigentes, pelo vencimento mais próximo (palavras como na busca de editais)
+GET {{baseUrl}}/contracts?accountId={{accountId}}&q=limpeza "coleta de lixo" -hospitalar&sort=expiryAsc&page=1&perPage=20
+Authorization: Bearer {{token}}
+
+### Contratos: UF, município, órgão, categoria, fornecedor (CNPJ), valor global e vencimento de/até
+GET {{baseUrl}}/contracts?accountId={{accountId}}&state=SP&category=8&supplierCnpj=12345678000195&minValue=10000&includeWithoutValue=true&expiryFrom=2026-10-14&expiryTo=2027-01-12
+Authorization: Bearer {{token}}
+
+### Contratos: número do contrato, processo ou controle PNCP (do contrato ou da compra) e ano do contrato
+GET {{baseUrl}}/contracts?accountId={{accountId}}&number=015/2026&contractYear=2026
+Authorization: Bearer {{token}}
+
+### Contratos: só os favoritos da pessoa (inclusive os vencidos)
+GET {{baseUrl}}/contracts?accountId={{accountId}}&favoritesOnly=true
+Authorization: Bearer {{token}}
+
+### Contratos: empenhos e cartas contrato, com os encerrados e os sem data de fim (ordem padrão: publicação mais recente)
+GET {{baseUrl}}/contracts?accountId={{accountId}}&contractType=7&contractType=12&includeClosed=true
+Authorization: Bearer {{token}}
+
+### Detalhe do contrato (aditivos, edital de origem e favorito)
+GET {{baseUrl}}/contracts/{{contractKey}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Favoritar contrato (da pessoa logada; de novo não duplica)
+PUT {{baseUrl}}/contracts/{{contractKey}}/favorite?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Tirar contrato dos favoritos
+DELETE {{baseUrl}}/contracts/{{contractKey}}/favorite?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Buscas salvas de contratos, com activeCount (vigentes agora); limite de 50 à parte das de editais
+GET {{baseUrl}}/contract-searches?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Prévia da busca salva de contratos (contagem e 5 primeiros pelo vencimento; até 60 por minuto)
+POST {{baseUrl}}/contract-searches/preview?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "terms": ["limpeza", "conservação"], "termsMode": "OU", "states": ["SP"], "categories": [8] }
+
+### Criar busca salva de contratos (avisos 90 e 30 dias antes do vencimento)
+# @name createContractSearch
+POST {{baseUrl}}/contract-searches?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Limpeza em SP",
+  "terms": ["limpeza", "conservação"],
+  "termsMode": "OU",
+  "excludedTerms": ["hospitalar"],
+  "states": ["SP"],
+  "categories": [8],
+  "supplierCnpjs": [],
+  "minValue": 50000,
+  "maxValue": null,
+  "includeWithoutValue": false,
+  "notify": true
+}
+
+### Abrir os resultados de uma busca salva de contratos
+GET {{baseUrl}}/contracts?accountId={{accountId}}&savedSearchId={{createContractSearch.response.body.data.id}}
+Authorization: Bearer {{token}}
+
+### Pausar ou desligar o aviso da busca de contratos
+PATCH {{baseUrl}}/contract-searches/{{createContractSearch.response.body.data.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "notify": false }
+
+### Duplicar busca salva de contratos ("Cópia de ...")
+POST {{baseUrl}}/contract-searches/{{createContractSearch.response.body.data.id}}/duplicate?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Excluir busca salva de contratos
+DELETE {{baseUrl}}/contract-searches/{{createContractSearch.response.body.data.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO
 GET {{baseUrl}}/notifications?accountId={{accountId}}&unreadOnly=true&type=NOVO_EDITAL&page=1&perPage=20
 Authorization: Bearer {{token}}
 

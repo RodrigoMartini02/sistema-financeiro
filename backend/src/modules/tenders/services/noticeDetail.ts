@@ -6,7 +6,7 @@ import type { TendersDb } from '../collector/database';
 import { tenderFavorites, tenderNotices, tenderSavedSearches, tenderTrackingHistory, tenderTrackings } from '../db/schema';
 import { TRACKING_REMOVED, type TrackingHistoryStatus, type TrackingStatus } from '../domains';
 import { toBrasiliaIso } from './dates';
-import type { NoticeTracking } from './noticeSearch';
+import { noticeSituationLabel, type NoticeTracking } from './noticeSearch';
 
 // Detalhe do edital e acompanhamento da conta (escopo, seção 8.1). O edital é
 // público (tabela global); acompanhamento e histórico são sempre da conta da
@@ -143,7 +143,7 @@ export async function getNoticeDetail(db: TendersDb, requester: Requester, notic
     disputeModeId: data.disputeModeId,
     disputeModeName: data.disputeModeName,
     situationId: data.situationId,
-    situationName: data.situationName,
+    situationName: noticeSituationLabel(data.situationId, data.situationName),
     purchaseYear: data.purchaseYear,
     purchaseSequence: data.purchaseSequence,
     purchaseNumber: data.purchaseNumber,

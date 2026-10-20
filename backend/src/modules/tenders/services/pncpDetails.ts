@@ -18,7 +18,8 @@ export const DETAIL_PAGE_SIZE = 500;
 export const MAX_DETAIL_PAGES = 2;
 const CACHE_HOURS = 24;
 
-const PNCP_UNAVAILABLE = 'O PNCP não respondeu agora. Tente de novo em instantes.';
+// A mensagem chega à tela: sem o nome da fonte (plano .plans/licitacoes-base-nacional.md, parte 7).
+const PNCP_UNAVAILABLE = 'Não foi possível buscar os dados da compra agora. Tente de novo em instantes.';
 
 /** O que a API usa do cliente do PNCP (os testes trocam por um simulado). */
 export type PncpDetailSource = Pick<PncpClient, 'fetchDetailList'>;

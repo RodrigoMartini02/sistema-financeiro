@@ -18,6 +18,15 @@ test('notificação: link fora do app cai no edital, ou em nada', () => {
   assert.equal(notificationTarget({ link: '', noticeId: null }), null);
 });
 
+test('notificação de contrato: abre o contrato pelo link gravado (a barra da chave codificada) ou, sem ele, pela chave', () => {
+  const key = '03353358000196-2-000216/2026';
+  const path = '/contratos/03353358000196-2-000216%2F2026';
+  assert.equal(notificationTarget({ link: path, noticeId: null, contractKey: key }), path);
+  assert.equal(notificationTarget({ link: 'https://exemplo.com/x', noticeId: null, contractKey: key }), path);
+  assert.equal(notificationTarget({ link: '', noticeId: null, contractKey: null }), null);
+  assert.equal(notificationTarget({ link: '', noticeId: null, contractKey: 'qualquer coisa' }), null, 'chave fora do formato não vira link');
+});
+
 test('notificação: query da lista e do painel do sino', () => {
   assert.equal(notificationsQuery(NOTIFICATION_PANEL_FILTERS), 'page=1&perPage=10');
   assert.equal(

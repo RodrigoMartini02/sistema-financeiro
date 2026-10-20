@@ -1,5 +1,7 @@
 import { RequestInputError } from '../../../utils/requestInput';
-import type { NoticeSort, SearchTermsMode, TenderNotificationType, TrackingFilter } from '../domains';
+import type { ContractSort, NoticeSort, SearchTermsMode, TenderNotificationType, TrackingFilter } from '../domains';
+import type { ContractSavedSearchInput } from '../services/contractSavedSearches';
+import type { ContractCriteria, ContractSearchFilters } from '../services/contractSearch';
 import { numberGroupsOf, type NoticeCriteria, type NoticeSearchFilters } from '../services/noticeSearch';
 import type { SavedSearchInput } from '../services/savedSearches';
 import { parseSearchText } from '../services/searchText';
@@ -151,6 +153,91 @@ export function readSavedSearchCriteria(body: RequestValues): NoticeCriteria {
 export function readSavedSearchInput(body: RequestValues): SavedSearchInput {
   return {
     ...readSavedSearchCriteria(body),
+    name: String(body['name'] ?? '').trim(),
+    ...(typeof body['notify'] === 'boolean' ? { notify: body['notify'] } : {}),
+    ...(typeof body['active'] === 'boolean' ? { active: body['active'] } : {}),
+  };
+}
+
+export interface ContractSearchRequest {
+  filters: ContractSearchFilters;
+  savedSearchId: number | null;
+}
+
+/** `GET /contracts`: `q` vira termos, frases e exclusões (modo E por padrão), como nos editais. */
+export function readContractSearchRequest(query: RequestValues): ContractSearchRequest {
+  const text = typeof query['q'] === 'string' ? query['q'] : '';
+  const { terms, excludedTerms } = parseSearchText(text);
+  const minValue = moneyOrNull(query['minValue']);
+  const maxValue = moneyOrNull(query['maxValue']);
+  assertValueRange(minValue, maxValue);
+
+  const date = (field: string) => (typeof query[field] === 'string' && query[field] !== '' ? (query[field] as string) : null);
+  const publishedFrom = date('publishedFrom');
+  const publishedTo = date('publishedTo');
+  const expiryFrom = date('expiryFrom');
+  const expiryTo = date('expiryTo');
+  assertDateRange(publishedFrom, publishedTo, 'publicação');
+  assertDateRange(expiryFrom, expiryTo, 'vencimento');
+
+  const criteria: ContractCriteria = {
+    terms,
+    termsMode: query['termsMode'] === 'OU' ? 'OU' : 'E',
+    excludedTerms,
+    states: uniqueList(stringList(query['state']).map((state) => state.toUpperCase())),
+    cityIbgeCodes: uniqueList(stringList(query['municipalityCode'])),
+    agencyCnpjs: uniqueList(stringList(query['agencyCnpj']).map((cnpj) => cnpj.replace(/\D/g, ''))),
+    categories: uniqueList(stringList(query['category'])).map(Number),
+    supplierCnpjs: uniqueList(stringList(query['supplierCnpj']).map((cnpj) => cnpj.replace(/\D/g, ''))),
+    minValue,
+    maxValue,
+    includeWithoutValue: readBoolean(query['includeWithoutValue'], false),
+  };
+
+  const includeClosed = readBoolean(query['includeClosed'], false);
+  // Com os encerrados, a ordem padrão é a publicação mais recente; só com os vigentes, o vencimento mais próximo.
+  const defaultSort: ContractSort = includeClosed ? 'publishedDesc' : 'expiryAsc';
+
+  return {
+    filters: {
+      criteria,
+      publishedFrom,
+      publishedTo,
+      expiryFrom,
+      expiryTo,
+      favoritesOnly: readBoolean(query['favoritesOnly'], false),
+      includeClosed,
+      contractTypes: uniqueList(stringList(query['contractType'])).map(Number),
+      numberGroups: typeof query['number'] === 'string' ? numberGroupsOf(query['number']) : [],
+      contractYear: query['contractYear'] === undefined ? null : Number(query['contractYear']),
+      sort: (typeof query['sort'] === 'string' ? query['sort'] : defaultSort) as ContractSort,
+      ...readPagination(query),
+    },
+    savedSearchId: query['savedSearchId'] === undefined ? null : Number(query['savedSearchId']),
+  };
+}
+
+/** Critérios de uma busca salva de contratos (corpo do pedido); o modo padrão da busca salva é OU. */
+export function readContractSavedSearchCriteria(body: RequestValues): ContractCriteria {
+  return {
+    terms: normalizeTerms(body['terms']),
+    termsMode: body['termsMode'] === 'E' ? 'E' : 'OU',
+    excludedTerms: normalizeTerms(body['excludedTerms']),
+    states: uniqueList(stringList(body['states']).map((state) => state.toUpperCase())),
+    cityIbgeCodes: uniqueList(stringList(body['cityIbgeCodes'])),
+    agencyCnpjs: uniqueList(stringList(body['agencyCnpjs'])),
+    categories: uniqueList(stringList(body['categories'])).map(Number),
+    supplierCnpjs: uniqueList(stringList(body['supplierCnpjs'])),
+    minValue: moneyOrNull(body['minValue']),
+    maxValue: moneyOrNull(body['maxValue']),
+    includeWithoutValue: body['includeWithoutValue'] === true,
+  };
+}
+
+/** Corpo de criar e alterar busca salva de contratos. `notify` e `active` ausentes: padrão na criação, mantidos na alteração. */
+export function readContractSavedSearchInput(body: RequestValues): ContractSavedSearchInput {
+  return {
+    ...readContractSavedSearchCriteria(body),
     name: String(body['name'] ?? '').trim(),
     ...(typeof body['notify'] === 'boolean' ? { notify: body['notify'] } : {}),
     ...(typeof body['active'] === 'boolean' ? { active: body['active'] } : {}),

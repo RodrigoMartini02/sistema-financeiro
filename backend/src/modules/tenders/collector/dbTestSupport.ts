@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import * as dotenv from 'dotenv';
 import type { Pool } from 'pg';
 import { TransactionRollbackError } from 'drizzle-orm';
@@ -12,8 +14,13 @@ import {
   tenderTrackings,
 } from '../db/schema';
 import type { TrackingStatus } from '../domains';
+import type { ObjectStorage } from '../objectStorage';
+import { loadCollectorConfig, type ContractsSettings } from './config';
 import { createCollectorDatabase, type TendersDb } from './database';
+import { createCollectorLogger } from './logger';
 import { payloadHash, type TenderNoticeRow } from './mapping';
+import { PncpClient } from './pncpClient';
+import type { CollectorContext } from './runs';
 
 // Apoio dos testes de banco (*.db.test.ts). Eles só rodam pelo script
 // test:tenders-db (TENDERS_DB_TESTS=1), só no banco local e cada teste numa
@@ -95,9 +102,10 @@ export async function createTestAccount(
   return { accountId: account.id, ownerId };
 }
 
+/** Edital de teste; o hash sai de um registro com o número e o objeto, como o do PNCP sairia do JSON. */
 export function buildNoticeRow(overrides: Partial<TenderNoticeRow> = {}): TenderNoticeRow {
   const pncpControlNumber = overrides.pncpControlNumber ?? `TESTE-${randomUUID().slice(0, 18)}`;
-  const payload = overrides.payload ?? { numeroControlePNCP: pncpControlNumber, objetoCompra: overrides.procurementObject };
+  const record = { numeroControlePNCP: pncpControlNumber, objetoCompra: overrides.procurementObject };
   return {
     pncpControlNumber,
     procurementObject: 'Objeto de teste',
@@ -107,8 +115,7 @@ export function buildNoticeRow(overrides: Partial<TenderNoticeRow> = {}): Tender
     estimatedTotalValue: '100000.00',
     proposalClosesAt: null,
     ...overrides,
-    payload,
-    payloadHash: overrides.payloadHash ?? payloadHash(payload),
+    payloadHash: overrides.payloadHash ?? payloadHash(record),
   };
 }
 
@@ -132,6 +139,55 @@ export async function insertSavedSearch(
     throw new Error('busca de teste não criada');
   }
   return search.id;
+}
+
+/** Resposta simulada do PNCP para os clientes do contexto de teste. */
+export type FakePncpFetch = (url: URL) => Response | Promise<Response>;
+
+/**
+ * Contexto do coletor sobre a transação do teste, com clientes do PNCP
+ * simulados (sem rede e sem espera) e log desligado. As travas usam o pool
+ * local, como na execução real. Sem `storage`, o R2 fica desligado (e a coleta
+ * de contratos, que mora nele, não roda).
+ */
+export function createTestCollectorContext(
+  tx: TendersDb,
+  options: {
+    contractsFetch: FakePncpFetch;
+    termsFetch?: FakePncpFetch;
+    now?: () => Date;
+    contracts?: Partial<ContractsSettings>;
+    storage?: ObjectStorage;
+    /** Cópia de trabalho do armazém de contratos; sem ela, uma pasta fixa do disco temporário. */
+    contractWorkDirectory?: string;
+  },
+): CollectorContext {
+  const config = loadCollectorConfig({
+    TENDERS_COLLECTOR_DATABASE_URL: 'postgres://teste@localhost:5433/sistema_financas_dev',
+    PNCP_MAX_ATTEMPTS: '1',
+  });
+  const clientOptions = { ...config.pncp, requestIntervalMs: 0, sleep: async () => {} };
+  const fakeFetch = (handler: FakePncpFetch): typeof fetch => async (input) => handler(new URL(String(input)));
+  const unexpected: FakePncpFetch = (url) => {
+    throw new Error(`pedido inesperado ao PNCP: ${url.toString()}`);
+  };
+  return {
+    db: tx,
+    pool: localTestPool(),
+    pncp: new PncpClient({ ...clientOptions, fetch: fakeFetch(unexpected) }),
+    contractsPncp: new PncpClient({ ...clientOptions, pageSize: 500, fetch: fakeFetch(options.contractsFetch) }),
+    termsPncp: new PncpClient({
+      ...clientOptions,
+      baseUrl: 'https://pncp.example/api/pncp',
+      pageSize: 500,
+      fetch: fakeFetch(options.termsFetch ?? unexpected),
+    }),
+    storage: options.storage ?? null,
+    contractWorkDirectory: options.contractWorkDirectory ?? join(tmpdir(), 'licitacoes-teste-coletor'),
+    config: { ...config, contracts: { ...config.contracts, ...options.contracts } },
+    logger: createCollectorLogger('error', () => {}),
+    now: options.now ?? (() => new Date()),
+  };
 }
 
 /** Acompanhamento da conta, com a linha de histórico de quem marcou (como a API fará). */

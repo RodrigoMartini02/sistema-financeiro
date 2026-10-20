@@ -165,7 +165,7 @@ export function mapPncpRecord(raw: unknown): MappedRecord {
         agencyCnpj && purchaseYear !== null && purchaseSequence !== null
           ? `https://pncp.gov.br/app/editais/${agencyCnpj}/${purchaseYear}/${purchaseSequence}`
           : null,
-      payload: raw,
+      // O JSON bruto vai para o arquivo no R2 (archive.ts); aqui fica só o hash dele.
       payloadHash: payloadHash(raw),
     },
   };

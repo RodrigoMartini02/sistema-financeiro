@@ -1,6 +1,9 @@
 import { body, param, query, type ValidationChain } from 'express-validator';
 import {
   BRAZILIAN_STATES,
+  CONTRACT_CATEGORY_IDS,
+  CONTRACT_SORTS,
+  CONTRACT_TYPE_IDS,
   NOTICE_SORTS,
   SEARCH_TERMS_MODES,
   TENDER_MODALITY_IDS,
@@ -19,8 +22,12 @@ export const MAX_STATES = BRAZILIAN_STATES.length;
 export const MAX_MUNICIPALITIES = 100;
 export const MAX_AGENCIES = 50;
 export const MAX_MODALITIES = TENDER_MODALITY_IDS.length;
+export const MAX_CONTRACT_CATEGORIES = CONTRACT_CATEGORY_IDS.length;
+export const MAX_CONTRACT_TYPES = CONTRACT_TYPE_IDS.length;
+export const MAX_SUPPLIERS = 50;
 /** "Número, processo ou controle PNCP" da busca. */
 export const MAX_NUMBER_LENGTH = 60;
+/** Ano da compra (editais) e do contrato (contratos). */
 export const MIN_PURCHASE_YEAR = 2000;
 export const MAX_PURCHASE_YEAR = 2100;
 
@@ -32,6 +39,8 @@ const isState = (value: unknown) => typeof value === 'string' && (BRAZILIAN_STAT
 const isMunicipalityCode = (value: unknown) => typeof value === 'string' && /^\d{7}$/.test(value);
 const isCnpj = (value: unknown) => typeof value === 'string' && /^\d{14}$/.test(value);
 const isModality = (value: unknown) => TENDER_MODALITY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
+const isContractCategory = (value: unknown) => CONTRACT_CATEGORY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
+const isContractType = (value: unknown) => CONTRACT_TYPE_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 
 export function isValidIsoDate(value: unknown): boolean {
   if (typeof value !== 'string' || !ISO_DATE.test(value)) {
@@ -91,32 +100,58 @@ function numberQuery(): ValidationChain {
     .withMessage(message);
 }
 
+function dateQueries(fields: string[]): ValidationChain[] {
+  return fields.map((field) => query(field).optional().custom(isValidIsoDate).withMessage('Data inválida (use AAAA-MM-DD)'));
+}
+
+function yearQuery(field: string): ValidationChain {
+  return query(field)
+    .optional()
+    .isInt({ min: MIN_PURCHASE_YEAR, max: MAX_PURCHASE_YEAR })
+    .withMessage(`Ano inválido (de ${MIN_PURCHASE_YEAR} a ${MAX_PURCHASE_YEAR})`);
+}
+
+/** Filtros em comum das buscas de editais e de contratos. */
+function sharedSearchQueryValidators(): ValidationChain[] {
+  return [
+    query('q').optional().isString().isLength({ max: MAX_SEARCH_TEXT_LENGTH }).withMessage(`Busca com até ${MAX_SEARCH_TEXT_LENGTH} caracteres`),
+    query('termsMode').optional().isIn([...SEARCH_TERMS_MODES]).withMessage('Modo dos termos: E ou OU'),
+    listQuery('state', isState, 'UF inválida', MAX_STATES, (item) => item.toUpperCase()),
+    listQuery('municipalityCode', isMunicipalityCode, 'Município inválido (código IBGE com 7 dígitos)', MAX_MUNICIPALITIES),
+    listQuery('agencyCnpj', isCnpj, 'CNPJ do órgão inválido (14 dígitos)', MAX_AGENCIES, (item) => item.replace(/\D/g, '')),
+    query('minValue').optional().custom(isMoneyValue).withMessage('Valor mínimo inválido'),
+    query('maxValue').optional().custom(isMoneyValue).withMessage('Valor máximo inválido'),
+    booleanQuery('includeWithoutValue'),
+    ...dateQueries(['publishedFrom', 'publishedTo']),
+    booleanQuery('favoritesOnly'),
+    numberQuery(),
+    query('savedSearchId').optional().isInt({ min: 1 }).withMessage('Busca salva inválida'),
+    ...paginationQuery(),
+  ];
+}
+
 /** Filtros da busca de editais (`GET /notices`), seção 8.1 do escopo. */
 export const noticeSearchValidators: ValidationChain[] = [
-  query('q').optional().isString().isLength({ max: MAX_SEARCH_TEXT_LENGTH }).withMessage(`Busca com até ${MAX_SEARCH_TEXT_LENGTH} caracteres`),
-  query('termsMode').optional().isIn([...SEARCH_TERMS_MODES]).withMessage('Modo dos termos: E ou OU'),
-  listQuery('state', isState, 'UF inválida', MAX_STATES, (item) => item.toUpperCase()),
-  listQuery('municipalityCode', isMunicipalityCode, 'Município inválido (código IBGE com 7 dígitos)', MAX_MUNICIPALITIES),
-  listQuery('agencyCnpj', isCnpj, 'CNPJ do órgão inválido (14 dígitos)', MAX_AGENCIES, (item) => item.replace(/\D/g, '')),
+  ...sharedSearchQueryValidators(),
   listQuery('modality', isModality, 'Modalidade inválida', MAX_MODALITIES),
-  query('minValue').optional().custom(isMoneyValue).withMessage('Valor mínimo inválido'),
-  query('maxValue').optional().custom(isMoneyValue).withMessage('Valor máximo inválido'),
-  booleanQuery('includeWithoutValue'),
-  ...['publishedFrom', 'publishedTo', 'closingFrom', 'closingTo'].map((field) =>
-    query(field).optional().custom(isValidIsoDate).withMessage('Data inválida (use AAAA-MM-DD)'),
-  ),
+  ...dateQueries(['closingFrom', 'closingTo']),
   booleanQuery('openOnly'),
   listQuery('trackingStatus', (item) => (TRACKING_FILTERS as readonly string[]).includes(item), 'Status de acompanhamento inválido', TRACKING_FILTERS.length, (item) => item.toUpperCase()),
   booleanQuery('hideDiscarded'),
-  booleanQuery('favoritesOnly'),
-  numberQuery(),
-  query('purchaseYear')
-    .optional()
-    .isInt({ min: MIN_PURCHASE_YEAR, max: MAX_PURCHASE_YEAR })
-    .withMessage(`Ano inválido (de ${MIN_PURCHASE_YEAR} a ${MAX_PURCHASE_YEAR})`),
-  query('savedSearchId').optional().isInt({ min: 1 }).withMessage('Busca salva inválida'),
+  yearQuery('purchaseYear'),
   query('sort').optional().isIn([...NOTICE_SORTS]).withMessage('Ordenação inválida'),
-  ...paginationQuery(),
+];
+
+/** Filtros da busca de contratos (`GET /contracts`), plano dos contratos a vencer. */
+export const contractSearchValidators: ValidationChain[] = [
+  ...sharedSearchQueryValidators(),
+  listQuery('category', isContractCategory, 'Categoria inválida', MAX_CONTRACT_CATEGORIES),
+  listQuery('contractType', isContractType, 'Tipo de contrato inválido', MAX_CONTRACT_TYPES),
+  booleanQuery('includeClosed'),
+  listQuery('supplierCnpj', isCnpj, 'CNPJ do fornecedor inválido (14 dígitos)', MAX_SUPPLIERS, (item) => item.replace(/\D/g, '')),
+  ...dateQueries(['expiryFrom', 'expiryTo']),
+  yearQuery('contractYear'),
+  query('sort').optional().isIn([...CONTRACT_SORTS]).withMessage('Ordenação inválida'),
 ];
 
 function termsBody(field: string, label: string): ValidationChain[] {
@@ -130,32 +165,55 @@ function termsBody(field: string, label: string): ValidationChain[] {
   ];
 }
 
-/** Critérios da busca salva (corpo), seção 8.2 do escopo. */
+/** Critérios em comum das buscas salvas de editais e de contratos (corpo). */
+function sharedCriteriaBodyValidators(): ValidationChain[] {
+  return [
+    ...termsBody('terms', 'termos'),
+    body('termsMode').optional().isIn([...SEARCH_TERMS_MODES]).withMessage('Modo dos termos: E ou OU'),
+    ...termsBody('excludedTerms', 'termos de exclusão'),
+    body('states').optional().isArray({ max: MAX_STATES }).withMessage('Lista de UFs inválida'),
+    body('states.*').custom(isState).withMessage('UF inválida'),
+    body('cityIbgeCodes').optional().isArray({ max: MAX_MUNICIPALITIES }).withMessage(`Até ${MAX_MUNICIPALITIES} municípios`),
+    body('cityIbgeCodes.*').custom(isMunicipalityCode).withMessage('Município inválido (código IBGE com 7 dígitos)'),
+    body('agencyCnpjs').optional().isArray({ max: MAX_AGENCIES }).withMessage(`Até ${MAX_AGENCIES} órgãos`),
+    body('agencyCnpjs.*').custom(isCnpj).withMessage('CNPJ do órgão inválido (14 dígitos)'),
+    body('minValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor mínimo inválido'),
+    body('maxValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor máximo inválido'),
+    body('includeWithoutValue').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
+  ];
+}
+
+/** Nome, critérios e os botões Notificar e Ativa da busca salva (corpo de criar e alterar). */
+function savedSearchBody(criteria: ValidationChain[]): ValidationChain[] {
+  return [
+    body('name')
+      .isString()
+      .trim()
+      .isLength({ min: 1, max: MAX_SAVED_SEARCH_NAME_LENGTH })
+      .withMessage(`Nome obrigatório, com até ${MAX_SAVED_SEARCH_NAME_LENGTH} caracteres`),
+    ...criteria,
+    body('notify').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
+    body('active').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
+  ];
+}
+
+/** Critérios da busca salva de editais (corpo), seção 8.2 do escopo. */
 export const savedSearchCriteriaValidators: ValidationChain[] = [
-  ...termsBody('terms', 'termos'),
-  body('termsMode').optional().isIn([...SEARCH_TERMS_MODES]).withMessage('Modo dos termos: E ou OU'),
-  ...termsBody('excludedTerms', 'termos de exclusão'),
-  body('states').optional().isArray({ max: MAX_STATES }).withMessage('Lista de UFs inválida'),
-  body('states.*').custom(isState).withMessage('UF inválida'),
-  body('cityIbgeCodes').optional().isArray({ max: MAX_MUNICIPALITIES }).withMessage(`Até ${MAX_MUNICIPALITIES} municípios`),
-  body('cityIbgeCodes.*').custom(isMunicipalityCode).withMessage('Município inválido (código IBGE com 7 dígitos)'),
-  body('agencyCnpjs').optional().isArray({ max: MAX_AGENCIES }).withMessage(`Até ${MAX_AGENCIES} órgãos`),
-  body('agencyCnpjs.*').custom(isCnpj).withMessage('CNPJ do órgão inválido (14 dígitos)'),
+  ...sharedCriteriaBodyValidators(),
   body('modalities').optional().isArray({ max: MAX_MODALITIES }).withMessage('Lista de modalidades inválida'),
   body('modalities.*').custom(isModality).withMessage('Modalidade inválida'),
-  body('minValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor mínimo inválido'),
-  body('maxValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor máximo inválido'),
-  body('includeWithoutValue').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
   body('priceRegistration').optional({ values: 'null' }).isBoolean({ strict: true }).withMessage('SRP: true, false ou null'),
 ];
 
-export const savedSearchBodyValidators: ValidationChain[] = [
-  body('name')
-    .isString()
-    .trim()
-    .isLength({ min: 1, max: MAX_SAVED_SEARCH_NAME_LENGTH })
-    .withMessage(`Nome obrigatório, com até ${MAX_SAVED_SEARCH_NAME_LENGTH} caracteres`),
-  ...savedSearchCriteriaValidators,
-  body('notify').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
-  body('active').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
+export const savedSearchBodyValidators: ValidationChain[] = savedSearchBody(savedSearchCriteriaValidators);
+
+/** Critérios da busca salva de contratos (corpo): os de editais, trocando modalidade e SRP por categoria e fornecedor. */
+export const contractSavedSearchCriteriaValidators: ValidationChain[] = [
+  ...sharedCriteriaBodyValidators(),
+  body('categories').optional().isArray({ max: MAX_CONTRACT_CATEGORIES }).withMessage('Lista de categorias inválida'),
+  body('categories.*').custom(isContractCategory).withMessage('Categoria inválida'),
+  body('supplierCnpjs').optional().isArray({ max: MAX_SUPPLIERS }).withMessage(`Até ${MAX_SUPPLIERS} fornecedores`),
+  body('supplierCnpjs.*').custom(isCnpj).withMessage('CNPJ do fornecedor inválido (14 dígitos)'),
 ];
+
+export const contractSavedSearchBodyValidators: ValidationChain[] = savedSearchBody(contractSavedSearchCriteriaValidators);

@@ -1,10 +1,11 @@
 import { Heart } from 'lucide-react';
+import { useToggleContractFavorite } from '../hooks/useContractFavorite';
 import { useToggleFavorite } from '../hooks/useNoticeFavorite';
-import type { NoticeListItem } from '../types';
+import type { ContractListItem, NoticeListItem } from '../types';
 
-// Coração de favorito do edital (card, tabela e edital), da pessoa logada.
-// Enquanto grava, o coração já mostra o estado escolhido; com erro, volta e
-// a mensagem aparece.
+// Coração de favorito (card, tabela e detalhe), da pessoa logada, para edital
+// e para contrato. Enquanto grava, o coração já mostra o estado escolhido; com
+// erro, volta e a mensagem aparece.
 
 const ICON_CLASS =
   'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600 sm:h-8 sm:w-8';
@@ -17,43 +18,80 @@ const LABELED_ON = 'border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-50
 const LABELED_OFF =
   'border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:text-rose-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-rose-300';
 
-interface FavoriteButtonProps {
-  notice: Pick<NoticeListItem, 'id' | 'isFavorite'>;
-  /** Só o coração (card e tabela) ou coração com texto (edital). */
-  variant?: 'icon' | 'labeled';
+/** Só o coração (card e tabela) ou coração com texto (detalhe). */
+type FavoriteVariant = 'icon' | 'labeled';
+
+interface FavoriteToggleProps {
+  favorite: boolean;
+  pending: boolean;
+  errorMessage: string | null;
+  onToggle: () => void;
+  variant: FavoriteVariant;
 }
 
-export function FavoriteButton({ notice, variant = 'icon' }: FavoriteButtonProps) {
-  const toggle = useToggleFavorite();
-  const favorite = toggle.isPending && toggle.variables ? toggle.variables.favorite : notice.isFavorite;
+function FavoriteToggle({ favorite, pending, errorMessage, onToggle, variant }: FavoriteToggleProps) {
   const actionLabel = favorite ? 'Remover dos favoritos' : 'Favoritar';
   const labeled = variant === 'labeled';
-
-  // Sem `disabled` enquanto grava, para o foco não sair do botão.
-  const choose = () => {
-    if (toggle.isPending) return;
-    toggle.mutate({ noticeId: notice.id, favorite: !notice.isFavorite });
-  };
-
   return (
     <span className="inline-flex flex-col items-start gap-1">
+      {/* Sem `disabled` enquanto grava, para o foco não sair do botão. */}
       <button
         type="button"
         aria-pressed={favorite}
         aria-label={labeled ? undefined : actionLabel}
         title={actionLabel}
-        aria-busy={toggle.isPending}
-        onClick={choose}
+        aria-busy={pending}
+        onClick={() => {
+          if (!pending) onToggle();
+        }}
         className={labeled ? `${LABELED_CLASS} ${favorite ? LABELED_ON : LABELED_OFF}` : `${ICON_CLASS} ${favorite ? ICON_ON : ICON_OFF}`}
       >
         <Heart size={labeled ? 14 : 16} className={favorite ? 'fill-current' : undefined} aria-hidden="true" />
         {labeled && (favorite ? 'Favorito' : 'Favoritar')}
       </button>
-      {toggle.error && (
+      {errorMessage && (
         <span role="alert" className="text-[11px] font-medium text-red-600 dark:text-red-400">
-          {toggle.error.message}
+          {errorMessage}
         </span>
       )}
     </span>
+  );
+}
+
+interface FavoriteButtonProps {
+  notice: Pick<NoticeListItem, 'id' | 'isFavorite'>;
+  variant?: FavoriteVariant;
+}
+
+export function FavoriteButton({ notice, variant = 'icon' }: FavoriteButtonProps) {
+  const toggle = useToggleFavorite();
+  const favorite = toggle.isPending && toggle.variables ? toggle.variables.favorite : notice.isFavorite;
+  return (
+    <FavoriteToggle
+      favorite={favorite}
+      pending={toggle.isPending}
+      errorMessage={toggle.error?.message ?? null}
+      onToggle={() => toggle.mutate({ noticeId: notice.id, favorite: !notice.isFavorite })}
+      variant={variant}
+    />
+  );
+}
+
+interface ContractFavoriteButtonProps {
+  contract: Pick<ContractListItem, 'pncpControlNumber' | 'isFavorite'>;
+  variant?: FavoriteVariant;
+}
+
+export function ContractFavoriteButton({ contract, variant = 'icon' }: ContractFavoriteButtonProps) {
+  const toggle = useToggleContractFavorite();
+  const favorite = toggle.isPending && toggle.variables ? toggle.variables.favorite : contract.isFavorite;
+  return (
+    <FavoriteToggle
+      favorite={favorite}
+      pending={toggle.isPending}
+      errorMessage={toggle.error?.message ?? null}
+      onToggle={() => toggle.mutate({ contractKey: contract.pncpControlNumber, favorite: !contract.isFavorite })}
+      variant={variant}
+    />
   );
 }

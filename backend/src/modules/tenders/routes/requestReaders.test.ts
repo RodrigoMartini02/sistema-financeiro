@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RequestInputError } from '../../../utils/requestInput';
-import { readNoticeSearchRequest, readSavedSearchCriteria, readSavedSearchInput } from './requestReaders';
+import {
+  readContractSavedSearchCriteria,
+  readContractSavedSearchInput,
+  readContractSearchRequest,
+  readNoticeSearchRequest,
+  readSavedSearchCriteria,
+  readSavedSearchInput,
+} from './requestReaders';
 
 test('busca sem parâmetros: só abertos, oculta descartados, prazo mais próximo, 20 por página, modo E', () => {
   const { filters, savedSearchId } = readNoticeSearchRequest({});
@@ -90,4 +97,88 @@ test('notify e active ausentes ficam de fora (padrão na criação, mantidos na 
   const withFlags = readSavedSearchInput({ name: 'Saúde', terms: ['saúde'], notify: false, active: true });
   assert.equal(withFlags.notify, false);
   assert.equal(withFlags.active, true);
+});
+
+test('contratos sem parâmetros: só vigentes (sem "só favoritos"), vencimento mais próximo, 20 por página, modo E', () => {
+  const { filters, savedSearchId } = readContractSearchRequest({});
+  assert.equal(savedSearchId, null);
+  assert.equal(filters.favoritesOnly, false);
+  assert.equal(filters.sort, 'expiryAsc');
+  assert.equal(filters.page, 1);
+  assert.equal(filters.perPage, 20);
+  assert.equal(filters.criteria.termsMode, 'E');
+  assert.deepEqual(filters.numberGroups, []);
+  assert.equal(filters.contractYear, null);
+  assert.equal(filters.includeClosed, false);
+  assert.deepEqual(filters.contractTypes, []);
+});
+
+test('contratos com encerrados: a ordem padrão passa a ser a publicação mais recente; tipos sem repetição', () => {
+  const { filters } = readContractSearchRequest({ includeClosed: 'true', contractType: ['7', '1', '7'] });
+  assert.equal(filters.includeClosed, true);
+  assert.equal(filters.sort, 'publishedDesc');
+  assert.deepEqual(filters.contractTypes, [7, 1]);
+  assert.equal(readContractSearchRequest({ includeClosed: 'true', sort: 'expiryAsc' }).filters.sort, 'expiryAsc', 'a ordem pedida vale');
+  assert.equal(readContractSearchRequest({ contractType: '12' }).filters.sort, 'expiryAsc', 'só com tipo, continua o vencimento');
+});
+
+test('contratos com todos os filtros', () => {
+  const { filters, savedSearchId } = readContractSearchRequest({
+    q: 'limpeza -hospitalar',
+    termsMode: 'OU',
+    state: ['sp', 'SP'],
+    municipalityCode: '3550308',
+    agencyCnpj: '46.395.000/0001-39',
+    category: ['8', '2', '8'],
+    supplierCnpj: ['12.345.678/0001-95'],
+    minValue: '1000',
+    maxValue: '5000.50',
+    includeWithoutValue: 'true',
+    publishedFrom: '2026-09-01',
+    publishedTo: '2026-09-30',
+    expiryFrom: '2026-10-14',
+    expiryTo: '2027-01-12',
+    favoritesOnly: 'true',
+    number: 'Contrato 015/2026',
+    contractYear: '2026',
+    savedSearchId: '4',
+    sort: 'valueDesc',
+    page: '2',
+    perPage: '50',
+  });
+  assert.equal(savedSearchId, 4);
+  assert.deepEqual(filters.criteria.terms, ['limpeza']);
+  assert.deepEqual(filters.criteria.excludedTerms, ['hospitalar']);
+  assert.equal(filters.criteria.termsMode, 'OU');
+  assert.deepEqual(filters.criteria.states, ['SP']);
+  assert.deepEqual(filters.criteria.agencyCnpjs, ['46395000000139']);
+  assert.deepEqual(filters.criteria.categories, [8, 2]);
+  assert.deepEqual(filters.criteria.supplierCnpjs, ['12345678000195']);
+  assert.equal(filters.criteria.minValue, '1000');
+  assert.equal(filters.criteria.includeWithoutValue, true);
+  assert.equal(filters.expiryFrom, '2026-10-14');
+  assert.equal(filters.expiryTo, '2027-01-12');
+  assert.equal(filters.favoritesOnly, true);
+  assert.deepEqual(filters.numberGroups, ['15', '2026']);
+  assert.equal(filters.contractYear, 2026);
+  assert.equal(filters.sort, 'valueDesc');
+  assert.equal(filters.page, 2);
+  assert.equal(filters.perPage, 50);
+});
+
+test('contratos: período de vencimento invertido e mínimo maior que o máximo dão erro de pedido', () => {
+  assert.throws(() => readContractSearchRequest({ expiryFrom: '2027-01-01', expiryTo: '2026-12-31' }), RequestInputError);
+  assert.throws(() => readContractSearchRequest({ minValue: '10', maxValue: '5' }), RequestInputError);
+});
+
+test('busca salva de contratos: corpo com categoria e fornecedor, modo OU por padrão', () => {
+  const criteria = readContractSavedSearchCriteria({ terms: ['  limpeza  urbana '], categories: ['8', '8'], supplierCnpjs: ['12345678000195'] });
+  assert.deepEqual(criteria.terms, ['limpeza urbana']);
+  assert.equal(criteria.termsMode, 'OU');
+  assert.deepEqual(criteria.categories, [8]);
+  assert.deepEqual(criteria.supplierCnpjs, ['12345678000195']);
+  const input = readContractSavedSearchInput({ name: ' Limpeza ', terms: ['limpeza'], notify: false });
+  assert.equal(input.name, 'Limpeza');
+  assert.equal(input.notify, false);
+  assert.equal('active' in input, false);
 });

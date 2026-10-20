@@ -24,9 +24,12 @@ export const TENDER_MODALITY_IDS: readonly number[] = TENDER_MODALITIES.map((mod
 /** Modalidades coletadas quando PNCP_MODALITIES não é informada. */
 export const DEFAULT_COLLECTED_MODALITIES = [6, 8, 4, 7] as const;
 
-/** Situação da contratação no PNCP (`situacaoCompraId`). Só a 1 entra nas buscas. */
+/**
+ * Situação da contratação no PNCP (`situacaoCompraId`). Só a 1 entra nas
+ * buscas. Os nomes são os da tela (a 1 chega do PNCP como "Divulgada no PNCP").
+ */
 export const TENDER_SITUATIONS = [
-  { id: 1, name: 'Divulgada no PNCP' },
+  { id: 1, name: 'Divulgada' },
   { id: 2, name: 'Revogada' },
   { id: 3, name: 'Anulada' },
   { id: 4, name: 'Suspensa' },
@@ -57,6 +60,26 @@ export type SearchTermsMode = (typeof SEARCH_TERMS_MODES)[number];
 export const NOTICE_SORTS = ['closingAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
 export type NoticeSort = (typeof NOTICE_SORTS)[number];
 
+/** Ordenações da busca de contratos; o padrão é o vencimento mais próximo, e `relevance` só vale com termos. */
+export const CONTRACT_SORTS = ['expiryAsc', 'publishedDesc', 'valueDesc', 'valueAsc', 'relevance'] as const;
+export type ContractSort = (typeof CONTRACT_SORTS)[number];
+
+/** Categorias do processo nos contratos do PNCP (`categoriaProcesso`), com os nomes do PNCP: as 11 vistas no piloto de 14/10/2026. */
+export const CONTRACT_CATEGORIES = [
+  { id: 1, name: 'Cessão' },
+  { id: 2, name: 'Compras' },
+  { id: 3, name: 'Informática (TIC)' },
+  { id: 4, name: 'Internacional' },
+  { id: 5, name: 'Locação Imóveis' },
+  { id: 6, name: 'Mão de Obra' },
+  { id: 7, name: 'Obras' },
+  { id: 8, name: 'Serviços' },
+  { id: 9, name: 'Serviços de Engenharia' },
+  { id: 10, name: 'Serviços de Saúde' },
+  { id: 11, name: 'Alienação de bens móveis/imóveis' },
+] as const;
+export const CONTRACT_CATEGORY_IDS: readonly number[] = CONTRACT_CATEGORIES.map((category) => category.id);
+
 /** Papel da pessoa no módulo, dentro da conta da requisição. */
 export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
 export type TenderRole = (typeof TENDER_ROLES)[number];
@@ -65,11 +88,56 @@ export type TenderRole = (typeof TENDER_ROLES)[number];
 export const TENDER_ACCESS_TYPES = ['cortesia', 'assinatura'] as const;
 export type TenderAccessType = (typeof TENDER_ACCESS_TYPES)[number];
 
-export const TENDER_NOTIFICATION_TYPES = ['NOVO_EDITAL', 'EDITAL_ALTERADO', 'PRAZO_3D', 'PRAZO_1D'] as const;
+/** Avisos do módulo; os de contratos são da migration 0086. */
+export const TENDER_NOTIFICATION_TYPES = [
+  'NOVO_EDITAL',
+  'EDITAL_ALTERADO',
+  'PRAZO_3D',
+  'PRAZO_1D',
+  'CONTRATO_VENCE_90D',
+  'CONTRATO_VENCE_30D',
+  'CONTRATO_ALTERADO',
+] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
-export const COLLECTION_RUN_TYPES = ['VARREDURA', 'INCREMENTAL', 'LEMBRETES', 'LIMPEZA', 'MANUAL'] as const;
+/** Execuções do coletor; as de contratos são da migration 0085. */
+export const COLLECTION_RUN_TYPES = [
+  'VARREDURA',
+  'INCREMENTAL',
+  'LEMBRETES',
+  'LIMPEZA',
+  'MANUAL',
+  'CONTRATOS_DIARIA',
+  'CONTRATOS_CARGA',
+  'CONTRATOS_LIMPEZA',
+  'CONTRATOS_AVISOS',
+] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
+
+/**
+ * Tipos de contrato do PNCP (`tipoContrato.id`, lista /v1/tipos-contratos de
+ * 18/10/2026), com nomes curtos para a tela. Convênio, TED, ACT e termo de
+ * compromisso estão inativos no PNCP, mas aparecem em registros antigos.
+ */
+export const CONTRACT_TYPES = [
+  { id: 1, name: 'Contrato' },
+  { id: 2, name: 'Comodato' },
+  { id: 3, name: 'Arrendamento' },
+  { id: 4, name: 'Concessão' },
+  { id: 5, name: 'Termo de adesão' },
+  { id: 6, name: 'Convênio' },
+  { id: 7, name: 'Empenho' },
+  { id: 8, name: 'Outros' },
+  { id: 9, name: 'Termo de execução descentralizada' },
+  { id: 10, name: 'Acordo de cooperação técnica' },
+  { id: 11, name: 'Termo de compromisso' },
+  { id: 12, name: 'Carta contrato' },
+] as const;
+export const CONTRACT_TYPE_IDS: readonly number[] = CONTRACT_TYPES.map((type) => type.id);
+
+/** Tipo de pessoa do fornecedor no PNCP: jurídica, física ou estrangeira. */
+export const SUPPLIER_PERSON_TYPES = ['PJ', 'PF', 'PE'] as const;
+export type SupplierPersonType = (typeof SUPPLIER_PERSON_TYPES)[number];
 
 export const COLLECTION_RUN_STATUSES = ['EXECUTANDO', 'SUCESSO', 'PARCIAL', 'FALHA'] as const;
 export type CollectionRunStatus = (typeof COLLECTION_RUN_STATUSES)[number];

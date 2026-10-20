@@ -10,6 +10,7 @@ import {
   boolean,
   numeric,
   timestamp,
+  date,
   jsonb,
   customType,
   index,
@@ -84,7 +85,8 @@ export const tenderNotices = tendersSchema.table(
     pncpUpdatedAt: timestampWithZone('data_atualizacao_pncp'),
     sourceSystemLink: text('link_sistema_origem'),
     pncpLink: text('link_pncp'),
-    payload: jsonb('payload').$type<unknown>().notNull(),
+    // O JSON bruto não fica mais aqui: vai para o arquivo no R2. A coluna `payload`
+    // continua no banco até a migration 0088 (só a exportação a lê, com SQL próprio).
     payloadHash: char('hash_payload', { length: 64 }).notNull(),
     searchVector: tsvector('busca_tsv').generatedAlwaysAs(
       sql`to_tsvector('licitacoes.pt_unaccent', coalesce(objeto, '') || ' ' || coalesce(informacao_complementar, ''))`,
@@ -114,6 +116,15 @@ export const tenderNotices = tendersSchema.table(
     controlNumberGroupsIdx: index('ix_edital_controle_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.pncpControlNumber})`),
   }),
 );
+
+/** Global: dias de publicação que a carga inicial de contratos já concluiu (migration 0085). */
+export const tenderContractBackfillDays = tendersSchema.table('contrato_carga_dia', {
+  day: date('dia', { mode: 'string' }).primaryKey(),
+  completedAt: timestampWithZone('concluido_em').defaultNow().notNull(),
+  recordsRead: integer('registros_lidos').default(0).notNull(),
+  storedCount: integer('gravados').default(0).notNull(),
+  termsChecked: integer('aditivos_consultados').default(0).notNull(),
+});
 
 /**
  * Contas com o módulo: cortesia (admin) ou assinatura (teste, pago ou
@@ -175,6 +186,61 @@ export const tenderSavedSearches = tendersSchema.table(
   },
   (table) => ({
     accountUserIdx: index('ix_busca_conta_usuario').on(table.accountId, table.userId).where(sql`ativa`),
+  }),
+);
+
+/**
+ * Buscas salvas de contratos (migrations 0086 e 0087b): os critérios da tela,
+ * menos número, ano e "Só favoritos". `activeTotal` é o total de vigentes que
+ * batem, contado no armazém ao salvar e na rotina diária, em `activeTotalAt`.
+ */
+export const tenderContractSavedSearches = tendersSchema.table(
+  'busca_salva_contrato',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    name: varchar('nome', { length: 120 }).notNull(),
+    terms: text('termos').array().notNull().default(sql`'{}'`),
+    termsMode: varchar('modo_termos', { length: 3 }).$type<SearchTermsMode>().notNull().default('OU'),
+    excludedTerms: text('termos_exclusao').array().notNull().default(sql`'{}'`),
+    states: char('ufs', { length: 2 }).array().notNull().default(sql`'{}'`),
+    cityIbgeCodes: varchar('municipios_ibge', { length: 7 }).array().notNull().default(sql`'{}'`),
+    agencyCnpjs: varchar('orgaos_cnpj', { length: 14 }).array().notNull().default(sql`'{}'`),
+    categories: smallint('categorias').array().notNull().default(sql`'{}'`),
+    supplierCnpjs: varchar('fornecedores_cnpj', { length: 14 }).array().notNull().default(sql`'{}'`),
+    minValue: numeric('valor_min', { precision: 18, scale: 2 }),
+    maxValue: numeric('valor_max', { precision: 18, scale: 2 }),
+    // Com faixa de valor, contrato sem valor global só entra com a opção ligada.
+    includeWithoutValue: boolean('incluir_sem_valor').default(false).notNull(),
+    notify: boolean('notificar').default(true).notNull(),
+    active: boolean('ativa').default(true).notNull(),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+    updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+    activeTotal: integer('total_vigentes'),
+    activeTotalAt: timestampWithZone('total_em'),
+  },
+  (table) => ({
+    accountUserIdx: index('ix_busca_contrato_conta_usuario').on(table.accountId, table.userId).where(sql`ativa`),
+  }),
+);
+
+/**
+ * Favoritos de contratos de cada pessoa na conta (migrations 0086 e 0087b): só
+ * ela vê os seus. O contrato mora no armazém do R2 (contractStore), então o
+ * favorito guarda o número de controle dele, sem chave estrangeira.
+ */
+export const tenderContractFavorites = tendersSchema.table(
+  'favorito_contrato',
+  {
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    contractKey: varchar('contrato_chave', { length: 60 }).notNull(),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.accountId, table.userId, table.contractKey] }),
+    contractKeyIdx: index('ix_favorito_contrato_chave').on(table.contractKey),
   }),
 );
 
@@ -240,7 +306,10 @@ export const tenderNotifications = tendersSchema.table(
     link: text('link').notNull(),
     noticeId: bigint('edital_id', { mode: 'number' }).references(() => tenderNotices.id, { onDelete: 'cascade' }),
     savedSearchId: bigint('busca_salva_id', { mode: 'number' }).references(() => tenderSavedSearches.id, { onDelete: 'set null' }),
-    // Desambigua EDITAL_ALTERADO (data de atualização) e prazos (data de encerramento).
+    // Aviso de contrato (migrations 0086 e 0087b): um aviso é de um edital ou de um contrato (número de controle), nunca dos dois.
+    contractKey: varchar('contrato_chave', { length: 60 }),
+    // Desambigua EDITAL_ALTERADO (data de atualização), prazos (data de encerramento) e
+    // os avisos de contrato (vencimento, AAAA-MM-DD).
     reference: text('referencia'),
     readAt: timestampWithZone('lida_em'),
     createdAt: timestampWithZone('criada_em').defaultNow().notNull(),
@@ -256,6 +325,9 @@ export const tenderNotifications = tendersSchema.table(
     unreadIdx: index('ix_notificacao_nao_lidas')
       .on(table.accountId, table.userId, table.createdAt.desc())
       .where(sql`lida_em IS NULL`),
+    uniqueContractNotification: uniqueIndex('ux_notificacao_contrato_unica')
+      .on(table.accountId, table.userId, table.type, table.contractKey, sql`coalesce(${table.reference}, '')`)
+      .where(sql`contrato_chave IS NOT NULL`),
   }),
 );
 

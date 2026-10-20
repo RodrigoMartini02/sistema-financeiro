@@ -4,6 +4,8 @@
 export type TendersRouteKey =
   | 'inicio'
   | 'buscar'
+  | 'contratos'
+  | 'contrato'
   | 'edital'
   | 'buscas'
   | 'favoritos'
@@ -16,7 +18,7 @@ export interface TendersRoute {
   key: TendersRouteKey;
   path: string;
   title: string;
-  /** Aparece no menu lateral (o edital abre pela lista, não pelo menu). */
+  /** Aparece no menu lateral (o edital e o contrato abrem pela lista, não pelo menu). */
   inMenu: boolean;
   /** Só para quem administra o módulo na conta (titular ou admin). */
   restricted: boolean;
@@ -27,6 +29,8 @@ export interface TendersRoute {
 export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'inicio', path: '/', title: 'Início', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },

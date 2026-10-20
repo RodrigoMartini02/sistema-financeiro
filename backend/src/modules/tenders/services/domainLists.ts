@@ -2,6 +2,8 @@ import { asc, isNotNull, and } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
 import {
   BRAZILIAN_STATES,
+  CONTRACT_CATEGORIES,
+  CONTRACT_TYPES,
   TENDER_MODALITIES,
   TENDER_NOTIFICATION_TYPES,
   TENDER_SITUATIONS,
@@ -11,6 +13,7 @@ import { openCondition, searchedNotice } from './noticeSearch';
 
 // Listas que a tela usa nos filtros (escopo, seção 8.4). Os municípios saem
 // dos editais abertos e ficam 10 minutos em memória (por instância do servidor).
+// As categorias e os tipos são os dos contratos ("Contratos a vencer").
 
 export const MUNICIPALITIES_CACHE_MS = 10 * 60 * 1000;
 
@@ -26,6 +29,8 @@ export interface DomainLists {
   states: typeof BRAZILIAN_STATES;
   trackingStatuses: typeof TRACKING_STATUSES;
   notificationTypes: typeof TENDER_NOTIFICATION_TYPES;
+  contractCategories: typeof CONTRACT_CATEGORIES;
+  contractTypes: typeof CONTRACT_TYPES;
   municipalities: Municipality[];
 }
 
@@ -57,6 +62,8 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
       states: BRAZILIAN_STATES,
       trackingStatuses: TRACKING_STATUSES,
       notificationTypes: TENDER_NOTIFICATION_TYPES,
+      contractCategories: CONTRACT_CATEGORIES,
+      contractTypes: CONTRACT_TYPES,
       municipalities: cached.municipalities,
     };
   };

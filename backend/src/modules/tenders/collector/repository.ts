@@ -9,13 +9,21 @@ import {
   type CollectionRunDetails,
 } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
+import { readBackfillProgress } from './contractProgress';
 import type { TendersDb } from './database';
 import type { TenderNoticeRow } from './mapping';
 
-/** Chaves do pg_try_advisory_lock: uma para as coletas, outra para lembretes, limpeza e reprocessamento. */
+/**
+ * Chaves do pg_try_advisory_lock: uma para as coletas de editais, outra para
+ * lembretes, limpeza e reprocessamento, a dos contratos (coleta diária, carga
+ * e avisos), que não bloqueia a varredura de editais nem é bloqueada por ela,
+ * e a da exportação do JSON dos editais, que só impede duas exportações juntas.
+ */
 export const COLLECTOR_LOCK_KEYS = {
   collection: 7_274_001,
   maintenance: 7_274_002,
+  contracts: 7_274_003,
+  noticesExport: 7_274_004,
 } as const;
 
 export interface CollectorLock {
@@ -65,6 +73,8 @@ const REFRESH_FROM_EXCLUDED = Object.fromEntries(
 export interface NoticePageResult {
   insertedIds: number[];
   updatedIds: number[];
+  /** Números de controle dos inseridos e dos atualizados: o que vai para o arquivo bruto. */
+  changedControlNumbers: string[];
   unchangedCount: number;
 }
 
@@ -81,7 +91,7 @@ function keepLastByControlNumber(rows: TenderNoticeRow[]): TenderNoticeRow[] {
 export async function upsertNoticePage(db: TendersDb, rows: TenderNoticeRow[]): Promise<NoticePageResult> {
   const uniqueRows = keepLastByControlNumber(rows);
   if (uniqueRows.length === 0) {
-    return { insertedIds: [], updatedIds: [], unchangedCount: 0 };
+    return { insertedIds: [], updatedIds: [], changedControlNumbers: [], unchangedCount: 0 };
   }
 
   return db.transaction(async (tx) => {
@@ -114,6 +124,7 @@ export async function upsertNoticePage(db: TendersDb, rows: TenderNoticeRow[]): 
     return {
       insertedIds: changed.filter((row) => row.inserted).map((row) => row.id),
       updatedIds: changed.filter((row) => !row.inserted).map((row) => row.id),
+      changedControlNumbers: [...changedNumbers],
       unchangedCount: unchangedNumbers.length,
     };
   });
@@ -148,7 +159,7 @@ export async function finishCollectionRun(db: TendersDb, runId: number, summary:
     .where(eq(tenderCollectionRuns.id, runId));
 }
 
-/** Última execução de cada tipo e os totais de editais, para o comando `status`. */
+/** Última execução de cada tipo, os totais de editais e de contratos e o andamento da carga, para o comando `status`. */
 export async function readCollectionStatus(db: TendersDb) {
   const latestRuns = await db
     .selectDistinctOn([tenderCollectionRuns.type])
@@ -162,7 +173,7 @@ export async function readCollectionStatus(db: TendersDb) {
     })
     .from(tenderNotices);
 
-  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 } };
+  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 }, contracts: { backfill: await readBackfillProgress(db) } };
 }
 
 /**
