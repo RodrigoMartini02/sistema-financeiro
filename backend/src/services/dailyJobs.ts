@@ -17,7 +17,7 @@ const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext) => Promise<R
   'tenders-contracts-daily': runContractsDaily,
   'tenders-contract-reminders': runContractReminders,
   'tenders-cleanup': runCleanup,
-  // Sem TENDERS_CONTRACTS_MAX_DB_MB, ou sem dia pendente, a etapa é pulada com o motivo no log.
+  // Sem o R2 configurado, ou sem dia pendente, a etapa é pulada com o motivo no log.
   'tenders-contracts-backfill': (context) => runContractsBackfill(context),
 };
 

@@ -45,7 +45,6 @@ export function runErrorLines(run: Pick<CollectionRun, 'details'>): string[] {
 
 const BACKFILL_STOP_LABELS: Record<BackfillStopReason, string> = {
   time: 'Parou no limite de tempo do bloco; continua na próxima rotina.',
-  space: 'Parou no limite de espaço do banco.',
   pncp: 'Parou porque a fonte dos dados não respondeu; continua na próxima rotina.',
 };
 

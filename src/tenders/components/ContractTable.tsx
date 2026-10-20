@@ -12,7 +12,8 @@ interface ContractTableProps {
   todayIso: string;
   /** Linhas mais baixas: objeto numa linha e sem os selos. */
   compact: boolean;
-  detailLinkFor: (id: number) => To;
+  /** `key`: a chave do contrato (número de controle do PNCP). */
+  detailLinkFor: (key: string) => To;
   detailLinkState?: unknown;
 }
 
@@ -44,13 +45,13 @@ export function ContractTable({ contracts, todayIso, compact, detailLinkFor, det
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
           {contracts.map((contract) => (
-            <tr key={contract.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-700/30">
+            <tr key={contract.pncpControlNumber} className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-700/30">
               <td className={compact ? 'py-1 pl-2' : 'py-2.5 pl-2'}>
                 <ContractFavoriteButton contract={contract} />
               </td>
               <td className={cellPadding}>
                 <Link
-                  to={detailLinkFor(contract.id)}
+                  to={detailLinkFor(contract.pncpControlNumber)}
                   state={detailLinkState}
                   title={contract.contractObject}
                   className={`${compact ? 'line-clamp-1' : 'line-clamp-2'} rounded font-semibold text-slate-900 hover:text-brand-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 dark:text-slate-100 dark:hover:text-brand-300`}

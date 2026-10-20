@@ -25,7 +25,6 @@ import type {
   CollectionRunType,
   DetailCacheType,
   SearchTermsMode,
-  SupplierPersonType,
   TenderAccessType,
   TenderNotificationType,
   TrackingHistoryStatus,
@@ -118,94 +117,6 @@ export const tenderNotices = tendersSchema.table(
   }),
 );
 
-/** Um termo do contrato no PNCP (aditivo, apostilamento ou rescisão), resumido para o detalhe. */
-export interface ContractTermSummary {
-  type: string | null;
-  number: string | null;
-  sequence: number | null;
-  signedAt: string | null;
-  /** Fim da vigência que o termo informa (aditivo de prazo ou rescisão). */
-  endDate: string | null;
-  addedValue: string | null;
-  /** Termo que muda a vigência: conta para o vencimento atual. */
-  changesTerm: boolean;
-}
-
-/**
- * Global: contratos vigentes do PNCP (migration 0085), sem o JSON completo.
- * `amendments` NULL = termos não conferidos; [] = conferidos, sem termo.
- */
-export const tenderContracts = tendersSchema.table(
-  'contrato',
-  {
-    id: bigserial('id', { mode: 'number' }).primaryKey(),
-    pncpControlNumber: varchar('numero_controle_pncp', { length: 60 }).notNull().unique(),
-    purchaseControlNumber: varchar('numero_controle_compra', { length: 60 }),
-    contractYear: integer('ano_contrato').notNull(),
-    contractSequence: integer('sequencial_contrato').notNull(),
-    contractNumber: text('numero_contrato'),
-    processNumber: text('processo'),
-    agencyCnpj: varchar('orgao_cnpj', { length: 14 }).notNull(),
-    agencyName: text('orgao_razao_social'),
-    governmentSphere: varchar('esfera', { length: 2 }),
-    unitCode: varchar('unidade_codigo', { length: 30 }),
-    unitName: text('unidade_nome'),
-    state: char('uf', { length: 2 }),
-    cityName: text('municipio_nome'),
-    cityIbgeCode: varchar('municipio_ibge', { length: 7 }),
-    categoryId: smallint('categoria_id'),
-    categoryName: text('categoria_nome'),
-    contractObject: text('objeto').notNull(),
-    additionalInformation: text('informacao_complementar'),
-    supplierPersonType: varchar('fornecedor_tipo_pessoa', { length: 2 }).$type<SupplierPersonType>(),
-    supplierDocument: varchar('fornecedor_documento', { length: 30 }),
-    supplierName: text('fornecedor_nome'),
-    initialValue: numeric('valor_inicial', { precision: 18, scale: 2 }),
-    globalValue: numeric('valor_global', { precision: 18, scale: 2 }),
-    signedAt: date('data_assinatura', { mode: 'string' }),
-    termStart: date('vigencia_inicio', { mode: 'string' }).notNull(),
-    // Sem data de fim, ou com vigência fora do normal, os dois ficam nulos (migration 0087).
-    originalTermEnd: date('vigencia_fim_original', { mode: 'string' }),
-    expiresOn: date('vencimento', { mode: 'string' }),
-    contractTypeId: smallint('tipo_contrato_id'),
-    contractTypeName: text('tipo_contrato_nome'),
-    publishedAt: timestampWithZone('data_publicacao_pncp').notNull(),
-    pncpUpdatedAt: timestampWithZone('data_atualizacao_pncp'),
-    pncpGlobalUpdatedAt: timestampWithZone('data_atualizacao_global'),
-    amendments: jsonb('aditivos').$type<ContractTermSummary[]>(),
-    amendmentsReference: timestampWithZone('aditivos_referencia'),
-    payloadHash: char('hash_payload', { length: 64 }).notNull(),
-    searchVector: tsvector('busca_tsv').generatedAlwaysAs(
-      sql`to_tsvector('licitacoes.pt_unaccent', coalesce(objeto, '') || ' ' || coalesce(informacao_complementar, ''))`,
-    ),
-    firstCollectedAt: timestampWithZone('primeira_coleta_em').defaultNow().notNull(),
-    lastCollectedAt: timestampWithZone('ultima_coleta_em').defaultNow().notNull(),
-  },
-  (table) => ({
-    searchVectorIdx: index('ix_contrato_tsv').using('gin', table.searchVector),
-    expiresOnIdx: index('ix_contrato_vencimento').on(table.expiresOn),
-    stateIdx: index('ix_contrato_uf').on(table.state),
-    cityIdx: index('ix_contrato_municipio').on(table.cityIbgeCode),
-    agencyIdx: index('ix_contrato_orgao').on(table.agencyCnpj),
-    categoryIdx: index('ix_contrato_categoria').on(table.categoryId),
-    publishedAtIdx: index('ix_contrato_publicacao').on(table.publishedAt.desc()),
-    valueIdx: index('ix_contrato_valor').on(table.globalValue),
-    supplierIdx: index('ix_contrato_fornecedor').on(table.supplierDocument),
-    contractTypeIdx: index('ix_contrato_tipo').on(table.contractTypeId),
-    // Busca por número (parte B): as mesmas expressões da migration 0085.
-    numberGroupsIdx: index('ix_contrato_numero_grupos').using(
-      'gin',
-      sql`licitacoes.fn_grupos_digitos(coalesce(${table.contractNumber}, '') || ' ' || ${table.contractYear}::text)`,
-    ),
-    processGroupsIdx: index('ix_contrato_processo_grupos').using(
-      'gin',
-      sql`licitacoes.fn_grupos_digitos(coalesce(${table.processNumber}, '') || ' ' || ${table.contractYear}::text)`,
-    ),
-    controlNumberGroupsIdx: index('ix_contrato_controle_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.pncpControlNumber})`),
-    purchaseGroupsIdx: index('ix_contrato_compra_grupos').using('gin', sql`licitacoes.fn_grupos_digitos(${table.purchaseControlNumber})`),
-  }),
-);
-
 /** Global: dias de publicação que a carga inicial de contratos já concluiu (migration 0085). */
 export const tenderContractBackfillDays = tendersSchema.table('contrato_carga_dia', {
   day: date('dia', { mode: 'string' }).primaryKey(),
@@ -278,7 +189,11 @@ export const tenderSavedSearches = tendersSchema.table(
   }),
 );
 
-/** Buscas salvas de contratos (migration 0086): os critérios da tela, menos número, ano e "Só favoritos". */
+/**
+ * Buscas salvas de contratos (migrations 0086 e 0087b): os critérios da tela,
+ * menos número, ano e "Só favoritos". `activeTotal` é o total de vigentes que
+ * batem, contado no armazém ao salvar e na rotina diária, em `activeTotalAt`.
+ */
 export const tenderContractSavedSearches = tendersSchema.table(
   'busca_salva_contrato',
   {
@@ -302,24 +217,30 @@ export const tenderContractSavedSearches = tendersSchema.table(
     active: boolean('ativa').default(true).notNull(),
     createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
     updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+    activeTotal: integer('total_vigentes'),
+    activeTotalAt: timestampWithZone('total_em'),
   },
   (table) => ({
     accountUserIdx: index('ix_busca_contrato_conta_usuario').on(table.accountId, table.userId).where(sql`ativa`),
   }),
 );
 
-/** Favoritos de contratos de cada pessoa na conta (migration 0086): só ela vê os seus. */
+/**
+ * Favoritos de contratos de cada pessoa na conta (migrations 0086 e 0087b): só
+ * ela vê os seus. O contrato mora no armazém do R2 (contractStore), então o
+ * favorito guarda o número de controle dele, sem chave estrangeira.
+ */
 export const tenderContractFavorites = tendersSchema.table(
   'favorito_contrato',
   {
     accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
     userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    contractId: bigint('contrato_id', { mode: 'number' }).notNull().references(() => tenderContracts.id, { onDelete: 'cascade' }),
+    contractKey: varchar('contrato_chave', { length: 60 }).notNull(),
     createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.accountId, table.userId, table.contractId] }),
-    contractIdx: index('ix_favorito_contrato_contrato').on(table.contractId),
+    pk: primaryKey({ columns: [table.accountId, table.userId, table.contractKey] }),
+    contractKeyIdx: index('ix_favorito_contrato_chave').on(table.contractKey),
   }),
 );
 
@@ -385,8 +306,8 @@ export const tenderNotifications = tendersSchema.table(
     link: text('link').notNull(),
     noticeId: bigint('edital_id', { mode: 'number' }).references(() => tenderNotices.id, { onDelete: 'cascade' }),
     savedSearchId: bigint('busca_salva_id', { mode: 'number' }).references(() => tenderSavedSearches.id, { onDelete: 'set null' }),
-    // Aviso de contrato (migration 0086): um aviso é de um edital ou de um contrato, nunca dos dois.
-    contractId: bigint('contrato_id', { mode: 'number' }).references(() => tenderContracts.id, { onDelete: 'cascade' }),
+    // Aviso de contrato (migrations 0086 e 0087b): um aviso é de um edital ou de um contrato (número de controle), nunca dos dois.
+    contractKey: varchar('contrato_chave', { length: 60 }),
     // Desambigua EDITAL_ALTERADO (data de atualização), prazos (data de encerramento) e
     // os avisos de contrato (vencimento, AAAA-MM-DD).
     reference: text('referencia'),
@@ -405,9 +326,8 @@ export const tenderNotifications = tendersSchema.table(
       .on(table.accountId, table.userId, table.createdAt.desc())
       .where(sql`lida_em IS NULL`),
     uniqueContractNotification: uniqueIndex('ux_notificacao_contrato_unica')
-      .on(table.accountId, table.userId, table.type, table.contractId, sql`coalesce(${table.reference}, '')`)
-      .where(sql`contrato_id IS NOT NULL`),
-    contractIdx: index('ix_notificacao_contrato').on(table.contractId).where(sql`contrato_id IS NOT NULL`),
+      .on(table.accountId, table.userId, table.type, table.contractKey, sql`coalesce(${table.reference}, '')`)
+      .where(sql`contrato_chave IS NOT NULL`),
   }),
 );
 
@@ -443,5 +363,3 @@ export const tenderDetailCache = tendersSchema.table(
 
 export type TenderNotice = typeof tenderNotices.$inferSelect;
 export type NewTenderNotice = typeof tenderNotices.$inferInsert;
-export type TenderContract = typeof tenderContracts.$inferSelect;
-export type NewTenderContract = typeof tenderContracts.$inferInsert;

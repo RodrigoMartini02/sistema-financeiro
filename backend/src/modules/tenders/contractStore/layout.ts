@@ -1,5 +1,4 @@
-import type { TenderContractRow } from '../collector/contractMapping';
-import type { ContractTermSummary } from '../db/schema';
+import type { ContractTermSummary, TenderContractRow } from '../collector/contractMapping';
 
 // Formato do armazém de contratos no R2 (plano .plans/licitacoes-contratos-no-r2.md,
 // Parte R1): arquivos Parquet em três conjuntos, cada um na ordem da busca que
@@ -178,6 +177,18 @@ export function activeBandExpression(today: string): string {
     WHEN vencimento < ${today} + 730 THEN strftime(date_trunc('month', vencimento), '%Y-%m-%d')
     WHEN vencimento < ${today} + 3650 THEN strftime(date_trunc('year', vencimento), '%Y-%m-%d')
     ELSE 'depois' END`;
+}
+
+/**
+ * Identificador do contrato (a "chave"): o número de controle do PNCP (CNPJ do
+ * órgão, tipo, sequencial e ano: "03353358000196-2-000216/2026") ou, nos
+ * contratos federais do Compras.gov.br, "comprasgov-<id>". Nada fora disso vira
+ * consulta, favorito ou aviso.
+ */
+export const CONTRACT_KEY_PATTERN = /^(?:\d{14}-\d-\d{6,10}\/\d{4}|comprasgov-\d{1,12})$/;
+
+export function isContractKey(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 60 && CONTRACT_KEY_PATTERN.test(value);
 }
 
 /** Caminho no bucket de um arquivo novo: a versão e a publicação no nome, para nunca sobrescrever um em uso. */

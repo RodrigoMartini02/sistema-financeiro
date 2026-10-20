@@ -1,11 +1,10 @@
 import { z } from 'zod/v4';
-import type { ContractTermSummary, NewTenderContract } from '../db/schema';
 import { SUPPLIER_PERSON_TYPES, type SupplierPersonType } from '../domains';
 import { payloadHash } from './mapping';
 
-// Registro de contrato do PNCP → linha de licitacoes.contrato (planos
-// .plans/licitacoes-contratos-a-vencer.md e .plans/licitacoes-base-nacional.md,
-// parte 2). Como nos editais, o PNCP é dado externo: tudo é validado, e um
+// Registro de contrato do PNCP → contrato do armazém do R2 (planos
+// .plans/licitacoes-contratos-a-vencer.md, .plans/licitacoes-base-nacional.md,
+// parte 2, e .plans/licitacoes-contratos-no-r2.md). Como nos editais, o PNCP é dado externo: tudo é validado, e um
 // registro inválido vira erro contado na execução, sem derrubar a página.
 // Entram todos os tipos (contrato, empenho, carta contrato e outros), de
 // qualquer duração, vigentes e encerrados, com o tipo gravado. O vencimento
@@ -15,7 +14,68 @@ import { payloadHash } from './mapping';
 // à parte, como o edital sem prazo, e não como erro: medido no piloto, ele
 // deixaria toda execução "Parcial".
 
-export type TenderContractRow = Omit<NewTenderContract, 'id' | 'firstCollectedAt' | 'lastCollectedAt'>;
+/** Um termo do contrato no PNCP (aditivo, apostilamento ou rescisão), resumido para o detalhe. */
+export interface ContractTermSummary {
+  type: string | null;
+  number: string | null;
+  sequence: number | null;
+  signedAt: string | null;
+  /** Fim da vigência que o termo informa (aditivo de prazo ou rescisão). */
+  endDate: string | null;
+  addedValue: string | null;
+  /** Termo que muda a vigência: conta para o vencimento atual. */
+  changesTerm: boolean;
+}
+
+/**
+ * Contrato como o coletor o grava no armazém (contractStore/layout.ts), sem as
+ * datas da coleta e sem os campos de busca. Valores em reais e datas do
+ * calendário em texto; data e hora do PNCP como vieram (AAAA-MM-DDTHH:mm:ss,
+ * Brasília).
+ */
+export interface TenderContractRow {
+  /** Identificador do contrato (a "chave" nas rotas e nos favoritos). */
+  pncpControlNumber: string;
+  purchaseControlNumber: string | null;
+  contractYear: number;
+  contractSequence: number;
+  contractNumber: string | null;
+  processNumber: string | null;
+  agencyCnpj: string;
+  agencyName: string | null;
+  governmentSphere: string | null;
+  unitCode: string | null;
+  unitName: string | null;
+  state: string | null;
+  cityName: string | null;
+  cityIbgeCode: string | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  contractObject: string;
+  additionalInformation: string | null;
+  supplierPersonType: SupplierPersonType | null;
+  /** CNPJ (14 dígitos) ou, na pessoa física, o CPF mascarado. */
+  supplierDocument: string | null;
+  supplierName: string | null;
+  initialValue: string | null;
+  globalValue: string | null;
+  signedAt: string | null;
+  termStart: string;
+  /** null: sem data de fim, ou com uma fora do normal. */
+  originalTermEnd: string | null;
+  /** Vencimento atual; null = sem vencimento. */
+  expiresOn: string | null;
+  contractTypeId: number | null;
+  contractTypeName: string | null;
+  publishedAt: string;
+  pncpUpdatedAt: string | null;
+  pncpGlobalUpdatedAt: string | null;
+  /** null = termos não conferidos; [] = conferidos, sem termo. */
+  amendments: ContractTermSummary[] | null;
+  /** Atualização global da última conferência dos termos. */
+  amendmentsReference: string | null;
+  payloadHash: string;
+}
 
 /** Por que o contrato entra sem vencimento: não tem data de fim, ou a vigência passa de 35 anos. */
 export type ContractWithoutExpiryReason = 'withoutEndDate' | 'implausibleTerm';

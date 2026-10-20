@@ -8,7 +8,8 @@ import type { ContractFavoriteView } from '../types';
 // contratos (a aba Contratos de Favoritos também) e o detalhe são recarregados.
 
 export interface ToggleContractFavoriteVariables {
-  contractId: number;
+  /** A chave do contrato (número de controle do PNCP). */
+  contractKey: string;
   /** Estado escolhido: true favorita, false tira dos favoritos. */
   favorite: boolean;
 }
@@ -16,7 +17,7 @@ export interface ToggleContractFavoriteVariables {
 export function useToggleContractFavorite() {
   const queryClient = useQueryClient();
   return useMutation<ContractFavoriteView, TendersApiError, ToggleContractFavoriteVariables>({
-    mutationFn: ({ contractId, favorite }) => (favorite ? addContractFavorite(contractId) : removeContractFavorite(contractId)),
+    mutationFn: ({ contractKey, favorite }) => (favorite ? addContractFavorite(contractKey) : removeContractFavorite(contractKey)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: tendersQueryKeys.contracts }),
   });
 }

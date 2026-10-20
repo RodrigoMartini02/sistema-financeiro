@@ -8,7 +8,7 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { CollectionRun, CollectionRunStatus, CollectionStatus, Paginated } from '../types';
 import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runDurationLabel, runErrorLines } from '../utils/collectionRuns';
-import { formatIsoDateTime } from '../utils/dates';
+import { formatIsoDate, formatIsoDateTime } from '../utils/dates';
 import { RUN_STATUS_LABELS, RUN_TYPE_LABELS } from '../utils/labels';
 import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
 import { LoadError, LoadingBlock } from './LoadStates';
@@ -29,7 +29,7 @@ const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
 
 const SUMMARY_TYPES = ['VARREDURA', 'LEMBRETES'] as const;
 
-const formatCount = (value: number) => value.toLocaleString('pt-BR');
+const formatCount = (value: number | null) => (value === null ? '—' : value.toLocaleString('pt-BR'));
 
 function RunStatusPill({ status }: { status: CollectionRunStatus }) {
   return <Pill tone={STATUS_TONES[status]}>{RUN_STATUS_LABELS[status]}</Pill>;
@@ -96,7 +96,9 @@ function ContractsCard({ status }: { status: CollectionStatus }) {
         )}
         <dt className={TERM_CLASS}>Contratos na base</dt>
         <dd className={VALUE_CLASS}>{formatCount(status.contracts.contracts)}</dd>
-        <dt className={TERM_CLASS}>Contratos vigentes na base</dt>
+        <dt className={TERM_CLASS}>
+          Contratos vigentes na base{status.contracts.countedOn ? ` (em ${formatIsoDate(status.contracts.countedOn)})` : ''}
+        </dt>
         <dd className={VALUE_CLASS}>{formatCount(status.contracts.activeContracts)}</dd>
         <dt className={TERM_CLASS}>Carga inicial</dt>
         <dd className={VALUE_CLASS}>

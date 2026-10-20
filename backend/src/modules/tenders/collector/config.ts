@@ -16,7 +16,7 @@ export interface PncpSettings {
   maxAttempts: number;
 }
 
-/** Coleta de contratos (plano .plans/licitacoes-contratos-a-vencer.md). */
+/** Coleta de contratos (planos .plans/licitacoes-contratos-a-vencer.md e .plans/licitacoes-contratos-no-r2.md). */
 export interface ContractsSettings {
   /** Registros por página da consulta de contratos (10 a 500). */
   pageSize: number;
@@ -26,8 +26,6 @@ export interface ContractsSettings {
   backfillFrom: string;
   /** Tempo de cada bloco da carga, em minutos. */
   backfillMinutes: number;
-  /** Tamanho do banco em que a carga para. Sem ele, a carga não roda: é o "ligar" da carga. */
-  maxDatabaseMb: number | null;
 }
 
 /**
@@ -108,7 +106,6 @@ const collectorEnvSchema = z.object({
   // Blocos de 8 h: a carga completa (~70 h no piloto) termina em ~10 dias, e a
   // rotina fica abaixo do limite de 12 h do Cron Job do Render.
   TENDERS_CONTRACTS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(480),
-  TENDERS_CONTRACTS_MAX_DB_MB: z.coerce.number().int().positive().optional(),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
@@ -211,7 +208,6 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       termsIntervalMs: values.PNCP_TERMS_INTERVAL_MS,
       backfillFrom: values.TENDERS_CONTRACTS_BACKFILL_FROM,
       backfillMinutes: values.TENDERS_CONTRACTS_BACKFILL_MINUTES,
-      maxDatabaseMb: values.TENDERS_CONTRACTS_MAX_DB_MB ?? null,
     },
     storage: loadStorageSettings(env, values.TENDERS_COLLECTOR_DATABASE_URL),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,

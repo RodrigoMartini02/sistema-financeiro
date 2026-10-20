@@ -2,16 +2,19 @@ import { Router } from 'express';
 import { validate } from '../../../middleware/validation';
 import { RequestInputError } from '../../../utils/requestInput';
 import { tenderAccessOf } from '../middleware/tenderAccess';
-import { addContractFavorite, getContractDetail, removeContractFavorite } from '../services/contractDetail';
+import { addContractFavorite, getContractDetail, parseContractKey, removeContractFavorite } from '../services/contractDetail';
 import { contractSavedSearchCriteria, findOwnContractSavedSearch } from '../services/contractSavedSearches';
 import { searchContracts } from '../services/contractSearch';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 import { readContractSearchRequest } from './requestReaders';
-import { contractSearchValidators, idParam } from './validators';
+import { contractSearchValidators } from './validators';
 
-// Contratos a vencer (plano .plans/licitacoes-contratos-a-vencer.md, Parte B):
-// busca, detalhe e favoritos de cada pessoa.
+// Contratos a vencer (planos .plans/licitacoes-contratos-a-vencer.md, Parte B,
+// e .plans/licitacoes-contratos-no-r2.md, Parte R2): busca, detalhe e favoritos
+// de cada pessoa. O contrato é identificado pelo número de controle do PNCP
+// ("chave"), com a barra codificada na URL (%2F); fora do formato, 404. Os
+// contratos vêm do armazém do R2; sem cópia pronta, 503 (tenderRoute).
 
 export function contractRoutes(deps: TendersApiDeps): Router {
   const router = Router();
@@ -37,7 +40,7 @@ export function contractRoutes(deps: TendersApiDeps): Router {
       if (filters.sort === 'relevance' && criteria.terms.length === 0) {
         throw new RequestInputError('Ordenar por relevância exige termos de busca.');
       }
-      const result = await searchContracts(deps.db, requester, { ...filters, criteria });
+      const result = await searchContracts(deps, requester, { ...filters, criteria });
       res.json({
         success: true,
         data: {
@@ -49,27 +52,24 @@ export function contractRoutes(deps: TendersApiDeps): Router {
   );
 
   router.get(
-    '/:id',
-    [idParam(), validate],
+    '/:chave',
     tenderRoute('Tender contract detail failed:', 'Não foi possível abrir o contrato agora.', async (req, res) => {
-      res.json({ success: true, data: await getContractDetail(deps.db, requesterOf(req), Number(req.params['id'])) });
+      res.json({ success: true, data: await getContractDetail(deps, requesterOf(req), parseContractKey(req.params['chave'])) });
     }),
   );
 
-  // PUT /api/tenders/contracts/:id/favorite: favorito de quem pede (cada pessoa tem os seus).
+  // PUT /api/tenders/contracts/:chave/favorite: favorito de quem pede (cada pessoa tem os seus).
   router.put(
-    '/:id/favorite',
-    [idParam(), validate],
+    '/:chave/favorite',
     tenderRoute('Tender contract favorite save failed:', 'Não foi possível favoritar o contrato agora.', async (req, res) => {
-      res.json({ success: true, data: await addContractFavorite(deps.db, requesterOf(req), Number(req.params['id'])) });
+      res.json({ success: true, data: await addContractFavorite(deps, requesterOf(req), parseContractKey(req.params['chave'])) });
     }),
   );
 
   router.delete(
-    '/:id/favorite',
-    [idParam(), validate],
+    '/:chave/favorite',
     tenderRoute('Tender contract favorite removal failed:', 'Não foi possível tirar o contrato dos favoritos agora.', async (req, res) => {
-      res.json({ success: true, data: await removeContractFavorite(deps.db, requesterOf(req), Number(req.params['id'])) });
+      res.json({ success: true, data: await removeContractFavorite(deps.db, requesterOf(req), parseContractKey(req.params['chave'])) });
     }),
   );
 

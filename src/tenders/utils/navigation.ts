@@ -30,7 +30,7 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'inicio', path: '/', title: 'Início', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'contrato', path: '/contratos/:id', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
+  { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },

@@ -282,3 +282,116 @@ test('carga: várias publicações na mesma execução, cada uma partindo da ant
     assert.equal(manifestOf(objects).revision, '7.2');
   });
 });
+
+/** Abre o gravador sobre o armazém já publicado, para ler e gravar sem publicar. */
+function openWriter(storage: ObjectStorage, directory: string, version: number) {
+  return ContractStoreWriter.open({
+    storage,
+    searchFields: simpleSearchFields,
+    directory,
+    version,
+    today: '2026-10-19',
+    now: () => new Date('2026-10-19T12:00:00Z'),
+    logger: quietLogger,
+  });
+}
+
+test('termos pendentes: sinal de alteração (mais de 24 h) sem conferência da atualização atual, do mais antigo ao mais novo, menos os excluídos', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage } = createMemoryStorage();
+    const published = '2026-01-02T10:00:00';
+    await publishWith(storage, directory, 1, async (writer) => {
+      await writer.upsert([
+        at(1, { publishedAt: published, pncpGlobalUpdatedAt: '2026-01-03T10:00:00' }), // exatamente 24 h: sem sinal
+        at(2, { publishedAt: published, pncpGlobalUpdatedAt: '2026-01-03T10:00:01' }), // 24 h e 1 s: pendente
+        at(3, { publishedAt: published, pncpGlobalUpdatedAt: '2026-05-01T10:00:00.123' }), // a fração de segundo não conta
+        at(4, { publishedAt: published, pncpGlobalUpdatedAt: '2026-04-01T10:00:00', amendmentsReference: '2026-04-01T10:00:00', amendments: [] }), // conferido
+        at(5, { publishedAt: published, pncpGlobalUpdatedAt: null }), // sem atualização global
+        at(6, { publishedAt: published, pncpGlobalUpdatedAt: '2026-02-01T10:00:00', amendmentsReference: '2026-01-15T10:00:00', amendments: [] }), // conferido numa atualização antiga
+      ]);
+    });
+
+    const writer = await openWriter(storage, directory, 2);
+    try {
+      assert.equal(await writer.countPendingTerms(), 3);
+      assert.deepEqual((await writer.readPendingTerms(10, [])).map((contract) => contract.contractSequence), [2, 6, 3], 'da atualização global mais antiga para a mais nova');
+      assert.deepEqual((await writer.readPendingTerms(2, [])).map((contract) => contract.contractSequence), [2, 6], 'o limite vale');
+      assert.deepEqual(
+        (await writer.readPendingTerms(10, [at(2).pncpControlNumber])).map((contract) => contract.contractSequence),
+        [6, 3],
+        'os que falharam na execução ficam de fora',
+      );
+      const [first] = await writer.readPendingTerms(1, []);
+      assert.deepEqual(first, {
+        pncpControlNumber: at(2).pncpControlNumber,
+        agencyCnpj: '00394460005887',
+        contractYear: 2026,
+        contractSequence: 2,
+        contractObject: 'Serviço de limpeza 2',
+        originalTermEnd: '2027-01-10',
+        expiresOn: '2027-01-10',
+      });
+
+      // O que a execução já mudou vale mais que o arquivo: conferido nas mudanças, deixa de ser pendente.
+      await writer.upsert([at(2, { publishedAt: published, pncpGlobalUpdatedAt: '2026-01-03T10:00:01', amendmentsReference: '2026-01-03T10:00:01', amendments: [], payloadHash: 'novo' })]);
+      assert.equal(await writer.countPendingTerms(), 2);
+      assert.deepEqual((await writer.readPendingTerms(10, [])).map((contract) => contract.contractSequence), [6, 3]);
+    } finally {
+      await writer.close();
+    }
+  });
+});
+
+test('reconsulta dos termos: grava vencimento, termos e conferência nas mudanças; o resto do contrato fica como está e a publicação leva ao armazém', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const pending = at(1, {
+      contractObject: 'Limpeza predial',
+      publishedAt: '2025-07-02T10:00:00',
+      pncpGlobalUpdatedAt: '2026-10-05T10:00:00',
+      originalTermEnd: '2026-06-30',
+      expiresOn: '2026-06-30',
+    });
+    await publishWith(storage, directory, 1, async (writer) => void (await writer.upsert([pending, at(2)])));
+
+    const term = { type: 'Termo Aditivo', number: '1', sequence: 1, signedAt: '2026-06-01', endDate: '2026-12-31', addedValue: null, changesTerm: true };
+    const writer = await openWriter(storage, directory, 2);
+    try {
+      await writer.saveCheckedTerms([]);
+      assert.equal(await writer.pendingChanges(), 0, 'sem nada conferido, nada muda');
+      await writer.saveCheckedTerms([{ pncpControlNumber: pending.pncpControlNumber, expiresOn: '2026-12-31', amendments: [term] }]);
+      assert.equal(await writer.pendingChanges(), 1);
+      assert.equal(await writer.countPendingTerms(), 0, 'conferido para a atualização global atual');
+      const state = (await writer.readStates([pending.pncpControlNumber])).get(pending.pncpControlNumber);
+      assert.deepEqual(state?.amendments, [term]);
+      assert.equal(state?.expiresOn, '2026-12-31');
+      assert.equal(state?.amendmentsReference, '2026-10-05T10:00:00');
+      assert.equal(state?.payloadHash, 'hash-1', 'o resto do contrato não muda');
+      assert.equal(state?.firstCollectedAt, '2026-10-19T12:00:00.000Z');
+
+      // Conferir um contrato que a própria execução acabou de mudar parte das mudanças, não do arquivo.
+      await writer.upsert([at(2, { contractObject: 'Objeto novo', payloadHash: 'novo', publishedAt: '2025-07-02T10:00:00', pncpGlobalUpdatedAt: '2026-10-06T10:00:00' })]);
+      await writer.saveCheckedTerms([{ pncpControlNumber: at(2).pncpControlNumber, expiresOn: null, amendments: [] }]);
+      const second = (await writer.readStates([at(2).pncpControlNumber])).get(at(2).pncpControlNumber);
+      assert.deepEqual({ expiresOn: second?.expiresOn, amendments: second?.amendments, reference: second?.amendmentsReference, hash: second?.payloadHash }, {
+        expiresOn: null,
+        amendments: [],
+        reference: '2026-10-06T10:00:00',
+        hash: 'novo',
+      });
+
+      const summary = await writer.publish();
+      assert.equal(summary?.changedContracts, 2);
+    } finally {
+      await writer.close();
+    }
+
+    const [row] = (await rowsOf(objects, manifestOf(objects).datasets.vigentes.find((file) => file.rows > 0)?.path ?? '', 'numero_controle_pncp, vencimento, aditivos, aditivos_referencia, radicais, objeto')).filter(
+      (candidate) => candidate['numero_controle_pncp'] === pending.pncpControlNumber,
+    );
+    assert.equal(row?.['vencimento'], '2026-12-31');
+    assert.equal(row?.['aditivos_referencia'], '2026-10-05T10:00:00');
+    assert.deepEqual(JSON.parse(String(row?.['aditivos'])), [term]);
+    assert.equal(row?.['radicais'], ' limpeza predial ', 'os campos de busca ficam como estavam');
+  });
+});

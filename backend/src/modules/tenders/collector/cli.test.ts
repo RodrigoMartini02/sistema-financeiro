@@ -19,12 +19,16 @@ test('contracts-cleanup saiu: os contratos encerrados ficam na base', () => {
   assertUsageError(['contracts-cleanup'], /Comando desconhecido/);
 });
 
-test('contracts-backfill: faixa, tempo e espaço opcionais', () => {
-  assert.deepEqual(parseCliArgs(['contracts-backfill']), { name: 'contracts-backfill', from: null, to: null, maxMinutes: null, maxDbMb: null });
+test('contracts-backfill: faixa e tempo opcionais', () => {
+  assert.deepEqual(parseCliArgs(['contracts-backfill']), { name: 'contracts-backfill', from: null, to: null, maxMinutes: null });
   assert.deepEqual(
-    parseCliArgs(['contracts-backfill', '--from', '2026-09-01', '--to', '2026-09-30', '--max-minutes', '90', '--max-db-mb', '2000']),
-    { name: 'contracts-backfill', from: '2026-09-01', to: '2026-09-30', maxMinutes: 90, maxDbMb: 2000 },
+    parseCliArgs(['contracts-backfill', '--from', '2026-09-01', '--to', '2026-09-30', '--max-minutes', '90']),
+    { name: 'contracts-backfill', from: '2026-09-01', to: '2026-09-30', maxMinutes: 90 },
   );
+});
+
+test('contracts-backfill: o limite de espaço do banco saiu, porque os contratos moram no R2', () => {
+  assertUsageError(['contracts-backfill', '--max-db-mb', '2000'], /max-db-mb/);
 });
 
 test('contracts-backfill: datas válidas, --from antes de --to e números inteiros positivos', () => {
@@ -33,7 +37,6 @@ test('contracts-backfill: datas válidas, --from antes de --to e números inteir
   assertUsageError(['contracts-backfill', '--from', '2026-09-30', '--to', '2026-09-01'], /antes de --to/);
   assertUsageError(['contracts-backfill', '--max-minutes', '0'], /max-minutes/);
   assertUsageError(['contracts-backfill', '--max-minutes', '601'], /max-minutes/);
-  assertUsageError(['contracts-backfill', '--max-db-mb', 'muito'], /max-db-mb/);
   assertUsageError(['contracts-daily', '--from', '2026-09-01'], /não vale/);
 });
 

@@ -5,7 +5,8 @@ import { SKIPPED_WORD, type SearchPhrasesProvider } from './textSearch';
 // A regra única dos critérios de contratos no armazém (plano
 // .plans/licitacoes-contratos-no-r2.md): a busca da tela, a prévia e o total
 // das buscas salvas e os avisos montam o filtro aqui, como antes faziam com
-// licitacoes.fn_contrato_atende_criterios e fn_contrato_vigente (migration 0086).
+// licitacoes.fn_contrato_atende_criterios e fn_contrato_vigente (migration 0086,
+// que a 0087b removeu).
 // Tudo o que vem da pessoa entra como parâmetro ($pN), nunca no texto do SQL.
 
 /** Parâmetros nomeados de uma consulta do DuckDB ($p0, $p1...). */
@@ -119,4 +120,34 @@ export function contractCriteriaCondition(phrased: PhrasedContractCriteria, para
 /** Contrato vigente: vencimento de hoje (AAAA-MM-DD, Brasília) em diante; sem vencimento não é vigente. */
 export function activeContractCondition(today: string, params: SqlParameters): string {
   return `vencimento >= ${params.add(today)}::DATE`;
+}
+
+/** Posição de um termo que não aparece: depois de qualquer texto real. */
+const MISSING_POSITION = 1_000_000_000;
+
+/** Onde a frase começa no texto (1 = no começo), pela primeira palavra dela; nulo quando não aparece. */
+function phrasePosition(phrase: string, params: SqlParameters): string {
+  const first = phrase.trim().split(' ')[0] ?? '';
+  return `nullif(instr(radicais, ${params.add(` ${first} `)}), 0)`;
+}
+
+/** Posição de um termo no texto: a primeira das suas frases. */
+function termPosition(phrases: readonly string[], params: SqlParameters): string {
+  return `least(${phrases.map((phrase) => phrasePosition(phrase, params)).join(', ')})`;
+}
+
+/**
+ * Ordem por relevância, simplificada (o ts_rank_cd do Postgres não existe nos
+ * arquivos): primeiro os contratos em que mais termos aparecem e, no empate,
+ * aquele em que um termo aparece mais perto do começo do texto. Sem termos com
+ * radical, não ordena por nada (a ordem de desempate da consulta decide).
+ */
+export function relevanceOrder(phrased: PhrasedContractCriteria, params: SqlParameters): string | null {
+  const terms = phrased.termPhrases.filter((phrases) => phrases.length > 0);
+  if (terms.length === 0) {
+    return null;
+  }
+  const matched = terms.map((phrases) => `CASE WHEN ${termMatches(phrases, params)} THEN 1 ELSE 0 END`).join(' + ');
+  const earliest = terms.map((phrases) => `coalesce(${termPosition(phrases, params)}, ${MISSING_POSITION})`).join(', ');
+  return `(${matched}) DESC, least(${earliest}) ASC`;
 }

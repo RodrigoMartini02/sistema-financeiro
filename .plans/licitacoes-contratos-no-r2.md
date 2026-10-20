@@ -272,6 +272,44 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
    - medição do tempo e da memória do Web Service local.
 9. README e o plano.
 
+**Situação (20/10/2026):** implementada a partir da `540db987` (a branch `feat/R/licitacoes-base-nacional`), no commit da branch de trabalho `claude/determined-pascal-wrve3a`; falta o usuário levá-la para a `feat/R/licitacoes-base-nacional`. Sem aplicar a 0087b no banco do usuário, sem R2 de verdade e sem navegador: falta a conferência local do item 8, que é do usuário (abaixo).
+
+- **Migration `0087b_licitacoes_contratos_no_r2.sql`** (testada no banco de teste do sandbox, com favoritos e avisos preenchidos antes):
+  - `favorito_contrato` e `notificacao` trocam `contrato_id` por `contrato_chave VARCHAR(60)`, preenchida a partir da tabela antes de a coluna sair; chave primária (conta, pessoa, chave), CHECK de edital ou contrato e índice único dos avisos pela chave;
+  - o **link dos avisos que já existem** também muda (`/contratos/<id>` → `/contratos/<chave com %2F>`), senão o clique abriria um contrato que não existe;
+  - `busca_salva_contrato` ganha `total_vigentes` e `total_em`;
+  - saem `fn_contrato_atende_criterios`, `fn_contrato_vigente` e `licitacoes.contrato`; `contrato_carga_dia` fica;
+  - permissão do `licitacoes_coletor`: só `UPDATE (total_vigentes, total_em)` em `busca_salva_contrato` (os privilégios da tabela e das funções saem com elas);
+  - **desvio do plano:** o índice só por `contrato_chave` na `notificacao` não volta. Ele existia para a cascata da chave estrangeira, que sai com a tabela, e nenhuma consulta procura aviso só pela chave. O índice por chave em `favorito_contrato` volta (o `CONTRATO_ALTERADO` procura quem favoritou).
+- **Coletor:**
+  - `contractRepository.ts` saiu; os dias da carga e o último dia lido da coleta diária ficaram em `collector/contractProgress.ts`;
+  - a coleta grava nas mudanças do armazém e **publica no fim** (diária) ou **a cada 10 dias concluídos** (carga, `BACKFILL_PUBLISH_EVERY_DAYS`); os dias só são marcados em `contrato_carga_dia` depois da publicação;
+  - **efeito na janela da coleta diária:** como o que foi lido só é durável na publicação, a execução que falha antes de publicar grava as consultas como **não concluídas**, e a próxima relê as mesmas janelas (antes, uma consulta terminada contava mesmo se a execução falhasse depois);
+  - `CONTRATO_ALTERADO` sai **depois** da publicação, para ninguém ser avisado de uma mudança que o app ainda não mostra;
+  - a reconsulta dos termos lê os pendentes do DuckDB (`countPendingTerms`, `readPendingTerms`, `saveCheckedTerms` no gravador); as mudanças da execução valem mais que os arquivos;
+  - os avisos (`contractNotifications.ts`) cruzam favoritos e buscas salvas do Postgres com as janelas do armazém, em lotes, e `updateSavedSearchTotals` atualiza o total de todas as buscas das contas com acesso;
+  - a coleta e os avisos usam a mesma pasta de trabalho no disco temporário (`licitacoes-contratos-coletor`): o que a coleta publicou já está lá quando os avisos começam;
+  - sem o R2, a coleta diária e os avisos **falham com o motivo registrado** (aparece em Configurações › Coleta), e a carga sai com "carga não iniciada: R2 não configurado";
+  - saem `TENDERS_CONTRACTS_MAX_DB_MB`, `--max-db-mb` e a parada `space` da carga; o `status` do CLI mostra a versão em uso do armazém.
+- **API:**
+  - `GET /contracts` (mesmos filtros), `GET /contracts/:chave` e `PUT`/`DELETE /contracts/:chave/favorite`; a chave é conferida pelo formato antes de qualquer consulta (fora dele, 404);
+  - o trecho destacado e o favorito de cada linha vêm do Postgres, só para as linhas da página;
+  - **tirar o favorito não consulta o armazém** (vale com os contratos atualizando); favoritar confere que o contrato está nele;
+  - buscas salvas: total e data gravados (`activeCount`, `countedAt`); salvar com o armazém atualizando grava a busca sem total;
+  - sem cópia pronta: **503** com `code: CONTRACT_STORE_UPDATING`; consulta lenta demais: **504** com `CONTRACT_SEARCH_TIMEOUT`;
+  - `GET /collection/status`: "Contratos na base" e os vigentes vêm do manifesto, com o dia da contagem (`countedOn`);
+  - `server.ts` inicia o leitor em segundo plano (`contractStore/service.ts`): R2 incompleto ou recusado não derruba o servidor, só deixa os contratos indisponíveis, com o motivo no log.
+- **Telas:** a chave no lugar do id (rota `/contratos/:chave`, painel `?contrato=`, favoritos, notificações, query keys); "Atualizando os contratos" (não é falha, tenta de novo a cada 15 s, com botão) na lista, no detalhe e nos Favoritos; "Buscando em todos os contratos…" com "Incluir encerrados"; o total das buscas salvas com a data da contagem (e "—" quando ainda não foi contado); a Coleta mostra os totais do manifesto com a data.
+- **Validações:** tsc e vite ok; backend 608 testes sem banco e 152 de banco (2 pulados, como antes); front 312.
+- **Testes novos:** consultas do armazém (`queries.test.ts`), chave do contrato, termos pendentes e reconsulta no gravador, armazém do Web Service sem o R2, publicação e janela da coleta, carga com publicação a cada N dias e falha na publicação, avisos pelo armazém, `CONTRATO_ALTERADO`, totais das buscas salvas, 503 por HTTP, e no front a chave nas rotas e links, as notificações e o total com a data. Os testes de banco que só testavam a tabela (`contractRepository.db.test.ts`) saíram.
+- **Ficou para depois, de propósito:** a restrição por ano na busca "Só favoritos" (o DuckDB já pula os arquivos pelo mínimo e máximo da chave; medir no primeiro uso real antes de complicar).
+
+**Conferência local (do usuário, item 8), nesta ordem:**
+1. Mostrar o status das migrations no banco local (`migrations:status -- --banco local`) e aplicar a **0087b** com o "sim": `migrations:aplicar -- 0087b --banco local`. Os favoritos e avisos que já existirem ganham a chave.
+2. Coleta diária real publicando em `local/` (`tenders:dev -- contracts-daily`) e, depois, `contract-reminders`; conferir o `status` (versão do armazém) e Configurações › Coleta.
+3. Web Service local: o leitor baixa a cópia sozinho (a busca de contratos fica "atualizando" até ele terminar); medir o tempo da primeira cópia, o da busca de uma palavra com "Incluir encerrados" e a memória do processo.
+4. Navegador: busca (filtros, número, ordens, paginação), detalhe pela página própria e pelo painel (a chave com `%2F`), favoritar e tirar, "Só favoritos", buscas salvas (total com a data), clique numa notificação de contrato e o celular sem transbordo.
+
 ### Marco de produção (revisto)
 
 1. O usuário cria `TENDERS_STORAGE_PREFIX=producao` no Web Service e no Cron Job. As outras 4 do R2 ficam como estão.

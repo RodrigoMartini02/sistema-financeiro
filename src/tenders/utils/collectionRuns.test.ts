@@ -34,9 +34,9 @@ test('carga de contratos: parou no tempo, com os dias da faixa e o dia mais anti
   ]);
 });
 
-test('carga de contratos: parou no limite de espaço', () => {
-  const summary = backfillSummary({ completedDays: 10, oldestDay: '2026-10-03', lastRun: lastRun({ stoppedBy: 'space', pendingDays: 2101 }) });
-  assert.equal(summary.notes.at(-1), 'Parou no limite de espaço do banco.');
+test('carga de contratos: parou porque a fonte dos dados não respondeu', () => {
+  const summary = backfillSummary({ completedDays: 10, oldestDay: '2026-10-03', lastRun: lastRun({ stoppedBy: 'pncp', pendingDays: 2101 }) });
+  assert.equal(summary.notes.at(-1), 'Parou porque a fonte dos dados não respondeu; continua na próxima rotina.');
 });
 
 test('carga de contratos: concluída quando não sobra dia pendente', () => {

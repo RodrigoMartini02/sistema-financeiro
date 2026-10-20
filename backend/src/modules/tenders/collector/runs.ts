@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import type { CollectionRunDetails } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
+import { readManifest } from '../contractStore/manifest';
 import type { ObjectStorage } from '../objectStorage';
 import { ARCHIVE_DATASETS, RunArchive } from './archive';
 import type { CollectorConfig } from './config';
@@ -37,6 +38,8 @@ export interface CollectorContext {
   termsPncp: PncpClient;
   /** R2 (arquivo bruto e armazém de contratos), na pasta do ambiente; null quando as variáveis do R2 não estão definidas. */
   storage: ObjectStorage | null;
+  /** Pasta do disco onde a coleta de contratos mantém a cópia de trabalho do armazém. */
+  contractWorkDirectory: string;
   config: CollectorConfig;
   logger: CollectorLogger;
   now: () => Date;
@@ -109,6 +112,8 @@ export class RunTally {
 /**
  * Uma execução registrada em coleta_execucao, com a trava da chave. A contagem
  * de requisições é a do cliente de editais; os contratos passam a soma dos deles.
+ * O trabalho recebe o número da execução (a versão que o armazém de contratos
+ * publica).
  * O arquivo bruto da execução recebe o que ela ler; o que sobrar na memória é
  * enviado no fim, mesmo depois de uma falha, e a falha no envio conta erro.
  */
@@ -116,7 +121,7 @@ export async function withCollectionRun(
   context: CollectorContext,
   type: CollectionRunType,
   lockKey: number,
-  work: (tally: RunTally, archive: RunArchive) => Promise<void>,
+  work: (tally: RunTally, archive: RunArchive, runId: number) => Promise<void>,
   requestCount: () => number = () => context.pncp.requestCount,
 ): Promise<RunOutcome> {
   const lock = await tryAcquireCollectorLock(context.pool, lockKey);
@@ -141,7 +146,7 @@ export async function withCollectionRun(
 
     let status: CollectionRunStatus;
     try {
-      await work(tally, archive);
+      await work(tally, archive, runId);
       await archive.flush();
       status = tally.resolveStatus();
     } catch (error) {
@@ -355,6 +360,19 @@ export function runReprocessNotifications(context: CollectorContext, sinceDate: 
   });
 }
 
-export function readStatus(context: CollectorContext) {
-  return readCollectionStatus(context.db);
+/** A versão em uso do armazém de contratos para o comando `status`: null sem o R2 ou sem publicação; falha do R2 sai como `error`. */
+async function readContractStoreStatus(context: CollectorContext) {
+  if (!context.storage) {
+    return null;
+  }
+  try {
+    const manifest = await readManifest(context.storage);
+    return manifest && { revision: manifest.revision, publishedAt: manifest.publishedAt, today: manifest.today, totals: manifest.totals };
+  } catch (error) {
+    return { error: errorMessage(error) };
+  }
+}
+
+export async function readStatus(context: CollectorContext) {
+  return { ...(await readCollectionStatus(context.db)), contractStore: await readContractStoreStatus(context) };
 }

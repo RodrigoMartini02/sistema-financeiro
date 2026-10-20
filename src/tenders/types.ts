@@ -230,7 +230,7 @@ export interface SavedSearchPreview {
 
 /** Contrato da busca "Contratos a vencer". Datas de vigência em AAAA-MM-DD. */
 export interface ContractListItem {
-  id: number;
+  /** Número de controle do PNCP: a chave do contrato nas rotas, nos favoritos e nas notificações. */
   pncpControlNumber: string;
   contractObject: string;
   agencyCnpj: string;
@@ -277,7 +277,7 @@ export interface ContractAmendment {
 }
 
 export interface ContractDetail {
-  id: number;
+  /** Número de controle do PNCP: a chave do contrato. */
   pncpControlNumber: string;
   purchaseControlNumber: string | null;
   contractYear: number;
@@ -325,7 +325,7 @@ export interface ContractDetail {
 
 /** Resposta de favoritar e de tirar dos favoritos um contrato. */
 export interface ContractFavoriteView {
-  contractId: number;
+  pncpControlNumber: string;
   isFavorite: boolean;
 }
 
@@ -368,8 +368,10 @@ export interface ContractSavedSearch {
   active: boolean;
   createdAt: string | null;
   updatedAt: string | null;
-  /** Contratos vigentes que batem com a busca agora. */
-  activeCount: number;
+  /** Contratos vigentes que batem com a busca na última contagem; null = ainda não contado. */
+  activeCount: number | null;
+  /** Quando o total foi contado (ISO); null = ainda não contado. */
+  countedAt: string | null;
 }
 
 export interface ContractSearchPreview {
@@ -488,11 +490,11 @@ export interface TenderNotification {
   type: TenderNotificationType;
   title: string;
   message: string | null;
-  /** Caminho a partir do início do app do módulo (ex.: /editais/123 ou /contratos/45). */
+  /** Caminho a partir do início do app do módulo (ex.: /editais/123 ou /contratos/<chave codificada>). */
   link: string;
   noticeId: number | null;
-  /** Aviso de contrato (vencimento ou vencimento alterado). */
-  contractId: number | null;
+  /** Aviso de contrato (vencimento ou vencimento alterado): a chave do contrato. */
+  contractKey: string | null;
   savedSearchId: number | null;
   readAt: string | null;
   createdAt: string | null;
@@ -545,8 +547,8 @@ export interface CollectionRun {
   details: CollectionRunDetails;
 }
 
-/** Por que o bloco da carga de contratos parou: tempo, espaço no banco ou PNCP fora do ar. */
-export type BackfillStopReason = 'time' | 'space' | 'pncp';
+/** Por que o bloco da carga de contratos parou: tempo ou PNCP fora do ar. */
+export type BackfillStopReason = 'time' | 'pncp';
 
 /** A última execução da carga de contratos. */
 export interface BackfillRun {
@@ -560,9 +562,12 @@ export interface BackfillRun {
 }
 
 export interface ContractsCollection {
-  contracts: number;
-  /** Com vencimento de hoje em diante. */
-  activeContracts: number;
+  /** Contratos na versão em uso do armazém; null = sem cópia pronta ou sem publicação ainda. */
+  contracts: number | null;
+  /** Com vencimento de hoje em diante, na data da contagem (`countedOn`); null como acima. */
+  activeContracts: number | null;
+  /** Dia (AAAA-MM-DD) em que a última publicação contou os vigentes. */
+  countedOn: string | null;
   backfill: {
     completedDays: number;
     /** Dia de publicação mais antigo já carregado (AAAA-MM-DD). */

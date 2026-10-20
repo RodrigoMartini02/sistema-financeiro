@@ -63,7 +63,7 @@ export function TendersApp() {
         <Route index element={<HomeScreen />} />
         <Route path="buscar" element={<SearchScreen />} />
         <Route path="contratos" element={<ContractsScreen />} />
-        <Route path="contratos/:id" element={<ContractScreen />} />
+        <Route path="contratos/:chave" element={<ContractScreen />} />
         <Route path="editais/:id" element={<NoticeScreen />} />
         <Route path="buscas" element={<SavedSearchesScreen />} />
         <Route path="favoritos" element={<FavoritesScreen />} />

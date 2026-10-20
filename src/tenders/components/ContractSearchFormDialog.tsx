@@ -91,7 +91,7 @@ function PreviewPanel({ criteria }: { criteria: ContractSearchCriteriaBody | nul
         {items.length > 0 && (
           <ul className="mt-2 grid grid-cols-1 gap-2">
             {items.map((contract) => (
-              <li key={contract.id} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-800">
+              <li key={contract.pncpControlNumber} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-800">
                 <p className="line-clamp-2 text-xs font-semibold text-slate-800 dark:text-slate-100">{contract.contractObject}</p>
                 <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">{noticePlace(contract)}</p>
                 <div className="mt-1">

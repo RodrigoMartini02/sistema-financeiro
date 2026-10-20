@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createR2Storage } from '../objectStorage';
 import { PNCP_API_BASE_URL } from '../services/pncpDetails';
 import { loadCollectorConfig } from './config';
@@ -7,7 +9,8 @@ import { PncpClient } from './pncpClient';
 import type { CollectorContext } from './runs';
 
 // Ambiente de uma execução do coletor: configuração (variáveis de ambiente),
-// log, conexão própria com o banco, clientes do PNCP e o arquivo bruto no R2.
+// log, conexão própria com o banco, clientes do PNCP e o R2 (arquivo bruto e
+// armazém de contratos).
 // Usado pelo CLI do coletor e pela rotina diária (src/services/dailyJobs.ts).
 
 export interface CollectorRuntime {
@@ -18,6 +21,13 @@ export interface CollectorRuntime {
 
 /** Termos por página na API principal (a lista de um contrato costuma caber numa só). */
 const TERMS_PAGE_SIZE = 500;
+
+/**
+ * Cópia de trabalho do armazém de contratos, no disco temporário: a coleta e os
+ * avisos da mesma rotina usam a mesma pasta, e o que a coleta publicou já está
+ * lá quando os avisos começam.
+ */
+const CONTRACT_WORK_DIRECTORY = join(tmpdir(), 'licitacoes-contratos-coletor');
 
 /** Lê a configuração e prepara o banco do coletor. Configuração inválida: CollectorConfigError. */
 export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime {
@@ -42,7 +52,7 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
   }
 
   return {
-    context: { db, pool, pncp, contractsPncp, termsPncp, storage, config, logger, now: () => new Date() },
+    context: { db, pool, pncp, contractsPncp, termsPncp, storage, contractWorkDirectory: CONTRACT_WORK_DIRECTORY, config, logger, now: () => new Date() },
     close: async () => {
       storage?.close();
       await pool.end();

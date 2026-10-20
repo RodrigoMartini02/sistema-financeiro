@@ -1,9 +1,8 @@
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
-import type { TenderContractRow } from '../collector/contractMapping';
+import type { ContractTermSummary, TenderContractRow } from '../collector/contractMapping';
 import type { CollectorLogger } from '../collector/logger';
-import type { ContractTermSummary } from '../db/schema';
 import type { ObjectStorage } from '../objectStorage';
 import { openDuckDb, parquetList, sqlLiteral, toDuckDbPath } from './duckdb';
 import {
@@ -90,6 +89,24 @@ export interface PublishSummary {
   totals: StoreManifest['totals'];
 }
 
+/** O que a reconsulta dos termos precisa de um contrato com termos pendentes. */
+export interface PendingTermsContract {
+  pncpControlNumber: string;
+  agencyCnpj: string;
+  contractYear: number;
+  contractSequence: number;
+  contractObject: string;
+  originalTermEnd: string | null;
+  expiresOn: string | null;
+}
+
+/** Resultado da reconsulta de um contrato: o vencimento e os termos conferidos. */
+export interface CheckedContractTerms {
+  pncpControlNumber: string;
+  expiresOn: string | null;
+  amendments: ContractTermSummary[];
+}
+
 interface StateRow {
   numero_controle_pncp: string;
   vencimento: string | null;
@@ -127,6 +144,17 @@ function jsonColumns(dataset: StoreDataset): string {
 }
 
 const parquetOptions = `FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE ${ROW_GROUP_SIZE}`;
+
+// Termos pendentes: contrato com sinal de alteração (a atualização global mais
+// de 24 h depois da publicação, como hasChangeSignal em contractMapping.ts) cujos
+// termos não foram conferidos para a atualização global atual. Sobra quando o
+// PNCP falhou nos termos, na coleta diária ou na carga. As datas do PNCP são
+// texto (AAAA-MM-DDTHH:mm:ss...), e só os 19 primeiros caracteres contam.
+const PENDING_TERMS_COLUMNS =
+  'numero_controle_pncp, orgao_cnpj, ano_contrato, sequencial_contrato, objeto, vigencia_fim_original, vencimento, data_atualizacao_global, data_publicacao_pncp, aditivos_referencia';
+const PENDING_TERMS_CONDITION = `data_atualizacao_global IS NOT NULL
+  AND date_diff('second', try_cast(left(data_publicacao_pncp, 19) AS TIMESTAMP), try_cast(left(data_atualizacao_global, 19) AS TIMESTAMP)) > 86400
+  AND aditivos_referencia IS DISTINCT FROM left(data_atualizacao_global, 19)`;
 
 export class ContractStoreWriter {
   private publishCount = 0;
@@ -202,6 +230,90 @@ export class ContractStoreWriter {
       });
     }
     return states;
+  }
+
+  /** Os contratos como estão agora: das mudanças da execução, ou dos arquivos quando não mudaram. */
+  private currentRows(columns: string): string {
+    return `(SELECT ${columns} FROM mudancas
+             UNION ALL
+             SELECT ${columns} FROM atual_contratos WHERE numero_controle_pncp NOT IN (SELECT numero_controle_pncp FROM mudancas))`;
+  }
+
+  /** Total de contratos com termos pendentes (para os detalhes da reconsulta). */
+  async countPendingTerms(): Promise<number> {
+    const result = await this.connection.runAndReadAll(
+      `SELECT count(*)::INTEGER FROM ${this.currentRows(PENDING_TERMS_COLUMNS)} WHERE ${PENDING_TERMS_CONDITION}`,
+    );
+    return Number(result.getRows()[0]?.[0] ?? 0);
+  }
+
+  /**
+   * Contratos com termos pendentes, da atualização global mais antiga para a
+   * mais nova, menos os indicados (os que falharam na própria execução: esses
+   * voltam no dia seguinte).
+   */
+  async readPendingTerms(limit: number, excludedControlNumbers: readonly string[]): Promise<PendingTermsContract[]> {
+    const notExcluded =
+      excludedControlNumbers.length > 0 ? `AND numero_controle_pncp NOT IN (${excludedControlNumbers.map(sqlLiteral).join(', ')})` : '';
+    const result = await this.connection.runAndReadAll(`
+      SELECT numero_controle_pncp, orgao_cnpj, ano_contrato, sequencial_contrato, objeto, vigencia_fim_original, vencimento
+        FROM ${this.currentRows(PENDING_TERMS_COLUMNS)}
+       WHERE ${PENDING_TERMS_CONDITION} ${notExcluded}
+       ORDER BY left(data_atualizacao_global, 19), numero_controle_pncp
+       LIMIT ${Math.trunc(limit)}`);
+    return result.getRowObjectsJson().map((row) => ({
+      pncpControlNumber: String(row['numero_controle_pncp']),
+      agencyCnpj: String(row['orgao_cnpj']),
+      contractYear: Number(row['ano_contrato']),
+      contractSequence: Number(row['sequencial_contrato']),
+      contractObject: String(row['objeto']),
+      originalTermEnd: row['vigencia_fim_original'] === null ? null : String(row['vigencia_fim_original']),
+      expiresOn: row['vencimento'] === null ? null : String(row['vencimento']),
+    }));
+  }
+
+  /**
+   * Grava a reconsulta dos termos nas mudanças da execução: o vencimento, os
+   * termos e a conferência, que passa a ser a atualização global atual do
+   * contrato. O resto do contrato (inclusive os campos de busca) fica como está.
+   * São no máximo os contratos de uma reconsulta.
+   */
+  async saveCheckedTerms(checked: readonly CheckedContractTerms[]): Promise<void> {
+    if (checked.length === 0) {
+      return;
+    }
+    const path = join(this.options.directory, 'termos.ndjson');
+    await writeFile(
+      path,
+      checked
+        .map((item) =>
+          JSON.stringify({ numero_controle_pncp: item.pncpControlNumber, vencimento: item.expiresOn, aditivos: JSON.stringify(item.amendments) }),
+        )
+        .join('\n'),
+      'utf8',
+    );
+    const replaced: Record<string, string> = {
+      vencimento: 't.vencimento',
+      aditivos: 't.aditivos',
+      aditivos_referencia: 'left(b.data_atualizacao_global, 19)',
+    };
+    const select = columnsOf('contratos')
+      .map((spec) => `${replaced[spec.column] ?? `b.${spec.column}`} AS ${spec.column}`)
+      .join(', ');
+    try {
+      // Tabela temporária antes de gravar: a leitura e a gravação não se misturam na mesma tabela.
+      await this.connection.run(`
+        CREATE OR REPLACE TEMP TABLE termos_atualizados AS
+        SELECT ${select}
+          FROM ${this.currentRows(columnList('contratos'))} b
+          JOIN read_json(${sqlLiteral(toDuckDbPath(path))}, format = 'newline_delimited',
+                 columns = {numero_controle_pncp: 'VARCHAR', vencimento: 'DATE', aditivos: 'VARCHAR'}) t
+            ON t.numero_controle_pncp = b.numero_controle_pncp`);
+      await this.connection.run(`INSERT OR REPLACE INTO mudancas SELECT ${columnList('contratos')} FROM termos_atualizados`);
+    } finally {
+      await rm(path, { force: true });
+      await this.connection.run('DROP TABLE IF EXISTS termos_atualizados');
+    }
   }
 
   /**

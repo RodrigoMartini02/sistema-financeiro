@@ -6,20 +6,24 @@ import { EmptyState } from '../../ui/EmptyState';
 import { getLocalTodayIso } from '../../utils/date';
 import { fetchContract } from '../services/contractsService';
 import { tendersQueryKeys } from '../services/queryKeys';
-import type { TendersApiError } from '../services/tendersApiError';
+import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import type { ContractAmendment, ContractDetail } from '../types';
+import { contractPath } from '../utils/contractKey';
 import { formatIsoDate } from '../utils/dates';
 import { formatCnpj } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
 import { ContractBadges, ExpiryBadge } from './ContractBadges';
 import { ContractFavoriteButton } from './FavoriteButton';
-import { LoadError, LoadingBlock } from './LoadStates';
+import { ContractsUpdating, LoadError, LoadingBlock } from './LoadStates';
 
 // Detalhe do contrato (plano .plans/licitacoes-contratos-a-vencer.md, Parte B):
-// no painel lateral de "Contratos a vencer" (?contrato=) e na rota /contratos/:id.
+// no painel lateral de "Contratos a vencer" (?contrato=) e na rota /contratos/:chave.
 
 const linkClass =
   'inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-brand-300 hover:text-brand-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-brand-300';
+
+/** De quanto em quanto tempo a tela tenta de novo enquanto os contratos estão sendo atualizados. */
+const CONTRACTS_UPDATING_RETRY_MS = 15_000;
 
 const SPHERE_LABELS: Record<string, string> = { F: 'Federal', E: 'Estadual', M: 'Municipal', D: 'Distrital' };
 
@@ -137,7 +141,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
             )
           )}
           {inDrawer && (
-            <Link to={`/contratos/${contract.id}`} className={linkClass}>
+            <Link to={contractPath(contract.pncpControlNumber)} className={linkClass}>
               <Maximize2 size={14} aria-hidden="true" />
               Abrir em página própria
             </Link>
@@ -201,10 +205,12 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
 }
 
 /** Contrato pela API, com carregando, não encontrado e erro. */
-export function ContractDetailView({ contractId, inDrawer }: { contractId: number; inDrawer: boolean }) {
+export function ContractDetailView({ contractKey, inDrawer }: { contractKey: string; inDrawer: boolean }) {
   const detail = useQuery<ContractDetail, TendersApiError>({
-    queryKey: tendersQueryKeys.contract(contractId),
-    queryFn: () => fetchContract(contractId),
+    queryKey: tendersQueryKeys.contract(contractKey),
+    queryFn: () => fetchContract(contractKey),
+    // Contratos sendo atualizados: não é falha, e a tela tenta de novo sozinha.
+    refetchInterval: (query) => (isContractStoreUpdating(query.state.error) ? CONTRACTS_UPDATING_RETRY_MS : false),
   });
 
   if (detail.isPending) return <LoadingBlock label="Abrindo o contrato…" />;
@@ -222,6 +228,9 @@ export function ContractDetailView({ contractId, inDrawer }: { contractId: numbe
           }
         />
       );
+    }
+    if (isContractStoreUpdating(detail.error)) {
+      return <ContractsUpdating message={detail.error.message} onRetry={() => void detail.refetch()} retrying={detail.isFetching} />;
     }
     return <LoadError title="Não foi possível abrir o contrato" message={detail.error.message} onRetry={() => void detail.refetch()} retrying={detail.isFetching} />;
   }

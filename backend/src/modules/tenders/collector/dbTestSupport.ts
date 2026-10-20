@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import * as dotenv from 'dotenv';
 import type { Pool } from 'pg';
 import { TransactionRollbackError } from 'drizzle-orm';
 import { accounts } from '../../../db/schema/accounts';
 import { users } from '../../../db/schema/users';
 import {
-  tenderContracts,
   tenderEnabledAccounts,
   tenderNotices,
   tenderSavedSearches,
@@ -15,7 +16,6 @@ import {
 import type { TrackingStatus } from '../domains';
 import type { ObjectStorage } from '../objectStorage';
 import { loadCollectorConfig, type ContractsSettings } from './config';
-import type { TenderContractRow } from './contractMapping';
 import { createCollectorDatabase, type TendersDb } from './database';
 import { createCollectorLogger } from './logger';
 import { payloadHash, type TenderNoticeRow } from './mapping';
@@ -141,42 +141,14 @@ export async function insertSavedSearch(
   return search.id;
 }
 
-/** Contrato de teste com número de controle único (o banco local pode ter os contratos do piloto). */
-export function buildContractRow(overrides: Partial<TenderContractRow> = {}): TenderContractRow {
-  const pncpControlNumber = overrides.pncpControlNumber ?? `TESTE-${randomUUID().slice(0, 18)}`;
-  return {
-    pncpControlNumber,
-    contractYear: 2026,
-    contractSequence: 1,
-    agencyCnpj: '03353358000196',
-    contractObject: 'Contrato de teste',
-    // O termo inicial, como os gravados antes da migration 0087.
-    contractTypeId: 1,
-    contractTypeName: 'Contrato (termo inicial)',
-    termStart: '2026-01-01',
-    originalTermEnd: '2027-01-01',
-    expiresOn: '2027-01-01',
-    publishedAt: '2026-01-02T10:00:00',
-    payloadHash: payloadHash({ pncpControlNumber, ...overrides }),
-    ...overrides,
-  };
-}
-
-export async function insertTestContract(tx: TendersDb, overrides: Partial<TenderContractRow> = {}): Promise<number> {
-  const [contract] = await tx.insert(tenderContracts).values(buildContractRow(overrides)).returning({ id: tenderContracts.id });
-  if (!contract) {
-    throw new Error('contrato de teste não criado');
-  }
-  return contract.id;
-}
-
 /** Resposta simulada do PNCP para os clientes do contexto de teste. */
 export type FakePncpFetch = (url: URL) => Response | Promise<Response>;
 
 /**
  * Contexto do coletor sobre a transação do teste, com clientes do PNCP
  * simulados (sem rede e sem espera) e log desligado. As travas usam o pool
- * local, como na execução real. Sem `storage`, o R2 fica desligado.
+ * local, como na execução real. Sem `storage`, o R2 fica desligado (e a coleta
+ * de contratos, que mora nele, não roda).
  */
 export function createTestCollectorContext(
   tx: TendersDb,
@@ -186,6 +158,8 @@ export function createTestCollectorContext(
     now?: () => Date;
     contracts?: Partial<ContractsSettings>;
     storage?: ObjectStorage;
+    /** Cópia de trabalho do armazém de contratos; sem ela, uma pasta fixa do disco temporário. */
+    contractWorkDirectory?: string;
   },
 ): CollectorContext {
   const config = loadCollectorConfig({
@@ -209,6 +183,7 @@ export function createTestCollectorContext(
       fetch: fakeFetch(options.termsFetch ?? unexpected),
     }),
     storage: options.storage ?? null,
+    contractWorkDirectory: options.contractWorkDirectory ?? join(tmpdir(), 'licitacoes-teste-coletor'),
     config: { ...config, contracts: { ...config.contracts, ...options.contracts } },
     logger: createCollectorLogger('error', () => {}),
     now: options.now ?? (() => new Date()),

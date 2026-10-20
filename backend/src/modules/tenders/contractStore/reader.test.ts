@@ -54,7 +54,7 @@ test('armazém sem nenhuma publicação: pronto, com as visões vazias', async (
     const { storage } = createMemoryStorage();
     await withReader(storage, directory, async (reader) => {
       assert.equal(await reader.refresh(), true);
-      assert.deepEqual(reader.status(), { ready: true, revision: null, publishedAt: null, totals: null });
+      assert.deepEqual(reader.status(), { ready: true, revision: null, publishedAt: null, today: null, totals: null });
       assert.equal(await count(reader, 'contratos'), 0);
       assert.equal(await count(reader, 'vigentes'), 0);
       assert.equal(await count(reader, 'fornecedor'), 0);

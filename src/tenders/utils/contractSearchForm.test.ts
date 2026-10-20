@@ -103,6 +103,7 @@ test('busca salva de contratos: gravada → formulário, e o resumo do card', ()
     createdAt: null,
     updatedAt: null,
     activeCount: 12,
+    countedAt: '2026-10-19T06:30:00-03:00',
   };
   assert.equal(contractSavedSearchToForm(search).supplierCnpjs[0], '12345678000195');
   const summary = contractCriteriaSummary(search, { categoryName: () => 'Serviços' });

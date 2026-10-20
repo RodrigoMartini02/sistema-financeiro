@@ -78,7 +78,7 @@ export function FavoriteButton({ notice, variant = 'icon' }: FavoriteButtonProps
 }
 
 interface ContractFavoriteButtonProps {
-  contract: Pick<ContractListItem, 'id' | 'isFavorite'>;
+  contract: Pick<ContractListItem, 'pncpControlNumber' | 'isFavorite'>;
   variant?: FavoriteVariant;
 }
 
@@ -90,7 +90,7 @@ export function ContractFavoriteButton({ contract, variant = 'icon' }: ContractF
       favorite={favorite}
       pending={toggle.isPending}
       errorMessage={toggle.error?.message ?? null}
-      onToggle={() => toggle.mutate({ contractId: contract.id, favorite: !contract.isFavorite })}
+      onToggle={() => toggle.mutate({ contractKey: contract.pncpControlNumber, favorite: !contract.isFavorite })}
       variant={variant}
     />
   );

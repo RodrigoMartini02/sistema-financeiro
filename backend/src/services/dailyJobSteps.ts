@@ -28,7 +28,7 @@ function isSundayInBrasilia(instant: Date): boolean {
  * varredura de Licitações, os lembretes de prazo, a coleta dos contratos, os
  * avisos de vencimento dos contratos, aos domingos a limpeza dos editais e,
  * por último, a carga inicial de contratos (a mais longa: só roda com dias
- * pendentes e com TENDERS_CONTRACTS_MAX_DB_MB definida). Os contratos não têm
+ * pendentes e com o R2 configurado). Os contratos não têm
  * limpeza: os encerrados ficam na base (plano .plans/licitacoes-base-nacional.md).
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {

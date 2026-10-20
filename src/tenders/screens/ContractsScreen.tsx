@@ -14,7 +14,7 @@ import { ContractFiltersPanel } from '../components/ContractFiltersPanel';
 import { ContractSearchFormDialog, type ContractSearchFormTarget } from '../components/ContractSearchFormDialog';
 import { ContractTable } from '../components/ContractTable';
 import { FilterChips } from '../components/FilterChips';
-import { LoadError, LoadingBlock } from '../components/LoadStates';
+import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
 import { Pagination } from '../components/Pagination';
 import { useDomainLists, useDomainLookups } from '../hooks/useDomainLists';
 import { useStoredPreference } from '../hooks/useStoredPreference';
@@ -22,7 +22,7 @@ import { fetchContracts } from '../services/contractsService';
 import { fetchContractSavedSearches } from '../services/contractSearchesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { fetchCollectionStatus } from '../services/settingsService';
-import type { TendersApiError } from '../services/tendersApiError';
+import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import { CONTRACT_SORTS, type CollectionStatus, type ContractSearchResult } from '../types';
 import {
   CONTRACT_URL_PARAM,
@@ -34,6 +34,7 @@ import {
   withContractFilters,
   type ContractSearchState,
 } from '../utils/contractFilters';
+import { contractKeyFromParam } from '../utils/contractKey';
 import { contractStateToForm } from '../utils/contractSearchForm';
 import { formatIsoDateTime } from '../utils/dates';
 import { CONTRACT_SORT_LABELS, TERMS_MODE_LABELS } from '../utils/labels';
@@ -52,11 +53,8 @@ interface ContractDrawerNavigation {
 }
 const CONTRACT_DRAWER_STATE: ContractDrawerNavigation = { contractDrawer: true };
 
-function positiveId(text: string | null): number | null {
-  if (!text || !/^\d+$/.test(text)) return null;
-  const id = Number(text);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
+/** De quanto em quanto tempo a lista tenta de novo enquanto os contratos estão sendo atualizados. */
+const CONTRACTS_UPDATING_RETRY_MS = 15_000;
 
 /** Fim da última coleta diária de contratos, para o rodapé; sem coleta, null. */
 function lastContractsUpdate(status: CollectionStatus | undefined): { at: string | null; failed: boolean } | null {
@@ -73,7 +71,7 @@ export function ContractsScreen() {
   const state = useMemo(() => parseContractSearchParams(new URLSearchParams(paramsText)), [paramsText]);
   const apiQuery = useMemo(() => toContractApiQuery(state), [state]);
   const todayIso = getLocalTodayIso();
-  const contractId = positiveId(params.get(CONTRACT_URL_PARAM));
+  const contractKey = contractKeyFromParam(params.get(CONTRACT_URL_PARAM));
   const isDesktop = useTelaDesktop();
   const [view, setView] = useStoredPreference('licitacoes.contratos.visao', VIEW_OPTIONS, 'cards');
   const [density, setDensity] = useStoredPreference('licitacoes.contratos.tabela', DENSITY_OPTIONS, 'normal');
@@ -96,6 +94,7 @@ export function ContractsScreen() {
     queryKey: tendersQueryKeys.contractSearch(apiQuery),
     queryFn: () => fetchContracts(apiQuery),
     placeholderData: keepPreviousData,
+    refetchInterval: (query) => (isContractStoreUpdating(query.state.error) ? CONTRACTS_UPDATING_RETRY_MS : false),
   });
   const collection = useQuery<CollectionStatus, TendersApiError>({ queryKey: tendersQueryKeys.collectionStatus, queryFn: fetchCollectionStatus });
   const lastUpdate = lastContractsUpdate(collection.data);
@@ -133,9 +132,9 @@ export function ContractsScreen() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const detailLinkFor = (id: number) => {
+  const detailLinkFor = (key: string) => {
     const next = new URLSearchParams(params);
-    next.set(CONTRACT_URL_PARAM, String(id));
+    next.set(CONTRACT_URL_PARAM, key);
     return { search: `?${next.toString()}` };
   };
 
@@ -161,8 +160,10 @@ export function ContractsScreen() {
   );
 
   let content;
-  if (results.isPending) {
-    content = <LoadingBlock label="Buscando contratos…" />;
+  if (isContractStoreUpdating(results.error)) {
+    content = <ContractsUpdating message={results.error?.message} onRetry={() => void results.refetch()} retrying={results.isFetching} />;
+  } else if (results.isPending) {
+    content = <LoadingBlock label={state.includeClosed ? 'Buscando em todos os contratos…' : 'Buscando contratos…'} />;
   } else if (results.isError || !data) {
     content = (
       <LoadError
@@ -202,6 +203,12 @@ export function ContractsScreen() {
   } else {
     content = (
       <div className={`flex flex-1 flex-col gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
+        {results.isPlaceholderData && state.includeClosed && (
+          <p role="status" className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" aria-hidden="true" />
+            Buscando em todos os contratos…
+          </p>
+        )}
         {showTable ? (
           <ContractTable
             contracts={data.items}
@@ -213,8 +220,8 @@ export function ContractsScreen() {
         ) : (
           <ul className="grid grid-cols-1 gap-3">
             {data.items.map((contract) => (
-              <li key={contract.id}>
-                <ContractCard contract={contract} todayIso={todayIso} detailLink={detailLinkFor(contract.id)} detailLinkState={CONTRACT_DRAWER_STATE} />
+              <li key={contract.pncpControlNumber}>
+                <ContractCard contract={contract} todayIso={todayIso} detailLink={detailLinkFor(contract.pncpControlNumber)} detailLinkState={CONTRACT_DRAWER_STATE} />
               </li>
             ))}
           </ul>
@@ -398,8 +405,8 @@ export function ContractsScreen() {
         {filtersPanel}
       </Drawer>
 
-      <Drawer open={contractId !== null} title="Detalhe do contrato" onClose={closeContract}>
-        {contractId !== null && <ContractDetailView key={contractId} contractId={contractId} inDrawer />}
+      <Drawer open={contractKey !== null} title="Detalhe do contrato" onClose={closeContract}>
+        {contractKey !== null && <ContractDetailView key={contractKey} contractKey={contractKey} inDrawer />}
       </Drawer>
 
       <ContractSearchFormDialog target={formTarget} onClose={closeForm} onSaved={(saved) => setSavedName(saved.name)} />

@@ -6,16 +6,17 @@ import { Button } from '../../ui/button';
 import { EmptyState } from '../../ui/EmptyState';
 import { getLocalTodayIso } from '../../utils/date';
 import { ContractCard } from '../components/ContractCard';
-import { LoadError, LoadingBlock } from '../components/LoadStates';
+import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
 import { NoticeCard } from '../components/NoticeCard';
 import { Pagination } from '../components/Pagination';
 import { TabPanel, Tabs } from '../components/Tabs';
 import { fetchContracts } from '../services/contractsService';
 import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
-import type { TendersApiError } from '../services/tendersApiError';
+import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import type { ContractSearchResult, NoticeSearchResult, Paginated } from '../types';
 import { contractFavoritesApiQuery } from '../utils/contractFilters';
+import { contractPath } from '../utils/contractKey';
 import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
 import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS, SEARCH_URL_PARAMS, favoritesApiQuery, positiveInt } from '../utils/searchFilters';
 import { LIST_TABS, listTabOf, listTabParams, type ListTab } from '../utils/tabs';
@@ -25,8 +26,13 @@ interface PageState {
   perPage: number;
 }
 
-interface FavoritesListProps<Item extends { id: number }> {
+/** De quanto em quanto tempo a lista de contratos tenta de novo enquanto os contratos estão sendo atualizados. */
+const CONTRACTS_UPDATING_RETRY_MS = 15_000;
+
+interface FavoritesListProps<Item> {
   query: UseQueryResult<Paginated<Item>, TendersApiError>;
+  /** Identificador do item na lista: o id do edital, ou a chave do contrato. */
+  itemKey: (item: Item) => string | number;
   emptyDescription: string;
   emptyLink: { to: string; label: string };
   renderItem: (item: Item) => ReactNode;
@@ -35,10 +41,13 @@ interface FavoritesListProps<Item extends { id: number }> {
 }
 
 /** Lista paginada de favoritos (editais ou contratos), com carregando, erro e vazio. */
-function FavoritesList<Item extends { id: number }>({ query, emptyDescription, emptyLink, renderItem, perPage, goTo }: FavoritesListProps<Item>) {
+function FavoritesList<Item>({ query, itemKey, emptyDescription, emptyLink, renderItem, perPage, goTo }: FavoritesListProps<Item>) {
   const data = query.data;
   if (query.isPending) {
     return <LoadingBlock label="Carregando os favoritos…" />;
+  }
+  if (isContractStoreUpdating(query.error)) {
+    return <ContractsUpdating message={query.error?.message} onRetry={() => void query.refetch()} retrying={query.isFetching} />;
   }
   if (query.isError || !data) {
     return (
@@ -81,7 +90,7 @@ function FavoritesList<Item extends { id: number }>({ query, emptyDescription, e
     <div className={`flex flex-1 flex-col gap-4 transition-opacity ${query.isPlaceholderData ? 'opacity-60' : ''}`}>
       <ul className="grid grid-cols-1 gap-3">
         {data.items.map((item) => (
-          <li key={item.id}>{renderItem(item)}</li>
+          <li key={itemKey(item)}>{renderItem(item)}</li>
         ))}
       </ul>
       {/* Lista curta: a paginação desce até o rodapé da tela. */}
@@ -113,6 +122,7 @@ function FavoriteNotices({ page, perPage, goTo }: PageState & { goTo: (next: Pag
       </p>
       <FavoritesList
         query={favorites}
+        itemKey={(notice) => notice.id}
         emptyDescription="Marque o coração de um edital, em Buscar ou na página dele, para encontrá-lo aqui."
         emptyLink={{ to: '/buscar', label: 'Ir para Buscar' }}
         renderItem={(notice) => <NoticeCard notice={notice} detailLink={`/editais/${notice.id}`} />}
@@ -130,6 +140,7 @@ function FavoriteContracts({ page, perPage, goTo }: PageState & { goTo: (next: P
     queryKey: tendersQueryKeys.contractSearch(apiQuery),
     queryFn: () => fetchContracts(apiQuery),
     placeholderData: keepPreviousData,
+    refetchInterval: (query) => (isContractStoreUpdating(query.state.error) ? CONTRACTS_UPDATING_RETRY_MS : false),
   });
   return (
     <>
@@ -139,9 +150,10 @@ function FavoriteContracts({ page, perPage, goTo }: PageState & { goTo: (next: P
       </p>
       <FavoritesList
         query={favorites}
+        itemKey={(contract) => contract.pncpControlNumber}
         emptyDescription="Marque o coração de um contrato, em Contratos a vencer ou na página dele, para encontrá-lo aqui."
         emptyLink={{ to: '/contratos', label: 'Ir para Contratos a vencer' }}
-        renderItem={(contract) => <ContractCard contract={contract} todayIso={todayIso} detailLink={`/contratos/${contract.id}`} />}
+        renderItem={(contract) => <ContractCard contract={contract} todayIso={todayIso} detailLink={contractPath(contract.pncpControlNumber)} />}
         perPage={perPage}
         goTo={goTo}
       />

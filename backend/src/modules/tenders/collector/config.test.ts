@@ -33,11 +33,10 @@ test('contratos: 500 por página, 0,5 s entre termos, carga desde 2021 em blocos
     termsIntervalMs: 500,
     backfillFrom: '2021-01-01',
     backfillMinutes: 480,
-    maxDatabaseMb: null,
   });
 });
 
-test('contratos: o limite de espaço informado liga a carga, e os outros valores são lidos', () => {
+test('contratos: os valores informados são lidos; o limite de espaço do banco saiu (os contratos moram no R2)', () => {
   const config = loadCollectorConfig({
     TENDERS_COLLECTOR_DATABASE_URL: databaseUrl,
     TENDERS_CONTRACTS_MAX_DB_MB: '700',
@@ -45,7 +44,7 @@ test('contratos: o limite de espaço informado liga a carga, e os outros valores
     TENDERS_CONTRACTS_BACKFILL_FROM: '2024-01-01',
     TENDERS_CONTRACTS_BACKFILL_MINUTES: '60',
   });
-  assert.equal(config.contracts.maxDatabaseMb, 700);
+  assert.equal('maxDatabaseMb' in config.contracts, false);
   assert.equal(config.contracts.termsIntervalMs, 1000);
   assert.equal(config.contracts.backfillFrom, '2024-01-01');
   assert.equal(config.contracts.backfillMinutes, 60);
@@ -59,7 +58,6 @@ test('contratos: valores fora da faixa são recusados', () => {
     ['TENDERS_CONTRACTS_BACKFILL_MINUTES', '0'],
     ['TENDERS_CONTRACTS_BACKFILL_MINUTES', '601'],
     ['TENDERS_CONTRACTS_BACKFILL_FROM', '2021-02-30'],
-    ['TENDERS_CONTRACTS_MAX_DB_MB', '0'],
   ];
   for (const [key, value] of invalid) {
     assert.throws(() => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, [key]: value }), CollectorConfigError, `${key}=${value}`);

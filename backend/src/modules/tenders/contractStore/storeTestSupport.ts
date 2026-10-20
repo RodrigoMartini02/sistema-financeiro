@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import type { TenderContractRow } from '../collector/contractMapping';
 import { createCollectorLogger } from '../collector/logger';
 import type { ObjectStorage } from '../objectStorage';
+import { createMemoryStorage } from '../objectStorageTestSupport';
 import type { ContractSearchFields } from './layout';
+import { ContractStoreReader } from './reader';
 import type { ContractSearchFieldsProvider, SearchPhrasesProvider } from './textSearch';
 import { ContractStoreWriter, type ContractStoreWriterOptions } from './writer';
 
@@ -145,5 +147,46 @@ export async function publishWith(
     return await writer.publish();
   } finally {
     await writer.close();
+  }
+}
+
+export interface TestContractStore {
+  /** O leitor sobre a cópia local do armazém de exemplo, como o do Web Service. */
+  reader: ContractStoreReader;
+  storage: ObjectStorage;
+  /** Os objetos do R2 simulado. */
+  objects: Map<string, Uint8Array>;
+  close(): Promise<void>;
+}
+
+/**
+ * Armazém de exemplo pronto para ler: publica os contratos num R2 simulado e
+ * abre o leitor sobre a cópia. Os campos de busca vêm de `searchFields` (os
+ * simplificados, sem o Postgres, ou os do banco local nos testes de banco).
+ */
+export async function openTestContractStore(
+  contracts: readonly TenderContractRow[],
+  options: { searchFields?: ContractSearchFieldsProvider; today?: string } = {},
+): Promise<TestContractStore> {
+  const { storage, objects } = createMemoryStorage();
+  const directory = await mkdtemp(join(tmpdir(), 'armazem-exemplo-'));
+  try {
+    await publishWith(storage, join(directory, 'gravacao'), 1, async (writer) => {
+      await writer.upsert(contracts);
+    }, { searchFields: options.searchFields ?? simpleSearchFields, ...(options.today ? { today: options.today } : {}) });
+    const reader = await ContractStoreReader.create({ storage, directory: join(directory, 'leitura'), logger: quietLogger });
+    await reader.refresh();
+    return {
+      reader,
+      storage,
+      objects,
+      close: async () => {
+        await reader.close();
+        await rm(directory, { recursive: true, force: true, maxRetries: 3 });
+      },
+    };
+  } catch (error) {
+    await rm(directory, { recursive: true, force: true, maxRetries: 3 });
+    throw error;
   }
 }

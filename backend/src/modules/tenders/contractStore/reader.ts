@@ -55,13 +55,23 @@ export class ContractStoreTimeoutError extends Error {
   }
 }
 
+/** O armazém não pôde responder agora (sem cópia pronta, ou a consulta passou do limite): quem chama pode seguir sem a resposta. */
+export function isContractStoreBusy(error: unknown): boolean {
+  return error instanceof ContractStoreUnavailableError || error instanceof ContractStoreTimeoutError;
+}
+
 export interface ContractStoreStatus {
   ready: boolean;
   /** null: pronto, mas o armazém ainda não tem nenhuma publicação. */
   revision: string | null;
   publishedAt: string | null;
+  /** Dia (AAAA-MM-DD, Brasília) em que a publicação contou os vigentes. */
+  today: string | null;
   totals: StoreManifest['totals'] | null;
 }
+
+/** O que as buscas e os avisos usam do armazém: consultar, e saber se já há cópia pronta. */
+export type ContractStoreAccess = Pick<ContractStoreReader, 'query' | 'status'>;
 
 interface Waiter {
   resolve: (connection: DuckDBConnection) => void;
@@ -114,6 +124,7 @@ export class ContractStoreReader {
       ready: this.ready,
       revision: this.manifest?.revision ?? null,
       publishedAt: this.manifest?.publishedAt ?? null,
+      today: this.manifest?.today ?? null,
       totals: this.manifest?.totals ?? null,
     };
   }

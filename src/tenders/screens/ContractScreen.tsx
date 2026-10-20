@@ -2,13 +2,14 @@ import { ArrowLeft, FileSearch } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../ui/EmptyState';
 import { ContractDetailView } from '../components/ContractDetailView';
+import { contractKeyFromParam } from '../utils/contractKey';
 
-/** Contrato em página própria (/contratos/:id), aberta também pelos links das notificações. */
+/** Contrato em página própria (/contratos/:chave), aberta também pelos links das notificações. */
 export function ContractScreen() {
-  const { id } = useParams();
+  const { chave } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const contractId = id && /^\d+$/.test(id) && Number(id) > 0 ? Number(id) : null;
+  const contractKey = contractKeyFromParam(chave);
   // Chegou por link direto (primeira página aberta no app): voltar leva para Contratos a vencer.
   const canGoBack = location.key !== 'default';
 
@@ -23,7 +24,7 @@ export function ContractScreen() {
         Voltar
       </button>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-6">
-        {contractId === null ? (
+        {contractKey === null ? (
           <EmptyState
             icon={FileSearch}
             title="Contrato não encontrado."
@@ -34,7 +35,7 @@ export function ContractScreen() {
             }
           />
         ) : (
-          <ContractDetailView key={contractId} contractId={contractId} inDrawer={false} />
+          <ContractDetailView key={contractKey} contractKey={contractKey} inDrawer={false} />
         )}
       </div>
     </section>

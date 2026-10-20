@@ -18,8 +18,10 @@ import { readContractSavedSearchCriteria, readContractSavedSearchInput } from '.
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 import { contractSavedSearchBodyValidators, contractSavedSearchCriteriaValidators, idParam } from './validators';
 
-// Buscas salvas de contratos da pessoa na conta (plano
-// .plans/licitacoes-contratos-a-vencer.md, Parte B), com as mesmas rotas das de editais.
+// Buscas salvas de contratos da pessoa na conta (planos
+// .plans/licitacoes-contratos-a-vencer.md, Parte B, e
+// .plans/licitacoes-contratos-no-r2.md, Parte R2), com as mesmas rotas das de
+// editais. A prévia e o total ao salvar são contados no armazém do R2.
 
 export function contractSearchRoutes(deps: TendersApiDeps): Router {
   const router = Router();
@@ -45,7 +47,7 @@ export function contractSearchRoutes(deps: TendersApiDeps): Router {
     previewLimiter,
     [...contractSavedSearchCriteriaValidators, validate],
     tenderRoute('Tender contract search preview failed:', 'Não foi possível calcular a prévia agora.', async (req, res) => {
-      const preview = await previewContractSavedSearch(deps.db, requesterOf(req), readContractSavedSearchCriteria(req.body));
+      const preview = await previewContractSavedSearch(deps, requesterOf(req), readContractSavedSearchCriteria(req.body));
       res.json({ success: true, data: preview });
     }),
   );
@@ -54,7 +56,7 @@ export function contractSearchRoutes(deps: TendersApiDeps): Router {
     '/',
     [...contractSavedSearchBodyValidators, validate],
     tenderRoute('Tender contract search create failed:', 'Não foi possível salvar a busca agora.', async (req, res) => {
-      const saved = await createContractSavedSearch(deps.db, requesterOf(req), readContractSavedSearchInput(req.body));
+      const saved = await createContractSavedSearch(deps, requesterOf(req), readContractSavedSearchInput(req.body));
       res.status(201).json({ success: true, data: saved });
     }),
   );
@@ -63,7 +65,7 @@ export function contractSearchRoutes(deps: TendersApiDeps): Router {
     '/:id',
     [idParam(), ...contractSavedSearchBodyValidators, validate],
     tenderRoute('Tender contract search update failed:', 'Não foi possível alterar a busca agora.', async (req, res) => {
-      const saved = await updateContractSavedSearch(deps.db, requesterOf(req), Number(req.params['id']), readContractSavedSearchInput(req.body));
+      const saved = await updateContractSavedSearch(deps, requesterOf(req), Number(req.params['id']), readContractSavedSearchInput(req.body));
       res.json({ success: true, data: saved });
     }),
   );

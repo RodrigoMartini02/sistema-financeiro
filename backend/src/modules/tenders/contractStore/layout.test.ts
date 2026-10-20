@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CONTRACT_COLUMNS, SUPPLIER_COLUMNS, fromStoreRecord, storeFileKey, toStoreRecord, type ContractSearchFields } from './layout';
+import { CONTRACT_COLUMNS, SUPPLIER_COLUMNS, fromStoreRecord, isContractKey, storeFileKey, toStoreRecord, type ContractSearchFields } from './layout';
 import { sampleContract } from './storeTestSupport';
 
 const searchFields: ContractSearchFields = {
@@ -51,4 +51,31 @@ test('conjunto fornecedor: só colunas que existem nos contratos', () => {
 test('nome do arquivo: conjunto, pasta, versão e sequência com 4 dígitos', () => {
   assert.equal(storeFileKey('contratos', '2026', '3331.1', 7), 'contratos/arquivos/contratos/2026/v3331.1-0007.parquet');
   assert.equal(storeFileKey('vigentes', '2026-10-19', '12.2', 1), 'contratos/arquivos/vigentes/2026-10-19/v12.2-0001.parquet');
+});
+
+test('chave do contrato: o número de controle do PNCP ou comprasgov-<id>; qualquer outra coisa não entra em consulta', () => {
+  for (const valid of ['03353358000196-2-000216/2026', '00394460005887-1-1234567/2021', 'comprasgov-98765']) {
+    assert.equal(isContractKey(valid), true, valid);
+  }
+  const invalid = [
+    '',
+    '1',
+    '03353358000196-2-000216',
+    '03353358000196-2-000216/26',
+    '3353358000196-2-000216/2026',
+    "03353358000196-2-000216/2026'",
+    "03353358000196-2-000216/2026'; DROP TABLE contrato; --",
+    '03353358000196-2-000216/2026\n',
+    'comprasgov-',
+    'comprasgov-abc',
+    '../03353358000196-2-000216/2026',
+    `${'1'.repeat(14)}-2-${'3'.repeat(60)}/2026`,
+    null,
+    undefined,
+    2026,
+    {},
+  ];
+  for (const value of invalid) {
+    assert.equal(isContractKey(value), false, String(value));
+  }
 });

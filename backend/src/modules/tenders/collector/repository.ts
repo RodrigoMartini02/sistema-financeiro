@@ -9,7 +9,7 @@ import {
   type CollectionRunDetails,
 } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
-import { readContractsStatus } from './contractRepository';
+import { readBackfillProgress } from './contractProgress';
 import type { TendersDb } from './database';
 import type { TenderNoticeRow } from './mapping';
 
@@ -173,7 +173,7 @@ export async function readCollectionStatus(db: TendersDb) {
     })
     .from(tenderNotices);
 
-  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 }, contracts: await readContractsStatus(db) };
+  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 }, contracts: { backfill: await readBackfillProgress(db) } };
 }
 
 /**

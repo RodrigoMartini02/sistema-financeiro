@@ -7,6 +7,7 @@ import { usePatchContractSavedSearch } from '../hooks/useContractSearchMutations
 import type { ContractSavedSearch } from '../types';
 import { CONTRACT_URL_PARAMS } from '../utils/contractFilters';
 import { contractCriteriaSummary } from '../utils/contractSearchForm';
+import { contractSavedSearchTotal } from '../utils/savedSearchTotal';
 import { Pill } from './Pill';
 
 interface ContractSearchCardProps {
@@ -26,6 +27,7 @@ export function ContractSearchCard({ search, lookups, onEdit, onDuplicate, onDel
   const notify = pending?.notify ?? search.notify;
   const resultsLink = `/contratos?${CONTRACT_URL_PARAMS.savedSearch}=${search.id}`;
   const summary = contractCriteriaSummary(search, lookups);
+  const total = contractSavedSearchTotal(search);
 
   return (
     <article
@@ -58,8 +60,8 @@ export function ContractSearchCard({ search, lookups, onEdit, onDuplicate, onDel
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-slate-700 dark:text-slate-200">
-          <strong className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{search.activeCount.toLocaleString('pt-BR')}</strong>{' '}
-          {search.activeCount === 1 ? 'contrato vigente' : 'contratos vigentes'}
+          <strong className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{total.count}</strong> {total.label}
+          {total.note && <span className="block text-[11px] text-slate-500 dark:text-slate-400">{total.note}</span>}
         </p>
         <Link
           to={resultsLink}

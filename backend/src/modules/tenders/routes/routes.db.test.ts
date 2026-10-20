@@ -8,10 +8,12 @@ import {
   closeLocalTestDatabase,
   createTestAccount,
   databaseTestsSkipReason,
-  insertTestContract,
   insertTestNotice,
   withRollback,
 } from '../collector/dbTestSupport';
+import { ContractStoreUnavailableError, type ContractStoreAccess } from '../contractStore/reader';
+import { openTestContractStore, sampleContract } from '../contractStore/storeTestSupport';
+import { postgresSearchFields } from '../contractStore/textSearch';
 import { tenderEnabledAccounts } from '../db/schema';
 import type { TenderAccount } from '../services/access';
 import type { ContractDetail } from '../services/contractDetail';
@@ -68,7 +70,13 @@ type SearchData = Paginated<NoticeListItem> & {
 
 type ApiCall = <T = unknown>(method: string, path: string, options?: { as: TestUser; body?: unknown }) => Promise<ApiResponse<T>>;
 
-async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>): Promise<void> {
+/** O armazém de contratos ainda sem cópia pronta (o servidor acabou de subir): as buscas de contratos esperam. */
+const UPDATING_STORE: ContractStoreAccess = {
+  query: () => Promise.reject(new ContractStoreUnavailableError()),
+  status: () => ({ ready: false, revision: null, publishedAt: null, today: null, totals: null }),
+};
+
+async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>, contractStore: ContractStoreAccess = UPDATING_STORE): Promise<void> {
   let currentUser: TestUser | undefined;
   const app = express();
   app.use(express.json());
@@ -81,6 +89,7 @@ async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>): Pr
   const { routes, adminRoutes } = createTendersRoutes({
     db: tx,
     pncpDetails: { fetchDetailList: async () => [] },
+    contractStore,
     now: () => new Date(),
   });
   app.use(
@@ -456,11 +465,11 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
       const notEnabled = await createTestAccount(tx, 'http-contrato-sem', { enabled: false });
       const enabled = await createTestAccount(tx, 'http-contrato-com');
       const memberWithoutAccess = await addAccountMember(tx, enabled, 'http-contrato-semlib', { access: false });
-      const contractId = await insertTestContract(tx, { expiresOn: '2030-01-01' });
+      const contractPath = `/api/tenders/contracts/${encodeURIComponent(sampleContract(1).pncpControlNumber)}`;
       await withApi(tx, async (call) => {
         const outsider = { id: notEnabled.ownerId, type: 'titular' as const };
         const blocked = { id: memberWithoutAccess, type: 'membro' as const };
-        for (const path of ['/api/tenders/contracts', `/api/tenders/contracts/${contractId}`, '/api/tenders/contract-searches']) {
+        for (const path of ['/api/tenders/contracts', contractPath, '/api/tenders/contract-searches']) {
           assert.equal((await call('GET', path, { as: outsider })).status, 404, path);
           assert.equal((await call('GET', path, { as: blocked })).status, 403, path);
         }
@@ -471,7 +480,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
           .where(eq(tenderEnabledAccounts.accountId, enabled.accountId));
         const titular = { id: enabled.ownerId, type: 'titular' as const };
         assert.equal((await call('GET', '/api/tenders/contracts', { as: titular })).status, 402);
-        assert.equal((await call('PUT', `/api/tenders/contracts/${contractId}/favorite`, { as: titular })).status, 402);
+        assert.equal((await call('PUT', `${contractPath}/favorite`, { as: titular })).status, 402);
       });
     });
   });
@@ -479,55 +488,145 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
   test('contratos por HTTP: busca, detalhe, favorito, buscas salvas e validações', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'http-contratos');
-      const token = uniqueToken();
-      const contractId = await insertTestContract(tx, { contractObject: `Contrato http ${token}`, categoryId: 8, expiresOn: '2030-01-01' });
+      const contract = sampleContract(7, { contractObject: 'Contrato http de limpeza predial', categoryId: 8, expiresOn: '2030-01-01' });
+      const other = sampleContract(8, { contractObject: 'Contrato http de obra', categoryId: 7, expiresOn: '2030-02-01' });
+      const key = contract.pncpControlNumber;
+      const keyPath = encodeURIComponent(key);
+      const store = await openTestContractStore([contract, other], { searchFields: postgresSearchFields(tx) });
+      try {
+        await withApi(
+          tx,
+          async (call) => {
+            const as = { id: account.ownerId, type: 'titular' as const };
+            type ContractSearchData = Paginated<ContractListItem> & { parsedQuery: { terms: string[] } };
+
+            const found = await call<ContractSearchData>('GET', `/api/tenders/contracts?q=${encodeURIComponent('limpeza')}&category=8&sort=relevance`, { as });
+            assert.equal(found.status, 200);
+            assert.deepEqual(found.body.data.items.map((item) => item.pncpControlNumber), [key]);
+            assert.deepEqual(found.body.data.parsedQuery.terms, ['limpeza']);
+
+            const detail = await call<ContractDetail>('GET', `/api/tenders/contracts/${keyPath}`, { as });
+            assert.equal(detail.status, 200);
+            assert.equal(detail.body.data.pncpControlNumber, key, 'a chave tem barra e vai codificada na URL');
+            assert.equal(detail.body.data.isFavorite, false);
+            assert.equal((await call('GET', `/api/tenders/contracts/${encodeURIComponent('99999999999999-2-999999/2026')}`, { as })).status, 404, 'fora do armazém');
+            for (const invalid of ['999999999', "x'; DROP TABLE y", '03353358000196-2-000216', encodeURIComponent('../x')]) {
+              assert.equal((await call('GET', `/api/tenders/contracts/${invalid}`, { as })).status, 404, `chave fora do formato: ${invalid}`);
+              assert.equal((await call('PUT', `/api/tenders/contracts/${invalid}/favorite`, { as })).status, 404);
+            }
+
+            const favorite = await call<{ pncpControlNumber: string; isFavorite: boolean }>('PUT', `/api/tenders/contracts/${keyPath}/favorite`, { as });
+            assert.deepEqual(favorite.body.data, { pncpControlNumber: key, isFavorite: true });
+            const favorites = await call<ContractSearchData>('GET', '/api/tenders/contracts?favoritesOnly=true', { as });
+            assert.deepEqual(favorites.body.data.items.map((item) => [item.pncpControlNumber, item.isFavorite]), [[key, true]]);
+            assert.equal((await call('DELETE', `/api/tenders/contracts/${keyPath}/favorite`, { as })).status, 200);
+            assert.equal((await call<ContractSearchData>('GET', '/api/tenders/contracts?favoritesOnly=true', { as })).body.data.total, 0);
+
+            const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', {
+              as,
+              body: { name: 'Contratos http', terms: ['limpeza'], categories: [8] },
+            });
+            assert.equal(created.status, 201);
+            assert.equal(created.body.data.activeCount, 1);
+            assert.ok(created.body.data.countedAt, 'o total vem com a data da contagem');
+            const searchId = created.body.data.id;
+            const bySaved = await call<ContractSearchData>('GET', `/api/tenders/contracts?savedSearchId=${searchId}`, { as });
+            assert.deepEqual(bySaved.body.data.items.map((item) => item.pncpControlNumber), [key]);
+            const patched = await call<ContractSavedSearchView>('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: { notify: false } });
+            assert.equal(patched.body.data.notify, false);
+            assert.equal((await call('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: {} })).status, 400);
+            assert.equal((await call('POST', `/api/tenders/contract-searches/${searchId}/duplicate`, { as })).status, 201);
+            const preview = await call<{ count: number }>('POST', '/api/tenders/contract-searches/preview', { as, body: { terms: ['limpeza'] } });
+            assert.equal(preview.body.data.count, 1);
+            assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 200);
+            assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 404);
+
+            const invalid = await call('GET', '/api/tenders/contracts?category=99&supplierCnpj=123&expiryFrom=31-12-2026&contractYear=1999&sort=prazo', { as });
+            assert.equal(invalid.status, 400);
+            assert.deepEqual(invalid.body.errors?.map((error) => error.field).sort(), ['category', 'contractYear', 'expiryFrom', 'sort', 'supplierCnpj']);
+            assert.equal((await call('GET', '/api/tenders/contracts?sort=relevance', { as })).status, 400, 'relevância sem termos');
+            assert.equal((await call('GET', '/api/tenders/contracts?expiryFrom=2027-01-01&expiryTo=2026-01-01', { as })).status, 400);
+            const emptySearch = await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'Vazia' } });
+            assert.equal(emptySearch.status, 400);
+            assert.match(String(emptySearch.body.message), /ao menos um critério/);
+            assert.equal((await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'x', categories: [99] } })).status, 400);
+          },
+          store.reader,
+        );
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
+  test('contratos com o armazém atualizando: 503 com o código próprio, e o resto do módulo segue', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-contratos-atualizando');
+      const key = encodeURIComponent(sampleContract(1).pncpControlNumber);
       await withApi(tx, async (call) => {
         const as = { id: account.ownerId, type: 'titular' as const };
-        type ContractSearchData = Paginated<ContractListItem> & { parsedQuery: { terms: string[] } };
-
-        const found = await call<ContractSearchData>('GET', `/api/tenders/contracts?q=${encodeURIComponent(token)}&category=8&sort=relevance`, { as });
-        assert.equal(found.status, 200);
-        assert.deepEqual(found.body.data.items.map((item) => item.id), [contractId]);
-        assert.deepEqual(found.body.data.parsedQuery.terms, [token]);
-
-        const detail = await call<ContractDetail>('GET', `/api/tenders/contracts/${contractId}`, { as });
-        assert.equal(detail.status, 200);
-        assert.equal(detail.body.data.isFavorite, false);
-        assert.equal((await call('GET', '/api/tenders/contracts/999999999', { as })).status, 404);
-
-        const favorite = await call<{ contractId: number; isFavorite: boolean }>('PUT', `/api/tenders/contracts/${contractId}/favorite`, { as });
-        assert.deepEqual(favorite.body.data, { contractId, isFavorite: true });
-        const favorites = await call<ContractSearchData>('GET', `/api/tenders/contracts?q=${encodeURIComponent(token)}&favoritesOnly=true`, { as });
-        assert.deepEqual(favorites.body.data.items.map((item) => [item.id, item.isFavorite]), [[contractId, true]]);
-        assert.equal((await call('DELETE', `/api/tenders/contracts/${contractId}/favorite`, { as })).status, 200);
-
-        const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', {
-          as,
-          body: { name: 'Contratos http', terms: [token], categories: [8] },
-        });
+        for (const [method, path, body] of [
+          ['GET', '/api/tenders/contracts?q=limpeza', undefined],
+          ['GET', `/api/tenders/contracts/${key}`, undefined],
+          ['PUT', `/api/tenders/contracts/${key}/favorite`, undefined],
+          ['POST', '/api/tenders/contract-searches/preview', { terms: ['limpeza'] }],
+        ] as const) {
+          const response = await call(method, path, { as, ...(body ? { body } : {}) });
+          assert.equal(response.status, 503, `${method} ${path}`);
+          assert.deepEqual(response.body, {
+            success: false,
+            code: 'CONTRACT_STORE_UPDATING',
+            message: 'Os contratos estão sendo atualizados. Tente de novo em instantes.',
+          });
+        }
+        // Tirar o favorito, listar e salvar buscas, e os editais não dependem do armazém.
+        assert.equal((await call('DELETE', `/api/tenders/contracts/${key}/favorite`, { as })).status, 200);
+        assert.equal((await call('GET', '/api/tenders/contract-searches', { as })).status, 200);
+        const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', { as, body: { name: 'Sem total ainda', terms: ['limpeza'] } });
         assert.equal(created.status, 201);
-        assert.equal(created.body.data.activeCount, 1);
-        const searchId = created.body.data.id;
-        const bySaved = await call<ContractSearchData>('GET', `/api/tenders/contracts?savedSearchId=${searchId}`, { as });
-        assert.deepEqual(bySaved.body.data.items.map((item) => item.id), [contractId]);
-        const patched = await call<ContractSavedSearchView>('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: { notify: false } });
-        assert.equal(patched.body.data.notify, false);
-        assert.equal((await call('PATCH', `/api/tenders/contract-searches/${searchId}`, { as, body: {} })).status, 400);
-        assert.equal((await call('POST', `/api/tenders/contract-searches/${searchId}/duplicate`, { as })).status, 201);
-        const preview = await call<{ count: number }>('POST', '/api/tenders/contract-searches/preview', { as, body: { terms: [token] } });
-        assert.equal(preview.body.data.count, 1);
-        assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 200);
-        assert.equal((await call('DELETE', `/api/tenders/contract-searches/${searchId}`, { as })).status, 404);
+        assert.equal(created.body.data.activeCount, null);
+        assert.equal((await call('GET', '/api/tenders/notices?q=qualquercoisa', { as })).status, 200);
+      });
+    });
+  });
 
-        const invalid = await call('GET', '/api/tenders/contracts?category=99&supplierCnpj=123&expiryFrom=31-12-2026&contractYear=1999&sort=prazo', { as });
-        assert.equal(invalid.status, 400);
-        assert.deepEqual(invalid.body.errors?.map((error) => error.field).sort(), ['category', 'contractYear', 'expiryFrom', 'sort', 'supplierCnpj']);
-        assert.equal((await call('GET', '/api/tenders/contracts?sort=relevance', { as })).status, 400, 'relevância sem termos');
-        assert.equal((await call('GET', '/api/tenders/contracts?expiryFrom=2027-01-01&expiryTo=2026-01-01', { as })).status, 400);
-        const emptySearch = await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'Vazia' } });
-        assert.equal(emptySearch.status, 400);
-        assert.match(String(emptySearch.body.message), /ao menos um critério/);
-        assert.equal((await call('POST', '/api/tenders/contract-searches', { as, body: { name: 'x', categories: [99] } })).status, 400);
+  test('status da coleta: os totais de contratos vêm do manifesto do armazém; sem cópia pronta, vêm vazios', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-coleta-contratos');
+      const as = { id: account.ownerId, type: 'titular' as const };
+      type StatusData = { contracts: { contracts: number | null; activeContracts: number | null; countedOn: string | null; backfill: { completedDays: number } } };
+      const store = await openTestContractStore([
+        sampleContract(1, { expiresOn: '2030-01-01' }),
+        sampleContract(2, { expiresOn: '2031-01-01' }),
+        sampleContract(3, { expiresOn: null, originalTermEnd: null }),
+        sampleContract(4, { termStart: '2024-01-01', originalTermEnd: '2025-01-01', expiresOn: '2025-01-01' }),
+      ]);
+      try {
+        await withApi(
+          tx,
+          async (call) => {
+            const status = await call<StatusData>('GET', '/api/tenders/collection/status', { as });
+            assert.equal(status.status, 200);
+            assert.deepEqual(
+              { ...status.body.data.contracts, backfill: undefined },
+              { contracts: 4, activeContracts: 2, countedOn: '2026-10-19', backfill: undefined },
+              'a data da contagem dos vigentes é a da publicação',
+            );
+            assert.equal(typeof status.body.data.contracts.backfill.completedDays, 'number');
+          },
+          store.reader,
+        );
+      } finally {
+        await store.close();
+      }
+
+      await withApi(tx, async (call) => {
+        const status = await call<StatusData>('GET', '/api/tenders/collection/status', { as });
+        assert.equal(status.status, 200);
+        assert.deepEqual(
+          { contracts: status.body.data.contracts.contracts, activeContracts: status.body.data.contracts.activeContracts, countedOn: status.body.data.contracts.countedOn },
+          { contracts: null, activeContracts: null, countedOn: null },
+        );
       });
     });
   });

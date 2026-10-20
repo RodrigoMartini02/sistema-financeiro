@@ -1,17 +1,25 @@
 import { and, asc, count, eq, sql } from 'drizzle-orm';
 import { RequestInputError } from '../../../utils/requestInput';
+import { brasiliaDate } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
+import { phraseContractCriteria } from '../contractStore/criteria';
+import { countActiveContracts } from '../contractStore/queries';
+import { isContractStoreBusy } from '../contractStore/reader';
+import { postgresSearchPhrases } from '../contractStore/textSearch';
 import { tenderContractSavedSearches } from '../db/schema';
 import type { SearchTermsMode } from '../domains';
-import { contractCriteriaOnlyFilters, searchContracts, type ContractCriteria, type ContractListItem } from './contractSearch';
+import { contractCriteriaOnlyFilters, searchContracts, type ContractContext, type ContractCriteria, type ContractListItem } from './contractSearch';
 import { toBrasiliaIso } from './dates';
 import { MAX_SAVED_SEARCHES_PER_USER, MAX_SAVED_SEARCH_NAME_LENGTH, PREVIEW_SIZE } from './savedSearches';
 
-// Buscas salvas de contratos da pessoa na conta (plano
-// .plans/licitacoes-contratos-a-vencer.md, Parte B), no modelo das de editais:
+// Buscas salvas de contratos da pessoa na conta (planos
+// .plans/licitacoes-contratos-a-vencer.md, Parte B, e
+// .plans/licitacoes-contratos-no-r2.md, Parte R2), no modelo das de editais:
 // pessoais (sempre filtradas por conta e por pessoa), com o mesmo limite de 50,
 // contado à parte, e sem notificação retroativa. O total de vigentes que já
-// batem aparece em `activeCount`.
+// batem (`activeCount`) é contado no armazém ao salvar e na rotina diária, e a
+// lista mostra o total gravado e a data da contagem (`countedAt`): listar não
+// consulta o armazém.
 
 const NOT_FOUND_MESSAGE = 'Busca salva não encontrada';
 
@@ -41,8 +49,10 @@ export interface ContractSavedSearchView {
   active: boolean;
   createdAt: string | null;
   updatedAt: string | null;
-  /** Contratos vigentes que batem com a busca agora. */
-  activeCount: number;
+  /** Contratos vigentes que batem com a busca na última contagem; null = ainda não contado. */
+  activeCount: number | null;
+  /** Quando o total foi contado (ISO, Brasília); null = ainda não contado. */
+  countedAt: string | null;
 }
 
 type ContractSavedSearchRow = typeof tenderContractSavedSearches.$inferSelect;
@@ -89,7 +99,7 @@ export function assertValidContractCriteria(criteria: ContractCriteria): void {
   }
 }
 
-function toView(row: ContractSavedSearchRow, activeCount: number): ContractSavedSearchView {
+function toView(row: ContractSavedSearchRow): ContractSavedSearchView {
   return {
     id: row.id,
     name: row.name,
@@ -100,7 +110,8 @@ function toView(row: ContractSavedSearchRow, activeCount: number): ContractSaved
     active: row.active,
     createdAt: toBrasiliaIso(row.createdAt),
     updatedAt: toBrasiliaIso(row.updatedAt),
-    activeCount,
+    activeCount: row.activeTotal,
+    countedAt: toBrasiliaIso(row.activeTotalAt),
   };
 }
 
@@ -131,40 +142,44 @@ function ownedBy(requester: Requester, searchId: number) {
   );
 }
 
-// Total de vigentes por busca. SQL escrito à mão pelo mesmo motivo de
-// savedSearchMatches.ts: a consulta de texto de cada busca é calculada uma vez
-// (CTE materializada), e a condição solta `busca_tsv @@ consulta` existe só para
-// o banco usar o índice GIN. Quem decide se o contrato bate é sempre
-// licitacoes.fn_contrato_atende_criterios + licitacoes.fn_contrato_vigente.
-const MATCHES_SEARCH = sql`
-  licitacoes.fn_contrato_atende_criterios(
-    c, bs.consulta, bs.exclusao, bs.ufs, bs.municipios, bs.orgaos, bs.categorias, bs.fornecedores,
-    bs.valor_min, bs.valor_max, bs.incluir_sem_valor)
-  AND licitacoes.fn_contrato_vigente(c)`;
-
-/** Contratos vigentes que batem com cada busca da pessoa, por id da busca (inclui as inativas). */
-export async function countActiveMatchesBySearch(db: TendersDb, requester: Requester, searchIds?: number[]): Promise<Map<number, number>> {
-  const onlyIds = searchIds ? sql`AND b.id = ANY (${sql.param(searchIds)}::bigint[])` : sql``;
-  const result = await db.execute<{ id: string; active_count: string }>(sql`
-    WITH buscas AS MATERIALIZED (
-      SELECT b.id, b.ufs, b.municipios_ibge::text[] AS municipios, b.orgaos_cnpj::text[] AS orgaos, b.categorias,
-             b.fornecedores_cnpj::text[] AS fornecedores, b.valor_min, b.valor_max, b.incluir_sem_valor,
-             licitacoes.fn_tsquery_termos(b.termos, b.modo_termos) AS consulta,
-             licitacoes.fn_tsquery_termos(b.termos_exclusao, 'OU') AS exclusao
-        FROM licitacoes.busca_salva_contrato b
-       WHERE b.conta_id = ${requester.accountId} AND b.usuario_id = ${requester.userId} ${onlyIds})
-    SELECT bs.id,
-           (SELECT count(*) FROM licitacoes.contrato c
-             WHERE bs.consulta IS NOT NULL AND c.busca_tsv @@ bs.consulta AND ${MATCHES_SEARCH})
-         + (SELECT count(*) FROM licitacoes.contrato c
-             WHERE bs.consulta IS NULL AND ${MATCHES_SEARCH}) AS active_count
-      FROM buscas bs`);
-  return new Map(result.rows.map((row) => [Number(row.id), Number(row.active_count)]));
+/** Vigentes que batem com os critérios agora, contados no armazém. */
+export async function countActiveMatches(context: ContractContext, criteria: ContractCriteria): Promise<number> {
+  const phrased = await phraseContractCriteria(postgresSearchPhrases(context.db), criteria);
+  const today = brasiliaDate(context.now());
+  return context.contractStore.query((connection) => countActiveContracts(connection, phrased, today));
 }
 
-async function withActiveCount(db: TendersDb, requester: Requester, row: ContractSavedSearchRow): Promise<ContractSavedSearchView> {
-  const counts = await countActiveMatchesBySearch(db, requester, [row.id]);
-  return toView(row, counts.get(row.id) ?? 0);
+/** Grava o total de vigentes da busca e a hora da contagem. */
+export async function saveSavedSearchTotal(db: TendersDb, searchId: number, total: number): Promise<void> {
+  await db
+    .update(tenderContractSavedSearches)
+    .set({ activeTotal: total, activeTotalAt: sql`now()` })
+    .where(eq(tenderContractSavedSearches.id, searchId));
+}
+
+/**
+ * Conta os vigentes da busca recém-salva e grava o total. O salvamento não
+ * depende do armazém: com ele atualizando ou lento, a busca fica sem total até
+ * a rotina diária contar.
+ */
+async function withFreshTotal(context: ContractContext, row: ContractSavedSearchRow): Promise<ContractSavedSearchRow> {
+  let total: number;
+  try {
+    total = await countActiveMatches(context, contractSavedSearchCriteria(row));
+  } catch (error) {
+    if (isContractStoreBusy(error)) {
+      console.warn('Tender contract saved search count postponed:', (error as Error).message);
+      return row;
+    }
+    throw error;
+  }
+  await saveSavedSearchTotal(context.db, row.id, total);
+  const [saved] = await context.db
+    .select()
+    .from(tenderContractSavedSearches)
+    .where(eq(tenderContractSavedSearches.id, row.id))
+    .limit(1);
+  return saved ?? row;
 }
 
 async function assertBelowLimit(db: TendersDb, requester: Requester): Promise<void> {
@@ -194,46 +209,43 @@ export async function listContractSavedSearches(db: TendersDb, requester: Reques
     .from(tenderContractSavedSearches)
     .where(and(eq(tenderContractSavedSearches.accountId, requester.accountId), eq(tenderContractSavedSearches.userId, requester.userId)))
     .orderBy(asc(tenderContractSavedSearches.name), asc(tenderContractSavedSearches.id));
-  if (rows.length === 0) {
-    return [];
-  }
-  const counts = await countActiveMatchesBySearch(db, requester);
-  return rows.map((row) => toView(row, counts.get(row.id) ?? 0));
+  return rows.map(toView);
 }
 
 export async function createContractSavedSearch(
-  db: TendersDb,
+  context: ContractContext,
   requester: Requester,
   input: ContractSavedSearchInput,
 ): Promise<ContractSavedSearchView> {
   assertValidContractCriteria(input);
-  await assertBelowLimit(db, requester);
-  const [row] = await db
+  await assertBelowLimit(context.db, requester);
+  const [row] = await context.db
     .insert(tenderContractSavedSearches)
     .values({ ...storedValues(input), accountId: requester.accountId, userId: requester.userId })
     .returning();
   if (!row) {
     throw new Error('busca salva de contratos não criada');
   }
-  return withActiveCount(db, requester, row);
+  return toView(await withFreshTotal(context, row));
 }
 
 export async function updateContractSavedSearch(
-  db: TendersDb,
+  context: ContractContext,
   requester: Requester,
   searchId: number,
   input: ContractSavedSearchInput,
 ): Promise<ContractSavedSearchView> {
   assertValidContractCriteria(input);
-  const [row] = await db
+  // Os critérios mudaram: o total antigo não vale mais, e fica sem total se a contagem nova não puder ser feita agora.
+  const [row] = await context.db
     .update(tenderContractSavedSearches)
-    .set({ ...storedValues(input), updatedAt: sql`now()` })
+    .set({ ...storedValues(input), activeTotal: null, activeTotalAt: null, updatedAt: sql`now()` })
     .where(ownedBy(requester, searchId))
     .returning();
   if (!row) {
     throw new RequestInputError(NOT_FOUND_MESSAGE, 404);
   }
-  return withActiveCount(db, requester, row);
+  return toView(await withFreshTotal(context, row));
 }
 
 export async function patchContractSavedSearch(
@@ -254,7 +266,7 @@ export async function patchContractSavedSearch(
   if (!row) {
     throw new RequestInputError(NOT_FOUND_MESSAGE, 404);
   }
-  return withActiveCount(db, requester, row);
+  return toView(row);
 }
 
 export async function deleteContractSavedSearch(db: TendersDb, requester: Requester, searchId: number): Promise<void> {
@@ -276,16 +288,17 @@ export async function duplicateContractSavedSearch(db: TendersDb, requester: Req
   if (!row) {
     throw new Error('cópia da busca salva de contratos não criada');
   }
-  return withActiveCount(db, requester, row);
+  // Os critérios são os mesmos, então a cópia leva o total e a data da original.
+  return toView(row);
 }
 
 /** Prévia do formulário: quantos vigentes batem e os 5 primeiros pelo vencimento. Não grava nada. */
 export async function previewContractSavedSearch(
-  db: TendersDb,
+  context: ContractContext,
   requester: Requester,
   criteria: ContractCriteria,
 ): Promise<{ count: number; items: ContractListItem[] }> {
   assertValidContractCriteria(criteria);
-  const result = await searchContracts(db, requester, contractCriteriaOnlyFilters(criteria, PREVIEW_SIZE));
+  const result = await searchContracts(context, requester, contractCriteriaOnlyFilters(criteria, PREVIEW_SIZE));
   return { count: result.total, items: result.items };
 }

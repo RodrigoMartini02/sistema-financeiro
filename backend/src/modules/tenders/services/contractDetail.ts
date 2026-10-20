@@ -1,24 +1,24 @@
 import { and, eq } from 'drizzle-orm';
 import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
-import { tenderContractFavorites, tenderContracts, tenderNotices } from '../db/schema';
+import type { ContractTermSummary } from '../collector/contractMapping';
+import { isContractKey } from '../contractStore/layout';
+import { contractExists, readContract } from '../contractStore/queries';
+import { tenderContractFavorites, tenderNotices } from '../db/schema';
 import type { SupplierPersonType } from '../domains';
-import { contractPncpLink, contractTypeLabel } from './contractSearch';
+import { contractPncpLink, contractTypeLabel, type ContractContext } from './contractSearch';
 import { toBrasiliaIso } from './dates';
+import type { SearchRequester } from './noticeSearch';
 
-// Detalhe do contrato e favoritos (plano .plans/licitacoes-contratos-a-vencer.md,
-// Parte B). O contrato é público (tabela global); o favorito é só da pessoa, na
-// conta da requisição.
+// Detalhe do contrato e favoritos (planos .plans/licitacoes-contratos-a-vencer.md,
+// Parte B, e .plans/licitacoes-contratos-no-r2.md, Parte R2). O contrato é
+// público e mora no armazém do R2, identificado pelo número de controle do PNCP
+// (a "chave"); o favorito é só da pessoa, na conta da requisição, e guarda a chave.
 
-const CONTRACT_NOT_FOUND = 'Contrato não encontrado';
+export const CONTRACT_NOT_FOUND = 'Contrato não encontrado';
 
 /** Número de controle da compra no PNCP: CNPJ do órgão, sequencial e ano ("03353358000196-1-000216/2026"). */
 const PURCHASE_CONTROL_NUMBER = /^(\d{14})-\d+-0*(\d+)\/(\d{4})$/;
-
-interface Requester {
-  accountId: number;
-  userId: number;
-}
 
 /** Aditivo ou rescisão do contrato, como o PNCP informa (sem os apostilamentos). */
 export interface ContractAmendmentView {
@@ -32,7 +32,7 @@ export interface ContractAmendmentView {
 }
 
 export interface ContractDetail {
-  id: number;
+  /** Número de controle do PNCP: o identificador do contrato nas rotas, nos favoritos e nos avisos. */
   pncpControlNumber: string;
   purchaseControlNumber: string | null;
   contractYear: number;
@@ -91,42 +91,61 @@ export function purchasePncpLink(purchaseControlNumber: string | null): string |
   return `https://pncp.gov.br/app/editais/${cnpj}/${year}/${sequence}`;
 }
 
+/** A chave do contrato vinda da URL; fora do formato, "não encontrado", sem consultar nada. */
+export function parseContractKey(value: unknown): string {
+  if (!isContractKey(value)) {
+    throw new RequestInputError(CONTRACT_NOT_FOUND, 404);
+  }
+  return value;
+}
+
 /** Favorito da pessoa na conta, para o contrato informado. */
-function favoriteOf(requester: Requester, contractId: typeof tenderContracts.id | number) {
+function favoriteOf(requester: SearchRequester, key: string) {
   return and(
     eq(tenderContractFavorites.accountId, requester.accountId),
     eq(tenderContractFavorites.userId, requester.userId),
-    eq(tenderContractFavorites.contractId, contractId),
+    eq(tenderContractFavorites.contractKey, key),
   );
 }
 
-export async function assertContractExists(db: TendersDb, contractId: number): Promise<void> {
-  const [contract] = await db
-    .select({ id: tenderContracts.id })
-    .from(tenderContracts)
-    .where(eq(tenderContracts.id, contractId))
-    .limit(1);
-  if (!contract) {
-    throw new RequestInputError(CONTRACT_NOT_FOUND, 404);
+/** Compra de origem do contrato na base de editais, pelo número de controle da compra. */
+async function readOriginNoticeId(db: TendersDb, purchaseControlNumber: string | null): Promise<number | null> {
+  if (purchaseControlNumber === null) {
+    return null;
   }
+  const [notice] = await db
+    .select({ id: tenderNotices.id })
+    .from(tenderNotices)
+    .where(eq(tenderNotices.pncpControlNumber, purchaseControlNumber))
+    .limit(1);
+  return notice?.id ?? null;
 }
 
-export async function getContractDetail(db: TendersDb, requester: Requester, contractId: number): Promise<ContractDetail> {
-  const [row] = await db
-    .select({ contract: tenderContracts, favoritedAt: tenderContractFavorites.createdAt, originNoticeId: tenderNotices.id })
-    .from(tenderContracts)
-    .leftJoin(tenderContractFavorites, favoriteOf(requester, tenderContracts.id))
-    .leftJoin(tenderNotices, eq(tenderNotices.pncpControlNumber, tenderContracts.purchaseControlNumber))
-    .where(eq(tenderContracts.id, contractId))
+async function isFavoriteOf(db: TendersDb, requester: SearchRequester, key: string): Promise<boolean> {
+  const [favorite] = await db
+    .select({ createdAt: tenderContractFavorites.createdAt })
+    .from(tenderContractFavorites)
+    .where(favoriteOf(requester, key))
     .limit(1);
-  if (!row) {
+  return favorite !== undefined;
+}
+
+function toAmendmentView(term: ContractTermSummary): ContractAmendmentView {
+  return { ...term, addedValue: term.addedValue === null ? null : Number(term.addedValue) };
+}
+
+export async function getContractDetail(context: ContractContext, requester: SearchRequester, key: string): Promise<ContractDetail> {
+  const data = await context.contractStore.query((connection) => readContract(connection, key));
+  if (!data) {
     throw new RequestInputError(CONTRACT_NOT_FOUND, 404);
   }
 
-  const { contract: data } = row;
+  const [originNoticeId, isFavorite] = await Promise.all([
+    readOriginNoticeId(context.db, data.purchaseControlNumber),
+    isFavoriteOf(context.db, requester, key),
+  ]);
   const toNumber = (value: string | null) => (value === null ? null : Number(value));
   return {
-    id: data.id,
     pncpControlNumber: data.pncpControlNumber,
     purchaseControlNumber: data.purchaseControlNumber,
     contractYear: data.contractYear,
@@ -138,7 +157,7 @@ export async function getContractDetail(db: TendersDb, requester: Requester, con
     governmentSphere: data.governmentSphere,
     unitCode: data.unitCode,
     unitName: data.unitName,
-    state: data.state?.trim() ?? null,
+    state: data.state,
     cityName: data.cityName,
     cityIbgeCode: data.cityIbgeCode,
     categoryId: data.categoryId,
@@ -157,38 +176,47 @@ export async function getContractDetail(db: TendersDb, requester: Requester, con
     originalTermEnd: data.originalTermEnd,
     expiresOn: data.expiresOn,
     isExtended: data.expiresOn !== data.originalTermEnd,
-    amendments: data.amendments?.map((term) => ({ ...term, addedValue: toNumber(term.addedValue) })) ?? null,
+    amendments: data.amendments?.map(toAmendmentView) ?? null,
     publishedAt: toBrasiliaIso(data.publishedAt),
     pncpUpdatedAt: toBrasiliaIso(data.pncpUpdatedAt),
     lastCollectedAt: toBrasiliaIso(data.lastCollectedAt),
     pncpLink: contractPncpLink(data.agencyCnpj, data.contractYear, data.contractSequence),
-    originNoticeId: row.originNoticeId,
-    originPncpLink: row.originNoticeId === null ? purchasePncpLink(data.purchaseControlNumber) : null,
-    isFavorite: row.favoritedAt !== null,
+    originNoticeId,
+    originPncpLink: originNoticeId === null ? purchasePncpLink(data.purchaseControlNumber) : null,
+    isFavorite,
   };
 }
 
-/** Marca o contrato como favorito da pessoa na conta. Repetir não duplica; contrato inexistente: 404. */
+/**
+ * Marca o contrato como favorito da pessoa na conta. Repetir não duplica;
+ * contrato que não está no armazém: 404 (o favorito só guarda a chave, então a
+ * conferência é aqui).
+ */
 export async function addContractFavorite(
-  db: TendersDb,
-  requester: Requester,
-  contractId: number,
-): Promise<{ contractId: number; isFavorite: true }> {
-  await assertContractExists(db, contractId);
-  await db
+  context: ContractContext,
+  requester: SearchRequester,
+  key: string,
+): Promise<{ pncpControlNumber: string; isFavorite: true }> {
+  if (!(await context.contractStore.query((connection) => contractExists(connection, key)))) {
+    throw new RequestInputError(CONTRACT_NOT_FOUND, 404);
+  }
+  await context.db
     .insert(tenderContractFavorites)
-    .values({ accountId: requester.accountId, userId: requester.userId, contractId })
+    .values({ accountId: requester.accountId, userId: requester.userId, contractKey: key })
     .onConflictDoNothing();
-  return { contractId, isFavorite: true };
+  return { pncpControlNumber: key, isFavorite: true };
 }
 
-/** Tira o contrato dos favoritos da pessoa na conta. Se não era favorito, nada muda; contrato inexistente: 404. */
+/**
+ * Tira o contrato dos favoritos da pessoa na conta. Se não era favorito, nada
+ * muda. Não consulta o armazém: tirar o favorito vale mesmo enquanto os
+ * contratos estão sendo atualizados.
+ */
 export async function removeContractFavorite(
   db: TendersDb,
-  requester: Requester,
-  contractId: number,
-): Promise<{ contractId: number; isFavorite: false }> {
-  await assertContractExists(db, contractId);
-  await db.delete(tenderContractFavorites).where(favoriteOf(requester, contractId));
-  return { contractId, isFavorite: false };
+  requester: SearchRequester,
+  key: string,
+): Promise<{ pncpControlNumber: string; isFavorite: false }> {
+  await db.delete(tenderContractFavorites).where(favoriteOf(requester, key));
+  return { pncpControlNumber: key, isFavorite: false };
 }

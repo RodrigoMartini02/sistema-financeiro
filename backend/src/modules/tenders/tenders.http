@@ -17,7 +17,8 @@
 @token = cole-aqui-o-token
 @accountId = 18
 @noticeId = 1
-@contractId = 1
+# Número de controle do contrato (a "chave"), com a barra codificada (%2F) no caminho.
+@contractKey = 03353358000196-2-000216%2F2026
 
 ### Login (pegue data.token da resposta)
 POST {{host}}/api/auth/login
@@ -167,15 +168,15 @@ GET {{baseUrl}}/contracts?accountId={{accountId}}&contractType=7&contractType=12
 Authorization: Bearer {{token}}
 
 ### Detalhe do contrato (aditivos, edital de origem e favorito)
-GET {{baseUrl}}/contracts/{{contractId}}?accountId={{accountId}}
+GET {{baseUrl}}/contracts/{{contractKey}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
 ### Favoritar contrato (da pessoa logada; de novo não duplica)
-PUT {{baseUrl}}/contracts/{{contractId}}/favorite?accountId={{accountId}}
+PUT {{baseUrl}}/contracts/{{contractKey}}/favorite?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
 ### Tirar contrato dos favoritos
-DELETE {{baseUrl}}/contracts/{{contractId}}/favorite?accountId={{accountId}}
+DELETE {{baseUrl}}/contracts/{{contractKey}}/favorite?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
 ### Buscas salvas de contratos, com activeCount (vigentes agora); limite de 50 à parte das de editais

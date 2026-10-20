@@ -3,6 +3,7 @@ import type { BackfillStopReason } from '../collector/contractRuns';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
 import { readCollectionStatus } from '../collector/repository';
+import type { ContractStoreAccess } from '../contractStore/reader';
 import { tenderCollectionRuns, type CollectionRunDetails } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
 import { toBrasiliaIso } from './dates';
@@ -139,9 +140,12 @@ export interface BackfillRunView {
 }
 
 export interface ContractsOverview {
-  contracts: number;
-  /** Com vencimento de hoje em diante (Brasília). */
-  activeContracts: number;
+  /** Contratos na versão do armazém em uso; null = o armazém ainda não tem cópia pronta, ou nenhuma publicação. */
+  contracts: number | null;
+  /** Com vencimento de hoje em diante, na data da contagem (`countedOn`); null como acima. */
+  activeContracts: number | null;
+  /** Dia (AAAA-MM-DD, Brasília) em que a última publicação contou os vigentes; null como acima. */
+  countedOn: string | null;
   backfill: {
     completedDays: number;
     /** Dia de publicação mais antigo já carregado. */
@@ -159,7 +163,7 @@ export interface CollectionStatusView {
   contracts: ContractsOverview;
 }
 
-const BACKFILL_STOP_REASONS: readonly BackfillStopReason[] = ['time', 'space', 'pncp'];
+const BACKFILL_STOP_REASONS: readonly BackfillStopReason[] = ['time', 'pncp'];
 
 /** Detalhes da carga gravados pela execução (contractRuns.ts); fora do formato, null. */
 export function backfillRunView(details: CollectionRunDetails | undefined): BackfillRunView | null {
@@ -176,9 +180,11 @@ export function backfillRunView(details: CollectionRunDetails | undefined): Back
   return { from, to, totalDays, pendingDays: pendingAfter, stoppedBy: stopReason, finished: finished === true };
 }
 
-export async function readCollectionOverview(db: TendersDb, now: Date): Promise<CollectionStatusView> {
+export async function readCollectionOverview(db: TendersDb, contractStore: ContractStoreAccess, now: Date): Promise<CollectionStatusView> {
   const status = await readCollectionStatus(db);
   const lastBackfill = status.latestRuns.find((run) => run.type === 'CONTRATOS_CARGA');
+  // Os totais de contratos vêm do manifesto do armazém (versão em uso), não de uma consulta.
+  const stored = contractStore.status();
   return {
     latestRuns: status.latestRuns.map(toRunView),
     nextRuns: Object.fromEntries(SCHEDULED_RUN_TYPES.map((type) => [type, nextScheduledRun(type, now)])) as Record<
@@ -187,8 +193,9 @@ export async function readCollectionOverview(db: TendersDb, now: Date): Promise<
     >,
     totals: status.totals,
     contracts: {
-      contracts: status.contracts.contracts,
-      activeContracts: status.contracts.activeContracts,
+      contracts: stored.totals?.contracts ?? null,
+      activeContracts: stored.totals?.active ?? null,
+      countedOn: stored.today,
       backfill: {
         completedDays: status.contracts.backfill.completedDays,
         oldestDay: status.contracts.backfill.oldestDay,
