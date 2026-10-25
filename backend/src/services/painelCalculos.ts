@@ -441,6 +441,35 @@ export function montarSerie(
   return pontos;
 }
 
+/** Ponto da série com o juros ainda em aberto que cai no trecho (plano .plans/financas-pendencias.md, E2). */
+export interface PontoSerieComJurosAVencer extends PontoSerie {
+  jurosAVencer: number;
+}
+
+/**
+ * Distribui o juros guardado nas linhas ainda não pagas pelos trechos da série, pela data de caixa da
+ * linha em aberto (o vencimento: no crédito com cartão, o da fatura). `fora` é o que cai antes ou depois
+ * da janela do gráfico. Cada linha está em um só lado: a paga entra em `juros` (jurosDaDespesa) e a
+ * aberta aqui, então as barras mais `fora` somam o total de sumUpcomingInterest.
+ */
+export function distribuirJurosAVencer(
+  pontos: PontoSerie[],
+  emAberto: DespesaPainel[],
+): { pontos: PontoSerieComJurosAVencer[]; fora: number } {
+  const resultado = pontos.map((ponto) => ({ ...ponto, jurosAVencer: 0 }));
+  const centavos = (valor: number) => Math.round(valor * 100) / 100;
+  let fora = 0;
+  for (const despesa of emAberto) {
+    const juros = despesa.pago ? 0 : despesa.interest ?? 0;
+    if (juros <= 0) continue;
+    const dia = dataDeCaixa(despesa);
+    const ponto = resultado.find((item) => dia >= item.inicio && dia <= item.fim);
+    if (ponto) ponto.jurosAVencer = centavos(ponto.jurosAVencer + juros);
+    else fora = centavos(fora + juros);
+  }
+  return { pontos: resultado, fora };
+}
+
 export interface FormaPagamentoAgregada {
   forma: string;
   valor: number;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatCurrency } from '../../formatters';
 import { useCoresGrafico } from '../coresGrafico';
 import { useTransicao } from '../base';
@@ -19,6 +19,10 @@ export interface SerieBarras {
   rotulo: string;
   cor: string | ((valor: number) => string);
   corFuturo?: string;
+  /** Séries com a mesma `pilha` ficam empilhadas na mesma coluna do trecho. Sem ela, cada série é uma coluna (ou todas na mesma, com `empilhar`). */
+  pilha?: string;
+  /** Listras diagonais na cor da série, para o que ainda vai acontecer, no lugar do preenchimento liso. */
+  padrao?: boolean;
 }
 
 interface BarrasProps {
@@ -75,6 +79,10 @@ export function Barras({
   const detalhe = useDetalhe();
   const { ref, largura } = useLargura();
   const [ativo, setAtivo] = useState<number | null>(null);
+  const idPadrao = useId().replace(/:/g, '');
+  // Colunas de cada trecho: com `empilhar`, uma só; senão, uma por `pilha` (ou por série, sem ela). Cada coluna guarda os índices das séries.
+  const chavesDeColuna = series.map((serie) => (empilhar ? 'todas' : serie.pilha ?? serie.chave));
+  const colunas = [...new Set(chavesDeColuna)].map((chave) => series.map((_, k) => k).filter((k) => chavesDeColuna[k] === chave));
 
   const alvo = pontos.map((ponto) => series.map((serie) => ponto.valores[serie.chave] ?? 0));
   const { de, p } = useTransicao(alvo, JSON.stringify(alvo), 800);
@@ -90,13 +98,13 @@ export function Barras({
   const m = { esquerda: semEixo ? 0 : 46, direita: 4, topo: 8, base: semEixo ? 4 : 24 };
   const larguraUtil = Math.max(0, largura - m.esquerda - m.direita);
   const alturaUtil = altura - m.topo - m.base;
-  const positivo = (linha: number[]) => (empilhar ? linha.reduce((s, v) => s + Math.max(0, v), 0) : Math.max(0, ...linha));
+  const positivo = (linha: number[]) => Math.max(0, ...colunas.map((indices) => indices.reduce((soma, k) => soma + Math.max(0, linha[k] ?? 0), 0)));
   const topo = escalaBonita(Math.max(1, ...alvo.map(positivo)));
   const fundo = sinal ? -escalaBonita(Math.max(1, ...alvo.map((linha) => -Math.min(0, ...linha)))) : 0;
   const y = (valor: number) => m.topo + alturaUtil - ((valor - fundo) / (topo - fundo)) * alturaUtil;
 
   const banda = larguraUtil / Math.max(1, pontos.length);
-  const grupo = empilhar ? 1 : series.length;
+  const grupo = colunas.length;
   const larguraBarra = Math.max(2, Math.min(LARGURA_MAXIMA_BARRA, (banda * 0.72) / grupo));
   const vao = grupo > 1 ? Math.min(4, larguraBarra * 0.2) : 0;
   // Rótulos do eixo sem se sobrepor: em tela estreita, pula alguns.
@@ -131,6 +139,16 @@ export function Barras({
     <div ref={ref} className="w-full" style={{ height: altura }}>
       {largura > 0 && (
         <svg width={largura} height={altura} viewBox={`0 0 ${largura} ${altura}`} className="block overflow-visible" aria-hidden="true">
+          {series.some((serie) => serie.padrao) && (
+            <defs>
+              {series.filter((serie) => serie.padrao).map((serie) => (
+                <pattern key={serie.chave} id={`${idPadrao}-${serie.chave}`} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+                  <rect width={6} height={6} fill={cores.superficie} />
+                  <rect width={2.5} height={6} fill={typeof serie.cor === 'string' ? serie.cor : cores.negativo} />
+                </pattern>
+              ))}
+            </defs>
+          )}
           {!semEixo && [0, 1, 2, 3, 4].map((passo) => {
             const valor = fundo + ((topo - fundo) * passo) / 4;
             return (
@@ -144,8 +162,6 @@ export function Barras({
           {pontos.map((ponto, i) => {
             const x0 = m.esquerda + banda * i;
             const inicio = x0 + (banda - (larguraBarra * grupo + vao * (grupo - 1))) / 2;
-            let pilha = 0;
-            const ultimaComValor = desenhado[i]!.reduce((ultima, valor, k) => (Math.abs(valor) > 1e-9 ? k : ultima), -1);
             return (
               <g key={`${ponto.rotulo}-${i}`}>
                 <rect
@@ -156,20 +172,29 @@ export function Barras({
                   onPointerMove={detalhe.mover}
                   onPointerLeave={fechar}
                 />
-                {series.map((serie, k) => {
-                  const valor = desenhado[i]![k]!;
-                  if (Math.abs(valor) < 1e-9) return null;
-                  const x = empilhar ? inicio : inicio + k * (larguraBarra + vao);
-                  const base = empilhar ? pilha : 0;
-                  if (empilhar) pilha += valor;
-                  const ya = y(base + Math.max(0, valor));
-                  const yb = y(base + Math.min(0, valor));
-                  const raio = Math.min(5, larguraBarra / 2, (yb - ya) / 2);
-                  const arredonda = !empilhar || k === ultimaComValor;
-                  const d = valor >= 0
-                    ? `M${x} ${yb}V${ya + (arredonda ? raio : 0)}${arredonda ? `Q${x} ${ya} ${x + raio} ${ya}H${x + larguraBarra - raio}Q${x + larguraBarra} ${ya} ${x + larguraBarra} ${ya + raio}` : `H${x + larguraBarra}`}V${yb}Z`
-                    : `M${x} ${ya}V${yb - raio}Q${x} ${yb} ${x + raio} ${yb}H${x + larguraBarra - raio}Q${x + larguraBarra} ${yb} ${x + larguraBarra} ${yb - raio}V${ya}Z`;
-                  return <path key={serie.chave} d={d} fill={corDa(serie, alvo[i]![k]!, ponto)} pointerEvents="none" />;
+                {colunas.flatMap((indices, c) => {
+                  const x = inicio + c * (larguraBarra + vao);
+                  const empilhada = indices.length > 1;
+                  let pilha = 0;
+                  const ultimaDaColuna = indices.reduce((ultima, k) => (Math.abs(desenhado[i]![k]!) > 1e-9 ? k : ultima), -1);
+                  return indices.map((k) => {
+                    const serie = series[k]!;
+                    const valor = desenhado[i]![k]!;
+                    if (Math.abs(valor) < 1e-9) return null;
+                    const base = empilhada ? pilha : 0;
+                    if (empilhada) pilha += valor;
+                    const ya = y(base + Math.max(0, valor));
+                    const yb = y(base + Math.min(0, valor));
+                    const raio = Math.min(5, larguraBarra / 2, (yb - ya) / 2);
+                    const arredonda = !empilhada || k === ultimaDaColuna;
+                    const d = valor >= 0
+                      ? `M${x} ${yb}V${ya + (arredonda ? raio : 0)}${arredonda ? `Q${x} ${ya} ${x + raio} ${ya}H${x + larguraBarra - raio}Q${x + larguraBarra} ${ya} ${x + larguraBarra} ${ya + raio}` : `H${x + larguraBarra}`}V${yb}Z`
+                      : `M${x} ${ya}V${yb - raio}Q${x} ${yb} ${x + raio} ${yb}H${x + larguraBarra - raio}Q${x + larguraBarra} ${yb} ${x + larguraBarra} ${yb - raio}V${ya}Z`;
+                    const cor = corDa(serie, alvo[i]![k]!, ponto);
+                    return serie.padrao
+                      ? <path key={serie.chave} d={d} fill={`url(#${idPadrao}-${serie.chave})`} stroke={cor} strokeWidth={1} pointerEvents="none" />
+                      : <path key={serie.chave} d={d} fill={cor} pointerEvents="none" />;
+                  });
                 })}
                 {!semEixo && i % passoRotulo === 0 && (
                   <text x={x0 + banda / 2} y={altura - 6} textAnchor="middle" className="fill-slate-400 text-[11px]">{ponto.rotulo}</text>

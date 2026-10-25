@@ -114,12 +114,18 @@ export function Indicador({ rotulo, valor, nota, tom = 'text-slate-900 dark:text
   );
 }
 
-export function Legenda({ itens }: { itens: { cor: string; nome: string }[] }) {
+export function Legenda({ itens }: { itens: { cor: string; nome: string; padrao?: boolean }[] }) {
   return (
     <ul className="m-0 flex list-none flex-wrap gap-x-3.5 gap-y-1 p-0 text-[11.5px] text-slate-600 dark:text-slate-300">
       {itens.map((item) => (
         <li key={item.nome} className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: item.cor }} aria-hidden="true" />
+          <span
+            className="h-2 w-2 shrink-0 rounded-sm"
+            style={item.padrao
+              ? { background: `repeating-linear-gradient(45deg, ${item.cor} 0 1.5px, transparent 1.5px 3px)`, border: `1px solid ${item.cor}` }
+              : { background: item.cor }}
+            aria-hidden="true"
+          />
           {item.nome}
         </li>
       ))}

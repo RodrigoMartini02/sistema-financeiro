@@ -39,6 +39,7 @@ import {
   gastoPorCategoriaComRollup,
   janelaComprometido,
   janelaDaSerie,
+  distribuirJurosAVencer,
   montarSerie,
   temFiltroDeDespesa,
   periodoAnterior,
@@ -60,7 +61,7 @@ import {
   type Granularidade,
   type FixaPainel,
   type Periodo,
-  type PontoSerie,
+  type PontoSerieComJurosAVencer,
   type ReceitaPainel,
   type ReceitasPainelResumo,
   type TipoGasto,
@@ -97,7 +98,7 @@ export interface PainelResposta {
     saldoAnterior: number;
     saldoFinal: number;
   };
-  serie: { granularidade: Granularidade; pontos: PontoSerie[] };
+  serie: { granularidade: Granularidade; pontos: PontoSerieComJurosAVencer[] };
   formasPagamento: FormaPagamentoAgregada[];
   cartoes: Array<{
     id: number;
@@ -122,6 +123,8 @@ export interface PainelResposta {
     ano: { juros: number; descontos: number };
     /** Juros guardados nas linhas ainda não pagas (restante e parcelas da fatura, parcelas com juros embutido), de qualquer data (não seguem o período). */
     upcomingInterest: number;
+    /** Parte do `upcomingInterest` que cai antes ou depois do período do gráfico (a série mostra o resto, mês a mês). */
+    upcomingInterestOutside: number;
   };
   /** Faturas renegociadas (pagamento parcial ou parcelado) com o mês dentro do período. */
   renegotiatedInvoices: RenegotiatedInvoice[];
@@ -565,6 +568,11 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const despesas = filtrarDespesasPainel(despesasSemFiltro, entrada.filtros);
   const naoPagas = filtrarDespesasPainel(naoPagasSemFiltro, entrada.filtros);
   const jurosAVencer = filtrarDespesasPainel(jurosAVencerSemFiltro, entrada.filtros);
+  // A série dos gráficos com o juros em aberto de cada trecho: a mesma lista (e os mesmos filtros) do total "Juros a vencer".
+  const jurosAVencerPorTrecho = distribuirJurosAVencer(
+    montarSerie(despesas, receitas, janelaSerie, !temFiltroDeDespesa(entrada.filtros)),
+    jurosAVencer,
+  );
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
   const receitasPeriodo = receitasDoPeriodo(receitas, periodo);
   const receitasParaJuros = (lista: ReceitaPainel[]): ReceitaPainel[] => (temFiltroDeDespesa(entrada.filtros) ? [] : lista);
@@ -608,7 +616,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       saldoAnterior,
       saldoFinal: saldoAnterior + resumoAtual.entrou - resumoAtual.saiu,
     },
-    serie: { granularidade: janelaSerie.granularidade, pontos: montarSerie(despesas, receitas, janelaSerie, !temFiltroDeDespesa(entrada.filtros)) },
+    serie: { granularidade: janelaSerie.granularidade, pontos: jurosAVencerPorTrecho.pontos },
     formasPagamento: agregarFormasPagamento(despesasPeriodo),
     cartoes,
     aVistaParcelado: agregarAVistaParcelado(despesasPeriodo),
@@ -629,6 +637,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
         receitasParaJuros(receitasDoPeriodo(receitas, { de: inicioDoAno, ate: periodo.ate })),
       ),
       upcomingInterest: sumUpcomingInterest(jurosAVencer),
+      upcomingInterestOutside: jurosAVencerPorTrecho.fora,
     },
     renegotiatedInvoices: faturasRenegociadas,
     categorias: categoriasAgregadas.map((linha) => {

@@ -371,6 +371,8 @@ export interface PainelPontoSerie {
   /** Juros e descontos das despesas que vencem no trecho, mais os juros e taxas das receitas recebidas nele. */
   juros: number;
   descontos: number;
+  /** Juros guardado nas despesas ainda não pagas que vencem no trecho. Ausente na resposta antiga. */
+  jurosAVencer?: number;
 }
 
 export interface PainelCategoria {
@@ -437,6 +439,8 @@ export interface PainelData {
     ano: { juros: number; descontos: number };
     /** Juros do restante e das parcelas da fatura ainda não pagos. Ausente na resposta antiga. */
     upcomingInterest?: number;
+    /** Parte de `upcomingInterest` que cai antes ou depois do período (a série mostra o resto, mês a mês). Ausente na resposta antiga. */
+    upcomingInterestOutside?: number;
   };
   /** Faturas renegociadas no período. Ausente na resposta antiga. */
   renegotiatedInvoices?: RenegotiatedInvoice[];
