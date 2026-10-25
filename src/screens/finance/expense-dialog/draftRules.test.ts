@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Cartao } from '../../../types/config';
+import type { Expense } from '../../../types/finance';
 import { formatCurrency } from '../formatters';
-import { createDraft, dialogReducer, initialDialogState, withRecurringOnCredit, type ExpenseDraft } from './draftState';
 import {
-  buildCreateInput, buildUpdateInput, canBeRecurring, duplicateQuery, errorMessage, installmentAmounts, installmentGrid,
+  createDraft, dialogReducer, draftFromExpense, initialDialogState, withRecurringOnCredit, type ExpenseDraft,
+} from './draftState';
+import {
+  billingLockReason, buildCreateInput, buildUpdateInput, canBeRecurring, duplicateQuery, errorMessage, installmentAmounts, installmentGrid,
   installmentMismatch, installmentsTotal, markOverdueAsPaid, summarizeDraft, validateDraft, type RuleContext,
 } from './draftRules';
 
@@ -34,6 +37,18 @@ test('status Pago: fora do crédito, vencimento até hoje já nasce pago', () =>
   assert.equal(summary?.status, 'Pago');
   assert.equal(summary?.dueText, 'Pago na hora');
   assert.equal(summary?.totalText, `total ${brl(187.4)}`);
+});
+
+test('edição da despesa à vista vencida e não paga: não vira "Pago" sozinha, só na criação', () => {
+  const editing: RuleContext = { ...context, editing: true, savedDueDate: '2026-09-10' };
+  // Vencida há 19 dias, desmarcada como paga: continua em aberto.
+  const unpaid = summarizeDraft(draft({ dueDate: '10/09/2026' }), editing);
+  assert.equal(unpaid?.status, 'Agendado');
+  assert.equal(unpaid?.dueText, 'Vence 10/09 · data informada');
+  // Marcada como paga: aí sim "Pago".
+  assert.equal(summarizeDraft(draft({ dueDate: '10/09/2026', paid: true, paymentDate: '10/09/2026' }), editing)?.status, 'Pago');
+  // Na criação, a mesma despesa nasce paga (regra de sempre).
+  assert.equal(summarizeDraft(draft({ dueDate: '10/09/2026' }), context)?.status, 'Pago');
 });
 
 test('status Agendado: vencimento futuro informado', () => {
@@ -83,6 +98,33 @@ test('badges: juros embutido, multa e juros, desconto', () => {
 
   const discounted = draft({ paid: true, paymentDate: '29/09/2026', amountPaidCents: 18000 });
   assert.deepEqual(summarizeDraft(discounted, context)?.badges, [{ text: `${brl(7.4)} de desconto`, tone: 'success' }]);
+});
+
+test('edição de parcela: o resumo mostra o juros embutido gravado, à parte do multa e juros do pago a mais', () => {
+  const editing: RuleContext = { ...context, editing: true, savedInterest: 5 };
+  assert.deepEqual(summarizeDraft(draft({ dueDate: '05/10/2026' }), editing)?.badges, [{ text: `inclui ${brl(5)} de juros`, tone: 'neutral' }]);
+
+  const paidMore = draft({ paid: true, paymentDate: '29/09/2026', amountPaidCents: 19000 });
+  assert.deepEqual(summarizeDraft(paidMore, editing)?.badges, [
+    { text: `+ ${brl(2.6)} de multa e juros`, tone: 'warning' },
+    { text: `inclui ${brl(5)} de juros`, tone: 'neutral' },
+  ]);
+
+  // Sem juros gravado (nulo, zero ou contexto sem o campo, como o do assistente): nada a mostrar.
+  for (const savedInterest of [null, 0, undefined]) {
+    assert.deepEqual(summarizeDraft(draft({ dueDate: '05/10/2026' }), { ...editing, savedInterest })?.badges, []);
+  }
+});
+
+test('Cobrança fixa na edição: o motivo muda com a parcelada', () => {
+  assert.equal(
+    billingLockReason({ parcelado: true }),
+    'A cobrança não muda na edição: para mudar o nº de parcelas, exclua e lance de novo.',
+  );
+  assert.equal(
+    billingLockReason({ parcelado: false }),
+    'A cobrança não muda na edição: para trocá-la, exclua e lance de novo.',
+  );
 });
 
 test('valor informado "Total": total dividido em centavos, ajuste à mão e aviso de soma diferente', () => {
@@ -252,6 +294,59 @@ test('edição envia só os campos editáveis', () => {
   assert.equal('billingType' in input, false);
   assert.equal(input.cardId, CAJU.id);
   assert.equal(input.dueDate, '2026-12-10');
+});
+
+/** Despesa gravada como a API entrega, só com o que a edição lê. */
+function savedExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    id: 7, descricao: 'Conta de luz', valorFinal: 100, categoria: 'Casa', categoriaId: 10, formaPagamento: 'pix', cartaoId: null,
+    dataVencimento: '2026-09-10', dataCompra: '2026-09-01', dataPagamento: '2026-09-10', mes: 8, ano: 2026, status: 'ativa',
+    pago: true, valorPago: 100, recorrente: false, parcelado: false, anexos: null, numeroNf: null, dataEmissaoNf: null,
+    ...overrides,
+  } as Expense;
+}
+
+const editContext: RuleContext = { ...context, editing: true, savedDueDate: '2026-09-10' };
+
+test('edição de linha paga com o valor pago exato: o valor pago antigo volta no campo e é reenviado ao mudar o valor', () => {
+  const edited = { ...draftFromExpense(savedExpense()), amountCents: 12000 };
+  assert.equal(edited.amountPaidCents, 10000);
+  const input = buildUpdateInput(edited, editContext);
+  assert.equal(input.amount, 120);
+  assert.equal(input.paid, true);
+  assert.equal(input.paymentDate, '2026-09-10');
+  // O realizado do mês não muda em silêncio: os R$ 100,00 pagos seguem.
+  assert.equal(input.amountPaid, 100);
+  // O resumo mostra a diferença, para o dono perceber e corrigir o "Valor pago" se quiser.
+  assert.deepEqual(summarizeDraft(edited, editContext)?.badges, [{ text: `${brl(20)} de desconto`, tone: 'success' }]);
+});
+
+test('edição de linha paga antiga, sem valor pago gravado: vale o valor antigo da despesa, que é reenviado', () => {
+  const legacy = draftFromExpense(savedExpense({ valorPago: null }));
+  assert.equal(legacy.amountPaidCents, 10000);
+  assert.equal(buildUpdateInput({ ...legacy, amountCents: 12000 }, editContext).amountPaid, 100);
+});
+
+test('edição de linha paga com juros ou desconto: o valor pago gravado continua', () => {
+  assert.equal(draftFromExpense(savedExpense({ valorPago: 110 })).amountPaidCents, 11000);
+  assert.equal(draftFromExpense(savedExpense({ valorPago: 95.5 })).amountPaidCents, 9550);
+});
+
+test('edição: o dono corrige o valor pago apagando o campo (vale o valor novo) ou digitando outro', () => {
+  const edited = { ...draftFromExpense(savedExpense()), amountCents: 12000 };
+  assert.equal(buildUpdateInput({ ...edited, amountPaidCents: null }, editContext).amountPaid, null);
+  assert.equal(buildUpdateInput({ ...edited, amountPaidCents: 12000 }, editContext).amountPaid, 120);
+});
+
+test('edição de linha em aberto: sem pagamento, sem valor pago; desmarcar "paga" manda tudo em branco', () => {
+  const open = draftFromExpense(savedExpense({ pago: false, valorPago: null, dataPagamento: null }));
+  assert.equal(open.paid, false);
+  assert.equal(open.paymentDate, '');
+  assert.equal(open.amountPaidCents, null);
+  const unmarked = { ...draftFromExpense(savedExpense()), paid: false, paymentDate: '', amountPaidCents: null };
+  const input = buildUpdateInput(unmarked, editContext);
+  assert.deepEqual([input.paid, input.paymentDate, input.amountPaid], [false, null, null]);
+  assert.equal(input.dueDate, '2026-09-10');
 });
 
 test('duplicata no parcelado compara o valor da 1ª parcela e o nº de parcelas', () => {

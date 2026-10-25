@@ -92,7 +92,6 @@ export function createDraft(carryOver: DraftCarryOver): ExpenseDraft {
 /** A despesa gravada, pronta para editar. A cobrança não muda na edição. */
 export function draftFromExpense(expense: Expense): ExpenseDraft {
   const amountCents = toCents(expense.valorFinal);
-  const amountPaidCents = expense.valorPago != null ? toCents(expense.valorPago) : null;
   return {
     ...createDraft({
       paymentMethod: isPaymentMethod(expense.formaPagamento) ? expense.formaPagamento : 'pix',
@@ -106,8 +105,10 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
     dueDate: isoToBrDate(expense.dataVencimento),
     paid: expense.pago,
     paymentDate: expense.pago ? isoToBrDate(expense.dataPagamento ?? expense.dataVencimento) : '',
-    // Pago o valor exato fica vazio: o campo mostra o valor da despesa como sugestão.
-    amountPaidCents: expense.pago && amountPaidCents !== amountCents ? amountPaidCents : null,
+    // Paga: o valor pago gravado (a paga antiga sem valor pago vale o valor da despesa) volta no campo e é
+    // reenviado. Se ficasse vazio, o servidor o completaria com o valor novo, e corrigir o valor reescreveria
+    // em silêncio o que foi pago (e o realizado do mês). O campo "Valor pago" continua editável para corrigir.
+    amountPaidCents: expense.pago ? (expense.valorPago != null ? toCents(expense.valorPago) : amountCents) : null,
     attachments: expense.anexos ?? [],
     invoiceNumber: expense.numeroNf ?? '',
     invoiceDate: isoToBrDate(expense.dataEmissaoNf),

@@ -232,6 +232,15 @@ test('crédito com cartão: pagamento antigo com o valor pago em branco continua
   assert.equal(invoiceEditRefusal(null, legacy, fields({ paid: false, paymentDate: null, amountPaid: null })), INVOICE_MESSAGES.creditPayment);
 });
 
+test('crédito com cartão, linha paga: corrigir o valor com o valor pago reenviado passa; sem reenviar, o pagamento mudaria', () => {
+  // Paga antiga, com o valor pago em branco (vale os R$ 500,00 da despesa); o dono corrige o valor para R$ 520,00.
+  const legacy = fields({ amountPaid: null });
+  // A tela reenvia o valor pago antigo (draftFromExpense): o pagamento fica como está.
+  assert.equal(invoiceEditRefusal(null, legacy, fields({ amount: 520, amountPaid: 500 })), null);
+  // Sem reenviar, o servidor completaria com R$ 520,00 e o realizado do mês mudaria: recusado no crédito.
+  assert.equal(invoiceEditRefusal(null, legacy, fields({ amount: 520, amountPaid: null })), INVOICE_MESSAGES.creditPayment);
+});
+
 test('desfazer: recusado se uma linha gerada foi paga por outro pagamento', () => {
   assert.equal(undoRefusal(5, []), null);
   assert.equal(undoRefusal(5, [{ paid: false, invoicePaymentId: null }]), null);

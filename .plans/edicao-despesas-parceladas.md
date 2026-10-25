@@ -148,3 +148,22 @@ Proteções em toda fatia: pagas nunca recebem pagamento ou juros novos pela sé
 - Aceito: Cobrança e pagamento no crédito são decisões suas (29/09 e 07/10), não um disabled solto. Proposta: atalho 'Pagar fatura' (fatia 1) e mudança de nº de parcelas fora da rodada (fatia 7). A seção '§12' citada pelo cético não foi confirmada; achei a decisão na linha 249 do arquivo do commit 2c73b19d.
 - Aceito: o plano de 19/10 deixou fora o retroativo e o recálculo ao editar o valor. Por isso a fatia 5 depende de decisão sua. A causa do gráfico continua DEDUÇÃO, com a hipótese das migrations em produção listada como não conferida.
 - Aceito: informar quais fatias são só tela, servidor sem migration ou fora de rodada (nenhuma exige migration) e que nada é feito antes do seu OK. Ordem das fatias ajustada: texto e atalho, juros na lista, pagamento automático, proteção da série, à vista na parcelada, aviso da série.
+
+## Situação (25/10/2026)
+
+Decisões do dono: fatias 1 a 6 aprovadas ("1"); pagamento no crédito continua só pela fatura, com o atalho "Pagar fatura"; nº de parcelas e Cobrança ficam fora (fatia 7 não entrou). Nas demais decisões vale a recomendação da análise. Sem migration e sem coluna nova.
+
+Implementado (ainda sem commit no momento desta nota):
+
+- **Fatia 1:** atalho "Pagar fatura de mmm/aaaa" na linha de resumo da edição (despesa em aberto no crédito com cartão; o mês é o do vencimento) e o motivo da Cobrança fixa na dica do campo e no rodapé. Conferido no navegador: o atalho abre o pagamento da fatura do cartão certo.
+- **Fatia 2:** "inclui R$ X de juros" na lista, no cartão do celular e no resumo da edição, só para parcela de compra parcelada (fora as linhas geradas pela fatura, a compra renegociada e a cancelada). O "+ R$" do pago a mais continua separado.
+- **Fatia 3:** a edição não religa "paga" sozinha (pagamento automático só na criação, servidor e tela, `expensePayment.ts`). Em parcela paga, a tela reenvia o valor pago gravado: corrigir o valor não reescreve o que foi pago.
+- **Fatia 4:** em "Esta e as próximas" e "Todas", as parcelas pagas ficam fora de vencimento, forma e cartão; o servidor recusa trocar uma despesa **paga** para crédito com cartão (`paidCreditRefusal`). Desvio da análise: a recusa vale também para a despesa **única** paga (a análise só citava parcelas); sem isso, uma única paga em PIX passava para o crédito sem fatura.
+- **Fatia 5:** `cashPrice` opcional no PUT (ausente não mexe; só com "Todas"; só em compra parcelada). O juros das parcelas abertas é refeito (`recalculatedInstallmentInterests`): paga e da fatura mantêm o juros, o valor novo da mesma edição já vale e o juros nunca passa do valor da parcela. A resposta traz `interestUpdated`. Tela: campo "À vista (opcional)" só com "Todas", sem pré-preencher, com a prévia do juros.
+- **Fatia 6:** aviso do que o valor novo faz na série (novo total da compra, parcelas pagas atingidas e, no crédito com cartão, o impacto no limite).
+
+Validação: front 366 testes, backend 681 testes, 14 testes de banco de finanças (6 novos, em Postgres local), tipos do front e do backend e build do front sem erro. Conferência ponta a ponta no navegador contra o backend e um Postgres descartável: editar a compra 3 × R$ 35,00 para R$ 40,00 com à vista de R$ 90,00 gravou R$ 10,00 de juros em cada parcela e a lista passou a mostrar "inclui R$ 10,00 de juros".
+
+Fora desta entrega (sugestões, sem decisão): barra de "juros a vencer" por mês no gráfico do Painel; mudar nº de parcelas ou a Cobrança (fatia 7, plano próprio); atalho "Pagar fatura" na edição aberta pelo calendário (só a lista de Movimentações o oferece); atalho nas linhas geradas pela fatura ainda em aberto.
+
+Pendente do dono: testar na tela real e decidir o commit, o push e o merge (CLAUDE.md, /finalizar).

@@ -64,6 +64,11 @@ export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
   amount: number;
   dueDate: string;
   applyTo: ExpenseUpdateScope;
+  /**
+   * Valor à vista (sem juros) da compra parcelada, informado na edição: refaz o juros
+   * das parcelas abertas. Nulo (ausente): não mexe no juros. Só vale com `applyTo: 'all'`.
+   */
+  cashPrice: number | null;
 }
 
 export interface SuggestionsQuery {
@@ -194,12 +199,18 @@ function readUpdateScope(value: unknown): ExpenseUpdateScope {
  */
 export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
   const record = readRecord(body, 'Pedido inválido');
+  const applyTo = readUpdateScope(record['applyTo']);
+  const cashPrice = readOptionalCashPrice(record['cashPrice']);
+  if (cashPrice !== null && applyTo !== 'all') {
+    throw new RequestInputError('O valor à vista vale para a compra inteira: escolha "Todas as parcelas"');
+  }
   return {
     ...readFields(record),
     amount: readAmount(record['amount'], 'Informe o valor'),
     dueDate: readIsoDate(record['dueDate'], 'Data de vencimento inválida'),
     ...readPayment(record),
-    applyTo: readUpdateScope(record['applyTo']),
+    applyTo,
+    cashPrice,
   };
 }
 

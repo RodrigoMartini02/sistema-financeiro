@@ -28,7 +28,7 @@ import { despesasEmAberto } from '../services/assistantQueries';
 import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense } from '../services/assistantPayment';
 import { INVOICE_EXPENSE_METHOD, INVOICE_MESSAGES, invoiceEditRefusal } from '../services/cardInvoiceRules';
 import { hasInvoiceProtectedRows, isCreditWithCardExpense } from '../services/cardInvoiceService';
-import { recurringPaymentRefusal } from '../services/expenseSeries';
+import { paidCreditRefusal, recurringPaymentRefusal } from '../services/expenseSeries';
 
 const router = Router();
 
@@ -339,6 +339,22 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     if (recurringRefusal) {
       throw new RequestInputError(recurringRefusal);
     }
+    // A despesa paga não vira crédito com cartão pela edição: ficaria paga sem fatura.
+    const creditRefusal = paidCreditRefusal(
+      {
+        paid: current.lockableFields.paid,
+        paymentMethod: current.seriesFields.paymentMethod,
+        cardId: current.seriesFields.cardId,
+      },
+      { paymentMethod: input.paymentMethod, cardId: input.cardId },
+    );
+    if (creditRefusal) {
+      throw new RequestInputError(creditRefusal);
+    }
+    // O valor à vista refaz o juros das parcelas: só a compra parcelada tem isso.
+    if (input.cashPrice !== null && !current.isInstallment) {
+      throw new RequestInputError('O valor à vista é só da compra parcelada');
+    }
     // A categoria que a despesa já tem continua aceita: lançamentos antigos podem
     // apontar para categorias de antes do catálogo da conta.
     if (input.categoryId !== current.categoryId
@@ -352,7 +368,13 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     if (!result) {
       throw new RequestInputError('Despesa não encontrada', 404);
     }
-    res.json({ success: true, message: 'Expense updated', data: result.updated, seriesUpdated: result.seriesUpdated });
+    res.json({
+      success: true,
+      message: 'Expense updated',
+      data: result.updated,
+      seriesUpdated: result.seriesUpdated,
+      interestUpdated: result.interestUpdated,
+    });
   } catch (error) {
     sendRequestError(res, error, 'Update expense error:', req.user?.id, 'Não foi possível salvar a despesa. Tente novamente.');
   }

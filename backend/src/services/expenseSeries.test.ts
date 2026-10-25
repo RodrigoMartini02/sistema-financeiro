@@ -7,6 +7,7 @@ import {
   isOpenFollowingOccurrence,
   isRenewalPending,
   monthlySeriesDates,
+  paidCreditRefusal,
   planInstallmentUpdates,
   planRecurringUpdates,
   recurringPaymentRefusal,
@@ -197,7 +198,7 @@ test('pagamento, anexos e nota fiscal nunca vão para as outras linhas da série
   const changed = changedSeriesFields(FIELDS, next);
   const updates = [
     ...planRecurringUpdates({ originalDueDate: '2026-10-04', next }, changed, [{ id: 11, dueDate: '2026-11-09', purchaseDate: null }], { closingDay: 2, dueDay: 9 }),
-    ...planInstallmentUpdates({ originalDueDate: '2026-10-04', next }, changed, [{ id: 12, dueDate: '2026-11-04' }]),
+    ...planInstallmentUpdates({ originalDueDate: '2026-10-04', next }, changed, [{ id: 12, dueDate: '2026-11-04', paid: false }]),
   ];
   const allowed = new Set(['id', 'description', 'categoryId', 'paymentMethod', 'cardId', 'amount', 'purchaseDate', 'dueDate']);
   for (const update of updates) {
@@ -215,7 +216,7 @@ test('parcelado, data de compra: a nova vale igual para todas as parcelas do esc
   const updates = planInstallmentUpdates(
     { originalDueDate: '2026-10-10', next },
     changedSeriesFields(INSTALLMENT_FIELDS, next),
-    [{ id: 101, dueDate: '2026-08-10' }, { id: 104, dueDate: '2026-11-10' }],
+    [{ id: 101, dueDate: '2026-08-10', paid: false }, { id: 104, dueDate: '2026-11-10', paid: false }],
   );
   // O vencimento da editada não mudou: as outras ficam onde estavam.
   assert.deepEqual(updates, [
@@ -230,7 +231,11 @@ test('parcelado, vencimento: as outras parcelas acompanham mês a mês, inclusiv
     { originalDueDate: '2026-10-10', next },
     changedSeriesFields(INSTALLMENT_FIELDS, next),
     // A 2/6 (setembro) foi excluída antes; a 5/6 (dezembro) mantém a distância.
-    [{ id: 101, dueDate: '2026-08-10' }, { id: 104, dueDate: '2026-11-10' }, { id: 105, dueDate: '2026-12-10' }],
+    [
+      { id: 101, dueDate: '2026-08-10', paid: false },
+      { id: 104, dueDate: '2026-11-10', paid: false },
+      { id: 105, dueDate: '2026-12-10', paid: false },
+    ],
   );
   assert.deepEqual(updates, [
     { id: 101, dueDate: '2026-08-15' },
@@ -244,9 +249,116 @@ test('parcelado, só o valor: as parcelas do escopo mudam o valor e mantêm as d
   const updates = planInstallmentUpdates(
     { originalDueDate: '2026-10-10', next },
     changedSeriesFields(INSTALLMENT_FIELDS, next),
-    [{ id: 104, dueDate: '2026-11-10' }],
+    [{ id: 104, dueDate: '2026-11-10', paid: false }],
   );
   assert.deepEqual(updates, [{ id: 104, amount: 250 }]);
+});
+
+// A 1/6 e a 2/6 estão pagas; a editada é a 3/6; a 4/6 e a 5/6 estão em aberto.
+const PAID_AND_OPEN_ROWS = [
+  { id: 101, dueDate: '2026-08-10', paid: true },
+  { id: 102, dueDate: '2026-09-10', paid: true },
+  { id: 104, dueDate: '2026-11-10', paid: false },
+  { id: 105, dueDate: '2026-12-10', paid: false },
+];
+
+test('parcelado, vencimento: a parcela paga fica no vencimento dela e só as abertas acompanham', () => {
+  const next = { ...INSTALLMENT_FIELDS, dueDate: '2026-10-15' };
+  const updates = planInstallmentUpdates(
+    { originalDueDate: '2026-10-10', next },
+    changedSeriesFields(INSTALLMENT_FIELDS, next),
+    PAID_AND_OPEN_ROWS,
+  );
+  assert.deepEqual(updates, [
+    { id: 101 },
+    { id: 102 },
+    { id: 104, dueDate: '2026-11-15' },
+    { id: 105, dueDate: '2026-12-15' },
+  ]);
+});
+
+test('parcelado, forma e cartão: a parcela paga não troca, nem para o crédito com cartão', () => {
+  // Compra em dinheiro, 2 parcelas pagas; o dono passa a editada para o crédito no cartão 6.
+  const current = { ...INSTALLMENT_FIELDS, paymentMethod: 'dinheiro', cardId: null };
+  const next = { ...current, paymentMethod: 'credito', cardId: 6 };
+  const updates = planInstallmentUpdates(
+    { originalDueDate: '2026-10-10', next },
+    changedSeriesFields(current, next),
+    PAID_AND_OPEN_ROWS,
+  );
+  assert.deepEqual(updates, [
+    { id: 101 },
+    { id: 102 },
+    { id: 104, paymentMethod: 'credito', cardId: 6, dueDate: '2026-11-10' },
+    { id: 105, paymentMethod: 'credito', cardId: 6, dueDate: '2026-12-10' },
+  ]);
+
+  // Troca só de cartão: o mesmo.
+  const otherCard = { ...INSTALLMENT_FIELDS, cardId: 9 };
+  assert.deepEqual(
+    planInstallmentUpdates(
+      { originalDueDate: '2026-10-10', next: otherCard },
+      changedSeriesFields(INSTALLMENT_FIELDS, otherCard),
+      PAID_AND_OPEN_ROWS,
+    ).map((update) => update.cardId),
+    [undefined, undefined, 9, 9],
+  );
+});
+
+test('parcelado: a parcela paga continua recebendo valor, descrição, categoria e data da compra (decisão de 07/10)', () => {
+  const next = {
+    ...INSTALLMENT_FIELDS, amount: 250, description: 'Genova 2', categoryId: 5, purchaseDate: '2026-08-06',
+    dueDate: '2026-10-15', paymentMethod: 'debito', cardId: 7,
+  };
+  const updates = planInstallmentUpdates(
+    { originalDueDate: '2026-10-10', next },
+    changedSeriesFields(INSTALLMENT_FIELDS, next),
+    PAID_AND_OPEN_ROWS,
+  );
+  const paidUpdate = { amount: 250, description: 'Genova 2', categoryId: 5, purchaseDate: '2026-08-06' };
+  assert.deepEqual(updates, [
+    { id: 101, ...paidUpdate },
+    { id: 102, ...paidUpdate },
+    { id: 104, ...paidUpdate, paymentMethod: 'debito', cardId: 7, dueDate: '2026-11-15' },
+    { id: 105, ...paidUpdate, paymentMethod: 'debito', cardId: 7, dueDate: '2026-12-15' },
+  ]);
+});
+
+test('parcelado, escopo e plano juntos: em "Todas" as pagas entram no escopo, mas não no vencimento, na forma nem no cartão', () => {
+  const rows = [
+    installment(1, { paid: true, dueDate: '2026-08-10' }),
+    installment(2, { paid: true, dueDate: '2026-09-10' }),
+    installment(4, { dueDate: '2026-11-10' }),
+  ];
+  const inScope = rows.filter((row) => isInstallmentInScope(row, EDITED_INSTALLMENT, 'all'));
+  assert.equal(inScope.length, 3);
+  const current = { ...INSTALLMENT_FIELDS, paymentMethod: 'pix', cardId: null };
+  const next = { ...current, paymentMethod: 'credito', cardId: 6, dueDate: '2026-10-20' };
+  const updates = planInstallmentUpdates(
+    { originalDueDate: '2026-10-10', next },
+    changedSeriesFields(current, next),
+    inScope,
+  );
+  assert.deepEqual(updates, [
+    { id: 101 },
+    { id: 102 },
+    { id: 104, paymentMethod: 'credito', cardId: 6, dueDate: '2026-11-20' },
+  ]);
+});
+
+test('despesa paga (parcela ou única) não vai para o crédito com cartão pela edição; as demais mudanças seguem', () => {
+  const message = 'A despesa já paga não muda para o crédito com cartão: no crédito, o pagamento é feito pela fatura';
+  const paidPix = { paid: true, paymentMethod: 'pix', cardId: null };
+  assert.equal(paidCreditRefusal(paidPix, { paymentMethod: 'credito', cardId: 6 }), message);
+  // Outras formas, e crédito sem cartão escolhido (não é crédito com cartão): sem recusa.
+  assert.equal(paidCreditRefusal(paidPix, { paymentMethod: 'debito', cardId: 3 }), null);
+  assert.equal(paidCreditRefusal(paidPix, { paymentMethod: 'pix', cardId: null }), null);
+  assert.equal(paidCreditRefusal(paidPix, { paymentMethod: 'credito', cardId: null }), null);
+  // Já no crédito com cartão: trocar de cartão não cria nada novo.
+  const paidCredit = { paid: true, paymentMethod: 'credito', cardId: 6 };
+  assert.equal(paidCreditRefusal(paidCredit, { paymentMethod: 'credito', cardId: 9 }), null);
+  // Em aberto vai para o crédito: a fatura vai cobrar.
+  assert.equal(paidCreditRefusal({ ...paidPix, paid: false }, { paymentMethod: 'credito', cardId: 6 }), null);
 });
 
 const MERCADO_PAGO = { closingDay: 2, dueDay: 9 };

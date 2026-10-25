@@ -28,7 +28,9 @@ import {
   expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable,
   type EntryType, type ExpenseFilters, type ExpenseStatus, type PaymentDateWindow,
 } from '../../utils/expenseFilters';
-import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
+import {
+  effectiveExpenseValue, embeddedInstallmentInterest, embeddedInterestText, paymentDifference,
+} from '../../utils/expenseValue';
 import {
   INVOICE_MESSAGES, expensePayButton, invoiceMonthParam, isInvoiceProtected, isRenegotiated, renegotiationNote,
 } from '../../utils/cardInvoice';
@@ -679,6 +681,10 @@ export function LancamentosTable({
         open={expenseDialog.open}
         expense={expenseDialog.item}
         onClose={() => setExpenseDialog({ open: false })}
+        onPayInvoice={({ invoiceMonth, cardId }) => {
+          setExpenseDialog({ open: false });
+          setInvoiceModal({ open: true, invoiceMonth, cardId });
+        }}
       />
       <IncomeDialog
         open={incomeDialog.open}
@@ -770,6 +776,7 @@ function ExpenseRow({
   const payButton = expensePayButton(item);
   const isProtected = isInvoiceProtected(item);
   const note = renegotiationNote(item);
+  const embeddedInterest = embeddedInstallmentInterest(item);
   return (
     <tr
       key={chave}
@@ -836,6 +843,10 @@ function ExpenseRow({
         {isRenegotiated(item)
           ? <p className={SECONDARY_CLASS}>de {formatCurrency(item.valorFinal)}</p>
           : paymentDifference(item) !== null && <p className={SECONDARY_CLASS}>{formatDiferenca(paymentDifference(item)!)}</p>}
+        {/* Juros que a parcela já traz no valor. Fica à parte do "+ R$", que é o pago a mais que o previsto. */}
+        {embeddedInterest !== null && (
+          <p className={[SECONDARY_CLASS, 'whitespace-normal leading-tight'].join(' ')}>{embeddedInterestText(embeddedInterest)}</p>
+        )}
       </td>
       {isEmpresa && (
         <td className={[TD_CLASS, 'text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap'].join(' ')}>

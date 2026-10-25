@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  embeddedInstallmentInterests, splitCents, splitInstallments, splitInterestWithinInstallments,
+  embeddedInstallmentInterests, recalculatedInstallmentInterests, splitCents, splitInstallments, splitInterestWithinInstallments,
 } from './installmentSplit';
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
@@ -50,4 +50,42 @@ test('sem valor à vista, ou à vista igual ou maior que a soma, não há juros'
   assert.deepEqual(embeddedInstallmentInterests(amounts, null), [0, 0]);
   assert.deepEqual(embeddedInstallmentInterests(amounts, 100000), [0, 0]);
   assert.deepEqual(embeddedInstallmentInterests(amounts, 120000), [0, 0]);
+});
+
+const parcel = (id: number, amountCents: number, interestCents = 0, fixed = false) => ({ id, amountCents, interestCents, fixed });
+
+test('à vista informado depois: o juros total é dividido entre as parcelas abertas', () => {
+  // 3 × R$ 35,00 com à vista de R$ 90,00: R$ 15,00 de juros, R$ 5,00 em cada.
+  const interests = recalculatedInstallmentInterests([parcel(1, 3500), parcel(2, 3500), parcel(3, 3500)], 9000);
+  assert.deepEqual([...interests], [[1, 500], [2, 500], [3, 500]]);
+});
+
+test('à vista informado depois: a parcela paga ou da fatura mantém o juros e as abertas levam só o resto', () => {
+  // Total R$ 15,00; a paga já guarda R$ 2,00 e a da fatura R$ 1,00: sobram R$ 12,00 para as duas abertas.
+  const interests = recalculatedInstallmentInterests(
+    [parcel(1, 3500, 200, true), parcel(2, 3500, 100, true), parcel(3, 3500), parcel(4, 3500)],
+    12500,
+  );
+  assert.deepEqual([...interests], [[3, 600], [4, 600]]);
+});
+
+test('à vista informado depois: à vista igual ou maior que a soma zera o juros das abertas, e as fixas não mudam', () => {
+  const rows = [parcel(1, 3500, 500, true), parcel(2, 3500, 500), parcel(3, 3500, 500)];
+  assert.deepEqual([...recalculatedInstallmentInterests(rows, 10500)], [[2, 0], [3, 0]]);
+  assert.deepEqual([...recalculatedInstallmentInterests(rows, 20000)], [[2, 0], [3, 0]]);
+});
+
+test('à vista informado depois: o juros das abertas nunca passa do valor delas e a soma fecha com o que coube', () => {
+  // Total de R$ 105,00 e à vista de R$ 50,00: R$ 55,00 de juros. A fixa já guarda R$ 30,00, restam R$ 25,00,
+  // mas a aberta só vale R$ 5,00: leva R$ 5,00 e o resto do passado não se refaz.
+  const interests = recalculatedInstallmentInterests([parcel(1, 10000, 3000, true), parcel(2, 500)], 5000);
+  assert.deepEqual([...interests], [[2, 500]]);
+  // Resto de centavos na última das abertas, como no cadastro.
+  const split = recalculatedInstallmentInterests([parcel(1, 10000), parcel(2, 10000), parcel(3, 10000)], 29999);
+  assert.equal([...split.values()].reduce((sum, cents) => sum + cents, 0), 1);
+  assert.deepEqual([...split.values()], [0, 0, 1]);
+});
+
+test('à vista informado depois: sem parcela aberta não há o que refazer', () => {
+  assert.equal(recalculatedInstallmentInterests([parcel(1, 3500, 500, true)], 3000).size, 0);
 });

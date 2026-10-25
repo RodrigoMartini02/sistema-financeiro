@@ -326,6 +326,11 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
   amount: number;
   dueDate: string;
   applyTo?: ExpenseUpdateScope;
+  /**
+   * Valor à vista (sem juros) da compra parcelada: refaz o juros das parcelas abertas. Ausente não mexe
+   * no juros; o servidor só aceita com `applyTo: 'all'`.
+   */
+  cashPrice?: number | null;
 }
 
 export interface FinanceDashboardData {

@@ -9,8 +9,12 @@ import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/
 import { createExpense, fetchExpenseGroup, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
 import { C, chipStyle } from '../../../ui/dialogFormTokens';
-import { INVOICE_MESSAGES, invoiceEditLock } from '../../../utils/cardInvoice';
-import { installmentScopeRows, openFollowingOccurrences } from '../../../utils/expenseSeries';
+import { INVOICE_MESSAGES, invoiceEditLock, payInvoiceShortcut } from '../../../utils/cardInvoice';
+import {
+  cashPriceInterestNote, cashPriceInterestPreview, installmentScopeRows, openFollowingOccurrences, paidInstallmentsNote,
+  seriesValueImpact, seriesValueNotes,
+} from '../../../utils/expenseSeries';
+import { embeddedInstallmentInterest } from '../../../utils/expenseValue';
 import {
   createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
@@ -20,9 +24,11 @@ import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
 import { HEADER_GRID_CLASS } from '../entry-dialog/fieldStyles';
 import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
+import { toReais } from '../entry-dialog/cents';
+import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
-  EMPTY_FORM_MESSAGE, buildCreateInput, buildUpdateInput, cardForMethod, errorMessage, hasErrors,
+  EMPTY_FORM_MESSAGE, billingLockReason, buildCreateInput, buildUpdateInput, cardForMethod, errorMessage, hasErrors,
   installmentsTotal, isDraftFilled, usesCard, validateDraft, type RuleContext,
 } from './draftRules';
 import {
@@ -51,6 +57,12 @@ interface ExpenseDialogProps {
   /** Dia clicado no calendário (ISO): vira a data da compra, travada na linha de entrada. */
   presetDate?: string;
   onClose: () => void;
+  /**
+   * Edição de uma despesa no crédito com cartão: o atalho "Pagar fatura". Quem abriu
+   * o modal (a tela que tem o `InvoicePaymentModal`) fecha este e abre o da fatura,
+   * no mês e no cartão informados. Sem a função, o atalho não aparece.
+   */
+  onPayInvoice?: (target: { invoiceMonth: string; cardId: number }) => void;
 }
 
 /**
@@ -59,9 +71,17 @@ interface ExpenseDialogProps {
  * linha só, e fecha ao salvar. Cada abertura começa do zero (o lote não
  * sobrevive ao fechar).
  */
-export function ExpenseDialog({ open, expense, presetDate, onClose }: ExpenseDialogProps) {
+export function ExpenseDialog({ open, expense, presetDate, onClose, onPayInvoice }: ExpenseDialogProps) {
   if (!open) return null;
-  return <ExpenseDialogContent key={expense?.id ?? 'new'} expense={expense ?? null} presetDate={presetDate} onClose={onClose} />;
+  return (
+    <ExpenseDialogContent
+      key={expense?.id ?? 'new'}
+      expense={expense ?? null}
+      presetDate={presetDate}
+      onClose={onClose}
+      onPayInvoice={onPayInvoice}
+    />
+  );
 }
 
 /** Enquanto a pessoa não mexe na forma, ela segue a sugestão do histórico (pela categoria, se houver). */
@@ -93,9 +113,10 @@ interface ExpenseDialogContentProps {
   expense: Expense | null;
   presetDate?: string;
   onClose: () => void;
+  onPayInvoice?: ExpenseDialogProps['onPayInvoice'];
 }
 
-function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogContentProps) {
+function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: ExpenseDialogContentProps) {
   const qc = useQueryClient();
   const todayIso = useMemo(() => getLocalTodayIso(), []);
   const isEdit = expense !== null;
@@ -120,6 +141,8 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
   });
   const isInstallmentSeries = expense?.parcelado === true && seriesGroupId !== null;
   const [installmentScope, setInstallmentScope] = useState<ExpenseUpdateScope>('this');
+  // O "À vista" da edição da parcelada: refaz o juros das parcelas abertas (só com "Todas"). Vazio não mexe no juros.
+  const [seriesCashPriceCents, setSeriesCashPriceCents] = useState<number | null>(null);
 
   const categories = useMemo(() => (categoriesQuery.data ?? []).filter((category) => category.ativo), [categoriesQuery.data]);
   // Na edição, o cartão da despesa continua na lista mesmo que hoje não esteja mais liberado.
@@ -135,7 +158,8 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     todayIso,
     cards,
     savedDueDate: expense?.dataVencimento,
-    editingInstallment: expense?.parcelado === true,
+    editing: expense !== null,
+    savedInterest: expense ? embeddedInstallmentInterest(expense) : null,
   }), [todayIso, cards, expense]);
 
   // Histórico já carregado pelas telas (todos os meses em cache), para "Recentes" e a sugestão de categoria.
@@ -212,9 +236,13 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     dispatch({ type: 'savingStarted', total: 1 });
     try {
       // No mensal, o servidor sempre leva a edição às próximas; no parcelado, vai o alcance escolhido.
+      // O "À vista" só vai com "Todas": o juros é da compra inteira.
       await updateExpense(target.id, {
         ...buildUpdateInput(state.entry, context),
         ...(isInstallmentSeries ? { applyTo: installmentScope } : {}),
+        ...(isInstallmentSeries && installmentScope === 'all' && seriesCashPriceCents !== null
+          ? { cashPrice: toReais(seriesCashPriceCents) }
+          : {}),
       });
       invalidateExpenseQueries(qc);
       onClose();
@@ -287,6 +315,17 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     locksDueDate: lock === 'invoice-item',
   };
 
+  // No crédito com cartão o pagamento é pela fatura: o atalho abre o "Pagar fatura" no mês e no cartão da despesa.
+  const invoiceShortcut = expense && onPayInvoice ? payInvoiceShortcut(expense) : null;
+  const payInvoiceAction = invoiceShortcut && onPayInvoice ? {
+    label: invoiceShortcut.label,
+    title: 'Fecha esta edição e abre o pagamento da fatura. O que não foi salvo aqui se perde.',
+    onClick: () => {
+      if (state.saving) return;
+      onPayInvoice({ invoiceMonth: invoiceShortcut.invoiceMonth, cardId: invoiceShortcut.cardId });
+    },
+  } : null;
+
   let footerMessage = '';
   let footerTone: FooterTone = 'neutral';
   if (state.footerError) {
@@ -307,6 +346,8 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
     footerMessage = entryFilled ? 'A linha de cima também entra ao salvar.' : 'Revise o lote e salve.';
   } else if (!isEdit) {
     footerMessage = 'Enter registra · Shift+Enter adiciona ao lote';
+  } else if (expense) {
+    footerMessage = billingLockReason(expense);
   }
 
   const series = seriesQuery.data;
@@ -317,6 +358,23 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
         following: installmentScopeRows(series, expense, 'following').length + 1,
         all: installmentScopeRows(series, expense, 'all').length + 1,
       }
+    : null;
+
+  // As parcelas pagas do alcance escolhido: o servidor não muda o vencimento, a forma nem o cartão delas.
+  const paidScopeNote = expense && series && isInstallmentSeries && installmentScope !== 'this'
+    ? paidInstallmentsNote(installmentScopeRows(series, expense, installmentScope))
+    : null;
+
+  // O que o valor novo faz na série (total, pagas atingidas, limite do cartão) e a prévia do juros do "À vista".
+  const entryAmount = state.entry.amountCents !== null ? state.entry.amountCents / 100 : null;
+  const creditCard = state.entry.paymentMethod === 'credito' && state.entry.cardId !== null
+    ? cards.find((card) => card.id === state.entry.cardId) ?? null
+    : null;
+  const valueNotes = expense && series && isInstallmentSeries && installmentScope !== 'this' && entryAmount !== null
+    ? seriesValueNotesFor(seriesValueImpact(series, expense, installmentScope, entryAmount), creditCard)
+    : [];
+  const cashPriceNote = expense && series && isInstallmentSeries && installmentScope === 'all' && entryAmount !== null && seriesCashPriceCents !== null
+    ? cashPriceInterestNote(cashPriceInterestPreview(series, expense, entryAmount, seriesCashPriceCents))
     : null;
 
   const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
@@ -370,7 +428,9 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
         showSummary
         suggestions={entrySuggestions}
         readOnlyBilling={editBillingLabel}
+        readOnlyBillingReason={expense ? billingLockReason(expense) : undefined}
         invoiceLock={invoiceLock}
+        payInvoiceAction={payInvoiceAction}
         creditOnlyPayment={expense?.recorrente === true}
         pendingInstallmentCount={pendingCountFor(entry.key)}
         descriptionRef={descriptionRef}
@@ -379,29 +439,57 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
       />
 
       {isInstallmentSeries && (
-        <div
-          role="radiogroup"
-          aria-label="Aplicar a edição a"
-          style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Aplicar a</span>
-          {INSTALLMENT_SCOPE_OPTIONS.map(({ scope, label }) => {
-            const count = scope === 'this' ? null : scopeCounts?.[scope] ?? null;
-            return (
-              <button
-                key={scope}
-                type="button"
-                role="radio"
-                aria-checked={installmentScope === scope}
-                disabled={state.saving !== null}
-                onClick={() => setInstallmentScope(scope)}
-                style={chipStyle(installmentScope === scope, { h: 30 })}
+        <>
+          <div
+            role="radiogroup"
+            aria-label="Aplicar a edição a"
+            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Aplicar a</span>
+            {INSTALLMENT_SCOPE_OPTIONS.map(({ scope, label }) => {
+              const count = scope === 'this' ? null : scopeCounts?.[scope] ?? null;
+              return (
+                <button
+                  key={scope}
+                  type="button"
+                  role="radio"
+                  aria-checked={installmentScope === scope}
+                  disabled={state.saving !== null}
+                  onClick={() => setInstallmentScope(scope)}
+                  style={chipStyle(installmentScope === scope, { h: 30 })}
+                >
+                  {label}{count !== null ? ` (${count})` : ''}
+                </button>
+              );
+            })}
+          </div>
+          {paidScopeNote && <p style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{paidScopeNote}</p>}
+          {valueNotes.map((note) => (
+            <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+          ))}
+          {installmentScope === 'all' && (
+            <>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
+                title="Valor sem juros. O que a soma das parcelas passa dele vira o juros das parcelas abertas."
               >
-                {label}{count !== null ? ` (${count})` : ''}
-              </button>
-            );
-          })}
-        </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>
+                  À vista <span style={{ fontWeight: 400, color: C.textFaint }}>(opcional)</span>
+                </span>
+                <div style={{ width: 120 }}>
+                  <MoneyCell
+                    label="Valor à vista"
+                    valueCents={seriesCashPriceCents}
+                    onChange={setSeriesCashPriceCents}
+                    disabled={state.saving !== null}
+                  />
+                </div>
+                <span style={{ fontSize: 12, color: C.textFaint }}>Em branco, o juros das parcelas não muda.</span>
+              </div>
+              {cashPriceNote && <p style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{cashPriceNote}</p>}
+            </>
+          )}
+        </>
       )}
     </>
   );
@@ -452,4 +540,9 @@ function ExpenseDialogContent({ expense, presetDate, onClose }: ExpenseDialogCon
       toast={state.toast}
     />
   );
+}
+
+/** Os avisos do valor em série; sem mudança no valor não há aviso. O limite só aparece no crédito com cartão. */
+function seriesValueNotesFor(impact: ReturnType<typeof seriesValueImpact>, card: Cartao | null): string[] {
+  return impact ? seriesValueNotes(impact, card ? { name: card.nome } : null) : [];
 }
