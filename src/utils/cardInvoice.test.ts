@@ -14,6 +14,7 @@ import {
   isInvoiceProtected,
   isRenegotiated,
   monthlyInterestRate,
+  payInvoiceShortcut,
   renegotiationNote,
   shiftInvoiceMonth,
   summarizeInvoicePayment,
@@ -120,4 +121,35 @@ test('compra renegociada: nota, proteção e trava', () => {
   assert.equal(isInvoiceProtected(restante), true);
   assert.equal(invoiceEditLock(restante), 'generated');
   assert.equal(isInvoiceProtected(expense()), false);
+});
+
+test('atalho "Pagar fatura" da edição: só a despesa em aberto no crédito com cartão, no mês do vencimento', () => {
+  assert.deepEqual(payInvoiceShortcut(expense()), { invoiceMonth: '2026-10', cardId: 7, label: 'Pagar fatura de out/2026' });
+  // O mês é o do vencimento (o que o servidor usa para as compras em aberto da fatura), não o da tela.
+  assert.deepEqual(
+    payInvoiceShortcut(expense({ dataVencimento: '2027-01-05', parcelado: true, parcela: '4/6' })),
+    { invoiceMonth: '2027-01', cardId: 7, label: 'Pagar fatura de jan/2027' },
+  );
+
+  // Fora do crédito com cartão não há fatura para pagar.
+  assert.equal(payInvoiceShortcut(expense({ formaPagamento: 'pix', cartaoId: null })), null);
+  assert.equal(payInvoiceShortcut(expense({ formaPagamento: 'debito' })), null);
+  assert.equal(payInvoiceShortcut(expense({ cartaoId: null })), null);
+  // Paga ou cancelada: a fatura não traria a linha.
+  assert.equal(payInvoiceShortcut(expense({ pago: true })), null);
+  assert.equal(payInvoiceShortcut(expense({ status: 'cancelada' })), null);
+});
+
+test('atalho "Pagar fatura": linha de pagamento de fatura (paga, renegociada ou gerada) fica sem atalho', () => {
+  const paga = expense({ pago: true, invoicePaymentId: 9, invoicePaymentMethod: 'total', invoiceMonth: '2026-10' });
+  const renegociada = expense({ pago: true, invoicePaymentId: 9, invoicePaymentMethod: 'installments', invoiceMonth: '2026-10' });
+  // Mesmo que o pagamento tenha deixado a linha em aberto (pago falso), pertencer a um pagamento de fatura tira o atalho.
+  const emAbertoNoPagamento = expense({ invoicePaymentId: 9, invoicePaymentMethod: 'partial', invoiceMonth: '2026-10' });
+  const restante = expense({ invoiceOriginPaymentId: 9, interest: 30 });
+  for (const row of [paga, renegociada, emAbertoNoPagamento, restante]) {
+    assert.equal(payInvoiceShortcut(row), null);
+    assert.notEqual(invoiceEditLock(row), 'credit-payment');
+  }
+  // O atalho existe exatamente onde a trava é a do "Pago pela fatura do cartão".
+  assert.equal(invoiceEditLock(expense()), 'credit-payment');
 });

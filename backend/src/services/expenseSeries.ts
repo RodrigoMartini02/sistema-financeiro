@@ -4,8 +4,10 @@
 // anexos e nota fiscal ficam na linha editada, porque são daquele mês (plano
 // .plans/recorrente-editar-proximas.md).
 // - mensal: a edição sempre vale para as próximas ocorrências em aberto;
-// - parcelado: vale para o escopo escolhido (esta e as próximas, ou todas), com
-//   as pagas incluídas.
+// - parcelado: vale para o escopo escolhido (esta e as próximas, ou todas). As
+//   pagas entram no valor, na descrição, na categoria e na data da compra, mas
+//   não no vencimento, na forma nem no cartão (plano
+//   .plans/edicao-despesas-parceladas.md, fatia 4).
 import { addMonthsClamped } from '../utils/date';
 import { INVOICE_EXPENSE_METHOD, isCreditWithCard } from './cardInvoiceRules';
 import type { ExpenseUpdateScope } from './expenseInput';
@@ -85,8 +87,8 @@ export type SeriesScope = Exclude<ExpenseUpdateScope, 'this'>;
 
 /**
  * Parcelado: parcela da mesma compra no escopo — vigente e fora de pagamento de
- * fatura, paga ou não. `following` são as de número maior que o da editada;
- * `all`, todas as outras.
+ * fatura, paga ou não (planInstallmentUpdates diz o que a paga recebe).
+ * `following` são as de número maior que o da editada; `all`, todas as outras.
  */
 export function isInstallmentInScope(row: SeriesOccurrence, edited: EditedOccurrence, scope: SeriesScope): boolean {
   if (!isSameSeries(row, edited) || !row.installment || !row.active || !isOutsideInvoicePayment(row)) {
@@ -166,13 +168,21 @@ function scheduleChanged(changed: ReadonlySet<SeriesField>): boolean {
   return changed.has('purchaseDate') || changed.has('dueDate') || changed.has('paymentMethod') || changed.has('cardId');
 }
 
-/** Descrição, categoria, forma, cartão e valor: o valor novo, quando mudou. */
-function withChangedFields(id: number, changed: ReadonlySet<SeriesField>, next: SeriesFields): SeriesRowUpdate {
+/**
+ * Descrição, categoria, forma, cartão e valor: o valor novo, quando mudou. Com
+ * `keepsPayment`, a forma e o cartão ficam como estão.
+ */
+function withChangedFields(
+  id: number,
+  changed: ReadonlySet<SeriesField>,
+  next: SeriesFields,
+  keepsPayment = false,
+): SeriesRowUpdate {
   const update: SeriesRowUpdate = { id };
   if (changed.has('description')) update.description = next.description;
   if (changed.has('categoryId')) update.categoryId = next.categoryId;
-  if (changed.has('paymentMethod')) update.paymentMethod = next.paymentMethod;
-  if (changed.has('cardId')) update.cardId = next.cardId;
+  if (!keepsPayment && changed.has('paymentMethod')) update.paymentMethod = next.paymentMethod;
+  if (!keepsPayment && changed.has('cardId')) update.cardId = next.cardId;
   if (changed.has('amount')) update.amount = next.amount;
   return update;
 }
@@ -218,18 +228,22 @@ export function planRecurringUpdates(
  * - data de compra: a nova, igual para todas (as parcelas dividem a compra);
  * - vencimento, quando mudou data de compra, vencimento, forma ou cartão: o
  *   vencimento novo da editada, deslocado pela distância em meses (negativa
- *   nas parcelas anteriores, em "Todas").
+ *   nas parcelas anteriores, em "Todas");
+ * - parcela já paga: sem vencimento, forma nem cartão novos. Ela já foi para o
+ *   caixa no mês em que foi paga, e mudar a forma para o crédito com cartão a
+ *   deixaria paga sem fatura. Valor, descrição, categoria e data da compra
+ *   seguem iguais em todas.
  */
 export function planInstallmentUpdates(
   edit: SeriesEdit,
   changed: ReadonlySet<SeriesField>,
-  rows: ReadonlyArray<Pick<SeriesOccurrence, 'id' | 'dueDate'>>,
+  rows: ReadonlyArray<Pick<SeriesOccurrence, 'id' | 'dueDate' | 'paid'>>,
 ): SeriesRowUpdate[] {
   const { next } = edit;
   return rows.map((row) => {
-    const update = withChangedFields(row.id, changed, next);
+    const update = withChangedFields(row.id, changed, next, row.paid);
     if (changed.has('purchaseDate')) update.purchaseDate = next.purchaseDate;
-    if (scheduleChanged(changed)) {
+    if (!row.paid && scheduleChanged(changed)) {
       update.dueDate = addMonthsClamped(next.dueDate, monthsBetween(edit.originalDueDate, row.dueDate));
     }
     return update;
@@ -320,4 +334,18 @@ export function recurringPaymentRefusal(current: PaymentChoice & { recurring: bo
   if (!current.recurring || isCreditWithCard(next)) return null;
   const unchanged = next.paymentMethod === current.paymentMethod && next.cardId === current.cardId;
   return unchanged ? null : 'A recorrente fica no cartão de crédito: dá para trocar só o cartão';
+}
+
+/**
+ * A despesa paga não vai para o crédito com cartão pela edição: no crédito o
+ * pagamento é feito pela fatura, e ela ficaria paga sem fatura (estado que a
+ * edição e o "Pagar" depois recusam). Vale para a parcela e para a única. As outras
+ * parcelas pagas da série nem chegam a mudar de forma ou cartão
+ * (planInstallmentUpdates); aqui é a própria linha editada. Devolve a mensagem da
+ * recusa, ou null.
+ */
+export function paidCreditRefusal(current: PaymentChoice & { paid: boolean }, next: PaymentChoice): string | null {
+  if (!current.paid) return null;
+  if (isCreditWithCard(current) || !isCreditWithCard(next)) return null;
+  return 'A despesa já paga não muda para o crédito com cartão: no crédito, o pagamento é feito pela fatura';
 }

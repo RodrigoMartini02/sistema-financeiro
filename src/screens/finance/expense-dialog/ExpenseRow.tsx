@@ -18,7 +18,7 @@ import {
   AddToBatchButton, GridCell, GridRow, RemoveFromBatchButton, type RowVariant,
 } from '../entry-dialog/GridParts';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
-import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
+import { SummaryLine, duplicateText, type SummaryAction } from '../entry-dialog/SummaryLine';
 import { getPaymentMethodLabel } from '../entryTable';
 import { BillingPopover } from './BillingPopover';
 import {
@@ -97,6 +97,8 @@ interface ExpenseRowProps {
   suggestions: DraftSuggestions | null;
   /** Edição: a cobrança só aparece ("Parcela 3/10", "Mensal"). */
   readOnlyBilling?: string;
+  /** Edição: o motivo de a cobrança não mudar, na dica do campo. */
+  readOnlyBillingReason?: string;
   /**
    * Edição de despesa ligada à fatura do cartão: o pagamento fica travado (é pela
    * fatura); com `locksValueAndMethod`, também valor, forma e cartão; com
@@ -105,6 +107,8 @@ interface ExpenseRowProps {
   invoiceLock?: { reason: string; locksValueAndMethod: boolean; locksDueDate: boolean };
   /** Edição de uma recorrente: a forma fica no Crédito, e só o cartão troca. */
   creditOnlyPayment?: boolean;
+  /** Edição no crédito com cartão: atalho para abrir "Pagar fatura", na linha de resumo. */
+  payInvoiceAction?: SummaryAction | null;
   pendingInstallmentCount: number | null;
   descriptionRef?: RefObject<HTMLInputElement | null>;
   onUpdate: (patch: DraftPatch) => void;
@@ -117,9 +121,9 @@ interface ExpenseRowProps {
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
-  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, invoiceLock, creditOnlyPayment = false,
-  pendingInstallmentCount, descriptionRef, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, onFocus,
-  onAddToBatch, onRemove,
+  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, readOnlyBillingReason, invoiceLock,
+  creditOnlyPayment = false, payInvoiceAction, pendingInstallmentCount, descriptionRef, onUpdate,
+  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
   const paymentLocked = invoiceLock !== undefined;
@@ -224,7 +228,7 @@ export function ExpenseRow({
 
         <GridCell label="Cobrança">
           {readOnlyBilling ? (
-            <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title="A cobrança não muda na edição">
+            <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title={readOnlyBillingReason ?? 'A cobrança não muda na edição'}>
               <span style={ellipsisStyle}>{readOnlyBilling}</span>
             </span>
           ) : (
@@ -359,6 +363,7 @@ export function ExpenseRow({
           duplicate={duplicate}
           help={helpText(draft)}
           compactTop={isEntry}
+          action={payInvoiceAction}
         />
       )}
     </>

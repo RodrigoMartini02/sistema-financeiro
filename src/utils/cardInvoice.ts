@@ -235,6 +235,31 @@ export function invoiceEditLock(expense: InvoiceFields): InvoiceEditLock | null 
   return null;
 }
 
+/** Para onde o atalho "Pagar fatura" da edição leva: o mês e o cartão do modal, e o texto do atalho. */
+export interface PayInvoiceShortcut {
+  /** 'AAAA-MM'. */
+  invoiceMonth: string;
+  cardId: number;
+  label: string;
+}
+
+/**
+ * Atalho "Pagar fatura" na edição: só para a despesa em aberto no crédito com
+ * cartão que nenhum pagamento de fatura tocou (a trava `credit-payment`, a do
+ * "Pago pela fatura do cartão"). Paga ou renegociada por uma fatura, gerada por
+ * ela (aí vale `lockedRow`: desfazer o pagamento), já paga, cancelada ou fora do
+ * crédito com cartão: sem atalho, porque a fatura não traria a linha. O mês é o
+ * do vencimento, o mesmo critério do servidor para as compras em aberto da fatura.
+ */
+export function payInvoiceShortcut(
+  expense: InvoiceFields & Pick<Expense, 'pago' | 'status' | 'dataVencimento'>,
+): PayInvoiceShortcut | null {
+  if (invoiceEditLock(expense) !== 'credit-payment' || expense.cartaoId == null) return null;
+  if (expense.pago || expense.status === 'cancelada') return null;
+  const invoiceMonth = expense.dataVencimento.slice(0, 7);
+  return { invoiceMonth, cardId: expense.cartaoId, label: `Pagar fatura de ${invoiceMonthLabel(invoiceMonth)}` };
+}
+
 /** O botão de pagar de cada linha: no crédito com cartão fica desligado, porque o pagamento é pela fatura. */
 export function expensePayButton(expense: Pick<Expense, 'formaPagamento' | 'cartaoId' | 'pago' | 'status'>): { label: string; disabled: boolean } {
   if (expense.status === 'cancelada') return { label: 'Cancelada', disabled: true };

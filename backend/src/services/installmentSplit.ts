@@ -49,3 +49,41 @@ export function embeddedInstallmentInterests(amountsInCents: number[], cashPrice
   }
   return splitInterestWithinInstallments(interestCents, amountsInCents);
 }
+
+/** Parcela da compra, como está gravada, para refazer o juros depois que o valor à vista é informado. */
+export interface InstallmentInterestRow {
+  id: number;
+  /** Valor da parcela, em centavos, já com o que a mesma edição mudou. */
+  amountCents: number;
+  /** Juros gravado na parcela, em centavos (nulo no banco vale zero). */
+  interestCents: number;
+  /** Paga ou ligada a pagamento de fatura: o que já foi para o caixa não muda, juros incluído. */
+  fixed: boolean;
+}
+
+/**
+ * Juros das parcelas abertas quando o valor à vista é informado depois da compra
+ * criada: o total (soma das parcelas menos o à vista, nunca negativo) menos o que as
+ * parcelas fixas já guardam, dividido só entre as abertas com
+ * splitInterestWithinInstallments. O resultado não passa da soma das abertas
+ * (o juros nunca passa do valor da parcela); o que sobrar é do passado e não se
+ * refaz. Devolve o juros em centavos de cada parcela aberta, por id (zero vira "sem juros").
+ */
+export function recalculatedInstallmentInterests(
+  rows: ReadonlyArray<InstallmentInterestRow>,
+  cashPriceInCents: number,
+): Map<number, number> {
+  const open = rows.filter((row) => !row.fixed);
+  const result = new Map<number, number>();
+  if (open.length === 0) return result;
+  const totalCents = rows.reduce((sum, row) => sum + row.amountCents, 0);
+  const totalInterestCents = Math.max(0, totalCents - cashPriceInCents);
+  const fixedInterestCents = rows.filter((row) => row.fixed).reduce((sum, row) => sum + row.interestCents, 0);
+  const openCents = open.reduce((sum, row) => sum + row.amountCents, 0);
+  const remainingCents = Math.min(Math.max(0, totalInterestCents - fixedInterestCents), openCents);
+  const interests = remainingCents === 0
+    ? open.map(() => 0)
+    : splitInterestWithinInstallments(remainingCents, open.map((row) => row.amountCents));
+  open.forEach((row, index) => result.set(row.id, interests[index]!));
+  return result;
+}

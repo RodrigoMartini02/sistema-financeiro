@@ -6,7 +6,9 @@ import { formatCurrency, formatDate } from '../finance/formatters';
 import {
   formatDiferenca, getFirstName, getStatusColor, StatusBadge,
 } from './expenseStatus';
-import { effectiveExpenseValue, paymentDifference } from '../../utils/expenseValue';
+import {
+  effectiveExpenseValue, embeddedInstallmentInterest, embeddedInterestText, paymentDifference,
+} from '../../utils/expenseValue';
 import { expensePayButton, isInvoiceProtected, isRenegotiated, renegotiationNote } from '../../utils/cardInvoice';
 import { EntryTypeBadge, getPaymentMethodLabel } from '../finance/entryTable';
 
@@ -31,6 +33,7 @@ export function ExpenseCard({
   const isProtected = isInvoiceProtected(item);
   const payButton = expensePayButton(item);
   const note = renegotiationNote(item);
+  const embeddedInterest = embeddedInstallmentInterest(item);
   const anexosCount = item.anexos?.length ?? 0;
 
   const actions: KebabMenuAction[] = [
@@ -134,6 +137,12 @@ export function ExpenseCard({
           ) : paymentDifference(item) !== null && (
             <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
               {formatDiferenca(paymentDifference(item)!)}
+            </p>
+          )}
+          {/* Juros que a parcela já traz no valor. Fica à parte do "+ R$", que é o pago a mais que o previsto. */}
+          {embeddedInterest !== null && (
+            <p className="whitespace-nowrap text-[11px] text-slate-400 dark:text-slate-500">
+              {embeddedInterestText(embeddedInterest)}
             </p>
           )}
         </div>

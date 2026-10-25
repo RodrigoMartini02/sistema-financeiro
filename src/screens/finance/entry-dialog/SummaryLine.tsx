@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { C } from '../../../ui/dialogFormTokens';
 import { isoToShortBrDate } from '../../../utils/date';
+import { linkButtonStyle } from './fieldStyles';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
@@ -33,6 +34,13 @@ function pillStyle(tone: StatusTone): CSSProperties {
   };
 }
 
+/** Atalho que a linha de resumo oferece (ex.: "Pagar fatura" na edição de uma despesa no crédito). */
+export interface SummaryAction {
+  label: string;
+  title?: string;
+  onClick: () => void;
+}
+
 interface SummaryLineProps {
   content: SummaryContent | null;
   /** Texto enquanto faltam os dados para o resumo. */
@@ -44,6 +52,7 @@ interface SummaryLineProps {
   help: string;
   /** A linha de entrada tem o resumo mais perto dos campos. */
   compactTop: boolean;
+  action?: SummaryAction | null;
 }
 
 /** Aviso de lançamento igual cadastrado nos últimos 7 dias (a data vem do servidor). */
@@ -53,7 +62,7 @@ export function duplicateText(createdAtIso: string): string {
 
 /** Linha sob o lançamento ativo: situação, datas, total, avisos, sugestão de categoria e ajuda. */
 export function SummaryLine({
-  content, placeholder, categorySuggestion, onAcceptCategory, lastAmount, duplicate, help, compactTop,
+  content, placeholder, categorySuggestion, onAcceptCategory, lastAmount, duplicate, help, compactTop, action = null,
 }: SummaryLineProps) {
   return (
     <div
@@ -80,6 +89,11 @@ export function SummaryLine({
           style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 12, color: C.primary, cursor: 'pointer' }}
         >
           Sugerida: <b style={{ fontWeight: 600 }}>{categorySuggestion.name}</b> · Tab aceita
+        </button>
+      )}
+      {action && (
+        <button type="button" onClick={action.onClick} title={action.title} style={{ ...linkButtonStyle, fontWeight: 600 }}>
+          {action.label}
         </button>
       )}
       {duplicate ? <span style={{ color: C.warn }}>{duplicate}</span> : lastAmount && <span>{lastAmount}</span>}

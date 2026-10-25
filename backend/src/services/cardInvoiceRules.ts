@@ -357,7 +357,7 @@ export interface LockableExpenseFields {
   amountPaid: number | null;
 }
 
-/** O que a edição grava no pagamento: a mesma regra de resolvePayment (expenseService) fora do pagamento automático. */
+/** O que a edição grava no pagamento: a mesma regra de resolveEditedPayment (expensePayment), sem pagamento automático. */
 function resolvedPayment(fields: LockableExpenseFields): Pick<LockableExpenseFields, 'paid' | 'paymentDate' | 'amountPaid'> {
   if (!fields.paid) {
     return { paid: false, paymentDate: null, amountPaid: null };

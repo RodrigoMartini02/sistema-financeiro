@@ -22,12 +22,12 @@ import {
   PAYMENT_METHODS,
   type CreateExpenseInput,
   type DuplicateQuery,
-  type PaymentInput,
   type PaymentMethod,
   type SuggestionsQuery,
   type UpdateExpenseInput,
 } from './expenseInput';
-import { embeddedInstallmentInterests } from './installmentSplit';
+import { resolveEditedPayment, resolvePayment } from './expensePayment';
+import { embeddedInstallmentInterests, recalculatedInstallmentInterests } from './installmentSplit';
 
 const MATCH_LIMIT = 4;
 
@@ -44,29 +44,6 @@ function toCents(value: number): number {
 function scheduleColumns(dueDate: string): Pick<NewExpense, 'dueDate' | 'month' | 'year'> {
   const { mes, ano } = getMonthYearFromIsoDate(dueDate);
   return { dueDate, month: mes, year: ano };
-}
-
-type PaymentColumns = Pick<NewExpense, 'paid' | 'paymentDate' | 'amountPaid'>;
-
-/**
- * Pagamento gravado. Com `autoPay`, fora do crédito uma despesa com vencimento (ou
- * pagamento) até hoje já nasce paga — a regra de sempre. Parcelas não usam isso: a
- * grade diz quais estão pagas, e uma parcela vencida pode continuar em aberto.
- */
-function resolvePayment(
-  payment: PaymentInput,
-  amount: number,
-  dueDate: string,
-  paymentMethod: PaymentMethod,
-  today: string,
-  autoPay: boolean,
-): PaymentColumns {
-  const referenceDate = payment.paymentDate ?? dueDate;
-  const paid = payment.paid || (autoPay && paymentMethod !== 'credito' && referenceDate <= today);
-  if (!paid) {
-    return { paid: false, paymentDate: null, amountPaid: null };
-  }
-  return { paid: true, paymentDate: referenceDate, amountPaid: toDecimal(payment.amountPaid ?? amount) };
 }
 
 /**
@@ -240,15 +217,18 @@ export interface ExpenseUpdateResult {
   updated: Expense;
   /** Outras linhas da série que também mudaram. */
   seriesUpdated: number;
+  /** Parcelas abertas cujo juros foi refeito com o valor à vista informado na edição. */
+  interestUpdated: number;
 }
 
 /**
  * Edita uma linha e, numa série, as outras do alcance (expenseSeries). Número e
  * posição da parcela, grupo, recorrência, conta e observação ficam como estão: o
  * modal não os mostra, e sobrescrevê-los apagava o "3/10" da parcela editada.
- * Com a trava do pagamento da fatura, os campos travados também ficam como
- * estão (a rota já recusou qualquer mudança neles). Tudo numa transação: ou a
- * série inteira muda, ou nada.
+ * O pagamento é o que a tela mandou: a edição não religa "paga" sozinha (o
+ * pagamento automático é só da criação). Com a trava do pagamento da fatura, os
+ * campos travados também ficam como estão (a rota já recusou qualquer mudança
+ * neles). Tudo numa transação: ou a série inteira muda, ou nada.
  */
 export async function updateExpense(
   ownerId: number,
@@ -264,9 +244,7 @@ export async function updateExpense(
       .update(expenses)
       .set({
         ...(keepsScheduleAndPayment ? {} : scheduleColumns(input.dueDate)),
-        ...(keepsScheduleAndPayment
-          ? {}
-          : resolvePayment(input, input.amount, input.dueDate, input.paymentMethod, today, !current.isInstallment)),
+        ...(keepsScheduleAndPayment ? {} : resolveEditedPayment(input, today)),
         description: input.description,
         purchaseDate: input.purchaseDate,
         categoryId: input.categoryId,
@@ -281,7 +259,10 @@ export async function updateExpense(
       .returning();
     if (!updated) return null;
     const seriesUpdated = await updateSeriesRows(transaction, ownerId, expenseId, input, current);
-    return { updated, seriesUpdated };
+    const interestUpdated = input.cashPrice === null
+      ? 0
+      : await refreshEmbeddedInterest(transaction, ownerId, current, toCents(input.cashPrice));
+    return { updated, seriesUpdated, interestUpdated };
   });
 }
 
@@ -404,6 +385,63 @@ async function updateSeriesRows(
     const columns = seriesRowColumns(update);
     if (Object.keys(columns).length === 0) continue;
     await transaction.update(expenses).set(columns).where(and(eq(expenses.id, update.id), eq(expenses.userId, ownerId)));
+    updatedRows += 1;
+  }
+  return updatedRows;
+}
+
+/**
+ * Valor à vista informado na edição da compra parcelada: refaz o juros embutido das
+ * parcelas abertas (recalculatedInstallmentInterests). Lê a compra depois das mudanças
+ * da mesma edição (o valor novo já vale) e só grava o juros das parcelas abertas e fora
+ * de pagamento de fatura: a paga e a da fatura já foram para o caixa e não mudam. O valor
+ * à vista não é guardado. Devolve quantas parcelas tiveram o juros trocado.
+ */
+async function refreshEmbeddedInterest(
+  transaction: Transaction,
+  ownerId: number,
+  current: ExpenseForUpdate,
+  cashPriceInCents: number,
+): Promise<number> {
+  const groupId = current.series.installmentGroupId;
+  if (!current.isInstallment || groupId === null) {
+    throw new RequestInputError('O valor à vista é só da compra parcelada');
+  }
+  const rows = await transaction
+    .select({
+      id: expenses.id,
+      amount: expenses.originalAmount,
+      interest: expenses.interest,
+      paid: expenses.paid,
+      invoicePaymentId: expenses.invoicePaymentId,
+    })
+    .from(expenses)
+    .where(and(
+      eq(expenses.userId, ownerId),
+      eq(expenses.installmentGroupId, groupId),
+      eq(expenses.installment, true),
+      eq(expenses.status, ACTIVE_STATUS),
+      isNull(expenses.invoiceOriginPaymentId),
+    ))
+    .orderBy(asc(expenses.currentInstallment), asc(expenses.id))
+    .for('update');
+  const stored = new Map(rows.map((row) => [row.id, toCents(Number(row.interest ?? 0))]));
+  const interests = recalculatedInstallmentInterests(
+    rows.map((row) => ({
+      id: row.id,
+      amountCents: toCents(Number(row.amount)),
+      interestCents: stored.get(row.id)!,
+      fixed: row.paid === true || row.invoicePaymentId !== null,
+    })),
+    cashPriceInCents,
+  );
+  let updatedRows = 0;
+  for (const [id, interestCents] of interests) {
+    if (interestCents === stored.get(id)) continue;
+    await transaction
+      .update(expenses)
+      .set({ interest: interestCents > 0 ? toDecimal(interestCents / 100) : null })
+      .where(and(eq(expenses.id, id), eq(expenses.userId, ownerId)));
     updatedRows += 1;
   }
   return updatedRows;

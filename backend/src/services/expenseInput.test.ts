@@ -177,6 +177,20 @@ test('edição: alcance na série ausente vale só esta; aceita as três opçõe
   assertRejects(() => readUpdateExpenseInput(singleBody({ applyTo: 'todas' })), 'Alcance da edição inválido');
 });
 
+test('edição: valor à vista ausente não mexe no juros; informado só vale com "Todas" e precisa ser válido', () => {
+  assert.equal(readUpdateExpenseInput(singleBody()).cashPrice, null);
+  assert.equal(readUpdateExpenseInput(singleBody({ cashPrice: null, applyTo: 'this' })).cashPrice, null);
+  assert.equal(readUpdateExpenseInput(singleBody({ cashPrice: 90, applyTo: 'all' })).cashPrice, 90);
+  for (const scope of ['this', 'following', undefined]) {
+    assertRejects(
+      () => readUpdateExpenseInput(singleBody({ cashPrice: 90, applyTo: scope })),
+      'O valor à vista vale para a compra inteira: escolha "Todas as parcelas"',
+    );
+  }
+  assertRejects(() => readUpdateExpenseInput(singleBody({ cashPrice: -1, applyTo: 'all' })), 'Valor à vista inválido');
+  assertRejects(() => readUpdateExpenseInput(singleBody({ cashPrice: 'noventa', applyTo: 'all' })), 'Valor à vista inválido');
+});
+
 test('sugestões ignoram texto com menos de 2 letras', () => {
   assert.deepEqual(readSuggestionsQuery({ description: 'u', account_id: '17' }), {
     description: '', accountId: 17, categoryId: null,

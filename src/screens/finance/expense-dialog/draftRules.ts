@@ -2,11 +2,12 @@
 // resumo, validação e montagem do que vai para a API.
 import type { Cartao } from '../../../types/config';
 import type {
-  ExpenseCreateInput, ExpenseInstallmentInput, ExpenseUpdateInput, PaymentMethod,
+  Expense, ExpenseCreateInput, ExpenseInstallmentInput, ExpenseUpdateInput, PaymentMethod,
 } from '../../../types/finance';
 import type { ExpenseDuplicateQuery } from '../../../services/expenseSuggestionsService';
 import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
 import { addMonthsClamped, invoiceDueDate, splitAmountInCents } from '../../../utils/expenseSchedule';
+import { embeddedInterestText } from '../../../utils/expenseValue';
 import { formatCurrency } from '../formatters';
 import { formatCents, toReais } from '../entry-dialog/cents';
 import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
@@ -25,8 +26,21 @@ export interface RuleContext {
    * 3/10 não pode voltar para o vencimento calculado da compra).
    */
   savedDueDate?: string;
-  /** Na edição de uma parcela, a regra "vencida fora do crédito nasce paga" não vale. */
-  editingInstallment?: boolean;
+  /**
+   * Na edição, a regra "vencida fora do crédito nasce paga" não vale: ela é só da
+   * criação, e quem desmarca "paga" não a vê voltar paga ao salvar (o servidor faz
+   * o mesmo, resolveEditedPayment).
+   */
+  editing?: boolean;
+  /** Na edição: o juros embutido gravado na parcela (`embeddedInstallmentInterest`), só para o resumo mostrar. */
+  savedInterest?: number | null;
+}
+
+/** Por que a Cobrança não muda na edição: a dica do campo e o texto do rodapé. */
+export function billingLockReason(expense: Pick<Expense, 'parcelado'>): string {
+  return expense.parcelado
+    ? 'A cobrança não muda na edição: para mudar o nº de parcelas, exclua e lance de novo.'
+    : 'A cobrança não muda na edição: para trocá-la, exclua e lance de novo.';
 }
 
 function plural(count: number, singular: string, pluralForm: string): string {
@@ -287,7 +301,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   const due = effectiveDueDate(draft, context);
   const today = context.todayIso;
   const credit = draft.paymentMethod === 'credito';
-  const autoPay = !context.editingInstallment;
+  const autoPay = !context.editing;
   const firstLabel = draft.billingType === 'single' ? 'Vence ' : '1ª vence ';
 
   let dueText: string;
@@ -360,6 +374,8 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
     if (draft.amountPaidCents > amount) badges.push({ text: `+ ${formatCents(draft.amountPaidCents - amount)} de multa e juros`, tone: 'warning' });
     else if (draft.amountPaidCents < amount) badges.push({ text: `${formatCents(amount - draft.amountPaidCents)} de desconto`, tone: 'success' });
   }
+  // Edição de uma parcela: o juros que ela já traz no valor. Não é "+ R$ de multa e juros" (o pago a mais).
+  if (context.savedInterest) badges.push({ text: embeddedInterestText(context.savedInterest), tone: 'neutral' });
   return { status, dueText, totalText, badges };
 }
 
