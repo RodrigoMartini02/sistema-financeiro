@@ -27,6 +27,7 @@ import {
   type UpdateExpenseInput,
 } from './expenseInput';
 import { resolveEditedPayment, resolvePayment } from './expensePayment';
+import { installmentCountRefusal, planInstallmentCountChange, planSingleToInstallments, type CountChangeSubject } from './installmentCount';
 import { embeddedInstallmentInterests, recalculatedInstallmentInterests } from './installmentSplit';
 
 const MATCH_LIMIT = 4;
@@ -219,7 +220,14 @@ export interface ExpenseUpdateResult {
   seriesUpdated: number;
   /** Parcelas abertas cujo juros foi refeito com o valor à vista informado na edição. */
   interestUpdated: number;
+  /** Parcelas novas criadas pela mudança do nº de parcelas (ou pela despesa única que virou parcelada). */
+  installmentsCreated: number;
+  /** Parcelas abertas apagadas pela redução do nº de parcelas. */
+  installmentsDeleted: number;
 }
+
+/** Primeiro argumento do `pg_advisory_xact_lock(int, int)` que serializa a mudança do nº de parcelas de uma mesma compra. */
+const INSTALLMENT_COUNT_LOCK_NAMESPACE = 4301;
 
 /**
  * Edita uma linha e, numa série, as outras do alcance (expenseSeries). Número e
@@ -240,6 +248,13 @@ export async function updateExpense(
   const keepsValueAndMethod = current.invoiceEditLock !== null;
   const keepsScheduleAndPayment = current.invoiceEditLock === 'invoice-item';
   return db.transaction(async (transaction) => {
+    // A mudança do nº de parcelas lê e grava a compra inteira: duas edições da mesma compra rodam uma de cada vez, e
+    // cada uma já enxerga o que a outra gravou (a trava é a primeira coisa da transação).
+    if (input.installmentCount !== null) {
+      await transaction.execute(
+        sql`SELECT pg_advisory_xact_lock(${INSTALLMENT_COUNT_LOCK_NAMESPACE}::int, ${current.series.installmentGroupId ?? expenseId}::int)`,
+      );
+    }
     const [updated] = await transaction
       .update(expenses)
       .set({
@@ -259,11 +274,116 @@ export async function updateExpense(
       .returning();
     if (!updated) return null;
     const seriesUpdated = await updateSeriesRows(transaction, ownerId, expenseId, input, current);
+    // Antes do juros: o "À vista" informado na mesma edição vale para a compra já com o novo nº de parcelas.
+    const count = input.installmentCount === null
+      ? { created: 0, deleted: 0 }
+      : await changeInstallmentCount(transaction, ownerId, updated, input, input.installmentCount, current.lockableFields.paid);
     const interestUpdated = input.cashPrice === null
       ? 0
       : await refreshEmbeddedInterest(transaction, ownerId, current, toCents(input.cashPrice));
-    return { updated, seriesUpdated, interestUpdated };
+    return { updated, seriesUpdated, interestUpdated, installmentsCreated: count.created, installmentsDeleted: count.deleted };
   });
+}
+
+/**
+ * Muda o nº de parcelas da compra (a parcelada, com "Todas") ou transforma a despesa única na parcela 1 de uma
+ * compra parcelada. `edited` é a linha editada como ficou nesta transação (já travada), e é dela que as parcelas
+ * novas herdam descrição, categoria, forma, cartão, data da compra e o valor da parcela; sem juros e sem anexos.
+ * As recusas (paga, na fatura, cauda com parcela paga) lançam RequestInputError e desfazem a edição inteira.
+ * Devolve quantas parcelas foram criadas e apagadas.
+ */
+async function changeInstallmentCount(
+  transaction: Transaction,
+  ownerId: number,
+  edited: Expense,
+  input: UpdateExpenseInput,
+  nextCount: number,
+  wasPaid: boolean,
+): Promise<{ created: number; deleted: number }> {
+  const subject: CountChangeSubject = {
+    isInstallment: edited.installment === true,
+    recurring: edited.recurring === true,
+    groupId: edited.installmentGroupId,
+    invoiceEditLock: invoiceEditLockOf(edited),
+    paid: wasPaid || edited.paid === true,
+    hasSourceIncome: edited.sourceIncomeId !== null,
+    currentCount: edited.numberOfInstallments,
+  };
+  const refusal = installmentCountRefusal(subject, { installmentCount: nextCount, applyTo: input.applyTo, paid: input.paid });
+  if (refusal) throw new RequestInputError(refusal);
+  if (subject.isInstallment && nextCount === subject.currentCount) return { created: 0, deleted: 0 };
+
+  const groupId = subject.isInstallment ? subject.groupId! : edited.id;
+  const purchaseRows = and(
+    eq(expenses.userId, ownerId),
+    eq(expenses.installmentGroupId, groupId),
+    eq(expenses.installment, true),
+    isNull(expenses.invoiceOriginPaymentId),
+  );
+  let result;
+  if (subject.isInstallment) {
+    const rows = await transaction
+      .select({
+        id: expenses.id,
+        number: expenses.currentInstallment,
+        dueDate: expenses.dueDate,
+        paid: expenses.paid,
+        invoicePaymentId: expenses.invoicePaymentId,
+      })
+      .from(expenses)
+      .where(purchaseRows)
+      .orderBy(asc(expenses.id))
+      .for('update');
+    result = planInstallmentCountChange({
+      rows: rows.map((row) => ({
+        id: row.id,
+        number: row.number,
+        dueDate: row.dueDate,
+        paid: row.paid === true,
+        invoiceLinked: row.invoicePaymentId !== null,
+      })),
+      editedId: edited.id,
+      currentCount: edited.numberOfInstallments ?? 0,
+      nextCount,
+    });
+  } else {
+    result = planSingleToInstallments(edited.dueDate, nextCount);
+  }
+  if ('refusal' in result) throw new RequestInputError(result.refusal);
+  const { plan } = result;
+
+  if (plan.deleteIds.length > 0) {
+    await transaction.delete(expenses).where(and(eq(expenses.userId, ownerId), inArray(expenses.id, plan.deleteIds)));
+  }
+  // O rótulo "x/N" de quem fica (a paga e a da fatura só mudam o rótulo); a despesa única vira a parcela 1.
+  await transaction
+    .update(expenses)
+    .set(subject.isInstallment
+      ? { numberOfInstallments: plan.nextCount }
+      : { installment: true, numberOfInstallments: plan.nextCount, currentInstallment: 1, installmentGroupId: groupId })
+    .where(subject.isInstallment ? purchaseRows : and(eq(expenses.id, edited.id), eq(expenses.userId, ownerId)));
+  if (plan.create.length > 0) {
+    await transaction.insert(expenses).values(plan.create.map((item): NewExpense => ({
+      userId: ownerId,
+      accountId: edited.accountId,
+      categoryId: edited.categoryId,
+      cardId: edited.cardId,
+      description: edited.description,
+      paymentMethod: edited.paymentMethod,
+      purchaseDate: edited.purchaseDate,
+      originalAmount: edited.originalAmount,
+      ...scheduleColumns(item.dueDate),
+      installment: true,
+      numberOfInstallments: plan.nextCount,
+      currentInstallment: item.number,
+      installmentGroupId: groupId,
+      paid: false,
+      status: ACTIVE_STATUS,
+      interest: null,
+      recurring: false,
+    })));
+  }
+  return { created: plan.create.length, deleted: plan.deleteIds.length };
 }
 
 /**

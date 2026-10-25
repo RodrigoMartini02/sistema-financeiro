@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type Dispatch } from 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
 import type { Expense, ExpenseUpdateScope, FinanceDashboardData } from '../../../types/finance';
+import { useConfirm } from '../../../context/ConfirmContext';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchCardLimits } from '../../../services/cardLimitsService';
@@ -16,6 +17,10 @@ import {
 } from '../../../utils/expenseSeries';
 import { embeddedInstallmentInterest } from '../../../utils/expenseValue';
 import {
+  MAX_INSTALLMENT_COUNT, canBecomeInstallments, installmentCountNotes, minimumInstallmentCount, previewInstallmentCount,
+  previewSingleInstallments, purchaseInstallmentCount, reductionBlock, singleInstallmentsNotes,
+} from '../../../utils/installmentCount';
+import {
   createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
@@ -28,7 +33,7 @@ import { toReais } from '../entry-dialog/cents';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
-  EMPTY_FORM_MESSAGE, billingLockReason, buildCreateInput, buildUpdateInput, cardForMethod, errorMessage, hasErrors,
+  EMPTY_FORM_MESSAGE, billingLockReason, buildCreateInput, buildUpdateInput, cardForMethod, effectiveDueDate, errorMessage, hasErrors,
   installmentsTotal, isDraftFilled, usesCard, validateDraft, type RuleContext,
 } from './draftRules';
 import {
@@ -36,6 +41,7 @@ import {
   type DialogAction, type DraftErrors, type DraftPatch, type ExpenseDraft,
 } from './draftState';
 import { ExpenseRow, amountLabel, type RowResources } from './ExpenseRow';
+import { InstallmentCountField } from './InstallmentCountField';
 import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
 import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSuggestions';
@@ -118,6 +124,7 @@ interface ExpenseDialogContentProps {
 
 function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: ExpenseDialogContentProps) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const todayIso = useMemo(() => getLocalTodayIso(), []);
   const isEdit = expense !== null;
   const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
@@ -143,6 +150,9 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   const [installmentScope, setInstallmentScope] = useState<ExpenseUpdateScope>('this');
   // O "À vista" da edição da parcelada: refaz o juros das parcelas abertas (só com "Todas"). Vazio não mexe no juros.
   const [seriesCashPriceCents, setSeriesCashPriceCents] = useState<number | null>(null);
+  // Novo nº de parcelas na edição (nulo não muda). Na parcelada, o total da compra (só com "Todas"); na despesa única
+  // em aberto, em quantas parcelas ela vira (1 = continua única).
+  const [nextInstallmentCount, setNextInstallmentCount] = useState<number | null>(null);
 
   const categories = useMemo(() => (categoriesQuery.data ?? []).filter((category) => category.ativo), [categoriesQuery.data]);
   // Na edição, o cartão da despesa continua na lista mesmo que hoje não esteja mais liberado.
@@ -233,16 +243,27 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
       dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: errorMessage(errors) });
       return;
     }
+    // Reduzir o nº de parcelas apaga parcelas abertas: só com a confirmação da pessoa.
+    if (countPreview?.kind === 'delete'
+      && !(await confirm({
+        title: 'Apagar parcelas?',
+        message: installmentCountNotes(countPreview, entryAmount ?? 0, null).join(' '),
+        confirmLabel: 'Apagar e salvar',
+        variant: 'danger',
+      }))) {
+      return;
+    }
     dispatch({ type: 'savingStarted', total: 1 });
     try {
       // No mensal, o servidor sempre leva a edição às próximas; no parcelado, vai o alcance escolhido.
-      // O "À vista" só vai com "Todas": o juros é da compra inteira.
+      // O "À vista" e o nº de parcelas só vão com "Todas": são da compra inteira.
       await updateExpense(target.id, {
         ...buildUpdateInput(state.entry, context),
         ...(isInstallmentSeries ? { applyTo: installmentScope } : {}),
         ...(isInstallmentSeries && installmentScope === 'all' && seriesCashPriceCents !== null
           ? { cashPrice: toReais(seriesCashPriceCents) }
           : {}),
+        ...(installmentCountToSend !== null ? { installmentCount: installmentCountToSend } : {}),
       });
       invalidateExpenseQueries(qc);
       onClose();
@@ -370,8 +391,25 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   const creditCard = state.entry.paymentMethod === 'credito' && state.entry.cardId !== null
     ? cards.find((card) => card.id === state.entry.cardId) ?? null
     : null;
+  // Nº de parcelas: a parcelada ("Todas") muda o total da compra; a despesa única em aberto pode virar parcelada.
+  const countEditable = expense !== null && series !== undefined && isInstallmentSeries && installmentScope === 'all' && lock !== 'generated';
+  const countToday = expense && series && isInstallmentSeries ? purchaseInstallmentCount(series, expense) : null;
+  const countMinimum = expense && series && isInstallmentSeries ? minimumInstallmentCount(series, expense) : 2;
+  const countBlock = expense && series && isInstallmentSeries ? reductionBlock(series, expense) : null;
+  const countShown = nextInstallmentCount ?? countToday ?? 2;
+  const countPreview = countEditable && series && expense && entryAmount !== null && nextInstallmentCount !== null
+    ? previewInstallmentCount(series, expense, nextInstallmentCount, entryAmount)
+    : null;
+  // A despesa ligada à fatura (paga por ela ou gerada por ela) já fica de fora em canBecomeInstallments; no crédito com cartão ela pode virar parcelada.
+  const canSplitSingle = expense !== null && canBecomeInstallments(expense);
+  const splitPreview = canSplitSingle && nextInstallmentCount !== null && entryAmount !== null
+    ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount)
+    : null;
+  const installmentCountToSend = isInstallmentSeries ? (countPreview ? nextInstallmentCount : null) : (splitPreview ? nextInstallmentCount : null);
+  const countCard = creditCard ? { name: creditCard.nome } : null;
+
   const valueNotes = expense && series && isInstallmentSeries && installmentScope !== 'this' && entryAmount !== null
-    ? seriesValueNotesFor(seriesValueImpact(series, expense, installmentScope, entryAmount), creditCard)
+    ? seriesValueNotesFor(seriesValueImpact(series, expense, installmentScope, entryAmount), countPreview ? null : creditCard)
     : [];
   const cashPriceNote = expense && series && isInstallmentSeries && installmentScope === 'all' && entryAmount !== null && seriesCashPriceCents !== null
     ? cashPriceInterestNote(cashPriceInterestPreview(series, expense, entryAmount, seriesCashPriceCents))
@@ -379,7 +417,9 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
 
   const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
   const editBillingLabel = expense
-    ? expense.parcelado && expense.parcela ? `Parcela ${expense.parcela}` : expense.recorrente ? recurringLabel : 'Não repete'
+    ? expense.parcelado && expense.parcela
+      ? `Parcela ${expense.parcela}`
+      : expense.recorrente ? recurringLabel : splitPreview ? `Parcelada em ${splitPreview.count}x` : 'Não repete'
     : undefined;
 
   const top = (
@@ -438,6 +478,28 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
         {...rowHandlers(entry.key)}
       />
 
+      {canSplitSingle && (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Parcelar em</span>
+            <InstallmentCountField
+              label="Parcelar a despesa em quantas parcelas"
+              value={nextInstallmentCount ?? 1}
+              min={1}
+              max={MAX_INSTALLMENT_COUNT}
+              disabled={state.saving !== null}
+              onChange={(count) => setNextInstallmentCount(count <= 1 ? null : count)}
+            />
+            <span style={{ fontSize: 12, color: C.textFaint }}>
+              {nextInstallmentCount === null ? 'Em 1, a despesa continua única.' : 'parcelas, uma por mês.'}
+            </span>
+          </div>
+          {splitPreview && singleInstallmentsNotes(splitPreview, entryAmount ?? 0, countCard).map((note) => (
+            <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+          ))}
+        </>
+      )}
+
       {isInstallmentSeries && (
         <>
           <div
@@ -469,6 +531,32 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
           ))}
           {installmentScope === 'all' && (
             <>
+              {countEditable && (
+                <>
+                  <div
+                    style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
+                    title="Só entram ou saem parcelas em aberto: as pagas e as da fatura do cartão ficam."
+                  >
+                    <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Parcelas</span>
+                    <InstallmentCountField
+                      label="Número de parcelas da compra"
+                      value={countShown}
+                      min={countMinimum}
+                      max={MAX_INSTALLMENT_COUNT}
+                      disabled={state.saving !== null}
+                      onChange={(count) => setNextInstallmentCount(count === countToday ? null : count)}
+                    />
+                    <span style={{ fontSize: 12, color: C.textFaint }}>
+                      {countBlock && countShown <= countBlock.minimum
+                        ? `Mínimo ${countBlock.minimum}: a parcela ${countBlock.minimum} ${countBlock.reason}.`
+                        : 'Só entram ou saem parcelas em aberto.'}
+                    </span>
+                  </div>
+                  {countPreview && entryAmount !== null && installmentCountNotes(countPreview, entryAmount, countCard).map((note) => (
+                    <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+                  ))}
+                </>
+              )}
               <div
                 style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
                 title="Valor sem juros. O que a soma das parcelas passa dele vira o juros das parcelas abertas."

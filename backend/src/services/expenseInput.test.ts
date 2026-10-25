@@ -191,6 +191,16 @@ test('edição: valor à vista ausente não mexe no juros; informado só vale co
   assertRejects(() => readUpdateExpenseInput(singleBody({ cashPrice: 'noventa', applyTo: 'all' })), 'Valor à vista inválido');
 });
 
+test('edição: nº de parcelas ausente não muda; informado é inteiro de 2 a 360', () => {
+  assert.equal(readUpdateExpenseInput(singleBody()).installmentCount, null);
+  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: null })).installmentCount, null);
+  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: 2 })).installmentCount, 2);
+  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: 360, applyTo: 'all' })).installmentCount, 360);
+  for (const invalid of [1, 0, -3, 361, 2.5, '5', Number.NaN]) {
+    assertRejects(() => readUpdateExpenseInput(singleBody({ installmentCount: invalid })), 'Informe de 2 a 360 parcelas');
+  }
+});
+
 test('sugestões ignoram texto com menos de 2 letras', () => {
   assert.deepEqual(readSuggestionsQuery({ description: 'u', account_id: '17' }), {
     description: '', accountId: 17, categoryId: null,

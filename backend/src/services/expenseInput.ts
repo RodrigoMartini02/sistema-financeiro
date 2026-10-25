@@ -69,6 +69,11 @@ export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
    * das parcelas abertas. Nulo (ausente): não mexe no juros. Só vale com `applyTo: 'all'`.
    */
   cashPrice: number | null;
+  /**
+   * Novo nº de parcelas da compra (plano .plans/financas-pendencias.md, E4): na parcelada, vale para a compra
+   * inteira (`applyTo: 'all'`); na despesa única, ela vira a parcela 1. Nulo (ausente): não muda.
+   */
+  installmentCount: number | null;
 }
 
 export interface SuggestionsQuery {
@@ -115,6 +120,14 @@ function readPayment(record: Record<string, unknown>): PaymentInput {
 function readOptionalCashPrice(value: unknown): number | null {
   if (value === undefined || value === null) return null;
   return readAmount(value, 'Valor à vista inválido');
+}
+
+function readOptionalInstallmentCount(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < MIN_INSTALLMENTS || value > MAX_INSTALLMENTS) {
+    throw new RequestInputError(`Informe de ${MIN_INSTALLMENTS} a ${MAX_INSTALLMENTS} parcelas`);
+  }
+  return value;
 }
 
 function readPaymentMethod(value: unknown): PaymentMethod {
@@ -211,6 +224,7 @@ export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
     ...readPayment(record),
     applyTo,
     cashPrice,
+    installmentCount: readOptionalInstallmentCount(record['installmentCount']),
   };
 }
 

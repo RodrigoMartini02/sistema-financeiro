@@ -95,6 +95,7 @@ function editInput(scenario: Scenario, overrides: Partial<UpdateExpenseInput> = 
     amountPaid: null,
     applyTo: 'all',
     cashPrice: null,
+    installmentCount: null,
     ...overrides,
   };
 }

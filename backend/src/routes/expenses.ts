@@ -301,7 +301,7 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
   }
 });
 
-// PUT /api/expenses/:id — edita uma linha; parcela, recorrência e conta não mudam
+// PUT /api/expenses/:id — edita uma linha e, numa série, as outras do alcance; o nº de parcelas só muda com installmentCount
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const expenseId = Number(req.params['id']);
@@ -374,6 +374,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       data: result.updated,
       seriesUpdated: result.seriesUpdated,
       interestUpdated: result.interestUpdated,
+      installmentsCreated: result.installmentsCreated,
+      installmentsDeleted: result.installmentsDeleted,
     });
   } catch (error) {
     sendRequestError(res, error, 'Update expense error:', req.user?.id, 'Não foi possível salvar a despesa. Tente novamente.');

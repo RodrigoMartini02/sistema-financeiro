@@ -138,6 +138,8 @@ export interface Expense {
   parcela?: string | null;
   /** Número da parcela (o "3" de "3/10"); nulo fora do parcelado. */
   parcelaAtual?: number | null;
+  /** Total de parcelas da compra (o "10" de "3/10"); nulo fora do parcelado. */
+  totalParcelas?: number | null;
   /** Id da 1a parcela do grupo — todas as parcelas de um parcelamento (a
    *  propria 1a inclusive) compartilham este valor. Usado para buscar/excluir
    *  o grupo inteiro na grade de multi-selecao. */
@@ -331,6 +333,11 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
    * no juros; o servidor só aceita com `applyTo: 'all'`.
    */
   cashPrice?: number | null;
+  /**
+   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única
+   * em aberto, ela vira a parcela 1. Ausente não muda.
+   */
+  installmentCount?: number | null;
 }
 
 export interface FinanceDashboardData {

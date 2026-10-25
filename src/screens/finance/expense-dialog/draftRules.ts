@@ -39,7 +39,7 @@ export interface RuleContext {
 /** Por que a Cobrança não muda na edição: a dica do campo e o texto do rodapé. */
 export function billingLockReason(expense: Pick<Expense, 'parcelado'>): string {
   return expense.parcelado
-    ? 'A cobrança não muda na edição: para mudar o nº de parcelas, exclua e lance de novo.'
+    ? 'A cobrança não muda na edição: o nº de parcelas muda em "Aplicar a › Todas"; para trocar a cobrança, exclua e lance de novo.'
     : 'A cobrança não muda na edição: para trocá-la, exclua e lance de novo.';
 }
 
