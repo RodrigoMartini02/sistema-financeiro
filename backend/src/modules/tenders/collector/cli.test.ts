@@ -40,6 +40,23 @@ test('contracts-backfill: datas válidas, --from antes de --to e números inteir
   assertUsageError(['contracts-daily', '--from', '2026-09-01'], /não vale/);
 });
 
+test('winners-probe: sem opções, com o dia da amostra e com o limite de páginas', () => {
+  assert.deepEqual(parseCliArgs(['winners-probe']), { name: 'winners-probe', day: null, maxPages: null });
+  assert.deepEqual(parseCliArgs(['winners-probe', '--day', '2026-09-14', '--max-pages', '3']), {
+    name: 'winners-probe',
+    day: '2026-09-14',
+    maxPages: 3,
+  });
+});
+
+test('winners-probe: dia válido, limite de páginas inteiro e nenhuma opção de outro comando', () => {
+  assertUsageError(['winners-probe', '--day', '14/09/2026'], /--day/);
+  assertUsageError(['winners-probe', '--day', '2026-02-30'], /--day/);
+  assertUsageError(['winners-probe', '--max-pages', '0'], /max-pages/);
+  assertUsageError(['winners-probe', '--from', '2026-09-01'], /não vale/);
+  assertUsageError(['sweep', '--day', '2026-09-14'], /não vale/);
+});
+
 test('reprocess-notifications exige --since com data válida', () => {
   assert.deepEqual(parseCliArgs(['reprocess-notifications', '--since', '2026-10-01']), {
     name: 'reprocess-notifications',

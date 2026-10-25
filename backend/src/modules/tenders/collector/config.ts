@@ -28,6 +28,12 @@ export interface ContractsSettings {
   backfillMinutes: number;
 }
 
+/** Leitura dos resultados de licitações no Compras.gov.br (plano .plans/licitacoes-vencedores.md). */
+export interface ComprasGovSettings {
+  /** Pausa entre os pedidos à fonte. */
+  requestIntervalMs: number;
+}
+
 /**
  * Cloudflare R2: o arquivo bruto (plano .plans/licitacoes-base-nacional.md,
  * parte 1) e o armazém de contratos (plano .plans/licitacoes-contratos-no-r2.md).
@@ -46,6 +52,7 @@ export interface CollectorConfig {
   databaseUrl: string;
   pncp: PncpSettings;
   contracts: ContractsSettings;
+  comprasGov: ComprasGovSettings;
   /** Sem as variáveis do R2, o arquivo bruto e o armazém de contratos ficam desligados. */
   storage: StorageSettings | null;
   logLevel: LogLevel;
@@ -109,6 +116,11 @@ const collectorEnvSchema = z.object({
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
+const comprasGovEnvSchema = z.object({
+  // Palpite até o piloto medir (plano dos vencedores, S10): o intervalo é o que não provoca 429.
+  COMPRASGOV_REQUEST_INTERVAL_MS: z.coerce.number().int().min(0).max(60_000).default(1500),
+});
+
 const storageEnvSchema = z.object({
   TENDERS_ARCHIVE_ENDPOINT: z.url({ protocol: /^https$/, error: 'deve ser uma URL https://' }).optional(),
   // Regra de nome de bucket do R2: minúsculas, números e hífen, de 3 a 63 caracteres.
@@ -145,6 +157,15 @@ function parseOrThrow<T>(schema: z.ZodType<T>, input: unknown): T {
     throw new CollectorConfigError(`Configuração do coletor inválida: ${problems}`);
   }
   return parsed.data;
+}
+
+/**
+ * Configuração da leitura do Compras.gov.br: só o intervalo entre pedidos. Separada do resto para a sondagem
+ * (`winners-probe`) rodar sem URL de banco e sem R2.
+ */
+export function loadComprasGovSettings(env: NodeJS.ProcessEnv): ComprasGovSettings {
+  const values = parseOrThrow(comprasGovEnvSchema, readEnv(env, Object.keys(comprasGovEnvSchema.shape)));
+  return { requestIntervalMs: values.COMPRASGOV_REQUEST_INTERVAL_MS };
 }
 
 function isLocalDatabase(databaseUrl: string): boolean {
@@ -209,6 +230,7 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       backfillFrom: values.TENDERS_CONTRACTS_BACKFILL_FROM,
       backfillMinutes: values.TENDERS_CONTRACTS_BACKFILL_MINUTES,
     },
+    comprasGov: loadComprasGovSettings(env),
     storage: loadStorageSettings(env, values.TENDERS_COLLECTOR_DATABASE_URL),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,
   };

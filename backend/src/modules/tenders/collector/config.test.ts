@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CollectorConfigError, loadCollectorConfig, loadStorageSettings } from './config';
+import { CollectorConfigError, loadCollectorConfig, loadComprasGovSettings, loadStorageSettings } from './config';
 
 const databaseUrl = 'postgres://coletor@localhost:5433/teste';
 
@@ -136,4 +136,22 @@ test('R2: a pasta da produção é recusada com o banco local e aceita com o ban
   }
   assert.equal(loadStorageSettings(productionStorage, productionDatabaseUrl)?.prefix, 'producao');
   assert.equal(loadStorageSettings(storageEnv, productionDatabaseUrl)?.prefix, 'local', 'outra pasta com o banco da produção é aceita');
+});
+
+test('Compras.gov.br: 1,5 s entre pedidos por padrão, no coletor e sem nenhuma variável (a sondagem não tem banco)', () => {
+  assert.deepEqual(loadComprasGovSettings({}), { requestIntervalMs: 1500 });
+  assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).comprasGov, { requestIntervalMs: 1500 });
+});
+
+test('Compras.gov.br: o intervalo informado é lido (de 0 a 60 s); vazio vale o padrão; fora da faixa é recusado', () => {
+  assert.equal(loadComprasGovSettings({ COMPRASGOV_REQUEST_INTERVAL_MS: '4000' }).requestIntervalMs, 4000);
+  assert.equal(loadComprasGovSettings({ COMPRASGOV_REQUEST_INTERVAL_MS: '0' }).requestIntervalMs, 0);
+  assert.equal(loadComprasGovSettings({ COMPRASGOV_REQUEST_INTERVAL_MS: ' ' }).requestIntervalMs, 1500);
+  for (const value of ['-1', '60001', 'rápido', '1.5']) {
+    assert.throws(() => loadComprasGovSettings({ COMPRASGOV_REQUEST_INTERVAL_MS: value }), CollectorConfigError, value);
+  }
+  assert.throws(
+    () => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, COMPRASGOV_REQUEST_INTERVAL_MS: '999999' }),
+    /COMPRASGOV_REQUEST_INTERVAL_MS/,
+  );
 });

@@ -15,6 +15,12 @@ import type { ContractTermSummary, TenderContractRow } from '../collector/contra
 // com pouca memória: na importação dos contratos locais, uma parte de 50 mil
 // linhas não coube em 128 MB do DuckDB, e as de até 30 mil cabem em 160 MB.
 
+/**
+ * Número de controle da compra no PNCP: CNPJ do órgão, sequencial e ano ("03353358000196-1-000216/2026"). Uma
+ * expressão só para o detalhe do contrato e para os vencedores, que ligam ao edital por esse número.
+ */
+export const PURCHASE_CONTROL_NUMBER = /^(\d{14})-\d+-0*(\d+)\/(\d{4})$/;
+
 /** Pasta do armazém no bucket, dentro da pasta do ambiente. */
 export const STORE_FOLDER = 'contratos';
 export const MANIFEST_KEY = `${STORE_FOLDER}/manifesto.json`;

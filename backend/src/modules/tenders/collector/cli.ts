@@ -1,10 +1,12 @@
 import { parseArgs } from 'node:util';
 import * as dotenv from 'dotenv';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
-import { CollectorConfigError, databaseHost } from './config';
+import { ComprasGovClient } from './comprasGovClient';
+import { CollectorConfigError, databaseHost, loadComprasGovSettings } from './config';
 import { runContractReminders, runContractsBackfill, runContractsDaily } from './contractRuns';
 import { errorMessage } from './logger';
 import { runNoticesPayloadExport } from './noticePayloadExport';
+import { renderProbeReport, runResultProbe } from './resultProbe';
 import {
   readStatus,
   runCleanup,
@@ -25,6 +27,7 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix backend run tenders -- contracts-daily | contract-reminders
 //   npm --prefix backend run tenders -- contracts-backfill --from 2026-09-01 --to 2026-09-30 --max-minutes 60
 //   npm --prefix backend run tenders -- notices-payload-export   (JSON dos editais para o R2, antes da 0088)
+//   npm --prefix backend run tenders -- winners-probe [--day 2026-09-14] [--max-pages 5]   (sondagem do Compras.gov.br: sem banco e sem R2)
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
 
@@ -40,6 +43,7 @@ export const CLI_COMMANDS = [
   'contracts-backfill',
   'contract-reminders',
   'notices-payload-export',
+  'winners-probe',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
@@ -57,7 +61,8 @@ export type CliCommand =
     }
   | { name: 'reprocess-notifications'; since: string }
   | { name: 'collect'; modality: number; state: BrazilianState | null; maxPages: number | null }
-  | { name: 'contracts-backfill'; from: string | null; to: string | null; maxMinutes: number | null };
+  | { name: 'contracts-backfill'; from: string | null; to: string | null; maxMinutes: number | null }
+  | { name: 'winners-probe'; day: string | null; maxPages: number | null };
 
 export class CliUsageError extends Error {
   constructor(message: string) {
@@ -74,6 +79,7 @@ const USAGE = [
   '  contracts-daily | contract-reminders',
   '  contracts-backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--max-minutes N]',
   '  notices-payload-export',
+  '  winners-probe [--day AAAA-MM-DD] [--max-pages N]',
 ].join('\n');
 
 const CLI_OPTIONS = {
@@ -84,6 +90,7 @@ const CLI_OPTIONS = {
   from: { type: 'string' },
   to: { type: 'string' },
   'max-minutes': { type: 'string' },
+  day: { type: 'string' },
 } as const;
 type CliOptionName = keyof typeof CLI_OPTIONS;
 
@@ -99,6 +106,7 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   'contract-reminders': [],
   'contracts-backfill': ['from', 'to', 'max-minutes'],
   'notices-payload-export': [],
+  'winners-probe': ['day', 'max-pages'],
 };
 
 const MAX_PAGES_LIMIT = 10_000;
@@ -178,6 +186,12 @@ export function parseCliArgs(argv: string[]): CliCommand {
     return parseBackfillOptions(values);
   }
 
+  if (name === 'winners-probe') {
+    const day = readOptionalDate(values.day, 'day');
+    const maxPages = values['max-pages'] ? readPositiveInteger(values['max-pages'], 'max-pages', MAX_PAGES_LIMIT) : null;
+    return { name, day, maxPages };
+  }
+
   return { name };
 }
 
@@ -201,7 +215,31 @@ function parseBackfillOptions(values: Partial<Record<CliOptionName, string>>): C
   return { name: 'contracts-backfill', from, to, maxMinutes };
 }
 
-async function runCommand(context: CollectorContext, command: CliCommand): Promise<RunOutcome | null> {
+/** Comandos que não precisam do runtime do coletor (URL do banco, conexão e R2): saem antes de criá-lo. */
+type CommandWithoutRuntime = Extract<CliCommand, { name: 'winners-probe' }>;
+
+function needsNoRuntime(command: CliCommand): command is CommandWithoutRuntime {
+  return command.name === 'winners-probe';
+}
+
+/**
+ * Sondagem do Compras.gov.br: lê só a fonte pública e imprime o relatório (JSON) na saída padrão; o andamento vai
+ * para a saída de erro. Só precisa de COMPRASGOV_REQUEST_INTERVAL_MS (opcional), nunca do banco nem do R2.
+ */
+async function runWithoutRuntime(command: CommandWithoutRuntime): Promise<void> {
+  const settings = loadComprasGovSettings(process.env);
+  const client = new ComprasGovClient({ requestIntervalMs: settings.requestIntervalMs });
+  const report = await runResultProbe(
+    { client, now: () => new Date(), requestIntervalMs: settings.requestIntervalMs, progress: (message) => console.error(message) },
+    { ...(command.day !== null ? { day: command.day } : {}), ...(command.maxPages !== null ? { maxPages: command.maxPages } : {}) },
+  );
+  console.log(renderProbeReport(report));
+  if (report.structure['endpointOk'] !== true) {
+    process.exitCode = 1;
+  }
+}
+
+async function runCommand(context: CollectorContext, command: Exclude<CliCommand, CommandWithoutRuntime>): Promise<RunOutcome | null> {
   switch (command.name) {
     case 'sweep':
       return runSweep(context);
@@ -241,6 +279,11 @@ async function main(): Promise<void> {
   }
 
   const command = parseCliArgs(process.argv.slice(2));
+  if (needsNoRuntime(command)) {
+    await runWithoutRuntime(command);
+    return;
+  }
+
   const { context, close } = createCollectorRuntime(process.env);
   context.logger.info('Coletor de licitações', { command: command.name, database: databaseHost(context.config.databaseUrl) });
 

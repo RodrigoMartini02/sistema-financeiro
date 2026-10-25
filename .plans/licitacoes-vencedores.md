@@ -673,4 +673,14 @@ O rascunho de 20/10 passou por revisão e por uma conferência no código. O que
 
 ## Situação
 
-**25/10/2026: plano pronto, aguardando a aprovação das 5 decisões.** Nada foi implementado, nenhuma migration rodou e a produção não foi tocada. Próximo passo: `/implementar` pelo passo 1 (cliente e `winners-probe`), que termina no G1.
+- **25/10/2026: plano pronto e enviado** (commit `be2446bf`). As 5 decisões seguem as recomendações até o dono dizer o contrário; nenhuma delas muda o passo 1.
+- **25/10/2026: passo 1 implementado, parado no G1** (o usuário roda a sondagem). Nada foi commitado ainda.
+  - **Feito:** `collector/comprasGovClient.ts` (paginação, 5xx, rede, 429 com 30, 60 e 120 s e `Retry-After`, erro tipado sem nome da fonte nem corpo, `requestRaw` para a sondagem, `windowParams` com o fim exclusivo); `collector/resultProbe.ts` (relatório curto: estrutura, campos, situações, documentos só por comprimento, número da compra, fronteira da janela, página de 501, cobertura, defasagem, volume por mês, ritmo e amostra sem dado pessoal); `config.comprasGov` e `loadComprasGovSettings` (`COMPRASGOV_REQUEST_INTERVAL_MS`, padrão 1500); `CollectorContext.comprasGov` no runtime e no contexto dos testes de banco (`resultsFetch`); `winners-probe [--day] [--max-pages]` no CLI, que sai antes de criar o runtime (roda sem banco, sem R2 e sem nenhuma variável: conferido com ambiente vazio).
+  - **Testes:** 12 do cliente, 9 da sondagem, 2 de configuração e 2 do CLI (novos). Backend: 735 testes, `tsc` limpo, 152 testes de banco de Licitações passando. Conferido também contra um servidor HTTP local de mentira: 75 pedidos, relatório de 80 linhas.
+  - **Desvios do plano, por decisão de implementação:**
+    1. A expressão do número de controle (`PURCHASE_CONTROL_NUMBER`) foi para `contractStore/layout.ts` já neste passo (o plano a punha no passo 2), porque a sondagem precisa dela (S7); `contractDetail.ts` importa de lá, sem mudar o comportamento.
+    2. A sondagem para no primeiro 429 (na amostra, na fronteira ou nas contagens), registra o que veio e pede `COMPRASGOV_REQUEST_INTERVAL_MS` maior; não insiste.
+    3. A amostra mascara o documento de toda pessoa que não seja empresa (CNPJ de 14 dígitos fica, é dado público) e troca o nome dela; valores de campos de documento ou de nome nunca são listados.
+    4. `--fornecedor` ficou para depois do G1 (o plano já o marcava assim).
+  - **Falta no passo 1:** o fixture `collector/fixtures/comprasgov-resultados.json`, que sai da amostra do relatório que o usuário colar.
+- **Próximo:** G1. O usuário roda `npm --prefix backend run tenders -- winners-probe` no computador dele e cola o JSON. O passo 2 só começa depois de S1, S2, S6 e S7 confirmadas.

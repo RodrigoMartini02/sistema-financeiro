@@ -15,6 +15,7 @@ import {
 } from '../db/schema';
 import type { TrackingStatus } from '../domains';
 import type { ObjectStorage } from '../objectStorage';
+import { ComprasGovClient } from './comprasGovClient';
 import { loadCollectorConfig, type ContractsSettings } from './config';
 import { createCollectorDatabase, type TendersDb } from './database';
 import { createCollectorLogger } from './logger';
@@ -155,6 +156,8 @@ export function createTestCollectorContext(
   options: {
     contractsFetch: FakePncpFetch;
     termsFetch?: FakePncpFetch;
+    /** Resultados do Compras.gov.br; sem ela, qualquer pedido falha ("pedido inesperado"). */
+    resultsFetch?: FakePncpFetch;
     now?: () => Date;
     contracts?: Partial<ContractsSettings>;
     storage?: ObjectStorage;
@@ -171,6 +174,9 @@ export function createTestCollectorContext(
   const unexpected: FakePncpFetch = (url) => {
     throw new Error(`pedido inesperado ao PNCP: ${url.toString()}`);
   };
+  const unexpectedResults: FakePncpFetch = (url) => {
+    throw new Error(`pedido inesperado aos resultados: ${url.toString()}`);
+  };
   return {
     db: tx,
     pool: localTestPool(),
@@ -181,6 +187,13 @@ export function createTestCollectorContext(
       baseUrl: 'https://pncp.example/api/pncp',
       pageSize: 500,
       fetch: fakeFetch(options.termsFetch ?? unexpected),
+    }),
+    comprasGov: new ComprasGovClient({
+      baseUrl: 'https://compras.example',
+      requestIntervalMs: 0,
+      maxAttempts: 1,
+      sleep: async () => {},
+      fetch: fakeFetch(options.resultsFetch ?? unexpectedResults),
     }),
     storage: options.storage ?? null,
     contractWorkDirectory: options.contractWorkDirectory ?? join(tmpdir(), 'licitacoes-teste-coletor'),
