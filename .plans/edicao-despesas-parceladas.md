@@ -167,3 +167,7 @@ Validação: front 366 testes, backend 681 testes, 14 testes de banco de finanç
 Fora desta entrega (sugestões, sem decisão): barra de "juros a vencer" por mês no gráfico do Painel; mudar nº de parcelas ou a Cobrança (fatia 7, plano próprio); atalho "Pagar fatura" na edição aberta pelo calendário (só a lista de Movimentações o oferece); atalho nas linhas geradas pela fatura ainda em aberto.
 
 Pendente do dono: testar na tela real e decidir o commit, o push e o merge (CLAUDE.md, /finalizar).
+
+## Nº de parcelas na edição (25/10/2026)
+
+A fatia 7 (mudar o nº de parcelas) foi feita depois, como E4 de `.plans/financas-pendencias.md`, com decisões do dono: manter o valor da parcela, apagar as sobras abertas, só com "Todas", e a despesa única em aberto pode virar parcelada. A Cobrança continua fixa nos demais casos (parcelada vira única e recorrente seguem fora).

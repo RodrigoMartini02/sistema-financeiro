@@ -88,3 +88,14 @@ export function cardLimitPaymentMethodSql(expenseAlias: string, cardAlias: strin
     OR (${cardAlias}.tipo = '${INVOICE_EXPENSE_METHOD}' AND (${method} IS NULL OR ${method} = '${INVOICE_EXPENSE_METHOD}'))
     OR (${cardAlias}.tipo = 'ambos' AND ${method} = '${INVOICE_EXPENSE_METHOD}'))`;
 }
+
+/**
+ * Vencimento da fatura em que a despesa está: o dia de vencimento do cartão no mês do vencimento da
+ * despesa, limitado ao último dia do mês (dia 31 em mês de 30 dias vence no dia 30). É a mesma conta
+ * de invoiceDueDate (cardInvoiceRules): o "vencida" do Usado e da quitação em lote usam esta regra.
+ */
+export function invoiceDueDateSql(expenseAlias: string, cardAlias: string): string {
+  const month = `date_trunc('month', ${expenseAlias}.data_vencimento)`;
+  return `(${month}::date + (LEAST(${cardAlias}.dia_vencimento,
+    EXTRACT(DAY FROM (${month} + INTERVAL '1 month' - INTERVAL '1 day'))::int) - 1))`;
+}

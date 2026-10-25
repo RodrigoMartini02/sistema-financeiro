@@ -118,7 +118,8 @@ describe('limite usado do cartão (banco local)', { skip: databaseTestsSkipReaso
       await addPurchase(scenario, { authorId: scenario.memberId, amount: 120 });
 
       const [onlyMe] = await services.cardLimit.getCardLimits(scenario.ownerId, scenario.accountId, false);
-      assert.deepEqual(onlyMe, { id: scenario.cardId, nome: 'Cartão A', limite: 3000, usado: 320, disponivel: 2680 });
+      // O vencido depende do dia em que o teste roda (a compra é de hoje e o cartão vence no dia 5): cardUsage.db.test.ts o cobre.
+      assert.deepEqual({ ...onlyMe, vencido: 0 }, { id: scenario.cardId, nome: 'Cartão A', limite: 3000, usado: 320, disponivel: 2680, vencido: 0 });
 
       const [family] = await services.cardLimit.getCardLimits(scenario.ownerId, scenario.accountId, true);
       assert.equal(family?.usado, 320);

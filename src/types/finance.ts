@@ -138,6 +138,8 @@ export interface Expense {
   parcela?: string | null;
   /** Número da parcela (o "3" de "3/10"); nulo fora do parcelado. */
   parcelaAtual?: number | null;
+  /** Total de parcelas da compra (o "10" de "3/10"); nulo fora do parcelado. */
+  totalParcelas?: number | null;
   /** Id da 1a parcela do grupo — todas as parcelas de um parcelamento (a
    *  propria 1a inclusive) compartilham este valor. Usado para buscar/excluir
    *  o grupo inteiro na grade de multi-selecao. */
@@ -331,6 +333,11 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
    * no juros; o servidor só aceita com `applyTo: 'all'`.
    */
   cashPrice?: number | null;
+  /**
+   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única
+   * em aberto, ela vira a parcela 1. Ausente não muda.
+   */
+  installmentCount?: number | null;
 }
 
 export interface FinanceDashboardData {
@@ -371,6 +378,8 @@ export interface PainelPontoSerie {
   /** Juros e descontos das despesas que vencem no trecho, mais os juros e taxas das receitas recebidas nele. */
   juros: number;
   descontos: number;
+  /** Juros guardado nas despesas ainda não pagas que vencem no trecho. Ausente na resposta antiga. */
+  jurosAVencer?: number;
 }
 
 export interface PainelCategoria {
@@ -437,6 +446,8 @@ export interface PainelData {
     ano: { juros: number; descontos: number };
     /** Juros do restante e das parcelas da fatura ainda não pagos. Ausente na resposta antiga. */
     upcomingInterest?: number;
+    /** Parte de `upcomingInterest` que cai antes ou depois do período (a série mostra o resto, mês a mês). Ausente na resposta antiga. */
+    upcomingInterestOutside?: number;
   };
   /** Faturas renegociadas no período. Ausente na resposta antiga. */
   renegotiatedInvoices?: RenegotiatedInvoice[];

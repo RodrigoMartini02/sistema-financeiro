@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { RequestInputError } from '../utils/requestInput';
-import { readInvoiceMonth, readInvoicePaymentInput } from './cardInvoiceInput';
+import { MAX_INVOICE_BATCH, readInvoiceBatchInput, readInvoiceMonth, readInvoicePaymentInput } from './cardInvoiceInput';
 
 function body(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -98,4 +98,34 @@ test('mês da fatura da query', () => {
   assert.equal(readInvoiceMonth('2026-01'), '2026-01-01');
   assertRejects(() => readInvoiceMonth(undefined), 'Mês da fatura inválido');
   assertRejects(() => readInvoiceMonth('2026-1'), 'Mês da fatura inválido');
+});
+
+test('quitação em lote: lê as faturas com o mês e a data de cada uma', () => {
+  const input = readInvoiceBatchInput({
+    items: [
+      { cardId: 7, invoiceMonth: '2026-08', paymentDate: '2026-08-10' },
+      { cardId: 7, invoiceMonth: '2026-09', paymentDate: '2026-09-10' },
+      { cardId: 8, invoiceMonth: '2026-08', paymentDate: '2026-08-12' },
+    ],
+  });
+  assert.deepEqual(input.items, [
+    { cardId: 7, invoiceMonthStart: '2026-08-01', paymentDate: '2026-08-10' },
+    { cardId: 7, invoiceMonthStart: '2026-09-01', paymentDate: '2026-09-10' },
+    { cardId: 8, invoiceMonthStart: '2026-08-01', paymentDate: '2026-08-12' },
+  ]);
+});
+
+test('quitação em lote: recusa lista vazia, grande demais, repetida e itens inválidos', () => {
+  const item = (overrides: Record<string, unknown> = {}) => ({ cardId: 7, invoiceMonth: '2026-08', paymentDate: '2026-08-10', ...overrides });
+  assertRejects(() => readInvoiceBatchInput({}), 'Escolha ao menos uma fatura');
+  assertRejects(() => readInvoiceBatchInput({ items: [] }), 'Escolha ao menos uma fatura');
+  assertRejects(
+    () => readInvoiceBatchInput({ items: Array.from({ length: MAX_INVOICE_BATCH + 1 }, (_, index) => item({ cardId: index + 1 })) }),
+    `Escolha até ${MAX_INVOICE_BATCH} faturas por vez`,
+  );
+  assertRejects(() => readInvoiceBatchInput({ items: [item(), item()] }), 'A mesma fatura aparece duas vezes');
+  assertRejects(() => readInvoiceBatchInput({ items: [item({ cardId: null })] }), 'Informe o cartão');
+  assertRejects(() => readInvoiceBatchInput({ items: [item({ invoiceMonth: '2026-13' })] }), 'Mês da fatura inválido');
+  assertRejects(() => readInvoiceBatchInput({ items: [item({ paymentDate: '10/08/2026' })] }), 'Data do pagamento inválida');
+  assertRejects(() => readInvoiceBatchInput({ items: ['x'] }), 'Pedido inválido');
 });

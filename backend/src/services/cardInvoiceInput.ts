@@ -100,3 +100,37 @@ export function readInvoicePaymentInput(body: unknown): InvoicePaymentInput {
 
   return { cardId, invoiceMonthStart, method, paymentDate, amountPaid, interestAmount, installmentCount };
 }
+
+export const MAX_INVOICE_BATCH = 50;
+
+export interface InvoiceBatchInput {
+  items: Array<{ cardId: number; invoiceMonthStart: string; paymentDate: string }>;
+}
+
+/** Corpo do POST /api/card-invoices/payments/batch: as faturas a quitar no total, cada uma com a sua data de pagamento. */
+export function readInvoiceBatchInput(body: unknown): InvoiceBatchInput {
+  const record = readRecord(body, 'Pedido inválido');
+  const raw = record['items'];
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new RequestInputError('Escolha ao menos uma fatura');
+  }
+  if (raw.length > MAX_INVOICE_BATCH) {
+    throw new RequestInputError(`Escolha até ${MAX_INVOICE_BATCH} faturas por vez`);
+  }
+  const seen = new Set<string>();
+  const items = raw.map((entry) => {
+    const item = readRecord(entry, 'Pedido inválido');
+    const cardId = readOptionalId(item['cardId'], 'Cartão inválido');
+    if (cardId === null) {
+      throw new RequestInputError('Informe o cartão');
+    }
+    const invoiceMonthStart = readInvoiceMonth(item['invoiceMonth']);
+    const key = `${cardId}|${invoiceMonthStart}`;
+    if (seen.has(key)) {
+      throw new RequestInputError('A mesma fatura aparece duas vezes');
+    }
+    seen.add(key);
+    return { cardId, invoiceMonthStart, paymentDate: readIsoDate(item['paymentDate'], 'Data do pagamento inválida') };
+  });
+  return { items };
+}

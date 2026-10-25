@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { readInvoiceMonth, readInvoicePaymentInput } from '../services/cardInvoiceInput';
-import { getCardInvoice, listCardInvoices, payCardInvoice, undoInvoicePayment } from '../services/cardInvoiceService';
+import { readInvoiceBatchInput, readInvoiceMonth, readInvoicePaymentInput } from '../services/cardInvoiceInput';
+import {
+  getCardInvoice, listCardInvoices, listOverdueCardInvoices, payCardInvoice, payCardInvoicesInFull, undoInvoicePayment,
+} from '../services/cardInvoiceService';
+import { getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError, readQueryId, readRequiredId, sendRequestError } from '../utils/requestInput';
 
 // Pagamento da fatura do cartão ("Pagar fatura"). Montada em server.ts com
@@ -17,6 +20,27 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     res.json({ success: true, data: await listCardInvoices(req.user!.id, accountId, invoiceMonthStart) });
   } catch (error) {
     sendRequestError(res, error, `List card invoices error (month ${String(req.query['invoice_month'])}):`, req.user?.id, 'Não foi possível carregar as faturas');
+  }
+});
+
+// GET /api/card-invoices/overdue?conta_id= — faturas vencidas e em aberto, por cartão e mês
+router.get('/overdue', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const accountId = readQueryId((req.query as Record<string, unknown>)['conta_id'], 'Conta inválida');
+    res.json({ success: true, data: await listOverdueCardInvoices(req.user!.id, accountId, getTodayIsoInTimezone()) });
+  } catch (error) {
+    sendRequestError(res, error, 'List overdue card invoices error:', req.user?.id, 'Não foi possível carregar as faturas vencidas');
+  }
+});
+
+// POST /api/card-invoices/payments/batch — quita no total várias faturas, cada uma com a sua data
+router.post('/payments/batch', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input = readInvoiceBatchInput(req.body);
+    const result = await payCardInvoicesInFull(req.user!.id, input.items);
+    res.status(201).json({ success: true, message: 'Invoice batch processed', data: result });
+  } catch (error) {
+    sendRequestError(res, error, 'Pay card invoices batch error:', req.user?.id, 'Não foi possível quitar as faturas. Tente novamente.');
   }
 });
 

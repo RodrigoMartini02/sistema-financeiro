@@ -119,7 +119,7 @@ test('edição de parcela: o resumo mostra o juros embutido gravado, à parte do
 test('Cobrança fixa na edição: o motivo muda com a parcelada', () => {
   assert.equal(
     billingLockReason({ parcelado: true }),
-    'A cobrança não muda na edição: para mudar o nº de parcelas, exclua e lance de novo.',
+    'A cobrança não muda na edição: o nº de parcelas muda em "Aplicar a › Todas"; para trocar a cobrança, exclua e lance de novo.',
   );
   assert.equal(
     billingLockReason({ parcelado: false }),

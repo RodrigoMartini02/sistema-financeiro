@@ -1,7 +1,7 @@
 import { pool } from '../db/client';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
-import { cardLimitPaymentMethodSql, countedExpenseSql, openCardDebtSql } from './expenseCounting';
+import { cardLimitPaymentMethodSql, countedExpenseSql, invoiceDueDateSql, openCardDebtSql } from './expenseCounting';
 
 export interface CardLimit {
   id: number;
@@ -9,6 +9,8 @@ export interface CardLimit {
   limite: number;
   usado: number;
   disponivel: number;
+  /** Parte do usado que está em fatura já vencida (o vencimento da fatura passou e ela não foi paga no sistema). */
+  vencido: number;
 }
 
 interface CardLimitRow {
@@ -16,6 +18,7 @@ interface CardLimitRow {
   nome: string;
   limite: string;
   usado: string;
+  vencido: string;
 }
 
 // Limite usado de um cartão = soma de todas as despesas em aberto (openCardDebtSql:
@@ -61,7 +64,19 @@ export async function getCardLimits(userId: number, accountId: number | null, ex
  * LANÇAMENTOS (quem vê os lançamentos de outros vê também o limite dos cartões
  * deles), e não a permissão de usar cartões de outros ao lançar.
  */
-export async function getCardLimitsForOwners(donosVisiveis: number[], accountId: number | null): Promise<CardLimit[]> {
+interface UsageClauses {
+  params: unknown[];
+  /** Junção das despesas em aberto que ocupam o limite do cartão `c` (despesa `d`). */
+  openDebtJoin: string;
+  /** Cartões de crédito visíveis (`c`). */
+  cardWhere: string;
+  /** O parâmetro "hoje" dentro de `params` (ex.: `$2`) e o valor dele. */
+  todayParam: string;
+  today: string;
+}
+
+/** As cláusulas do "Usado", iguais para o total do cartão e para a composição dele. */
+function usageClauses(donosVisiveis: number[], accountId: number | null): UsageClauses {
   const params: unknown[] = [donosVisiveis];
   let accountClause = '';
   let expenseAccountClause = '';
@@ -76,23 +91,39 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
       SELECT 1 FROM contas pd WHERE pd.id = $${params.length} AND pd.tipo = 'pessoal' AND pd.usuario_id = d.usuario_id
     )))`;
   }
-  params.push(getTodayIsoInTimezone());
-  const countedClause = ` AND ${countedExpenseSql('d', `$${params.length}`)}`;
+  const today = getTodayIsoInTimezone();
+  params.push(today);
+  const todayParam = `$${params.length}`;
+  const countedClause = ` AND ${countedExpenseSql('d', todayParam)}`;
+  return {
+    params,
+    todayParam,
+    today,
+    openDebtJoin: `d.cartao_id = c.id
+       AND ${openCardDebtSql('d')}
+       -- Cartao sem tipo conta tudo (lancamentos antigos); 'credito' conta credito
+       -- e lancamento sem forma de pagamento; 'ambos' so o credito, senao o debito
+       -- do mesmo cartao_id ocuparia o limite.
+       AND ${cardLimitPaymentMethodSql('d', 'c')}${expenseAccountClause}${countedClause}`,
+    cardWhere: `c.usuario_id = ANY($1) AND c.ativo = true
+       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}`,
+  };
+}
+
+export async function getCardLimitsForOwners(donosVisiveis: number[], accountId: number | null): Promise<CardLimit[]> {
+  const { params, todayParam, openDebtJoin, cardWhere } = usageClauses(donosVisiveis, accountId);
 
   const result = await pool.query<CardLimitRow>(
     `SELECT c.id, c.nome, c.limite,
        COALESCE(SUM(
          CASE WHEN d.id IS NOT NULL THEN d.valor_original ELSE 0 END
-       ), 0) AS usado
+       ), 0) AS usado,
+       COALESCE(SUM(
+         CASE WHEN d.id IS NOT NULL AND ${invoiceDueDateSql('d', 'c')} < ${todayParam}::date THEN d.valor_original ELSE 0 END
+       ), 0) AS vencido
      FROM cartoes c
-     LEFT JOIN despesas d ON d.cartao_id = c.id
-       AND ${openCardDebtSql('d')}
-       -- Cartao sem tipo conta tudo (lancamentos antigos); 'credito' conta credito
-       -- e lancamento sem forma de pagamento; 'ambos' so o credito, senao o debito
-       -- do mesmo cartao_id ocuparia o limite.
-       AND ${cardLimitPaymentMethodSql('d', 'c')}${expenseAccountClause}${countedClause}
-     WHERE c.usuario_id = ANY($1) AND c.ativo = true
-       AND (c.tipo IS NULL OR c.tipo IN ('credito', 'ambos'))${accountClause}
+     LEFT JOIN despesas d ON ${openDebtJoin}
+     WHERE ${cardWhere}
      GROUP BY c.id, c.nome, c.limite
      ORDER BY c.id ASC`,
     params,
@@ -101,6 +132,92 @@ export async function getCardLimitsForOwners(donosVisiveis: number[], accountId:
   return result.rows.map((row) => {
     const limite = parseFloat(row.limite);
     const usado = parseFloat(row.usado);
-    return { id: row.id, nome: row.nome, limite, usado, disponivel: limite - usado };
+    return { id: row.id, nome: row.nome, limite, usado, disponivel: limite - usado, vencido: parseFloat(row.vencido) };
   });
+}
+
+export type CardUsageType = 'unicas' | 'parcelas' | 'recorrentes' | 'renegociacao';
+export type CardUsageByType = Record<CardUsageType, number>;
+
+export interface CardUsageInvoice {
+  /** Mês do vencimento das compras, 'AAAA-MM'. */
+  mes: string;
+  /** Vencimento da fatura: o dia do cartão no mês. */
+  vencimento: string;
+  total: number;
+  /** O vencimento da fatura já passou e ela continua em aberto no sistema. */
+  vencida: boolean;
+  porTipo: CardUsageByType;
+}
+
+/** De que é feito o "Usado" de um cartão (o mesmo conjunto de despesas de getCardLimitsForOwners). */
+export interface CardUsage extends CardLimit {
+  hoje: string;
+  /** Parte do vencido que "Pagar fatura" consegue quitar (compras no crédito); o resto são lançamentos antigos sem forma de pagamento. */
+  vencidoQuitavel: number;
+  porTipo: CardUsageByType;
+  faturas: CardUsageInvoice[];
+}
+
+interface CardUsageRow {
+  mes: string;
+  vencimento: string;
+  tipo: CardUsageType;
+  total: string;
+  quitavel: string;
+}
+
+const centavos = (valor: number) => Math.round(valor * 100) / 100;
+const emptyByType = (): CardUsageByType => ({ unicas: 0, parcelas: 0, recorrentes: 0, renegociacao: 0 });
+
+/**
+ * A composição do "Usado" de um cartão: por fatura (mês do vencimento) e por tipo (compra única, parcela,
+ * recorrente, linha gerada por pagamento de fatura). Soma exatamente o `usado` do cartão. Null quando o
+ * cartão não está entre os visíveis.
+ */
+export async function getCardUsageForOwners(donosVisiveis: number[], accountId: number | null, cardId: number): Promise<CardUsage | null> {
+  const limits = await getCardLimitsForOwners(donosVisiveis, accountId);
+  const card = limits.find((limit) => limit.id === cardId);
+  if (!card) return null;
+
+  const { params, today: hoje, openDebtJoin, cardWhere } = usageClauses(donosVisiveis, accountId);
+  params.push(cardId);
+  const result = await pool.query<CardUsageRow>(
+    `SELECT to_char(date_trunc('month', d.data_vencimento), 'YYYY-MM') AS mes,
+       to_char(${invoiceDueDateSql('d', 'c')}, 'YYYY-MM-DD') AS vencimento,
+       CASE WHEN d.origem_pagamento_fatura_id IS NOT NULL THEN 'renegociacao'
+            WHEN COALESCE(d.recorrente, false) THEN 'recorrentes'
+            WHEN COALESCE(d.parcelado, false) THEN 'parcelas'
+            ELSE 'unicas' END AS tipo,
+       SUM(d.valor_original) AS total,
+       SUM(CASE WHEN d.forma_pagamento = 'credito' THEN d.valor_original ELSE 0 END) AS quitavel
+     FROM cartoes c
+     JOIN despesas d ON ${openDebtJoin}
+     WHERE ${cardWhere} AND c.id = $${params.length}
+     GROUP BY 1, 2, 3
+     ORDER BY 1, 3`,
+    params,
+  );
+
+  const porTipo = emptyByType();
+  const faturas = new Map<string, CardUsageInvoice>();
+  let vencidoQuitavel = 0;
+  for (const row of result.rows) {
+    const total = parseFloat(row.total);
+    const fatura = faturas.get(row.mes) ?? {
+      mes: row.mes, vencimento: row.vencimento, total: 0, vencida: row.vencimento < hoje, porTipo: emptyByType(),
+    };
+    fatura.total = centavos(fatura.total + total);
+    fatura.porTipo[row.tipo] = centavos(fatura.porTipo[row.tipo] + total);
+    faturas.set(row.mes, fatura);
+    porTipo[row.tipo] = centavos(porTipo[row.tipo] + total);
+    if (fatura.vencida) vencidoQuitavel = centavos(vencidoQuitavel + parseFloat(row.quitavel));
+  }
+  return { ...card, hoje, vencidoQuitavel, porTipo, faturas: [...faturas.values()] };
+}
+
+/** Como getCardLimits, a composição para quem pede (o escopo "familia" decide quais cartões aparecem). */
+export async function getCardUsage(userId: number, accountId: number | null, expandir: boolean, cardId: number): Promise<CardUsage | null> {
+  const donosVisiveis = await resolveVisibleCardOwnerIds(userId, accountId, expandir);
+  return getCardUsageForOwners(donosVisiveis, accountId, cardId);
 }

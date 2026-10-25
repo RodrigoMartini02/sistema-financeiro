@@ -22,6 +22,7 @@ import {
   dataIsoValida,
   despesasDoPeriodo,
   descontoDaDespesa,
+  distribuirJurosAVencer,
   fatorMetaProporcional,
   janelaDaSerie,
   jurosDaDespesa,
@@ -533,4 +534,83 @@ test('série: o juro da receita cai no trecho do recebimento e as barras somam o
   assert.equal(montarSerie([], receitas, janela, false).reduce((soma, ponto) => soma + ponto.juros, 0), 0);
   // O valor que soma nas receitas continua sendo o líquido.
   assert.equal(serie.reduce((soma, ponto) => soma + ponto.receitas, 0), 1400);
+});
+
+// Juros a vencer por trecho do gráfico (plano .plans/financas-pendencias.md, E2).
+const ANO_TODO = { de: '2026-01-01', ate: '2026-12-31', granularidade: 'mes' as const };
+const jurosAVencerPorMes = (pontos: ReturnType<typeof distribuirJurosAVencer>['pontos']) => pontos.map((ponto) => ponto.jurosAVencer);
+
+test('juros a vencer: três parcelas abertas caem cada uma no mês do vencimento', () => {
+  const abertas = [
+    despesa({ dataVencimento: '2026-10-10', interest: 10 }),
+    despesa({ dataVencimento: '2026-11-10', interest: 10 }),
+    despesa({ dataVencimento: '2026-12-10', interest: 10.5 }),
+  ];
+  const { pontos, fora } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), abertas);
+  assert.deepEqual(jurosAVencerPorMes(pontos), [0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 10.5]);
+  assert.equal(fora, 0);
+});
+
+test('juros a vencer: a paga fica de fora (já é juros pago) e linha sem juros não conta', () => {
+  const linhas = [
+    despesa({ dataVencimento: '2026-10-10', interest: 10, pago: true, dataPagamento: '2026-10-09', valorPago: 100 }),
+    despesa({ dataVencimento: '2026-10-10', interest: null }),
+    despesa({ dataVencimento: '2026-10-10', interest: 0 }),
+    despesa({ dataVencimento: '2026-10-20', interest: 7 }),
+  ];
+  const { pontos, fora } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), linhas);
+  assert.equal(pontos[9]!.jurosAVencer, 7);
+  assert.equal(fora, 0);
+});
+
+test('juros a vencer: vencimento já passado e ainda em aberto fica no mês em que venceu', () => {
+  const { pontos } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), [despesa({ dataVencimento: '2026-03-15', interest: 12 })]);
+  assert.equal(pontos[2]!.jurosAVencer, 12);
+});
+
+test('juros a vencer: o que cai antes ou depois da janela vai para "fora"', () => {
+  const { pontos, fora } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), [
+    despesa({ dataVencimento: '2025-12-10', interest: 3 }),
+    despesa({ dataVencimento: '2027-01-10', interest: 4.25 }),
+    despesa({ dataVencimento: '2027-02-10', interest: 1 }),
+    despesa({ dataVencimento: '2026-06-10', interest: 2 }),
+  ]);
+  assert.equal(pontos[5]!.jurosAVencer, 2);
+  assert.equal(fora, 8.25);
+});
+
+test('juros a vencer: as barras mais o "fora" somam o total de sumUpcomingInterest', () => {
+  const linhas = [
+    despesa({ dataVencimento: '2026-09-10', interest: 0.1 }),
+    despesa({ dataVencimento: '2026-09-25', interest: 0.2 }),
+    despesa({ dataVencimento: '2027-03-10', interest: 33.33 }),
+    despesa({ dataVencimento: '2026-12-31', interest: 5.55 }),
+    despesa({ dataVencimento: '2026-05-05', interest: 8, pago: true, dataPagamento: '2026-05-05', valorPago: 100 }),
+  ];
+  const { pontos, fora } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), linhas);
+  const barras = pontos.reduce((total, ponto) => total + ponto.jurosAVencer, 0);
+  assert.equal(Math.round((barras + fora) * 100), Math.round(sumUpcomingInterest(linhas) * 100));
+});
+
+test('juros a vencer: granularidade semana e ano usam o trecho que contém a data', () => {
+  const semanas = distribuirJurosAVencer(
+    montarSerie([], [], { de: '2026-10-01', ate: '2026-10-31', granularidade: 'semana' }),
+    [despesa({ dataVencimento: '2026-10-08', interest: 5 }), despesa({ dataVencimento: '2026-10-09', interest: 1 })],
+  );
+  assert.equal(semanas.pontos.reduce((total, ponto) => total + ponto.jurosAVencer, 0), 6);
+  assert.equal(semanas.pontos.filter((ponto) => ponto.jurosAVencer > 0).length, 1);
+  const anos = distribuirJurosAVencer(
+    montarSerie([], [], { de: '2024-01-01', ate: '2026-12-31', granularidade: 'ano' }),
+    [despesa({ dataVencimento: '2025-02-10', interest: 2 }), despesa({ dataVencimento: '2026-11-10', interest: 3 })],
+  );
+  assert.deepEqual(anos.pontos.map((ponto) => ponto.jurosAVencer), [0, 2, 3]);
+});
+
+test('juros a vencer: a linha da fatura renegociada em aberto conta uma vez e a antiga paga já saiu', () => {
+  const linhas = [
+    despesa({ dataVencimento: '2026-10-10', interest: 40, pago: true, dataPagamento: '2026-10-10', valorPago: 60, valorOriginal: 100, invoicePaymentId: 9 }),
+    despesa({ dataVencimento: '2026-11-10', interest: 12, invoicePaymentId: null }),
+  ];
+  const { pontos } = distribuirJurosAVencer(montarSerie([], [], ANO_TODO), linhas);
+  assert.deepEqual(jurosAVencerPorMes(pontos).filter((valor) => valor > 0), [12]);
 });
