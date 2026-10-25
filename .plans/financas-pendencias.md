@@ -98,3 +98,7 @@ Cada entrega sai separada: implementa, valida (testes, tipos, build, banco local
 - E2: o Painel mostra a barra hachurada nos meses das parcelas abertas com juros gravado, e as barras mais o "fora deste período" somam o total "Juros a vencer".
 - E3: o card do cartão abre a composição do "Usado" e dá para quitar as faturas vencidas em lote com a data editável.
 - E4: aumentar de 3 para 5 parcelas cria 2 parcelas abertas certas, reduzir apaga só a cauda aberta, e a recusa com parcela paga não grava nada.
+
+## Situação das entregas
+
+- **E1 (25/10/2026): feita.** O Painel lembra a escolha de pessoas por usuário e conta (navegador, `src/utils/escopoPessoasSalvo.ts`) e mostra quem está sendo somado ao lado do período, com o atalho "Ver todos" e "Só eu" (`FinanceDashboard.tsx`). O Painel só é pedido depois de restaurar a escolha (uma consulta, sem piscar). Na primeira visita continua "só eu". Conferido no navegador contra o backend e um Postgres descartável com duas pessoas na conta: alternar, recarregar (uma consulta só, com `membro_id=familia`) e voltar a "só eu" (a chave some). Sem backend e sem migration. Movimentações e Relatórios seguem como estão (outra rodada).

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MotionConfig, motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +16,9 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { PAYMENT_METHODS, type PainelPeriodo } from '../../types/finance';
 import { categoryFilterNames, categoryFilterOptions } from '../../utils/categorySuggestions';
+import {
+  chaveEscopoPessoas, descreverEscopoPessoas, escopoInicial, gravarEscopoPessoas, lerEscopoPessoas,
+} from '../../utils/escopoPessoasSalvo';
 import { canReadCatalogList } from '../../utils/screenAccess';
 import { TERMOS } from '../config/ContasTab';
 import { DashboardPeriodFilter, descreverPeriodo, periodoDoAnoAtual } from './DashboardPeriodFilter';
@@ -49,9 +52,10 @@ export function FinanceDashboard() {
   // virada do ano, reabrir o painel já traz o ano novo.
   const [periodo, setPeriodo] = useState<PainelPeriodo>(() => periodoDoAnoAtual());
   const [todasAsContas, setTodasAsContas] = useState(false);
-  // Pessoas marcadas no filtro, por usuario_id. Vazio só até meQ resolver; o
-  // efeito abaixo marca o próprio usuário assim que o id chega.
+  // Pessoas marcadas no filtro, por usuario_id. Vazio só até o escopo ser iniciado: o efeito abaixo
+  // restaura a última escolha (ou marca o próprio usuário) quando o id e a lista de pessoas chegam.
   const [membroIds, setMembroIds] = useState<Set<string>>(new Set());
+  const [escopoIniciado, setEscopoIniciado] = useState(false);
   // Filtros de despesa (como em Lançamentos): valem só para as despesas.
   const [categoriaIds, setCategoriaIds] = useState<Set<string>>(new Set());
   const [formasPagamento, setFormasPagamento] = useState<Set<string>>(new Set());
@@ -87,12 +91,19 @@ export function FinanceDashboard() {
       .map((membro) => ({ usuarioId: membro.usuario_id, nome: firstName(membro.nome) })),
   ], [meQ.data, membrosQ.data]);
 
-  const jaIniciouMembros = useRef(false);
+  // A última escolha de pessoas, lembrada por usuário e conta. Espera a lista de pessoas (ou a falha dela)
+  // para não descartar quem ainda não carregou; sem nada salvo, é só o próprio usuário.
+  const listaDePessoasPronta = membrosQ.isSuccess || membrosQ.isError;
   useEffect(() => {
-    if (!meId || jaIniciouMembros.current) return;
-    jaIniciouMembros.current = true;
-    setMembroIds(new Set([meId]));
-  }, [meId]);
+    if (!meId || escopoIniciado || !listaDePessoasPronta) return;
+    const salvo = lerEscopoPessoas(window.localStorage, chaveEscopoPessoas(meId, accountId));
+    setMembroIds(escopoInicial(salvo, meId, pessoas.map((pessoa) => String(pessoa.usuarioId))));
+    setEscopoIniciado(true);
+  }, [meId, accountId, pessoas, listaDePessoasPronta, escopoIniciado]);
+  useEffect(() => {
+    if (!meId || !escopoIniciado) return;
+    gravarEscopoPessoas(window.localStorage, chaveEscopoPessoas(meId, accountId), membroIds, meId);
+  }, [meId, accountId, membroIds, escopoIniciado]);
 
   // Escopo pedido ao backend: só eu (padrão) → undefined; todas as pessoas →
   // null; qualquer outra combinação → a lista exata. Quem valida se cada
@@ -113,7 +124,8 @@ export function FinanceDashboard() {
   const painelQ = useQuery({
     queryKey: queryKeys.painel(accountId, periodo.de, periodo.ate, membroId, filtrosDespesa),
     queryFn: () => fetchPainel({ ...periodo, membroId, ...filtrosDespesa }),
-    enabled: meId !== null,
+    // Só depois de restaurar a escolha de pessoas: pedir antes faria uma consulta de "só eu" que logo seria trocada.
+    enabled: meId !== null && escopoIniciado,
     staleTime: 30_000,
     // Ao trocar período ou pessoas, os gráficos ficam na tela e passam para os
     // valores novos (sem piscar). Trocar de conta não reaproveita os dados.
@@ -174,6 +186,12 @@ export function FinanceDashboard() {
   const padrao = periodoDoAnoAtual();
   const periodoEhPadrao = periodo.de === padrao.de && periodo.ate === padrao.ate;
   const filtrosAtivos = !somenteEu || todasAsContas || !periodoEhPadrao || filtrado;
+  // Quem está sendo somado, com o atalho para alternar entre só eu e todas as pessoas da conta.
+  const mostrarEscopo = meId !== null && escopoIniciado && pessoas.length > 1;
+  const alternarEscopo = () => {
+    if (!meId) return;
+    setMembroIds(somenteEu ? new Set(pessoas.map((pessoa) => String(pessoa.usuarioId))) : new Set([meId]));
+  };
   const limparFiltros = () => {
     setMembroIds(meId ? new Set([meId]) : new Set());
     setTodasAsContas(false);
@@ -204,6 +222,18 @@ export function FinanceDashboard() {
         <span className="inline-flex h-9 items-center rounded-full border border-slate-200 bg-white px-3.5 text-[13px] font-medium tabular-nums text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {descreverPeriodo(periodo)}
         </span>
+        {mostrarEscopo && meId && (
+          <button
+            type="button"
+            onClick={alternarEscopo}
+            title={somenteEu ? 'Somar também as outras pessoas da conta' : 'Voltar a somar só você'}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 text-[13px] font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            <span>{descreverEscopoPessoas(membroIds, pessoas, meId)}</span>
+            <span aria-hidden="true" className="text-slate-400 dark:text-slate-500">·</span>
+            <span className="text-brand-700 dark:text-brand-300">{somenteEu ? 'Ver todos' : 'Só eu'}</span>
+          </button>
+        )}
         <MultiFilterPanel
           groups={grupos}
           hasActiveFilters={filtrosAtivos}
