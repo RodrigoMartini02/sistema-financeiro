@@ -364,8 +364,16 @@ async function insertGeneratedRows(transaction: Transaction, rows: NewExpense[])
   }
 }
 
-/** Paga a fatura do cartão no mês. Devolve o id do pagamento. */
-export async function payCardInvoice(requesterId: number, input: InvoicePaymentInput): Promise<number> {
+/**
+ * Paga a fatura do cartão no mês. Devolve o id do pagamento. Com `payInFull`, o valor pago é a soma das
+ * compras em aberto lidas dentro da transação (já com a fatura travada): é o que a quitação em lote usa,
+ * sem depender de um total lido antes, que outro pagamento poderia ter mudado.
+ */
+export async function payCardInvoice(
+  requesterId: number,
+  input: InvoicePaymentInput,
+  options: { payInFull?: boolean } = {},
+): Promise<number> {
   return db.transaction(async (transaction) => {
     const [card] = await transaction.select().from(cards).where(eq(cards.id, input.cardId)).limit(1).for('update');
     if (!card || !hasInvoice(card.type) || !(await canPayCard(requesterId, card))) {
@@ -384,11 +392,14 @@ export async function payCardInvoice(requesterId: number, input: InvoicePaymentI
       interest: row.interest === null ? null : toNumber(row.interest),
     }));
 
-    const refusal = invoicePaymentRefusal(items, input);
+    const terms: InvoicePaymentInput = options.payInFull
+      ? { ...input, amountPaid: items.reduce((sum, item) => sum + Math.round(item.amount * 100), 0) / 100 }
+      : input;
+    const refusal = invoicePaymentRefusal(items, terms);
     if (refusal) {
       throw new RequestInputError(refusal.message, refusal.status);
     }
-    const plan = computeInvoicePayment(items, input, input.invoiceMonthStart, { name: card.name, dueDay: card.dueDay });
+    const plan = computeInvoicePayment(items, terms, input.invoiceMonthStart, { name: card.name, dueDay: card.dueDay });
     const { mes, ano } = getMonthYearFromIsoDate(input.invoiceMonthStart);
 
     const [payment] = await transaction.insert(invoicePayments).values({
@@ -442,6 +453,119 @@ export async function payCardInvoice(requesterId: number, input: InvoicePaymentI
     }
     return paymentId;
   });
+}
+
+/** Uma fatura vencida e ainda em aberto no sistema (o vencimento dela, o dia do cartão no mês, já passou). */
+export interface OverdueInvoiceView {
+  card: { id: number; name: string; ownerName: string | null };
+  /** 1º dia do mês da fatura ('AAAA-MM-01'). */
+  invoiceMonth: string;
+  dueDate: string;
+  openTotal: number;
+  itemCount: number;
+}
+
+/**
+ * As faturas vencidas e em aberto dos cartões de crédito que a pessoa pode pagar, da mais antiga para a mais
+ * nova. Uma fatura é o conjunto das compras em aberto do mês de um cartão; ela está vencida quando o dia de
+ * vencimento do cartão naquele mês já passou. O valor é o que "Pagar fatura" quitaria.
+ */
+export async function listOverdueCardInvoices(
+  requesterId: number,
+  accountId: number | null,
+  today: string,
+): Promise<OverdueInvoiceView[]> {
+  const owners = await resolveVisibleCardOwnerIds(requesterId, accountId, true);
+  const cardRows = await db.select().from(cards).where(and(
+    inArray(cards.userId, owners),
+    accountFilter(cards.accountId, cards.userId, accountId),
+  )).orderBy(asc(cards.name), asc(cards.id));
+  const payable: Card[] = [];
+  for (const card of cardRows) {
+    if (hasInvoice(card.type) && await canPayCard(requesterId, card)) payable.push(card);
+  }
+  if (payable.length === 0) return [];
+
+  // A fatura do mês atual só pode estar vencida se o dia do cartão já passou: as compras dos meses seguintes ficam de fora.
+  const itemRows = await db
+    .select({ cardId: expenses.cardId, amount: expenses.originalAmount, dueDate: expenses.dueDate })
+    .from(expenses)
+    .where(and(
+      inArray(expenses.cardId, payable.map((card) => card.id)),
+      eq(expenses.paymentMethod, INVOICE_EXPENSE_METHOD),
+      openCardDebtCondition(),
+      lte(expenses.dueDate, invoiceMonthEnd(`${today.slice(0, 7)}-01`)),
+    ));
+
+  const groups = new Map<string, { card: Card; month: string; cents: number; count: number }>();
+  for (const row of itemRows) {
+    const card = payable.find((candidate) => candidate.id === row.cardId);
+    if (!card) continue;
+    const month = `${row.dueDate.slice(0, 7)}-01`;
+    const key = `${card.id}|${month}`;
+    const group = groups.get(key) ?? { card, month, cents: 0, count: 0 };
+    group.cents += Math.round(toNumber(row.amount) * 100);
+    group.count += 1;
+    groups.set(key, group);
+  }
+
+  const overdue = [...groups.values()]
+    .map((group) => ({ ...group, dueDate: invoiceDueDate(group.month, group.card.dueDay, 0) }))
+    .filter((group) => group.dueDate < today)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.card.name.localeCompare(b.card.name));
+  const names = await findPeopleNames([...new Set(overdue.map((group) => group.card.userId))]);
+  return overdue.map((group) => ({
+    card: {
+      id: group.card.id,
+      name: group.card.name,
+      ownerName: group.card.userId === requesterId ? null : names.get(group.card.userId) ?? null,
+    },
+    invoiceMonth: group.month,
+    dueDate: group.dueDate,
+    openTotal: group.cents / 100,
+    itemCount: group.count,
+  }));
+}
+
+export interface InvoiceBatchItem {
+  cardId: number;
+  invoiceMonthStart: string;
+  paymentDate: string;
+}
+
+export interface InvoiceBatchResult {
+  paid: Array<{ cardId: number; invoiceMonthStart: string; paymentId: number }>;
+  failed: Array<{ cardId: number; invoiceMonthStart: string; message: string }>;
+}
+
+/**
+ * Quita no total cada fatura da lista, uma de cada vez e cada uma na sua transação (payCardInvoice): se uma
+ * falha (por exemplo, já foi paga em outra aba), as outras seguem e a resposta diz quais não passaram.
+ */
+export async function payCardInvoicesInFull(requesterId: number, items: InvoiceBatchItem[]): Promise<InvoiceBatchResult> {
+  const result: InvoiceBatchResult = { paid: [], failed: [] };
+  for (const item of items) {
+    try {
+      const paymentId = await payCardInvoice(
+        requesterId,
+        {
+          cardId: item.cardId,
+          invoiceMonthStart: item.invoiceMonthStart,
+          method: 'total',
+          paymentDate: item.paymentDate,
+          amountPaid: null,
+          interestAmount: 0,
+          installmentCount: null,
+        },
+        { payInFull: true },
+      );
+      result.paid.push({ cardId: item.cardId, invoiceMonthStart: item.invoiceMonthStart, paymentId });
+    } catch (error) {
+      if (!(error instanceof RequestInputError)) throw error;
+      result.failed.push({ cardId: item.cardId, invoiceMonthStart: item.invoiceMonthStart, message: error.message });
+    }
+  }
+  return result;
 }
 
 /**

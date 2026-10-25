@@ -6,7 +6,7 @@ import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
-import { getCardLimits } from '../services/cardLimitService';
+import { getCardLimits, getCardUsage } from '../services/cardLimitService';
 import { moveDueDateToDay, parseEffectiveMonth } from '../services/cardDueDate';
 import { ACTIVE_STATUS } from '../services/entryQueries';
 import type { PaymentMethod } from '../services/expenseInput';
@@ -76,6 +76,28 @@ router.get('/limites', authenticate, async (req: Request, res: Response): Promis
   } catch (error) {
     console.error('Get card limits error:', error);
     res.status(500).json({ success: false, message: 'Failed to get card limits' });
+  }
+});
+
+// GET /api/cards/:id/usado — de que é feito o "Usado" do cartão (por fatura e por tipo)
+router.get('/:id/usado', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const cardId = parseInt(req.params['id']!);
+    if (isNaN(cardId)) {
+      res.status(400).json({ success: false, message: 'Card ID must be a valid number' });
+      return;
+    }
+    const { conta_id, escopo } = req.query as Record<string, string | undefined>;
+    const accountId = conta_id ? parseInt(conta_id) : null;
+    const data = await getCardUsage(req.user!.id, accountId, escopo === 'familia', cardId);
+    if (!data) {
+      res.status(404).json({ success: false, message: 'Card not found' });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Get card usage error:', error);
+    res.status(500).json({ success: false, message: 'Failed to get card usage' });
   }
 });
 

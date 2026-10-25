@@ -23,7 +23,9 @@ import { CalendarView } from './calendar/CalendarView';
 import { MonthYearPicker } from './MonthYearPicker';
 import { MovementMetricCard } from './MovementMetricCard';
 import { CardLimitRow } from './CardLimitRow';
+import { CardUsageDialog } from './CardUsageDialog';
 import { OverdueExpensesPrompt } from './OverdueExpensesPrompt';
+import { OverdueInvoicesDialog } from './OverdueInvoicesDialog';
 import { formatCurrency } from './formatters';
 import { useEntryFilters } from './useEntryFilters';
 import { BudgetPanel } from './BudgetPanel';
@@ -89,6 +91,8 @@ export function MovimentacoesScreen() {
   const [activeTab, setActiveTab] = useState<MovementTab>('lancamentos');
   const [viewMode, setViewMode] = useState<ViewMode>('lista');
   const [subView, setSubView] = useState<CalendarSubView>('mes');
+  const [usageCard, setUsageCard] = useState<{ id: number; nome: string } | null>(null);
+  const [overdueInvoicesOpen, setOverdueInvoicesOpen] = useState(false);
   const isPlanning = activeTab === 'planejamento';
   const isCalendario = viewMode === 'calendario' && !isPlanning;
   const isLista = !isCalendario;
@@ -263,7 +267,15 @@ export function MovimentacoesScreen() {
           <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
             <div className="grid gap-x-5 gap-y-1.5 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
               {cardLimits.data!.map((card) => (
-                <CardLimitRow key={card.id} nome={card.nome} usado={card.usado} limite={card.limite} disponivel={card.disponivel} />
+                <CardLimitRow
+                  key={card.id}
+                  nome={card.nome}
+                  usado={card.usado}
+                  limite={card.limite}
+                  disponivel={card.disponivel}
+                  vencido={card.vencido}
+                  onDetalhes={() => setUsageCard({ id: card.id, nome: card.nome })}
+                />
               ))}
             </div>
           </div>
@@ -298,6 +310,14 @@ export function MovimentacoesScreen() {
             </div>
           )}
       </div>
+
+      <CardUsageDialog
+        card={usageCard}
+        escopo={escopoFamilia ? 'familia' : undefined}
+        onQuitarVencidas={controls.newExpense ? () => { setUsageCard(null); setOverdueInvoicesOpen(true); } : undefined}
+        onClose={() => setUsageCard(null)}
+      />
+      <OverdueInvoicesDialog open={overdueInvoicesOpen} onClose={() => setOverdueInvoicesOpen(false)} />
     </>
   );
 }

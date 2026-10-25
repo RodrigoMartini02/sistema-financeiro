@@ -39,7 +39,7 @@ export function invalidateFinanceQueries(qc: QueryClient, month: number, year: n
 const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
   'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate', 'despesas-em-aberto',
-  'card-invoices', 'series-renewals', 'despesas-vencidas',
+  'card-invoices', 'card-invoices-overdue', 'card-usage', 'series-renewals', 'despesas-vencidas',
 ]);
 
 export function invalidateExpenseQueries(qc: QueryClient) {
@@ -133,6 +133,10 @@ export const queryKeys = {
   // eu') pedem dados diferentes do servidor e nao podem compartilhar cache.
   cardLimits: (accountId?: number | null, escopo?: 'familia') =>
     ['card-limits', accountId ?? 'ativa', escopo ?? 'eu'] as const,
+  // De que é feito o Usado de um cartão; o escopo entra na chave como em cardLimits.
+  cardUsage: (cardId: number, accountId?: number | null, escopo?: 'familia') =>
+    ['card-usage', accountId ?? 'ativa', escopo ?? 'eu', cardId] as const,
+  overdueInvoices: (accountId?: number | null) => ['card-invoices-overdue', accountId ?? 'ativa'] as const,
   notificacoes: (accountId?: number | null) => ['notificacoes', accountId ?? 'ativa'] as const,
   // Produtos de uma conta PJ; o prefixo 'catalogo-produtos' (em INCOME_DEPENDENT_QUERIES)
   // invalida todas as contas de uma vez.
