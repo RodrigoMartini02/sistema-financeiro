@@ -9,7 +9,7 @@
 
 ## Situação
 
-**IMPLEMENTADO em 26/10/2026**, na branch `feat/R/licitacoes-lista-infinita`, **sem commit** (falta o `/finalizar`). Conferido: `tsc --noEmit` sem erro, `npm test` com 436 testes passando (10 novos: `infiniteList.test.ts` e `listCache.test.ts`) e `npx vite build`. **Falta ele ver as telas** (o projeto não tem teste de componente; o roteiro manual está na seção "Testes necessários").
+**IMPLEMENTADO e NA MAIN desde 26/10/2026** (branch `feat/R/licitacoes-lista-infinita`, commit `a879310d`, merge `--no-ff`). Conferido antes do commit: `tsc --noEmit` sem erro, `npm test` com 436 testes passando (10 novos: `infiniteList.test.ts` e `listCache.test.ts`) e `npx vite build`. **Falta ele ver as telas no ar** (o projeto não tem teste de componente; o roteiro manual está na seção "Testes necessários").
 
 Como ficou, onde diferiu do plano:
 - **Posição ao voltar do detalhe:** guardada na memória do navegador (um `Map` por entrada do histórico, `location.key`, no máximo 20), com o `scrollOffset` e o `takeSnapshot()` do virtualizador (`initialOffset` e `initialMeasurementsCache`, que a versão instalada, `@tanstack/virtual-core` 3.19.8, tem), em vez de guardar só o índice do primeiro item: assim o ponto volta exato, com as alturas já medidas. Só vale com a lista ainda em cache; sem isso, a lista abre onde a janela já estava (o virtualizador rola a janela até o `initialOffset` ao montar, então o padrão é `window.scrollY`, para a lista do meio da página, como Vencedores do CNPJ, não puxar a pessoa para o topo).
