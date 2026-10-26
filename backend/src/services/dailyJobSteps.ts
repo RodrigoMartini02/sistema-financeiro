@@ -12,6 +12,8 @@ export const DAILY_JOB_STEPS = [
   'tenders-winners-daily',
   'tenders-cleanup',
   'tenders-contracts-backfill',
+  'tenders-federal-cycle',
+  'tenders-federal-backfill',
   'tenders-winners-backfill',
 ] as const;
 export type DailyJobStep = (typeof DAILY_JOB_STEPS)[number];
@@ -28,15 +30,19 @@ function isSundayInBrasilia(instant: Date): boolean {
 /** As etapas dos vencedores (plano .plans/licitacoes-vencedores.md): só rodam com TENDERS_WINNERS_ENABLED=1. */
 export const WINNERS_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-winners-daily', 'tenders-winners-backfill']);
 
+/** As etapas dos contratos federais (plano .plans/licitacoes-contratos-federais.md): só rodam com TENDERS_FEDERAL_ENABLED=1. */
+export const FEDERAL_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-federal-cycle', 'tenders-federal-backfill']);
+
 /**
  * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
  * varredura de Licitações, os lembretes de prazo, a coleta dos contratos, os
  * avisos de vencimento dos contratos, a coleta diária dos vencedores (curta e
  * diária: vai antes das cargas, que passam de 9 h), aos domingos a limpeza dos
  * editais, a carga inicial de contratos (a mais longa: só roda com dias
- * pendentes e com o R2 configurado) e, por último, a carga dos vencedores, que
- * se adapta ao tempo que sobrar na rotina (plano dos vencedores). Os
- * contratos não têm limpeza: os encerrados ficam na base (plano
+ * pendentes e com o R2 configurado) e, por último, o ciclo e a carga dos
+ * contratos federais e a carga dos vencedores, que se adaptam ao tempo que
+ * sobrar na rotina (planos dos vencedores e dos federais). Os contratos não
+ * têm limpeza: os encerrados ficam na base (plano
  * .plans/licitacoes-base-nacional.md).
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {
@@ -51,7 +57,7 @@ export function dailyJobSteps(now: Date): DailyJobStep[] {
   if (isSundayInBrasilia(now)) {
     steps.push('tenders-cleanup');
   }
-  steps.push('tenders-contracts-backfill', 'tenders-winners-backfill');
+  steps.push('tenders-contracts-backfill', 'tenders-federal-cycle', 'tenders-federal-backfill', 'tenders-winners-backfill');
   return steps;
 }
 

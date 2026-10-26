@@ -134,6 +134,26 @@ export const tenderResultBackfillDays = tendersSchema.table('resultado_carga_dia
 });
 
 /**
+ * Global: o andamento da leitura de cada órgão federal do Compras.gov.br (migration 0087d): o CNPJ do cadastro e o que o
+ * PNCP usa, até que ano a carga já leu (e publicou) e quando o ciclo leu os vigentes e os recentes pela última vez.
+ */
+export const tenderFederalAgencies = tendersSchema.table('federal_orgao', {
+  agencyCode: varchar('codigo_orgao', { length: 20 }).primaryKey(),
+  name: text('nome').notNull(),
+  registeredCnpj: char('cnpj_cadastro', { length: 14 }),
+  pncpCnpj: char('cnpj_pncp', { length: 14 }),
+  /** null: ainda não medido; false: a fonte não tem contrato dele (remedido a cada 90 dias). */
+  hasData: boolean('com_dados'),
+  oldestLoadedYear: smallint('carga_ano_mais_antigo'),
+  cycleReadAt: timestampWithZone('ciclo_lido_em'),
+  latestEnd: date('maior_fim_visto', { mode: 'string' }),
+  measuredAt: timestampWithZone('medido_em'),
+  /** Brasília, sem fuso (AAAA-MM-DD HH:mm:ss). */
+  lastInclusion: timestamp('ultima_inclusao', { mode: 'string' }),
+  updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+});
+
+/**
  * Contas com o módulo: cortesia (admin) ou assinatura (teste, pago ou
  * recorrente, migration 0080). A regra de acesso fica na função
  * licitacoes.fn_conta_com_acesso, usada pela trava e pelos avisos.

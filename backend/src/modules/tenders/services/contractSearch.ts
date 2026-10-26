@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { addCalendarDays, brasiliaDate } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
 import { contractListDataset, phraseContractCriteria } from '../contractStore/criteria';
+import { contractOriginOf } from '../contractStore/layout';
 import { queryContractPage, type ContractListRow } from '../contractStore/queries';
 import type { ContractStoreAccess } from '../contractStore/reader';
 import { postgresSearchPhrases } from '../contractStore/textSearch';
@@ -112,14 +113,18 @@ export interface ContractListItem {
   isFavorite: boolean;
   /** Trecho do objeto com os termos entre << e >>; null sem termos de busca. */
   highlightedExcerpt: string | null;
-  pncpLink: string;
+  /** Página do contrato no PNCP; null nos contratos federais do Compras.gov.br, que não têm. */
+  pncpLink: string | null;
 }
 
 const HEADLINE_OPTIONS = 'StartSel=<<, StopSel=>>, MinWords=15, MaxWords=35, MaxFragments=2, FragmentDelimiter=" … "';
 
-/** Página do contrato no site do PNCP (conferida no piloto: rota `contratos/:cnpj/:ano/:sequencial`). */
-export function contractPncpLink(agencyCnpj: string, year: number, sequence: number): string {
-  return `https://pncp.gov.br/app/contratos/${agencyCnpj}/${year}/${sequence}`;
+/**
+ * Página do contrato no site do PNCP (conferida no piloto: rota `contratos/:cnpj/:ano/:sequencial`). O contrato federal do
+ * Compras.gov.br não tem página pública do documento: sem link.
+ */
+export function contractPncpLink(key: string, agencyCnpj: string, year: number, sequence: number): string | null {
+  return contractOriginOf(key) === 'NATIONAL' ? `https://pncp.gov.br/app/contratos/${agencyCnpj}/${year}/${sequence}` : null;
 }
 
 const CONTRACT_TYPE_NAMES = new Map<number, string>(CONTRACT_TYPES.map((type) => [type.id, type.name]));
@@ -169,7 +174,7 @@ function toListItem(row: ContractListRow, isFavorite: boolean, highlightedExcerp
     isExtended: row.vencimento !== row.vigencia_fim_original,
     isFavorite,
     highlightedExcerpt,
-    pncpLink: contractPncpLink(row.orgao_cnpj, row.ano_contrato, row.sequencial_contrato),
+    pncpLink: contractPncpLink(row.numero_controle_pncp, row.orgao_cnpj, row.ano_contrato, row.sequencial_contrato),
   };
 }
 

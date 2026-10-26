@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  ComprasGovClient, ComprasGovRequestError, RESULTS_PATH, windowParams, type ComprasGovClientOptions, type ComprasGovPage,
+  AGENCIES_ENDPOINT, CONTRACTS_BY_END_ENDPOINT, CONTRACTS_BY_START_ENDPOINT, ComprasGovClient, ComprasGovRequestError, RESULTS_PATH,
+  UNITS_ENDPOINT, windowParams, type ComprasGovClientOptions, type ComprasGovPage,
 } from './comprasGovClient';
 
 type FakeReply = Response | Error;
@@ -237,4 +238,82 @@ test('requestRaw passa parâmetros extras (filtro de fornecedor) e mede o tempo'
   const raw = await client.requestRaw({ initial: '2026-09-14', final: '2026-09-15' }, 1, 10, { niFornecedor: '00000000000191' });
   assert.equal(new URL(requestedUrls[0] ?? '').searchParams.get('niFornecedor'), '00000000000191');
   assert.equal(raw.elapsedMs, 250);
+});
+
+const YEAR = { from: '2024-01-01', to: '2024-12-31' };
+
+test('contratos pelo início da vigência: outro endereço, os parâmetros de data dessa consulta e o órgão', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 1), pageResponse(2, 0)]);
+  const pages = await collectPages(client.pages(YEAR, { endpoint: CONTRACTS_BY_START_ENDPOINT, params: { codigoOrgao: '26238' } }));
+
+  assert.equal(pages.length, 2);
+  const url = new URL(requestedUrls[0] ?? '');
+  assert.equal(url.pathname, '/modulo-contratos/1_consultarContratos');
+  assert.equal(url.searchParams.get('dataVigenciaInicialMin'), '2024-01-01');
+  assert.equal(url.searchParams.get('dataVigenciaInicialMax'), '2024-12-31');
+  assert.equal(url.searchParams.get('codigoOrgao'), '26238');
+  assert.equal(url.searchParams.get('tamanhoPagina'), '500');
+  assert.equal(url.searchParams.get('dataResultadoPncpInicial'), null, 'os parâmetros dos resultados não vão para os contratos');
+});
+
+test('contratos pelo fim da vigência usam o endereço e os parâmetros de data do fim', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 0)]);
+  await client.fetchPage(YEAR, 1, 437, { endpoint: CONTRACTS_BY_END_ENDPOINT, params: { codigoOrgao: '26238' } });
+
+  const url = new URL(requestedUrls[0] ?? '');
+  assert.equal(url.pathname, '/modulo-contratos/1.2_consultarContratos_FimVigencia');
+  assert.equal(url.searchParams.get('dataVigenciaFinalMin'), '2024-01-01');
+  assert.equal(url.searchParams.get('dataVigenciaFinalMax'), '2024-12-31');
+  assert.equal(url.searchParams.get('tamanhoPagina'), '437');
+});
+
+test('órgãos e unidades: sem janela e sem tamanho de página, só o filtro de situação e a página', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 1), pageResponse(2, 0), pageResponse(1, 0)]);
+  const agencies = await collectPages(client.pages(null, { endpoint: AGENCIES_ENDPOINT, params: { statusOrgao: 'true' } }));
+  await client.fetchPage(null, 1, undefined, { endpoint: UNITS_ENDPOINT, params: { statusUasg: 'true' } });
+
+  assert.equal(agencies.length, 2);
+  const agenciesUrl = new URL(requestedUrls[0] ?? '');
+  assert.equal(agenciesUrl.pathname, '/modulo-uasg/2_consultarOrgao');
+  assert.deepEqual([...agenciesUrl.searchParams.keys()].sort(), ['pagina', 'statusOrgao']);
+  assert.equal(new URL(requestedUrls[1] ?? '').searchParams.get('pagina'), '2');
+  const unitsUrl = new URL(requestedUrls[2] ?? '');
+  assert.equal(unitsUrl.pathname, '/modulo-uasg/1_consultarUasg');
+  assert.deepEqual([...unitsUrl.searchParams.keys()].sort(), ['pagina', 'statusUasg']);
+});
+
+test('o erro de uma consulta de contratos leva o nome dela, nas repetições e no HTTP 400', async () => {
+  const gaveUp = createFakeClient(Array.from({ length: 2 }, () => new Response('x', { status: 503 })), { maxAttempts: 2 });
+  await assert.rejects(
+    () => gaveUp.client.fetchPage(YEAR, 3, 500, { endpoint: CONTRACTS_BY_START_ENDPOINT }),
+    (error: unknown) => {
+      assert.ok(error instanceof ComprasGovRequestError);
+      assert.deepEqual(error.details, { endpoint: 'contratos', page: 3, attempts: 2, status: 503 });
+      assert.match(error.message, /^A consulta de contratos falhou após 2 tentativa/);
+      return true;
+    },
+  );
+
+  const tooWide = createFakeClient([new Response('Período inicial e final maior que 365 dias', { status: 400 })]);
+  await assert.rejects(
+    () => tooWide.client.fetchPage({ from: '2024-01-01', to: '2025-01-02' }, 1, 500, { endpoint: CONTRACTS_BY_START_ENDPOINT }),
+    (error: unknown) => {
+      assert.ok(error instanceof ComprasGovRequestError);
+      assert.equal(error.message, 'A consulta de contratos recebeu HTTP 400');
+      assert.doesNotMatch(error.message, /365/);
+      return true;
+    },
+  );
+  assert.equal(tooWide.client.requestCount, 1, 'o 400 não repete');
+});
+
+test('requestRaw de contratos: o endereço e os parâmetros de data da consulta escolhida', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 0)]);
+  await client.requestRaw({ initial: '2024-01-01', final: '2024-12-31' }, 1, 10, { codigoOrgao: '26238' }, CONTRACTS_BY_END_ENDPOINT);
+
+  const url = new URL(requestedUrls[0] ?? '');
+  assert.equal(url.pathname, '/modulo-contratos/1.2_consultarContratos_FimVigencia');
+  assert.equal(url.searchParams.get('dataVigenciaFinalMin'), '2024-01-01');
+  assert.equal(url.searchParams.get('tamanhoPagina'), '10');
+  assert.equal(url.searchParams.get('codigoOrgao'), '26238');
 });

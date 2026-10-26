@@ -1,10 +1,11 @@
 import { databaseHost } from '../modules/tenders/collector/config';
 import { runContractReminders, runContractsBackfill, runContractsDaily } from '../modules/tenders/collector/contractRuns';
+import { runFederalCycle, runFederalLoad } from '../modules/tenders/collector/federalRuns';
 import { createCollectorLogger, type CollectorLogger } from '../modules/tenders/collector/logger';
 import { runResultsBackfill, runResultsDaily } from '../modules/tenders/collector/resultRuns';
 import { runCleanup, runDeadlineReminders, runSweep, type CollectorContext, type RunOutcome } from '../modules/tenders/collector/runs';
 import { createCollectorRuntime, type CollectorRuntime } from '../modules/tenders/collector/runtime';
-import { WINNERS_STEPS, dailyJobSteps, planLifecycleUrl, type DailyJobStep } from './dailyJobSteps';
+import { FEDERAL_STEPS, WINNERS_STEPS, dailyJobSteps, planLifecycleUrl, type DailyJobStep } from './dailyJobSteps';
 
 // Rotina diária do Cron Job do Render (`npm run daily-jobs`, scripts/dailyJobs.ts).
 // As etapas rodam em sequência; uma etapa que falha não impede as seguintes.
@@ -25,17 +26,20 @@ const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext, limits: Step
   // Só com TENDERS_WINNERS_ENABLED=1 (ver runTendersStep).
   'tenders-winners-daily': runResultsDaily,
   'tenders-cleanup': runCleanup,
-  // Sem o R2 configurado, ou sem dia pendente, a etapa é pulada com o motivo no log.
-  'tenders-contracts-backfill': (context) => runContractsBackfill(context),
+  // Sem o R2 configurado, sem dia pendente ou sem tempo na rotina, a etapa é pulada com o motivo no log.
+  'tenders-contracts-backfill': (context, { deadlineAt }) => runContractsBackfill(context, { deadlineAt }),
+  // Só com TENDERS_FEDERAL_ENABLED=1 (ver runTendersStep). Usam só o tempo que sobrar da rotina.
+  'tenders-federal-cycle': (context, { deadlineAt }) => runFederalCycle(context, { deadlineAt }),
+  'tenders-federal-backfill': (context, { deadlineAt }) => runFederalLoad(context, { deadlineAt }),
   // A carga dos vencedores usa só o tempo que sobrar da rotina, e sem tempo a etapa é pulada (não falha).
   'tenders-winners-backfill': (context, { deadlineAt }) => runResultsBackfill(context, { deadlineAt }),
 };
 
 const PLAN_LIFECYCLE_TIMEOUT_MS = 120_000;
 /**
- * Prazo da rotina inteira para a carga dos vencedores: o Cron Job do Render tem limite de 12 h por execução (a
- * conferir no painel do Render antes de ligar os vencedores), e esta é a margem de 30 min antes dele. Os contratos
- * não ganham limite novo: só a etapa que vem por último se adapta.
+ * Prazo da rotina inteira para as cargas em blocos: o Cron Job do Render tem limite de 12 h por execução, e esta é a
+ * margem de 30 min antes dele. A carga de contratos e as etapas dos federais e dos vencedores usam só o tempo que
+ * sobrar (menos a folga de cada bloco), e uma etapa sem tempo é pulada, sem falhar.
  */
 const ROUTINE_DEADLINE_MINUTES = 690;
 const BYTES_PER_MB = 1024 * 1024;
@@ -71,11 +75,16 @@ function rssMb(): number {
 
 /**
  * Uma execução do coletor. FALHA vira erro; coleta pulada (trava ocupada) não. As etapas dos vencedores só rodam com
- * TENDERS_WINNERS_ENABLED=1; desligadas, são puladas com o motivo no log (os comandos da CLI funcionam sempre).
+ * TENDERS_WINNERS_ENABLED=1 e as dos contratos federais, com TENDERS_FEDERAL_ENABLED=1; desligadas, são puladas com o
+ * motivo no log (os comandos da CLI funcionam sempre).
  */
 export async function runTendersStep(step: TendersStep, context: CollectorContext, limits: StepLimits): Promise<StepResult> {
   if (WINNERS_STEPS.has(step) && !context.config.winners.enabled) {
     context.logger.info('Vencedores desligados: etapa pulada', { step });
+    return 'skipped';
+  }
+  if (FEDERAL_STEPS.has(step) && !context.config.federal.enabled) {
+    context.logger.info('Contratos federais desligados: etapa pulada', { step });
     return 'skipped';
   }
   const outcome = await TENDERS_RUNS[step](context, limits);

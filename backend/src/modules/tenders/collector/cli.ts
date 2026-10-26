@@ -4,6 +4,9 @@ import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../d
 import { ComprasGovClient } from './comprasGovClient';
 import { CollectorConfigError, databaseHost, loadComprasGovSettings } from './config';
 import { runContractReminders, runContractsBackfill, runContractsDaily } from './contractRuns';
+import { brasiliaDate } from './dates';
+import { renderFederalProbeReport, runFederalProbe } from './federalProbe';
+import { runFederalCycle, runFederalLoad } from './federalRuns';
 import { errorMessage } from './logger';
 import { runNoticesPayloadExport } from './noticePayloadExport';
 import { renderProbeReport, runResultProbe } from './resultProbe';
@@ -34,6 +37,9 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix backend run tenders -- winners-probe --fornecedor 11222333000181 --from 2026-09-01 --to 2026-09-30   (confere um fornecedor contra a fonte)
 //   npm --prefix backend run tenders -- winners-daily | winners-backfill --from 2026-09-01 --to 2026-09-30 --max-minutes 120
 //   npm --prefix backend run tenders -- winners-lookup --cnpj 11222333000181 [--limit 20]   (as vitórias de um fornecedor)
+//   npm --prefix backend run tenders -- federal-probe [--orgao 26238,52121] [--amostra 8] [--from 2024-01-01 --to 2024-12-31]   (sondagem dos contratos federais: sem banco e sem R2)
+//   npm --prefix backend run tenders -- federal-load [--orgao 26238] [--from 2021-01-01] [--max-minutes 60]   (carga dos contratos federais; com --orgao ou --from relê a faixa inteira)
+//   npm --prefix backend run tenders -- federal-cycle [--orgao 26238] [--max-minutes 60]   (ciclo de 7 dias: os vigentes e os recentes dos órgãos com contrato)
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
 
@@ -53,6 +59,9 @@ export const CLI_COMMANDS = [
   'winners-daily',
   'winners-backfill',
   'winners-lookup',
+  'federal-probe',
+  'federal-load',
+  'federal-cycle',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
@@ -81,7 +90,26 @@ export type CliCommand =
       from: string | null;
       to: string | null;
     }
-  | { name: 'winners-lookup'; cnpj: string; limit: number | null };
+  | { name: 'winners-lookup'; cnpj: string; limit: number | null }
+  | {
+      name: 'federal-probe';
+      /** Códigos dos órgãos; sem eles nem `sample`, a UFMG. */
+      agencyCodes: string[];
+      sample: number | null;
+      /** A janela da vigência iniciada (até 365 dias); sem ela, o ano passado inteiro. */
+      from: string | null;
+      to: string | null;
+      maxPages: number | null;
+    }
+  | {
+      name: 'federal-load';
+      /** Só este órgão: com ele (ou com `from`), é reparo, e a carga lê todos os anos da faixa, mesmo os já lidos. */
+      agencyCode: string | null;
+      /** Dia inicial da faixa; só o ano conta. Sem ele, TENDERS_FEDERAL_FROM. */
+      from: string | null;
+      maxMinutes: number | null;
+    }
+  | { name: 'federal-cycle'; agencyCode: string | null; maxMinutes: number | null };
 
 export class CliUsageError extends Error {
   constructor(message: string) {
@@ -103,6 +131,9 @@ const USAGE = [
   '  winners-daily',
   '  winners-backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--max-minutes N]',
   '  winners-lookup --cnpj 00000000000000 [--limit N]',
+  '  federal-probe [--orgao 26238[,52121]] [--amostra N] [--from AAAA-MM-DD --to AAAA-MM-DD] [--max-pages N]',
+  '  federal-load [--orgao 26238] [--from AAAA-MM-DD] [--max-minutes N]',
+  '  federal-cycle [--orgao 26238] [--max-minutes N]',
 ].join('\n');
 
 const CLI_OPTIONS = {
@@ -117,6 +148,8 @@ const CLI_OPTIONS = {
   cnpj: { type: 'string' },
   limit: { type: 'string' },
   fornecedor: { type: 'string' },
+  orgao: { type: 'string' },
+  amostra: { type: 'string' },
 } as const;
 type CliOptionName = keyof typeof CLI_OPTIONS;
 
@@ -136,9 +169,17 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   'winners-daily': [],
   'winners-backfill': ['from', 'to', 'max-minutes'],
   'winners-lookup': ['cnpj', 'limit'],
+  'federal-probe': ['orgao', 'amostra', 'from', 'to', 'max-pages'],
+  'federal-load': ['orgao', 'from', 'max-minutes'],
+  'federal-cycle': ['orgao', 'max-minutes'],
 };
 
 const MAX_PAGES_LIMIT = 10_000;
+/** Órgãos acrescentados por `federal-probe --amostra`: cada um custa dezenas de pedidos de 1,5 s. */
+const MAX_PROBE_SAMPLE = 100;
+/** A fonte recusa janelas de contratos em que o fim está a mais de 365 dias do início (medido em 26/10/2026: o ano de 2024 inteiro passa, e 2024-01-01 a 2025-01-01 não). */
+const MAX_FEDERAL_WINDOW_DAYS = 365;
+const DAY_MS = 24 * 60 * 60 * 1000;
 /** O mesmo teto de TENDERS_CONTRACTS_BACKFILL_MINUTES. */
 const MAX_BACKFILL_MINUTES = 600;
 
@@ -251,7 +292,59 @@ export function parseCliArgs(argv: string[]): CliCommand {
     return { name, cnpj, limit };
   }
 
+  if (name === 'federal-probe') {
+    return parseFederalProbeOptions(values);
+  }
+
+  if (name === 'federal-load' || name === 'federal-cycle') {
+    return parseFederalRunOptions(name, values);
+  }
+
   return { name };
+}
+
+/** O órgão da carga e do ciclo: um só código, só dígitos. */
+function readAgencyCode(value: string | undefined): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (!/^\d{1,20}$/.test(value)) {
+    throw new CliUsageError('--orgao deve ser o código do órgão (só dígitos)');
+  }
+  return value;
+}
+
+function parseFederalRunOptions(name: 'federal-load' | 'federal-cycle', values: Partial<Record<CliOptionName, string>>): CliCommand {
+  const agencyCode = readAgencyCode(values.orgao);
+  const maxMinutes = values['max-minutes'] ? readPositiveInteger(values['max-minutes'], 'max-minutes', MAX_BACKFILL_MINUTES) : null;
+  if (name === 'federal-cycle') {
+    return { name, agencyCode, maxMinutes };
+  }
+  return { name, agencyCode, from: readOptionalDate(values.from, 'from'), maxMinutes };
+}
+
+function parseFederalProbeOptions(values: Partial<Record<CliOptionName, string>>): CliCommand {
+  const agencyCodes = (values.orgao ?? '').split(',').map((code) => code.trim()).filter((code) => code !== '');
+  if (values.orgao !== undefined && (agencyCodes.length === 0 || agencyCodes.some((code) => !/^\d{1,20}$/.test(code)))) {
+    throw new CliUsageError('--orgao deve ser um ou mais códigos de órgão (só dígitos), separados por vírgula');
+  }
+  const sample = values.amostra ? readPositiveInteger(values.amostra, 'amostra', MAX_PROBE_SAMPLE) : null;
+  const from = readOptionalDate(values.from, 'from');
+  const to = readOptionalDate(values.to, 'to');
+  if ((from === null) !== (to === null)) {
+    throw new CliUsageError('use --from e --to juntos');
+  }
+  if (from !== null && to !== null) {
+    const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS;
+    if (days < 0) {
+      throw new CliUsageError('--from deve ser antes de --to');
+    }
+    if (days > MAX_FEDERAL_WINDOW_DAYS) {
+      throw new CliUsageError(`--to pode ter no máximo ${MAX_FEDERAL_WINDOW_DAYS} dias depois de --from`);
+    }
+  }
+  const maxPages = values['max-pages'] ? readPositiveInteger(values['max-pages'], 'max-pages', MAX_PAGES_LIMIT) : null;
+  return { name: 'federal-probe', agencyCodes, sample, from, to, maxPages };
 }
 
 function readOptionalDate(value: string | undefined, option: string): string | null {
@@ -275,10 +368,16 @@ function parseBackfillOptions(name: 'contracts-backfill' | 'winners-backfill', v
 }
 
 /** Comandos que não precisam do runtime do coletor (URL do banco, conexão e R2): saem antes de criá-lo. */
-type CommandWithoutRuntime = Extract<CliCommand, { name: 'winners-probe' }>;
+type CommandWithoutRuntime = Extract<CliCommand, { name: 'winners-probe' | 'federal-probe' }>;
 
 function needsNoRuntime(command: CliCommand): command is CommandWithoutRuntime {
-  return command.name === 'winners-probe';
+  return command.name === 'winners-probe' || command.name === 'federal-probe';
+}
+
+/** O ano passado inteiro (a janela da `federal-probe` sem --from e --to): o que a sondagem de 26/10/2026 mediu. */
+function lastYearWindow(now: Date): { from: string; to: string } {
+  const year = Number(brasiliaDate(now).slice(0, 4)) - 1;
+  return { from: `${year}-01-01`, to: `${year}-12-31` };
 }
 
 /**
@@ -288,6 +387,23 @@ function needsNoRuntime(command: CliCommand): command is CommandWithoutRuntime {
 async function runWithoutRuntime(command: CommandWithoutRuntime): Promise<void> {
   const settings = loadComprasGovSettings(process.env);
   const client = new ComprasGovClient({ requestIntervalMs: settings.requestIntervalMs });
+  if (command.name === 'federal-probe') {
+    const report = await runFederalProbe(
+      { client, now: () => new Date(), progress: (message) => console.error(message) },
+      {
+        agencyCodes: command.agencyCodes,
+        sample: command.sample,
+        window: command.from !== null && command.to !== null ? { from: command.from, to: command.to } : lastYearWindow(new Date()),
+        maxPages: command.maxPages,
+      },
+    );
+    console.log(renderFederalProbeReport(report));
+    // Lista de órgãos incompleta ou janela que a fonte não entregou: a sondagem não serve de base para os padrões.
+    if (!report.agenciesList.complete || report.totals.windowsIncomplete > 0 || report.agencies.some((agency) => agency.failure !== null)) {
+      process.exitCode = 1;
+    }
+    return;
+  }
   if (command.supplier !== null) {
     // Conferência de um fornecedor: o período é o dia, ou de --from a --to (a leitura do comando já os validou).
     const window = { from: command.day ?? command.from ?? '', to: command.day ?? command.to ?? '' };
@@ -344,6 +460,17 @@ async function runCommand(context: CollectorContext, command: Exclude<CliCommand
       return runResultsBackfill(context, {
         ...(command.from !== null ? { from: command.from } : {}),
         ...(command.to !== null ? { to: command.to } : {}),
+        ...(command.maxMinutes !== null ? { maxMinutes: command.maxMinutes } : {}),
+      });
+    case 'federal-load':
+      return runFederalLoad(context, {
+        ...(command.agencyCode !== null ? { agencyCode: command.agencyCode } : {}),
+        ...(command.from !== null ? { from: command.from } : {}),
+        ...(command.maxMinutes !== null ? { maxMinutes: command.maxMinutes } : {}),
+      });
+    case 'federal-cycle':
+      return runFederalCycle(context, {
+        ...(command.agencyCode !== null ? { agencyCode: command.agencyCode } : {}),
         ...(command.maxMinutes !== null ? { maxMinutes: command.maxMinutes } : {}),
       });
     case 'winners-lookup': {

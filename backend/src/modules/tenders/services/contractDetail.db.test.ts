@@ -23,7 +23,7 @@ import {
   purchasePncpLink,
   removeContractFavorite,
 } from './contractDetail';
-import type { ContractContext } from './contractSearch';
+import { contractPncpLink, type ContractContext } from './contractSearch';
 
 // Detalhe do contrato e favoritos (planos dos contratos a vencer, Parte B, e dos
 // contratos no R2, Parte R2): edital de origem na base e fora dela, aditivos,
@@ -67,9 +67,37 @@ describe('detalhe do contrato (banco local e armazém de exemplo)', { skip: data
         assert.equal(detail.publishedAt, '2026-01-12T10:00:00-03:00');
         assert.equal(detail.lastCollectedAt, '2026-10-19T09:00:00-03:00', 'a coleta fica em UTC no arquivo e vai em Brasília na API');
 
+        assert.equal(detail.origin, 'NATIONAL');
+
         const other = await getContractDetail(context, requesterOf(account), withoutNotice.pncpControlNumber);
         assert.equal(other.originNoticeId, null);
         assert.equal(other.originPncpLink, 'https://pncp.gov.br/app/editais/99999999000199/2026/216');
+      });
+    });
+  });
+
+  test('contrato federal do Compras.gov.br: sem link do documento, com a origem e a compra de origem no PNCP', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'contrato-federal');
+      const federal = sampleContract(7, {
+        pncpControlNumber: 'comprasgov-153254-50-00586/2023',
+        contractSequence: 0,
+        contractNumber: '00586/2023',
+        governmentSphere: 'F',
+        purchaseControlNumber: '17217985000104-1-000374/2023',
+      });
+      await withContracts(tx, [federal], async (context) => {
+        const detail = await getContractDetail(context, requesterOf(account), federal.pncpControlNumber);
+        assert.equal(detail.pncpLink, null, 'o federal não tem página do contrato no PNCP');
+        assert.equal(detail.origin, 'FEDERAL');
+        assert.equal(detail.contractNumber, '00586/2023');
+        assert.equal(detail.amendments, null);
+        assert.equal(detail.originPncpLink, 'https://pncp.gov.br/app/editais/17217985000104/2023/374');
+        assert.equal(detail.isFavorite, false);
+
+        const added = await addContractFavorite(context, requesterOf(account), federal.pncpControlNumber);
+        assert.deepEqual(added, { pncpControlNumber: 'comprasgov-153254-50-00586/2023', isFavorite: true });
+        assert.equal((await getContractDetail(context, requesterOf(account), federal.pncpControlNumber)).isFavorite, true);
       });
     });
   });
@@ -161,12 +189,17 @@ describe('detalhe do contrato (banco local e armazém de exemplo)', { skip: data
     });
   });
 
-  test('a chave da URL: o número de controle (com a barra) ou comprasgov-<id>; qualquer outra coisa é "não encontrado"', () => {
+  test('a chave da URL: o número de controle (com a barra) ou comprasgov-<unidade>-<tipo>-<número>; qualquer outra coisa é "não encontrado"', () => {
     assert.equal(parseContractKey('03353358000196-2-000216/2026'), '03353358000196-2-000216/2026');
-    assert.equal(parseContractKey('comprasgov-123456'), 'comprasgov-123456');
-    for (const invalid of ['', '1', "03353358000196-2-000216/2026'; DROP TABLE x", '03353358000196-2-000216', undefined, 42, '../etc/passwd', 'a'.repeat(80)]) {
+    assert.equal(parseContractKey('comprasgov-153254-50-00586/2023'), 'comprasgov-153254-50-00586/2023');
+    for (const invalid of ['', '1', 'comprasgov-123456', "03353358000196-2-000216/2026'; DROP TABLE x", '03353358000196-2-000216', undefined, 42, '../etc/passwd', 'a'.repeat(80)]) {
       assert.throws(() => parseContractKey(invalid), notFound);
     }
+  });
+
+  test('link do contrato no PNCP pela chave: o do PNCP tem, o federal do Compras.gov.br não', () => {
+    assert.equal(contractPncpLink('00394460005887-2-000001/2026', '00394460005887', 2026, 1), 'https://pncp.gov.br/app/contratos/00394460005887/2026/1');
+    assert.equal(contractPncpLink('comprasgov-153254-50-00586/2023', '17217985000104', 2023, 0), null);
   });
 
   test('link da compra no PNCP pelo número de controle; formato desconhecido, sem link', () => {

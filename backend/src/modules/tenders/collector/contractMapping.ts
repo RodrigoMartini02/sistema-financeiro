@@ -91,7 +91,7 @@ const MIN_VALID_DATE = '1990-01-01';
 const CHANGE_SIGNAL_MS = 24 * 60 * 60 * 1000;
 
 const PNCP_DATE = /^\d{4}-\d{2}-\d{2}$/;
-const PNCP_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?$/;
+export const PNCP_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?$/;
 // NUMERIC(18,2): até 16 dígitos inteiros.
 const MAX_VALUE = 1e16;
 const SMALLINT_MAX = 32_767;
@@ -174,7 +174,7 @@ export function cleanText(value: string | null | undefined): string | null {
 }
 
 /** Valor 0 é não informado, e negativo é erro de cadastro na origem: os dois ficam nulos. */
-function positiveValue(value: number | null | undefined): string | null {
+export function positiveValue(value: number | null | undefined): string | null {
   return value !== null && value !== undefined && value > 0 ? value.toFixed(2) : null;
 }
 
@@ -225,6 +225,27 @@ function isImplausibleEnd(termStart: string, termEnd: string): boolean {
   return termEnd > addYears(termStart, MAX_CONTRACT_TERM_YEARS);
 }
 
+export type TermEndResolution =
+  | { ok: true; originalTermEnd: string | null; withoutExpiry: ContractWithoutExpiryReason | null }
+  | { ok: false; reason: string };
+
+/**
+ * O fim da vigência de um contrato, de qualquer fonte: fim antes do início é erro; sem fim, ou com um fora do
+ * normal, o contrato entra sem vencimento (e o motivo é contado à parte).
+ */
+export function resolveTermEnd(termStart: string, statedEnd: string | null): TermEndResolution {
+  if (statedEnd !== null && statedEnd < termStart) {
+    return { ok: false, reason: 'fim da vigência antes do início' };
+  }
+  let withoutExpiry: ContractWithoutExpiryReason | null = null;
+  if (statedEnd === null) {
+    withoutExpiry = 'withoutEndDate';
+  } else if (isImplausibleEnd(termStart, statedEnd)) {
+    withoutExpiry = 'implausibleTerm';
+  }
+  return { ok: true, originalTermEnd: withoutExpiry === null ? statedEnd : null, withoutExpiry };
+}
+
 export function mapPncpContract(raw: unknown): MappedContract {
   const parsed = pncpContractSchema.safeParse(raw);
   if (!parsed.success) {
@@ -237,18 +258,11 @@ export function mapPncpContract(raw: unknown): MappedContract {
 
   const record = parsed.data;
   const termStart = record.dataVigenciaInicio;
-  const statedEnd = record.dataVigenciaFim ?? null;
-  if (statedEnd !== null && statedEnd < termStart) {
-    return { ok: false, controlNumber: record.numeroControlePNCP, reason: 'fim da vigência antes do início' };
+  const term = resolveTermEnd(termStart, record.dataVigenciaFim ?? null);
+  if (!term.ok) {
+    return { ok: false, controlNumber: record.numeroControlePNCP, reason: term.reason };
   }
-  let withoutExpiry: ContractWithoutExpiryReason | null = null;
-  if (statedEnd === null) {
-    withoutExpiry = 'withoutEndDate';
-  } else if (isImplausibleEnd(termStart, statedEnd)) {
-    withoutExpiry = 'implausibleTerm';
-  }
-  // Sem data de fim, ou com uma fora do normal, o contrato entra sem vencimento.
-  const originalTermEnd = withoutExpiry === null ? statedEnd : null;
+  const { originalTermEnd, withoutExpiry } = term;
 
   const unit = record.unidadeOrgao;
   const personTypeText = cleanText(record.tipoPessoa)?.toUpperCase() ?? '';

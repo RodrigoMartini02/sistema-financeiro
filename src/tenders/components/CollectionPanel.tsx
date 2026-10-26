@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
 import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { EmptyState } from '../../ui/EmptyState';
+import { getLocalTodayIso } from '../../utils/date';
 import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settingsService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
@@ -11,6 +12,7 @@ import {
   archiveSummaryLabel,
   backfillSummary,
   dailyCollectionSummary,
+  federalSummary,
   runDurationLabel,
   runErrorLines,
   winnersDailySummary,
@@ -24,8 +26,8 @@ import { Pagination } from './Pagination';
 import { Pill, type PillTone } from './Pill';
 
 // Coleta (titular ou admin): última varredura, últimos lembretes de prazo, os
-// contratos e os vencedores (coleta diária e andamento da carga inicial de cada
-// um), todos da rotina diária das 06:00, com o arquivo bruto de cada coleta,
+// contratos, os vencedores e os contratos federais (coleta diária ou ciclo e
+// andamento da carga inicial de cada um), todos da rotina diária das 06:00, com o arquivo bruto de cada coleta,
 // próxima execução prevista e o histórico das execuções, com totais e erros.
 
 const STATUS_TONES: Record<CollectionRunStatus, PillTone> = {
@@ -202,6 +204,73 @@ function WinnersCard({ status }: { status: CollectionStatus }) {
   );
 }
 
+/**
+ * Contratos federais: o ciclo semanal e a carga inicial por órgão, no mesmo molde dos outros blocos. A fonte pode ficar
+ * semanas sem dado novo, e o card mostra até quando ela tem. Sem nenhuma execução (as etapas só rodam quando são
+ * ligadas na rotina), diz que ainda não rodou e não mostra a próxima.
+ */
+function FederalCard({ status }: { status: CollectionStatus }) {
+  const cycle = status.latestRuns.find((run) => run.type === 'FEDERAIS_CICLO');
+  const load = status.latestRuns.find((run) => run.type === 'FEDERAIS_CARGA');
+  const loadRunning = load?.status === 'EXECUTANDO';
+  const summary = federalSummary(status.federal, getLocalTodayIso());
+  const archiveLabel = cycle ? archiveSummaryLabel(cycle) : load ? archiveSummaryLabel(load) : null;
+  const headline = cycle ?? load;
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:col-span-2 dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Contratos federais</h3>
+        {headline && <RunStatusPill status={headline.status} />}
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <dt className={TERM_CLASS}>Último ciclo semanal</dt>
+        <dd className={VALUE_CLASS}>{cycle ? formatIsoDateTime(cycle.startedAt) : 'Ainda não rodou.'}</dd>
+        <dt className={TERM_CLASS}>Última carga</dt>
+        <dd className={VALUE_CLASS}>{load ? formatIsoDateTime(load.startedAt) : 'Ainda não rodou.'}</dd>
+        {cycle && (
+          <>
+            <dt className={TERM_CLASS}>Ciclo: lidos · novos · atualizados</dt>
+            <dd className={VALUE_CLASS}>
+              {formatCount(cycle.recordsRead)} · {formatCount(cycle.newCount)} · {formatCount(cycle.updatedCount)}
+            </dd>
+          </>
+        )}
+        {archiveLabel && (
+          <>
+            <dt className={TERM_CLASS}>Arquivo bruto</dt>
+            <dd className={VALUE_CLASS}>{archiveLabel}</dd>
+          </>
+        )}
+        <dt className={TERM_CLASS}>Órgãos com contrato na fonte</dt>
+        <dd className={VALUE_CLASS}>
+          {formatCount(status.federal.withData)}
+          {status.federal.notMeasured > 0 ? ` · ${formatCount(status.federal.notMeasured)} ainda sem medida` : ''}
+        </dd>
+        <dt className={TERM_CLASS}>Carga inicial</dt>
+        <dd className={VALUE_CLASS}>
+          {loadRunning ? 'Carga em andamento' : summary.loadStatus}
+          {summary.progress ? ` · ${summary.progress}` : ''}
+        </dd>
+        <dt className={TERM_CLASS}>Dados da fonte até</dt>
+        <dd className={VALUE_CLASS}>{summary.sourceUntil ? formatIsoDate(summary.sourceUntil) : '—'}</dd>
+      </dl>
+      {summary.notes.length > 0 && (
+        <ul className="mt-2 grid grid-cols-1 gap-0.5 text-xs text-slate-600 dark:text-slate-300">
+          {summary.notes.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+      )}
+      {headline && (
+        <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+          Próxima prevista: <strong className="tabular-nums">{formatIsoDateTime(status.nextRuns.FEDERAIS_CICLO)}</strong>
+        </p>
+      )}
+    </section>
+  );
+}
+
 function StatusCards({ status }: { status: CollectionStatus }) {
   return (
     <div className="grid grid-cols-1 gap-3">
@@ -256,6 +325,7 @@ function StatusCards({ status }: { status: CollectionStatus }) {
         })}
         <ContractsCard status={status} />
         <WinnersCard status={status} />
+        <FederalCard status={status} />
       </div>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {formatCount(status.totals.notices)} editais na base, {formatCount(status.totals.openNotices)} com prazo aberto.

@@ -48,6 +48,19 @@ export interface WinnersSettings {
 }
 
 /**
+ * Contratos dos órgãos federais do Compras.gov.br (plano .plans/licitacoes-contratos-federais.md). Fora de `contracts` e
+ * de `winners`, como eles: cada uma tem a própria chave de ligar e o próprio tempo de bloco.
+ */
+export interface FederalSettings {
+  /** Liga as duas etapas da rotina diária (ciclo e carga). Desligada por padrão; os comandos da CLI funcionam sempre. */
+  enabled: boolean;
+  /** Primeiro dia de início de vigência que a carga lê (AAAA-MM-DD); os vigentes de qualquer ano entram pelo ciclo. */
+  from: string;
+  /** Tempo de cada bloco (da carga e do ciclo), em minutos. */
+  minutes: number;
+}
+
+/**
  * Cloudflare R2: o arquivo bruto (plano .plans/licitacoes-base-nacional.md,
  * parte 1) e o armazém de contratos (plano .plans/licitacoes-contratos-no-r2.md).
  */
@@ -67,6 +80,7 @@ export interface CollectorConfig {
   contracts: ContractsSettings;
   comprasGov: ComprasGovSettings;
   winners: WinnersSettings;
+  federal: FederalSettings;
   /** Sem as variáveis do R2, o arquivo bruto e o armazém de contratos ficam desligados. */
   storage: StorageSettings | null;
   logLevel: LogLevel;
@@ -135,6 +149,13 @@ const collectorEnvSchema = z.object({
   // A fonte tem resultados desde 2021-08 (sondagem de 25/10/2026): o dia mais antigo da carga começa aí.
   TENDERS_WINNERS_BACKFILL_FROM: z.iso.date('deve ser uma data AAAA-MM-DD').default('2021-08-01'),
   TENDERS_WINNERS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(120),
+  // Contratos federais (plano .plans/licitacoes-contratos-federais.md). Só "1" liga as etapas da rotina diária.
+  TENDERS_FEDERAL_ENABLED: z
+    .enum(['0', '1'], { error: 'deve ser 0 ou 1' })
+    .default('0')
+    .transform((value) => value === '1'),
+  TENDERS_FEDERAL_FROM: z.iso.date('deve ser uma data AAAA-MM-DD').default('2021-01-01'),
+  TENDERS_FEDERAL_MINUTES: z.coerce.number().int().min(1).max(600).default(60),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
@@ -257,6 +278,11 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       enabled: values.TENDERS_WINNERS_ENABLED,
       backfillFrom: values.TENDERS_WINNERS_BACKFILL_FROM,
       backfillMinutes: values.TENDERS_WINNERS_BACKFILL_MINUTES,
+    },
+    federal: {
+      enabled: values.TENDERS_FEDERAL_ENABLED,
+      from: values.TENDERS_FEDERAL_FROM,
+      minutes: values.TENDERS_FEDERAL_MINUTES,
     },
     storage: loadStorageSettings(env, values.TENDERS_COLLECTOR_DATABASE_URL),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,

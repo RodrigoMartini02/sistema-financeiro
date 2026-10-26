@@ -17,6 +17,7 @@ import { createMemoryStorage } from '../objectStorageTestSupport';
 import {
   BACKFILL_FINISHED,
   BACKFILL_NOT_STARTED,
+  BACKFILL_NO_TIME,
   runContractReminders,
   runContractsBackfill,
   runContractsDaily,
@@ -766,6 +767,38 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
           reason: BACKFILL_FINISHED,
         });
         assert.equal(await backfillRunCount(tx), runsBefore);
+      });
+    });
+  });
+
+  test('carga: respeita o prazo da rotina; sem tempo depois da folga, não roda nem abre execução, e sem prazo vale o bloco configurado', async () => {
+    await withRollback(async (tx) => {
+      await withEnvironment(async (env) => {
+        await tx.delete(tenderContractBackfillDays);
+        const requestedDays: string[] = [];
+        const context = contextOf(tx, env, {
+          contractsFetch: (url) => {
+            requestedDays.push(url.searchParams.get('dataInicial') ?? '');
+            return pageOf([]);
+          },
+          now: () => NOW,
+        });
+        const runsBefore = await backfillRunCount(tx);
+
+        // O prazo está a 10 minutos e a folga é de 15: não sobra nem um minuto.
+        assert.deepEqual(await runContractsBackfill(context, { from: '2019-06-01', to: '2019-06-02', deadlineAt: NOW.getTime() + 10 * 60_000 }), {
+          skipped: true,
+          reason: BACKFILL_NO_TIME,
+        });
+        assert.equal(await backfillRunCount(tx), runsBefore);
+        assert.deepEqual(requestedDays, [], 'nenhum pedido ao PNCP');
+
+        // Com folga no prazo, o bloco é o configurado (sem a maxMinutes dada, os 480 min padrão cabem em 10 h).
+        const outcome = assertRan(await runContractsBackfill(context, { from: '2019-06-01', to: '2019-06-02', deadlineAt: NOW.getTime() + 600 * 60_000 }));
+        assert.equal((outcome.details['backfill'] as Record<string, unknown>)['maxMinutes'], 480);
+        // Perto do prazo, o bloco encolhe para o que sobra menos a folga.
+        const nearDeadline = assertRan(await runContractsBackfill(context, { from: '2019-06-01', to: '2019-06-03', deadlineAt: NOW.getTime() + 100 * 60_000 }));
+        assert.equal((nearDeadline.details['backfill'] as Record<string, unknown>)['maxMinutes'], 85);
       });
     });
   });

@@ -355,6 +355,8 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 
 ### Parte 5: contratos federais
 
+> O plano detalhado e aprovado desta parte é `.plans/licitacoes-contratos-federais.md` (26/10/2026), e a "Situação" dele diz o que foi feito: implementada em 26/10/2026 na branch `feat/R/licitacoes-federais` (migration **0087d**, aplicada só no banco local), sem commit até o `/finalizar`. O texto abaixo é o esboço original do plano do R2.
+
 1. Cliente do Compras.gov.br (órgãos da esfera federal e contratos) e piloto, como no plano da base nacional.
 2. **No conjunto `contratos`:**
    - origem `COMPRASGOV` e chave `comprasgov-<id>`;

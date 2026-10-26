@@ -1,10 +1,11 @@
 // A chave do contrato no app (plano .plans/licitacoes-contratos-no-r2.md): o
 // número de controle do PNCP ("03353358000196-2-000216/2026") ou, nos contratos
-// federais, "comprasgov-<id>". Ela identifica o contrato nas rotas, no painel
-// lateral (?contrato=), nos favoritos e nas notificações. Tem barra, então vai
-// codificada nos caminhos (a barra vira %2F). A API confere o mesmo formato.
+// federais, "comprasgov-<unidade>-<tipo>-<número>" ("comprasgov-153254-50-00586/2023").
+// Ela identifica o contrato nas rotas, no painel lateral (?contrato=), nos
+// favoritos e nas notificações. Tem barra, então vai codificada nos caminhos (a
+// barra vira %2F). A API confere o mesmo formato (contractStore/layout.ts).
 
-const CONTRACT_KEY = /^(?:\d{14}-\d-\d{6,10}\/\d{4}|comprasgov-\d{1,12})$/;
+const CONTRACT_KEY = /^(?:\d{14}-\d-\d{6,10}\/\d{4}|comprasgov-\d{1,8}-\d{1,3}-[0-9A-Za-z/_.-]{1,40})$/;
 
 export function isContractKey(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.length <= 60 && CONTRACT_KEY.test(value);

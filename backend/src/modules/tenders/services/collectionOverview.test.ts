@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { COLLECTION_RUN_TYPES } from '../domains';
-import { COLLECTION_SCHEDULE, backfillRunView, neutralRunDetails, nextScheduledRun } from './collectionOverview';
+import { COLLECTION_SCHEDULE, backfillRunView, federalRunView, neutralRunDetails, nextScheduledRun } from './collectionOverview';
 
 test('histórico: mensagens de erro antigas aparecem sem o nome da fonte; as outras ficam como estão', () => {
   const details = {
@@ -79,6 +79,35 @@ test('vencedores: coleta diária e carga todo dia às 06:00, na mesma rotina das
     assert.equal(nextScheduledRun(type, at('2026-10-05T12:00:00Z')), '2026-10-06T06:00:00-03:00');
     assert.equal(nextScheduledRun(type, at('2026-10-06T08:59:00Z')), '2026-10-06T06:00:00-03:00');
   }
+});
+
+test('contratos federais: carga e ciclo todo dia às 06:00, na mesma rotina das outras', () => {
+  for (const type of ['FEDERAIS_CARGA', 'FEDERAIS_CICLO'] as const) {
+    assert.equal(nextScheduledRun(type, at('2026-10-05T12:00:00Z')), '2026-10-06T06:00:00-03:00');
+    assert.equal(nextScheduledRun(type, at('2026-10-06T08:59:00Z')), '2026-10-06T06:00:00-03:00');
+  }
+});
+
+test('carga e ciclo dos federais: lê o motivo da parada, os órgãos, os pulados por motivo e as janelas incompletas', () => {
+  const metrics = { skipped: { withPncpNumber: 148, excluded: 4, recent: 2, agencyWithoutCnpj: 0, termEndsBeforeStart: 0, pncpTwin: 0 }, incompleteWindows: 1 };
+  assert.deepEqual(federalRunView({ backfill: { fromYear: 2021, agenciesCompleted: 37, stoppedBy: 'time' }, metrics }, 'backfill'), {
+    stoppedBy: 'time',
+    agencies: 37,
+    skipped: { withPncpNumber: 148, excluded: 4, recent: 2, agencyWithoutCnpj: 0, termEndsBeforeStart: 0, pncpTwin: 0 },
+    incompleteWindows: 1,
+  });
+  assert.deepEqual(federalRunView({ cycle: { eligible: 40, agenciesRead: 12, stoppedBy: 'source' }, metrics: {} }, 'cycle'), {
+    stoppedBy: 'source',
+    agencies: 12,
+    skipped: null,
+    incompleteWindows: null,
+  });
+  assert.equal(federalRunView({ cycle: { agenciesRead: 1, stoppedBy: 'pncp' } }, 'cycle')?.stoppedBy, null, 'motivo desconhecido não aparece');
+  assert.equal(federalRunView({ backfill: { agenciesCompleted: 3 } }, 'cycle'), null, 'a carga não é o ciclo');
+  assert.equal(federalRunView({}, 'backfill'), null, 'execução ainda sem detalhes (em andamento)');
+  assert.equal(federalRunView(undefined, 'cycle'), null);
+  const partial = federalRunView({ backfill: { stoppedBy: null }, metrics: { skipped: { withPncpNumber: 'x', recent: 3 } } }, 'backfill');
+  assert.deepEqual(partial?.skipped, { withPncpNumber: 0, excluded: 0, recent: 3, agencyWithoutCnpj: 0, termEndsBeforeStart: 0, pncpTwin: 0 }, 'o que não é número conta zero');
 });
 
 test('todo tipo de execução, menos a manual, tem agenda ou fica sem (nunca esquecido)', () => {

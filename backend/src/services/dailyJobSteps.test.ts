@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DAILY_JOB_STEPS, WINNERS_STEPS, dailyJobSteps, planLifecycleUrl } from './dailyJobSteps';
+import { DAILY_JOB_STEPS, FEDERAL_STEPS, WINNERS_STEPS, dailyJobSteps, planLifecycleUrl } from './dailyJobSteps';
 
 const WEEKDAY_STEPS = [
   'plan-lifecycle',
@@ -10,6 +10,8 @@ const WEEKDAY_STEPS = [
   'tenders-contract-reminders',
   'tenders-winners-daily',
   'tenders-contracts-backfill',
+  'tenders-federal-cycle',
+  'tenders-federal-backfill',
   'tenders-winners-backfill',
 ];
 const SUNDAY_STEPS = [
@@ -21,6 +23,8 @@ const SUNDAY_STEPS = [
   'tenders-winners-daily',
   'tenders-cleanup',
   'tenders-contracts-backfill',
+  'tenders-federal-cycle',
+  'tenders-federal-backfill',
   'tenders-winners-backfill',
 ];
 
@@ -33,11 +37,20 @@ test('rotina diária: domingo em Brasília acrescenta a limpeza de editais, ante
   assert.deepEqual(dailyJobSteps(new Date('2026-10-11T09:00:00Z')), SUNDAY_STEPS);
 });
 
-test('rotina diária: a carga de vencedores é sempre a última etapa e a de contratos, a penúltima', () => {
+test('rotina diária: as cargas vêm por último: contratos, ciclo e carga dos federais e, no fim, os vencedores', () => {
   for (const instant of ['2026-10-07T09:00:00Z', '2026-10-11T09:00:00Z']) {
     const steps = dailyJobSteps(new Date(instant));
-    assert.equal(steps.at(-1), 'tenders-winners-backfill');
-    assert.equal(steps.at(-2), 'tenders-contracts-backfill');
+    assert.deepEqual(steps.slice(-4), ['tenders-contracts-backfill', 'tenders-federal-cycle', 'tenders-federal-backfill', 'tenders-winners-backfill']);
+  }
+});
+
+test('rotina diária: o ciclo dos federais (curto) vem antes da carga deles, e a limpeza dos editais antes de tudo isso', () => {
+  for (const instant of ['2026-10-07T09:00:00Z', '2026-10-11T09:00:00Z']) {
+    const steps = dailyJobSteps(new Date(instant));
+    assert.ok(steps.indexOf('tenders-federal-cycle') < steps.indexOf('tenders-federal-backfill'));
+    if (steps.includes('tenders-cleanup')) {
+      assert.ok(steps.indexOf('tenders-cleanup') < steps.indexOf('tenders-federal-cycle'));
+    }
   }
 });
 
@@ -60,6 +73,7 @@ test('rotina diária: toda etapa do dia está na lista de etapas e as dos venced
     }
   }
   assert.deepEqual([...WINNERS_STEPS].sort(), ['tenders-winners-backfill', 'tenders-winners-daily']);
+  assert.deepEqual([...FEDERAL_STEPS].sort(), ['tenders-federal-backfill', 'tenders-federal-cycle']);
 });
 
 test('rotina diária: vale o dia de Brasília, não o de UTC', () => {

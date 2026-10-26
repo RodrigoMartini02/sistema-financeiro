@@ -1,4 +1,4 @@
-import type { BackfillStopReason, CollectionRun, ContractsCollection } from '../types';
+import type { BackfillStopReason, CollectionRun, ContractsCollection, FederalCollection, FederalSkipReason, FederalStopReason } from '../types';
 import { formatIsoDate } from './dates';
 
 // Histórico da coleta (Configurações → Coleta): duração e erros de cada
@@ -182,6 +182,64 @@ export function winnersDailySummary(run: Pick<CollectionRun, 'details'>): Winner
     notes.push(`A fonte só tem resultados até ${formatIsoDate(sourceLastDay)}; a coleta continua de onde ela parou.`);
   }
   return { period: from && to ? `${formatIsoDate(from)} a ${formatIsoDate(to)}` : null, sourceLastDay, notes };
+}
+
+const FEDERAL_STOP_LABELS: Record<FederalStopReason, string> = {
+  time: 'parou no limite de tempo do bloco; continua na próxima rotina.',
+  source: 'parou porque a fonte dos dados não respondeu; continua na próxima rotina.',
+};
+
+const FEDERAL_SKIP_LABELS: Record<FederalSkipReason, string> = {
+  withPncpNumber: 'já constam na base nacional',
+  excluded: 'excluídos na origem',
+  recent: 'recentes demais (esperam a carência)',
+  agencyWithoutCnpj: 'de órgão sem CNPJ',
+  termEndsBeforeStart: 'com o fim da vigência antes do início',
+  pncpTwin: 'iguais a um contrato da base nacional, sem o vínculo da fonte',
+};
+
+const agencyCount = (total: number) => `${total.toLocaleString('pt-BR')} ${total === 1 ? 'órgão' : 'órgãos'}`;
+
+export interface FederalSummary {
+  loadStatus: 'Carga não iniciada' | 'Carga em andamento' | 'Carga concluída';
+  /** "37 de 1.159 órgãos lidos desde 2021"; sem órgão na lista, null. */
+  progress: string | null;
+  /** O dia (AAAA-MM-DD) da inclusão mais recente que a fonte tem; sem leitura, null. */
+  sourceUntil: string | null;
+  /** Avisos curtos: a parada de cada bloco, a fonte atrás do calendário, janelas incompletas e as linhas que não entraram. */
+  notes: string[];
+}
+
+/**
+ * Contratos federais, para o bloco da coleta: o andamento da carga por órgão, até quando a fonte tem dado e as notas das
+ * últimas execuções. A fonte pode ficar semanas sem dado novo (parada desde o começo de setembro de 2026): se o último
+ * dado está bem atrás de hoje, a nota avisa, sem tratar como falha.
+ */
+export function federalSummary(federal: FederalCollection, todayIso: string): FederalSummary {
+  const progress =
+    federal.agencies === 0 ? null : `${federal.loaded.toLocaleString('pt-BR')} de ${agencyCount(federal.agencies)} lidos desde ${federal.fromYear}`;
+  const loadStatus: FederalSummary['loadStatus'] =
+    federal.agencies > 0 && federal.loaded >= federal.agencies ? 'Carga concluída' : federal.loaded > 0 || federal.load !== null ? 'Carga em andamento' : 'Carga não iniciada';
+  const sourceUntil = isoDay(federal.sourceUntil?.slice(0, 10));
+
+  const notes: string[] = [];
+  if (federal.load?.stoppedBy) notes.push(`A última carga ${FEDERAL_STOP_LABELS[federal.load.stoppedBy]}`);
+  if (federal.cycle?.stoppedBy) notes.push(`O último ciclo ${FEDERAL_STOP_LABELS[federal.cycle.stoppedBy]}`);
+  const incomplete = (federal.load?.incompleteWindows ?? 0) + (federal.cycle?.incompleteWindows ?? 0);
+  if (incomplete > 0) {
+    notes.push(`A fonte não entregou completas ${incomplete.toLocaleString('pt-BR')} ${incomplete === 1 ? 'janela' : 'janelas'}; elas são lidas de novo na próxima rotina.`);
+  }
+  const skipped = federal.cycle?.skipped ?? federal.load?.skipped ?? null;
+  if (skipped) {
+    const parts = (Object.keys(FEDERAL_SKIP_LABELS) as FederalSkipReason[])
+      .filter((reason) => skipped[reason] > 0)
+      .map((reason) => `${skipped[reason].toLocaleString('pt-BR')} ${FEDERAL_SKIP_LABELS[reason]}`);
+    if (parts.length > 0) notes.push(`Linhas lidas que não entraram na última execução: ${parts.join(', ')}.`);
+  }
+  if (sourceUntil && daysBetweenIso(sourceUntil, todayIso) > SOURCE_BEHIND_DAYS) {
+    notes.push(`A fonte só tem contratos incluídos até ${formatIsoDate(sourceUntil)}; a coleta continua de onde ela parou.`);
+  }
+  return { loadStatus, progress, sourceUntil, notes };
 }
 
 const BYTES_PER_KB = 1024;

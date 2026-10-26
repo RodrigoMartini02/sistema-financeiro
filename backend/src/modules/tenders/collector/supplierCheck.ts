@@ -1,5 +1,5 @@
 import { formatCents } from '../contractStore/winnerRows';
-import { RESULTS_PAGE_SIZE, RESULTS_RETRY_PAGE_SIZES, windowParams, type ComprasGovClient, type ComprasGovWindow } from './comprasGovClient';
+import { PAGE_SIZE, RETRY_PAGE_SIZES, windowParams, type ComprasGovClient, type ComprasGovWindow } from './comprasGovClient';
 
 // Conferência de um fornecedor contra a própria fonte (`winners-probe --fornecedor`, plano
 // .plans/licitacoes-vencedores.md, Fase D do piloto): lê da fonte os resultados de um CNPJ num período e conta os itens
@@ -10,7 +10,7 @@ import { RESULTS_PAGE_SIZE, RESULTS_RETRY_PAGE_SIZES, windowParams, type Compras
 // de cancelamento), sem passar pelo mapeamento nem pela agregação que ela confere. É somente leitura, sem banco e sem R2.
 // Mesmo se a fonte ignorar o filtro, só os registros do CNPJ são contados (e isso aparece em `serverFilter`).
 //
-// A paginação da fonte falha (comprasGovClient.ts, RESULTS_RETRY_PAGE_SIZES): faltando registro do CNPJ em relação ao total que
+// A paginação da fonte falha (comprasGovClient.ts, RETRY_PAGE_SIZES): faltando registro do CNPJ em relação ao total que
 // a fonte informa, o período é lido de novo com outro tamanho de página, e o relatório diz em `complete` se vieram todos.
 
 const DEFAULT_MAX_PAGES = 2_000;
@@ -164,7 +164,7 @@ export async function runSupplierCheck(deps: SupplierCheckDeps, options: Supplie
 
   // Faltando registro do CNPJ em relação ao total, lê de novo com outro tamanho de página (a paginação da fonte falha).
   const missingRecords = () => report.serverFilter === 'applied' && report.totalReported !== null && report.supplierRecords < report.totalReported;
-  for (const pageSize of [RESULTS_PAGE_SIZE, ...RESULTS_RETRY_PAGE_SIZES]) {
+  for (const pageSize of [PAGE_SIZE, ...RETRY_PAGE_SIZES]) {
     report.passes += 1;
     await readPass(pageSize);
     if (report.stoppedBy !== null || !missingRecords()) {

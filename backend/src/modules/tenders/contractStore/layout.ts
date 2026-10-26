@@ -244,13 +244,25 @@ export function activeBandExpression(today: string): string {
 /**
  * Identificador do contrato (a "chave"): o número de controle do PNCP (CNPJ do
  * órgão, tipo, sequencial e ano: "03353358000196-2-000216/2026") ou, nos
- * contratos federais do Compras.gov.br, "comprasgov-<id>". Nada fora disso vira
- * consulta, favorito ou aviso.
+ * contratos federais do Compras.gov.br, "comprasgov-<unidade>-<tipo>-<número>"
+ * ("comprasgov-153254-50-00586/2023"; o número só com letras, dígitos e / _ . -).
+ * Nada fora disso vira consulta, favorito ou aviso (a chave entra como literal
+ * no SQL do armazém: sem aspas nem espaços).
  */
-export const CONTRACT_KEY_PATTERN = /^(?:\d{14}-\d-\d{6,10}\/\d{4}|comprasgov-\d{1,12})$/;
+export const CONTRACT_KEY_PATTERN = /^(?:\d{14}-\d-\d{6,10}\/\d{4}|comprasgov-\d{1,8}-\d{1,3}-[0-9A-Za-z/_.-]{1,40})$/;
 
 export function isContractKey(value: unknown): value is string {
   return typeof value === 'string' && value.length <= 60 && CONTRACT_KEY_PATTERN.test(value);
+}
+
+/** Começo da chave dos contratos federais do Compras.gov.br; a dos do PNCP começa pelo CNPJ do órgão. */
+export const FEDERAL_CONTRACT_KEY_PREFIX = 'comprasgov-';
+
+/** De onde vem o contrato: o PNCP (com termos e link do documento) ou o Compras.gov.br (só federais, sem os dois). */
+export type ContractOrigin = 'NATIONAL' | 'FEDERAL';
+
+export function contractOriginOf(key: string): ContractOrigin {
+  return key.startsWith(FEDERAL_CONTRACT_KEY_PREFIX) ? 'FEDERAL' : 'NATIONAL';
 }
 
 /** Caminho no bucket de um arquivo novo: a versão e a publicação no nome, para nunca sobrescrever um em uso. */

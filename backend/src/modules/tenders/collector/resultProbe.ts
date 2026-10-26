@@ -1,5 +1,5 @@
 import { PURCHASE_CONTROL_NUMBER } from '../contractStore/layout';
-import { RESULTS_PAGE_SIZE, windowParams, type ComprasGovClient, type ComprasGovRawResponse } from './comprasGovClient';
+import { PAGE_SIZE, windowParams, type ComprasGovClient, type ComprasGovRawResponse } from './comprasGovClient';
 import { addCalendarDays, brasiliaDate } from './dates';
 
 // Sondagem do Compras.gov.br (`winners-probe`, passo 1 do plano .plans/licitacoes-vencedores.md): lê um dia e as
@@ -278,7 +278,7 @@ export async function runResultProbe(deps: ResultProbeDeps, options: ResultProbe
   let firstRaw: ComprasGovRawResponse | null = null;
   for (let page = 1; page <= maxPages; page += 1) {
     progress(`amostra do dia ${day}: página ${page}`);
-    const raw = await client.requestRaw(dayDates, page, RESULTS_PAGE_SIZE);
+    const raw = await client.requestRaw(dayDates, page, PAGE_SIZE);
     firstRaw ??= raw;
     pageStats.push({ page, status: raw.status, ms: raw.elapsedMs });
     if (raw.status === 429) {
@@ -393,8 +393,8 @@ export async function runResultProbe(deps: ResultProbeDeps, options: ResultProbe
 
   // ── Fronteira da janela (S3) e tamanho de página (S4) ──
   progress('fronteira da janela e tamanho de página');
-  const sameDay = summarize(await client.requestRaw({ initial: day, final: day }, 1, RESULTS_PAGE_SIZE), fields.resultDateKey);
-  const nextDay = summarize(await client.requestRaw({ initial: day, final: addCalendarDays(day, 1) }, 1, RESULTS_PAGE_SIZE), fields.resultDateKey);
+  const sameDay = summarize(await client.requestRaw({ initial: day, final: day }, 1, PAGE_SIZE), fields.resultDateKey);
+  const nextDay = summarize(await client.requestRaw({ initial: day, final: addCalendarDays(day, 1) }, 1, PAGE_SIZE), fields.resultDateKey);
   const nextDayDate = addCalendarDays(day, 1);
   // Inclusivo: a janela [d, d+1] traz mais registros que [d, d] (medido em 14/09/2026: 18.047 contra 9.719) ou já
   // mostra o dia seguinte. Exclusivo: [d, d] vem vazia e [d, d+1] traz o dia d. Sem nenhum dos dois sinais, null.
@@ -406,7 +406,7 @@ export async function runResultProbe(deps: ResultProbeDeps, options: ResultProbe
   }
   report.windowBoundary = { endExclusive, startEqualsEnd: sameDay, startToNextDay: nextDay };
 
-  const oversized = await client.requestRaw(dayDates, 1, RESULTS_PAGE_SIZE + 1);
+  const oversized = await client.requestRaw(dayDates, 1, PAGE_SIZE + 1);
   if ([sameDay.status, nextDay.status, oversized.status].includes(429)) {
     report.skipped = RATE_LIMITED;
     report.requests = client.requestCount;
@@ -477,7 +477,7 @@ export async function runResultProbe(deps: ResultProbeDeps, options: ResultProbe
     byYear,
     firstMonthWithData: measured[0] ?? null,
     totalRecords: total,
-    pagesOf500: Math.ceil(total / RESULTS_PAGE_SIZE),
+    pagesOf500: Math.ceil(total / PAGE_SIZE),
     ...(Object.keys(failures).length > 0 ? { failedMonths: failures } : {}),
     ...(stoppedBy429 ? { stoppedBy429 } : {}),
   };
