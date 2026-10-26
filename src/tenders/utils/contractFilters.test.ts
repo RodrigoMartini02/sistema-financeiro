@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { withPaging } from './infiniteList';
 import {
   DEFAULT_CONTRACT_SEARCH_STATE,
   activeExpiryShortcut,
@@ -44,11 +45,18 @@ test('contratos: URL ↔ estado ida e volta, sem os padrões na URL', () => {
     number: '352/2026',
     contractYear: 2026,
     sort: 'valueDesc',
-    page: 3,
-    perPage: 50,
   };
-  assert.deepEqual(parseContractSearchParams(toContractSearchParams(state)), state);
+  const url = toContractSearchParams(state);
+  assert.equal(url.has('pagina'), false, 'a lista tem rolagem infinita: a página não vai para a URL');
+  assert.equal(url.has('porPagina'), false);
+  assert.deepEqual(parseContractSearchParams(url), state);
   assert.equal(toContractSearchParams(DEFAULT_CONTRACT_SEARCH_STATE).toString(), '', 'o padrão não vai para a URL');
+});
+
+test('contratos: link antigo com página e itens por página abre do início, sem erro', () => {
+  const state = parseContractSearchParams(params('uf=SP&pagina=3&porPagina=50'));
+  assert.deepEqual(state, { ...DEFAULT_CONTRACT_SEARCH_STATE, states: ['SP'] });
+  assert.equal(toContractSearchParams(state).toString(), 'uf=SP', 'a página não volta para a URL');
 });
 
 test('contratos: com encerrados, a ordem padrão é a publicação mais recente, e ela não vai para a URL', () => {
@@ -74,7 +82,7 @@ test('contratos: ligar e desligar "Incluir encerrados" troca a ordem padrão; a 
 
 test('contratos: valores inválidos da URL ficam de fora', () => {
   const state = parseContractSearchParams(
-    params('uf=ABC&uf=sp&municipio=123&orgao=1&categoria=abc&categoria=8&fornecedor=12.345.678/0001-95&valorMin=10&valorMax=5&vencimentoDe=2026-12-31&vencimentoAte=2026-01-01&ano=1999&pagina=0&porPagina=7&ordem=xyz&numero=abc'),
+    params('uf=ABC&uf=sp&municipio=123&orgao=1&categoria=abc&categoria=8&fornecedor=12.345.678/0001-95&valorMin=10&valorMax=5&vencimentoDe=2026-12-31&vencimentoAte=2026-01-01&ano=1999&ordem=xyz&numero=abc'),
   );
   assert.deepEqual(state.states, ['SP']);
   assert.deepEqual(state.municipalityCodes, []);
@@ -86,8 +94,6 @@ test('contratos: valores inválidos da URL ficam de fora', () => {
   assert.equal(state.expiryFrom, '2026-12-31');
   assert.equal(state.expiryTo, null, 'fim antes do início sai');
   assert.equal(state.contractYear, null);
-  assert.equal(state.page, 1);
-  assert.equal(state.perPage, 20);
   assert.equal(state.sort, 'expiryAsc');
   assert.equal(state.number, '', 'número sem dígito sai');
 });
@@ -116,26 +122,31 @@ test('contratos: query da API, com e sem busca salva', () => {
   };
   assert.equal(
     toContractApiQuery(state),
-    'q=limpeza&termsMode=E&state=SP&category=8&supplierCnpj=12345678000195&minValue=1000.00&includeWithoutValue=true&expiryFrom=2026-10-14&expiryTo=2027-01-12&sort=expiryAsc&page=1&perPage=20',
+    'q=limpeza&termsMode=E&state=SP&category=8&supplierCnpj=12345678000195&minValue=1000.00&includeWithoutValue=true&expiryFrom=2026-10-14&expiryTo=2027-01-12&sort=expiryAsc',
   );
   assert.equal(
     toContractApiQuery({ ...state, savedSearchId: 3 }),
-    'savedSearchId=3&expiryFrom=2026-10-14&expiryTo=2027-01-12&sort=expiryAsc&page=1&perPage=20',
+    'savedSearchId=3&expiryFrom=2026-10-14&expiryTo=2027-01-12&sort=expiryAsc',
   );
   assert.equal(
     toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, includeWithoutValue: true }),
-    'sort=expiryAsc&page=1&perPage=20',
+    'sort=expiryAsc',
     '"incluir sem valor" só vale com faixa de valor',
   );
   assert.equal(
     toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, savedSearchId: 3, includeClosed: true, contractTypes: [1, 7], sort: 'publishedDesc' }),
-    'savedSearchId=3&includeClosed=true&contractType=1&contractType=7&sort=publishedDesc&page=1&perPage=20',
+    'savedSearchId=3&includeClosed=true&contractType=1&contractType=7&sort=publishedDesc',
     'tipo e encerrados valem também com a busca salva',
+  );
+  assert.equal(
+    withPaging(toContractApiQuery(DEFAULT_CONTRACT_SEARCH_STATE), { page: 2, perPage: 50 }),
+    'sort=expiryAsc&page=2&perPage=50',
+    'a página é acrescentada por quem pede',
   );
 });
 
 test('contratos: aba de Favoritos traz todos os favoritos, pelo vencimento', () => {
-  assert.equal(contractFavoritesApiQuery(2, 50), 'favoritesOnly=true&sort=expiryAsc&page=2&perPage=50');
+  assert.equal(contractFavoritesApiQuery(), 'favoritesOnly=true&sort=expiryAsc');
 });
 
 test('contratos: atalhos de vencimento de 30, 90, 180 e 365 dias', () => {
@@ -154,12 +165,13 @@ test('contratos: dias até o vencimento e o texto do selo', () => {
   assert.equal(expiryLabel(null, TODAY), 'Sem data de fim');
 });
 
-test('contratos: mudar filtro volta para a página 1; Limpar tudo mantém ordem e itens por página', () => {
-  const state: ContractSearchState = { ...DEFAULT_CONTRACT_SEARCH_STATE, q: 'limpeza', sort: 'relevance', page: 4, perPage: 50 };
+test('contratos: mudar filtro mantém os outros; Limpar tudo mantém a ordem', () => {
+  const state: ContractSearchState = { ...DEFAULT_CONTRACT_SEARCH_STATE, q: 'limpeza', sort: 'relevance' };
   const changed = withContractFilters(state, { states: ['SP'] });
-  assert.equal(changed.page, 1);
+  assert.deepEqual(changed.states, ['SP']);
+  assert.equal(changed.q, 'limpeza');
   assert.equal(withContractFilters(state, { q: '' }).sort, 'expiryAsc', 'sem texto, a relevância sai');
-  assert.deepEqual(clearAllContractFilters({ ...state, sort: 'valueDesc' }), { ...DEFAULT_CONTRACT_SEARCH_STATE, sort: 'valueDesc', perPage: 50 });
+  assert.deepEqual(clearAllContractFilters({ ...state, sort: 'valueDesc' }), { ...DEFAULT_CONTRACT_SEARCH_STATE, sort: 'valueDesc' });
 });
 
 test('contratos: chips dos filtros ativos, cada um sem o seu filtro', () => {

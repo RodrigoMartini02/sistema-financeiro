@@ -6,6 +6,7 @@ import { CnpjLink } from './CnpjLink';
 import { CountdownBadge } from './CountdownBadge';
 import { FavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
+import { ListCard, ListCardLine } from './ListCard';
 import { NoticeBadges } from './NoticeBadges';
 import { TrackingStatusPill } from './Pill';
 import { TrackingActions } from './TrackingActions';
@@ -39,16 +40,15 @@ interface NoticeCardProps {
 /** Card do resultado da busca (escopo, seção 9.4). */
 export function NoticeCard({ notice, detailLink, detailLinkState }: NoticeCardProps) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-brand-500/40">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+    <ListCard
+      badges={
+        <>
           <NoticeBadges notice={notice} />
           {notice.tracking && <TrackingStatusPill status={notice.tracking.status} />}
-        </div>
-        <FavoriteButton notice={notice} />
-      </div>
-
-      <h3 className="mt-2 text-sm font-semibold leading-snug text-slate-900 dark:text-slate-100">
+        </>
+      }
+      topAction={<FavoriteButton notice={notice} />}
+      title={
         <Link
           to={detailLink}
           state={detailLinkState}
@@ -57,28 +57,25 @@ export function NoticeCard({ notice, detailLink, detailLinkState }: NoticeCardPr
         >
           {notice.highlightedExcerpt ? <HighlightedText text={notice.highlightedExcerpt} /> : notice.procurementObject}
         </Link>
-      </h3>
-      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-        <NoticePlace notice={notice} />
-      </p>
-
-      <dl className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2 text-xs">
-        <div>
-          <dt className="text-slate-500 dark:text-slate-400">Valor estimado</dt>
-          <dd className="font-semibold text-slate-800 dark:text-slate-100">{formatMoneyValue(notice.estimatedTotalValue)}</dd>
-        </div>
-        <div>
-          <dt className="text-slate-500 dark:text-slate-400">Encerramento</dt>
-          <dd className="flex flex-wrap items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
-            {notice.proposalClosesAt && <span>{formatIsoDateTime(notice.proposalClosesAt)}</span>}
-            <CountdownBadge closesAt={notice.proposalClosesAt} />
-          </dd>
-        </div>
-      </dl>
-
-      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700">
-        <TrackingActions notice={notice} />
-      </div>
-    </article>
+      }
+      context={
+        <ListCardLine>
+          <NoticePlace notice={notice} />
+        </ListCardLine>
+      }
+      metrics={[
+        { label: 'Valor estimado', value: formatMoneyValue(notice.estimatedTotalValue) },
+        {
+          label: 'Encerramento',
+          value: (
+            <>
+              {notice.proposalClosesAt && <span>{formatIsoDateTime(notice.proposalClosesAt)}</span>}
+              <CountdownBadge closesAt={notice.proposalClosesAt} />
+            </>
+          ),
+        },
+      ]}
+      footer={<TrackingActions notice={notice} />}
+    />
   );
 }

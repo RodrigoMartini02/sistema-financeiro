@@ -44,8 +44,6 @@ const FULL_STATE: SearchState = {
   purchaseYear: 2026,
   savedSearchId: null,
   sort: 'relevance',
-  page: 3,
-  perPage: 50,
 };
 
 const params = (query: string) => new URLSearchParams(query);
@@ -57,8 +55,8 @@ test('filtros: ida e volta pela URL com todos os parâmetros', () => {
   assert.deepEqual(url.getAll('uf'), ['SP', 'RJ']);
   assert.deepEqual(url.getAll('acompanhamento'), ['analisar', 'sem']);
   assert.equal(url.get('ordem'), 'relevancia');
-  assert.equal(url.get('pagina'), '3');
-  assert.equal(url.get('porPagina'), '50');
+  assert.equal(url.has('pagina'), false, 'a lista tem rolagem infinita: a página não vai para a URL');
+  assert.equal(url.has('porPagina'), false);
   assert.equal(url.get('prazoCurto'), '1');
   assert.equal(url.get('favoritos'), '1');
   assert.equal(url.get('numero'), 'PE 352/2026');
@@ -77,7 +75,7 @@ test('filtros: valor inválido ou repetido na URL fica de fora', () => {
     params(
       'uf=sp&uf=SP&uf=XYZ&municipio=123&orgao=46.395.000/0001-39&modalidade=0&modalidade=6&valorMin=abc&valorMax=10' +
         '&publicacaoDe=2026-02-30&encerramentoDe=2026-10-20&encerramentoAte=2026-10-01&acompanhamento=talvez' +
-        '&ordem=xyz&pagina=-2&porPagina=30',
+        '&ordem=xyz',
     ),
   );
   assert.deepEqual(state.states, ['SP']);
@@ -91,8 +89,12 @@ test('filtros: valor inválido ou repetido na URL fica de fora', () => {
   assert.equal(state.closingTo, null, 'início depois do fim: fica só o início');
   assert.deepEqual(state.trackingStatuses, []);
   assert.equal(state.sort, 'closingAsc');
-  assert.equal(state.page, 1);
-  assert.equal(state.perPage, 20);
+});
+
+test('filtros: link antigo com página e itens por página abre do início, sem erro', () => {
+  const state = parseSearchParams(params('uf=SP&pagina=3&porPagina=50'));
+  assert.deepEqual(state, { ...DEFAULT_SEARCH_STATE, states: ['SP'] });
+  assert.equal(toSearchParams(state).toString(), 'uf=SP', 'a página não volta para a URL');
 });
 
 test('filtros: mínimo maior que o máximo na URL descarta o máximo', () => {
@@ -140,8 +142,8 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(api.get('number'), 'PE 352/2026');
   assert.equal(api.get('purchaseYear'), '2026');
   assert.equal(api.get('sort'), 'relevance');
-  assert.equal(api.get('page'), '3');
-  assert.equal(api.get('perPage'), '50');
+  assert.equal(api.has('page'), false, 'a página é acrescentada por quem pede (withPaging)');
+  assert.equal(api.has('perPage'), false);
 
   const plain = new URLSearchParams(toApiQuery({ ...DEFAULT_SEARCH_STATE, includeWithoutValue: true }));
   assert.equal(plain.get('q'), null);
@@ -153,10 +155,11 @@ test('filtros: query da API com os nomes da API', () => {
   assert.deepEqual([plain.get('number'), plain.get('purchaseYear')], [null, null]);
 });
 
-test('filtros: mudar um filtro volta para a página 1', () => {
-  const next = withFilters({ ...DEFAULT_SEARCH_STATE, page: 4 }, { states: ['MG'] });
-  assert.equal(next.page, 1);
+test('filtros: mudar um filtro mantém os outros', () => {
+  const next = withFilters({ ...DEFAULT_SEARCH_STATE, q: 'obra', sort: 'valueDesc' }, { states: ['MG'] });
   assert.deepEqual(next.states, ['MG']);
+  assert.equal(next.q, 'obra');
+  assert.equal(next.sort, 'valueDesc');
 });
 
 test('chips: um por filtro ativo, e cada um remove só o seu', () => {
@@ -188,7 +191,6 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
 
   const byKey = (key: string) => chips.find((chip) => chip.key === key)!.without;
   assert.deepEqual(byKey('state:SP').states, ['RJ']);
-  assert.equal(byKey('state:SP').page, 1);
   assert.equal(byKey('q').q, '');
   assert.equal(byKey('q').sort, 'closingAsc', 'sem texto, a relevância sai');
   assert.deepEqual(byKey('value'), withFilters(FULL_STATE, { minValue: null, maxValue: null, includeWithoutValue: false }));
@@ -210,9 +212,9 @@ test('chips: busca no padrão não tem chip; busca salva mostra o nome', () => {
   assert.equal(filterChips({ ...DEFAULT_SEARCH_STATE, savedSearchId: 7 })[0]!.label, 'Busca salva: nº 7');
 });
 
-test('limpar tudo: filtros saem; ordenação e itens por página ficam', () => {
+test('limpar tudo: filtros saem; a ordenação fica', () => {
   const cleared = clearAllFilters(FULL_STATE);
-  assert.deepEqual(cleared, { ...DEFAULT_SEARCH_STATE, perPage: 50, sort: 'closingAsc' });
+  assert.deepEqual(cleared, { ...DEFAULT_SEARCH_STATE, sort: 'closingAsc' });
   assert.equal(clearAllFilters({ ...FULL_STATE, sort: 'valueDesc' }).sort, 'valueDesc');
   assert.deepEqual(filterChips(cleared), []);
 });
@@ -281,13 +283,13 @@ test('prazo mínimo: query da contagem dos que ficaram de fora', () => {
 });
 
 test('favoritos: a tela traz todos os favoritos, inclusive encerrados e descartados, pelo prazo', () => {
-  const api = new URLSearchParams(favoritesApiQuery(2, 50));
+  const api = new URLSearchParams(favoritesApiQuery());
   assert.equal(api.get('favoritesOnly'), 'true');
   assert.equal(api.get('openOnly'), 'false');
   assert.equal(api.get('hideDiscarded'), 'false');
   assert.equal(api.get('closingFrom'), null, 'sem prazo mínimo');
   assert.equal(api.get('sort'), 'closingAsc');
-  assert.deepEqual([api.get('page'), api.get('perPage')], ['2', '50']);
+  assert.deepEqual([api.get('page'), api.get('perPage')], [null, null]);
 });
 
 test('número e ano: valores inválidos na URL ficam de fora', () => {

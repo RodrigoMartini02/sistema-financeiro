@@ -1,65 +1,70 @@
 import { useId, type ReactNode } from 'react';
-import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Heart } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button } from '../../ui/button';
 import { EmptyState } from '../../ui/EmptyState';
 import { getLocalTodayIso } from '../../utils/date';
 import { ContractCard } from '../components/ContractCard';
 import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
 import { NoticeCard } from '../components/NoticeCard';
-import { Pagination } from '../components/Pagination';
 import { TabPanel, Tabs } from '../components/Tabs';
+import { VirtualCardList } from '../components/VirtualCardList';
+import { useInfiniteList, type InfiniteList } from '../hooks/useInfiniteList';
 import { fetchContracts } from '../services/contractsService';
 import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
-import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
-import type { ContractSearchResult, NoticeSearchResult, Paginated } from '../types';
+import { isContractStoreUpdating } from '../services/tendersApiError';
+import type { ContractListItem, ContractSearchResult, NoticeListItem, NoticeSearchResult, Paginated } from '../types';
 import { contractFavoritesApiQuery } from '../utils/contractFilters';
 import { contractPath } from '../utils/contractKey';
-import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
-import { DEFAULT_PER_PAGE, PER_PAGE_OPTIONS, SEARCH_URL_PARAMS, favoritesApiQuery, positiveInt } from '../utils/searchFilters';
+import { LIST_PAGE_SIZE, withPaging } from '../utils/infiniteList';
+import { favoritesApiQuery } from '../utils/searchFilters';
 import { LIST_TABS, listTabOf, listTabParams, type ListTab } from '../utils/tabs';
 
-interface PageState {
-  page: number;
-  perPage: number;
-}
+const FAVORITE_NOTICES_QUERY = favoritesApiQuery();
+const FAVORITE_CONTRACTS_QUERY = contractFavoritesApiQuery();
 
-/** De quanto em quanto tempo a lista de contratos tenta de novo enquanto os contratos estão sendo atualizados. */
-const CONTRACTS_UPDATING_RETRY_MS = 15_000;
+const noticeKey = (notice: NoticeListItem) => notice.id;
+const contractListKey = (contract: ContractListItem) => contract.pncpControlNumber;
 
-interface FavoritesListProps<Item> {
-  query: UseQueryResult<Paginated<Item>, TendersApiError>;
-  /** Identificador do item na lista: o id do edital, ou a chave do contrato. */
-  itemKey: (item: Item) => string | number;
+interface FavoritesListProps<Item, Page extends Paginated<Item>> {
+  list: InfiniteList<Item, Page>;
+  getKey: (item: Item) => string | number;
+  /** Identifica a consulta da lista (para ela recomeçar do topo quando mudar). */
+  resetKey: string;
+  /** Nome da lista, para leitores de tela. */
+  label: string;
   emptyDescription: string;
   emptyLink: { to: string; label: string };
   renderItem: (item: Item) => ReactNode;
-  perPage: number;
-  goTo: (next: PageState) => void;
 }
 
-/** Lista paginada de favoritos (editais ou contratos), com carregando, erro e vazio. */
-function FavoritesList<Item>({ query, itemKey, emptyDescription, emptyLink, renderItem, perPage, goTo }: FavoritesListProps<Item>) {
-  const data = query.data;
-  if (query.isPending) {
+/** Lista de favoritos (editais ou contratos) com rolagem infinita, com carregando, erro e vazio. */
+function FavoritesList<Item, Page extends Paginated<Item>>({
+  list,
+  getKey,
+  resetKey,
+  label,
+  emptyDescription,
+  emptyLink,
+  renderItem,
+}: FavoritesListProps<Item, Page>) {
+  if (list.isPending) {
     return <LoadingBlock label="Carregando os favoritos…" />;
   }
-  if (isContractStoreUpdating(query.error)) {
-    return <ContractsUpdating message={query.error?.message} onRetry={() => void query.refetch()} retrying={query.isFetching} />;
+  if (isContractStoreUpdating(list.error)) {
+    return <ContractsUpdating message={list.error?.message} onRetry={list.reload} retrying={list.isFetching} />;
   }
-  if (query.isError || !data) {
+  if (list.error || !list.firstPage) {
     return (
       <LoadError
         title="Não foi possível carregar os favoritos"
-        message={query.error?.message ?? 'Tente de novo em instantes.'}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
+        message={list.error?.message ?? 'Tente de novo em instantes.'}
+        onRetry={list.reload}
+        retrying={list.isFetching}
       />
     );
   }
-  if (data.total === 0) {
+  if (list.total === 0) {
     return (
       <EmptyState
         icon={Heart}
@@ -73,47 +78,29 @@ function FavoritesList<Item>({ query, itemKey, emptyDescription, emptyLink, rend
       />
     );
   }
-  if (data.items.length === 0) {
-    return (
-      <EmptyState
-        icon={Heart}
-        title="Esta página não tem favoritos."
-        action={
-          <Button type="button" variant="secondary" size="sm" onClick={() => goTo({ page: 1, perPage })}>
-            Voltar para a primeira página
-          </Button>
-        }
-      />
-    );
-  }
   return (
-    <div className={`flex flex-1 flex-col gap-4 transition-opacity ${query.isPlaceholderData ? 'opacity-60' : ''}`}>
-      <ul className="grid grid-cols-1 gap-3">
-        {data.items.map((item) => (
-          <li key={itemKey(item)}>{renderItem(item)}</li>
-        ))}
-      </ul>
-      {/* Lista curta: a paginação desce até o rodapé da tela. */}
-      <div className="mt-auto">
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          total={data.total}
-          perPage={data.perPage}
-          onPage={(next) => goTo({ page: next, perPage })}
-          onPerPage={(next) => goTo({ page: 1, perPage: next })}
-        />
-      </div>
+    <div className={`transition-opacity ${list.isPlaceholderData ? 'opacity-60' : ''}`}>
+      <VirtualCardList
+        items={list.items}
+        getKey={getKey}
+        renderItem={renderItem}
+        total={list.total}
+        hasNextPage={list.hasNextPage}
+        isFetchingNextPage={list.isFetchingNextPage}
+        onLoadMore={list.loadMore}
+        nextPageError={list.nextPageError}
+        resetKey={resetKey}
+        label={label}
+      />
     </div>
   );
 }
 
-function FavoriteNotices({ page, perPage, goTo }: PageState & { goTo: (next: PageState) => void }) {
-  const apiQuery = favoritesApiQuery(page, perPage);
-  const favorites = useQuery<NoticeSearchResult, TendersApiError>({
-    queryKey: tendersQueryKeys.noticeSearch(apiQuery),
-    queryFn: () => fetchNotices(apiQuery),
-    placeholderData: keepPreviousData,
+function FavoriteNotices() {
+  const favorites = useInfiniteList<NoticeListItem, NoticeSearchResult>({
+    queryKey: tendersQueryKeys.noticeInfiniteList(FAVORITE_NOTICES_QUERY),
+    fetchPage: (page) => fetchNotices(withPaging(FAVORITE_NOTICES_QUERY, { page, perPage: LIST_PAGE_SIZE })),
+    getKey: noticeKey,
   });
   return (
     <>
@@ -121,26 +108,25 @@ function FavoriteNotices({ page, perPage, goTo }: PageState & { goTo: (next: Pag
         Os editais que você marcou com o coração, inclusive os encerrados, pela data de encerramento. Só você vê os seus favoritos.
       </p>
       <FavoritesList
-        query={favorites}
-        itemKey={(notice) => notice.id}
+        list={favorites}
+        getKey={noticeKey}
+        resetKey={FAVORITE_NOTICES_QUERY}
+        label="Editais favoritos"
         emptyDescription="Marque o coração de um edital, em Buscar ou na página dele, para encontrá-lo aqui."
         emptyLink={{ to: '/buscar', label: 'Ir para Buscar' }}
         renderItem={(notice) => <NoticeCard notice={notice} detailLink={`/editais/${notice.id}`} />}
-        perPage={perPage}
-        goTo={goTo}
       />
     </>
   );
 }
 
-function FavoriteContracts({ page, perPage, goTo }: PageState & { goTo: (next: PageState) => void }) {
-  const apiQuery = contractFavoritesApiQuery(page, perPage);
+function FavoriteContracts() {
   const todayIso = getLocalTodayIso();
-  const favorites = useQuery<ContractSearchResult, TendersApiError>({
-    queryKey: tendersQueryKeys.contractSearch(apiQuery),
-    queryFn: () => fetchContracts(apiQuery),
-    placeholderData: keepPreviousData,
-    refetchInterval: (query) => (isContractStoreUpdating(query.state.error) ? CONTRACTS_UPDATING_RETRY_MS : false),
+  const favorites = useInfiniteList<ContractListItem, ContractSearchResult>({
+    queryKey: tendersQueryKeys.contractInfiniteList(FAVORITE_CONTRACTS_QUERY),
+    fetchPage: (page) => fetchContracts(withPaging(FAVORITE_CONTRACTS_QUERY, { page, perPage: LIST_PAGE_SIZE })),
+    getKey: contractListKey,
+    retryWhileStoreUpdating: true,
   });
   return (
     <>
@@ -149,13 +135,13 @@ function FavoriteContracts({ page, perPage, goTo }: PageState & { goTo: (next: P
         vencimento muda. Só você vê os seus favoritos.
       </p>
       <FavoritesList
-        query={favorites}
-        itemKey={(contract) => contract.pncpControlNumber}
+        list={favorites}
+        getKey={contractListKey}
+        resetKey={FAVORITE_CONTRACTS_QUERY}
+        label="Contratos favoritos"
         emptyDescription="Marque o coração de um contrato, em Contratos a vencer ou na página dele, para encontrá-lo aqui."
         emptyLink={{ to: '/contratos', label: 'Ir para Contratos a vencer' }}
         renderItem={(contract) => <ContractCard contract={contract} todayIso={todayIso} detailLink={contractPath(contract.pncpControlNumber)} />}
-        perPage={perPage}
-        goTo={goTo}
       />
     </>
   );
@@ -164,34 +150,18 @@ function FavoriteContracts({ page, perPage, goTo }: PageState & { goTo: (next: P
 /**
  * Favoritos da pessoa logada, em abas: editais (inclusive os encerrados e os
  * descartados, pelo prazo) e contratos (inclusive os vencidos, pelo
- * vencimento). A aba e a página ficam na URL.
+ * vencimento). A aba fica na URL; cada lista tem rolagem infinita.
  */
 export function FavoritesScreen() {
   const [params, setParams] = useSearchParams();
   const idPrefix = useId();
   const tab = listTabOf(params);
-  const page = positiveInt(params.get(SEARCH_URL_PARAMS.page)) ?? 1;
-  const perPage = PER_PAGE_OPTIONS.find((option) => String(option) === params.get(SEARCH_URL_PARAMS.perPage)) ?? DEFAULT_PER_PAGE;
-
-  const goTo = (next: PageState) => {
-    const nextParams = listTabParams(tab);
-    if (next.page > 1) nextParams.set(SEARCH_URL_PARAMS.page, String(next.page));
-    if (next.perPage !== DEFAULT_PER_PAGE) nextParams.set(SEARCH_URL_PARAMS.perPage, String(next.perPage));
-    setParams(nextParams);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   return (
-    <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
+    <section className="flex flex-col">
       <Tabs tabs={LIST_TABS} active={tab} onChange={(next: ListTab) => setParams(listTabParams(next))} label="Tipo de favorito" idPrefix={idPrefix} />
       <TabPanel idPrefix={idPrefix} tabId={tab}>
-        <div className="flex flex-col">
-          {tab === 'editais' ? (
-            <FavoriteNotices page={page} perPage={perPage} goTo={goTo} />
-          ) : (
-            <FavoriteContracts page={page} perPage={perPage} goTo={goTo} />
-          )}
-        </div>
+        <div className="flex flex-col">{tab === 'editais' ? <FavoriteNotices /> : <FavoriteContracts />}</div>
       </TabPanel>
     </section>
   );

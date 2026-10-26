@@ -45,7 +45,7 @@ interface ContractFiltersPanelProps {
  * também com ela.
  */
 export function ContractFiltersPanel({ state, onChange, domains, lookups, todayIso }: ContractFiltersPanelProps) {
-  const update = (changes: Partial<Omit<ContractSearchState, 'page'>>) => onChange(withContractFilters(state, changes));
+  const update = (changes: Partial<ContractSearchState>) => onChange(withContractFilters(state, changes));
   const locked = state.savedSearchId !== null;
 
   const [minDraft, setMinDraft] = useState<number | null>(() => decimalToReais(state.minValue));

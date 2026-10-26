@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { BookmarkPlus, CircleCheck, LayoutGrid, Loader2, Rows3, Search, SearchX, SlidersHorizontal, Table2, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BookmarkPlus, CircleCheck, Loader2, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { Button } from '../../ui/button';
 import { Drawer } from '../../ui/drawer';
 import { EmptyState } from '../../ui/EmptyState';
@@ -12,18 +11,17 @@ import { ContractCard } from '../components/ContractCard';
 import { ContractDetailView } from '../components/ContractDetailView';
 import { ContractFiltersPanel } from '../components/ContractFiltersPanel';
 import { ContractSearchFormDialog, type ContractSearchFormTarget } from '../components/ContractSearchFormDialog';
-import { ContractTable } from '../components/ContractTable';
 import { FilterChips } from '../components/FilterChips';
 import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
-import { Pagination } from '../components/Pagination';
+import { VirtualCardList } from '../components/VirtualCardList';
 import { useDomainLists, useDomainLookups } from '../hooks/useDomainLists';
-import { useStoredPreference } from '../hooks/useStoredPreference';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchContracts } from '../services/contractsService';
 import { fetchContractSavedSearches } from '../services/contractSearchesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { fetchCollectionStatus } from '../services/settingsService';
 import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
-import { CONTRACT_SORTS, type CollectionStatus, type ContractSearchResult } from '../types';
+import { CONTRACT_SORTS, type CollectionStatus, type ContractListItem, type ContractSearchResult } from '../types';
 import {
   CONTRACT_URL_PARAM,
   clearAllContractFilters,
@@ -38,24 +36,21 @@ import { cnpjFromSearchText, cnpjPagePath } from '../utils/cnpj';
 import { contractKeyFromParam } from '../utils/contractKey';
 import { contractStateToForm } from '../utils/contractSearchForm';
 import { formatIsoDateTime } from '../utils/dates';
+import { LIST_PAGE_SIZE, withPaging } from '../utils/infiniteList';
 import { CONTRACT_SORT_LABELS, TERMS_MODE_LABELS } from '../utils/labels';
-import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
 
 // Contratos a vencer (plano .plans/licitacoes-contratos-a-vencer.md, Parte B):
-// os contratos vigentes do PNCP, com filtros na URL, chips, cards ou tabela,
-// "Salvar esta busca" e o contrato no painel lateral (?contrato=).
+// os contratos vigentes do PNCP, com filtros na URL, chips, cards com rolagem
+// infinita, "Salvar esta busca" e o contrato no painel lateral (?contrato=).
 
-const VIEW_OPTIONS = ['cards', 'tabela'] as const;
-const DENSITY_OPTIONS = ['normal', 'compacta'] as const;
+/** Identifica o contrato na lista. */
+const contractListKey = (contract: ContractListItem) => contract.pncpControlNumber;
 
 /** Estado da navegação que abriu o painel do contrato pela lista. */
 interface ContractDrawerNavigation {
   contractDrawer?: boolean;
 }
 const CONTRACT_DRAWER_STATE: ContractDrawerNavigation = { contractDrawer: true };
-
-/** De quanto em quanto tempo a lista tenta de novo enquanto os contratos estão sendo atualizados. */
-const CONTRACTS_UPDATING_RETRY_MS = 15_000;
 
 /** Fim da última coleta diária de contratos, para o rodapé; sem coleta, null. */
 function lastContractsUpdate(status: CollectionStatus | undefined): { at: string | null; failed: boolean } | null {
@@ -73,9 +68,6 @@ export function ContractsScreen() {
   const apiQuery = useMemo(() => toContractApiQuery(state), [state]);
   const todayIso = getLocalTodayIso();
   const contractKey = contractKeyFromParam(params.get(CONTRACT_URL_PARAM));
-  const isDesktop = useTelaDesktop();
-  const [view, setView] = useStoredPreference('licitacoes.contratos.visao', VIEW_OPTIONS, 'cards');
-  const [density, setDensity] = useStoredPreference('licitacoes.contratos.tabela', DENSITY_OPTIONS, 'normal');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [formTarget, setFormTarget] = useState<ContractSearchFormTarget | null>(null);
   const [savedName, setSavedName] = useState<string | null>(null);
@@ -91,11 +83,11 @@ export function ContractsScreen() {
     queryFn: fetchContractSavedSearches,
     enabled: state.savedSearchId !== null,
   });
-  const results = useQuery<ContractSearchResult, TendersApiError>({
-    queryKey: tendersQueryKeys.contractSearch(apiQuery),
-    queryFn: () => fetchContracts(apiQuery),
-    placeholderData: keepPreviousData,
-    refetchInterval: (query) => (isContractStoreUpdating(query.state.error) ? CONTRACTS_UPDATING_RETRY_MS : false),
+  const results = useInfiniteList<ContractListItem, ContractSearchResult>({
+    queryKey: tendersQueryKeys.contractInfiniteList(apiQuery),
+    fetchPage: (page) => fetchContracts(withPaging(apiQuery, { page, perPage: LIST_PAGE_SIZE })),
+    getKey: contractListKey,
+    retryWhileStoreUpdating: true,
   });
   const collection = useQuery<CollectionStatus, TendersApiError>({ queryKey: tendersQueryKeys.collectionStatus, queryFn: fetchCollectionStatus });
   const lastUpdate = lastContractsUpdate(collection.data);
@@ -118,10 +110,10 @@ export function ContractsScreen() {
     savedSearchName: (id) => savedSearches.data?.find((search) => search.id === id)?.name,
   });
   const inSavedSearch = state.savedSearchId !== null;
-  const data = results.data;
-  const showTable = view === 'tabela' && isDesktop;
+  const firstPage = results.firstPage;
+  const total = results.total;
   const sortOptions = CONTRACT_SORTS.filter((sort) => sort !== 'relevance' || state.q.trim() !== '');
-  const totalLabel = data ? `${data.total.toLocaleString('pt-BR')} ${data.total === 1 ? 'contrato' : 'contratos'}` : undefined;
+  const totalLabel = firstPage ? `${total.toLocaleString('pt-BR')} ${total === 1 ? 'contrato' : 'contratos'}` : undefined;
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -133,11 +125,6 @@ export function ContractsScreen() {
     applyState(withContractFilters(state, { q: text.trim(), savedSearchId: null }));
   };
 
-  const goToPage = (page: number) => {
-    applyState({ ...state, page });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const detailLinkFor = (key: string) => {
     const next = new URLSearchParams(params);
     next.set(CONTRACT_URL_PARAM, key);
@@ -145,8 +132,8 @@ export function ContractsScreen() {
   };
 
   const openSaveForm = () => {
-    if (!data) return;
-    const { values, leftOut } = contractStateToForm(state, data.parsedQuery);
+    if (!firstPage) return;
+    const { values, leftOut } = contractStateToForm(state, firstPage.parsedQuery);
     setFormTarget({ initialValues: values, leftOut });
   };
 
@@ -167,19 +154,19 @@ export function ContractsScreen() {
 
   let content;
   if (isContractStoreUpdating(results.error)) {
-    content = <ContractsUpdating message={results.error?.message} onRetry={() => void results.refetch()} retrying={results.isFetching} />;
+    content = <ContractsUpdating message={results.error?.message} onRetry={results.reload} retrying={results.isFetching} />;
   } else if (results.isPending) {
     content = <LoadingBlock label={state.includeClosed ? 'Buscando em todos os contratos…' : 'Buscando contratos…'} />;
-  } else if (results.isError || !data) {
+  } else if (results.error || !firstPage) {
     content = (
       <LoadError
         title="Não foi possível buscar os contratos"
         message={results.error?.message ?? 'Tente de novo em instantes.'}
-        onRetry={() => void results.refetch()}
+        onRetry={results.reload}
         retrying={results.isFetching}
       />
     );
-  } else if (data.total === 0) {
+  } else if (total === 0) {
     content = (
       <EmptyState
         icon={SearchX}
@@ -194,61 +181,40 @@ export function ContractsScreen() {
         }
       />
     );
-  } else if (data.items.length === 0) {
-    content = (
-      <EmptyState
-        icon={SearchX}
-        title="Esta página não tem contratos."
-        action={
-          <Button type="button" variant="secondary" size="sm" onClick={() => goToPage(1)}>
-            Voltar para a primeira página
-          </Button>
-        }
-      />
-    );
   } else {
     content = (
-      <div className={`flex flex-1 flex-col gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
+      <div className={`flex flex-col gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
         {results.isPlaceholderData && state.includeClosed && (
           <p role="status" className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <Loader2 size={14} className="animate-spin text-brand-600 dark:text-brand-400" aria-hidden="true" />
             Buscando em todos os contratos…
           </p>
         )}
-        {showTable ? (
-          <ContractTable
-            contracts={data.items}
-            todayIso={todayIso}
-            compact={density === 'compacta'}
-            detailLinkFor={detailLinkFor}
-            detailLinkState={CONTRACT_DRAWER_STATE}
-          />
-        ) : (
-          <ul className="grid grid-cols-1 gap-3">
-            {data.items.map((contract) => (
-              <li key={contract.pncpControlNumber}>
-                <ContractCard contract={contract} todayIso={todayIso} detailLink={detailLinkFor(contract.pncpControlNumber)} detailLinkState={CONTRACT_DRAWER_STATE} />
-              </li>
-            ))}
-          </ul>
-        )}
-        {/* Lista curta: a paginação desce até o rodapé da tela. */}
-        <div className="mt-auto">
-          <Pagination
-            page={data.page}
-            totalPages={data.totalPages}
-            total={data.total}
-            perPage={data.perPage}
-            onPage={goToPage}
-            onPerPage={(perPage) => applyState(withContractFilters(state, { perPage }))}
-          />
-        </div>
+        <VirtualCardList
+          items={results.items}
+          getKey={contractListKey}
+          renderItem={(contract) => (
+            <ContractCard
+              contract={contract}
+              todayIso={todayIso}
+              detailLink={detailLinkFor(contract.pncpControlNumber)}
+              detailLinkState={CONTRACT_DRAWER_STATE}
+            />
+          )}
+          total={total}
+          hasNextPage={results.hasNextPage}
+          isFetchingNextPage={results.isFetchingNextPage}
+          onLoadMore={results.loadMore}
+          nextPageError={results.nextPageError}
+          resetKey={apiQuery}
+          label="Contratos"
+        />
       </div>
     );
   }
 
   return (
-    <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
+    <section className="flex flex-col">
       <form role="search" onSubmit={submitSearch} className="flex gap-2">
         <label className="relative flex-1">
           <span className="sr-only">Buscar contratos por palavras-chave ou abrir um CNPJ</span>
@@ -344,39 +310,13 @@ export function ContractsScreen() {
                   ))}
                 </Select>
               </label>
-              {isDesktop && (
-                <ToggleGroup
-                  value={view}
-                  onChange={(value) => setView(value === 'tabela' ? 'tabela' : 'cards')}
-                  options={[
-                    { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} aria-hidden="true" /> },
-                    { value: 'tabela', label: 'Tabela', icon: <Table2 size={13} aria-hidden="true" /> },
-                  ]}
-                />
-              )}
-              {showTable && (
-                <button
-                  type="button"
-                  aria-pressed={density === 'compacta'}
-                  onClick={() => setDensity(density === 'compacta' ? 'normal' : 'compacta')}
-                  className={[
-                    'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600',
-                    density === 'compacta'
-                      ? 'border-brand-600 bg-brand-600 text-white'
-                      : 'border-slate-200 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
-                  ].join(' ')}
-                >
-                  <Rows3 size={13} aria-hidden="true" />
-                  Compacta
-                </button>
-              )}
               {!inSavedSearch && (
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={openSaveForm}
-                  disabled={!data || results.isPlaceholderData}
+                  disabled={!firstPage || results.isPlaceholderData}
                   icon={<BookmarkPlus size={15} aria-hidden="true" />}
                 >
                   Salvar esta busca

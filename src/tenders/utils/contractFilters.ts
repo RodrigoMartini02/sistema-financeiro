@@ -5,11 +5,9 @@ import { addDaysToIsoDate } from './dates';
 import { TERMS_MODE_LABELS, dateRangeLabel, formatCnpj, valueRangeLabel } from './labels';
 import { decimalToReais } from './money';
 import {
-  DEFAULT_PER_PAGE,
   MAX_PURCHASE_YEAR,
   MIN_PURCHASE_YEAR,
   MUNICIPALITY_PATTERN,
-  PER_PAGE_OPTIONS,
   STATE_PATTERN,
   dateParam,
   datePair,
@@ -24,7 +22,9 @@ import {
 // compartilhável e o voltar do navegador funcionar; os valores padrão ficam fora
 // dela. Daqui saem também a query da API e os chips dos filtros ativos. O tipo
 // de contrato e "Incluir encerrados" são da parte 2 do plano
-// .plans/licitacoes-base-nacional.md: valem na tela, não na busca salva.
+// .plans/licitacoes-base-nacional.md: valem na tela, não na busca salva. A
+// página não fica no estado nem na URL (rolagem infinita): quem pede cada
+// página acrescenta `page` e `perPage` à query (`withPaging`).
 
 /** Atalhos do vencimento: de hoje até hoje + N dias. */
 export const EXPIRY_SHORTCUT_DAYS = [30, 90, 180, 365] as const;
@@ -61,8 +61,6 @@ export interface ContractSearchState {
   /** Resultados de uma busca salva de contratos: os critérios vêm dela. */
   savedSearchId: number | null;
   sort: ContractSort;
-  page: number;
-  perPage: number;
 }
 
 export const DEFAULT_CONTRACT_SEARCH_STATE: ContractSearchState = {
@@ -87,8 +85,6 @@ export const DEFAULT_CONTRACT_SEARCH_STATE: ContractSearchState = {
   contractYear: null,
   savedSearchId: null,
   sort: 'expiryAsc',
-  page: 1,
-  perPage: DEFAULT_PER_PAGE,
 };
 
 /** Ordem padrão, como na API: o vencimento mais próximo; com os encerrados, a publicação mais recente. */
@@ -119,8 +115,6 @@ export const CONTRACT_URL_PARAMS = {
   contractYear: 'ano',
   savedSearch: 'busca',
   sort: 'ordem',
-  page: 'pagina',
-  perPage: 'porPagina',
 } as const;
 
 /** Contrato aberto no painel lateral da tela. */
@@ -154,7 +148,6 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
   const includeClosed = params.get(P.includeClosed) === '1';
   const sortValue = params.get(P.sort);
   const sort = CONTRACT_SORTS.find((option) => SORT_URL_VALUES[option] === sortValue) ?? defaultContractSort(includeClosed);
-  const perPage = PER_PAGE_OPTIONS.find((option) => String(option) === params.get(P.perPage)) ?? DEFAULT_PER_PAGE;
 
   const minValue = decimalParam(params.get(P.minValue));
   const maxValue = decimalParam(params.get(P.maxValue));
@@ -187,8 +180,6 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
     number: numberParam(params.get(P.number)),
     contractYear: contractYearParam(params.get(P.contractYear)),
     savedSearchId,
-    page: positiveInt(params.get(P.page)) ?? 1,
-    perPage,
   };
   return { ...state, sort: sortFor(sort, state.q, includeClosed) };
 }
@@ -219,12 +210,10 @@ export function toContractSearchParams(state: ContractSearchState): URLSearchPar
   if (state.contractYear !== null) params.set(P.contractYear, String(state.contractYear));
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
   if (state.sort !== defaultContractSort(state.includeClosed)) params.set(P.sort, SORT_URL_VALUES[state.sort]);
-  if (state.page > 1) params.set(P.page, String(state.page));
-  if (state.perPage !== DEFAULT_PER_PAGE) params.set(P.perPage, String(state.perPage));
   return params;
 }
 
-/** Estado → query de `GET /api/tenders/contracts`. Com busca salva, os critérios vêm dela. */
+/** Estado → query de `GET /api/tenders/contracts`, sem a página (`withPaging`). Com busca salva, os critérios vêm dela. */
 export function toContractApiQuery(state: ContractSearchState): string {
   const params = new URLSearchParams();
   if (state.savedSearchId !== null) {
@@ -256,26 +245,21 @@ export function toContractApiQuery(state: ContractSearchState): string {
   if (state.number) params.set('number', state.number);
   if (state.contractYear !== null) params.set('contractYear', String(state.contractYear));
   params.set('sort', state.sort);
-  params.set('page', String(state.page));
-  params.set('perPage', String(state.perPage));
   return params.toString();
 }
 
 /** Query da aba Contratos de Favoritos: todos os favoritos da pessoa, inclusive os vencidos, pelo vencimento. */
-export function contractFavoritesApiQuery(page: number, perPage: number): string {
-  return toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, favoritesOnly: true, page, perPage });
+export function contractFavoritesApiQuery(): string {
+  return toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, favoritesOnly: true });
 }
 
 /**
- * Muda filtros: a página volta para a 1, e a relevância sai se a busca ficou
- * sem texto. Ao ligar ou desligar "Incluir encerrados" com a ordem padrão, a
- * ordem passa a ser o padrão do outro modo; uma ordem escolhida fica.
+ * Muda filtros; a relevância sai se a busca ficou sem texto. Ao ligar ou
+ * desligar "Incluir encerrados" com a ordem padrão, a ordem passa a ser o
+ * padrão do outro modo; uma ordem escolhida fica.
  */
-export function withContractFilters(
-  state: ContractSearchState,
-  changes: Partial<Omit<ContractSearchState, 'page'>>,
-): ContractSearchState {
-  const next = { ...state, ...changes, page: 1 };
+export function withContractFilters(state: ContractSearchState, changes: Partial<ContractSearchState>): ContractSearchState {
+  const next = { ...state, ...changes };
   const followsDefault = changes.sort === undefined && state.sort === defaultContractSort(state.includeClosed);
   if (next.includeClosed !== state.includeClosed && followsDefault) {
     next.sort = defaultContractSort(next.includeClosed);
@@ -283,9 +267,9 @@ export function withContractFilters(
   return { ...next, sort: sortFor(next.sort, next.q, next.includeClosed) };
 }
 
-/** "Limpar tudo": filtros e busca salva saem; ordenação e itens por página ficam. */
+/** "Limpar tudo": filtros e busca salva saem; a ordenação fica. */
 export function clearAllContractFilters(state: ContractSearchState): ContractSearchState {
-  return withContractFilters(DEFAULT_CONTRACT_SEARCH_STATE, { sort: state.sort, perPage: state.perPage });
+  return withContractFilters(DEFAULT_CONTRACT_SEARCH_STATE, { sort: state.sort });
 }
 
 /** Atalho "vence em até N dias": de hoje até hoje + N. */
@@ -331,7 +315,7 @@ export function expiryLabel(expiresOn: string | null, todayIso: string): string 
 export interface ContractFilterChip {
   key: string;
   label: string;
-  /** Estado sem este filtro (de volta à página 1). */
+  /** Estado sem este filtro. */
   without: ContractSearchState;
 }
 
@@ -346,7 +330,7 @@ export interface ContractChipLookups {
 /** Filtros ativos como chips removíveis; vazio quando a busca está no padrão. */
 export function contractFilterChips(state: ContractSearchState, lookups: ContractChipLookups = {}): ContractFilterChip[] {
   const chips: ContractFilterChip[] = [];
-  const add = (key: string, label: string, changes: Partial<Omit<ContractSearchState, 'page'>>) =>
+  const add = (key: string, label: string, changes: Partial<ContractSearchState>) =>
     chips.push({ key, label, without: withContractFilters(state, changes) });
 
   if (state.savedSearchId !== null) {

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { BookmarkPlus, CircleCheck, Clock, LayoutGrid, Loader2, Rows3, Search, SearchX, SlidersHorizontal, Table2, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BookmarkPlus, CircleCheck, Clock, Loader2, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { Button } from '../../ui/button';
 import { Drawer } from '../../ui/drawer';
 import { EmptyState } from '../../ui/EmptyState';
@@ -12,20 +11,19 @@ import { FilterChips } from '../components/FilterChips';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
 import { NoticeCard } from '../components/NoticeCard';
 import { NoticeDetailView } from '../components/NoticeDetailView';
-import { NoticeTable } from '../components/NoticeTable';
-import { Pagination } from '../components/Pagination';
 import { SavedSearchFormDialog, type SavedSearchFormTarget } from '../components/SavedSearchFormDialog';
 import { SearchFiltersPanel } from '../components/SearchFiltersPanel';
+import { VirtualCardList } from '../components/VirtualCardList';
 import { useDomainLists, useDomainLookups } from '../hooks/useDomainLists';
-import { useStoredPreference } from '../hooks/useStoredPreference';
-import { SCREEN_MIN_HEIGHT_CLASS } from '../utils/screenLayout';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { fetchSavedSearches } from '../services/savedSearchesService';
 import type { TendersApiError } from '../services/tendersApiError';
-import { NOTICE_SORTS, type NoticeSearchResult } from '../types';
+import { NOTICE_SORTS, type NoticeListItem, type NoticeSearchResult } from '../types';
 import { cnpjFromSearchText, cnpjPagePath } from '../utils/cnpj';
 import { formatIsoDate } from '../utils/dates';
+import { LIST_PAGE_SIZE, withPaging } from '../utils/infiniteList';
 import { NOTICE_SORT_LABELS, TERMS_MODE_LABELS } from '../utils/labels';
 import { searchStateToForm } from '../utils/savedSearchForm';
 import {
@@ -43,11 +41,11 @@ import {
   type SearchState,
 } from '../utils/searchFilters';
 
-// Buscar (escopo, seção 9.4): filtros na URL, chips, cards ou tabela,
+// Buscar (escopo, seção 9.4): filtros na URL, chips, cards com rolagem infinita,
 // ações rápidas, "Salvar esta busca" e o edital no painel lateral (?edital=).
 
-const VIEW_OPTIONS = ['cards', 'tabela'] as const;
-const DENSITY_OPTIONS = ['normal', 'compacta'] as const;
+/** Identifica o edital na lista. */
+const noticeKey = (notice: NoticeListItem) => notice.id;
 
 /** Estado da navegação que abriu o painel do edital pela lista. */
 interface NoticeDrawerNavigation {
@@ -72,9 +70,6 @@ export function SearchScreen() {
   const apiQuery = useMemo(() => toApiQuery(withMinimumDeadline(state, todayIso)), [state, todayIso]);
   const closingSoonQuery = useMemo(() => closingSoonCountQuery(state, todayIso), [state, todayIso]);
   const noticeId = positiveId(params.get(NOTICE_URL_PARAM));
-  const isDesktop = useTelaDesktop();
-  const [view, setView] = useStoredPreference('licitacoes.buscar.visao', VIEW_OPTIONS, 'cards');
-  const [density, setDensity] = useStoredPreference('licitacoes.buscar.tabela', DENSITY_OPTIONS, 'normal');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [formTarget, setFormTarget] = useState<SavedSearchFormTarget | null>(null);
   const [savedName, setSavedName] = useState<string | null>(null);
@@ -90,10 +85,10 @@ export function SearchScreen() {
     queryFn: fetchSavedSearches,
     enabled: state.savedSearchId !== null,
   });
-  const results = useQuery<NoticeSearchResult, TendersApiError>({
-    queryKey: tendersQueryKeys.noticeSearch(apiQuery),
-    queryFn: () => fetchNotices(apiQuery),
-    placeholderData: keepPreviousData,
+  const results = useInfiniteList<NoticeListItem, NoticeSearchResult>({
+    queryKey: tendersQueryKeys.noticeInfiniteList(apiQuery),
+    fetchPage: (page) => fetchNotices(withPaging(apiQuery, { page, perPage: LIST_PAGE_SIZE })),
+    getKey: noticeKey,
   });
   // Quantos o prazo mínimo deixou de fora (uma linha por página, só o total).
   const closingSoon = useQuery<NoticeSearchResult, TendersApiError>({
@@ -121,8 +116,9 @@ export function SearchScreen() {
     savedSearchName: (id) => savedSearches.data?.find((search) => search.id === id)?.name,
   });
   const inSavedSearch = state.savedSearchId !== null;
-  const data = results.data;
-  const showTable = view === 'tabela' && isDesktop;
+  const firstPage = results.firstPage;
+  const total = results.total;
+  const totalLabel = firstPage ? `${total.toLocaleString('pt-BR')} ${total === 1 ? 'edital' : 'editais'}` : undefined;
   const sortOptions = NOTICE_SORTS.filter((sort) => sort !== 'relevance' || state.q.trim() !== '');
 
   const submitSearch = (event: FormEvent) => {
@@ -135,11 +131,6 @@ export function SearchScreen() {
     applyState(withFilters(state, { q: text.trim(), savedSearchId: null }));
   };
 
-  const goToPage = (page: number) => {
-    applyState({ ...state, page });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   const detailLinkFor = (id: number) => {
     const next = new URLSearchParams(params);
     next.set(NOTICE_URL_PARAM, String(id));
@@ -147,8 +138,8 @@ export function SearchScreen() {
   };
 
   const openSaveForm = () => {
-    if (!data) return;
-    const { values, leftOut } = searchStateToForm(state, data.parsedQuery);
+    if (!firstPage) return;
+    const { values, leftOut } = searchStateToForm(state, firstPage.parsedQuery);
     setFormTarget({ initialValues: values, leftOut });
   };
 
@@ -170,16 +161,16 @@ export function SearchScreen() {
   let content;
   if (results.isPending) {
     content = <LoadingBlock label="Buscando editais…" />;
-  } else if (results.isError || !data) {
+  } else if (results.error || !firstPage) {
     content = (
       <LoadError
         title="Não foi possível buscar os editais"
         message={results.error?.message ?? 'Tente de novo em instantes.'}
-        onRetry={() => void results.refetch()}
+        onRetry={results.reload}
         retrying={results.isFetching}
       />
     );
-  } else if (data.total === 0) {
+  } else if (total === 0) {
     content = (
       <EmptyState
         icon={SearchX}
@@ -194,49 +185,27 @@ export function SearchScreen() {
         }
       />
     );
-  } else if (data.items.length === 0) {
-    content = (
-      <EmptyState
-        icon={SearchX}
-        title="Esta página não tem editais."
-        action={
-          <Button type="button" variant="secondary" size="sm" onClick={() => goToPage(1)}>
-            Voltar para a primeira página
-          </Button>
-        }
-      />
-    );
   } else {
     content = (
-      <div className={`flex flex-1 flex-col gap-4 transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
-        {showTable ? (
-          <NoticeTable notices={data.items} compact={density === 'compacta'} detailLinkFor={detailLinkFor} detailLinkState={NOTICE_DRAWER_STATE} />
-        ) : (
-          <ul className="grid grid-cols-1 gap-3">
-            {data.items.map((notice) => (
-              <li key={notice.id}>
-                <NoticeCard notice={notice} detailLink={detailLinkFor(notice.id)} detailLinkState={NOTICE_DRAWER_STATE} />
-              </li>
-            ))}
-          </ul>
-        )}
-        {/* Lista curta: a paginação desce até o rodapé da tela. */}
-        <div className="mt-auto">
-          <Pagination
-            page={data.page}
-            totalPages={data.totalPages}
-            total={data.total}
-            perPage={data.perPage}
-            onPage={goToPage}
-            onPerPage={(perPage) => applyState(withFilters(state, { perPage }))}
-          />
-        </div>
+      <div className={`transition-opacity ${results.isPlaceholderData ? 'opacity-60' : ''}`}>
+        <VirtualCardList
+          items={results.items}
+          getKey={noticeKey}
+          renderItem={(notice) => <NoticeCard notice={notice} detailLink={detailLinkFor(notice.id)} detailLinkState={NOTICE_DRAWER_STATE} />}
+          total={total}
+          hasNextPage={results.hasNextPage}
+          isFetchingNextPage={results.isFetchingNextPage}
+          onLoadMore={results.loadMore}
+          nextPageError={results.nextPageError}
+          resetKey={apiQuery}
+          label="Editais"
+        />
       </div>
     );
   }
 
   return (
-    <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
+    <section className="flex flex-col">
       <form role="search" onSubmit={submitSearch} className="flex gap-2">
         <label className="relative flex-1">
           <span className="sr-only">Buscar editais por palavras-chave ou abrir um CNPJ</span>
@@ -300,8 +269,8 @@ export function SearchScreen() {
 
       <div className="mt-5 flex flex-1 items-start gap-6">
         {/* Altura máxima: a tela menos o que fica acima do painel (barra, busca e
-            opções, cerca de 197 px) e o espaço de baixo. Assim, com lista curta, a
-            página cabe na tela e a paginação aparece no rodapé. */}
+            opções, cerca de 197 px) e o espaço de baixo. Assim o painel nunca passa
+            da tela e rola por dentro. */}
         <aside
           aria-label="Filtros"
           className="scrollbar-thin hidden w-64 shrink-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto"
@@ -314,7 +283,7 @@ export function SearchScreen() {
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200" aria-live="polite">
-              {data ? `${data.total.toLocaleString('pt-BR')} ${data.total === 1 ? 'edital' : 'editais'}` : 'Editais'}
+              {totalLabel ?? 'Editais'}
               {results.isFetching && !results.isPending && (
                 <Loader2 size={14} className="animate-spin text-brand-600" aria-label="Atualizando" />
               )}
@@ -337,39 +306,13 @@ export function SearchScreen() {
                   ))}
                 </Select>
               </label>
-              {isDesktop && (
-                <ToggleGroup
-                  value={view}
-                  onChange={(value) => setView(value === 'tabela' ? 'tabela' : 'cards')}
-                  options={[
-                    { value: 'cards', label: 'Cards', icon: <LayoutGrid size={13} aria-hidden="true" /> },
-                    { value: 'tabela', label: 'Tabela', icon: <Table2 size={13} aria-hidden="true" /> },
-                  ]}
-                />
-              )}
-              {showTable && (
-                <button
-                  type="button"
-                  aria-pressed={density === 'compacta'}
-                  onClick={() => setDensity(density === 'compacta' ? 'normal' : 'compacta')}
-                  className={[
-                    'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600',
-                    density === 'compacta'
-                      ? 'border-brand-600 bg-brand-600 text-white'
-                      : 'border-slate-200 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
-                  ].join(' ')}
-                >
-                  <Rows3 size={13} aria-hidden="true" />
-                  Compacta
-                </button>
-              )}
               {!inSavedSearch && (
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={openSaveForm}
-                  disabled={!data || results.isPlaceholderData}
+                  disabled={!firstPage || results.isPlaceholderData}
                   icon={<BookmarkPlus size={15} aria-hidden="true" />}
                 >
                   Salvar esta busca
@@ -403,7 +346,7 @@ export function SearchScreen() {
       <Drawer
         open={filtersOpen}
         title="Filtros"
-        subtitle={data ? `${data.total.toLocaleString('pt-BR')} ${data.total === 1 ? 'edital' : 'editais'}` : undefined}
+        subtitle={totalLabel}
         onClose={closeFilters}
         size="sm"
         footer={

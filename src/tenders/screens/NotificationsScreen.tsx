@@ -1,40 +1,41 @@
 import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { BellOff, CheckCheck } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Select, ToggleGroup } from '../../ui/form';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
 import { NotificationItem } from '../components/NotificationItem';
-import { Pagination } from '../components/Pagination';
+import { VirtualCardList } from '../components/VirtualCardList';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import { useMarkAllNotificationsRead, useOpenNotification } from '../hooks/useNotificationActions';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { fetchNotifications } from '../services/notificationsService';
 import { tendersQueryKeys } from '../services/queryKeys';
-import type { TendersApiError } from '../services/tendersApiError';
 import { TENDER_NOTIFICATION_TYPES, type Paginated, type TenderNotification, type TenderNotificationType } from '../types';
+import { LIST_PAGE_SIZE } from '../utils/infiniteList';
 import { NOTIFICATION_TYPE_LABELS } from '../utils/labels';
 import { notificationsQuery } from '../utils/notifications';
-import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
 
-// Notificações (escopo, seção 9.4): lista paginada com filtro por tipo e por
-// não lidas. O clique marca como lida e abre o edital ou o contrato.
+// Notificações (escopo, seção 9.4): cards com rolagem infinita, com filtro por
+// tipo e por não lidas. O clique marca como lida e abre o edital ou o contrato.
 
 const READ_FILTER_OPTIONS = [
   { value: 'todas', label: 'Todas' },
   { value: 'nao-lidas', label: 'Não lidas' },
 ];
 
+/** Identifica a notificação na lista. */
+const notificationKey = (notification: TenderNotification) => notification.id;
+
 export function NotificationsScreen() {
   const [type, setType] = useState<TenderNotificationType | null>(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
-  const apiQuery = notificationsQuery({ type, unreadOnly, page, perPage });
-  const list = useQuery<Paginated<TenderNotification>, TendersApiError>({
-    queryKey: tendersQueryKeys.notificationList(apiQuery),
-    queryFn: () => fetchNotifications(apiQuery),
-    placeholderData: keepPreviousData,
+  // A consulta da primeira página identifica a lista; as seguintes só mudam a página.
+  const listQuery = notificationsQuery({ type, unreadOnly, page: 1, perPage: LIST_PAGE_SIZE });
+  const list = useInfiniteList<TenderNotification, Paginated<TenderNotification>>({
+    queryKey: tendersQueryKeys.notificationInfiniteList(listQuery),
+    fetchPage: (page) => fetchNotifications(notificationsQuery({ type, unreadOnly, page, perPage: LIST_PAGE_SIZE })),
+    getKey: notificationKey,
   });
   const unreadCount = useUnreadNotificationsCount(true).data ?? 0;
   const markAll = useMarkAllNotificationsRead();
@@ -44,15 +45,14 @@ export function NotificationsScreen() {
   const changeFilters = (changes: { type?: TenderNotificationType | null; unreadOnly?: boolean }) => {
     if (changes.type !== undefined) setType(changes.type);
     if (changes.unreadOnly !== undefined) setUnreadOnly(changes.unreadOnly);
-    setPage(1);
   };
 
   let content;
   if (list.isPending) {
     content = <LoadingBlock label="Carregando as notificações…" />;
-  } else if (list.isError) {
-    content = <LoadError message={list.error.message} onRetry={() => void list.refetch()} retrying={list.isFetching} />;
-  } else if (list.data.total === 0) {
+  } else if (list.error) {
+    content = <LoadError message={list.error.message} onRetry={list.reload} retrying={list.isFetching} />;
+  } else if (list.total === 0) {
     content = filtered ? (
       <EmptyState
         icon={BellOff}
@@ -72,27 +72,18 @@ export function NotificationsScreen() {
     );
   } else {
     content = (
-      <div className={`grid grid-cols-1 gap-4 transition-opacity ${list.isPlaceholderData ? 'opacity-60' : ''}`}>
-        <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-800">
-          {list.data.items.map((notification) => (
-            <li key={notification.id}>
-              <NotificationItem notification={notification} onOpen={openNotification} />
-            </li>
-          ))}
-        </ul>
-        <Pagination
-          page={list.data.page}
-          totalPages={list.data.totalPages}
-          total={list.data.total}
-          perPage={list.data.perPage}
-          onPage={(nextPage) => {
-            setPage(nextPage);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          onPerPage={(nextPerPage) => {
-            setPerPage(nextPerPage);
-            setPage(1);
-          }}
+      <div className={`transition-opacity ${list.isPlaceholderData ? 'opacity-60' : ''}`}>
+        <VirtualCardList
+          items={list.items}
+          getKey={notificationKey}
+          renderItem={(notification) => <NotificationItem notification={notification} onOpen={openNotification} />}
+          total={list.total}
+          hasNextPage={list.hasNextPage}
+          isFetchingNextPage={list.isFetchingNextPage}
+          onLoadMore={list.loadMore}
+          nextPageError={list.nextPageError}
+          resetKey={listQuery}
+          label="Notificações"
         />
       </div>
     );

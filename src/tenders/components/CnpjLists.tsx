@@ -1,29 +1,24 @@
-import { useRef, useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getLocalTodayIso } from '../../utils/date';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchCnpjWinners } from '../services/cnpjService';
 import { fetchContracts } from '../services/contractsService';
 import { fetchNotices } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import type { CnpjWinnerItem, ContractSearchResult, NoticeSearchResult, Paginated } from '../types';
-import {
-  CNPJ_LIST_SIZE,
-  CNPJ_WINNERS_PER_PAGE_OPTIONS,
-  cnpjContractsApiQuery,
-  cnpjNoticesApiQuery,
-  type CnpjTab,
-} from '../utils/cnpjPage';
+import { cnpjContractsApiQuery, cnpjNoticesApiQuery, type CnpjTab } from '../utils/cnpjPage';
 import { contractPath } from '../utils/contractKey';
+import { LIST_PAGE_SIZE } from '../utils/infiniteList';
 import { ContractCard } from './ContractCard';
 import { ContractsUpdating, LoadError, LoadingBlock } from './LoadStates';
 import { NoticeCard } from './NoticeCard';
-import { Pagination } from './Pagination';
+import { VirtualCardList } from './VirtualCardList';
 import { WinnerCard } from './WinnerCard';
 
 // As listas da página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md): os 10 contratos e os 10 editais mais recentes,
 // pelas mesmas buscas das telas Contratos a vencer e Buscar (os mesmos cards e favoritos), e as licitações vencidas,
-// paginadas. Cada lista tem os seus estados de carregando, vazio, erro e "atualizando".
+// com rolagem infinita. Cada lista tem os seus estados de carregando, vazio, erro e "atualizando".
 
 /** De quanto em quanto tempo a lista tenta de novo enquanto os contratos estão sendo atualizados. */
 const UPDATING_RETRY_MS = 15_000;
@@ -100,50 +95,46 @@ export function CnpjNoticeList({ cnpj }: { cnpj: string }) {
   );
 }
 
-/** As licitações vencidas pelo CNPJ, da mais recente para a mais antiga, 10 por página. */
+/** Identifica a licitação vencida na lista. */
+const winnerKey = (winner: CnpjWinnerItem) => winner.purchaseControlNumber;
+
+/** As licitações vencidas pelo CNPJ, da mais recente para a mais antiga, com rolagem infinita. */
 export function CnpjWinnersList({ cnpj }: { cnpj: string }) {
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState<number>(CNPJ_LIST_SIZE);
-  const topRef = useRef<HTMLDivElement>(null);
-  const winners = useQuery<Paginated<CnpjWinnerItem>, TendersApiError>({
-    queryKey: tendersQueryKeys.cnpjWinners(cnpj, page, perPage),
-    queryFn: () => fetchCnpjWinners(cnpj, page, perPage),
-    placeholderData: keepPreviousData,
-    refetchInterval: (query) => updatingRefetch(query.state.error),
+  const winners = useInfiniteList<CnpjWinnerItem, Paginated<CnpjWinnerItem>>({
+    queryKey: tendersQueryKeys.cnpjWinners(cnpj),
+    fetchPage: (page) => fetchCnpjWinners(cnpj, page, LIST_PAGE_SIZE),
+    getKey: winnerKey,
+    retryWhileStoreUpdating: true,
   });
 
-  const problem = listProblem(winners, 'Não foi possível carregar as licitações vencidas', 'Carregando licitações vencidas…');
+  const problem = listProblem(
+    {
+      isPending: winners.isPending,
+      isError: winners.error !== null,
+      isFetching: winners.isFetching,
+      error: winners.error,
+      refetch: winners.reload,
+    },
+    'Não foi possível carregar as licitações vencidas',
+    'Carregando licitações vencidas…',
+  );
   if (problem) return problem;
-  const data = winners.data;
-  if (!data || data.total === 0) return <EmptyList>Nenhuma licitação vencida encontrada.</EmptyList>;
+  if (winners.total === 0) return <EmptyList>Nenhuma licitação vencida encontrada.</EmptyList>;
 
-  const goToPage = (next: number) => {
-    setPage(next);
-    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
   return (
-    <div ref={topRef} className={`grid grid-cols-1 gap-3 transition-opacity ${winners.isPlaceholderData ? 'opacity-60' : ''}`}>
-      <ul className="grid grid-cols-1 gap-3">
-        {data.items.map((winner) => (
-          <li key={winner.purchaseControlNumber}>
-            <WinnerCard winner={winner} />
-          </li>
-        ))}
-      </ul>
-      {data.total > CNPJ_LIST_SIZE && (
-        <Pagination
-          page={data.page}
-          totalPages={data.totalPages}
-          total={data.total}
-          perPage={data.perPage}
-          onPage={goToPage}
-          onPerPage={(size) => {
-            setPerPage(size);
-            setPage(1);
-          }}
-          perPageOptions={CNPJ_WINNERS_PER_PAGE_OPTIONS}
-        />
-      )}
+    <div className={`transition-opacity ${winners.isPlaceholderData ? 'opacity-60' : ''}`}>
+      <VirtualCardList
+        items={winners.items}
+        getKey={winnerKey}
+        renderItem={(winner) => <WinnerCard winner={winner} />}
+        total={winners.total}
+        hasNextPage={winners.hasNextPage}
+        isFetchingNextPage={winners.isFetchingNextPage}
+        onLoadMore={winners.loadMore}
+        nextPageError={winners.nextPageError}
+        resetKey={cnpj}
+        label="Licitações vencidas"
+      />
     </div>
   );
 }

@@ -16,14 +16,15 @@ import {
   formatCnpj,
   valueRangeLabel,
 } from './labels';
+import { withPaging } from './infiniteList';
 import { decimalToReais, isDecimalValue } from './money';
 
 // Estado da tela Buscar (escopo, seção 9.4). Mora na URL, para o link ser
 // compartilhável e o voltar do navegador funcionar; os valores padrão ficam
 // fora dela. Daqui saem também a query da API e os chips dos filtros ativos.
+// A página não fica no estado nem na URL: a lista tem rolagem infinita, e quem
+// pede cada página acrescenta `page` e `perPage` à query (`withPaging`).
 
-export const PER_PAGE_OPTIONS = [20, 50, 100] as const;
-export const DEFAULT_PER_PAGE = 20;
 export const CLOSING_SHORTCUT_DAYS = [7, 15, 30] as const;
 
 /**
@@ -70,8 +71,6 @@ export interface SearchState {
   /** Resultados de uma busca salva: os critérios vêm dela, e os da tela ficam de fora. */
   savedSearchId: number | null;
   sort: NoticeSort;
-  page: number;
-  perPage: number;
 }
 
 export const DEFAULT_SEARCH_STATE: SearchState = {
@@ -97,8 +96,6 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   purchaseYear: null,
   savedSearchId: null,
   sort: 'closingAsc',
-  page: 1,
-  perPage: DEFAULT_PER_PAGE,
 };
 
 /** Parâmetros da URL de Buscar, em português como o `?edital=`. */
@@ -125,8 +122,6 @@ export const SEARCH_URL_PARAMS = {
   purchaseYear: 'ano',
   savedSearch: 'busca',
   sort: 'ordem',
-  page: 'pagina',
-  perPage: 'porPagina',
 } as const;
 
 /** Edital aberto no painel lateral de Buscar. */
@@ -201,7 +196,6 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
   const [closingFrom, closingTo] = datePair(dateParam(params.get(P.closingFrom)), dateParam(params.get(P.closingTo)));
   const sortValue = params.get(P.sort);
   const sort = NOTICE_SORTS.find((option) => SORT_URL_VALUES[option] === sortValue) ?? DEFAULT_SEARCH_STATE.sort;
-  const perPage = PER_PAGE_OPTIONS.find((option) => String(option) === params.get(P.perPage)) ?? DEFAULT_PER_PAGE;
 
   const minValue = decimalParam(params.get(P.minValue));
   const maxValue = decimalParam(params.get(P.maxValue));
@@ -239,8 +233,6 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
     number: numberParam(params.get(P.number)),
     purchaseYear: purchaseYearParam(params.get(P.purchaseYear)),
     savedSearchId,
-    page: positiveInt(params.get(P.page)) ?? 1,
-    perPage,
   };
   return { ...state, sort: sortFor(sort, state.q) };
 }
@@ -272,12 +264,10 @@ export function toSearchParams(state: SearchState): URLSearchParams {
   if (state.purchaseYear !== null) params.set(P.purchaseYear, String(state.purchaseYear));
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
   if (state.sort !== DEFAULT_SEARCH_STATE.sort) params.set(P.sort, SORT_URL_VALUES[state.sort]);
-  if (state.page > 1) params.set(P.page, String(state.page));
-  if (state.perPage !== DEFAULT_PER_PAGE) params.set(P.perPage, String(state.perPage));
   return params;
 }
 
-/** Estado → query de `GET /api/tenders/notices`. Com busca salva, os critérios vêm dela. */
+/** Estado → query de `GET /api/tenders/notices`, sem a página (`withPaging`). Com busca salva, os critérios vêm dela. */
 export function toApiQuery(state: SearchState): string {
   const params = new URLSearchParams();
   if (state.savedSearchId !== null) {
@@ -309,8 +299,6 @@ export function toApiQuery(state: SearchState): string {
   if (state.number) params.set('number', state.number);
   if (state.purchaseYear !== null) params.set('purchaseYear', String(state.purchaseYear));
   params.set('sort', state.sort);
-  params.set('page', String(state.page));
-  params.set('perPage', String(state.perPage));
   return params.toString();
 }
 
@@ -318,19 +306,19 @@ export function toApiQuery(state: SearchState): string {
  * Query da tela Favoritos: todos os favoritos da pessoa, inclusive os
  * encerrados e os descartados, pelo prazo de encerramento.
  */
-export function favoritesApiQuery(page: number, perPage: number): string {
-  return toApiQuery({ ...DEFAULT_SEARCH_STATE, openOnly: false, hideDiscarded: false, favoritesOnly: true, page, perPage });
+export function favoritesApiQuery(): string {
+  return toApiQuery({ ...DEFAULT_SEARCH_STATE, openOnly: false, hideDiscarded: false, favoritesOnly: true });
 }
 
-/** Muda filtros: a página volta para a 1, e a relevância sai se a busca ficou sem texto. */
-export function withFilters(state: SearchState, changes: Partial<Omit<SearchState, 'page'>>): SearchState {
-  const next = { ...state, ...changes, page: 1 };
+/** Muda filtros; a relevância sai se a busca ficou sem texto. */
+export function withFilters(state: SearchState, changes: Partial<SearchState>): SearchState {
+  const next = { ...state, ...changes };
   return { ...next, sort: sortFor(next.sort, next.q) };
 }
 
-/** "Limpar tudo": filtros e busca salva saem; ordenação e itens por página ficam. */
+/** "Limpar tudo": filtros e busca salva saem; a ordenação fica. */
 export function clearAllFilters(state: SearchState): SearchState {
-  return withFilters(DEFAULT_SEARCH_STATE, { sort: state.sort, perPage: state.perPage });
+  return withFilters(DEFAULT_SEARCH_STATE, { sort: state.sort });
 }
 
 /** Primeiro dia de encerramento que aparece por padrão: hoje + MIN_DAYS_TO_CLOSE (AAAA-MM-DD). */
@@ -377,7 +365,7 @@ export function closingSoonCountQuery(state: SearchState, todayIso: string): str
   if (state.closingFrom !== null && state.closingFrom >= minimum) {
     return null;
   }
-  return toApiQuery({ ...state, closingTo: addDaysToIsoDate(minimum, -1), page: 1, perPage: 1 });
+  return withPaging(toApiQuery({ ...state, closingTo: addDaysToIsoDate(minimum, -1) }), { page: 1, perPage: 1 });
 }
 
 /**
@@ -408,7 +396,7 @@ export function activeClosingShortcut(state: SearchState, todayIso: string): num
 export interface FilterChip {
   key: string;
   label: string;
-  /** Estado sem este filtro (de volta à página 1). */
+  /** Estado sem este filtro. */
   without: SearchState;
 }
 
@@ -422,7 +410,7 @@ export interface ChipLookups {
 /** Filtros ativos como chips removíveis; vazio quando a busca está no padrão. */
 export function filterChips(state: SearchState, lookups: ChipLookups = {}): FilterChip[] {
   const chips: FilterChip[] = [];
-  const add = (key: string, label: string, changes: Partial<Omit<SearchState, 'page'>>) =>
+  const add = (key: string, label: string, changes: Partial<SearchState>) =>
     chips.push({ key, label, without: withFilters(state, changes) });
 
   if (state.savedSearchId !== null) {
