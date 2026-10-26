@@ -1,4 +1,5 @@
 import { TRACKING_STATUSES, type NoticeListItem, type TrackingStatus } from '../types';
+import { withPaging } from './infiniteList';
 import { DEFAULT_SEARCH_STATE, toApiQuery, withFilters } from './searchFilters';
 
 // Quadro de Acompanhamento (escopo, seção 9.4): uma coluna por status, com os
@@ -11,13 +12,15 @@ export type BoardColumns = Record<TrackingStatus, NoticeListItem[]>;
 
 /** Query da API de uma coluna: o status, com encerrados e descartados, por prazo. */
 export function trackingColumnQuery(status: TrackingStatus): string {
-  return toApiQuery(
-    withFilters(DEFAULT_SEARCH_STATE, {
-      trackingStatuses: [status],
-      hideDiscarded: false,
-      openOnly: false,
-      perPage: BOARD_COLUMN_LIMIT,
-    }),
+  return withPaging(
+    toApiQuery(
+      withFilters(DEFAULT_SEARCH_STATE, {
+        trackingStatuses: [status],
+        hideDiscarded: false,
+        openOnly: false,
+      }),
+    ),
+    { page: 1, perPage: BOARD_COLUMN_LIMIT },
   );
 }
 

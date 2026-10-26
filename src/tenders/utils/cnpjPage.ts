@@ -1,6 +1,7 @@
 import type { CnpjCoverage, CnpjSummary } from '../types';
 import { DEFAULT_CONTRACT_SEARCH_STATE, toContractApiQuery, toContractSearchParams, type ContractSearchState } from './contractFilters';
 import { formatIsoDate } from './dates';
+import { withPaging } from './infiniteList';
 import { DEFAULT_SEARCH_STATE, toApiQuery, toSearchParams, type SearchState } from './searchFilters';
 
 // A página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md): a aba, as buscas curtas das listas (as mesmas buscas das
@@ -8,9 +9,6 @@ import { DEFAULT_SEARCH_STATE, toApiQuery, toSearchParams, type SearchState } fr
 
 /** Quantos itens de cada lista a página mostra; o resto fica no "Ver todos". */
 export const CNPJ_LIST_SIZE = 10;
-
-/** Licitações vencidas por página (a API aceita até 50). */
-export const CNPJ_WINNERS_PER_PAGE_OPTIONS = [10, 20, 50] as const;
 
 export const CNPJ_TAB_PARAM = 'aba';
 export const CNPJ_TABS = ['fornecedor', 'orgao'] as const;
@@ -40,7 +38,7 @@ function contractsState(tab: CnpjTab, cnpj: string): ContractSearchState {
 
 /** Busca da lista curta de contratos (`GET /contracts`). */
 export function cnpjContractsApiQuery(tab: CnpjTab, cnpj: string): string {
-  return toContractApiQuery({ ...contractsState(tab, cnpj), perPage: CNPJ_LIST_SIZE });
+  return withPaging(toContractApiQuery(contractsState(tab, cnpj)), { page: 1, perPage: CNPJ_LIST_SIZE });
 }
 
 /** "Ver todos" os contratos: a tela Contratos a vencer já filtrada pelo CNPJ, com os encerrados. */
@@ -55,7 +53,7 @@ function noticesState(cnpj: string): SearchState {
 
 /** Busca da lista curta de editais (`GET /notices`). */
 export function cnpjNoticesApiQuery(cnpj: string): string {
-  return toApiQuery({ ...noticesState(cnpj), perPage: CNPJ_LIST_SIZE });
+  return withPaging(toApiQuery(noticesState(cnpj)), { page: 1, perPage: CNPJ_LIST_SIZE });
 }
 
 /** "Ver todos" os editais abertos: a tela Buscar já filtrada pelo órgão. */

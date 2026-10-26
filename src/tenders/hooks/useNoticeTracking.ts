@@ -1,19 +1,23 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { invalidateGroupExceptLists, listDependsOnTracking, patchCachedNotice } from '../services/listCache';
 import { fetchNotice, removeTracking, saveTracking } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
-import type { TrackingStatus, TrackingView } from '../types';
+import type { NoticeTracking, TrackingStatus, TrackingView } from '../types';
 
-// Acompanhamento do edital na conta. Depois de mudar: busca, edital,
-// histórico e painel do Início são recarregados.
+// Acompanhamento do edital na conta. Depois de mudar: o edital muda nas listas
+// em cache sem reler todas as páginas; edital, histórico, quadro e painel do
+// Início são recarregados.
 
-function useInvalidateTracking() {
+function useAfterTrackingChange() {
   const queryClient = useQueryClient();
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: tendersQueryKeys.notices }),
+  return (noticeId: number, tracking: NoticeTracking | null) => {
+    patchCachedNotice(queryClient, noticeId, (notice) => ({ ...notice, tracking }));
+    return Promise.all([
+      invalidateGroupExceptLists(queryClient, tendersQueryKeys.notices, listDependsOnTracking),
       queryClient.invalidateQueries({ queryKey: tendersQueryKeys.dashboard }),
     ]);
+  };
 }
 
 export interface SaveTrackingVariables {
@@ -25,7 +29,7 @@ export interface SaveTrackingVariables {
 
 export function useSaveTracking() {
   const queryClient = useQueryClient();
-  const invalidate = useInvalidateTracking();
+  const afterChange = useAfterTrackingChange();
   return useMutation<TrackingView, TendersApiError, SaveTrackingVariables>({
     mutationFn: async ({ noticeId, status, note }) => {
       // A API grava status e observação juntos: a ação rápida lê a observação
@@ -42,14 +46,14 @@ export function useSaveTracking() {
             ).tracking?.note ?? null);
       return saveTracking(noticeId, { status, note: keptNote });
     },
-    onSuccess: invalidate,
+    onSuccess: (view, { noticeId }) => afterChange(noticeId, { status: view.status, updatedAt: view.updatedAt }),
   });
 }
 
 export function useRemoveTracking() {
-  const invalidate = useInvalidateTracking();
+  const afterChange = useAfterTrackingChange();
   return useMutation<{ noticeId: number }, TendersApiError, number>({
     mutationFn: removeTracking,
-    onSuccess: invalidate,
+    onSuccess: (_result, noticeId) => afterChange(noticeId, null),
   });
 }

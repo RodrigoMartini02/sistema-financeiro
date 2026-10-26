@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
-import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { EmptyState } from '../../ui/EmptyState';
 import { getLocalTodayIso } from '../../utils/date';
+import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settingsService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
@@ -19,11 +18,12 @@ import {
   winnersRowsLabel,
 } from '../utils/collectionRuns';
 import { formatIsoDate, formatIsoDateTime } from '../utils/dates';
+import { LIST_PAGE_SIZE } from '../utils/infiniteList';
 import { RUN_STATUS_LABELS, RUN_TYPE_LABELS } from '../utils/labels';
-import { DEFAULT_PER_PAGE } from '../utils/searchFilters';
+import { ListCard, ListCardLine } from './ListCard';
 import { LoadError, LoadingBlock } from './LoadStates';
-import { Pagination } from './Pagination';
 import { Pill, type PillTone } from './Pill';
+import { VirtualCardList } from './VirtualCardList';
 
 // Coleta (titular ou admin): última varredura, últimos lembretes de prazo, os
 // contratos, os vencedores e os contratos federais (coleta diária ou ciclo e
@@ -334,96 +334,59 @@ function StatusCards({ status }: { status: CollectionStatus }) {
   );
 }
 
+/** Identifica a execução na lista. */
+const runKey = (run: CollectionRun) => run.id;
+
+/** Uma execução da coleta: o tipo, o status, quando e quanto tempo, e os totais. */
+function RunCard({ run }: { run: CollectionRun }) {
+  return (
+    <ListCard
+      badges={<RunStatusPill status={run.status} />}
+      title={RUN_TYPE_LABELS[run.type]}
+      context={
+        <ListCardLine>
+          {formatIsoDateTime(run.startedAt)} · {runDurationLabel(run)}
+        </ListCardLine>
+      }
+      metrics={[
+        { label: 'Lidos', value: formatCount(run.recordsRead) },
+        { label: 'Novos', value: formatCount(run.newCount) },
+        { label: 'Atualizados', value: formatCount(run.updatedCount) },
+        { label: 'Notificações', value: formatCount(run.notificationCount) },
+        { label: 'Erros', value: <RunErrors run={run} /> },
+      ]}
+    />
+  );
+}
+
 function RunsHistory() {
-  const isDesktop = useTelaDesktop();
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
-  const runs = useQuery<Paginated<CollectionRun>, TendersApiError>({
-    queryKey: tendersQueryKeys.collectionRuns(page, perPage),
-    queryFn: () => fetchCollectionRuns(page, perPage),
-    placeholderData: keepPreviousData,
+  const runs = useInfiniteList<CollectionRun, Paginated<CollectionRun>>({
+    queryKey: tendersQueryKeys.collectionRuns,
+    fetchPage: (page) => fetchCollectionRuns(page, LIST_PAGE_SIZE),
+    getKey: runKey,
   });
 
   if (runs.isPending) return <LoadingBlock label="Carregando o histórico…" />;
-  if (runs.isError) {
-    return <LoadError message={runs.error.message} onRetry={() => void runs.refetch()} retrying={runs.isFetching} />;
+  if (runs.error) {
+    return <LoadError message={runs.error.message} onRetry={runs.reload} retrying={runs.isFetching} />;
   }
-  if (runs.data.total === 0) {
+  if (runs.total === 0) {
     return <EmptyState icon={History} title="A coleta ainda não rodou." />;
   }
 
-  const items = runs.data.items;
   return (
-    <div className={`grid grid-cols-1 gap-3 transition-opacity ${runs.isPlaceholderData ? 'opacity-60' : ''}`}>
-      {isDesktop ? (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
-              <tr>
-                <th scope="col" className="px-3 py-2">Tipo</th>
-                <th scope="col" className="px-3 py-2">Início</th>
-                <th scope="col" className="px-3 py-2">Duração</th>
-                <th scope="col" className="px-3 py-2">Status</th>
-                <th scope="col" className="px-3 py-2 text-right">Lidos</th>
-                <th scope="col" className="px-3 py-2 text-right">Novos</th>
-                <th scope="col" className="px-3 py-2 text-right">Atualizados</th>
-                <th scope="col" className="px-3 py-2 text-right">Notificações</th>
-                <th scope="col" className="px-3 py-2 text-right">Erros</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-200">
-              {items.map((run) => (
-                <tr key={run.id} className="align-top">
-                  <td className="px-3 py-2 font-semibold">{RUN_TYPE_LABELS[run.type]}</td>
-                  <td className="px-3 py-2 tabular-nums">{formatIsoDateTime(run.startedAt)}</td>
-                  <td className="px-3 py-2 tabular-nums">{runDurationLabel(run)}</td>
-                  <td className="px-3 py-2">
-                    <RunStatusPill status={run.status} />
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCount(run.recordsRead)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCount(run.newCount)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCount(run.updatedCount)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatCount(run.notificationCount)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    <RunErrors run={run} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <ul className="grid grid-cols-1 gap-2">
-          {items.map((run) => (
-            <li key={run.id} className="rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-sm dark:border-slate-700 dark:bg-slate-800">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{RUN_TYPE_LABELS[run.type]}</span>
-                <RunStatusPill status={run.status} />
-              </div>
-              <p className="mt-1 tabular-nums text-slate-500 dark:text-slate-400">
-                {formatIsoDateTime(run.startedAt)} · {runDurationLabel(run)}
-              </p>
-              <p className="mt-1 tabular-nums text-slate-700 dark:text-slate-200">
-                {formatCount(run.recordsRead)} lidos · {formatCount(run.newCount)} novos · {formatCount(run.updatedCount)} atualizados ·{' '}
-                {formatCount(run.notificationCount)} notificações
-              </p>
-              <div className="mt-1 flex items-center gap-1 text-slate-700 dark:text-slate-200">
-                Erros: <RunErrors run={run} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Pagination
-        page={runs.data.page}
-        totalPages={runs.data.totalPages}
-        total={runs.data.total}
-        perPage={runs.data.perPage}
-        onPage={setPage}
-        onPerPage={(nextPerPage) => {
-          setPerPage(nextPerPage);
-          setPage(1);
-        }}
+    <div className={`transition-opacity ${runs.isPlaceholderData ? 'opacity-60' : ''}`}>
+      <VirtualCardList
+        items={runs.items}
+        getKey={runKey}
+        renderItem={(run) => <RunCard run={run} />}
+        total={runs.total}
+        hasNextPage={runs.hasNextPage}
+        isFetchingNextPage={runs.isFetchingNextPage}
+        onLoadMore={runs.loadMore}
+        nextPageError={runs.nextPageError}
+        resetKey="runs"
+        label="Execuções da coleta"
       />
     </div>
   );

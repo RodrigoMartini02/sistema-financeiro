@@ -14,7 +14,7 @@ export function listTabOf(params: URLSearchParams): ListTab {
   return params.get(LIST_TAB_URL_PARAM) === 'contratos' ? 'contratos' : 'editais';
 }
 
-/** Parâmetros só com a aba (a de Editais é o padrão e fica fora da URL); a página volta para a 1. */
+/** Parâmetros só com a aba (a de Editais é o padrão e fica fora da URL). */
 export function listTabParams(tab: ListTab): URLSearchParams {
   const params = new URLSearchParams();
   if (tab === 'contratos') params.set(LIST_TAB_URL_PARAM, tab);

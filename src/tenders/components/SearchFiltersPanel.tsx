@@ -66,7 +66,7 @@ interface SearchFiltersPanelProps {
  * travados aqui.
  */
 export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso }: SearchFiltersPanelProps) {
-  const update = (changes: Partial<Omit<SearchState, 'page'>>) => onChange(withFilters(state, changes));
+  const update = (changes: Partial<SearchState>) => onChange(withFilters(state, changes));
   const locked = state.savedSearchId !== null;
 
   const [minDraft, setMinDraft] = useState<number | null>(() => decimalToReais(state.minValue));
