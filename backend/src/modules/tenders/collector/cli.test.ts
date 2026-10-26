@@ -131,6 +131,59 @@ test('winners-lookup: o CNPJ é obrigatório e tem 14 dígitos; o limite é opci
   assertUsageError(['sweep', '--cnpj', '11222333000181'], /não vale/);
 });
 
+test('federal-probe: sem opções, com órgãos, amostra, janela e limite de páginas', () => {
+  assert.deepEqual(parseCliArgs(['federal-probe']), { name: 'federal-probe', agencyCodes: [], sample: null, from: null, to: null, maxPages: null });
+  assert.deepEqual(
+    parseCliArgs(['federal-probe', '--orgao', '26238, 52121', '--amostra', '8', '--from', '2024-01-01', '--to', '2024-12-31', '--max-pages', '2']),
+    { name: 'federal-probe', agencyCodes: ['26238', '52121'], sample: 8, from: '2024-01-01', to: '2024-12-31', maxPages: 2 },
+    'o ano de 2024, bissexto, passa: o fim está a 365 dias do início',
+  );
+  // O fim pode estar a 365 dias do início, no máximo: o ano inteiro passa, mesmo o bissexto (2024).
+  assert.equal(parseCliArgs(['federal-probe', '--from', '2025-01-01', '--to', '2025-12-31']).name, 'federal-probe');
+  assert.equal(parseCliArgs(['federal-probe', '--from', '2025-01-01', '--to', '2026-01-01']).name, 'federal-probe');
+});
+
+test('federal-probe: órgãos só com dígitos, janela completa de até 365 dias e nenhuma opção de outro comando', () => {
+  assertUsageError(['federal-probe', '--orgao', 'UFMG'], /--orgao/);
+  assertUsageError(['federal-probe', '--orgao', ''], /--orgao/);
+  assertUsageError(['federal-probe', '--orgao', '26238,,x'], /--orgao/);
+  assertUsageError(['federal-probe', '--amostra', '0'], /amostra/);
+  assertUsageError(['federal-probe', '--amostra', '101'], /amostra/);
+  assertUsageError(['federal-probe', '--from', '2025-01-01'], /juntos/);
+  assertUsageError(['federal-probe', '--to', '2025-01-01'], /juntos/);
+  assertUsageError(['federal-probe', '--from', '2024-01-01', '--to', '2025-01-01'], /no máximo 365 dias depois/);
+  assertUsageError(['federal-probe', '--from', '2025-01-01', '--to', '2026-01-02'], /no máximo 365 dias depois/);
+  assertUsageError(['federal-probe', '--from', '2025-02-01', '--to', '2025-01-01'], /antes de --to/);
+  assertUsageError(['federal-probe', '--from', '01/01/2025', '--to', '2025-12-31'], /--from/);
+  assertUsageError(['federal-probe', '--day', '2026-09-14'], /não vale/);
+  assertUsageError(['winners-probe', '--orgao', '26238'], /não vale/);
+  assertUsageError(['sweep', '--amostra', '3'], /não vale/);
+});
+
+test('federal-load e federal-cycle: órgão, faixa e tempo opcionais', () => {
+  assert.deepEqual(parseCliArgs(['federal-load']), { name: 'federal-load', agencyCode: null, from: null, maxMinutes: null });
+  assert.deepEqual(parseCliArgs(['federal-load', '--orgao', '26238', '--from', '2023-01-01', '--max-minutes', '90']), {
+    name: 'federal-load',
+    agencyCode: '26238',
+    from: '2023-01-01',
+    maxMinutes: 90,
+  });
+  assert.deepEqual(parseCliArgs(['federal-cycle']), { name: 'federal-cycle', agencyCode: null, maxMinutes: null });
+  assert.deepEqual(parseCliArgs(['federal-cycle', '--orgao', '26238', '--max-minutes', '30']), { name: 'federal-cycle', agencyCode: '26238', maxMinutes: 30 });
+});
+
+test('federal-load e federal-cycle: um órgão só com dígitos, tempo de 1 a 600 e nenhuma opção de outro comando', () => {
+  assertUsageError(['federal-load', '--orgao', 'UFMG'], /--orgao/);
+  assertUsageError(['federal-load', '--orgao', '26238,52121'], /--orgao/);
+  assertUsageError(['federal-load', '--from', '01/01/2021'], /--from/);
+  assertUsageError(['federal-load', '--max-minutes', '0'], /max-minutes/);
+  assertUsageError(['federal-load', '--max-minutes', '601'], /max-minutes/);
+  assertUsageError(['federal-load', '--to', '2026-01-01'], /não vale/);
+  assertUsageError(['federal-cycle', '--from', '2021-01-01'], /não vale/);
+  assertUsageError(['federal-cycle', '--amostra', '3'], /não vale/);
+  assertUsageError(['federal-cycle', '--orgao', 'x'], /--orgao/);
+});
+
 test('reprocess-notifications exige --since com data válida', () => {
   assert.deepEqual(parseCliArgs(['reprocess-notifications', '--since', '2026-10-01']), {
     name: 'reprocess-notifications',

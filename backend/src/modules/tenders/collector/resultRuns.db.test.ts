@@ -16,7 +16,7 @@ import {
   localTestPool,
   withRollback,
 } from './dbTestSupport';
-import { RESULTS_MAX_PASSES } from './comprasGovClient';
+import { MAX_READ_PASSES } from './comprasGovClient';
 import type { WinnersSettings } from './config';
 import type { TendersDb } from './database';
 import { markResultDayCompleted, readResultBackfillProgress } from './resultProgress';
@@ -535,7 +535,7 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
         assert.equal(errors[0]?.['kind'], 'incomplete');
         assert.deepEqual(
           [errors[0]?.['announced'], errors[0]?.['distinct'], errors[0]?.['passes']],
-          [2, 1, RESULTS_MAX_PASSES],
+          [2, 1, MAX_READ_PASSES],
           'a fonte disse 2, vieram 1, e foram as 4 leituras',
         );
         assert.match(String(errors[0]?.['message']), /2 registros, mas só 1 vieram, mesmo depois de 4 leituras/);
@@ -547,7 +547,7 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
         );
         const metrics = outcome.details['metrics'] as Record<string, unknown>;
         assert.equal(metrics['incompleteWindows'], 1);
-        assert.equal(metrics['extraPasses'], RESULTS_MAX_PASSES - 1);
+        assert.equal(metrics['extraPasses'], MAX_READ_PASSES - 1);
         // O que veio entra (a agregação é idempotente): o dia 24 e a linha do dia 25 que a fonte entregou.
         assert.equal((await publishedWinners(env)).length, 2);
         assert.equal(outcome.newCount, 2);

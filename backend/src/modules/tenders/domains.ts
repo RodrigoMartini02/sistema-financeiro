@@ -100,7 +100,7 @@ export const TENDER_NOTIFICATION_TYPES = [
 ] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
-/** Execuções do coletor; as de contratos são da migration 0085 e as de vencedores, da 0087c. */
+/** Execuções do coletor; as de contratos são da migration 0085, as de vencedores, da 0087c e as de federais, da 0087d. */
 export const COLLECTION_RUN_TYPES = [
   'VARREDURA',
   'INCREMENTAL',
@@ -113,6 +113,8 @@ export const COLLECTION_RUN_TYPES = [
   'CONTRATOS_AVISOS',
   'VENCEDORES_DIARIA',
   'VENCEDORES_CARGA',
+  'FEDERAIS_CARGA',
+  'FEDERAIS_CICLO',
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 

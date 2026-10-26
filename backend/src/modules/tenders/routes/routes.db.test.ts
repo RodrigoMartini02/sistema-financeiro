@@ -605,7 +605,10 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'http-coleta-contratos');
       const as = { id: account.ownerId, type: 'titular' as const };
-      type StatusData = { contracts: { contracts: number | null; activeContracts: number | null; countedOn: string | null; backfill: { completedDays: number } } };
+      type StatusData = {
+        contracts: { contracts: number | null; activeContracts: number | null; countedOn: string | null; backfill: { completedDays: number } };
+        federal: { agencies: number; withData: number; withoutData: number; notMeasured: number; loaded: number; fromYear: number; sourceUntil: string | null; load: unknown; cycle: unknown };
+      };
       const store = await openTestContractStore([
         sampleContract(1, { expiresOn: '2030-01-01' }),
         sampleContract(2, { expiresOn: '2031-01-01' }),
@@ -624,6 +627,14 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
               'a data da contagem dos vigentes é a da publicação',
             );
             assert.equal(typeof status.body.data.contracts.backfill.completedDays, 'number');
+            // O bloco dos contratos federais vem do banco (um registro por órgão), não do armazém: números e as duas últimas execuções.
+            const federal = status.body.data.federal;
+            for (const count of [federal.agencies, federal.withData, federal.withoutData, federal.notMeasured, federal.loaded]) {
+              assert.equal(typeof count, 'number');
+            }
+            assert.equal(federal.agencies, federal.withData + federal.withoutData + federal.notMeasured, 'cada órgão está em um dos três estados');
+            assert.ok(federal.fromYear >= 2000);
+            assert.ok(federal.sourceUntil === null || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00$/.test(federal.sourceUntil));
           },
           store.reader,
         );

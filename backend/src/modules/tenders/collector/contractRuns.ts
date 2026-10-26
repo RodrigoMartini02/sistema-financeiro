@@ -1,9 +1,7 @@
-import { postgresSearchFields } from '../contractStore/textSearch';
 import { ContractStoreReader } from '../contractStore/reader';
-import { ContractStoreWriter, type CheckedContractTerms, type ContractStoreState, type PendingTermsContract, type PublishSummary } from '../contractStore/writer';
-import type { ObjectStorage } from '../objectStorage';
+import type { CheckedContractTerms, ContractStoreState, PendingTermsContract } from '../contractStore/writer';
 import { ARCHIVE_DATASETS, type RunArchive } from './archive';
-import { CollectorConfigError } from './config';
+import { backfillBlockMinutes } from './blockTime';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import {
   contractExpiryFromTerms,
@@ -12,16 +10,12 @@ import {
   type ContractWithoutExpiryReason,
   type TenderContractRow,
 } from './contractMapping';
-import {
-  notifyChangedContractExpiry,
-  notifyContractExpirations,
-  updateSavedSearchTotals,
-  type ChangedContractExpiry,
-} from './contractNotifications';
+import { notifyContractExpirations, updateSavedSearchTotals, type ChangedContractExpiry } from './contractNotifications';
 import { markBackfillDayCompleted, readCompletedBackfillDays, readLastCompletedDailyDays, readNewestBackfillDay, type BackfillDayCounts } from './contractProgress';
 import type { TendersDb } from './database';
 import { PNCP_CONTRACT_ENDPOINTS, PncpRequestError, type PncpContractEndpoint, type PncpQueryParams } from './pncpClient';
 import { COLLECTOR_LOCK_KEYS } from './repository';
+import { RunContractStore, requireStorage } from './runContractStore';
 import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTally } from './runs';
 
 // Execuções de contratos (planos .plans/licitacoes-contratos-a-vencer.md e
@@ -64,6 +58,7 @@ export const BACKFILL_PUBLISH_EVERY_DAYS = 10;
 
 export const BACKFILL_NOT_STARTED = 'carga não iniciada: R2 não configurado';
 export const BACKFILL_FINISHED = 'carga concluída: nenhum dia pendente';
+export const BACKFILL_NO_TIME = 'sem tempo na rotina para a carga de contratos';
 
 /** Por que o bloco da carga parou antes de terminar os dias pendentes. */
 export type BackfillStopReason = 'time' | 'pncp';
@@ -71,77 +66,6 @@ export type BackfillStopReason = 'time' | 'pncp';
 /** Requisições dos dois clientes de contratos (consulta e termos), para o registro da execução. */
 function contractRequests(context: CollectorContext): number {
   return context.contractsPncp.requestCount + context.termsPncp.requestCount;
-}
-
-/** O R2 da coleta de contratos e de vencedores; sem ele (variáveis não definidas), a execução falha com o motivo. */
-export function requireStorage(context: CollectorContext): ObjectStorage {
-  if (!context.storage) {
-    throw new CollectorConfigError(
-      'Os contratos ficam no R2: defina TENDERS_ARCHIVE_ENDPOINT, TENDERS_ARCHIVE_BUCKET, TENDERS_ARCHIVE_ACCESS_KEY_ID, TENDERS_ARCHIVE_SECRET_ACCESS_KEY e TENDERS_STORAGE_PREFIX',
-    );
-  }
-  return context.storage;
-}
-
-/**
- * O armazém de contratos de uma execução: o gravador (a cópia de trabalho e as
- * mudanças) e os vencimentos que mudaram, que esperam a publicação para virar
- * aviso. Um por execução, aberto no começo e fechado no fim.
- */
-class RunContractStore {
-  private readonly expiryChanges = new Map<string, ChangedContractExpiry>();
-  private hasPublished = false;
-  readonly publications: PublishSummary[] = [];
-
-  private constructor(
-    readonly writer: ContractStoreWriter,
-    private readonly context: CollectorContext,
-    private readonly tally: RunTally,
-  ) {}
-
-  static async open(context: CollectorContext, tally: RunTally, runId: number, today: string): Promise<RunContractStore> {
-    const writer = await ContractStoreWriter.open({
-      storage: requireStorage(context),
-      searchFields: postgresSearchFields(context.db),
-      directory: context.contractWorkDirectory,
-      version: runId,
-      today,
-      now: context.now,
-      logger: context.logger,
-    });
-    return new RunContractStore(writer, context, tally);
-  }
-
-  /** O contrato mudou de vencimento: quem favoritou é avisado depois da publicação. */
-  noteExpiryChange(change: ChangedContractExpiry): void {
-    this.expiryChanges.set(change.controlNumber, change);
-  }
-
-  /**
-   * Falso até a primeira publicação concluída. Uma execução que falha antes
-   * disso não publicou o que leu, e quem decide até onde a próxima continua não
-   * pode contar com isso.
-   */
-  get published(): boolean {
-    return this.hasPublished;
-  }
-
-  /** Publica as mudanças (sem mudança, nada) e só então avisa quem favoritou os contratos que mudaram de vencimento. */
-  async publish(): Promise<void> {
-    const summary = await this.writer.publish();
-    this.hasPublished = true;
-    if (summary) {
-      this.publications.push(summary);
-      this.tally.details['publications'] = this.publications.map((publication) => ({ ...publication }));
-    }
-    const changes = [...this.expiryChanges.values()];
-    this.expiryChanges.clear();
-    this.tally.notificationCount += await notifyChangedContractExpiry(this.context.db, changes);
-  }
-
-  async close(): Promise<void> {
-    await this.writer.close();
-  }
 }
 
 interface QueryCounts {
@@ -505,6 +429,8 @@ export interface BackfillOptions {
   to?: string;
   /** Tempo do bloco; sem ele, TENDERS_CONTRACTS_BACKFILL_MINUTES. */
   maxMinutes?: number;
+  /** Instante (ms) em que a rotina inteira precisa ter acabado: o bloco usa só o tempo que sobra, menos a folga. */
+  deadlineAt?: number;
   /** Dias concluídos entre as publicações; sem ele, BACKFILL_PUBLISH_EVERY_DAYS. */
   publishEveryDays?: number;
 }
@@ -541,13 +467,19 @@ interface CompletedDay {
  * concluídos e no fim do bloco, e os dias só são marcados em contrato_carga_dia
  * depois da publicação: um dia com falha do PNCP, ou que a execução não chegou a
  * publicar, fica pendente para a próxima. Antes de cada dia, confere o tempo do
- * bloco e para ao esgotá-lo, com o motivo nos detalhes. Sem o R2, ou sem dia
- * pendente, não roda.
+ * bloco e para ao esgotá-lo, com o motivo nos detalhes. O bloco usa só o tempo que
+ * sobra da rotina diária (`deadlineAt`), menos a folga. Sem o R2, sem dia
+ * pendente ou sem tempo na rotina, não roda.
  */
 export async function runContractsBackfill(context: CollectorContext, options: BackfillOptions = {}): Promise<RunOutcome> {
   if (!context.storage) {
     context.logger.warn('Carga de contratos não iniciada', { reason: BACKFILL_NOT_STARTED });
     return { skipped: true, reason: BACKFILL_NOT_STARTED };
+  }
+  const maxMinutes = backfillBlockMinutes(options.maxMinutes ?? context.config.contracts.backfillMinutes, options.deadlineAt, context.now().getTime());
+  if (maxMinutes === null) {
+    context.logger.warn('Carga de contratos sem tempo na rotina', { deadlineAt: options.deadlineAt });
+    return { skipped: true, reason: BACKFILL_NO_TIME };
   }
   const range = await backfillRange(context, options);
   if ((await pendingBackfillDays(context.db, range)).length === 0) {
@@ -562,7 +494,6 @@ export async function runContractsBackfill(context: CollectorContext, options: B
     async (tally, archive, runId) => {
       const startedAt = context.now().getTime();
       const { from, to } = range;
-      const maxMinutes = options.maxMinutes ?? context.config.contracts.backfillMinutes;
       const publishEveryDays = options.publishEveryDays ?? BACKFILL_PUBLISH_EVERY_DAYS;
       const pendingDays = await pendingBackfillDays(context.db, range);
 

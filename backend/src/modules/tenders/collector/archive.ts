@@ -22,6 +22,8 @@ export const ARCHIVE_DATASETS = {
   legacyNotices: { source: 'pncp', name: 'editais-legado' },
   /** Os resultados dos itens das licitações (Compras.gov.br), com o CPF mascarado antes de entrar (plano dos vencedores). */
   results: { source: 'comprasgov', name: 'resultados' },
+  /** Os contratos federais (Compras.gov.br) que entraram ou mudaram, com o CPF mascarado (plano dos contratos federais). */
+  federalContracts: { source: 'comprasgov', name: 'contratos' },
 } as const;
 export type ArchiveDataset = (typeof ARCHIVE_DATASETS)[keyof typeof ARCHIVE_DATASETS];
 

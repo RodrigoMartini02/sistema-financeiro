@@ -9,7 +9,7 @@ import { openDuckDb, sqlLiteral, toDuckDbPath } from './duckdb';
 import { FILES_FOLDER, MANIFEST_KEY } from './layout';
 import { manifestFiles, parseManifest, type StoreManifest } from './manifest';
 import { publishWith, quietLogger, sampleContract, simpleSearchFields, withTempDirectory } from './storeTestSupport';
-import { ContractStoreWriter } from './writer';
+import { ContractStoreWriter, twinNumber } from './writer';
 
 // Gravação do armazém de contratos com o R2 simulado e campos de busca
 // simplificados: cada "execução" abre o gravador, grava e publica (publishWith).
@@ -74,7 +74,12 @@ test('primeira publicação: os três conjuntos, por ano e faixa, com os totais,
         at(4, { contractYear: 2025, state: 'RJ', expiresOn: '2025-12-31' }),
         at(5, { expiresOn: null, originalTermEnd: null }),
       ]);
-      assert.deepEqual(result, { insertedCount: 5, updatedCount: 0, unchangedCount: 0 });
+      assert.deepEqual(result, {
+        insertedCount: 5,
+        updatedCount: 0,
+        unchangedCount: 0,
+        changedKeys: new Set([at(1), at(2), at(3), at(4, { contractYear: 2025 }), at(5)].map((contract) => contract.pncpControlNumber)),
+      });
     });
 
     assert.deepEqual(summary?.totals, { contracts: 5, active: 3, withoutExpiry: 1 });
@@ -98,6 +103,82 @@ test('primeira publicação: os três conjuntos, por ano e faixa, com os totais,
   });
 });
 
+test('contrato federal do Compras.gov.br: entra nos três conjuntos com a chave comprasgov-..., e a segunda passada não regrava nada', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const federal = at(1, {
+      pncpControlNumber: 'comprasgov-153254-50-00586/2023',
+      contractSequence: 0,
+      contractYear: 2023,
+      governmentSphere: 'F',
+      state: 'MG',
+      expiresOn: '2028-01-02',
+      originalTermEnd: '2028-01-02',
+    });
+    await publishWith(storage, directory, 1, async (writer) => {
+      const result = await writer.upsert([federal, at(2)]);
+      assert.deepEqual([result.insertedCount, result.changedKeys.has(federal.pncpControlNumber)], [2, true]);
+    });
+
+    assert.deepEqual(await controlNumbers(objects, 'contratos'), [federal.pncpControlNumber, at(2).pncpControlNumber]);
+    assert.deepEqual(await controlNumbers(objects, 'vigentes'), [at(2).pncpControlNumber, federal.pncpControlNumber]);
+    assert.deepEqual(
+      (await controlNumbers(objects, 'fornecedor')).sort(),
+      [federal.pncpControlNumber, at(2).pncpControlNumber].sort(),
+      'o federal também aparece na lista por fornecedor',
+    );
+
+    const again = await publishWith(storage, directory, 2, async (writer) => {
+      const result = await writer.upsert([federal]);
+      assert.deepEqual([result.insertedCount, result.updatedCount, result.unchangedCount, result.changedKeys.size], [0, 0, 1, 0]);
+    });
+    assert.equal(again, null, 'nada mudou: nada é publicado');
+  });
+});
+
+test('número para comparar federal e PNCP: sem o /AAAA do fim, só dígitos, sem zeros à esquerda', () => {
+  assert.equal(twinNumber('00586/2023'), '586');
+  assert.equal(twinNumber('586'), '586');
+  assert.equal(twinNumber('05'), '5');
+  assert.equal(twinNumber('2026NE000096'), '2026000096');
+  assert.equal(twinNumber('  000/2024 '), '');
+  assert.equal(twinNumber(null), '');
+  assert.equal(twinNumber('S/N'), '');
+});
+
+test('gêmeos do PNCP: o federal com o mesmo órgão, ano, fornecedor e número (normalizado) de um contrato do PNCP; o resto não', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage } = createMemoryStorage();
+    const pncp = [
+      at(1, { contractNumber: '586', contractYear: 2023, supplierDocument: '11222333000181' }),
+      at(2, { contractNumber: '2026NE000096', contractYear: 2026, supplierDocument: '11222333000181' }),
+      at(3, { contractNumber: '7', contractYear: 2024, supplierDocument: null }),
+    ];
+    await publishWith(storage, directory, 1, async (writer) => void (await writer.upsert(pncp)));
+
+    const federal = (key: string, overrides: Partial<TenderContractRow>): TenderContractRow =>
+      at(50, { pncpControlNumber: `comprasgov-153254-50-${key}`, governmentSphere: 'F', contractSequence: 0, ...overrides });
+    const candidates = [
+      federal('00586/2023', { contractNumber: '00586/2023', contractYear: 2023, supplierDocument: '11222333000181' }),
+      federal('2026NE000096', { contractNumber: '2026NE000096', contractYear: 2026, supplierDocument: '11222333000181' }),
+      federal('00007/2024', { contractNumber: '00007/2024', contractYear: 2024, supplierDocument: null }),
+      // Outro fornecedor, outro ano e outro órgão: não são gêmeos.
+      federal('00586/2023B', { contractNumber: '00586/2023', contractYear: 2023, supplierDocument: '99888777000166' }),
+      federal('00586/2024', { contractNumber: '00586/2024', contractYear: 2024, supplierDocument: '11222333000181' }),
+      federal('00586/2023C', { contractNumber: '00586/2023', contractYear: 2023, supplierDocument: '11222333000181', agencyCnpj: '17217985000104' }),
+      federal('S/N', { contractNumber: 'S/N', contractYear: 2023, supplierDocument: '11222333000181' }),
+    ];
+    await publishWith(storage, directory, 2, async (writer) => {
+      const twins = await writer.findPncpTwins(candidates);
+      assert.deepEqual([...twins].sort(), [candidates[0], candidates[1], candidates[2]].map((row) => row?.pncpControlNumber ?? '').sort());
+      assert.deepEqual([...(await writer.findPncpTwins([]))], []);
+      // Um federal já gravado não é gêmeo de si mesmo: só contratos do PNCP contam.
+      await writer.upsert([candidates[3] as TenderContractRow]);
+      assert.equal((await writer.findPncpTwins([candidates[3] as TenderContractRow])).size, 0);
+    });
+  });
+});
+
 test('estado anterior: das mudanças da execução e dos arquivos; igual não conta como mudança e nada é publicado', async () => {
   await withTempDirectory(async (directory) => {
     const { storage, objects } = createMemoryStorage();
@@ -114,10 +195,16 @@ test('estado anterior: das mudanças da execução e dos arquivos; igual não co
         expiresOn: '2027-01-10',
         payloadHash: 'hash-2',
         firstCollectedAt: '2026-10-19T12:00:00.000Z',
+        publishedAt: '2026-01-12T10:00:00',
       });
 
-      assert.deepEqual(await writer.upsert([at(1)]), { insertedCount: 0, updatedCount: 0, unchangedCount: 1 });
-      assert.deepEqual(await writer.upsert([at(1, { payloadHash: 'outro' }), at(9)]), { insertedCount: 1, updatedCount: 1, unchangedCount: 0 });
+      assert.deepEqual(await writer.upsert([at(1)]), { insertedCount: 0, updatedCount: 0, unchangedCount: 1, changedKeys: new Set() });
+      assert.deepEqual(await writer.upsert([at(1, { payloadHash: 'outro' }), at(9)]), {
+        insertedCount: 1,
+        updatedCount: 1,
+        unchangedCount: 0,
+        changedKeys: new Set([at(1).pncpControlNumber, at(9).pncpControlNumber]),
+      });
       assert.equal((await writer.readStates([at(1).pncpControlNumber])).get(at(1).pncpControlNumber)?.payloadHash, 'outro', 'a mudança da execução vale');
       assert.equal(await writer.pendingChanges(), 2);
     });

@@ -1,14 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  RESULTS_DEADLINE_MARGIN_MINUTES,
-  backfillBlockMinutes,
-  dailyResultsWindow,
-  pendingResultsDays,
-} from './resultRuns';
+import { dailyResultsWindow, pendingResultsDays } from './resultRuns';
 
-// Partes puras das execuções dos vencedores (resultRuns.ts): a janela da coleta diária, os dias pendentes da carga e o
-// tempo do bloco. As execuções inteiras, com banco e R2 simulado, estão em resultRuns.db.test.ts.
+// Partes puras das execuções dos vencedores (resultRuns.ts): a janela da coleta diária e os dias pendentes da carga. As execuções inteiras, com banco e R2 simulado, estão em resultRuns.db.test.ts.
 
 const TODAY = '2026-10-26';
 
@@ -59,20 +53,4 @@ test('carga: --from e --to (reparo) releem a faixa inteira, mesmo os dias já co
 test('carga: faixa invertida ou vazia não tem dia pendente', () => {
   assert.deepEqual(pendingResultsDays({ from: '2026-09-10', to: '2026-09-01' }, new Set(), false), []);
   assert.deepEqual(pendingResultsDays({ from: '2026-09-05', to: '2026-09-05' }, new Set(), false), ['2026-09-05']);
-});
-
-test('tempo do bloco da carga: os minutos configurados, limitados ao que sobra da rotina menos a folga', () => {
-  const now = Date.parse('2026-10-26T09:00:00Z');
-  const minutesFromNow = (minutes: number) => now + minutes * 60_000;
-  assert.equal(backfillBlockMinutes(120, undefined, now), 120, 'sem prazo, valem os minutos configurados');
-  assert.equal(backfillBlockMinutes(120, minutesFromNow(600), now), 120, 'sobra muito: os configurados');
-  assert.equal(backfillBlockMinutes(120, minutesFromNow(100), now), 100 - RESULTS_DEADLINE_MARGIN_MINUTES, 'sobra pouco: o que sobra menos a folga');
-  assert.equal(backfillBlockMinutes(120, minutesFromNow(RESULTS_DEADLINE_MARGIN_MINUTES + 1), now), 1, 'o mínimo é um minuto');
-});
-
-test('tempo do bloco da carga: sem pelo menos um minuto depois da folga, a etapa não roda', () => {
-  const now = Date.parse('2026-10-26T09:00:00Z');
-  assert.equal(backfillBlockMinutes(120, now + RESULTS_DEADLINE_MARGIN_MINUTES * 60_000, now), null);
-  assert.equal(backfillBlockMinutes(120, now + 5 * 60_000, now), null);
-  assert.equal(backfillBlockMinutes(120, now - 60_000, now), null, 'prazo que já passou');
 });

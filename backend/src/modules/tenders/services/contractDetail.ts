@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import type { ContractTermSummary } from '../collector/contractMapping';
-import { PURCHASE_CONTROL_NUMBER, isContractKey } from '../contractStore/layout';
+import { PURCHASE_CONTROL_NUMBER, contractOriginOf, isContractKey, type ContractOrigin } from '../contractStore/layout';
 import { contractExists, readContract } from '../contractStore/queries';
 import { tenderContractFavorites, tenderNotices } from '../db/schema';
 import type { SupplierPersonType } from '../domains';
@@ -69,7 +69,10 @@ export interface ContractDetail {
   publishedAt: string | null;
   pncpUpdatedAt: string | null;
   lastCollectedAt: string | null;
-  pncpLink: string;
+  /** Página do contrato no PNCP; null nos contratos federais do Compras.gov.br, que não têm (a tela não mostra o botão). */
+  pncpLink: string | null;
+  /** De onde vem o contrato: nos de COMPRASGOV, o vencimento é o da fonte e pode estar sem o último aditivo. */
+  origin: ContractOrigin;
   /** Edital de origem na base (mesmo número de controle da compra), para abrir no app. */
   originNoticeId: number | null;
   /** Sem o edital na base: a página da compra no PNCP, montada pelo número de controle. */
@@ -177,7 +180,8 @@ export async function getContractDetail(context: ContractContext, requester: Sea
     publishedAt: toBrasiliaIso(data.publishedAt),
     pncpUpdatedAt: toBrasiliaIso(data.pncpUpdatedAt),
     lastCollectedAt: toBrasiliaIso(data.lastCollectedAt),
-    pncpLink: contractPncpLink(data.agencyCnpj, data.contractYear, data.contractSequence),
+    pncpLink: contractPncpLink(data.pncpControlNumber, data.agencyCnpj, data.contractYear, data.contractSequence),
+    origin: contractOriginOf(data.pncpControlNumber),
     originNoticeId,
     originPncpLink: originNoticeId === null ? purchasePncpLink(data.purchaseControlNumber) : null,
     isFavorite,

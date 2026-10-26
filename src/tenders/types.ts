@@ -258,7 +258,8 @@ export interface ContractListItem {
   isFavorite: boolean;
   /** Trecho do objeto com os termos entre << e >>; null sem termos de busca. */
   highlightedExcerpt: string | null;
-  pncpLink: string;
+  /** Página do documento original; null nos contratos federais do sistema do governo, que não têm. */
+  pncpLink: string | null;
 }
 
 export interface ContractSearchResult extends Paginated<ContractListItem> {
@@ -275,6 +276,9 @@ export interface ContractAmendment {
   addedValue: number | null;
   changesTerm: boolean;
 }
+
+/** De onde vem o contrato: da base nacional de contratações ou, nos federais, do sistema de contratos do governo federal. */
+export type ContractOrigin = 'NATIONAL' | 'FEDERAL';
 
 export interface ContractDetail {
   /** Número de controle do PNCP: a chave do contrato. */
@@ -315,7 +319,9 @@ export interface ContractDetail {
   publishedAt: string | null;
   pncpUpdatedAt: string | null;
   lastCollectedAt: string | null;
-  pncpLink: string;
+  /** Página do documento original; null nos contratos federais do sistema do governo, que não têm. */
+  pncpLink: string | null;
+  origin: ContractOrigin;
   /** Edital de origem na base, para abrir no app. */
   originNoticeId: number | null;
   /** Sem o edital na base: a página da compra no PNCP. */
@@ -519,6 +525,8 @@ export const COLLECTION_RUN_TYPES = [
   'CONTRATOS_AVISOS',
   'VENCEDORES_DIARIA',
   'VENCEDORES_CARGA',
+  'FEDERAIS_CARGA',
+  'FEDERAIS_CICLO',
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 /** Execuções com horário na agenda (a manual não tem). */
@@ -585,6 +593,37 @@ export interface WinnersCollection {
   backfill: ContractsCollection['backfill'];
 }
 
+/** Por que o bloco dos contratos federais parou antes de terminar: tempo ou fonte fora do ar. */
+export type FederalStopReason = 'time' | 'source';
+export type FederalSkipReason = 'withPncpNumber' | 'excluded' | 'recent' | 'agencyWithoutCnpj' | 'termEndsBeforeStart' | 'pncpTwin';
+
+/** A última execução da carga ou do ciclo dos contratos federais. */
+export interface FederalRun {
+  stoppedBy: FederalStopReason | null;
+  /** Órgãos que a carga concluiu ou que o ciclo leu nesta execução. */
+  agencies: number | null;
+  /** Linhas lidas que não viraram contrato, por motivo. */
+  skipped: Record<FederalSkipReason, number> | null;
+  /** Janelas que a fonte não entregou completas, mesmo depois das releituras. */
+  incompleteWindows: number | null;
+}
+
+export interface FederalCollection {
+  /** Órgãos federais da lista da fonte. */
+  agencies: number;
+  /** Órgãos com contrato na fonte (entram no ciclo semanal). */
+  withData: number;
+  withoutData: number;
+  notMeasured: number;
+  /** Órgãos que a carga já leu até o ano de início. */
+  loaded: number;
+  fromYear: number;
+  /** A inclusão mais recente que a fonte tem, em ISO com o fuso de Brasília; null sem leitura. */
+  sourceUntil: string | null;
+  load: FederalRun | null;
+  cycle: FederalRun | null;
+}
+
 export interface CollectionStatus {
   /** A execução mais recente de cada tipo. */
   latestRuns: CollectionRun[];
@@ -593,6 +632,7 @@ export interface CollectionStatus {
   totals: { notices: number; openNotices: number };
   contracts: ContractsCollection;
   winners: WinnersCollection;
+  federal: FederalCollection;
 }
 
 export interface TeamMember {

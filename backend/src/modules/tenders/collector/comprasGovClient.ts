@@ -1,7 +1,9 @@
 import { z } from 'zod/v4';
 
 // Cliente do Compras.gov.br, dados abertos (público, sem autenticação): os resultados das licitações da Lei
-// 14.133, uma linha por item e resultado (plano .plans/licitacoes-vencedores.md). Recebe fetch, sleep, random e now
+// 14.133, uma linha por item e resultado (plano .plans/licitacoes-vencedores.md), e os contratos, os órgãos e as
+// unidades dos órgãos federais (plano .plans/licitacoes-contratos-federais.md). Uma instância só atende todas as
+// consultas, e o intervalo entre pedidos vale para o conjunto. Recebe fetch, sleep, random e now
 // por parâmetro, como o do PNCP, para os testes simularem HTTP e espera sem rede nem relógio real.
 //
 // O endereço, o envelope, o tamanho máximo de página (500) e o fim inclusivo da janela foram confirmados pela
@@ -11,9 +13,11 @@ import { z } from 'zod/v4';
 export const COMPRASGOV_BASE_URL = 'https://dadosabertos.compras.gov.br';
 /** Resultados de itens de contratações da Lei 14.133 (S1). */
 export const RESULTS_PATH = '/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133';
-export const RESULTS_PAGE_SIZE = 500;
+/** Tamanho máximo de página das consultas que aceitam `tamanhoPagina` (a fonte aceita de 10 a 500). */
+export const PAGE_SIZE = 500;
 /**
- * Tamanhos de página das leituras seguintes de um dia, quando a anterior deixou linha de fora. A fonte entrega a
+ * Tamanhos de página das leituras seguintes de uma janela (um dia de resultados, um órgão e ano de contratos), quando a
+ * anterior deixou linha de fora. A fonte entrega a
  * primeira leitura de muitos dias com páginas que não se encaixam: uma linha vem em duas páginas seguidas e outras não
  * vêm em página nenhuma, mesmo com a soma das páginas igual ao total informado. Medido em 25/10/2026: dos 20 dias
  * amostrados de 2021 a 2026, 13 vieram assim (de 1% a 12% das linhas do dia; os 7 inteiros eram, em 6 casos, de até duas
@@ -22,13 +26,67 @@ export const RESULTS_PAGE_SIZE = 500;
  * repetida, nos 9 dias em que se mediu (a primeira leitura, de 500 ou de 437, veio falha nos dois casos). Tamanhos
  * próximos de 500 custam poucos pedidos a mais; os últimos são a folga para o caso de a segunda também vir falha.
  */
-export const RESULTS_RETRY_PAGE_SIZES = [499, 437, 389] as const;
-/** Leituras de um dia, no máximo: a primeira, com o tamanho normal de página, e uma para cada tamanho acima. */
-export const RESULTS_MAX_PASSES = 1 + RESULTS_RETRY_PAGE_SIZES.length;
+export const RETRY_PAGE_SIZES = [499, 437, 389] as const;
+/** Leituras de uma janela, no máximo: a primeira, com o tamanho normal de página, e uma para cada tamanho acima. */
+export const MAX_READ_PASSES = 1 + RETRY_PAGE_SIZES.length;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_ATTEMPTS = 5;
 /** Teto de páginas de uma janela: só evita laço sem fim se a fonte nunca disser que acabou. */
 const MAX_PAGES_PER_WINDOW = 5_000;
+
+/**
+ * Uma consulta da fonte: o endereço, o nome curto que vai nas mensagens de erro e como ela recebe a janela e o tamanho
+ * de página.
+ */
+export interface ComprasGovEndpoint {
+  name: 'resultados' | 'contratos' | 'orgaos' | 'unidades';
+  path: string;
+  /** Nomes dos parâmetros de data da janela; sem eles, a consulta não leva janela. */
+  dateParams: { initial: string; final: string } | null;
+  /** A consulta aceita `tamanhoPagina`; as de órgãos e unidades vêm sempre com páginas de 500. */
+  pageSizeParam: boolean;
+}
+
+export const RESULTS_ENDPOINT: ComprasGovEndpoint = {
+  name: 'resultados',
+  path: RESULTS_PATH,
+  dateParams: { initial: 'dataResultadoPncpInicial', final: 'dataResultadoPncpFinal' },
+  pageSizeParam: true,
+};
+/** Contratos federais pelo início da vigência; exige `codigoOrgao` e janela de até 365 dias. */
+export const CONTRACTS_BY_START_ENDPOINT: ComprasGovEndpoint = {
+  name: 'contratos',
+  path: '/modulo-contratos/1_consultarContratos',
+  dateParams: { initial: 'dataVigenciaInicialMin', final: 'dataVigenciaInicialMax' },
+  pageSizeParam: true,
+};
+/** Contratos federais pelo fim da vigência (os vigentes); exige `codigoOrgao` e janela de até 365 dias. */
+export const CONTRACTS_BY_END_ENDPOINT: ComprasGovEndpoint = {
+  name: 'contratos',
+  path: '/modulo-contratos/1.2_consultarContratos_FimVigencia',
+  dateParams: { initial: 'dataVigenciaFinalMin', final: 'dataVigenciaFinalMax' },
+  pageSizeParam: true,
+};
+/** Órgãos (exige `statusOrgao`). */
+export const AGENCIES_ENDPOINT: ComprasGovEndpoint = {
+  name: 'orgaos',
+  path: '/modulo-uasg/2_consultarOrgao',
+  dateParams: null,
+  pageSizeParam: false,
+};
+/** Unidades gestoras, as UASG (exige `statusUasg`). */
+export const UNITS_ENDPOINT: ComprasGovEndpoint = {
+  name: 'unidades',
+  path: '/modulo-uasg/1_consultarUasg',
+  dateParams: null,
+  pageSizeParam: false,
+};
+
+/** Qual consulta e com que filtros além da janela (ex.: `codigoOrgao`); sem isto, os resultados. */
+export interface ComprasGovRequest {
+  endpoint?: ComprasGovEndpoint;
+  params?: Record<string, string>;
+}
 
 /** Intervalo de datas (AAAA-MM-DD, os dois dias inclusive). */
 export interface ComprasGovWindow {
@@ -86,7 +144,7 @@ export interface ComprasGovClientOptions {
 export class ComprasGovRequestError extends Error {
   constructor(
     message: string,
-    readonly details: { endpoint: 'resultados'; page: number; attempts: number; status?: number },
+    readonly details: { endpoint: ComprasGovEndpoint['name']; page: number; attempts: number; status?: number },
   ) {
     super(message);
     this.name = 'ComprasGovRequestError';
@@ -151,7 +209,7 @@ export class ComprasGovClient {
 
   constructor(private readonly options: ComprasGovClientOptions) {
     this.baseUrl = (options.baseUrl ?? COMPRASGOV_BASE_URL).replace(/\/+$/, '');
-    this.pageSize = options.pageSize ?? RESULTS_PAGE_SIZE;
+    this.pageSize = options.pageSize ?? PAGE_SIZE;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxAttempts = options.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
     this.fetchImpl = options.fetch ?? fetch;
@@ -170,11 +228,15 @@ export class ComprasGovClient {
   /**
    * Percorre as páginas de uma janela até `paginasRestantes = 0` (ou até `maxPages`). `pageSize` troca o tamanho da
    * página nesta leitura: a fonte pode entregar páginas que não se encaixam (um registro em duas e outro em nenhuma), e
-   * cada tamanho dá outras páginas, então uma nova leitura com outro tamanho completa a anterior.
+   * cada tamanho dá outras páginas, então uma nova leitura com outro tamanho completa a anterior. `endpoint` e `params`
+   * escolhem outra consulta (contratos, órgãos, unidades); as que não levam janela recebem `null`.
    */
-  async *pages(window: ComprasGovWindow, options: { maxPages?: number; pageSize?: number } = {}): AsyncGenerator<ComprasGovPage> {
+  async *pages(
+    window: ComprasGovWindow | null,
+    options: { maxPages?: number; pageSize?: number } & ComprasGovRequest = {},
+  ): AsyncGenerator<ComprasGovPage> {
     for (let pageNumber = 1; pageNumber <= MAX_PAGES_PER_WINDOW; pageNumber += 1) {
-      const page = await this.fetchPage(window, pageNumber, options.pageSize);
+      const page = await this.fetchPage(window, pageNumber, options.pageSize, options);
       yield page;
 
       const reachedPageLimit = options.maxPages !== undefined && pageNumber >= options.maxPages;
@@ -184,9 +246,16 @@ export class ComprasGovClient {
     }
   }
 
-  async fetchPage(window: ComprasGovWindow, pageNumber: number, pageSize: number = this.pageSize): Promise<ComprasGovPage> {
-    const url = this.buildUrl(windowParams(window), pageNumber, pageSize);
-    return this.withRetries(pageNumber, (attempt) => this.requestPage(url, pageNumber, attempt));
+  async fetchPage(
+    window: ComprasGovWindow | null,
+    pageNumber: number,
+    pageSize: number = this.pageSize,
+    request: ComprasGovRequest = {},
+  ): Promise<ComprasGovPage> {
+    const endpoint = request.endpoint ?? RESULTS_ENDPOINT;
+    const dates = window === null ? null : windowParams(window);
+    const url = this.buildUrl(dates, pageNumber, pageSize, request.params, endpoint);
+    return this.withRetries(endpoint, pageNumber, (attempt) => this.requestPage(url, endpoint, pageNumber, attempt));
   }
 
   /**
@@ -198,9 +267,10 @@ export class ComprasGovClient {
     pageNumber: number,
     pageSize: number = this.pageSize,
     extra: Record<string, string> = {},
+    endpoint: ComprasGovEndpoint = RESULTS_ENDPOINT,
   ): Promise<ComprasGovRawResponse> {
     await this.pause();
-    const url = this.buildUrl(dates, pageNumber, pageSize, extra);
+    const url = this.buildUrl(dates, pageNumber, pageSize, extra, endpoint);
     const startedAt = this.now();
     let response: Response;
     try {
@@ -225,7 +295,7 @@ export class ComprasGovClient {
   }
 
   /** Pausa entre requisições, repetição das falhas passageiras e erro tipado ao desistir. */
-  private async withRetries<T>(pageNumber: number, run: (attempt: number) => Promise<T>): Promise<T> {
+  private async withRetries<T>(endpoint: ComprasGovEndpoint, pageNumber: number, run: (attempt: number) => Promise<T>): Promise<T> {
     for (let attempt = 1; ; attempt += 1) {
       if (attempt === 1) {
         await this.pause();
@@ -238,8 +308,8 @@ export class ComprasGovClient {
           throw error;
         }
         if (attempt >= this.maxAttempts) {
-          throw new ComprasGovRequestError(`A consulta de resultados falhou após ${attempt} tentativa(s): ${error.message}`, {
-            endpoint: 'resultados',
+          throw new ComprasGovRequestError(`A consulta de ${endpoint.name} falhou após ${attempt} tentativa(s): ${error.message}`, {
+            endpoint: endpoint.name,
             page: pageNumber,
             attempts: attempt,
             ...(error.status !== undefined ? { status: error.status } : {}),
@@ -258,7 +328,7 @@ export class ComprasGovClient {
     }
   }
 
-  private async requestPage(url: string, pageNumber: number, attempt: number): Promise<ComprasGovPage> {
+  private async requestPage(url: string, endpoint: ComprasGovEndpoint, pageNumber: number, attempt: number): Promise<ComprasGovPage> {
     const response = await this.sendRequest(url);
 
     if (response.status === 204) {
@@ -271,8 +341,8 @@ export class ComprasGovClient {
         throw new RetryableFailure(`HTTP ${response.status}`, response.status, this.retryAfterDelay(response.headers.get('retry-after')));
       }
       // Sem o corpo da resposta na mensagem: ela vai para o painel de Configurações › Coleta.
-      throw new ComprasGovRequestError(`A consulta de resultados recebeu HTTP ${response.status}`, {
-        endpoint: 'resultados',
+      throw new ComprasGovRequestError(`A consulta de ${endpoint.name} recebeu HTTP ${response.status}`, {
+        endpoint: endpoint.name,
         page: pageNumber,
         attempts: attempt,
         status: response.status,
@@ -312,15 +382,25 @@ export class ComprasGovClient {
     }
   }
 
-  private buildUrl(dates: ComprasGovDateParams, pageNumber: number, pageSize: number, extra: Record<string, string> = {}): string {
-    const query = new URLSearchParams({
-      pagina: String(pageNumber),
-      tamanhoPagina: String(pageSize),
-      dataResultadoPncpInicial: dates.initial,
-      dataResultadoPncpFinal: dates.final,
-      ...extra,
-    });
-    return `${this.baseUrl}${RESULTS_PATH}?${query.toString()}`;
+  private buildUrl(
+    dates: ComprasGovDateParams | null,
+    pageNumber: number,
+    pageSize: number,
+    extra: Record<string, string> = {},
+    endpoint: ComprasGovEndpoint = RESULTS_ENDPOINT,
+  ): string {
+    const query = new URLSearchParams({ pagina: String(pageNumber) });
+    if (endpoint.pageSizeParam) {
+      query.set('tamanhoPagina', String(pageSize));
+    }
+    if (endpoint.dateParams !== null && dates !== null) {
+      query.set(endpoint.dateParams.initial, dates.initial);
+      query.set(endpoint.dateParams.final, dates.final);
+    }
+    for (const [name, value] of Object.entries(extra)) {
+      query.set(name, value);
+    }
+    return `${this.baseUrl}${endpoint.path}?${query.toString()}`;
   }
 
   /** Retry-After quando vier; senão, espera longa no 429 e backoff curto nas outras falhas. */

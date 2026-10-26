@@ -9,6 +9,7 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import type { ContractAmendment, ContractDetail } from '../types';
 import { contractPath } from '../utils/contractKey';
+import { contractOriginView } from '../utils/contractOrigin';
 import { formatIsoDate } from '../utils/dates';
 import { formatCnpj } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
@@ -52,7 +53,19 @@ function supplierDocumentLabel(contract: ContractDetail): string | null {
   return contract.supplierPersonType === 'PJ' ? `CNPJ ${formatCnpj(contract.supplierDocument)}` : contract.supplierDocument;
 }
 
-function AmendmentsList({ amendments, hasOriginalEnd }: { amendments: ContractAmendment[] | null; hasOriginalEnd: boolean }) {
+function AmendmentsList({
+  amendments,
+  hasOriginalEnd,
+  notice,
+}: {
+  amendments: ContractAmendment[] | null;
+  hasOriginalEnd: boolean;
+  /** Texto no lugar da lista, quando a origem do contrato não informa aditivos. */
+  notice: string | null;
+}) {
+  if (notice !== null) {
+    return <p className="text-sm text-slate-600 dark:text-slate-300">{notice}</p>;
+  }
   if (amendments === null) {
     return (
       <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -113,6 +126,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
   const city = [contract.cityName, contract.state].filter(Boolean).join('/');
   const sphere = contract.governmentSphere ? SPHERE_LABELS[contract.governmentSphere] : undefined;
   const supplierDocument = supplierDocumentLabel(contract);
+  const origin = contractOriginView(contract);
 
   return (
     <article className="grid grid-cols-1 gap-6">
@@ -124,10 +138,12 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
         <h2 className="text-base font-semibold leading-snug text-slate-900 dark:text-slate-100 sm:text-lg">{contract.contractObject}</h2>
         <div className="flex flex-wrap items-start gap-2">
           <ContractFavoriteButton contract={contract} variant="labeled" />
-          <a href={contract.pncpLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
-            <ExternalLink size={14} aria-hidden="true" />
-            Ver documento original
-          </a>
+          {origin.documentLink && (
+            <a href={origin.documentLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              <ExternalLink size={14} aria-hidden="true" />
+              Ver documento original
+            </a>
+          )}
           {contract.originNoticeId !== null ? (
             <Link to={`/editais/${contract.originNoticeId}`} className={linkClass}>
               <FileSearch size={14} aria-hidden="true" />
@@ -158,10 +174,11 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
             <span className="font-semibold">{contract.expiresOn ? formatIsoDate(contract.expiresOn) : 'Sem data de fim'}</span>
           </InfoItem>
         </dl>
+        {origin.expiryNotice && <p className="text-xs text-slate-500 dark:text-slate-400">{origin.expiryNotice}</p>}
       </Section>
 
       <Section title="Aditivos e rescisões">
-        <AmendmentsList amendments={contract.amendments} hasOriginalEnd={contract.originalTermEnd !== null} />
+        <AmendmentsList amendments={contract.amendments} hasOriginalEnd={contract.originalTermEnd !== null} notice={origin.amendmentsNotice} />
       </Section>
 
       <Section title="Contrato">
@@ -181,7 +198,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
           <InfoItem label="Processo">{contract.processNumber ?? 'Não informado'}</InfoItem>
           <InfoItem label="Ano">{contract.contractYear}</InfoItem>
           <InfoItem label="Assinatura">{formatIsoDate(contract.signedAt)}</InfoItem>
-          <InfoItem label="Número de controle">{contract.pncpControlNumber}</InfoItem>
+          {origin.showControlNumber && <InfoItem label="Número de controle">{contract.pncpControlNumber}</InfoItem>}
           {contract.purchaseControlNumber && <InfoItem label="Compra de origem">{contract.purchaseControlNumber}</InfoItem>}
         </dl>
       </Section>

@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { COLLECTION_RUN_TYPES, type ContractsCollection } from '../types';
-import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runErrorLines, winnersDailySummary, winnersRowsLabel } from './collectionRuns';
+import { COLLECTION_RUN_TYPES, type ContractsCollection, type FederalCollection } from '../types';
+import {
+  archiveSummaryLabel,
+  backfillSummary,
+  dailyCollectionSummary,
+  federalSummary,
+  runErrorLines,
+  winnersDailySummary,
+  winnersRowsLabel,
+} from './collectionRuns';
 import { RUN_TYPE_LABELS } from './labels';
 
 type Backfill = ContractsCollection['backfill'];
@@ -124,6 +132,52 @@ test('arquivo bruto: arquivos e tamanho, em KB abaixo de 1 MB, com as falhas de 
   assert.equal(labelOf({ enabled: true, files: 1, records: 1, bytes: 300, failures: 0 }), '1 arquivo · 1 KB');
   assert.equal(labelOf({ enabled: true, files: 2, records: 9, bytes: 2_097_152, failures: 1 }), '2 arquivos · 2 MB · 1 falha no envio');
   assert.equal(labelOf({ enabled: true, files: 0, records: 0, bytes: 0, failures: 3 }), 'Nenhum arquivo · 3 falhas no envio');
+});
+
+// ---- Contratos federais (plano .plans/licitacoes-contratos-federais.md) ----
+
+const FEDERAL: FederalCollection = {
+  agencies: 1159,
+  withData: 38,
+  withoutData: 400,
+  notMeasured: 721,
+  loaded: 438,
+  fromYear: 2021,
+  sourceUntil: '2026-09-03T14:05:28-03:00',
+  load: { stoppedBy: 'time', agencies: 80, skipped: { withPncpNumber: 148, excluded: 4, recent: 0, agencyWithoutCnpj: 2, termEndsBeforeStart: 0, pncpTwin: 0 }, incompleteWindows: 1 },
+  cycle: { stoppedBy: null, agencies: 38, skipped: { withPncpNumber: 1_200, excluded: 0, recent: 3, agencyWithoutCnpj: 0, termEndsBeforeStart: 0, pncpTwin: 0 }, incompleteWindows: 0 },
+};
+
+test('contratos federais: o andamento da carga por órgão, em número e em estado', () => {
+  assert.deepEqual(
+    [federalSummary(FEDERAL, '2026-10-26').loadStatus, federalSummary(FEDERAL, '2026-10-26').progress],
+    ['Carga em andamento', '438 de 1.159 órgãos lidos desde 2021'],
+  );
+  assert.equal(federalSummary({ ...FEDERAL, loaded: 1159 }, '2026-10-26').loadStatus, 'Carga concluída');
+  const notStarted = federalSummary({ ...FEDERAL, agencies: 0, withData: 0, withoutData: 0, notMeasured: 0, loaded: 0, sourceUntil: null, load: null, cycle: null }, '2026-10-26');
+  assert.deepEqual([notStarted.loadStatus, notStarted.progress, notStarted.sourceUntil, notStarted.notes], ['Carga não iniciada', null, null, []]);
+  assert.equal(federalSummary({ ...FEDERAL, agencies: 1, loaded: 1 }, '2026-10-26').progress, '1 de 1 órgão lidos desde 2021');
+});
+
+test('contratos federais: as notas dizem a parada de cada bloco, as janelas incompletas, as linhas que não entraram e a fonte parada', () => {
+  const summary = federalSummary(FEDERAL, '2026-10-26');
+  assert.equal(summary.sourceUntil, '2026-09-03');
+  assert.deepEqual(summary.notes, [
+    'A última carga parou no limite de tempo do bloco; continua na próxima rotina.',
+    'A fonte não entregou completas 1 janela; elas são lidas de novo na próxima rotina.',
+    'Linhas lidas que não entraram na última execução: 1.200 já constam na base nacional, 3 recentes demais (esperam a carência).',
+    'A fonte só tem contratos incluídos até 03/09/2026; a coleta continua de onde ela parou.',
+  ]);
+  const stopped = federalSummary({ ...FEDERAL, load: null, cycle: { stoppedBy: 'source', agencies: 2, skipped: null, incompleteWindows: null } }, '2026-09-05');
+  assert.deepEqual(stopped.notes, ['O último ciclo parou porque a fonte dos dados não respondeu; continua na próxima rotina.'], 'dois dias atrás da fonte é normal');
+});
+
+test('contratos federais: o texto das notas e os rótulos não citam a fonte pelo nome', () => {
+  const text = federalSummary(FEDERAL, '2026-10-26').notes.join(' ');
+  assert.doesNotMatch(text, /pncp|compras\.gov/i);
+  assert.doesNotMatch(`${RUN_TYPE_LABELS.FEDERAIS_CARGA} ${RUN_TYPE_LABELS.FEDERAIS_CICLO}`, /pncp|compras\.gov/i);
+  assert.equal(RUN_TYPE_LABELS.FEDERAIS_CARGA, 'Contratos federais: carga inicial');
+  assert.equal(RUN_TYPE_LABELS.FEDERAIS_CICLO, 'Contratos federais: ciclo semanal');
 });
 
 test('arquivo bruto: desligado; sem o resumo nos detalhes, sem linha', () => {

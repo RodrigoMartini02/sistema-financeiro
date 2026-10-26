@@ -8,6 +8,7 @@ import type { ComprasGovClient } from './comprasGovClient';
 import type { CollectorConfig } from './config';
 import type { TendersDb } from './database';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime, toPncpDate } from './dates';
+import { readFederalProgress } from './federalProgress';
 import { errorMessage, type CollectorLogger } from './logger';
 import { mapPncpRecord, type TenderNoticeRow } from './mapping';
 import { notifyChangedNotices, notifyNewNotices, notifyNewNoticesCollectedSince, notifyUpcomingDeadlines } from './notifications';
@@ -385,5 +386,10 @@ async function readContractStoreStatus(context: CollectorContext) {
 }
 
 export async function readStatus(context: CollectorContext) {
-  return { ...(await readCollectionStatus(context.db)), contractStore: await readContractStoreStatus(context) };
+  const fromYear = Number(context.config.federal.from.slice(0, 4));
+  return {
+    ...(await readCollectionStatus(context.db)),
+    contractStore: await readContractStoreStatus(context),
+    federal: await readFederalProgress(context.db, fromYear),
+  };
 }

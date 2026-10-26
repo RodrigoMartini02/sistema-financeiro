@@ -2,6 +2,9 @@ import { count, desc, inArray } from 'drizzle-orm';
 import type { BackfillStopReason } from '../collector/contractRuns';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
+import type { FederalSkipReason } from '../collector/federalMapping';
+import { readFederalProgress } from '../collector/federalProgress';
+import type { FederalStopReason } from '../collector/federalRuns';
 import { readCollectionStatus } from '../collector/repository';
 import type { ContractStoreAccess } from '../contractStore/reader';
 import { tenderCollectionRuns, type CollectionRunDetails } from '../db/schema';
@@ -30,8 +33,9 @@ const DAILY_JOBS_SLOT: DailySlot = { hour: 6, minute: 0 };
  * carga de contratos e a de vencedores (enquanto houver dias pendentes) e, aos
  * domingos, a limpeza dos editais. A incremental não está agendada, e a
  * limpeza dos contratos saiu (os encerrados ficam na base): o tipo fica só no
- * histórico. Os vencedores só rodam com TENDERS_WINNERS_ENABLED no Cron Job
- * (o painel não sabe se está ligada: sem execução, ele não mostra a próxima).
+ * histórico. Os vencedores só rodam com TENDERS_WINNERS_ENABLED no Cron Job, e
+ * os contratos federais, com TENDERS_FEDERAL_ENABLED (o painel não sabe se
+ * estão ligadas: sem execução, ele não mostra a próxima).
  */
 export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   VARREDURA: [DAILY_JOBS_SLOT],
@@ -44,6 +48,8 @@ export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   CONTRATOS_AVISOS: [DAILY_JOBS_SLOT],
   VENCEDORES_DIARIA: [DAILY_JOBS_SLOT],
   VENCEDORES_CARGA: [DAILY_JOBS_SLOT],
+  FEDERAIS_CARGA: [DAILY_JOBS_SLOT],
+  FEDERAIS_CICLO: [DAILY_JOBS_SLOT],
 };
 
 const SCHEDULED_RUN_TYPES = Object.keys(COLLECTION_SCHEDULE) as ScheduledRunType[];
@@ -171,6 +177,35 @@ export interface WinnersOverview {
   };
 }
 
+/** A última execução da carga ou do ciclo dos contratos federais, lida dos detalhes que ela grava. */
+export interface FederalRunView {
+  stoppedBy: FederalStopReason | null;
+  /** Órgãos que a carga concluiu ou que o ciclo leu nesta execução. */
+  agencies: number | null;
+  /** Linhas lidas que não viraram contrato, por motivo (o PNCP já tem, excluída, recente demais, órgão sem CNPJ). */
+  skipped: Record<FederalSkipReason, number> | null;
+  /** Janelas que a fonte não entregou completas, mesmo depois das releituras. */
+  incompleteWindows: number | null;
+}
+
+export interface FederalOverview {
+  /** Órgãos federais da lista da fonte. */
+  agencies: number;
+  /** Órgãos com contrato na fonte (entram no ciclo semanal). */
+  withData: number;
+  withoutData: number;
+  /** Órgãos que a carga ainda não mediu. */
+  notMeasured: number;
+  /** Órgãos que a carga já leu até o ano de início. */
+  loaded: number;
+  /** Ano de início da última carga (TENDERS_FEDERAL_FROM); sem carga ainda, o padrão. */
+  fromYear: number;
+  /** A inclusão mais recente que a fonte tem (ISO, Brasília); null sem leitura. A fonte pode ficar semanas sem dado novo. */
+  sourceUntil: string | null;
+  load: FederalRunView | null;
+  cycle: FederalRunView | null;
+}
+
 export interface CollectionStatusView {
   latestRuns: CollectionRunView[];
   /** null: tipo sem agenda (a incremental). */
@@ -178,9 +213,41 @@ export interface CollectionStatusView {
   totals: { notices: number; openNotices: number };
   contracts: ContractsOverview;
   winners: WinnersOverview;
+  federal: FederalOverview;
 }
 
 const BACKFILL_STOP_REASONS: readonly BackfillStopReason[] = ['time', 'pncp'];
+const FEDERAL_STOP_REASONS: readonly FederalStopReason[] = ['time', 'source'];
+const FEDERAL_SKIP_REASONS: readonly FederalSkipReason[] = ['withPncpNumber', 'excluded', 'recent', 'agencyWithoutCnpj', 'termEndsBeforeStart', 'pncpTwin'];
+/** O padrão de TENDERS_FEDERAL_FROM, para o painel antes da primeira carga. */
+const DEFAULT_FEDERAL_FROM_YEAR = 2021;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const numberOf = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/**
+ * Detalhes da carga (`backfill`) ou do ciclo (`cycle`) dos federais gravados pela execução (federalRuns.ts); sem o bloco
+ * (execução em andamento, ou de outro tipo), null.
+ */
+export function federalRunView(details: CollectionRunDetails | undefined, block: 'backfill' | 'cycle'): FederalRunView | null {
+  const section = details?.[block];
+  if (!isRecord(section)) {
+    return null;
+  }
+  const metrics = isRecord(details?.['metrics']) ? details['metrics'] : {};
+  const skipped = isRecord(metrics['skipped']) ? metrics['skipped'] : null;
+  return {
+    stoppedBy: FEDERAL_STOP_REASONS.find((reason) => reason === section['stoppedBy']) ?? null,
+    agencies: numberOf(block === 'backfill' ? section['agenciesCompleted'] : section['agenciesRead']),
+    skipped: skipped === null ? null : (Object.fromEntries(FEDERAL_SKIP_REASONS.map((reason) => [reason, numberOf(skipped[reason]) ?? 0])) as Record<FederalSkipReason, number>),
+    incompleteWindows: numberOf(metrics['incompleteWindows']),
+  };
+}
+
+/** Data e hora de Brasília sem fuso do Postgres ("2026-09-03 14:05:28") em ISO com o fuso; vazia, null. */
+function brasiliaLocalIso(value: string | null): string | null {
+  return value === null ? null : `${value.replace(' ', 'T')}-03:00`;
+}
 
 /** Detalhes da carga gravados pela execução (contractRuns.ts); fora do formato, null. */
 export function backfillRunView(details: CollectionRunDetails | undefined): BackfillRunView | null {
@@ -201,6 +268,11 @@ export async function readCollectionOverview(db: TendersDb, contractStore: Contr
   const status = await readCollectionStatus(db);
   const lastBackfill = status.latestRuns.find((run) => run.type === 'CONTRATOS_CARGA');
   const lastWinnersBackfill = status.latestRuns.find((run) => run.type === 'VENCEDORES_CARGA');
+  const lastFederalLoad = status.latestRuns.find((run) => run.type === 'FEDERAIS_CARGA');
+  const lastFederalCycle = status.latestRuns.find((run) => run.type === 'FEDERAIS_CICLO');
+  const federalBackfill = lastFederalLoad?.details['backfill'];
+  const federalFromYear = (isRecord(federalBackfill) ? numberOf(federalBackfill['fromYear']) : null) ?? DEFAULT_FEDERAL_FROM_YEAR;
+  const federal = await readFederalProgress(db, federalFromYear);
   // Os totais de contratos e de vencedores vêm do manifesto do armazém (versão em uso), não de uma consulta: o
   // endpoint de status nunca abre o DuckDB.
   const stored = contractStore.status();
@@ -228,6 +300,17 @@ export async function readCollectionOverview(db: TendersDb, contractStore: Contr
         oldestDay: status.winners.backfill.oldestDay,
         lastRun: backfillRunView(lastWinnersBackfill?.details),
       },
+    },
+    federal: {
+      agencies: federal.agencies,
+      withData: federal.withData,
+      withoutData: federal.withoutData,
+      notMeasured: federal.notMeasured,
+      loaded: federal.loaded,
+      fromYear: federalFromYear,
+      sourceUntil: brasiliaLocalIso(federal.lastInclusion),
+      load: federalRunView(lastFederalLoad?.details, 'backfill'),
+      cycle: federalRunView(lastFederalCycle?.details, 'cycle'),
     },
   };
 }

@@ -12,6 +12,7 @@ import {
   WINNER_COLUMNS,
   WINNER_PARTITION,
   columnsOf,
+  contractOriginOf,
   fromStoreRecord,
   isContractKey,
   storeFileKey,
@@ -100,9 +101,21 @@ test('o número de controle da compra: CNPJ do órgão, sequencial sem zeros à 
   assert.equal(PURCHASE_CONTROL_NUMBER.test('03353358000196-1-000216/26'), false);
 });
 
-test('chave do contrato: o número de controle do PNCP ou comprasgov-<id>; qualquer outra coisa não entra em consulta', () => {
-  for (const valid of ['03353358000196-2-000216/2026', '00394460005887-1-1234567/2021', 'comprasgov-98765']) {
-    assert.equal(isContractKey(valid), true, valid);
+test('origem do contrato pela chave: a do PNCP começa pelo CNPJ, a federal por comprasgov-', () => {
+  assert.equal(contractOriginOf('03353358000196-2-000216/2026'), 'NATIONAL');
+  assert.equal(contractOriginOf('comprasgov-153254-50-00586/2023'), 'FEDERAL');
+});
+
+test('chave do contrato: o número de controle do PNCP ou comprasgov-<unidade>-<tipo>-<número>; qualquer outra coisa não entra em consulta', () => {
+  const valid = [
+    '03353358000196-2-000216/2026',
+    '00394460005887-1-1234567/2021',
+    'comprasgov-153254-50-00586/2023',
+    'comprasgov-153254-99-2024NE000014',
+    'comprasgov-1-8-A_b.c-1/2',
+  ];
+  for (const key of valid) {
+    assert.equal(isContractKey(key), true, key);
   }
   const invalid = [
     '',
@@ -115,6 +128,14 @@ test('chave do contrato: o número de controle do PNCP ou comprasgov-<id>; qualq
     '03353358000196-2-000216/2026\n',
     'comprasgov-',
     'comprasgov-abc',
+    'comprasgov-98765',
+    'comprasgov-153254-50',
+    'comprasgov-153254-50-',
+    "comprasgov-153254-50-00586/2023'",
+    'comprasgov-153254-50-00586 2023',
+    'comprasgov-153254-50-00586/2023\n',
+    `comprasgov-153254-50-${'9'.repeat(41)}`,
+    'comprasgov-12345678901-50-1',
     '../03353358000196-2-000216/2026',
     `${'1'.repeat(14)}-2-${'3'.repeat(60)}/2026`,
     null,

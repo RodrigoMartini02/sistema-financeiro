@@ -73,12 +73,16 @@ export interface ContractStoreState {
   expiresOn: string | null;
   payloadHash: string;
   firstCollectedAt: string;
+  /** Data e hora de publicação (a inclusão, nos federais) no formato do PNCP, como gravada; null se vazia. */
+  publishedAt: string | null;
 }
 
 export interface ContractUpsertResult {
   insertedCount: number;
   updatedCount: number;
   unchangedCount: number;
+  /** As chaves dos contratos novos e alterados (o resto não foi regravado): as execuções arquivam só estes. */
+  changedKeys: ReadonlySet<string>;
 }
 
 export interface PublishSummary {
@@ -115,6 +119,7 @@ interface StateRow {
   aditivos_referencia: string | null;
   hash_payload: string;
   primeira_coleta_em: string;
+  data_publicacao_pncp: string | null;
 }
 
 /** Faixa de uma parte: de `from` (inclusive) até `to` (exclusive; null = até o fim do ano). */
@@ -127,6 +132,17 @@ interface SliceRange {
 
 interface WrittenFile extends ManifestFile {
   localPath: string;
+}
+
+/** Contratos federais conferidos contra o PNCP por consulta (cada um vira uma linha de VALUES). */
+const TWIN_BATCH_SIZE = 2_000;
+
+/**
+ * O número do contrato para comparar federal e PNCP: sem o "/AAAA" do fim, só os dígitos e sem zeros à esquerda
+ * ("00586/2023" e "586" dão "586"; "2026NE000096" dá "2026000096"). Vazio: sem número comparável.
+ */
+export function twinNumber(contractNumber: string | null): string {
+  return (contractNumber ?? '').trim().replace(/\/\d{4}$/, '').replace(/\D/g, '').replace(/^0+/, '');
 }
 
 /** Mesma regra da antiga gravação no Postgres: só muda com outro JSON, outro vencimento ou outra conferência dos termos. */
@@ -214,7 +230,7 @@ export class ContractStoreWriter {
       return new Map();
     }
     const list = unique.map(sqlLiteral).join(', ');
-    const columns = 'numero_controle_pncp, vencimento, aditivos, aditivos_referencia, hash_payload, primeira_coleta_em';
+    const columns = 'numero_controle_pncp, vencimento, aditivos, aditivos_referencia, hash_payload, primeira_coleta_em, data_publicacao_pncp';
     const result = await this.connection.runAndReadAll(`
       SELECT ${columns} FROM mudancas WHERE numero_controle_pncp IN (${list})
       UNION ALL
@@ -229,9 +245,49 @@ export class ContractStoreWriter {
         expiresOn: row.vencimento,
         payloadHash: row.hash_payload,
         firstCollectedAt: row.primeira_coleta_em,
+        publishedAt: row.data_publicacao_pncp,
       });
     }
     return states;
+  }
+
+  /**
+   * Dos contratos federais dados (do Compras.gov.br), as chaves dos que já existem no armazém como contrato do PNCP: o
+   * mesmo órgão, ano, fornecedor e número, sem o "/AAAA" do fim e sem zeros à esquerda (no empenho, o número inteiro,
+   * sem as letras). A fonte federal deixa de ligar ao número do PNCP contratos que o PNCP tem (medido na UFMG em
+   * 26/10/2026: 5% dos federais, todos empenhos de 2026); entrar duas vezes dobraria a contagem e as buscas. Só olha o que
+   * já está publicado ou gravado na execução, e só contratos do PNCP (a chave do federal começa por `comprasgov-`).
+   */
+  async findPncpTwins(rows: readonly TenderContractRow[]): Promise<Set<string>> {
+    const twins = new Set<string>();
+    const candidates = rows
+      .map((row) => ({ row, number: twinNumber(row.contractNumber) }))
+      .filter((candidate) => candidate.number !== '');
+    for (let start = 0; start < candidates.length; start += TWIN_BATCH_SIZE) {
+      const batch = candidates.slice(start, start + TWIN_BATCH_SIZE);
+      const values = batch
+        .map(
+          ({ row, number }) =>
+            `(${sqlLiteral(row.pncpControlNumber)}, ${sqlLiteral(row.agencyCnpj)}, ${Math.trunc(row.contractYear)}, ${row.supplierDocument === null ? 'NULL' : sqlLiteral(row.supplierDocument)}, ${sqlLiteral(number)})`,
+        )
+        .join(', ');
+      const years = [...new Set(batch.map(({ row }) => Math.trunc(row.contractYear)))].join(', ');
+      const cnpjs = [...new Set(batch.map(({ row }) => row.agencyCnpj))].map(sqlLiteral).join(', ');
+      const result = await this.connection.runAndReadAll(`
+        WITH f(chave, cnpj, ano, doc, numero) AS (VALUES ${values}),
+             p AS (
+               SELECT orgao_cnpj, ano_contrato, fornecedor_documento,
+                      ltrim(regexp_replace(regexp_replace(trim(coalesce(numero_contrato, '')), '/[0-9]{4}$', ''), '[^0-9]', '', 'g'), '0') AS numero
+                 FROM ${this.currentRows('numero_controle_pncp, orgao_cnpj, ano_contrato, fornecedor_documento, numero_contrato')}
+                WHERE ano_contrato IN (${years}) AND orgao_cnpj IN (${cnpjs}) AND numero_controle_pncp NOT LIKE 'comprasgov-%')
+        SELECT f.chave FROM f
+         WHERE EXISTS (SELECT 1 FROM p WHERE p.orgao_cnpj = f.cnpj AND p.ano_contrato = f.ano AND p.numero = f.numero
+                         AND p.fornecedor_documento IS NOT DISTINCT FROM f.doc)`);
+      for (const row of result.getRowObjectsJson()) {
+        twins.add(String(row['chave']));
+      }
+    }
+    return twins;
   }
 
   /** Os contratos como estão agora: das mudanças da execução, ou dos arquivos quando não mudaram. */
@@ -328,7 +384,7 @@ export class ContractStoreWriter {
     // O mesmo contrato duas vezes na página: fica o último.
     const unique = [...new Map(rows.map((row) => [row.pncpControlNumber, row])).values()];
     if (unique.length === 0) {
-      return { insertedCount: 0, updatedCount: 0, unchangedCount: 0 };
+      return { insertedCount: 0, updatedCount: 0, unchangedCount: 0, changedKeys: new Set() };
     }
     const states = await this.readStates(unique.map((row) => row.pncpControlNumber));
     const now = this.options.now().toISOString();
@@ -354,7 +410,12 @@ export class ContractStoreWriter {
       }));
     }
     const updatedCount = changed.length - insertedCount;
-    return { insertedCount, updatedCount, unchangedCount: unique.length - changed.length };
+    return {
+      insertedCount,
+      updatedCount,
+      unchangedCount: unique.length - changed.length,
+      changedKeys: new Set(changed.map((contract) => contract.pncpControlNumber)),
+    };
   }
 
   /**

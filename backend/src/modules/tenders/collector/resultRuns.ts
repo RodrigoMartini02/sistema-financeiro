@@ -1,8 +1,10 @@
 import type { ResultRecord } from '../contractStore/winnerRows';
 import { WinnerStoreWriter, type WinnerApplyResult, type WinnerPublishSummary } from '../contractStore/winnerWriter';
 import { ARCHIVE_DATASETS, type RunArchive } from './archive';
-import { ComprasGovRequestError, RESULTS_MAX_PASSES, RESULTS_RETRY_PAGE_SIZES, type ComprasGovWindow } from './comprasGovClient';
-import { dailyContractWindow, daysFromNewestToOldest, requireStorage, type BackfillStopReason } from './contractRuns';
+import { backfillBlockMinutes, flushArchiveOrAbort } from './blockTime';
+import { ComprasGovRequestError, MAX_READ_PASSES, RETRY_PAGE_SIZES, type ComprasGovWindow } from './comprasGovClient';
+import { dailyContractWindow, daysFromNewestToOldest, type BackfillStopReason } from './contractRuns';
+import { requireStorage } from './runContractStore';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import { maskPersonDocument, mapResult, sourceRowKey } from './resultMapping';
 import {
@@ -27,9 +29,9 @@ import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTall
 // A leitura é de um dia por vez, e a fonte informa quantas linhas o dia tem. Uma leitura só vale quando traz todas, cada
 // uma contada uma vez, pela identidade (licitação, item e sequência). A primeira leitura de um dia costuma vir com páginas
 // que não se encaixam (de 1% a 12% das linhas repetidas e outras tantas faltando, mesmo com a soma das páginas igual ao
-// total), e pedir a mesma página de novo devolve a mesma resposta (ver RESULTS_RETRY_PAGE_SIZES). Por isso, faltando
+// total), e pedir a mesma página de novo devolve a mesma resposta (ver RETRY_PAGE_SIZES). Por isso, faltando
 // linha, o dia é lido de novo com outro tamanho de página e só as linhas que faltavam são aplicadas; sem completar em
-// RESULTS_MAX_PASSES leituras, o dia não vale como lido.
+// MAX_READ_PASSES leituras, o dia não vale como lido.
 //
 // A fonte filtra pela data do resultado, e um resultado pode ser informado, corrigido ou cancelado dias depois (a
 // atualização chega até 8 dias depois, medido). Por isso a coleta diária relê os 7 dias antes do último dia lido.
@@ -48,8 +50,6 @@ export const RESULTS_MAX_INVALID_RATIO = 0.05;
 const MIN_RECORDS_FOR_INVALID_RATIO = 100;
 /** Dias seguidos com falha da fonte que encerram o bloco da carga (a fonte está fora do ar). */
 const MAX_CONSECUTIVE_FAILED_DAYS = 3;
-/** Folga do prazo da rotina: o bloco da carga termina e publica antes dele. */
-export const RESULTS_DEADLINE_MARGIN_MINUTES = 15;
 
 export const RESULTS_BACKFILL_NOT_STARTED = 'carga de vencedores não iniciada: R2 não configurado';
 export const RESULTS_BACKFILL_FINISHED = 'carga de vencedores concluída: nenhum dia pendente';
@@ -87,19 +87,6 @@ export function dailyResultsWindow(today: string, lastCompletedDay: string | nul
 export function pendingResultsDays(range: { from: string; to: string }, completed: ReadonlySet<string>, repair: boolean): string[] {
   const days = daysFromNewestToOldest(range.from, range.to);
   return repair ? days : days.filter((day) => !completed.has(day));
-}
-
-/**
- * Minutos do bloco da carga: os configurados, limitados ao que sobra da rotina (até `deadlineAt`) menos a folga de
- * RESULTS_DEADLINE_MARGIN_MINUTES, para o bloco terminar e publicar antes do limite. Null quando não sobra pelo menos
- * um minuto: a etapa sai pulada, sem abrir execução. Sem prazo, valem os minutos configurados.
- */
-export function backfillBlockMinutes(configuredMinutes: number, deadlineAt: number | undefined, now: number): number | null {
-  if (deadlineAt === undefined) {
-    return configuredMinutes;
-  }
-  const available = Math.floor((deadlineAt - now) / 60_000) - RESULTS_DEADLINE_MARGIN_MINUTES;
-  return available < 1 ? null : Math.min(configuredMinutes, available);
 }
 
 type CancellationLagBucket = '0-7' | '8-30' | '31+';
@@ -269,19 +256,6 @@ class RunWinnerStore {
   }
 }
 
-/**
- * Descarrega o arquivo bruto antes de publicar. O envio que falha não lança (conta erro e descarta a parte), então a
- * comparação das falhas antes e depois é o que cancela a publicação: sem o bruto, nada é dado como lido.
- */
-async function flushArchiveOrAbort(archive: RunArchive): Promise<void> {
-  const before = archive.summary()?.failures ?? 0;
-  await archive.flush();
-  const after = archive.summary()?.failures ?? 0;
-  if (after > before) {
-    throw new Error('O arquivo bruto não foi enviado ao R2: a publicação foi cancelada e nada foi dado como lido');
-  }
-}
-
 interface WindowRead {
   /**
    * Falso quando a fonte falhou no meio, ou quando, depois de todas as leituras, ainda faltou linha em relação ao total
@@ -319,7 +293,7 @@ function absorbWindowRead(total: WindowRead, part: WindowRead): void {
  *
  * A fonte informa o total de linhas do dia, e uma leitura só vale quando traz todas: cada linha é contada uma vez, pela
  * identidade (sourceRowKey), e se faltou alguma o dia é lido de novo com outro tamanho de página
- * (RESULTS_RETRY_PAGE_SIZES), aplicando só as linhas que ainda não vieram. Depois de RESULTS_MAX_PASSES leituras sem
+ * (RETRY_PAGE_SIZES), aplicando só as linhas que ainda não vieram. Depois de MAX_READ_PASSES leituras sem
  * completar, o dia não vale como lido. Falha da fonte encerra só o dia; falha do armazém ou do banco, a execução.
  */
 async function readWindow(
@@ -414,13 +388,13 @@ async function readWindow(
   let passes = 0;
   let announced = 0;
   try {
-    for (const pageSize of [undefined, ...RESULTS_RETRY_PAGE_SIZES]) {
+    for (const pageSize of [undefined, ...RETRY_PAGE_SIZES]) {
       passes += 1;
       announced = await readPass(pageSize, passes === 1);
       if (read.recordsRead >= announced) {
         break;
       }
-      if (passes < RESULTS_MAX_PASSES) {
+      if (passes < MAX_READ_PASSES) {
         state.metrics.extraPasses += 1;
         context.logger.warn('Leitura do dia sem todas as linhas da fonte: lendo de novo com outro tamanho de página', {
           window,

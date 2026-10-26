@@ -174,6 +174,44 @@ test('vencedores: a configuração dos contratos não muda', () => {
   assert.deepEqual(config.contracts, { pageSize: 500, termsIntervalMs: 500, backfillFrom: '2021-01-01', backfillMinutes: 480 });
 });
 
+test('federais: desligados por padrão, carga desde 2021-01-01 em blocos de 60 min', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl });
+  assert.deepEqual(config.federal, { enabled: false, from: '2021-01-01', minutes: 60 });
+});
+
+test('federais: só "1" liga as etapas; os valores informados são lidos', () => {
+  const config = loadCollectorConfig({
+    TENDERS_COLLECTOR_DATABASE_URL: databaseUrl,
+    TENDERS_FEDERAL_ENABLED: '1',
+    TENDERS_FEDERAL_FROM: '2023-06-01',
+    TENDERS_FEDERAL_MINUTES: '45',
+  });
+  assert.deepEqual(config.federal, { enabled: true, from: '2023-06-01', minutes: 45 });
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_FEDERAL_ENABLED: '0' }).federal.enabled, false);
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_FEDERAL_ENABLED: ' ' }).federal.enabled, false, 'vazia vale como não informada');
+});
+
+test('federais: valores fora da faixa são recusados, e a variável de ligar só aceita 0 ou 1', () => {
+  const invalid: Array<[string, string]> = [
+    ['TENDERS_FEDERAL_ENABLED', 'true'],
+    ['TENDERS_FEDERAL_ENABLED', 'sim'],
+    ['TENDERS_FEDERAL_ENABLED', '2'],
+    ['TENDERS_FEDERAL_MINUTES', '0'],
+    ['TENDERS_FEDERAL_MINUTES', '601'],
+    ['TENDERS_FEDERAL_FROM', '2021-02-30'],
+    ['TENDERS_FEDERAL_FROM', '01/01/2021'],
+  ];
+  for (const [key, value] of invalid) {
+    assert.throws(() => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, [key]: value }), CollectorConfigError, `${key}=${value}`);
+  }
+});
+
+test('federais: a configuração dos contratos e dos vencedores não muda', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_FEDERAL_ENABLED: '1', TENDERS_FEDERAL_MINUTES: '30' });
+  assert.deepEqual(config.contracts, { pageSize: 500, termsIntervalMs: 500, backfillFrom: '2021-01-01', backfillMinutes: 480 });
+  assert.deepEqual(config.winners, { enabled: false, backfillFrom: '2021-08-01', backfillMinutes: 120 });
+});
+
 test('Compras.gov.br: 1,5 s entre pedidos por padrão, no coletor e sem nenhuma variável (a sondagem não tem banco)', () => {
   assert.deepEqual(loadComprasGovSettings({}), { requestIntervalMs: 1500 });
   assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).comprasGov, { requestIntervalMs: 1500 });

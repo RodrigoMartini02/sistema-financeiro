@@ -80,6 +80,8 @@ export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {
   CONTRATOS_AVISOS: 'Contratos: avisos',
   VENCEDORES_DIARIA: 'Vencedores: coleta diária',
   VENCEDORES_CARGA: 'Vencedores: carga inicial',
+  FEDERAIS_CARGA: 'Contratos federais: carga inicial',
+  FEDERAIS_CICLO: 'Contratos federais: ciclo semanal',
 };
 
 export const RUN_STATUS_LABELS: Record<CollectionRunStatus, string> = {
