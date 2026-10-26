@@ -9,6 +9,7 @@ import {
   TENDER_MODALITY_IDS,
   TRACKING_FILTERS,
 } from '../domains';
+import { isCnpjFormat, isValidCnpj, normalizeCnpj } from '../cnpj';
 import { MAX_SAVED_SEARCH_NAME_LENGTH } from '../services/savedSearches';
 import { MAX_SEARCH_TEXT_LENGTH, MAX_TERM_LENGTH, MAX_TERMS, MIN_TERM_LENGTH } from '../services/searchText';
 
@@ -18,6 +19,9 @@ import { MAX_SEARCH_TEXT_LENGTH, MAX_TERM_LENGTH, MAX_TERMS, MIN_TERM_LENGTH } f
 
 export const MAX_PER_PAGE = 100;
 export const DEFAULT_PER_PAGE = 20;
+/** Licitações vencidas da página do CNPJ: 10 por página, no máximo 50. */
+export const DEFAULT_CNPJ_WINNERS_PER_PAGE = 10;
+export const MAX_CNPJ_WINNERS_PER_PAGE = 50;
 export const MAX_STATES = BRAZILIAN_STATES.length;
 export const MAX_MUNICIPALITIES = 100;
 export const MAX_AGENCIES = 50;
@@ -37,7 +41,6 @@ const MONEY_VALUE = /^\d{1,16}(\.\d{1,2})?$/;
 
 const isState = (value: unknown) => typeof value === 'string' && (BRAZILIAN_STATES as readonly string[]).includes(value.toUpperCase());
 const isMunicipalityCode = (value: unknown) => typeof value === 'string' && /^\d{7}$/.test(value);
-const isCnpj = (value: unknown) => typeof value === 'string' && /^\d{14}$/.test(value);
 const isModality = (value: unknown) => TENDER_MODALITY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 const isContractCategory = (value: unknown) => CONTRACT_CATEGORY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 const isContractType = (value: unknown) => CONTRACT_TYPE_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
@@ -59,10 +62,15 @@ export function idParam(name = 'id'): ValidationChain {
   return param(name).isInt({ min: 1 }).withMessage('Identificador inválido');
 }
 
-export function paginationQuery(): ValidationChain[] {
+/** O CNPJ da rota: 14 dígitos com os dígitos verificadores certos (`isValidCnpj`); sem máscara. */
+export function cnpjParam(name = 'cnpj'): ValidationChain {
+  return param(name).custom(isValidCnpj).withMessage('CNPJ inválido');
+}
+
+export function paginationQuery(maxPerPage = MAX_PER_PAGE): ValidationChain[] {
   return [
     query('page').optional().isInt({ min: 1, max: 100_000 }).withMessage('Página inválida'),
-    query('perPage').optional().isInt({ min: 1, max: MAX_PER_PAGE }).withMessage(`Itens por página: de 1 a ${MAX_PER_PAGE}`),
+    query('perPage').optional().isInt({ min: 1, max: maxPerPage }).withMessage(`Itens por página: de 1 a ${maxPerPage}`),
   ];
 }
 
@@ -118,7 +126,7 @@ function sharedSearchQueryValidators(): ValidationChain[] {
     query('termsMode').optional().isIn([...SEARCH_TERMS_MODES]).withMessage('Modo dos termos: E ou OU'),
     listQuery('state', isState, 'UF inválida', MAX_STATES, (item) => item.toUpperCase()),
     listQuery('municipalityCode', isMunicipalityCode, 'Município inválido (código IBGE com 7 dígitos)', MAX_MUNICIPALITIES),
-    listQuery('agencyCnpj', isCnpj, 'CNPJ do órgão inválido (14 dígitos)', MAX_AGENCIES, (item) => item.replace(/\D/g, '')),
+    listQuery('agencyCnpj', isCnpjFormat, 'CNPJ do órgão inválido (14 dígitos)', MAX_AGENCIES, normalizeCnpj),
     query('minValue').optional().custom(isMoneyValue).withMessage('Valor mínimo inválido'),
     query('maxValue').optional().custom(isMoneyValue).withMessage('Valor máximo inválido'),
     booleanQuery('includeWithoutValue'),
@@ -148,7 +156,7 @@ export const contractSearchValidators: ValidationChain[] = [
   listQuery('category', isContractCategory, 'Categoria inválida', MAX_CONTRACT_CATEGORIES),
   listQuery('contractType', isContractType, 'Tipo de contrato inválido', MAX_CONTRACT_TYPES),
   booleanQuery('includeClosed'),
-  listQuery('supplierCnpj', isCnpj, 'CNPJ do fornecedor inválido (14 dígitos)', MAX_SUPPLIERS, (item) => item.replace(/\D/g, '')),
+  listQuery('supplierCnpj', isCnpjFormat, 'CNPJ do fornecedor inválido (14 dígitos)', MAX_SUPPLIERS, normalizeCnpj),
   ...dateQueries(['expiryFrom', 'expiryTo']),
   yearQuery('contractYear'),
   query('sort').optional().isIn([...CONTRACT_SORTS]).withMessage('Ordenação inválida'),
@@ -176,7 +184,7 @@ function sharedCriteriaBodyValidators(): ValidationChain[] {
     body('cityIbgeCodes').optional().isArray({ max: MAX_MUNICIPALITIES }).withMessage(`Até ${MAX_MUNICIPALITIES} municípios`),
     body('cityIbgeCodes.*').custom(isMunicipalityCode).withMessage('Município inválido (código IBGE com 7 dígitos)'),
     body('agencyCnpjs').optional().isArray({ max: MAX_AGENCIES }).withMessage(`Até ${MAX_AGENCIES} órgãos`),
-    body('agencyCnpjs.*').custom(isCnpj).withMessage('CNPJ do órgão inválido (14 dígitos)'),
+    body('agencyCnpjs.*').custom(isCnpjFormat).withMessage('CNPJ do órgão inválido (14 dígitos)'),
     body('minValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor mínimo inválido'),
     body('maxValue').optional({ values: 'null' }).custom(isMoneyValue).withMessage('Valor máximo inválido'),
     body('includeWithoutValue').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
@@ -213,7 +221,7 @@ export const contractSavedSearchCriteriaValidators: ValidationChain[] = [
   body('categories').optional().isArray({ max: MAX_CONTRACT_CATEGORIES }).withMessage('Lista de categorias inválida'),
   body('categories.*').custom(isContractCategory).withMessage('Categoria inválida'),
   body('supplierCnpjs').optional().isArray({ max: MAX_SUPPLIERS }).withMessage(`Até ${MAX_SUPPLIERS} fornecedores`),
-  body('supplierCnpjs.*').custom(isCnpj).withMessage('CNPJ do fornecedor inválido (14 dígitos)'),
+  body('supplierCnpjs.*').custom(isCnpjFormat).withMessage('CNPJ do fornecedor inválido (14 dígitos)'),
 ];
 
 export const contractSavedSearchBodyValidators: ValidationChain[] = savedSearchBody(contractSavedSearchCriteriaValidators);

@@ -1,18 +1,13 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import test from 'node:test';
+import { InvalidCnpjError, isCnpjFormat } from '../cnpj';
 import { createMemoryStorage } from '../objectStorageTestSupport';
 import { MANIFEST_KEY } from './layout';
 import { parseManifest } from './manifest';
 import { ContractStoreReader } from './reader';
 import { publishWinnersWith, quietLogger, sampleResult, sampleSupplier, withTempDirectory } from './storeTestSupport';
-import {
-  InvalidWinnerCnpjError,
-  isWinnerCnpj,
-  queryTopAgencies,
-  queryWinnerList,
-  queryWinnerSummary,
-} from './winnerQueries';
+import { queryTopAgencies, queryWinnerCount, queryWinnerList, queryWinnerSummary } from './winnerQueries';
 import type { ResultRecord, SupplierIdentity } from './winnerRows';
 import { supplierKeyOf } from './winnerRows';
 
@@ -82,6 +77,7 @@ test('resumo do fornecedor: licitações, itens e valor no total e por ano, do a
   await withReader(dataset(), async (reader) => {
     const summary = await reader.query((connection) => queryWinnerSummary(connection, ALFA.key));
     assert.deepEqual(summary, {
+      name: 'ALFA LTDA',
       purchases: 6,
       items: 7,
       totalValue: '11900.00',
@@ -102,6 +98,9 @@ test('a faixa da chave não pega o CNPJ vizinho, a pessoa física nem outro forn
   await withReader(dataset(), async (reader) => {
     const neighbor = await reader.query((connection) => queryWinnerSummary(connection, NEIGHBOR.key));
     assert.equal(neighbor.purchases, 2);
+    assert.equal(neighbor.name, 'VIZINHA LTDA');
+    assert.equal(await reader.query((connection) => queryWinnerCount(connection, NEIGHBOR.key)), 2);
+    assert.equal(await reader.query((connection) => queryWinnerCount(connection, ALFA.key)), 6, 'as licitações, não os itens');
     assert.equal(neighbor.totalValue, '17000.00');
     const beta = await reader.query((connection) => queryWinnerSummary(connection, BETA.key));
     assert.equal(beta.purchases, 1);
@@ -133,7 +132,8 @@ test('fornecedor sem vitórias: zeros, sem datas e lista vazia', async () => {
   await withReader(dataset(), async (reader) => {
     const none = '55444333000122';
     const summary = await reader.query((connection) => queryWinnerSummary(connection, none));
-    assert.deepEqual(summary, { purchases: 0, items: 0, totalValue: '0.00', firstResultDate: null, lastResultDate: null, byYear: [] });
+    assert.deepEqual(summary, { name: null, purchases: 0, items: 0, totalValue: '0.00', firstResultDate: null, lastResultDate: null, byYear: [] });
+    assert.equal(await reader.query((connection) => queryWinnerCount(connection, none)), 0);
     assert.deepEqual(await reader.query((connection) => queryWinnerList(connection, none)), []);
     assert.deepEqual(await reader.query((connection) => queryTopAgencies(connection, none)), []);
   });
@@ -187,12 +187,13 @@ test('lista: da licitação mais recente para a mais antiga, com desempate está
 test('CNPJ com letra, com 13 dígitos ou com máscara é recusado antes de virar consulta', async () => {
   await withReader(dataset(), async (reader) => {
     for (const invalid of ['1122233300018A', '1122233300018', '112223330001811', '11.222.333/0001-81', '', "11222333000181'; DROP TABLE vencedores; --"]) {
-      assert.equal(isWinnerCnpj(invalid), false, invalid);
-      await assert.rejects(reader.query((connection) => queryWinnerSummary(connection, invalid)), InvalidWinnerCnpjError, invalid);
-      await assert.rejects(reader.query((connection) => queryWinnerList(connection, invalid)), InvalidWinnerCnpjError, invalid);
-      await assert.rejects(reader.query((connection) => queryTopAgencies(connection, invalid)), InvalidWinnerCnpjError, invalid);
+      assert.equal(isCnpjFormat(invalid), false, invalid);
+      await assert.rejects(reader.query((connection) => queryWinnerSummary(connection, invalid)), InvalidCnpjError, invalid);
+      await assert.rejects(reader.query((connection) => queryWinnerList(connection, invalid)), InvalidCnpjError, invalid);
+      await assert.rejects(reader.query((connection) => queryWinnerCount(connection, invalid)), InvalidCnpjError, invalid);
+      await assert.rejects(reader.query((connection) => queryTopAgencies(connection, invalid)), InvalidCnpjError, invalid);
     }
-    assert.equal(isWinnerCnpj('11222333000181'), true);
-    assert.equal(isWinnerCnpj(11222333000181), false);
+    assert.equal(isCnpjFormat('11222333000181'), true);
+    assert.equal(isCnpjFormat(11222333000181), false);
   });
 });

@@ -2,6 +2,7 @@ import { Link, type To } from 'react-router-dom';
 import type { NoticeListItem } from '../types';
 import { formatIsoDateTime } from '../utils/dates';
 import { formatMoneyValue } from '../utils/money';
+import { CnpjLink } from './CnpjLink';
 import { CountdownBadge } from './CountdownBadge';
 import { FavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
@@ -13,6 +14,19 @@ import { TrackingActions } from './TrackingActions';
 export function noticePlace(notice: Pick<NoticeListItem, 'agencyName' | 'cityName' | 'state'>): string {
   const city = [notice.cityName, notice.state].filter(Boolean).join('/');
   return [notice.agencyName, city].filter(Boolean).join(' · ');
+}
+
+/** "Órgão · Município/UF" com o nome do órgão como link para a página do CNPJ (quando o CNPJ é válido). */
+export function NoticePlace({ notice }: { notice: Pick<NoticeListItem, 'agencyName' | 'cityName' | 'state'> & { agencyCnpj: string | null } }) {
+  const city = [notice.cityName, notice.state].filter(Boolean).join('/');
+  if (!notice.agencyName && !city) return <>Órgão não informado</>;
+  return (
+    <>
+      {notice.agencyName && <CnpjLink cnpj={notice.agencyCnpj}>{notice.agencyName}</CnpjLink>}
+      {notice.agencyName && city ? ' · ' : ''}
+      {city}
+    </>
+  );
 }
 
 interface NoticeCardProps {
@@ -44,7 +58,9 @@ export function NoticeCard({ notice, detailLink, detailLinkState }: NoticeCardPr
           {notice.highlightedExcerpt ? <HighlightedText text={notice.highlightedExcerpt} /> : notice.procurementObject}
         </Link>
       </h3>
-      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(notice) || 'Órgão não informado'}</p>
+      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+        <NoticePlace notice={notice} />
+      </p>
 
       <dl className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2 text-xs">
         <div>

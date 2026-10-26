@@ -6,7 +6,14 @@ import { after, before, test } from 'node:test';
 import type { DuckDBConnection } from '@duckdb/node-api';
 import type { TenderContractRow } from '../collector/contractMapping';
 import { EMPTY_CONTRACT_CRITERIA, type ContractCriteria } from '../services/contractSearch';
-import { SqlParameters, activeContractCondition, contractCriteriaCondition, phraseContractCriteria } from './criteria';
+import {
+  SqlParameters,
+  activeContractCondition,
+  contractCriteriaCondition,
+  contractListDataset,
+  phraseContractCriteria,
+  supplierPruneCondition,
+} from './criteria';
 import { openDuckDb, sqlLiteral, toDuckDbPath, type OpenedDuckDb } from './duckdb';
 import { columnDefinitions, columnList, columnsOf, toStoreRecord } from './layout';
 import { sampleContract, simplePhrases, simpleSearchFields } from './storeTestSupport';
@@ -136,6 +143,40 @@ test('faixa de valor: sem valor global só entra com "incluir sem valor"', async
 test('vigente: vencimento de hoje em diante; sem vencimento não é vigente', async () => {
   assert.deepEqual(await matching({}, TODAY), [1, 2]);
   assert.deepEqual(await matching({}, '2026-10-18'), [1, 2, 3], 'vence no próprio dia: ainda vigente');
+});
+
+test('conjunto da lista: "fornecedor" só com filtro de fornecedor e sem critério que use o texto do contrato', async () => {
+  const dataset = async (criteria: Partial<ContractCriteria>, options: { allContracts?: boolean; numberGroups?: string[] } = {}) =>
+    contractListDataset(await phraseContractCriteria(simplePhrases, { ...EMPTY_CONTRACT_CRITERIA, ...criteria }), {
+      allContracts: false,
+      numberGroups: [],
+      ...options,
+    });
+  const supplierCnpjs = ['11222333000181'];
+  assert.equal(await dataset({ supplierCnpjs }), 'fornecedor', 'só os vigentes: o filtro de vigência continua na consulta');
+  assert.equal(await dataset({ supplierCnpjs }, { allContracts: true }), 'fornecedor');
+  assert.equal(await dataset({ supplierCnpjs, states: ['SP'], agencyCnpjs: ['29138278000101'], minValue: '10' }), 'fornecedor');
+  assert.equal(await dataset({ supplierCnpjs, terms: ['limpeza'] }), 'vigentes', 'termos pedem o texto do contrato');
+  assert.equal(await dataset({ supplierCnpjs, terms: ['limpeza'] }, { allContracts: true }), 'contratos');
+  assert.equal(await dataset({ supplierCnpjs, terms: ['de'] }), 'vigentes', 'termo sem radical também fica fora (a consulta já nasce com termos)');
+  assert.equal(await dataset({ supplierCnpjs, excludedTerms: ['vidros'] }), 'vigentes', 'exclusões pedem o texto do contrato');
+  assert.equal(await dataset({ supplierCnpjs, excludedTerms: ['de'] }), 'fornecedor', 'exclusão sem radical não vira condição');
+  assert.equal(await dataset({ supplierCnpjs }, { numberGroups: ['11', '2026'] }), 'vigentes', 'os grupos de dígitos só existem em vigentes e contratos');
+  assert.equal(await dataset({ supplierCnpjs }, { allContracts: true, numberGroups: ['11'] }), 'contratos');
+  assert.equal(await dataset({}), 'vigentes');
+  assert.equal(await dataset({ agencyCnpjs: ['29138278000101'] }, { allContracts: true }), 'contratos', 'só o fornecedor tem conjunto próprio');
+});
+
+test('poda por fornecedor: literais só para CNPJ no formato; lista com item fora do formato fica sem poda', () => {
+  const prune = (supplierCnpjs: string[]) => supplierPruneCondition({ supplierCnpjs });
+  assert.equal(prune([]), null);
+  assert.equal(prune(['11222333000181']), "fornecedor_documento IN ('11222333000181')");
+  assert.equal(prune(['11222333000181', '99887766000155']), "fornecedor_documento IN ('11222333000181', '99887766000155')");
+  // CPF mascarado, texto e tentativa de injeção não são CNPJ: sem poda (a condição exata decide, com parâmetros).
+  assert.equal(prune(['***.123.456-**']), null);
+  assert.equal(prune(['11222333000181', 'lixo']), null, 'um item fora do formato desliga a poda da lista toda');
+  assert.equal(prune(["11222333000181') OR true --"]), null);
+  assert.equal(prune(['1122233300018']), null);
 });
 
 test('o que vem da pessoa vai como parâmetro: aspas e barras não quebram a consulta', async () => {

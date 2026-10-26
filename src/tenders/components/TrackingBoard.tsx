@@ -9,7 +9,7 @@ import { formatMoneyValue } from '../utils/money';
 import type { BoardColumns } from '../utils/trackingBoard';
 import { CountdownBadge } from './CountdownBadge';
 import { MoveMenu } from './MoveMenu';
-import { noticePlace } from './NoticeCard';
+import { NoticePlace } from './NoticeCard';
 
 // Quadro de Acompanhamento: uma coluna por status, com arrastar e soltar
 // nativo (desktop) e o menu "Mover para…" em cada card (teclado e celular).
@@ -75,7 +75,7 @@ function BoardCard({ notice, status, moving, onMove, onDragStart, onDragEnd }: B
       >
         {notice.procurementObject}
       </Link>
-      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(notice) || 'Órgão não informado'}</p>
+      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400"><NoticePlace notice={notice} /></p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">{formatIsoDateTime(notice.proposalClosesAt)}</span>
         <MoveMenu current={status} onMove={onMove} noticeLabel={notice.procurementObject.slice(0, 80)} disabled={moving} />

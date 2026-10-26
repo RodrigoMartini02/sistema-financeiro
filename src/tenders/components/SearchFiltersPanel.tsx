@@ -5,6 +5,7 @@ import { TRACKING_FILTERS, type DomainLists } from '../types';
 import { TRACKING_FILTER_LABELS, formatCnpj } from '../utils/labels';
 import { decimalToReais, reaisToDecimal } from '../utils/money';
 import { MAX_AGENCIES, MAX_MUNICIPALITIES, VALUE_RANGE_MESSAGE } from '../utils/savedSearchForm';
+import { CNPJ_PAGE_LINK_LABEL, cnpjLinkPath } from '../utils/cnpj';
 import { formatIsoDate } from '../utils/dates';
 import {
   CLOSING_SHORTCUT_DAYS,
@@ -12,10 +13,8 @@ import {
   MIN_DAYS_TO_CLOSE,
   activeClosingShortcut,
   closingWithinDays,
-  isValidCnpj,
   isValidNumberSearch,
   minimumClosingDate,
-  normalizeCnpj,
   purchaseYearOptions,
   withFilters,
   type SearchState,
@@ -25,6 +24,7 @@ import { FilterDateField } from './FilterDateField';
 import { LoadError, LoadingBlock } from './LoadStates';
 import { MoneyField } from './MoneyField';
 import { MunicipalityPicker } from './MunicipalityPicker';
+import { parseCnpj } from './SavedSearchFormDialog';
 import { TagInput } from './TagInput';
 
 export const DATE_ORDER_MESSAGE = 'A data inicial não pode ser depois da final.';
@@ -298,11 +298,10 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           label="CNPJ do órgão"
           values={state.agencyCnpjs}
           onChange={(agencyCnpjs) => update({ agencyCnpjs })}
-          parse={(text) => {
-            const digits = normalizeCnpj(text);
-            return isValidCnpj(digits) ? { value: digits } : { error: 'Informe o CNPJ com 14 dígitos.' };
-          }}
+          parse={parseCnpj}
           format={formatCnpj}
+          linkFor={cnpjLinkPath}
+          linkLabel={CNPJ_PAGE_LINK_LABEL}
           placeholder="00.000.000/0000-00 e Enter"
           maxItems={MAX_AGENCIES}
           maxItemsMessage={`Até ${MAX_AGENCIES} órgãos.`}

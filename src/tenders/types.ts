@@ -617,3 +617,81 @@ export interface NewTeamUser {
   senha: string;
   documento?: string;
 }
+
+// ---- Página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md) ----
+
+export interface CnpjContracts {
+  total: number;
+  /** Vigentes hoje. */
+  active: number;
+  /** Soma do valor global, em reais. */
+  totalValue: number;
+  /** Publicação mais antiga e mais recente, em ISO com o fuso de Brasília. */
+  firstPublishedAt: string | null;
+  lastPublishedAt: string | null;
+}
+
+export interface CnpjWinnersYear {
+  year: number;
+  purchases: number;
+  items: number;
+  totalValue: number;
+}
+
+export interface CnpjWinners {
+  /** Licitações vencidas. */
+  purchases: number;
+  items: number;
+  totalValue: number;
+  /** AAAA-MM-DD. */
+  firstResultDate: string | null;
+  lastResultDate: string | null;
+  /** Do ano mais recente para o mais antigo. */
+  byYear: CnpjWinnersYear[];
+}
+
+/** O parceiro nos contratos: o órgão de um fornecedor, ou o fornecedor de um órgão. */
+export interface CnpjPartner {
+  cnpj: string;
+  name: string | null;
+  contracts: number;
+  totalValue: number;
+}
+
+export interface CnpjCoverage {
+  /** Dia (AAAA-MM-DD) da publicação mais antiga entre os contratos. */
+  contractsFrom: string | null;
+  /** Primeiro e último dia (AAAA-MM-DD) de resultado entre as licitações vencidas. */
+  winnersFrom: string | null;
+  winnersTo: string | null;
+}
+
+export interface CnpjSummary {
+  cnpj: string;
+  name: string | null;
+  /** null: o CNPJ não tem contratos nem licitações vencidas como fornecedor. */
+  supplier: { contracts: CnpjContracts; winners: CnpjWinners; topAgencies: CnpjPartner[] } | null;
+  /** null: o CNPJ não tem contratos nem editais abertos como órgão. */
+  agency: { contracts: CnpjContracts; openNotices: number; topSuppliers: CnpjPartner[] } | null;
+  coverage: CnpjCoverage;
+}
+
+/** Uma licitação vencida pelo CNPJ. */
+export interface CnpjWinnerItem {
+  purchaseControlNumber: string;
+  year: number;
+  agencyCnpj: string;
+  agencyName: string | null;
+  state: string | null;
+  cityName: string | null;
+  supplierName: string | null;
+  items: number;
+  totalValue: number;
+  /** AAAA-MM-DD. */
+  firstResultDate: string;
+  lastResultDate: string;
+  /** Id do edital no banco, quando a licitação ainda tem edital. */
+  noticeId: number | null;
+  /** Endereço da compra na fonte oficial. */
+  link: string;
+}

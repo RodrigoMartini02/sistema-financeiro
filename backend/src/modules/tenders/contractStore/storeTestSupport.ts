@@ -8,6 +8,7 @@ import { createMemoryStorage } from '../objectStorageTestSupport';
 import { openDuckDb, sqlLiteral, toDuckDbPath } from './duckdb';
 import type { ContractSearchFields } from './layout';
 import { ContractStoreReader } from './reader';
+import { WEB_STORE_DATASETS } from './service';
 import type { ContractSearchFieldsProvider, SearchPhrasesProvider } from './textSearch';
 import type { ResultRecord, SupplierIdentity } from './winnerRows';
 import { WinnerStoreWriter, type WinnerStoreWriterOptions } from './winnerWriter';
@@ -239,13 +240,14 @@ export interface TestContractStore {
 }
 
 /**
- * Armazém de exemplo pronto para ler: publica os contratos num R2 simulado e
- * abre o leitor sobre a cópia. Os campos de busca vêm de `searchFields` (os
+ * Armazém de exemplo pronto para ler: publica os contratos (e, em `winners`, os
+ * resultados dos vencedores) num R2 simulado e abre o leitor sobre a cópia, com
+ * os conjuntos do Web Service. Os campos de busca vêm de `searchFields` (os
  * simplificados, sem o Postgres, ou os do banco local nos testes de banco).
  */
 export async function openTestContractStore(
   contracts: readonly TenderContractRow[],
-  options: { searchFields?: ContractSearchFieldsProvider; today?: string } = {},
+  options: { searchFields?: ContractSearchFieldsProvider; today?: string; winners?: readonly ResultRecord[] } = {},
 ): Promise<TestContractStore> {
   const { storage, objects } = createMemoryStorage();
   const directory = await mkdtemp(join(tmpdir(), 'armazem-exemplo-'));
@@ -253,7 +255,11 @@ export async function openTestContractStore(
     await publishWith(storage, join(directory, 'gravacao'), 1, async (writer) => {
       await writer.upsert(contracts);
     }, { searchFields: options.searchFields ?? simpleSearchFields, ...(options.today ? { today: options.today } : {}) });
-    const reader = await ContractStoreReader.create({ storage, directory: join(directory, 'leitura'), logger: quietLogger });
+    if (options.winners) {
+      const winners = options.winners;
+      await publishWinnersWith(storage, join(directory, 'gravacao-vencedores'), 2, async (writer) => void (await writer.apply([...winners])));
+    }
+    const reader = await ContractStoreReader.create({ storage, directory: join(directory, 'leitura'), logger: quietLogger, datasets: WEB_STORE_DATASETS });
     await reader.refresh();
     return {
       reader,

@@ -20,6 +20,9 @@ export const tendersQueryKeys = {
   contract: (key: string) => ['tenders', 'contracts', 'detail', key] as const,
   contractSavedSearches: ['tenders', 'contract-searches'] as const,
   contractSearchPreview: (body: string) => ['tenders', 'contract-search-preview', body] as const,
+  /** Página do CNPJ: o resumo e as licitações vencidas (as listas curtas usam as chaves de contratos e editais). */
+  cnpj: (cnpj: string) => ['tenders', 'cnpj', cnpj] as const,
+  cnpjWinners: (cnpj: string, page: number, perPage: number) => ['tenders', 'cnpj', cnpj, 'winners', page, perPage] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   domains: ['tenders', 'domains'] as const,
   /** Prefixo das notificações: listas e contador do sino. */

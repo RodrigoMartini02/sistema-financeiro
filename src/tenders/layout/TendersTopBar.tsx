@@ -69,13 +69,13 @@ export function TendersTopBar({ title, unreadCount, userName, accountName, onOpe
 
         <form role="search" onSubmit={submitSearch} className="hidden w-full max-w-xs items-center sm:flex">
           <label className="relative flex w-full items-center">
-            <span className="sr-only">Buscar editais</span>
+            <span className="sr-only">Buscar editais ou abrir um CNPJ</span>
             <Search size={15} className="pointer-events-none absolute left-3 text-[rgba(14,196,216,0.55)]" aria-hidden="true" />
             <input
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar editais"
+              placeholder="Buscar editais ou CNPJ"
               aria-keyshortcuts="/"
               className="h-9 w-full rounded-lg border border-[rgba(14,196,216,0.25)] bg-[rgba(4,14,18,0.35)] pl-9 pr-8 text-sm text-[#E8F4F5] placeholder:text-[rgba(232,244,245,0.45)] focus:border-[#0EC4D8] focus:outline-none"
             />

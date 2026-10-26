@@ -34,6 +34,7 @@ import {
   withContractFilters,
   type ContractSearchState,
 } from '../utils/contractFilters';
+import { cnpjFromSearchText, cnpjPagePath } from '../utils/cnpj';
 import { contractKeyFromParam } from '../utils/contractKey';
 import { contractStateToForm } from '../utils/contractSearchForm';
 import { formatIsoDateTime } from '../utils/dates';
@@ -124,6 +125,11 @@ export function ContractsScreen() {
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
+    const cnpj = cnpjFromSearchText(text);
+    if (cnpj) {
+      navigate(cnpjPagePath(cnpj));
+      return;
+    }
     applyState(withContractFilters(state, { q: text.trim(), savedSearchId: null }));
   };
 
@@ -245,7 +251,7 @@ export function ContractsScreen() {
     <section className={`flex flex-col ${SCREEN_MIN_HEIGHT_CLASS}`}>
       <form role="search" onSubmit={submitSearch} className="flex gap-2">
         <label className="relative flex-1">
-          <span className="sr-only">Buscar contratos por palavras-chave</span>
+          <span className="sr-only">Buscar contratos por palavras-chave ou abrir um CNPJ</span>
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
           <input
             type="search"
@@ -272,7 +278,7 @@ export function ContractsScreen() {
           />
         )}
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Aspas para frase exata e hífen para excluir: <span className="whitespace-nowrap font-mono">"coleta de lixo" -hospitalar</span>
+          Aspas para frase exata e hífen para excluir: <span className="whitespace-nowrap font-mono">"coleta de lixo" -hospitalar</span>. Um CNPJ abre a página dele.
         </p>
         <Button
           type="button"

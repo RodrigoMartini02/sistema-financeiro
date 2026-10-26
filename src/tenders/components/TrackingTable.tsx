@@ -10,7 +10,7 @@ import { TRACKING_STATUS_LABELS } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
 import { CountdownBadge } from './CountdownBadge';
 import { MoveMenu } from './MoveMenu';
-import { noticePlace } from './NoticeCard';
+import { NoticePlace } from './NoticeCard';
 import { TrackingStatusPill } from './Pill';
 
 // Acompanhamento em tabela: filtro por status e por prazo aberto, ordem por prazo.
@@ -134,7 +134,7 @@ export function TrackingTable({ notices, movingIds, onMove }: TrackingTableProps
                       >
                         {notice.procurementObject}
                       </Link>
-                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(notice) || 'Órgão não informado'}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400"><NoticePlace notice={notice} /></p>
                     </td>
                     <td className="px-3 py-3">
                       <TrackingStatusPill status={status} />

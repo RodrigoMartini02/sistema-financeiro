@@ -1,8 +1,6 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { inArray } from 'drizzle-orm';
 import { ContractStoreReader, type ContractStoreAccess } from '../contractStore/reader';
-import { PURCHASE_CONTROL_NUMBER } from '../contractStore/layout';
 import {
   queryTopAgencies,
   queryWinnerList,
@@ -11,9 +9,8 @@ import {
   type WinnerListRow,
   type WinnerSummary,
 } from '../contractStore/winnerQueries';
-import { tenderNotices } from '../db/schema';
+import { findNotices, purchaseLink, type WinnerNotice } from '../services/winnerLinks';
 import { CollectorConfigError } from './config';
-import type { TendersDb } from './database';
 import type { CollectorContext } from './runs';
 
 // Consulta de vencedores por CNPJ (comando `winners-lookup`, plano .plans/licitacoes-vencedores.md): o aceite da
@@ -44,28 +41,10 @@ export interface WinnersLookupReport {
   recentWins: WinnerLookupItem[];
 }
 
-/** Endereço da compra pelo número de controle (CNPJ do órgão, ano e sequencial sem zeros à esquerda). */
-export function purchaseLink(purchaseControlNumber: string): string {
-  const match = PURCHASE_CONTROL_NUMBER.exec(purchaseControlNumber);
-  return match ? `https://pncp.gov.br/app/editais/${match[1]}/${match[3]}/${match[2]}` : '';
-}
-
-/** Os ids dos editais que existem no banco, por número de controle, numa consulta só. */
-export async function findNoticeIds(db: TendersDb, controlNumbers: readonly string[]): Promise<Map<string, number>> {
-  if (controlNumbers.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({ id: tenderNotices.id, controlNumber: tenderNotices.pncpControlNumber })
-    .from(tenderNotices)
-    .where(inArray(tenderNotices.pncpControlNumber, [...controlNumbers]));
-  return new Map(rows.map((row) => [row.controlNumber, row.id]));
-}
-
 export interface WinnersLookupDeps {
   store: ContractStoreAccess;
-  /** Ids dos editais por número de controle; no comando, a consulta no banco (findNoticeIds). */
-  noticeIds: (controlNumbers: readonly string[]) => Promise<Map<string, number>>;
+  /** Os editais por número de controle da compra; no comando, a consulta no banco (findNotices). */
+  notices: (controlNumbers: readonly string[]) => Promise<Map<string, WinnerNotice>>;
 }
 
 /** O relatório de um fornecedor sobre o armazém indicado. O CNPJ é conferido pelas consultas (14 dígitos). */
@@ -76,13 +55,17 @@ export async function lookupWinners(deps: WinnersLookupDeps, cnpj: string, limit
     agencies: await queryTopAgencies(connection, cnpj, TOP_AGENCIES),
     wins: await queryWinnerList(connection, cnpj, { limit: Math.min(Math.max(Math.trunc(limit), 1), MAX_LOOKUP_LIMIT) }),
   }));
-  const noticeIds = await deps.noticeIds(wins.map((win) => win.purchaseControlNumber));
+  const notices = await deps.notices(wins.map((win) => win.purchaseControlNumber));
   return {
     cnpj,
     store: { revision: status.revision, publishedAt: status.publishedAt, winnerRows: status.winners?.rows ?? 0 },
     summary,
     agencies,
-    recentWins: wins.map((win) => ({ ...win, noticeId: noticeIds.get(win.purchaseControlNumber) ?? null, link: purchaseLink(win.purchaseControlNumber) })),
+    recentWins: wins.map((win) => ({
+      ...win,
+      noticeId: notices.get(win.purchaseControlNumber)?.id ?? null,
+      link: purchaseLink(win.purchaseControlNumber),
+    })),
   };
 }
 
@@ -102,7 +85,7 @@ export async function runWinnersLookup(context: CollectorContext, cnpj: string, 
     if (!reader.status().ready) {
       throw new Error('O armazém não respondeu: tente de novo em instantes');
     }
-    return await lookupWinners({ store: reader, noticeIds: (controlNumbers) => findNoticeIds(context.db, controlNumbers) }, cnpj, limit);
+    return await lookupWinners({ store: reader, notices: (controlNumbers) => findNotices(context.db, controlNumbers) }, cnpj, limit);
   } finally {
     await reader.close();
   }

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { CollectorConfigError, loadStorageSettings, type StorageSettings } from '../collector/config';
 import { errorMessage, type CollectorLogger } from '../collector/logger';
 import { createR2Storage } from '../objectStorage';
+import { CONTRACT_DATASETS, type StoreDataset } from './layout';
 import { ContractStoreReader, ContractStoreUnavailableError, type ContractStoreAccess, type ContractStoreStatus } from './reader';
 
 // O armazém de contratos no Web Service (plano .plans/licitacoes-contratos-no-r2.md,
@@ -14,6 +15,9 @@ import { ContractStoreReader, ContractStoreUnavailableError, type ContractStoreA
 
 /** Pasta da cópia de leitura: o disco temporário da máquina. */
 export const WEB_STORE_DIRECTORY = join(tmpdir(), 'licitacoes-contratos');
+
+/** Os conjuntos que o Web Service baixa e abre: os de contratos e os vencedores (página do CNPJ, plano .plans/licitacoes-pagina-cnpj.md). */
+export const WEB_STORE_DATASETS: readonly StoreDataset[] = [...CONTRACT_DATASETS, 'vencedores'];
 
 export interface ContractStoreService extends ContractStoreAccess {
   close(): Promise<void>;
@@ -34,7 +38,7 @@ export function startContractStore(settings: StorageSettings | null, logger: Col
   const storage = createR2Storage(settings);
   let reader: ContractStoreReader | null = null;
   let closed = false;
-  const starting = ContractStoreReader.create({ storage, directory, logger })
+  const starting = ContractStoreReader.create({ storage, directory, logger, datasets: WEB_STORE_DATASETS })
     .then(async (created) => {
       if (closed) {
         await created.close();
