@@ -15,7 +15,7 @@ Estes Termos de Uso regulam o acesso e a utilização do FINGERENCE ("FINGERENCE
 **2. DESCRIÇÃO DO SERVIÇO**
 A Plataforma tem duas soluções, contratadas separadamente:
 • FINGERENCE Finanças: gestão financeira pessoal e empresarial, com controle de receitas, despesas, cartões de crédito, relatórios e contas separadas. É uma ferramenta de organização financeira e não constitui instituição financeira, prestadora de serviços de pagamento, assessoria de investimentos nem atividade regulada pelo Banco Central do Brasil.
-• FINGERENCE Licitações: busca e acompanhamento de licitações públicas a partir dos dados abertos do Portal Nacional de Contratações Públicas (PNCP), com buscas salvas, avisos de editais novos e lembretes de prazo dentro da Plataforma.
+• FINGERENCE Licitações: busca e acompanhamento de licitações públicas a partir dos dados abertos do Portal Nacional de Contratações Públicas (PNCP) e do Portal de Compras do Governo Federal (Compras.gov.br), com buscas salvas, avisos de editais novos e lembretes de prazo dentro da Plataforma.
 Cada solução tem cadastro de teste e assinatura próprios.
 
 **3. ELEGIBILIDADE E CADASTRO**
@@ -40,7 +40,7 @@ Ao utilizar a Plataforma, o Usuário compromete-se a:
 • Sobrecarregar intencionalmente a infraestrutura da Plataforma.
 
 **6. FINGERENCE LICITAÇÕES: DADOS PÚBLICOS**
-• As informações de licitações vêm de dados públicos do PNCP e dos sistemas de origem dos órgãos. A Plataforma não tem vínculo com o PNCP nem com os órgãos públicos.
+• As informações de licitações e contratos vêm de dados públicos do PNCP, do Compras.gov.br (dados abertos do Governo Federal, licença Creative Commons Atribuição) e dos sistemas de origem dos órgãos. A Plataforma não tem vínculo com o PNCP, com o Compras.gov.br nem com os órgãos públicos.
 • Não garantimos que os editais estejam completos, corretos ou atualizados, nem que todo edital publicado apareça na Plataforma ou nos avisos. Antes de decidir ou participar, o Usuário deve conferir o edital e os prazos na fonte oficial.
 • Os avisos e lembretes aparecem dentro da Plataforma e dependem da coleta dos dados públicos, que pode atrasar ou falhar.
 • A Plataforma não presta assessoria jurídica, não elabora propostas e não participa de licitações em nome do Usuário.
@@ -97,7 +97,7 @@ Para a prestação do serviço, coletamos as seguintes categorias de dados pesso
 • Dados de uso do FINGERENCE Licitações: buscas salvas, favoritos, acompanhamento dos editais, observações e os usuários cadastrados pelo titular da conta (nome, e-mail e, quando informado, CPF).
 • Dados de pagamento: situação e identificadores dos pagamentos feitos pelo Mercado Pago. Os dados do cartão são tratados pelo Mercado Pago e não ficam guardados na Plataforma.
 • Dados de comunicação: mensagens trocadas com nosso suporte.
-Os editais exibidos no FINGERENCE Licitações são dados públicos do PNCP. Não coletamos dados sensíveis conforme definido no Art. 5º, II da LGPD, como origem racial, convicção religiosa, dados genéticos, biométricos ou relativos à saúde.
+Os editais, contratos e resultados de licitações exibidos no FINGERENCE Licitações são dados públicos do PNCP e do Compras.gov.br. Não coletamos dados sensíveis conforme definido no Art. 5º, II da LGPD, como origem racial, convicção religiosa, dados genéticos, biométricos ou relativos à saúde.
 
 **3. FINALIDADES DO TRATAMENTO**
 Os dados pessoais são tratados exclusivamente para:
