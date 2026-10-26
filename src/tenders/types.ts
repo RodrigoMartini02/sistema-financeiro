@@ -517,6 +517,8 @@ export const COLLECTION_RUN_TYPES = [
   'CONTRATOS_CARGA',
   'CONTRATOS_LIMPEZA',
   'CONTRATOS_AVISOS',
+  'VENCEDORES_DIARIA',
+  'VENCEDORES_CARGA',
 ] as const;
 export type CollectionRunType = (typeof COLLECTION_RUN_TYPES)[number];
 /** Execuções com horário na agenda (a manual não tem). */
@@ -547,10 +549,10 @@ export interface CollectionRun {
   details: CollectionRunDetails;
 }
 
-/** Por que o bloco da carga de contratos parou: tempo ou PNCP fora do ar. */
+/** Por que o bloco da carga (de contratos ou de vencedores) parou: tempo ou fonte fora do ar. */
 export type BackfillStopReason = 'time' | 'pncp';
 
-/** A última execução da carga de contratos. */
+/** A última execução da carga de contratos ou de vencedores. */
 export interface BackfillRun {
   from: string;
   to: string;
@@ -577,6 +579,12 @@ export interface ContractsCollection {
   };
 }
 
+export interface WinnersCollection {
+  /** Linhas (licitação e fornecedor) na versão em uso do armazém; null = sem cópia pronta ou sem vencedores publicados. */
+  rows: number | null;
+  backfill: ContractsCollection['backfill'];
+}
+
 export interface CollectionStatus {
   /** A execução mais recente de cada tipo. */
   latestRuns: CollectionRun[];
@@ -584,6 +592,7 @@ export interface CollectionStatus {
   nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
   contracts: ContractsCollection;
+  winners: WinnersCollection;
 }
 
 export interface TeamMember {

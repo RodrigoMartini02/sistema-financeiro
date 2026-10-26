@@ -138,6 +138,42 @@ test('R2: a pasta da produção é recusada com o banco local e aceita com o ban
   assert.equal(loadStorageSettings(storageEnv, productionDatabaseUrl)?.prefix, 'local', 'outra pasta com o banco da produção é aceita');
 });
 
+test('vencedores: desligados por padrão, carga desde 2021-08 (o primeiro mês com dado) em blocos de 120 min', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl });
+  assert.deepEqual(config.winners, { enabled: false, backfillFrom: '2021-08-01', backfillMinutes: 120 });
+});
+
+test('vencedores: só "1" liga as etapas; os valores informados são lidos', () => {
+  const config = loadCollectorConfig({
+    TENDERS_COLLECTOR_DATABASE_URL: databaseUrl,
+    TENDERS_WINNERS_ENABLED: '1',
+    TENDERS_WINNERS_BACKFILL_FROM: '2024-01-01',
+    TENDERS_WINNERS_BACKFILL_MINUTES: '30',
+  });
+  assert.deepEqual(config.winners, { enabled: true, backfillFrom: '2024-01-01', backfillMinutes: 30 });
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_WINNERS_ENABLED: '0' }).winners.enabled, false);
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_WINNERS_ENABLED: ' ' }).winners.enabled, false, 'vazia vale como não informada');
+});
+
+test('vencedores: valores fora da faixa são recusados, e a variável de ligar só aceita 0 ou 1', () => {
+  const invalid: Array<[string, string]> = [
+    ['TENDERS_WINNERS_ENABLED', 'true'],
+    ['TENDERS_WINNERS_ENABLED', 'sim'],
+    ['TENDERS_WINNERS_ENABLED', '2'],
+    ['TENDERS_WINNERS_BACKFILL_MINUTES', '0'],
+    ['TENDERS_WINNERS_BACKFILL_MINUTES', '601'],
+    ['TENDERS_WINNERS_BACKFILL_FROM', '2021-02-30'],
+  ];
+  for (const [key, value] of invalid) {
+    assert.throws(() => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, [key]: value }), CollectorConfigError, `${key}=${value}`);
+  }
+});
+
+test('vencedores: a configuração dos contratos não muda', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_WINNERS_ENABLED: '1', TENDERS_WINNERS_BACKFILL_MINUTES: '30' });
+  assert.deepEqual(config.contracts, { pageSize: 500, termsIntervalMs: 500, backfillFrom: '2021-01-01', backfillMinutes: 480 });
+});
+
 test('Compras.gov.br: 1,5 s entre pedidos por padrão, no coletor e sem nenhuma variável (a sondagem não tem banco)', () => {
   assert.deepEqual(loadComprasGovSettings({}), { requestIntervalMs: 1500 });
   assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).comprasGov, { requestIntervalMs: 1500 });

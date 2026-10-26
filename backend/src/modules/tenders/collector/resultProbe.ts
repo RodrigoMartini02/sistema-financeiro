@@ -396,8 +396,10 @@ export async function runResultProbe(deps: ResultProbeDeps, options: ResultProbe
   const sameDay = summarize(await client.requestRaw({ initial: day, final: day }, 1, RESULTS_PAGE_SIZE), fields.resultDateKey);
   const nextDay = summarize(await client.requestRaw({ initial: day, final: addCalendarDays(day, 1) }, 1, RESULTS_PAGE_SIZE), fields.resultDateKey);
   const nextDayDate = addCalendarDays(day, 1);
+  // Inclusivo: a janela [d, d+1] traz mais registros que [d, d] (medido em 14/09/2026: 18.047 contra 9.719) ou já
+  // mostra o dia seguinte. Exclusivo: [d, d] vem vazia e [d, d+1] traz o dia d. Sem nenhum dos dois sinais, null.
   let endExclusive: boolean | null = null;
-  if (nextDay.dates[nextDayDate] !== undefined) {
+  if (nextDay.dates[nextDayDate] !== undefined || (sameDay.total !== null && nextDay.total !== null && nextDay.total > sameDay.total)) {
     endExclusive = false;
   } else if (nextDay.records > 0 && sameDay.records === 0) {
     endExclusive = true;

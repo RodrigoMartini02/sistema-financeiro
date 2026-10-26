@@ -1,20 +1,30 @@
 import { z } from 'zod/v4';
-import { addCalendarDays } from './dates';
 
 // Cliente do Compras.gov.br, dados abertos (público, sem autenticação): os resultados das licitações da Lei
 // 14.133, uma linha por item e resultado (plano .plans/licitacoes-vencedores.md). Recebe fetch, sleep, random e now
 // por parâmetro, como o do PNCP, para os testes simularem HTTP e espera sem rede nem relógio real.
 //
-// ATENÇÃO: o endereço, o envelope e os nomes dos parâmetros são SUPOSIÇÕES (S1 a S4 do plano). Nada daqui foi lido
-// na fonte oficial; a sondagem (`winners-probe`) confirma ou corrige. A lógica de repetição é cópia da do PncpClient
-// de propósito (o PncpClient está em produção e não muda); a dívida está registrada no plano.
+// O endereço, o envelope, o tamanho máximo de página (500) e o fim inclusivo da janela foram confirmados pela
+// sondagem (`winners-probe`, 25/10/2026). A lógica de repetição é cópia da do PncpClient de propósito (o PncpClient
+// está em produção e não muda); a dívida está registrada no plano.
 
 export const COMPRASGOV_BASE_URL = 'https://dadosabertos.compras.gov.br';
 /** Resultados de itens de contratações da Lei 14.133 (S1). */
 export const RESULTS_PATH = '/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133';
 export const RESULTS_PAGE_SIZE = 500;
-/** O fim da janela é exclusivo na fonte (S3): pede-se o último dia mais um. A sondagem confirma. */
-export const WINDOW_END_EXCLUSIVE = true;
+/**
+ * Tamanhos de página das leituras seguintes de um dia, quando a anterior deixou linha de fora. A fonte entrega a
+ * primeira leitura de muitos dias com páginas que não se encaixam: uma linha vem em duas páginas seguidas e outras não
+ * vêm em página nenhuma, mesmo com a soma das páginas igual ao total informado. Medido em 25/10/2026: dos 20 dias
+ * amostrados de 2021 a 2026, 13 vieram assim (de 1% a 12% das linhas do dia; os 7 inteiros eram, em 6 casos, de até duas
+ * páginas), e na carga de piloto isso valeu para quase todo dia com mais de uma página. Pedir a mesma página de novo
+ * devolve a mesma resposta, mas a leitura seguinte do mesmo dia com outro tamanho de página veio completa, sem uma linha
+ * repetida, nos 9 dias em que se mediu (a primeira leitura, de 500 ou de 437, veio falha nos dois casos). Tamanhos
+ * próximos de 500 custam poucos pedidos a mais; os últimos são a folga para o caso de a segunda também vir falha.
+ */
+export const RESULTS_RETRY_PAGE_SIZES = [499, 437, 389] as const;
+/** Leituras de um dia, no máximo: a primeira, com o tamanho normal de página, e uma para cada tamanho acima. */
+export const RESULTS_MAX_PASSES = 1 + RESULTS_RETRY_PAGE_SIZES.length;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_ATTEMPTS = 5;
 /** Teto de páginas de uma janela: só evita laço sem fim se a fonte nunca disser que acabou. */
@@ -32,9 +42,12 @@ export interface ComprasGovDateParams {
   final: string;
 }
 
-/** Os parâmetros de data da janela, com o fim ajustado pela regra de fronteira. */
+/**
+ * Os parâmetros de data da janela. O fim é inclusivo na fonte (medido em 14/09/2026: o dia 14 deu 9.719 registros, o
+ * dia 15 deu 8.328, e a janela de 14 a 15 deu 18.047, a soma dos dois): pede-se o último dia como ele é.
+ */
 export function windowParams(window: ComprasGovWindow): ComprasGovDateParams {
-  return { initial: window.from, final: WINDOW_END_EXCLUSIVE ? addCalendarDays(window.to, 1) : window.to };
+  return { initial: window.from, final: window.to };
 }
 
 export interface ComprasGovPage {
@@ -154,10 +167,14 @@ export class ComprasGovClient {
     return this.requests;
   }
 
-  /** Percorre as páginas de uma janela até `paginasRestantes = 0` (ou até `maxPages`). */
-  async *pages(window: ComprasGovWindow, options: { maxPages?: number } = {}): AsyncGenerator<ComprasGovPage> {
+  /**
+   * Percorre as páginas de uma janela até `paginasRestantes = 0` (ou até `maxPages`). `pageSize` troca o tamanho da
+   * página nesta leitura: a fonte pode entregar páginas que não se encaixam (um registro em duas e outro em nenhuma), e
+   * cada tamanho dá outras páginas, então uma nova leitura com outro tamanho completa a anterior.
+   */
+  async *pages(window: ComprasGovWindow, options: { maxPages?: number; pageSize?: number } = {}): AsyncGenerator<ComprasGovPage> {
     for (let pageNumber = 1; pageNumber <= MAX_PAGES_PER_WINDOW; pageNumber += 1) {
-      const page = await this.fetchPage(window, pageNumber);
+      const page = await this.fetchPage(window, pageNumber, options.pageSize);
       yield page;
 
       const reachedPageLimit = options.maxPages !== undefined && pageNumber >= options.maxPages;
@@ -167,8 +184,8 @@ export class ComprasGovClient {
     }
   }
 
-  async fetchPage(window: ComprasGovWindow, pageNumber: number): Promise<ComprasGovPage> {
-    const url = this.buildUrl(windowParams(window), pageNumber, this.pageSize);
+  async fetchPage(window: ComprasGovWindow, pageNumber: number, pageSize: number = this.pageSize): Promise<ComprasGovPage> {
+    const url = this.buildUrl(windowParams(window), pageNumber, pageSize);
     return this.withRetries(pageNumber, (attempt) => this.requestPage(url, pageNumber, attempt));
   }
 

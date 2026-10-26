@@ -78,6 +78,8 @@ export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {
   CONTRATOS_CARGA: 'Contratos: carga inicial',
   CONTRATOS_LIMPEZA: 'Contratos: limpeza',
   CONTRATOS_AVISOS: 'Contratos: avisos',
+  VENCEDORES_DIARIA: 'Vencedores: coleta diária',
+  VENCEDORES_CARGA: 'Vencedores: carga inicial',
 };
 
 export const RUN_STATUS_LABELS: Record<CollectionRunStatus, string> = {

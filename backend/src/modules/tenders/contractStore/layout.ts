@@ -1,7 +1,7 @@
 import type { ContractTermSummary, TenderContractRow } from '../collector/contractMapping';
 
 // Formato do armazém de contratos no R2 (plano .plans/licitacoes-contratos-no-r2.md,
-// Parte R1): arquivos Parquet em três conjuntos, cada um na ordem da busca que
+// Parte R1): arquivos Parquet em quatro conjuntos, cada um na ordem da busca que
 // atende, e um manifesto (manifest.ts) com a lista dos arquivos em uso.
 //   vigentes    vencimento de hoje em diante, refeito a cada publicação, por
 //               faixa de vencimento (semana no 1º ano, mês no 2º, ano até 10
@@ -9,7 +9,11 @@ import type { ContractTermSummary, TenderContractRow } from '../collector/contra
 //   contratos   todos, por ano do contrato, por UF e número de controle (no
 //               piloto, a ordem por UF deixou a busca de palavra com UF de 3 a 9
 //               vezes mais rápida, sem piorar órgão e detalhe);
-//   fornecedor  todos, só as colunas da lista, por ano, por CNPJ do fornecedor.
+//   fornecedor  todos, só as colunas da lista, por ano, por CNPJ do fornecedor;
+//   vencedores  uma linha por licitação e fornecedor, por ano da compra, pela
+//               chave (CNPJ do fornecedor e número da compra). É gravado por
+//               outro gravador (winnerWriter.ts), e o escritor de contratos só
+//               o carrega adiante no manifesto (plano .plans/licitacoes-vencedores.md).
 // Cada pasta (faixa ou ano) fica em partes de tamanho limitado, divididas pela
 // chave das partes (PART_KEY), para o Cron Job regravar uma parte de cada vez
 // com pouca memória: na importação dos contratos locais, uma parte de 50 mil
@@ -27,14 +31,24 @@ export const MANIFEST_KEY = `${STORE_FOLDER}/manifesto.json`;
 export const FILES_FOLDER = `${STORE_FOLDER}/arquivos`;
 export const PARQUET_CONTENT_TYPE = 'application/vnd.apache.parquet';
 
-export const STORE_DATASETS = ['vigentes', 'contratos', 'fornecedor'] as const;
+export const STORE_DATASETS = ['vigentes', 'contratos', 'fornecedor', 'vencedores'] as const;
 export type StoreDataset = (typeof STORE_DATASETS)[number];
 
-/** Conjuntos por ano em que só as partes mudadas são regravadas (os vigentes são refeitos inteiros). */
-export type SlicedDataset = Exclude<StoreDataset, 'vigentes'>;
+/** Os conjuntos dos contratos: os que o escritor de contratos grava e o Web Service lê. */
+export const CONTRACT_DATASETS = ['vigentes', 'contratos', 'fornecedor'] as const satisfies readonly StoreDataset[];
+export type ContractDataset = (typeof CONTRACT_DATASETS)[number];
+
+/** Conjuntos de contratos por ano em que só as partes mudadas são regravadas (os vigentes são refeitos inteiros). */
+export type SlicedDataset = Exclude<ContractDataset, 'vigentes'>;
 
 /** Linhas por arquivo: acima disso, a parte é dividida. O fornecedor tem linhas mais estreitas. */
-export const MAX_ROWS_PER_FILE: Record<StoreDataset, number> = { vigentes: 30_000, contratos: 30_000, fornecedor: 60_000 };
+export const MAX_ROWS_PER_FILE: Record<StoreDataset, number> = {
+  vigentes: 30_000,
+  contratos: 30_000,
+  fornecedor: 60_000,
+  // Ponto de partida para as linhas com o mapa de itens; o piloto remede.
+  vencedores: 25_000,
+};
 export const ROW_GROUP_SIZE = 25_000;
 
 interface FieldColumn {
@@ -137,8 +151,45 @@ export const SUPPLIER_COLUMNS: readonly ColumnSpec[] = [
   return spec;
 });
 
+/**
+ * Colunas do conjunto vencedores: uma linha por licitação (número de controle da compra) e fornecedor. O órgão, o
+ * município e o nome do órgão só são preenchidos se a fonte os entregar (a de resultados não traz); os totais saem
+ * sempre do mapa de itens (winnerRows.ts).
+ */
+export const WINNER_COLUMNS: readonly ColumnSpec[] = [
+  { column: 'chave', type: 'VARCHAR' },
+  { column: 'numero_controle_compra', type: 'VARCHAR' },
+  { column: 'ano_compra', type: 'SMALLINT' },
+  { column: 'orgao_cnpj', type: 'VARCHAR' },
+  { column: 'orgao_razao_social', type: 'VARCHAR' },
+  { column: 'municipio_nome', type: 'VARCHAR' },
+  { column: 'municipio_ibge', type: 'VARCHAR' },
+  { column: 'unidade_codigo', type: 'VARCHAR' },
+  { column: 'uf', type: 'VARCHAR' },
+  { column: 'fornecedor_tipo_pessoa', type: 'VARCHAR' },
+  { column: 'fornecedor_documento', type: 'VARCHAR' },
+  { column: 'fornecedor_nome', type: 'VARCHAR' },
+  { column: 'fornecedor_porte', type: 'VARCHAR' },
+  // JSON: {"<item>/<sequencial>": [valor em reais ou null, "AAAA-MM-DD"]}, só dos resultados vencedores.
+  { column: 'itens', type: 'VARCHAR' },
+  { column: 'quantidade_itens', type: 'INTEGER' },
+  { column: 'valor_homologado_total', type: 'DECIMAL(18,2)' },
+  { column: 'primeira_data_resultado', type: 'DATE' },
+  { column: 'ultima_data_resultado', type: 'DATE' },
+  { column: 'hash_conteudo', type: 'VARCHAR' },
+  { column: 'primeira_coleta_em', type: 'VARCHAR' },
+  { column: 'ultima_alteracao_em', type: 'VARCHAR' },
+];
+
+const COLUMNS_BY_DATASET: Record<StoreDataset, readonly ColumnSpec[]> = {
+  vigentes: CONTRACT_COLUMNS,
+  contratos: CONTRACT_COLUMNS,
+  fornecedor: SUPPLIER_COLUMNS,
+  vencedores: WINNER_COLUMNS,
+};
+
 export function columnsOf(dataset: StoreDataset): readonly ColumnSpec[] {
-  return dataset === 'fornecedor' ? SUPPLIER_COLUMNS : CONTRACT_COLUMNS;
+  return COLUMNS_BY_DATASET[dataset];
 }
 
 /** Lista de colunas para SELECT. */
@@ -160,6 +211,7 @@ export const ROW_ORDER: Record<StoreDataset, string> = {
   vigentes: 'vencimento, uf, numero_controle_pncp',
   contratos: 'uf, numero_controle_pncp',
   fornecedor: 'fornecedor_documento, data_publicacao_pncp DESC, numero_controle_pncp',
+  vencedores: 'chave',
 };
 
 /** Chave das partes de cada conjunto: única por contrato e na ordem das linhas dos arquivos. */
@@ -167,10 +219,14 @@ export const PART_KEY: Record<StoreDataset, string> = {
   vigentes: `strftime(vencimento, '%Y-%m-%d') || '|' || coalesce(uf, '') || '|' || numero_controle_pncp`,
   contratos: `coalesce(uf, '') || '|' || numero_controle_pncp`,
   fornecedor: `coalesce(fornecedor_documento, '') || '|' || numero_controle_pncp`,
+  vencedores: 'chave',
 };
 
 /** Partição (pasta) dos conjuntos em partes: o ano do contrato. */
 export const SLICE_PARTITION = 'CAST(ano_contrato AS VARCHAR)';
+
+/** Partição dos vencedores: o ano da compra (do sufixo do número de controle), que nunca muda numa linha. */
+export const WINNER_PARTITION = 'CAST(ano_compra AS VARCHAR)';
 
 /**
  * Faixa de vencimento dos vigentes, a partir de `today` (expressão DATE): semana

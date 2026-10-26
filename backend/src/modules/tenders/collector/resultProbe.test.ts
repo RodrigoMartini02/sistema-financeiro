@@ -77,9 +77,9 @@ function createFakeDeps(options: FakeOptions = {}): { deps: ResultProbeDeps; cal
           const total = month < 2021 * 12 + 4 ? 0 : 1000 + (month - 2021 * 12);
           return json({ resultado: total > 0 ? PAGE_ONE.slice(0, 1) : [], totalRegistros: total, totalPaginas: Math.ceil(total / 10), paginasRestantes: 0 });
         }
-        if (dates.initial === dates.final) {
-          // Janela [d, d]: vazia, porque o fim é exclusivo.
-          return json({ resultado: [], totalRegistros: 0, totalPaginas: 0, paginasRestantes: 0 });
+        if (dates.final > dates.initial) {
+          // Janela [d, d+1]: com o fim inclusivo, o dia seguinte entra e o total é maior que o do dia.
+          return json({ resultado: PAGE_ONE, totalRegistros: 9, totalPaginas: 1, paginasRestantes: 0 });
         }
         if (options.limitSampleAtPage === page) {
           return failure(429, 'muitas requisições', '45');
@@ -122,7 +122,8 @@ test('sondagem completa: estrutura, campos, situações, documentos, fronteira, 
   assert.equal(report.purchaseNumber?.['matchesEditalFormat'], '80%');
   assert.deepEqual(report.purchaseNumber?.['otherShapes'], ['AAAAAAA-AAAAAAAAA-999']);
 
-  assert.equal((report.windowBoundary?.['endExclusive']), true);
+  // [d, d+1] traz mais registros que [d, d]: o fim é inclusivo.
+  assert.equal((report.windowBoundary?.['endExclusive']), false);
   assert.deepEqual(report.pageSize, { size500: 200, size501: 400, size501Message: 'tamanhoPagina deve ser no máximo 500' });
 
   assert.deepEqual(report.coverage, { sampleRecords: 5, ufKey: 'unidadeOrgaoUfSigla', distinctUfs: 3, ufs: ['MA', 'RJ', 'SP'], distinctAgencies: 1 });
@@ -165,8 +166,8 @@ test('usa o dia pedido e as páginas pedidas', async () => {
   const report = await runResultProbe(deps, { day: '2026-08-03', maxPages: 1 });
   assert.equal(report.sampleDay, '2026-08-03');
   assert.equal(report.structure['pagesRead'], 1);
-  // A amostra pede a janela do dia com o fim exclusivo.
-  assert.deepEqual(calls[0]?.dates, { initial: '2026-08-03', final: '2026-08-04' });
+  // A amostra pede a janela do dia, com o fim inclusivo.
+  assert.deepEqual(calls[0]?.dates, { initial: '2026-08-03', final: '2026-08-03' });
   assert.equal(calls[0]?.size, 500);
 });
 

@@ -73,8 +73,8 @@ function contractRequests(context: CollectorContext): number {
   return context.contractsPncp.requestCount + context.termsPncp.requestCount;
 }
 
-/** O R2 da coleta de contratos; sem ele (variáveis não definidas), a execução falha com o motivo. */
-function requireStorage(context: CollectorContext): ObjectStorage {
+/** O R2 da coleta de contratos e de vencedores; sem ele (variáveis não definidas), a execução falha com o motivo. */
+export function requireStorage(context: CollectorContext): ObjectStorage {
   if (!context.storage) {
     throw new CollectorConfigError(
       'Os contratos ficam no R2: defina TENDERS_ARCHIVE_ENDPOINT, TENDERS_ARCHIVE_BUCKET, TENDERS_ARCHIVE_ACCESS_KEY_ID, TENDERS_ARCHIVE_SECRET_ACCESS_KEY e TENDERS_STORAGE_PREFIX',

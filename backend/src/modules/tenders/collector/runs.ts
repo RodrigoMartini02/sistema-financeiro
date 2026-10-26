@@ -370,7 +370,15 @@ async function readContractStoreStatus(context: CollectorContext) {
   }
   try {
     const manifest = await readManifest(context.storage);
-    return manifest && { revision: manifest.revision, publishedAt: manifest.publishedAt, today: manifest.today, totals: manifest.totals };
+    return (
+      manifest && {
+        revision: manifest.revision,
+        publishedAt: manifest.publishedAt,
+        today: manifest.today,
+        totals: manifest.totals,
+        winners: { rows: manifest.datasets.vencedores.reduce((total, file) => total + file.rows, 0) },
+      }
+    );
   } catch (error) {
     return { error: errorMessage(error) };
   }

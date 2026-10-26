@@ -35,6 +35,19 @@ export interface ComprasGovSettings {
 }
 
 /**
+ * Coleta dos vencedores das licitações (plano .plans/licitacoes-vencedores.md). Fica fora de `contracts`: o teste da
+ * configuração dos contratos compara o objeto inteiro.
+ */
+export interface WinnersSettings {
+  /** Liga as duas etapas da rotina diária. Desligada por padrão; os comandos da CLI funcionam sempre. */
+  enabled: boolean;
+  /** Dia de resultado mais antigo da carga histórica (AAAA-MM-DD). */
+  backfillFrom: string;
+  /** Tempo de cada bloco da carga, em minutos. */
+  backfillMinutes: number;
+}
+
+/**
  * Cloudflare R2: o arquivo bruto (plano .plans/licitacoes-base-nacional.md,
  * parte 1) e o armazém de contratos (plano .plans/licitacoes-contratos-no-r2.md).
  */
@@ -53,6 +66,7 @@ export interface CollectorConfig {
   pncp: PncpSettings;
   contracts: ContractsSettings;
   comprasGov: ComprasGovSettings;
+  winners: WinnersSettings;
   /** Sem as variáveis do R2, o arquivo bruto e o armazém de contratos ficam desligados. */
   storage: StorageSettings | null;
   logLevel: LogLevel;
@@ -113,6 +127,14 @@ const collectorEnvSchema = z.object({
   // Blocos de 8 h: a carga completa (~70 h no piloto) termina em ~10 dias, e a
   // rotina fica abaixo do limite de 12 h do Cron Job do Render.
   TENDERS_CONTRACTS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(480),
+  // Vencedores (plano .plans/licitacoes-vencedores.md). Só "1" liga as etapas da rotina diária; qualquer outro valor é erro.
+  TENDERS_WINNERS_ENABLED: z
+    .enum(['0', '1'], { error: 'deve ser 0 ou 1' })
+    .default('0')
+    .transform((value) => value === '1'),
+  // A fonte tem resultados desde 2021-08 (sondagem de 25/10/2026): o dia mais antigo da carga começa aí.
+  TENDERS_WINNERS_BACKFILL_FROM: z.iso.date('deve ser uma data AAAA-MM-DD').default('2021-08-01'),
+  TENDERS_WINNERS_BACKFILL_MINUTES: z.coerce.number().int().min(1).max(600).default(120),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
@@ -231,6 +253,11 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       backfillMinutes: values.TENDERS_CONTRACTS_BACKFILL_MINUTES,
     },
     comprasGov: loadComprasGovSettings(env),
+    winners: {
+      enabled: values.TENDERS_WINNERS_ENABLED,
+      backfillFrom: values.TENDERS_WINNERS_BACKFILL_FROM,
+      backfillMinutes: values.TENDERS_WINNERS_BACKFILL_MINUTES,
+    },
     storage: loadStorageSettings(env, values.TENDERS_COLLECTOR_DATABASE_URL),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,
   };

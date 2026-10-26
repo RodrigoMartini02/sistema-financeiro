@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { ContractsCollection } from '../types';
-import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runErrorLines } from './collectionRuns';
+import { COLLECTION_RUN_TYPES, type ContractsCollection } from '../types';
+import { archiveSummaryLabel, backfillSummary, dailyCollectionSummary, runErrorLines, winnersDailySummary, winnersRowsLabel } from './collectionRuns';
 import { RUN_TYPE_LABELS } from './labels';
 
 type Backfill = ContractsCollection['backfill'];
@@ -130,4 +130,71 @@ test('arquivo bruto: desligado; sem o resumo nos detalhes, sem linha', () => {
   assert.equal(archiveSummaryLabel({ details: { archive: { enabled: false, files: 0, records: 0, bytes: 0, failures: 0 } } }), 'Desligado');
   assert.equal(archiveSummaryLabel({ details: {} }), null);
   assert.equal(archiveSummaryLabel({ details: { archive: 'texto' } }), null);
+});
+
+// ---- Vencedores (plano .plans/licitacoes-vencedores.md) ----
+
+test('todo tipo de execução tem rótulo, e os dos vencedores não citam a fonte', () => {
+  for (const type of COLLECTION_RUN_TYPES) {
+    assert.ok(RUN_TYPE_LABELS[type], type);
+  }
+  assert.equal(RUN_TYPE_LABELS.VENCEDORES_DIARIA, 'Vencedores: coleta diária');
+  assert.equal(RUN_TYPE_LABELS.VENCEDORES_CARGA, 'Vencedores: carga inicial');
+  for (const label of Object.values(RUN_TYPE_LABELS)) {
+    assert.doesNotMatch(label, /pncp|compras\.gov/i, label);
+  }
+});
+
+test('painel da coleta: linhas dos vencedores na base, "—" quando ainda não há cópia ou publicação', () => {
+  assert.equal(winnersRowsLabel(null), '—');
+  assert.equal(winnersRowsLabel(0), '0 linhas');
+  assert.equal(winnersRowsLabel(1), '1 linha');
+  assert.equal(winnersRowsLabel(1_234_567), '1.234.567 linhas');
+});
+
+test('coleta diária de vencedores: a janela lida e o dia mais recente da fonte, sem nota num dia normal', () => {
+  const summary = winnersDailySummary({
+    details: {
+      today: '2026-10-26',
+      sourceLastDay: '2026-10-25',
+      queries: [{ endpoint: 'resultados', from: '2026-10-18', to: '2026-10-25', windowTo: '2026-10-26', completed: true, recordsRead: 9000 }],
+    },
+  });
+  assert.deepEqual(summary, { period: '18/10/2026 a 26/10/2026', sourceLastDay: '2026-10-25', notes: [] });
+});
+
+test('coleta diária de vencedores: a fonte atrás do calendário vira uma nota, e um fim de semana não', () => {
+  const behind = winnersDailySummary({
+    details: {
+      today: '2026-10-26',
+      sourceLastDay: '2026-09-29',
+      queries: [{ endpoint: 'resultados', from: '2026-09-22', to: '2026-09-29', windowTo: '2026-10-06', completed: true, recordsRead: 70000 }],
+    },
+  });
+  assert.equal(behind.sourceLastDay, '2026-09-29');
+  assert.deepEqual(behind.notes, ['A fonte só tem resultados até 29/09/2026; a coleta continua de onde ela parou.']);
+  // Segunda de manhã com dado até sexta: três dias, ainda normal.
+  assert.deepEqual(winnersDailySummary({ details: { today: '2026-10-26', sourceLastDay: '2026-10-23' } }).notes, []);
+  assert.equal(winnersDailySummary({ details: { today: '2026-10-27', sourceLastDay: '2026-10-23' } }).notes.length, 1);
+});
+
+test('coleta diária de vencedores: execução antiga ou em andamento, sem as consultas, usa o período ou nada', () => {
+  assert.deepEqual(winnersDailySummary({ details: {} }), { period: null, sourceLastDay: null, notes: [] });
+  assert.equal(winnersDailySummary({ details: { period: { dataInicial: '20261018', dataFinal: '20261026' } } }).period, '18/10/2026 a 26/10/2026');
+  assert.equal(winnersDailySummary({ details: { queries: 'texto', sourceLastDay: 'ontem' } }).sourceLastDay, null);
+});
+
+test('carga de vencedores: o andamento usa a mesma leitura da carga de contratos', () => {
+  const summary = backfillSummary({
+    completedDays: 40,
+    oldestDay: '2026-08-02',
+    lastRun: { from: '2021-08-01', to: '2026-09-29', totalDays: 1886, pendingDays: 1846, stoppedBy: 'time', finished: false },
+  });
+  assert.equal(summary.status, 'Carga em andamento');
+  assert.equal(summary.progress, '40 de 1.886 dias');
+  assert.deepEqual(summary.notes, ['Dia mais antigo carregado: 02/08/2026.', 'Parou no limite de tempo do bloco; continua na próxima rotina.']);
+});
+
+test('coleta diária de vencedores: o arquivo bruto usa o mesmo rótulo', () => {
+  assert.equal(archiveSummaryLabel({ details: { archive: { enabled: true, files: 2, records: 40, bytes: 3_145_728, failures: 0 } } }), '2 arquivos · 3 MB');
 });

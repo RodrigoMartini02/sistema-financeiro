@@ -8,8 +8,8 @@ A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e se
 
 Referências:
 - escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos), `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta) e `.plans/licitacoes-contratos-no-r2.md` (contratos em Parquet no R2);
-- migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos), `0087` (contratos de todos os tipos), `0087a` (frases de cada termo da busca), `0087b` (os contratos saem do Postgres, para o R2) e `0088` (edital sem o JSON bruto).
+- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos), `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta), `.plans/licitacoes-contratos-no-r2.md` (contratos em Parquet no R2) e `.plans/licitacoes-vencedores.md` (vencedores das licitações);
+- migrations `backend/drizzle/0072` a `0080`, `0085` e `0086` (contratos), `0087` (contratos de todos os tipos), `0087a` (frases de cada termo da busca), `0087b` (os contratos saem do Postgres, para o R2), `0087c` (vencedores: tipos de execução e dias da carga) e `0088` (edital sem o JSON bruto).
 
 ## Estrutura
 
@@ -30,7 +30,10 @@ backend/src/modules/tenders/
 │   ├── queries.ts                   consultas da API e dos avisos: lista, detalhe, contagem e janelas de vencimento
 │   ├── writer.ts                    gravação (Cron Job): mudanças, partes regravadas e publicação
 │   ├── reader.ts                    leitura (Web Service): cópia local, troca de versão, fila e limite de tempo
-│   └── service.ts                   o armazém do Web Service: começa com o servidor, sem atrasar o /health
+│   ├── service.ts                   o armazém do Web Service: começa com o servidor, sem atrasar o /health
+│   ├── winnerRows.ts                vencedores, núcleo puro: chave, mapa de itens, totais e agregação idempotente
+│   ├── winnerWriter.ts              vencedores: gravador irmão do dos contratos (ano inteiro, lápides, manifesto por último)
+│   └── winnerQueries.ts             vencedores: resumo, órgãos e lista por CNPJ (usadas só pelo `winners-lookup`)
 ├── collector/
 │   ├── docs/pncp-openapi.json       OpenAPI da API de Consultas do PNCP (05/10/2026)
 │   ├── docs/pncp-api-openapi.json   OpenAPI da API principal do PNCP (itens e arquivos, 05/10/2026)
@@ -48,7 +51,14 @@ backend/src/modules/tenders/
 │   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO; total das buscas salvas
 │   ├── archive.ts                   arquivo bruto das coletas no Cloudflare R2 (JSON Lines compactado)
 │   ├── noticePayloadExport.ts       exportação do JSON dos editais do banco para o R2 (antes da 0088)
-│   ├── runtime.ts                   config, log, banco, PNCP e R2 de uma execução (CLI e rotina diária)
+│   ├── comprasGovClient.ts          cliente dos resultados das licitações (Compras.gov.br): paginação, repetição e erro tipado
+│   ├── resultProbe.ts               sondagem da fonte de resultados (`winners-probe`, sem banco e sem R2)
+│   ├── supplierCheck.ts             `winners-probe --fornecedor`: confere um CNPJ contra a fonte (oráculo independente da agregação; relê com outro tamanho de página se faltar registro e diz em `complete` se vieram todos)
+│   ├── resultMapping.ts             resultado de um item → ResultRecord; identidade do fornecedor e CPF sempre mascarado
+│   ├── resultProgress.ts            andamento no Postgres: último dia lido da coleta diária e dias da carga de vencedores
+│   ├── resultRuns.ts                vencedores: coleta diária e carga histórica, publicando o armazém
+│   ├── winnersLookup.ts             `winners-lookup`: as vitórias de um CNPJ, com o edital ligado quando existe
+│   ├── runtime.ts                   config, log, banco, PNCP, Compras.gov.br e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
 ├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...)
@@ -72,6 +82,10 @@ backend/src/modules/tenders/
 | `PNCP_TERMS_INTERVAL_MS` | `500` | Pausa entre as consultas de termos (API principal), separada da consulta. Medido no piloto: mais de 10 mil consultas a 0,5 s, sem 429. |
 | `TENDERS_CONTRACTS_BACKFILL_FROM` | `2021-01-01` | Dia de publicação mais antigo da carga inicial. |
 | `TENDERS_CONTRACTS_BACKFILL_MINUTES` | `480` | Tempo de cada bloco da carga (1 a 600). |
+| `COMPRASGOV_REQUEST_INTERVAL_MS` | `1500` | Pausa entre os pedidos aos resultados das licitações (0 a 60000). Medido na sondagem de 25/10/2026: 78 pedidos a 1,5 s, sem nenhum 429. |
+| `TENDERS_WINNERS_ENABLED` | `0` | `1` liga as duas etapas dos vencedores na rotina diária. Só `0` ou `1`. Os comandos `winners-*` da CLI funcionam sempre. |
+| `TENDERS_WINNERS_BACKFILL_FROM` | `2021-08-01` | Dia de resultado mais antigo da carga dos vencedores (a fonte só tem dados desde agosto de 2021). |
+| `TENDERS_WINNERS_BACKFILL_MINUTES` | `120` | Tempo de cada bloco da carga dos vencedores (1 a 600). A rotina ainda o limita ao tempo que sobra do prazo dela. |
 | `TENDERS_ARCHIVE_ENDPOINT` | — (sem as 5 do R2, o R2 fica desligado) | Endpoint S3 da conta no Cloudflare R2, `https://<conta>.r2.cloudflarestorage.com`. Só `https`. |
 | `TENDERS_ARCHIVE_BUCKET` | — | Bucket privado do R2 (minúsculas, números e hífen). |
 | `TENDERS_ARCHIVE_ACCESS_KEY_ID` | — | Chave do token do R2 ("Object Read & Write", restrito ao bucket). Só no ambiente, nunca no repositório. |
@@ -100,6 +114,11 @@ npm --prefix backend run tenders -- contracts-daily           # contratos public
 npm --prefix backend run tenders -- contract-reminders        # avisos de 90 e 30 dias antes do vencimento
 npm --prefix backend run tenders -- contracts-backfill [--from 2026-09-01] [--to 2026-09-30] [--max-minutes 90]
 npm --prefix backend run tenders -- notices-payload-export    # JSON dos editais do banco para o R2, antes da 0088
+npm --prefix backend run tenders -- winners-probe [--day 2026-09-14] [--max-pages 5]   # sondagem da fonte de resultados (sem banco e sem R2)
+npm --prefix backend run tenders -- winners-probe --fornecedor 11222333000181 --from 2026-09-01 --to 2026-09-30   # confere um fornecedor contra a fonte (ou --day)
+npm --prefix backend run tenders -- winners-daily             # vencedores: relê os últimos dias e publica
+npm --prefix backend run tenders -- winners-backfill [--from 2026-09-01] [--to 2026-09-30] [--max-minutes 120]
+npm --prefix backend run tenders -- winners-lookup --cnpj 11222333000181 [--limit 20]   # as vitórias de um fornecedor
 ```
 
 No banco local, o mesmo comando vai com `tenders:dev`, que lê o `../.env.dev`:
@@ -109,7 +128,7 @@ npm --prefix backend run tenders:dev -- sweep
 ```
 
 - **Saída:** cada execução fica em `licitacoes.coleta_execucao` com tipo, status (`SUCESSO`, `PARCIAL` ou `FALHA`), requisições, registros lidos, novos, atualizados, notificações, erros e detalhes. O código de saída é 1 em `FALHA`.
-- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava, os contratos uma terceira (a carga manual e a rotina não rodam juntas) e a exportação do JSON dos editais uma quarta.
+- **Trava:** com uma coleta em andamento, uma segunda sai sem coletar ("coleta já em execução"), por causa do `pg_try_advisory_lock`. Lembretes, limpeza e reprocessamento usam outra trava, os contratos e os vencedores uma terceira (a carga manual e a rotina não rodam juntas, e os dois gravadores nunca rodam ao mesmo tempo, porque publicam no mesmo manifesto) e a exportação do JSON dos editais uma quarta.
 
 ## Agendamento (Render Cron Job, horário em UTC)
 
@@ -127,12 +146,14 @@ Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um
 3. lembretes de prazo (`deadline-reminders`);
 4. coleta diária de contratos (`contracts-daily`);
 5. avisos de vencimento dos contratos (`contract-reminders`);
-6. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
-7. carga inicial de contratos (`contracts-backfill`), por último: só roda com o R2 configurado e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados)).
+6. coleta diária dos vencedores (`winners-daily`), só com `TENDERS_WINNERS_ENABLED=1`: é curta e diária, por isso vem antes das cargas;
+7. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
+8. carga inicial de contratos (`contracts-backfill`): só roda com o R2 configurado e com dia pendente (ver [Contratos a vencer](#contratos-a-vencer-dados));
+9. carga dos vencedores (`winners-backfill`), por último e só com `TENDERS_WINNERS_ENABLED=1`: usa só o tempo que sobra do prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada, não falha.
 
 Os contratos não têm mais limpeza (parte 2 do plano `.plans/licitacoes-base-nacional.md`): os encerrados ficam na base. O tipo `CONTRATOS_LIMPEZA` fica só no histórico.
 
-Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração.
+Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração e a memória residente do processo (`rssMb`): as etapas rodam no mesmo processo, e é assim que se vê em produção se a memória volta ao nível de antes entre elas.
 
 - **Variáveis:** `BILLING_CRON_SECRET` (rotina de planos), `TENDERS_COLLECTOR_DATABASE_URL` e, se fugirem do padrão, `BACKEND_URL` (padrão: o backend de produção) e as `PNCP_*`.
 - **Sem coleta incremental:** os editais novos entram na varredura do dia seguinte. Os lembretes pegam tudo o que encerra nas próximas 72 h e 24 h, sem repetir aviso, então uma execução por dia basta.
@@ -164,7 +185,10 @@ npm --prefix backend run test:tenders-db
 
 Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `objectStorage.test.ts`) usam o R2 simulado e um S3 local: formato, chave do contrato e ida e volta da linha, critérios, consultas da API e dos avisos (`queries.test.ts`: paginação e total, ordens, filtros, número, chaves, detalhe, contagem e janelas de vencimento), gravação (estado anterior, partes regravadas só onde mudou, divisão, mudança de UF, limpeza das versões, falha no envio, várias publicações na mesma execução e os termos pendentes e a reconsulta) e leitura (sem cópia, armazém vazio, troca de versão, arquivos da versão anterior, limite de tempo, fila e R2 fora do ar), e o armazém do Web Service sem o R2 (`service.test.ts`).
 
+Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`, com a propriedade de mil permutações do lote), o mapeamento da fonte com a página real da sondagem (`resultMapping.test.ts`), o gravador com o DuckDB de verdade (`winnerWriter.test.ts`: ano inteiro regravado só onde mudou, lápide, falha no envio, convivência com o escritor de contratos e o leitor), as consultas (`winnerQueries.test.ts`), o cliente da fonte (`comprasGovClient.test.ts`), a sondagem e a conferência por fornecedor (`resultProbe.test.ts` e `supplierCheck.test.ts`), a janela e os dias pendentes (`resultRuns.test.ts`), o `winners-lookup` (`winnersLookup.test.ts`) e a rotina (`services/dailyJobSteps.test.ts` e `services/dailyJobs.test.ts`: ordem das etapas e vencedores desligados).
+
 `test:tenders-db` roda os testes de banco do módulo:
+- **Um arquivo por vez** (`--test-concurrency=1`): vários arquivos disputam a mesma trava dos contratos e dos vencedores (a mesma, de propósito: os dois gravadores publicam no mesmo manifesto). Em paralelo, uma execução de um arquivo sai "coleta já em execução" por causa da de outro.
 - **Onde:** só no banco local, e se recusa a rodar se a URL não for `localhost:5433/sistema_financas_dev`.
 - **Isolamento:** cada teste roda numa transação desfeita no fim, então nada fica gravado.
 - **O que cobre:**
@@ -172,6 +196,7 @@ Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `obje
   - `fn_edital_bate`: acento, singular e plural (pares medidos), E/OU, exclusão, valores, "incluir sem valor", encerrado, situação, UF, modalidade, órgão, município e SRP;
   - notificações: sem duplicidade, sem retroativa, só conta com acesso (a vencida não recebe), destinatários de "alterado", janelas de prazo, reprocessamento e isolamento entre contas;
   - contratos (`collector/contractRuns.db.test.ts`, com o R2 simulado): todos os tipos e os vencidos entram com o tipo, sem data de fim entra sem vencimento (e ganha o do aditivo), termos não reconsultados com a mesma data global, a publicação (versão nova com os totais, e sem mudança nada se publica), janela da coleta diária (a execução que não publica deixa as consultas como não concluídas), reconsulta dos termos, carga do mais recente ao mais antigo com retomada, publicação a cada N dias e dias marcados só depois de publicar, parada por tempo, carga sem o R2 não roda, CONTRATO_ALTERADO só depois de publicar, trava própria e o arquivo bruto (o que vai, falha no envio e execução que falha);
+  - vencedores (`collector/resultRuns.db.test.ts`, com a fonte e o R2 simulados; precisa da 0087c): a coleta diária (janela de 8 dias, último dia lido pelo que a fonte tem, releitura idêntica sem publicar nem enviar bruto, fonte atrás do calendário e a volta dela, parada longa em etapas, falha antes de publicar, janela incompleta, mais de 5% de recusados, janela vazia, falha do bruto e CPF mascarado), o cancelamento tardio, a trava dividida com os contratos, a carga (do mais recente ao mais antigo, dias vazios depois do último com dado, retomada, publicação a cada N dias e marcação só depois, falha de publicação, tempo e prazo da rotina, três falhas seguidas e o reparo com `--from` e `--to`) e o status da Coleta;
   - exportação do JSON dos editais (`collector/noticePayloadExport.db.test.ts`): sem R2 não roda; lotes em partes, com o JSON e as datas de coleta; falha no envio para sem avançar, e a seguinte continua e confere (`verified`);
   - campos de busca do armazém de contratos (`contractStore/textSearch.db.test.ts`): radicais e grupos de dígitos pelo Postgres, e a frase batendo onde a busca de hoje bate;
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`), sobre um armazém de exemplo e o Postgres do banco local: cada filtro, singular e plural, só vigentes e "Só favoritos" com os vencidos, tipo de contrato e "Incluir encerrados" (com os sem vencimento), ordenações e relevância, paginação, paridade com a busca salva, total gravado com a data (e sem total com o armazém atualizando), limite de 50 à parte, prévia, isolamento, edital de origem, favoritos pela chave, as janelas dos avisos, CONTRATO_ALTERADO e o total das buscas salvas;
@@ -228,7 +253,7 @@ Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): 
   - termos dos contratos: a resposta de cada consulta, com o número de controle (`null` quando o PNCP não conhece o contrato);
   - editais (varredura, incremental e `collect`): só os novos ou alterados, pelo hash ou pela data de atualização.
   - Itens e arquivos abertos na tela não vão.
-- **Chave:** `<pasta do ambiente>/<fonte>/<conjunto>/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com o dia da coleta em Brasília. Exemplo: `producao/pncp/contratos/2026/10/18/412-0001.jsonl.gz`. Conjuntos: `contratos`, `contratos-termos` e `editais`. A pasta do ambiente (`TENDERS_STORAGE_PREFIX`) é posta pelo cliente (`objectStorage.ts`); o resto do código usa as chaves sem ela.
+- **Chave:** `<pasta do ambiente>/<fonte>/<conjunto>/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com o dia da coleta em Brasília. Exemplo: `producao/pncp/contratos/2026/10/18/412-0001.jsonl.gz`. Conjuntos: `contratos`, `contratos-termos` e `editais` (fonte `pncp`) e `resultados` (fonte `comprasgov`, dos vencedores, com o CPF mascarado). A pasta do ambiente (`TENDERS_STORAGE_PREFIX`) é posta pelo cliente (`objectStorage.ts`); o resto do código usa as chaves sem ela.
 - **Formato:** JSON Lines compactado com gzip. Cada linha é `{ "collectedAt": "<ISO>", "record": <o registro como veio> }`; nos termos, também `controlNumber`.
 - **Partes:** a execução junta as linhas na memória e envia a parte ao passar de 16 MB brutos (`ARCHIVE_PART_BYTES`). O que sobra vai no fim, inclusive quando a execução falha.
 - **Detalhes da execução:** `detalhes.archive = { enabled, files, records, bytes, failures }`, com o tamanho compactado. Configurações › Coleta mostra a linha "Arquivo bruto" na varredura e na coleta diária de contratos.
@@ -275,6 +300,33 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
 - **No Web Service** (`service.ts`): o leitor começa junto com o servidor (`server.ts`), em segundo plano, na pasta temporária da máquina (`licitacoes-contratos`); o `/health` e o resto do sistema não esperam. Até a cópia ficar pronta (cerca de 1 minuto depois de um deploy ou reinício), as rotas de contratos respondem 503. Sem as variáveis do R2, ou com elas incompletas, o servidor sobe do mesmo jeito: o log registra o motivo (sem mostrar as chaves) e os contratos ficam indisponíveis.
 - **No Cron Job:** a coleta e os avisos da mesma rotina usam a mesma pasta de trabalho (`licitacoes-contratos-coletor`, no disco temporário): o que a coleta publicou já está lá quando os avisos começam, sem baixar de novo.
 - **Sem extensões baixadas:** o DuckDB lê só arquivos locais, com o que vem embutido (parquet, json, icu). Os arquivos chegam pelo cliente do R2.
+
+## Vencedores das licitações
+
+Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação da Lei 14.133, lido do Compras.gov.br (dados abertos, sem autenticação) e guardado como o quarto conjunto do armazém Parquet do R2. Não há tabela de resultados no Postgres, e o Web Service não baixa nem abre os vencedores: a leitura pela tela é da Parte 4 (página do CNPJ). Por enquanto o aceite é o comando `winners-lookup --cnpj`.
+
+- **A fonte** (`comprasGovClient.ts`, medida em 25/10/2026 pela `winners-probe`):
+  - `GET https://dadosabertos.compras.gov.br/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133` com `pagina`, `tamanhoPagina` (máximo 500; 501 dá HTTP 400), `dataResultadoPncpInicial` e `dataResultadoPncpFinal`;
+  - **o fim da janela é inclusivo**: o dia 14/09 deu 9.719 registros, o dia 15 deu 8.328 e a janela de 14 a 15 deu 18.047;
+  - uma linha por **item** e resultado; 6,7 milhões de registros desde 2021-08 (de 150 mil a 250 mil por mês em 2024 e 2025); página de uns 200 ms; cobertura nacional (25 UFs e 153 órgãos numa amostra de 2.500);
+  - o documento de pessoa física vem com 11 dígitos, de pessoa jurídica com 14 e de estrangeira com 9;
+  - **a fonte pode parar**: ela ficou 26 dias sem dado novo (o último dia foi 29/09/2026). A coleta trata isso, abaixo;
+  - **a paginação falha na primeira leitura de um dia** (medido em 25/10/2026): a soma das páginas é igual ao `totalRegistros`, mas de 1% a 12% das linhas vêm em duas páginas seguidas e outras tantas não vêm em página nenhuma. A leitura seguinte do mesmo dia, com outro tamanho de página, veio completa nos 9 dias em que se mediu. Pedir a mesma página de novo devolve a mesma resposta (e o tamanho da primeira leitura não importa: 500 e 437 falharam igual). Das 20 amostras de dias de 2021 a 2026, 13 vieram assim (os 7 inteiros eram, em 6 casos, de até duas páginas), e dias que já tinham sido lidos várias vezes vieram inteiros. A causa na fonte não foi achada. A contagem de páginas não pega isso; a contagem de linhas distintas pega (abaixo).
+- **Conjunto `vencedores`** (`layout.ts`, `winnerRows.ts`): uma linha por licitação (número de controle da compra) e fornecedor, em `contratos/arquivos/vencedores/<ano da compra>/v<versão>-<nº>.parquet`, em partes de até 25 mil linhas pela chave.
+  - **Chave:** `<fornecedor>|<número de controle da compra>`. Empresa: os 14 dígitos do CNPJ. Pessoa física, estrangeira e sem documento: o documento (CPF mascarado `***.456.789-**`, texto saneado ou `sem-documento`), `#` e 8 caracteres de um hash do nome, para duas pessoas com os mesmos 6 dígitos não se fundirem.
+  - **Colunas:** órgão (pelo número de controle), UF e unidade, dados do fornecedor, o mapa dos itens (`{"<item>/<sequencial>": [valor, "AAAA-MM-DD"]}`, em ordem numérica), quantidade de itens, valor total (centavos inteiros, sem ponto flutuante), primeira e última data, hash do conteúdo e as datas da coleta.
+  - **Manifesto:** o mesmo dos contratos, com a chave nova `datasets.vencedores` (o formato continua 1: o Web Service antigo ignora a chave). O gravador de contratos carrega a lista adiante em toda publicação; sem isso, publicar contratos apagaria os vencedores do manifesto e a limpeza apagaria os arquivos. Há teste para isso.
+- **Agregação** (`winnerRows.ts`, função pura): cada resultado tira a chave `item/sequência` de todas as linhas da compra e, se for vencedor, põe o item na linha do fornecedor atual. Isso cobre sobrescrita, cancelamento, reativação, valor ou data corrigidos e a troca de fornecedor do mesmo item. Os totais são sempre recalculados a partir do mapa, e linha com hash igual não muda (reler não publica nada). Linha que perde o último item vira lápide e sai do arquivo; **nada é removido por ausência**. O nome, o porte e a unidade do fornecedor variam de um item para outro da mesma linha (medido: uma empresa vinha "ME" nos itens de um dia e "Demais" nos do dia seguinte), então eles vêm sempre do **primeiro item da linha** (menor número e sequência): assim o estado só depende dos itens, e não da ordem nem da divisão em lotes (a regra anterior, "o mais recente do lote", fazia de 15 a 20 linhas mudarem a cada releitura). Se o primeiro item é cancelado, a linha guarda os dados dele até o novo primeiro item ser lido de novo.
+  - **Quem vence:** situação 1 (informado) sem data de cancelamento. Situação 2 ou data de cancelamento é cancelado. A 3 (cadastro de reserva) e qualquer outra não vencem. O campo `ordemClassificacaoSrp` (61% preenchido) pode separar vencedor de classificado depois dele: no piloto de 09/2026, 840 de 176.070 vencedores (0,48%) têm ordem acima de 1 (`winnersWithRankAboveOne`) e hoje contam como vencedores. Não apareceu nenhuma situação 3 (reserva) e 34 registros vieram na situação 4, que também não vence.
+- **Gravação** (`winnerWriter.ts`, Cron Job, com a trava dos contratos): baixa só os arquivos dos vencedores; o estado anterior vem por compra (as mudanças da execução valem mais que os arquivos); publica regravando o ano inteiro de cada ano tocado; envia os arquivos novos, o manifesto por último, e apaga do bucket o que nenhum dos dois últimos manifestos usa. DuckDB de 128 MB e 1 thread, partes de 25 mil linhas. É uma cópia consciente de trechos do gravador dos contratos, para não mexer no que está em produção.
+- **Coleta diária** (`resultRuns.ts`, `winners-daily`): relê **7 dias antes do último dia lido** (a atualização de um resultado chega até 8 dias depois), até hoje, em etapas de até 7 dias depois de uma parada. O último dia lido é o último dia em que a fonte **tinha registro**, e nunca passa dele: com a fonte parada, a janela só se repete, sem publicar nada, e quando ela voltar nenhum dia fica para trás. Janela sem nenhum registro falha. Mais de 5% de registros recusados (com pelo menos 100 lidos) derruba a execução. Lote de 4.000 registros, que pode atravessar páginas.
+  - **Cada dia é lido sozinho e só vale se vierem todas as linhas dele.** A identidade de uma linha é licitação, item e sequência (`sourceRowKey`); o dia confere as linhas distintas com o `totalRegistros`. Faltando, lê o dia de novo com outro tamanho de página (`RESULTS_RETRY_PAGE_SIZES`: 499, 437 e 389), aplicando só as linhas que ainda não vieram (a linha repetida não é aplicada nem arquivada outra vez). Depois de `RESULTS_MAX_PASSES` (4) leituras sem completar, o dia não vale como lido: a execução sai PARCIAL com o erro `incomplete` (total informado, linhas distintas e leituras), a consulta fica não concluída e a janela é relida na próxima. Fonte fora do ar encerra a janela; um dia incompleto não impede os outros.
+  - **Custo:** o dia que vem falho custa duas leituras. A carga completa (cerca de 13.500 páginas) passa a ~27 mil pedidos, uns 13 h de espera a 1,7 s por página; a coleta diária (9 dias, uns 7 úteis de cerca de 17 páginas) fica em ~240 pedidos, uns 7 min de leitura, antes de publicar. Medido numa janela fria de 12 dias: 408 pedidos e 12,7 min, com a publicação.
+- **Carga histórica** (`winners-backfill`): do dia mais recente ao mais antigo, **um dia por vez**, retomável pela tabela `resultado_carga_dia`. Publica a cada 20 dias concluídos e no fim do bloco, e só depois de publicar marca os dias. Dia vazio depois do último dia com dado da fonte não é carregado e não fica pendente (é da coleta diária). Dia que não completa (acima) fica pendente e conta como dia com falha. Três falhas seguidas encerram o bloco. `--from` ou `--to` fazem **reparo**: relêem a faixa inteira, mesmo os dias já marcados.
+- **Arquivo bruto** (`comprasgov/resultados`): o registro como veio, só quando é inédito (dia ainda não coberto), mudou o estado de uma linha ou foi recusado, **com o CPF de 11 dígitos mascarado antes de entrar**. O bruto é descarregado antes de cada publicação, e falha no envio dele cancela a publicação e deixa tudo como não lido.
+- **Detalhes da execução:** `queries` (a janela e até onde foi lida), `sourceLastDay`, `metrics` (páginas, linhas repetidas, leituras extras e dias incompletos, tempos de leitura, de aplicação e de publicação, registros por situação, linhas novas, alteradas, removidas e iguais, dias vazios, cancelamentos por atraso e o pico de memória do processo), `publications` e `store`. Configurações › Coleta tem o card "Vencedores".
+- **Ordem de deploy** (decisão do plano): aplicar a **0087c** na produção antes (fora das 06:00 de Brasília; ela não depende da 0088); o merge sobe o Cron Job e o Web Service com `TENDERS_WINNERS_ENABLED` desligada, ou seja, inertes; depois do piloto aprovado, a flag é ligada no Cron Job com `TENDERS_WINNERS_BACKFILL_MINUTES=30`, acompanhando 2 ou 3 rotinas (duração, `rssMb` entre as etapas, tempo de publicação e o card). Conferir antes, no Render, o limite de duração e a memória do Cron Job.
+- **Risco de rollback do Cron Job:** voltar só o Cron Job para uma versão sem a linha do gravador de contratos que carrega `vencedores` adiante faz a próxima publicação de contratos apagar os vencedores do manifesto e os arquivos do bucket (refazer a carga leva dias). A flag fica desligada até o Cron Job novo estar ativo.
 
 ## Contratos a vencer (dados)
 

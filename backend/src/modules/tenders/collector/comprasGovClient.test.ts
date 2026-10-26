@@ -62,10 +62,9 @@ async function collectPages(iterable: AsyncIterable<ComprasGovPage>): Promise<Co
 
 const WINDOW = { from: '2026-09-14', to: '2026-09-14' };
 
-test('o fim da janela é exclusivo: pede o último dia mais um', () => {
-  assert.deepEqual(windowParams(WINDOW), { initial: '2026-09-14', final: '2026-09-15' });
-  // Vira o mês e o ano pelo calendário.
-  assert.deepEqual(windowParams({ from: '2026-12-01', to: '2026-12-31' }), { initial: '2026-12-01', final: '2027-01-01' });
+test('o fim da janela é inclusivo: pede o último dia como ele é (medido na fonte em 14/09/2026)', () => {
+  assert.deepEqual(windowParams(WINDOW), { initial: '2026-09-14', final: '2026-09-14' });
+  assert.deepEqual(windowParams({ from: '2026-12-01', to: '2026-12-31' }), { initial: '2026-12-01', final: '2026-12-31' });
 });
 
 test('pagina até paginasRestantes = 0, sempre com as datas e o tamanho de página', async () => {
@@ -77,11 +76,24 @@ test('pagina até paginasRestantes = 0, sempre com as datas e o tamanho de pági
   const firstUrl = new URL(requestedUrls[0] ?? '');
   assert.equal(firstUrl.pathname, RESULTS_PATH);
   assert.equal(firstUrl.searchParams.get('dataResultadoPncpInicial'), '2026-09-14');
-  assert.equal(firstUrl.searchParams.get('dataResultadoPncpFinal'), '2026-09-15');
+  assert.equal(firstUrl.searchParams.get('dataResultadoPncpFinal'), '2026-09-14');
   assert.equal(firstUrl.searchParams.get('tamanhoPagina'), '500');
   assert.equal(firstUrl.searchParams.get('pagina'), '1');
   assert.equal(new URL(requestedUrls[2] ?? '').searchParams.get('pagina'), '3');
   assert.equal(pages[0]?.totalPages, 3);
+});
+
+test('o tamanho de página de uma leitura pode ser trocado, sem mudar o do cliente', async () => {
+  const { client, requestedUrls } = createFakeClient([pageResponse(1, 1), pageResponse(2, 0), pageResponse(1, 0), pageResponse(1, 0)]);
+  await collectPages(client.pages(WINDOW, { pageSize: 450 }));
+  await collectPages(client.pages(WINDOW));
+  await client.fetchPage(WINDOW, 1, 400);
+
+  assert.deepEqual(
+    requestedUrls.map((url) => new URL(url).searchParams.get('tamanhoPagina')),
+    ['450', '450', '500', '400'],
+    'a leitura com outro tamanho usa o tamanho em todas as páginas; sem ele, vale o do cliente',
+  );
 });
 
 test('HTTP 204 e página vazia encerram a paginação', async () => {

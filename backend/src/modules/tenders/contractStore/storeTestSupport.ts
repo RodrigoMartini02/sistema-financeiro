@@ -1,13 +1,16 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { TenderContractRow } from '../collector/contractMapping';
 import { createCollectorLogger } from '../collector/logger';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
+import { openDuckDb, sqlLiteral, toDuckDbPath } from './duckdb';
 import type { ContractSearchFields } from './layout';
 import { ContractStoreReader } from './reader';
 import type { ContractSearchFieldsProvider, SearchPhrasesProvider } from './textSearch';
+import type { ResultRecord, SupplierIdentity } from './winnerRows';
+import { WinnerStoreWriter, type WinnerStoreWriterOptions } from './winnerWriter';
 import { ContractStoreWriter, type ContractStoreWriterOptions } from './writer';
 
 // Apoio dos testes do armazém de contratos: contratos de exemplo, campos de
@@ -148,6 +151,82 @@ export async function publishWith(
   } finally {
     await writer.close();
   }
+}
+
+// ---- Vencedores (plano .plans/licitacoes-vencedores.md) ----
+
+/** Fornecedor de exemplo: pessoa jurídica, com o CNPJ como chave. */
+export function sampleSupplier(document = '11222333000181', name = 'Fornecedor de Teste'): SupplierIdentity {
+  return { key: document, personType: 'PJ', document, name, size: 'ME' };
+}
+
+/** Número de controle de uma compra de exemplo: o órgão de teste, a sequência e o ano. */
+export function samplePurchase(sequence: number, year = 2026): string {
+  return `00394460005887-1-${String(sequence).padStart(6, '0')}/${year}`;
+}
+
+/** Resultado de exemplo: o item de uma compra, vencedor, de 14/09/2026. */
+export function sampleResult(itemNumber: number, overrides: Partial<ResultRecord> = {}): ResultRecord {
+  return {
+    purchaseControlNumber: samplePurchase(10),
+    itemNumber,
+    sequence: 1,
+    situation: 'winner',
+    supplier: sampleSupplier(),
+    valueCents: 10_000,
+    resultDate: '2026-09-14',
+    updatedAt: '2026-09-14T10:00:00',
+    unitCode: '153103',
+    state: 'SP',
+    rank: 1,
+    cancelledOn: null,
+    ...overrides,
+  };
+}
+
+/** Abre o gravador dos vencedores, roda `work`, publica e fecha: uma execução do Cron Job. */
+export async function publishWinnersWith(
+  storage: ObjectStorage,
+  directory: string,
+  version: number,
+  work: (writer: WinnerStoreWriter) => Promise<void>,
+  options: Partial<WinnerStoreWriterOptions> = {},
+) {
+  const writer = await WinnerStoreWriter.open({
+    storage,
+    directory,
+    version,
+    today: '2026-10-19',
+    now: () => new Date('2026-10-19T12:00:00Z'),
+    logger: quietLogger,
+    ...options,
+  });
+  try {
+    await work(writer);
+    return await writer.publish();
+  } finally {
+    await writer.close();
+  }
+}
+
+/** Linhas de um arquivo Parquet do bucket simulado, na ordem do arquivo (DATE e DECIMAL chegam como texto). */
+export async function readParquetRows(objects: Map<string, Uint8Array>, key: string, columns: string): Promise<Record<string, unknown>[]> {
+  return withTempDirectory(async (directory) => {
+    const path = join(directory, 'arquivo.parquet');
+    const body = objects.get(key);
+    if (!body) {
+      throw new Error(`arquivo no bucket: ${key}`);
+    }
+    await writeFile(path, body);
+    const { instance, connection } = await openDuckDb({ memoryLimitMb: 128, threads: 1, tempDirectory: join(directory, 'tmp') });
+    try {
+      const result = await connection.runAndReadAll(`SELECT ${columns} FROM read_parquet(${sqlLiteral(toDuckDbPath(path))})`);
+      return result.getRowObjectsJson() as Record<string, unknown>[];
+    } finally {
+      connection.closeSync();
+      instance.closeSync();
+    }
+  });
 }
 
 export interface TestContractStore {

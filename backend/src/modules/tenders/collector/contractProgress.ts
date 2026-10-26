@@ -12,7 +12,7 @@ import { PNCP_CONTRACT_ENDPOINTS, type PncpContractEndpoint } from './pncpClient
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** O fim (AAAA-MM-DD) da consulta completa nos detalhes de uma coleta diária; fora do formato, nada. */
-function completedDayOf(details: CollectionRunDetails | undefined, endpoint: PncpContractEndpoint): string | null {
+function completedDayOf(details: CollectionRunDetails | undefined, endpoint: string): string | null {
   const queries = details?.['queries'];
   if (!Array.isArray(queries)) {
     return null;
@@ -30,31 +30,40 @@ function completedDayOf(details: CollectionRunDetails | undefined, endpoint: Pnc
   return null;
 }
 
+/** Tipos de execução diária que guardam em `detalhes.queries` até onde cada consulta leu. */
+export type DailyRunType = 'CONTRATOS_DIARIA' | 'VENCEDORES_DIARIA';
+
 /**
- * Último dia lido sem falha do PNCP em cada consulta da coleta diária: o fim
- * da execução mais recente em que a consulta aparece em `detalhes.queries` com
+ * Último dia lido sem falha numa consulta da coleta diária: o fim da execução
+ * mais recente do tipo em que a consulta aparece em `detalhes.queries` com
  * `completed: true`. Execuções sem esse registro (anteriores à regra, ou
  * interrompidas antes de gravar) não contam. Uma execução que não conseguiu
- * publicar o armazém grava as consultas como não concluídas (contractRuns.ts).
+ * publicar o armazém grava as consultas como não concluídas (contractRuns.ts e
+ * resultRuns.ts).
  */
+export async function readLastCompletedDay(db: TendersDb, type: DailyRunType, endpoint: string): Promise<string | null> {
+  const completedQuery = JSON.stringify({ queries: [{ endpoint, completed: true }] });
+  const [run] = await db
+    .select({ details: tenderCollectionRuns.details })
+    .from(tenderCollectionRuns)
+    .where(
+      and(
+        eq(tenderCollectionRuns.type, type),
+        ne(tenderCollectionRuns.status, 'EXECUTANDO'),
+        // Contenção do JSONB (@>): o Drizzle não tem esse operador, e o valor vai como parâmetro.
+        sql`${tenderCollectionRuns.details} @> ${completedQuery}::jsonb`,
+      ),
+    )
+    .orderBy(desc(tenderCollectionRuns.startedAt), desc(tenderCollectionRuns.id))
+    .limit(1);
+  return completedDayOf(run?.details, endpoint);
+}
+
+/** Último dia lido sem falha do PNCP em cada consulta da coleta diária de contratos. */
 export async function readLastCompletedDailyDays(db: TendersDb): Promise<Partial<Record<PncpContractEndpoint, string>>> {
   const days: Partial<Record<PncpContractEndpoint, string>> = {};
   for (const endpoint of PNCP_CONTRACT_ENDPOINTS) {
-    const completedQuery = JSON.stringify({ queries: [{ endpoint, completed: true }] });
-    const [run] = await db
-      .select({ details: tenderCollectionRuns.details })
-      .from(tenderCollectionRuns)
-      .where(
-        and(
-          eq(tenderCollectionRuns.type, 'CONTRATOS_DIARIA'),
-          ne(tenderCollectionRuns.status, 'EXECUTANDO'),
-          // Contenção do JSONB (@>): o Drizzle não tem esse operador, e o valor vai como parâmetro.
-          sql`${tenderCollectionRuns.details} @> ${completedQuery}::jsonb`,
-        ),
-      )
-      .orderBy(desc(tenderCollectionRuns.startedAt), desc(tenderCollectionRuns.id))
-      .limit(1);
-    const day = completedDayOf(run?.details, endpoint);
+    const day = await readLastCompletedDay(db, 'CONTRATOS_DIARIA', endpoint);
     if (day) {
       days[endpoint] = day;
     }

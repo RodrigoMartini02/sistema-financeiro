@@ -10,14 +10,18 @@ import {
 } from '../db/schema';
 import type { CollectionRunStatus, CollectionRunType } from '../domains';
 import { readBackfillProgress } from './contractProgress';
+import { readResultBackfillProgress } from './resultProgress';
 import type { TendersDb } from './database';
 import type { TenderNoticeRow } from './mapping';
 
 /**
  * Chaves do pg_try_advisory_lock: uma para as coletas de editais, outra para
  * lembretes, limpeza e reprocessamento, a dos contratos (coleta diária, carga
- * e avisos), que não bloqueia a varredura de editais nem é bloqueada por ela,
- * e a da exportação do JSON dos editais, que só impede duas exportações juntas.
+ * e avisos) e dos vencedores (coleta diária e carga), que não bloqueia a
+ * varredura de editais nem é bloqueada por ela, e a da exportação do JSON dos
+ * editais, que só impede duas exportações juntas. Contratos e vencedores
+ * dividem a trava porque publicam no mesmo manifesto do armazém e usam a mesma
+ * pasta de trabalho: os dois gravadores nunca rodam juntos.
  */
 export const COLLECTOR_LOCK_KEYS = {
   collection: 7_274_001,
@@ -173,7 +177,12 @@ export async function readCollectionStatus(db: TendersDb) {
     })
     .from(tenderNotices);
 
-  return { latestRuns, totals: totals ?? { notices: 0, openNotices: 0 }, contracts: { backfill: await readBackfillProgress(db) } };
+  return {
+    latestRuns,
+    totals: totals ?? { notices: 0, openNotices: 0 },
+    contracts: { backfill: await readBackfillProgress(db) },
+    winners: { backfill: await readResultBackfillProgress(db) },
+  };
 }
 
 /**

@@ -10,7 +10,7 @@
     "dev:prod-db": "tsx watch src/server.ts",
     "build": "tsc --noEmit",
     "test": "tsx --test src/services/*.test.ts src/utils/*.test.ts src/modules/tenders/**/*.test.ts",
-    "test:tenders-db": "set TENDERS_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/modules/tenders/**/*.db.test.ts",
+    "test:tenders-db": "set TENDERS_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test --test-concurrency=1 src/modules/tenders/**/*.db.test.ts",
     "test:finance-db": "set FINANCE_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/services/*.db.test.ts",
     "tenders": "tsx src/modules/tenders/collector/cli.ts",
     "tenders:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/collector/cli.ts",

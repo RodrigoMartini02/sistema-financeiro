@@ -34,6 +34,20 @@ test('chave: fonte, conjunto, dia da coleta, execução e parte com 4 dígitos',
   assert.equal(archiveKey(ARCHIVE_DATASETS.contracts, '2026-10-18', 4321, 1), 'pncp/contratos/2026/10/18/4321-0001.jsonl.gz');
   assert.equal(archiveKey(ARCHIVE_DATASETS.contractTerms, '2026-01-05', 7, 12), 'pncp/contratos-termos/2026/01/05/7-0012.jsonl.gz');
   assert.equal(archiveKey(ARCHIVE_DATASETS.notices, '2026-10-18', 4321, 3), 'pncp/editais/2026/10/18/4321-0003.jsonl.gz');
+  // Os resultados das licitações têm a pasta da fonte deles.
+  assert.equal(archiveKey(ARCHIVE_DATASETS.results, '2026-10-26', 77, 2), 'comprasgov/resultados/2026/10/26/77-0002.jsonl.gz');
+});
+
+test('descarregar o arquivo mais de uma vez numera as partes em sequência, sem repetir (a carga de vencedores faz isso antes de cada publicação)', async () => {
+  const { storage, objects } = memoryStorage();
+  const archive = runArchive(storage);
+  await archive.append(ARCHIVE_DATASETS.results, [{ idCompraItem: 'a' }]);
+  await archive.flush();
+  await archive.append(ARCHIVE_DATASETS.results, [{ idCompraItem: 'b' }, { idCompraItem: 'c' }]);
+  await archive.flush();
+  await archive.flush();
+  assert.deepEqual([...objects.keys()].sort(), ['comprasgov/resultados/2026/10/18/4321-0001.jsonl.gz', 'comprasgov/resultados/2026/10/18/4321-0002.jsonl.gz']);
+  assert.deepEqual(archive.summary(), { enabled: true, files: 2, records: 3, bytes: archive.summary()?.bytes ?? 0, failures: 0 });
 });
 
 test('JSON Lines compactado de ida e volta: o registro como veio, com o momento da coleta', async () => {
