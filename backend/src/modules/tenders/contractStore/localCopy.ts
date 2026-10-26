@@ -1,7 +1,7 @@
 import { access, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ObjectStorage } from '../objectStorage';
-import { FILES_FOLDER } from './layout';
+import { FILES_FOLDER, STORE_DATASETS, type StoreDataset } from './layout';
 import { manifestFiles, type StoreManifest } from './manifest';
 
 // Cópia local do armazém de contratos: os arquivos do manifesto numa pasta do
@@ -23,10 +23,18 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/** Baixa os arquivos do manifesto que ainda não estão na pasta; devolve quantos baixou. */
-export async function downloadManifestFiles(storage: ObjectStorage, manifest: StoreManifest | null, directory: string): Promise<number> {
+/**
+ * Baixa os arquivos do manifesto que ainda não estão na pasta; devolve quantos baixou. Só os dos conjuntos
+ * indicados (sem a lista, todos): o Web Service e o escritor de contratos não baixam os vencedores.
+ */
+export async function downloadManifestFiles(
+  storage: ObjectStorage,
+  manifest: StoreManifest | null,
+  directory: string,
+  datasets: readonly StoreDataset[] = STORE_DATASETS,
+): Promise<number> {
   let downloaded = 0;
-  for (const file of manifestFiles(manifest)) {
+  for (const file of manifestFiles(manifest, datasets)) {
     const path = localPath(directory, file.path);
     if (await exists(path)) {
       continue;

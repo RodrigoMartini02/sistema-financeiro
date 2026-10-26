@@ -9,8 +9,10 @@ export const DAILY_JOB_STEPS = [
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
   'tenders-contract-reminders',
+  'tenders-winners-daily',
   'tenders-cleanup',
   'tenders-contracts-backfill',
+  'tenders-winners-backfill',
 ] as const;
 export type DailyJobStep = (typeof DAILY_JOB_STEPS)[number];
 
@@ -23,13 +25,19 @@ function isSundayInBrasilia(instant: Date): boolean {
   return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1)).getUTCDay() === 0;
 }
 
+/** As etapas dos vencedores (plano .plans/licitacoes-vencedores.md): só rodam com TENDERS_WINNERS_ENABLED=1. */
+export const WINNERS_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-winners-daily', 'tenders-winners-backfill']);
+
 /**
  * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
  * varredura de Licitações, os lembretes de prazo, a coleta dos contratos, os
- * avisos de vencimento dos contratos, aos domingos a limpeza dos editais e,
- * por último, a carga inicial de contratos (a mais longa: só roda com dias
- * pendentes e com o R2 configurado). Os contratos não têm
- * limpeza: os encerrados ficam na base (plano .plans/licitacoes-base-nacional.md).
+ * avisos de vencimento dos contratos, a coleta diária dos vencedores (curta e
+ * diária: vai antes das cargas, que passam de 9 h), aos domingos a limpeza dos
+ * editais, a carga inicial de contratos (a mais longa: só roda com dias
+ * pendentes e com o R2 configurado) e, por último, a carga dos vencedores, que
+ * se adapta ao tempo que sobrar na rotina (plano dos vencedores). Os
+ * contratos não têm limpeza: os encerrados ficam na base (plano
+ * .plans/licitacoes-base-nacional.md).
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {
   const steps: DailyJobStep[] = [
@@ -38,11 +46,12 @@ export function dailyJobSteps(now: Date): DailyJobStep[] {
     'tenders-deadline-reminders',
     'tenders-contracts-daily',
     'tenders-contract-reminders',
+    'tenders-winners-daily',
   ];
   if (isSundayInBrasilia(now)) {
     steps.push('tenders-cleanup');
   }
-  steps.push('tenders-contracts-backfill');
+  steps.push('tenders-contracts-backfill', 'tenders-winners-backfill');
   return steps;
 }
 

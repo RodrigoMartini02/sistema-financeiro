@@ -35,6 +35,9 @@ const manifestSchema = z.object({
     vigentes: z.array(fileSchema),
     contratos: z.array(fileSchema),
     fornecedor: z.array(fileSchema),
+    // Chave aditiva (plano .plans/licitacoes-vencedores.md): o manifesto de antes dos vencedores continua válido, e o
+    // formato não sobe, para o Web Service antigo continuar lendo o manifesto novo (o schema dele ignora a chave).
+    vencedores: z.array(fileSchema).default([]),
   }),
 });
 
@@ -73,12 +76,15 @@ export function serializeManifest(manifest: StoreManifest): Uint8Array {
   return Buffer.from(`${JSON.stringify(manifest, null, 1)}\n`, 'utf8');
 }
 
-/** Todos os arquivos do manifesto, de todos os conjuntos. */
-export function manifestFiles(manifest: StoreManifest | null): ManifestFile[] {
+/**
+ * Os arquivos do manifesto dos conjuntos indicados; sem a lista, de todos. Quem protege arquivos da limpeza usa
+ * todos os conjuntos, e quem baixa para ler baixa só os que usa.
+ */
+export function manifestFiles(manifest: StoreManifest | null, datasets: readonly StoreDataset[] = STORE_DATASETS): ManifestFile[] {
   if (!manifest) {
     return [];
   }
-  return STORE_DATASETS.flatMap((dataset) => manifest.datasets[dataset]);
+  return datasets.flatMap((dataset) => manifest.datasets[dataset]);
 }
 
 export function datasetFiles(manifest: StoreManifest | null, dataset: StoreDataset): ManifestFile[] {

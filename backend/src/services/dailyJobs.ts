@@ -1,29 +1,46 @@
 import { databaseHost } from '../modules/tenders/collector/config';
 import { runContractReminders, runContractsBackfill, runContractsDaily } from '../modules/tenders/collector/contractRuns';
 import { createCollectorLogger, type CollectorLogger } from '../modules/tenders/collector/logger';
+import { runResultsBackfill, runResultsDaily } from '../modules/tenders/collector/resultRuns';
 import { runCleanup, runDeadlineReminders, runSweep, type CollectorContext, type RunOutcome } from '../modules/tenders/collector/runs';
 import { createCollectorRuntime, type CollectorRuntime } from '../modules/tenders/collector/runtime';
-import { dailyJobSteps, planLifecycleUrl, type DailyJobStep } from './dailyJobSteps';
+import { WINNERS_STEPS, dailyJobSteps, planLifecycleUrl, type DailyJobStep } from './dailyJobSteps';
 
 // Rotina diária do Cron Job do Render (`npm run daily-jobs`, scripts/dailyJobs.ts).
 // As etapas rodam em sequência; uma etapa que falha não impede as seguintes.
 // O log sai em JSON, uma linha por evento, como o do coletor.
 
-type TendersStep = Exclude<DailyJobStep, 'plan-lifecycle'>;
+export type TendersStep = Exclude<DailyJobStep, 'plan-lifecycle'>;
 
-const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext) => Promise<RunOutcome>> = {
+/** O que cada etapa recebe além do contexto: o instante em que a rotina inteira precisa ter acabado. */
+export interface StepLimits {
+  deadlineAt: number;
+}
+
+const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext, limits: StepLimits) => Promise<RunOutcome>> = {
   'tenders-sweep': runSweep,
   'tenders-deadline-reminders': runDeadlineReminders,
-  'tenders-contracts-daily': runContractsDaily,
+  'tenders-contracts-daily': (context) => runContractsDaily(context),
   'tenders-contract-reminders': runContractReminders,
+  // Só com TENDERS_WINNERS_ENABLED=1 (ver runTendersStep).
+  'tenders-winners-daily': runResultsDaily,
   'tenders-cleanup': runCleanup,
   // Sem o R2 configurado, ou sem dia pendente, a etapa é pulada com o motivo no log.
   'tenders-contracts-backfill': (context) => runContractsBackfill(context),
+  // A carga dos vencedores usa só o tempo que sobrar da rotina, e sem tempo a etapa é pulada (não falha).
+  'tenders-winners-backfill': (context, { deadlineAt }) => runResultsBackfill(context, { deadlineAt }),
 };
 
 const PLAN_LIFECYCLE_TIMEOUT_MS = 120_000;
+/**
+ * Prazo da rotina inteira para a carga dos vencedores: o Cron Job do Render tem limite de 12 h por execução (a
+ * conferir no painel do Render antes de ligar os vencedores), e esta é a margem de 30 min antes dele. Os contratos
+ * não ganham limite novo: só a etapa que vem por último se adapta.
+ */
+const ROUTINE_DEADLINE_MINUTES = 690;
+const BYTES_PER_MB = 1024 * 1024;
 
-type StepResult = 'success' | 'skipped';
+export type StepResult = 'success' | 'skipped';
 
 /** Rotina de vencimento de planos: a mesma rota que o Cron Job chamava com curl. */
 async function runPlanLifecycle(env: NodeJS.ProcessEnv, logger: CollectorLogger): Promise<StepResult> {
@@ -47,9 +64,21 @@ async function runPlanLifecycle(env: NodeJS.ProcessEnv, logger: CollectorLogger)
   return 'success';
 }
 
-/** Uma execução do coletor. FALHA vira erro; coleta pulada (trava ocupada) não. */
-async function runTendersStep(step: TendersStep, context: CollectorContext): Promise<StepResult> {
-  const outcome = await TENDERS_RUNS[step](context);
+/** Memória residente do processo em MB: a rotina roda todas as etapas no mesmo processo, e é o que o log acompanha. */
+function rssMb(): number {
+  return Math.round(process.memoryUsage().rss / BYTES_PER_MB);
+}
+
+/**
+ * Uma execução do coletor. FALHA vira erro; coleta pulada (trava ocupada) não. As etapas dos vencedores só rodam com
+ * TENDERS_WINNERS_ENABLED=1; desligadas, são puladas com o motivo no log (os comandos da CLI funcionam sempre).
+ */
+export async function runTendersStep(step: TendersStep, context: CollectorContext, limits: StepLimits): Promise<StepResult> {
+  if (WINNERS_STEPS.has(step) && !context.config.winners.enabled) {
+    context.logger.info('Vencedores desligados: etapa pulada', { step });
+    return 'skipped';
+  }
+  const outcome = await TENDERS_RUNS[step](context, limits);
   if (outcome.skipped) {
     context.logger.warn('Etapa pulada', { step, reason: outcome.reason });
     return 'skipped';
@@ -65,6 +94,7 @@ export async function runDailyJobs(env: NodeJS.ProcessEnv, now: Date = new Date(
   const logger = createCollectorLogger('info');
   const steps = dailyJobSteps(now);
   const failedSteps: DailyJobStep[] = [];
+  const limits: StepLimits = { deadlineAt: now.getTime() + ROUTINE_DEADLINE_MINUTES * 60_000 };
   const collector: { runtime: CollectorRuntime | null } = { runtime: null };
 
   // O banco do coletor só é aberto na primeira etapa de Licitações.
@@ -80,11 +110,12 @@ export async function runDailyJobs(env: NodeJS.ProcessEnv, now: Date = new Date(
   try {
     for (const step of steps) {
       const startedAt = Date.now();
-      logger.info('Etapa iniciada', { step });
+      logger.info('Etapa iniciada', { step, rssMb: rssMb() });
       try {
         const result =
-          step === 'plan-lifecycle' ? await runPlanLifecycle(env, logger) : await runTendersStep(step, collectorContext());
-        logger.info('Etapa finalizada', { step, result, durationMs: Date.now() - startedAt });
+          step === 'plan-lifecycle' ? await runPlanLifecycle(env, logger) : await runTendersStep(step, collectorContext(), limits);
+        // O rssMb de cada etapa mostra, em produção, se a memória do processo volta ao nível de antes entre elas.
+        logger.info('Etapa finalizada', { step, result, durationMs: Date.now() - startedAt, rssMb: rssMb() });
       } catch (error) {
         failedSteps.push(step);
         logger.error('Etapa falhou', { step, durationMs: Date.now() - startedAt, error });

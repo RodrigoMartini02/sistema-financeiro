@@ -140,6 +140,50 @@ export function dailyCollectionSummary(run: Pick<CollectionRun, 'details'>): Dai
   return { period: from && to ? `${formatIsoDate(from)} a ${formatIsoDate(to)}` : null, notes };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Mais que isso entre o último dia com dado da fonte e hoje já não é fim de semana nem atraso normal. */
+const SOURCE_BEHIND_DAYS = 3;
+
+/** Linhas dos vencedores na base (licitação e fornecedor), para o bloco "Vencedores"; sem cópia pronta ou sem publicação, "—". */
+export function winnersRowsLabel(rows: number | null): string {
+  if (rows === null) return '—';
+  return `${rows.toLocaleString('pt-BR')} ${rows === 1 ? 'linha' : 'linhas'}`;
+}
+
+export interface WinnersDailySummary {
+  /** "14/09/2026 a 26/10/2026": a janela que a coleta diária leu; sem as consultas nem o período nos detalhes, null. */
+  period: string | null;
+  /** O último dia em que a fonte tinha registro (AAAA-MM-DD); a coleta nunca lê além dele. */
+  sourceLastDay: string | null;
+  /** Avisos curtos: a fonte atrás do calendário. */
+  notes: string[];
+}
+
+function daysBetweenIso(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+}
+
+/**
+ * Coleta diária de vencedores, para o bloco "Vencedores": a janela lida (o início e o fim pedidos à fonte) e o último
+ * dia com dado dela. A fonte pode ficar semanas sem registro novo (medido em outubro de 2026): se o último dia com dado
+ * está bem atrás de hoje, a nota avisa que a coleta continua de onde a fonte parou.
+ */
+export function winnersDailySummary(run: Pick<CollectionRun, 'details'>): WinnersDailySummary {
+  const queries = Array.isArray(run.details['queries']) ? run.details['queries'].filter(isRecord) : [];
+  const query = queries[0];
+  const period = isRecord(run.details['period']) ? run.details['period'] : {};
+  const from = isoDay(query?.['from']) ?? pncpDayAsIso(period['dataInicial']);
+  const to = isoDay(query?.['windowTo']) ?? isoDay(query?.['to']) ?? pncpDayAsIso(period['dataFinal']);
+  const sourceLastDay = isoDay(run.details['sourceLastDay']);
+  const today = isoDay(run.details['today']);
+
+  const notes: string[] = [];
+  if (sourceLastDay && today && daysBetweenIso(sourceLastDay, today) > SOURCE_BEHIND_DAYS) {
+    notes.push(`A fonte só tem resultados até ${formatIsoDate(sourceLastDay)}; a coleta continua de onde ela parou.`);
+  }
+  return { period: from && to ? `${formatIsoDate(from)} a ${formatIsoDate(to)}` : null, sourceLastDay, notes };
+}
+
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
 

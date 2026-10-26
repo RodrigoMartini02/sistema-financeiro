@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { RequestInputError } from '../../../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import type { ContractTermSummary } from '../collector/contractMapping';
-import { isContractKey } from '../contractStore/layout';
+import { PURCHASE_CONTROL_NUMBER, isContractKey } from '../contractStore/layout';
 import { contractExists, readContract } from '../contractStore/queries';
 import { tenderContractFavorites, tenderNotices } from '../db/schema';
 import type { SupplierPersonType } from '../domains';
@@ -16,9 +16,6 @@ import type { SearchRequester } from './noticeSearch';
 // (a "chave"); o favorito é só da pessoa, na conta da requisição, e guarda a chave.
 
 export const CONTRACT_NOT_FOUND = 'Contrato não encontrado';
-
-/** Número de controle da compra no PNCP: CNPJ do órgão, sequencial e ano ("03353358000196-1-000216/2026"). */
-const PURCHASE_CONTROL_NUMBER = /^(\d{14})-\d+-0*(\d+)\/(\d{4})$/;
 
 /** Aditivo ou rescisão do contrato, como o PNCP informa (sem os apostilamentos). */
 export interface ContractAmendmentView {

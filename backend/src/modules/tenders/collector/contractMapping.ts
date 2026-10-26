@@ -115,7 +115,7 @@ const pncpValue = z
   .nullish();
 
 /** Data do calendário que existe (2026-02-30 não) e não é anterior a 1990. */
-function isValidPncpDate(value: string): boolean {
+export function isValidPncpDate(value: string): boolean {
   if (!PNCP_DATE.test(value) || value < MIN_VALID_DATE) {
     return false;
   }
@@ -168,7 +168,7 @@ const pncpContractSchema = z.looseObject({
 });
 
 /** Texto aparado; vazio vira nulo (o PNCP manda "" em vários campos sem valor). */
-function cleanText(value: string | null | undefined): string | null {
+export function cleanText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? '';
   return trimmed === '' ? null : trimmed;
 }

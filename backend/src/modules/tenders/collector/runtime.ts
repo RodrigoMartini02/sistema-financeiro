@@ -2,6 +2,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createR2Storage } from '../objectStorage';
 import { PNCP_API_BASE_URL } from '../services/pncpDetails';
+import { ComprasGovClient } from './comprasGovClient';
 import { loadCollectorConfig } from './config';
 import { createCollectorDatabase } from './database';
 import { createCollectorLogger } from './logger';
@@ -9,7 +10,7 @@ import { PncpClient } from './pncpClient';
 import type { CollectorContext } from './runs';
 
 // Ambiente de uma execução do coletor: configuração (variáveis de ambiente),
-// log, conexão própria com o banco, clientes do PNCP e o R2 (arquivo bruto e
+// log, conexão própria com o banco, clientes do PNCP e do Compras.gov.br e o R2 (arquivo bruto e
 // armazém de contratos).
 // Usado pelo CLI do coletor e pela rotina diária (src/services/dailyJobs.ts).
 
@@ -46,13 +47,18 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
     requestIntervalMs: config.contracts.termsIntervalMs,
     onRetry,
   });
+  // Resultados das licitações: outra fonte, com o ritmo próprio da variável COMPRASGOV_REQUEST_INTERVAL_MS.
+  const comprasGov = new ComprasGovClient({
+    requestIntervalMs: config.comprasGov.requestIntervalMs,
+    onRetry: (info) => logger.warn('Nova tentativa na consulta de resultados', { ...info }),
+  });
   const storage = config.storage ? createR2Storage(config.storage) : null;
   if (!storage) {
     logger.warn('R2 desligado: as variáveis TENDERS_ARCHIVE_* e TENDERS_STORAGE_PREFIX não estão definidas');
   }
 
   return {
-    context: { db, pool, pncp, contractsPncp, termsPncp, storage, contractWorkDirectory: CONTRACT_WORK_DIRECTORY, config, logger, now: () => new Date() },
+    context: { db, pool, pncp, contractsPncp, termsPncp, comprasGov, storage, contractWorkDirectory: CONTRACT_WORK_DIRECTORY, config, logger, now: () => new Date() },
     close: async () => {
       storage?.close();
       await pool.end();

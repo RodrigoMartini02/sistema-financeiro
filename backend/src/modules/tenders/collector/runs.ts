@@ -4,6 +4,7 @@ import type { CollectionRunStatus, CollectionRunType } from '../domains';
 import { readManifest } from '../contractStore/manifest';
 import type { ObjectStorage } from '../objectStorage';
 import { ARCHIVE_DATASETS, RunArchive } from './archive';
+import type { ComprasGovClient } from './comprasGovClient';
 import type { CollectorConfig } from './config';
 import type { TendersDb } from './database';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime, toPncpDate } from './dates';
@@ -36,6 +37,8 @@ export interface CollectorContext {
   contractsPncp: PncpClient;
   /** Termos dos contratos na API principal, com ritmo próprio (PNCP_TERMS_INTERVAL_MS). */
   termsPncp: PncpClient;
+  /** Resultados das licitações no Compras.gov.br, com ritmo próprio (COMPRASGOV_REQUEST_INTERVAL_MS). */
+  comprasGov: ComprasGovClient;
   /** R2 (arquivo bruto e armazém de contratos), na pasta do ambiente; null quando as variáveis do R2 não estão definidas. */
   storage: ObjectStorage | null;
   /** Pasta do disco onde a coleta de contratos mantém a cópia de trabalho do armazém. */
@@ -367,7 +370,15 @@ async function readContractStoreStatus(context: CollectorContext) {
   }
   try {
     const manifest = await readManifest(context.storage);
-    return manifest && { revision: manifest.revision, publishedAt: manifest.publishedAt, today: manifest.today, totals: manifest.totals };
+    return (
+      manifest && {
+        revision: manifest.revision,
+        publishedAt: manifest.publishedAt,
+        today: manifest.today,
+        totals: manifest.totals,
+        winners: { rows: manifest.datasets.vencedores.reduce((total, file) => total + file.rows, 0) },
+      }
+    );
   } catch (error) {
     return { error: errorMessage(error) };
   }

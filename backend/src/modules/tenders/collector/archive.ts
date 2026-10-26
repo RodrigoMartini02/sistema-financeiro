@@ -20,6 +20,8 @@ export const ARCHIVE_DATASETS = {
   notices: { source: 'pncp', name: 'editais' },
   /** O JSON dos editais que estava no banco, exportado antes da migration 0088. */
   legacyNotices: { source: 'pncp', name: 'editais-legado' },
+  /** Os resultados dos itens das licitações (Compras.gov.br), com o CPF mascarado antes de entrar (plano dos vencedores). */
+  results: { source: 'comprasgov', name: 'resultados' },
 } as const;
 export type ArchiveDataset = (typeof ARCHIVE_DATASETS)[keyof typeof ARCHIVE_DATASETS];
 

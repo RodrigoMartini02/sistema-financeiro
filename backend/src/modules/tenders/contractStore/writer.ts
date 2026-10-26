@@ -6,6 +6,7 @@ import type { CollectorLogger } from '../collector/logger';
 import type { ObjectStorage } from '../objectStorage';
 import { openDuckDb, parquetList, sqlLiteral, toDuckDbPath } from './duckdb';
 import {
+  CONTRACT_DATASETS,
   FILES_FOLDER,
   MANIFEST_KEY,
   MAX_ROWS_PER_FILE,
@@ -170,11 +171,12 @@ export class ContractStoreWriter {
   static async open(options: ContractStoreWriterOptions): Promise<ContractStoreWriter> {
     await mkdir(options.directory, { recursive: true });
     const manifest = await readManifest(options.storage);
-    const downloaded = await downloadManifestFiles(options.storage, manifest, options.directory);
+    // Só os conjuntos de contratos: os vencedores são de outro gravador e não passam por aqui.
+    const downloaded = await downloadManifestFiles(options.storage, manifest, options.directory, CONTRACT_DATASETS);
     await removeUnusedLocalFiles(options.directory, [manifest]);
     options.logger.info('Cópia de trabalho do armazém de contratos pronta', {
       revision: manifest?.revision ?? null,
-      files: manifestFiles(manifest).length,
+      files: manifestFiles(manifest, CONTRACT_DATASETS).length,
       downloaded,
     });
 
@@ -391,7 +393,9 @@ export class ContractStoreWriter {
       publishedAt: this.options.now().toISOString(),
       today: this.options.today,
       totals,
-      datasets: { vigentes, contratos, fornecedor },
+      // Os vencedores seguem como estavam: sem esta linha, a publicação de contratos os apagaria do manifesto e,
+      // na limpeza, do bucket (plano .plans/licitacoes-vencedores.md).
+      datasets: { vigentes, contratos, fornecedor, vencedores: this.manifest?.datasets.vencedores ?? [] },
     };
     await this.options.storage.putObject(MANIFEST_KEY, serializeManifest(next), 'application/json');
 

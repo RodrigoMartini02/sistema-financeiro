@@ -26,10 +26,12 @@ const DAILY_JOBS_SLOT: DailySlot = { hour: 6, minute: 0 };
 
 /**
  * Agenda em Brasília: a rotina diária das 06:00 faz a varredura, os lembretes
- * de prazo, a coleta e os avisos dos contratos, a carga de contratos
- * (enquanto houver dias pendentes) e, aos domingos, a limpeza dos editais. A
- * incremental não está agendada, e a limpeza dos contratos saiu (os
- * encerrados ficam na base): o tipo fica só no histórico.
+ * de prazo, a coleta e os avisos dos contratos, a coleta dos vencedores, a
+ * carga de contratos e a de vencedores (enquanto houver dias pendentes) e, aos
+ * domingos, a limpeza dos editais. A incremental não está agendada, e a
+ * limpeza dos contratos saiu (os encerrados ficam na base): o tipo fica só no
+ * histórico. Os vencedores só rodam com TENDERS_WINNERS_ENABLED no Cron Job
+ * (o painel não sabe se está ligada: sem execução, ele não mostra a próxima).
  */
 export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   VARREDURA: [DAILY_JOBS_SLOT],
@@ -40,6 +42,8 @@ export const COLLECTION_SCHEDULE: Record<ScheduledRunType, DailySlot[]> = {
   CONTRATOS_CARGA: [DAILY_JOBS_SLOT],
   CONTRATOS_LIMPEZA: [],
   CONTRATOS_AVISOS: [DAILY_JOBS_SLOT],
+  VENCEDORES_DIARIA: [DAILY_JOBS_SLOT],
+  VENCEDORES_CARGA: [DAILY_JOBS_SLOT],
 };
 
 const SCHEDULED_RUN_TYPES = Object.keys(COLLECTION_SCHEDULE) as ScheduledRunType[];
@@ -155,12 +159,25 @@ export interface ContractsOverview {
   };
 }
 
+export interface WinnersOverview {
+  /** Linhas (licitação e fornecedor) na versão do armazém em uso; null = sem cópia pronta, ou sem nenhum vencedor publicado. */
+  rows: number | null;
+  backfill: {
+    completedDays: number;
+    /** Dia de resultado mais antigo já carregado. */
+    oldestDay: string | null;
+    /** null: a carga ainda não rodou, ou a última execução não terminou. */
+    lastRun: BackfillRunView | null;
+  };
+}
+
 export interface CollectionStatusView {
   latestRuns: CollectionRunView[];
   /** null: tipo sem agenda (a incremental). */
   nextRuns: Record<ScheduledRunType, string | null>;
   totals: { notices: number; openNotices: number };
   contracts: ContractsOverview;
+  winners: WinnersOverview;
 }
 
 const BACKFILL_STOP_REASONS: readonly BackfillStopReason[] = ['time', 'pncp'];
@@ -183,7 +200,9 @@ export function backfillRunView(details: CollectionRunDetails | undefined): Back
 export async function readCollectionOverview(db: TendersDb, contractStore: ContractStoreAccess, now: Date): Promise<CollectionStatusView> {
   const status = await readCollectionStatus(db);
   const lastBackfill = status.latestRuns.find((run) => run.type === 'CONTRATOS_CARGA');
-  // Os totais de contratos vêm do manifesto do armazém (versão em uso), não de uma consulta.
+  const lastWinnersBackfill = status.latestRuns.find((run) => run.type === 'VENCEDORES_CARGA');
+  // Os totais de contratos e de vencedores vêm do manifesto do armazém (versão em uso), não de uma consulta: o
+  // endpoint de status nunca abre o DuckDB.
   const stored = contractStore.status();
   return {
     latestRuns: status.latestRuns.map(toRunView),
@@ -200,6 +219,14 @@ export async function readCollectionOverview(db: TendersDb, contractStore: Contr
         completedDays: status.contracts.backfill.completedDays,
         oldestDay: status.contracts.backfill.oldestDay,
         lastRun: backfillRunView(lastBackfill?.details),
+      },
+    },
+    winners: {
+      rows: stored.winners?.rows ?? null,
+      backfill: {
+        completedDays: status.winners.backfill.completedDays,
+        oldestDay: status.winners.backfill.oldestDay,
+        lastRun: backfillRunView(lastWinnersBackfill?.details),
       },
     },
   };

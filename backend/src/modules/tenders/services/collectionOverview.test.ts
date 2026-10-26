@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { backfillRunView, neutralRunDetails, nextScheduledRun } from './collectionOverview';
+import { COLLECTION_RUN_TYPES } from '../domains';
+import { COLLECTION_SCHEDULE, backfillRunView, neutralRunDetails, nextScheduledRun } from './collectionOverview';
 
 test('histórico: mensagens de erro antigas aparecem sem o nome da fonte; as outras ficam como estão', () => {
   const details = {
@@ -71,4 +72,25 @@ test('carga de contratos: lê a faixa, os dias pendentes e o motivo da parada no
   assert.equal(backfillRunView({}), null, 'execução ainda sem detalhes (em andamento)');
   assert.equal(backfillRunView({ backfill: { from: '2021-01-01' } }), null);
   assert.equal(backfillRunView(undefined), null);
+});
+
+test('vencedores: coleta diária e carga todo dia às 06:00, na mesma rotina das outras', () => {
+  for (const type of ['VENCEDORES_DIARIA', 'VENCEDORES_CARGA'] as const) {
+    assert.equal(nextScheduledRun(type, at('2026-10-05T12:00:00Z')), '2026-10-06T06:00:00-03:00');
+    assert.equal(nextScheduledRun(type, at('2026-10-06T08:59:00Z')), '2026-10-06T06:00:00-03:00');
+  }
+});
+
+test('todo tipo de execução, menos a manual, tem agenda ou fica sem (nunca esquecido)', () => {
+  const scheduled = Object.keys(COLLECTION_SCHEDULE).sort();
+  assert.deepEqual(scheduled, COLLECTION_RUN_TYPES.filter((type) => type !== 'MANUAL').sort());
+});
+
+test('carga de vencedores: os detalhes gravados pela execução têm o mesmo formato dos da carga de contratos', () => {
+  const details = {
+    backfill: { from: '2021-08-01', to: '2026-09-29', totalDays: 1886, pendingAfter: 1846, stoppedBy: 'time', finished: false, skippedEmptyDays: 20 },
+  };
+  assert.deepEqual(backfillRunView(details), { from: '2021-08-01', to: '2026-09-29', totalDays: 1886, pendingDays: 1846, stoppedBy: 'time', finished: false });
+  assert.equal(backfillRunView({ backfill: { from: '2021-08-01', to: '2026-09-29', totalDays: 1886, pendingAfter: 0, stoppedBy: null, finished: true } })?.finished, true);
+  assert.equal(backfillRunView({}), null);
 });

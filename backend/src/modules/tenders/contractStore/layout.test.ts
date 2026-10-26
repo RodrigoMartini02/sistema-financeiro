@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { CONTRACT_COLUMNS, SUPPLIER_COLUMNS, fromStoreRecord, isContractKey, storeFileKey, toStoreRecord, type ContractSearchFields } from './layout';
+import {
+  CONTRACT_COLUMNS,
+  CONTRACT_DATASETS,
+  MAX_ROWS_PER_FILE,
+  PART_KEY,
+  PURCHASE_CONTROL_NUMBER,
+  ROW_ORDER,
+  STORE_DATASETS,
+  SUPPLIER_COLUMNS,
+  WINNER_COLUMNS,
+  WINNER_PARTITION,
+  columnsOf,
+  fromStoreRecord,
+  isContractKey,
+  storeFileKey,
+  toStoreRecord,
+  type ContractSearchFields,
+} from './layout';
 import { sampleContract } from './storeTestSupport';
 
 const searchFields: ContractSearchFields = {
@@ -51,6 +68,36 @@ test('conjunto fornecedor: só colunas que existem nos contratos', () => {
 test('nome do arquivo: conjunto, pasta, versão e sequência com 4 dígitos', () => {
   assert.equal(storeFileKey('contratos', '2026', '3331.1', 7), 'contratos/arquivos/contratos/2026/v3331.1-0007.parquet');
   assert.equal(storeFileKey('vigentes', '2026-10-19', '12.2', 1), 'contratos/arquivos/vigentes/2026-10-19/v12.2-0001.parquet');
+  // Os vencedores ficam na mesma pasta do armazém, para a limpeza do bucket e a da cópia local protegerem os arquivos pelo manifesto.
+  assert.equal(storeFileKey('vencedores', '2026', '4410.2', 3), 'contratos/arquivos/vencedores/2026/v4410.2-0003.parquet');
+});
+
+test('conjunto vencedores: colunas próprias, ordem e chave das partes pela chave da linha, e nada mais cai nas colunas de contratos', () => {
+  const winners = columnsOf('vencedores');
+  assert.equal(winners, WINNER_COLUMNS);
+  assert.notEqual(winners, CONTRACT_COLUMNS);
+  assert.equal(columnsOf('contratos'), CONTRACT_COLUMNS);
+  assert.equal(columnsOf('vigentes'), CONTRACT_COLUMNS);
+  assert.equal(columnsOf('fornecedor'), SUPPLIER_COLUMNS);
+  assert.equal(PART_KEY.vencedores, 'chave');
+  assert.equal(ROW_ORDER.vencedores, 'chave');
+  assert.equal(WINNER_PARTITION, 'CAST(ano_compra AS VARCHAR)');
+  assert.ok(MAX_ROWS_PER_FILE.vencedores > 0);
+  // A chave é a primeira coluna e todas as colunas têm tipo.
+  assert.equal(winners[0]?.column, 'chave');
+  assert.ok(winners.every((spec) => spec.type.length > 0));
+  assert.equal(new Set(winners.map((spec) => spec.column)).size, winners.length, 'sem coluna repetida');
+});
+
+test('os conjuntos de contratos são os três de antes, e os vencedores ficam fora deles', () => {
+  assert.deepEqual([...CONTRACT_DATASETS], ['vigentes', 'contratos', 'fornecedor']);
+  assert.deepEqual([...STORE_DATASETS], [...CONTRACT_DATASETS, 'vencedores']);
+});
+
+test('o número de controle da compra: CNPJ do órgão, sequencial sem zeros à esquerda e ano', () => {
+  const match = PURCHASE_CONTROL_NUMBER.exec('03353358000196-1-000216/2026');
+  assert.deepEqual([match?.[1], match?.[2], match?.[3]], ['03353358000196', '216', '2026']);
+  assert.equal(PURCHASE_CONTROL_NUMBER.test('03353358000196-1-000216/26'), false);
 });
 
 test('chave do contrato: o número de controle do PNCP ou comprasgov-<id>; qualquer outra coisa não entra em consulta', () => {

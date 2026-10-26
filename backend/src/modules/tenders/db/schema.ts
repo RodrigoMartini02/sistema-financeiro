@@ -126,6 +126,13 @@ export const tenderContractBackfillDays = tendersSchema.table('contrato_carga_di
   termsChecked: integer('aditivos_consultados').default(0).notNull(),
 });
 
+/** Global: dias de resultado que a carga histórica de vencedores já concluiu (migration 0087c). */
+export const tenderResultBackfillDays = tendersSchema.table('resultado_carga_dia', {
+  day: date('dia', { mode: 'string' }).primaryKey(),
+  completedAt: timestampWithZone('concluido_em').defaultNow().notNull(),
+  recordsRead: integer('registros_lidos').default(0).notNull(),
+});
+
 /**
  * Contas com o módulo: cortesia (admin) ou assinatura (teste, pago ou
  * recorrente, migration 0080). A regra de acesso fica na função

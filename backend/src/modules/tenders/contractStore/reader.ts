@@ -3,7 +3,7 @@ import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 import type { CollectorLogger } from '../collector/logger';
 import type { ObjectStorage } from '../objectStorage';
 import { openDuckDb, parquetList } from './duckdb';
-import { STORE_DATASETS, columnDefinitions, columnList } from './layout';
+import { CONTRACT_DATASETS, STORE_DATASETS, columnDefinitions, columnList, type StoreDataset } from './layout';
 import { downloadManifestFiles, localPath, removeUnusedLocalFiles } from './localCopy';
 import { datasetFiles, readManifest, type StoreManifest } from './manifest';
 
@@ -17,6 +17,10 @@ import { datasetFiles, readManifest, type StoreManifest } from './manifest';
 // seguinte (uma busca ainda pode estar lendo deles).
 // As buscas passam por uma fila (poucas ao mesmo tempo, porque o servidor tem
 // meia CPU) e têm limite de tempo. Sem cópia pronta, ContractStoreUnavailableError.
+// Só os conjuntos pedidos em `datasets` são baixados e abertos (por padrão, os
+// de contratos): os vencedores (plano .plans/licitacoes-vencedores.md) ficam de
+// fora do Web Service, e o conjunto que não foi pedido tem uma visão vazia,
+// porque visão sobre arquivo que não foi baixado falha na criação.
 
 const DEFAULT_POLL_INTERVAL_MS = 10 * 60_000;
 const DEFAULT_RETRY_INTERVAL_MS = 30_000;
@@ -37,6 +41,8 @@ export interface ContractStoreReaderOptions {
   threads?: number;
   maxConcurrentQueries?: number;
   queryTimeoutMs?: number;
+  /** Conjuntos baixados e abertos; sem ele, os de contratos (CONTRACT_DATASETS). */
+  datasets?: readonly StoreDataset[];
 }
 
 /** Ainda não há cópia pronta (o servidor acabou de subir, ou o R2 não respondeu). */
@@ -68,6 +74,8 @@ export interface ContractStoreStatus {
   /** Dia (AAAA-MM-DD, Brasília) em que a publicação contou os vigentes. */
   today: string | null;
   totals: StoreManifest['totals'] | null;
+  /** Só quando a versão em uso tem arquivos de vencedores: as linhas do manifesto (a contagem não abre o DuckDB). */
+  winners?: { rows: number };
 }
 
 /** O que as buscas e os avisos usam do armazém: consultar, e saber se já há cópia pronta. */
@@ -114,18 +122,25 @@ export class ContractStoreReader {
     return new ContractStoreReader(options, instance, connection, connections);
   }
 
+  /** Conjuntos baixados e abertos por este leitor. */
+  private get datasets(): readonly StoreDataset[] {
+    return this.options.datasets ?? CONTRACT_DATASETS;
+  }
+
   /** Começa a cópia em segundo plano: a primeira agora, depois a cada intervalo. */
   start(): void {
     void this.refreshAndSchedule();
   }
 
   status(): ContractStoreStatus {
+    const winnerFiles = datasetFiles(this.manifest, 'vencedores');
     return {
       ready: this.ready,
       revision: this.manifest?.revision ?? null,
       publishedAt: this.manifest?.publishedAt ?? null,
       today: this.manifest?.today ?? null,
       totals: this.manifest?.totals ?? null,
+      ...(winnerFiles.length > 0 ? { winners: { rows: winnerFiles.reduce((total, file) => total + file.rows, 0) } } : {}),
     };
   }
 
@@ -205,7 +220,7 @@ export class ContractStoreReader {
       if (this.ready && next?.revision === this.manifest?.revision) {
         return false;
       }
-      const downloaded = await downloadManifestFiles(this.options.storage, next, this.options.directory);
+      const downloaded = await downloadManifestFiles(this.options.storage, next, this.options.directory, this.datasets);
       await this.swapViews(next);
       this.previousManifest = this.ready ? this.manifest : null;
       this.manifest = next;
@@ -223,7 +238,9 @@ export class ContractStoreReader {
     await this.admin.run('BEGIN TRANSACTION');
     try {
       for (const dataset of STORE_DATASETS) {
-        const files = datasetFiles(manifest, dataset).map((file) => localPath(this.options.directory, file.path));
+        const files = this.datasets.includes(dataset)
+          ? datasetFiles(manifest, dataset).map((file) => localPath(this.options.directory, file.path))
+          : [];
         const source = files.length > 0 ? `read_parquet(${parquetList(files)}, union_by_name = true)` : `vazio_${dataset}`;
         await this.admin.run(`CREATE OR REPLACE VIEW ${dataset} AS SELECT ${columnList(dataset)} FROM ${source}`);
       }
