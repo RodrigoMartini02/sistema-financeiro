@@ -6,6 +6,7 @@ import { Loader2, TriangleAlert } from 'lucide-react';
 import { Button } from '../../ui/button';
 import { Dialog } from '../../ui/dialog';
 import { Field, Input, ToggleGroup, ToggleRow } from '../../ui/form';
+import { onlyDigits } from '../../utils/brazilDocuments';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useDomainLists, useDomainLookups } from '../hooks/useDomainLists';
 import { useSaveSavedSearch } from '../hooks/useSavedSearchMutations';
@@ -13,6 +14,7 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import { previewSavedSearch } from '../services/savedSearchesService';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { SavedSearch, SavedSearchCriteriaBody, SavedSearchPreview } from '../types';
+import { isCnpjFormat } from '../utils/cnpj';
 import { TERMS_MODE_LABELS, formatCnpj } from '../utils/labels';
 import {
   MAX_AGENCIES,
@@ -26,7 +28,6 @@ import {
   savedSearchFormSchema,
   type SavedSearchFormValues,
 } from '../utils/savedSearchForm';
-import { isValidCnpj, normalizeCnpj } from '../utils/searchFilters';
 import { CheckList, StatePicker } from './ChoicePickers';
 import { CountdownBadge } from './CountdownBadge';
 import { LoadError, LoadingBlock } from './LoadStates';
@@ -76,8 +77,8 @@ export function parseTerm(text: string): TagParseResult {
 }
 
 export function parseCnpj(text: string): TagParseResult {
-  const digits = normalizeCnpj(text);
-  return isValidCnpj(digits) ? { value: digits } : { error: 'Informe o CNPJ com 14 dígitos.' };
+  const digits = onlyDigits(text);
+  return isCnpjFormat(digits) ? { value: digits } : { error: 'Informe o CNPJ com 14 dígitos.' };
 }
 
 /** Mensagem do campo, também de listas (erro num item). */

@@ -51,6 +51,12 @@ export function sqlLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+/** Número de uma linha lida do DuckDB (contagens saem com `::INTEGER`, nunca BigInt); vazio vira 0. */
+export const integerOf = (value: unknown): number => Number(value ?? 0);
+
+/** Texto de uma linha lida do DuckDB; nulo continua nulo. */
+export const textOrNull = (value: unknown): string | null => (value === null || value === undefined ? null : String(value));
+
 /** Lista de caminhos para read_parquet. */
 export function parquetList(paths: readonly string[]): string {
   return `[${paths.map((path) => sqlLiteral(toDuckDbPath(path))).join(', ')}]`;

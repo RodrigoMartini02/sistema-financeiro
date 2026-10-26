@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { addCalendarDays, brasiliaDate } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
-import { phraseContractCriteria } from '../contractStore/criteria';
+import { contractListDataset, phraseContractCriteria } from '../contractStore/criteria';
 import { queryContractPage, type ContractListRow } from '../contractStore/queries';
 import type { ContractStoreAccess } from '../contractStore/reader';
 import { postgresSearchPhrases } from '../contractStore/textSearch';
@@ -192,7 +192,7 @@ export async function searchContracts(
 
   const { rows, total } = await context.contractStore.query((connection) =>
     queryContractPage(connection, {
-      dataset: allContracts ? 'contratos' : 'vigentes',
+      dataset: contractListDataset(phrased, { allContracts, numberGroups: filters.numberGroups }),
       phrased,
       activeOn: allContracts ? null : today,
       keys,

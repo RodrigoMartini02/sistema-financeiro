@@ -10,6 +10,7 @@ import {
   withContractFilters,
   type ContractSearchState,
 } from '../utils/contractFilters';
+import { CNPJ_PAGE_LINK_LABEL, cnpjLinkPath } from '../utils/cnpj';
 import { MAX_SUPPLIERS } from '../utils/contractSearchForm';
 import { formatCnpj } from '../utils/labels';
 import { decimalToReais, reaisToDecimal } from '../utils/money';
@@ -255,6 +256,8 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
           onChange={(agencyCnpjs) => update({ agencyCnpjs })}
           parse={parseCnpj}
           format={formatCnpj}
+          linkFor={cnpjLinkPath}
+          linkLabel={CNPJ_PAGE_LINK_LABEL}
           placeholder="00.000.000/0000-00 e Enter"
           maxItems={MAX_AGENCIES}
           maxItemsMessage={`Até ${MAX_AGENCIES} órgãos.`}
@@ -269,6 +272,8 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
           onChange={(supplierCnpjs) => update({ supplierCnpjs })}
           parse={parseCnpj}
           format={formatCnpj}
+          linkFor={cnpjLinkPath}
+          linkLabel={CNPJ_PAGE_LINK_LABEL}
           placeholder="00.000.000/0000-00 e Enter"
           maxItems={MAX_SUPPLIERS}
           maxItemsMessage={`Até ${MAX_SUPPLIERS} fornecedores.`}

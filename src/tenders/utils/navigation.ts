@@ -1,11 +1,14 @@
 // Rotas e menu do app de Licitações (escopo, seção 9.3), relativas à base
 // `/licitacoes/app`. Os ícones ficam no menu; aqui só a parte testável.
 
+import { cnpjFromSearchText, cnpjPagePath } from './cnpj';
+
 export type TendersRouteKey =
   | 'inicio'
   | 'buscar'
   | 'contratos'
   | 'contrato'
+  | 'cnpj'
   | 'edital'
   | 'buscas'
   | 'favoritos'
@@ -31,6 +34,7 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
+  { key: 'cnpj', path: '/cnpj/:cnpj', title: 'CNPJ', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },
@@ -77,8 +81,12 @@ export function routeForPath(pathname: string): TendersRoute | null {
   );
 }
 
-/** Busca rápida da barra superior: leva para Buscar com o texto; vazio não navega. */
+/**
+ * Busca rápida da barra superior: um CNPJ válido leva à página dele; o resto, para Buscar com o texto; vazio não navega.
+ */
 export function quickSearchPath(text: string): string | null {
   const query = text.trim();
-  return query ? `/buscar?q=${encodeURIComponent(query)}` : null;
+  if (!query) return null;
+  const cnpj = cnpjFromSearchText(query);
+  return cnpj ? cnpjPagePath(cnpj) : `/buscar?q=${encodeURIComponent(query)}`;
 }

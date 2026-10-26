@@ -9,13 +9,15 @@ interface PaginationProps {
   perPage: number;
   onPage: (page: number) => void;
   onPerPage: (perPage: number) => void;
+  /** Tamanhos de página oferecidos; sem ele, os das buscas (20, 50 e 100). */
+  perPageOptions?: readonly number[];
 }
 
 const pageButton =
   'inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-brand-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300';
 
 /** Paginação no servidor: 20 por página, com 50 e 100. */
-export function Pagination({ page, totalPages, total, perPage, onPage, onPerPage }: PaginationProps) {
+export function Pagination({ page, totalPages, total, perPage, onPage, onPerPage, perPageOptions = PER_PAGE_OPTIONS }: PaginationProps) {
   const first = total === 0 ? 0 : (page - 1) * perPage + 1;
   const last = Math.min(total, page * perPage);
   return (
@@ -27,7 +29,7 @@ export function Pagination({ page, totalPages, total, perPage, onPage, onPerPage
         <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           Por página
           <Select value={String(perPage)} onChange={(event) => onPerPage(Number(event.target.value))} className="w-[76px]">
-            {PER_PAGE_OPTIONS.map((option) => (
+            {perPageOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

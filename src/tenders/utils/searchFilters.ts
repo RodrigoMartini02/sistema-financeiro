@@ -6,6 +6,8 @@ import {
   type SearchTermsMode,
   type TrackingFilter,
 } from '../types';
+import { onlyDigits } from '../../utils/brazilDocuments';
+import { isCnpjFormat } from './cnpj';
 import { addDaysToIsoDate, isValidIsoDate } from './dates';
 import {
   TERMS_MODE_LABELS,
@@ -140,17 +142,6 @@ const SORT_URL_VALUES: Record<NoticeSort, string> = {
 
 export const STATE_PATTERN = /^[A-Z]{2}$/;
 export const MUNICIPALITY_PATTERN = /^\d{7}$/;
-const CNPJ_PATTERN = /^\d{14}$/;
-
-/** CNPJ só com os dígitos; válido com 14. */
-export function normalizeCnpj(text: string): string {
-  return text.replace(/\D/g, '');
-}
-
-export function isValidCnpj(digits: string): boolean {
-  return CNPJ_PATTERN.test(digits);
-}
-
 export function uniqueValid(values: string[], normalize: (value: string) => string, isValid: (value: string) => boolean): string[] {
   const result: string[] = [];
   for (const raw of values) {
@@ -222,7 +213,7 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
           termsMode: params.get(P.termsMode)?.toUpperCase() === 'OU' ? ('OU' as const) : ('E' as const),
           states: uniqueValid(params.getAll(P.state), (value) => value.toUpperCase(), (value) => STATE_PATTERN.test(value)),
           municipalityCodes: uniqueValid(params.getAll(P.municipality), (value) => value, (value) => MUNICIPALITY_PATTERN.test(value)),
-          agencyCnpjs: uniqueValid(params.getAll(P.agency), normalizeCnpj, isValidCnpj),
+          agencyCnpjs: uniqueValid(params.getAll(P.agency), onlyDigits, isCnpjFormat),
           modalities: uniqueValid(params.getAll(P.modality), (value) => value, (value) => positiveInt(value) !== null).map(Number),
           minValue,
           maxValue: minValue !== null && maxValue !== null && Number(minValue) > Number(maxValue) ? null : maxValue,

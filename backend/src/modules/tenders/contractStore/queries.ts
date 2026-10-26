@@ -5,9 +5,11 @@ import {
   activeContractCondition,
   contractCriteriaCondition,
   relevanceOrder,
+  supplierPruneCondition,
+  type ContractListDataset,
   type PhrasedContractCriteria,
 } from './criteria';
-import { sqlLiteral } from './duckdb';
+import { integerOf, sqlLiteral } from './duckdb';
 import { columnList, fromStoreRecord, isContractKey, type StoredContract } from './layout';
 
 // As consultas que a API e os avisos fazem no armazém de contratos (plano
@@ -68,8 +70,11 @@ export interface ContractListRow {
 }
 
 export interface ContractListQuery {
-  /** `vigentes`: só os vigentes (arquivos por faixa de vencimento); `contratos`: todos, inclusive encerrados e sem vencimento. */
-  dataset: 'vigentes' | 'contratos';
+  /**
+   * `vigentes`: só os vigentes (arquivos por faixa de vencimento); `contratos`: todos, inclusive encerrados e sem vencimento;
+   * `fornecedor`: todos, em arquivos ordenados pelo CNPJ do fornecedor (só sem critério de texto; ver contractListDataset).
+   */
+  dataset: ContractListDataset;
   phrased: PhrasedContractCriteria;
   /** Dia (AAAA-MM-DD, Brasília) a partir do qual o contrato é vigente; null = sem filtro de vigência. */
   activeOn: string | null;
@@ -99,6 +104,10 @@ function keyLiterals(keys: readonly string[]): string {
 
 function listConditions(query: ContractListQuery, params: SqlParameters): string[] {
   const conditions = [contractCriteriaCondition(query.phrased, params)];
+  const prune = supplierPruneCondition(query.phrased.criteria);
+  if (prune !== null) {
+    conditions.push(prune);
+  }
   if (query.activeOn !== null) {
     conditions.push(activeContractCondition(query.activeOn, params));
   }
@@ -148,8 +157,6 @@ function orderBy(query: ContractListQuery, params: SqlParameters): string {
     }
   }
 }
-
-const integerOf = (value: unknown): number => Number(value ?? 0);
 
 /**
  * Uma página da lista e o total que bate com os filtros. O total sai da própria

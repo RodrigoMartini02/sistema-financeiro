@@ -12,6 +12,7 @@ import { contractPath } from '../utils/contractKey';
 import { formatIsoDate } from '../utils/dates';
 import { formatCnpj } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
+import { CnpjLink } from './CnpjLink';
 import { ContractBadges, ExpiryBadge } from './ContractBadges';
 import { ContractFavoriteButton } from './FavoriteButton';
 import { ContractsUpdating, LoadError, LoadingBlock } from './LoadStates';
@@ -166,7 +167,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
       <Section title="Contrato">
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <InfoItem label="Órgão">
-            {contract.agencyName ?? 'Não informado'}
+            {contract.agencyName ? <CnpjLink cnpj={contract.agencyCnpj}>{contract.agencyName}</CnpjLink> : 'Não informado'}
             <span className="block text-xs text-slate-500 dark:text-slate-400">
               CNPJ {formatCnpj(contract.agencyCnpj)}
               {sphere ? ` · ${sphere}` : ''}
@@ -188,7 +189,7 @@ export function ContractDetailContent({ contract, inDrawer }: ContractDetailCont
       <Section title="Fornecedor e valores">
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <InfoItem label="Fornecedor">
-            {contract.supplierName ?? 'Não informado'}
+            <CnpjLink cnpj={contract.supplierDocument}>{contract.supplierName ?? 'Não informado'}</CnpjLink>
             {supplierDocument && <span className="block text-xs text-slate-500 dark:text-slate-400">{supplierDocument}</span>}
           </InfoItem>
           <InfoItem label="Valor inicial">{formatMoneyValue(contract.initialValue)}</InfoItem>

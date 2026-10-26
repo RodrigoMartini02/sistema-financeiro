@@ -333,15 +333,17 @@ Cada parte é uma rodada: o usuário chama `/implementar`, o agente implementa e
 5. CPF mascarado; bruto no arquivo; etapa na rotina diária, Coleta, comandos e README.
 6. Testes: os do plano da base nacional, com o R2 simulado.
 
-**Situação (26/10/2026): implementada na branch `feat/R/licitacoes-vencedores`, sem commit; o piloto de um mês foi rodado (conferência por fornecedor batendo com a fonte) e falta o `/finalizar`.** O plano detalhado, com os desvios e os números da sondagem, é `.plans/licitacoes-vencedores.md`. Decisões que valem para os próximos planos:
+**Situação (26/10/2026): na `main` desde o merge `a77d4e75` (flag `TENDERS_WINNERS_ENABLED` desligada; a 0087c foi aplicada na produção); o piloto de um mês foi rodado (conferência por fornecedor batendo com a fonte).** O plano detalhado, com os desvios e os números da sondagem, é `.plans/licitacoes-vencedores.md`. Decisões que valem para os próximos planos:
 - **Migration `0087c`** (não 0089): recria o CHECK dos tipos de execução com `VENCEDORES_DIARIA` e `VENCEDORES_CARGA` e cria `licitacoes.resultado_carga_dia` (dias da carga). Fica antes da 0088 e não espera a exportação do JSON dos editais. Aplicada no banco local em 25/10/2026; **na produção, só no `/finalizar`**, antes do merge e fora das 06:00.
 - **Manifesto compartilhado:** a chave `datasets.vencedores` (aditiva, o formato continua 1), um gravador irmão e a mesma trava dos contratos. O escritor de contratos carrega a lista adiante; rollback do Cron Job para uma versão sem essa linha apaga os vencedores na publicação seguinte de contratos.
-- **O Web Service não baixa nem abre os vencedores** até a Parte 4: o leitor ganhou a opção `datasets` (padrão: os de contratos), e a Parte 4 liga o conjunto `vencedores`, com a cópia e a memória que isso pede.
+- **O Web Service não baixava os vencedores** até a Parte 4: o leitor ganhou a opção `datasets` (padrão: os de contratos), e a Parte 4 (`.plans/licitacoes-pagina-cnpj.md`) liga o conjunto `vencedores` (`WEB_STORE_DATASETS`), com a cópia e a memória que isso pede.
 - **A fonte dos resultados** (Compras.gov.br) tem fim de janela inclusivo, página máxima de 500, filtro `niFornecedor`, dados desde 2021-08 e pode ficar semanas sem dado novo (parada de 26 dias medida em 25/10/2026): a coleta anda só até o último dia com dado.
 - **A paginação da fonte falha na primeira leitura de um dia** (5% das linhas repetidas e outras tantas faltando, mesmo com a soma das páginas certa): a coleta lê um dia por vez, confere as linhas distintas com o total que a fonte informa e relê o dia com outro tamanho de página quando falta. A carga completa custa cerca de duas leituras por dia (uns 13 h de espera), e não uma. Quem ler essa fonte nas Partes 4 e 5 (ou outro conjunto do mesmo portal) deve conferir o total do mesmo jeito.
 - **Ligar na produção** é a variável `TENDERS_WINNERS_ENABLED=1` no Cron Job, só com o Cron Job estável na instância maior (a rotina estourou 512 MB de memória em 20 a 25/10).
 
 ### Parte 4: página do CNPJ
+
+> O plano detalhado e aprovado desta parte é `.plans/licitacoes-pagina-cnpj.md` (26/10/2026); o texto abaixo é o esboço original do plano do R2.
 
 1. Validação do CNPJ (14 dígitos, com ou sem máscara, e dígitos verificadores) no front e no backend.
 2. **API:**

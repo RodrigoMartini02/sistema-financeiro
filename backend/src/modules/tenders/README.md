@@ -18,6 +18,7 @@ backend/src/modules/tenders/
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
 ├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
+├── cnpj.ts                 CNPJ: formato (14 dígitos), dígitos verificadores e o erro das consultas do armazém
 ├── objectStorage.ts        cliente do Cloudflare R2, na pasta do ambiente (arquivo bruto e armazém)
 ├── tenders.http            coleção de requisições da API (REST Client)
 ├── contractStore/          armazém de contratos em Parquet no R2 (DuckDB)
@@ -26,14 +27,15 @@ backend/src/modules/tenders/
 │   ├── localCopy.ts                 cópia local dos arquivos do manifesto
 │   ├── duckdb.ts                    DuckDB sem extensões baixadas, com limite de memória
 │   ├── textSearch.ts                radicais e grupos de dígitos calculados pelo Postgres
-│   ├── criteria.ts                  a regra única dos critérios de contratos, em SQL do DuckDB
+│   ├── criteria.ts                  a regra única dos critérios de contratos, em SQL do DuckDB, e a escolha do conjunto da lista
 │   ├── queries.ts                   consultas da API e dos avisos: lista, detalhe, contagem e janelas de vencimento
+│   ├── cnpjQueries.ts               página do CNPJ: contratos como fornecedor e como órgão, parceiros e cobertura
 │   ├── writer.ts                    gravação (Cron Job): mudanças, partes regravadas e publicação
 │   ├── reader.ts                    leitura (Web Service): cópia local, troca de versão, fila e limite de tempo
 │   ├── service.ts                   o armazém do Web Service: começa com o servidor, sem atrasar o /health
 │   ├── winnerRows.ts                vencedores, núcleo puro: chave, mapa de itens, totais e agregação idempotente
 │   ├── winnerWriter.ts              vencedores: gravador irmão do dos contratos (ano inteiro, lápides, manifesto por último)
-│   └── winnerQueries.ts             vencedores: resumo, órgãos e lista por CNPJ (usadas só pelo `winners-lookup`)
+│   └── winnerQueries.ts             vencedores: resumo, órgãos, contagem e lista por CNPJ (página do CNPJ e `winners-lookup`)
 ├── collector/
 │   ├── docs/pncp-openapi.json       OpenAPI da API de Consultas do PNCP (05/10/2026)
 │   ├── docs/pncp-api-openapi.json   OpenAPI da API principal do PNCP (itens e arquivos, 05/10/2026)
@@ -57,7 +59,7 @@ backend/src/modules/tenders/
 │   ├── resultMapping.ts             resultado de um item → ResultRecord; identidade do fornecedor e CPF sempre mascarado
 │   ├── resultProgress.ts            andamento no Postgres: último dia lido da coleta diária e dias da carga de vencedores
 │   ├── resultRuns.ts                vencedores: coleta diária e carga histórica, publicando o armazém
-│   ├── winnersLookup.ts             `winners-lookup`: as vitórias de um CNPJ, com o edital ligado quando existe
+│   ├── winnersLookup.ts             `winners-lookup`: as vitórias de um CNPJ, com o edital ligado quando existe (links em `services/winnerLinks.ts`)
 │   ├── runtime.ts                   config, log, banco, PNCP, Compras.gov.br e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso) e limite por usuário
@@ -303,7 +305,7 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
 
 ## Vencedores das licitações
 
-Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação da Lei 14.133, lido do Compras.gov.br (dados abertos, sem autenticação) e guardado como o quarto conjunto do armazém Parquet do R2. Não há tabela de resultados no Postgres, e o Web Service não baixa nem abre os vencedores: a leitura pela tela é da Parte 4 (página do CNPJ). Por enquanto o aceite é o comando `winners-lookup --cnpj`.
+Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação da Lei 14.133, lido do Compras.gov.br (dados abertos, sem autenticação) e guardado como o quarto conjunto do armazém Parquet do R2. Não há tabela de resultados no Postgres. O Web Service baixa e abre o conjunto `vencedores` (`WEB_STORE_DATASETS`, em `service.ts`) para a página do CNPJ (Parte 4, seção [Página do CNPJ](#página-do-cnpj)); sem arquivos de vencedores no manifesto a visão fica vazia e as consultas devolvem zeros. O aceite da Parte 3 é o comando `winners-lookup --cnpj`.
 
 - **A fonte** (`comprasGovClient.ts`, medida em 25/10/2026 pela `winners-probe`):
   - `GET https://dadosabertos.compras.gov.br/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133` com `pagina`, `tamanhoPagina` (máximo 500; 501 dá HTTP 400), `dataResultadoPncpInicial` e `dataResultadoPncpFinal`;
@@ -327,6 +329,28 @@ Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação
 - **Detalhes da execução:** `queries` (a janela e até onde foi lida), `sourceLastDay`, `metrics` (páginas, linhas repetidas, leituras extras e dias incompletos, tempos de leitura, de aplicação e de publicação, registros por situação, linhas novas, alteradas, removidas e iguais, dias vazios, cancelamentos por atraso e o pico de memória do processo), `publications` e `store`. Configurações › Coleta tem o card "Vencedores".
 - **Ordem de deploy** (decisão do plano): aplicar a **0087c** na produção antes (fora das 06:00 de Brasília; ela não depende da 0088); o merge sobe o Cron Job e o Web Service com `TENDERS_WINNERS_ENABLED` desligada, ou seja, inertes; depois do piloto aprovado, a flag é ligada no Cron Job com `TENDERS_WINNERS_BACKFILL_MINUTES=30`, acompanhando 2 ou 3 rotinas (duração, `rssMb` entre as etapas, tempo de publicação e o card). Conferir antes, no Render, o limite de duração e a memória do Cron Job.
 - **Risco de rollback do Cron Job:** voltar só o Cron Job para uma versão sem a linha do gravador de contratos que carrega `vencedores` adiante faz a próxima publicação de contratos apagar os vencedores do manifesto e os arquivos do bucket (refazer a carga leva dias). A flag fica desligada até o Cron Job novo estar ativo.
+
+## Página do CNPJ
+
+Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados, como fornecedor (contratos e licitações vencidas) e como órgão (contratos e editais abertos). Os dados são públicos e iguais para todas as contas; a trava do módulo (acesso valendo) vale como nas outras rotas.
+
+- **CNPJ** (`cnpj.ts`, uma regra só no backend; no front, `src/tenders/utils/cnpj.ts` e o `isValidCnpj` de `src/utils/brazilDocuments.ts`):
+  - `isCnpjFormat` confere só os 14 dígitos e vale nos filtros das buscas (a fonte traz CNPJs com dígito verificador errado: 5 de 92.281 fornecedores nos contratos reais);
+  - `isValidCnpj` confere também os dígitos verificadores e vale para abrir a página (`400` com "CNPJ inválido"), para reconhecer um CNPJ nas caixas de busca e para os nomes virarem link;
+  - `requireCnpjFormat` e `InvalidCnpjError`: as consultas do armazém só aceitam CNPJ no formato, e ele entra como literal SQL.
+- **Busca de contratos por fornecedor mais rápida** (`criteria.ts`): com filtro de fornecedor e sem termos, exclusões nem número, a lista lê o conjunto `fornecedor` (todos os contratos, ordenados pelo CNPJ do fornecedor), com `fornecedor_documento IN ('...')` como literal para o DuckDB pular os arquivos. Medido no armazém local (351 mil contratos, 1 thread e 128 MB): de 160–277 ms para 63–110 ms. A poda por órgão foi testada e **retirada**: o `contratos` é ordenado por UF antes do número de controle, a faixa do CNPJ do órgão não pula arquivo e a busca ficou igual ou mais lenta. Se a base crescer a ponto de pesar, o conserto é um conjunto `orgao` ordenado pelo CNPJ do órgão (fora do plano).
+- **API:**
+  - `GET /api/tenders/cnpj/:cnpj`: `{ cnpj, name, supplier, agency, coverage }`;
+    - `supplier` (`null` sem contratos nem vitórias): `contracts` (total, vigentes, valor, primeira e última publicação), `winners` (licitações, itens, valor, primeiro e último resultado e `byYear`) e `topAgencies` (os 10 órgãos que mais contrataram, pelo valor);
+    - `agency` (`null` sem contratos nem editais abertos): `contracts`, `openNotices` (do Postgres) e `topSuppliers` (só fornecedores com CNPJ: o CPF mascarado serve a várias pessoas);
+    - `coverage`: `contractsFrom` (primeira publicação), `winnersFrom` e `winnersTo`, guardada por publicação do armazém;
+    - CNPJ válido sem nenhum dado volta `200` com os dois blocos `null`;
+  - `GET /api/tenders/cnpj/:cnpj/winners?page=&perPage=`: as licitações vencidas, da mais recente para a mais antiga (10 por página, no máximo 50), com `noticeId` (o edital, quando ainda está no banco), `agencyName` (do edital, pois a fonte de resultados não traz o nome do órgão) e `link` para a compra;
+  - `60` pedidos por minuto por usuário (`429`); armazém sem cópia pronta, `503` `CONTRACT_STORE_UPDATING`; consulta longa demais, `504`;
+  - as listas de contratos e de editais da página usam as rotas que já existem (`GET /contracts` e `GET /notices`).
+- **Nomes:** o nome de pessoa jurídica sai como está no cadastro público do CNPJ (MEI traz o CPF no nome, "NOME 12345678901"); o documento de pessoa física segue mascarado, e não existe busca por CPF nem página de pessoa física.
+- **Tela** `/cnpj/:cnpj` (`src/tenders/screens/CnpjScreen.tsx`): cabeçalho com o nome, o CNPJ e a nota de cobertura (sem citar a fonte); abas "Como fornecedor" e "Como órgão" (`aba=fornecedor|orgao`, a que tem dado primeiro); indicadores, licitações vencidas por ano, ranking de parceiros (com link para o CNPJ de cada um), os 10 contratos mais recentes e "Ver todos" (a tela Contratos a vencer já filtrada, com os encerrados), os editais abertos do órgão e as licitações vencidas paginadas.
+- **Entradas:** as três caixas de busca (barra superior, Buscar e Contratos a vencer) abrem a página quando o texto é um CNPJ válido, com ou sem pontuação; os nomes de órgão e fornecedor viram link quando o CNPJ é válido (cards, tabelas, detalhes, vencedores e rankings); as etiquetas dos filtros "Órgão (CNPJ)" e "Fornecedor (CNPJ)" têm o atalho "Abrir a página do CNPJ".
 
 ## Contratos a vencer (dados)
 
@@ -491,6 +515,7 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - `GET /contracts/:chave`: detalhe, aditivos, `originNoticeId` (edital de origem na base) ou `originPncpLink` (a compra no PNCP) e `pncpLink`. A chave é o número de controle do PNCP com a barra codificada (`%2F`); chave fora do formato ou contrato fora do armazém dá 404;
   - `PUT` e `DELETE /contracts/:chave/favorite`, idempotentes; o `PUT` de contrato fora do armazém dá 404;
   - **armazém sem cópia pronta:** todas as rotas que consultam contratos respondem **503** com `{ success: false, code: "CONTRACT_STORE_UPDATING", message }` (cerca de 1 minuto depois de um deploy ou reinício); consulta que passa de 20 s responde **504** com `CONTRACT_SEARCH_TIMEOUT`. Editais, favoritos (tirar), buscas salvas (listar, salvar, alterar) e o resto do módulo não param;
+  - `GET /cnpj/:cnpj` e `GET /cnpj/:cnpj/winners`: a página do CNPJ (seção [Página do CNPJ](#página-do-cnpj));
   - `GET /collection/status`: "Contratos na base" e os vigentes vêm do manifesto do armazém (`contracts`, `activeContracts` e a data da contagem `countedOn`), ou `null` sem cópia pronta;
   - `/contract-searches`: as mesmas rotas de `/saved-searches` (listar, criar, alterar, `PATCH` de `active` e `notify`, excluir, duplicar e `POST /preview`, também com 60 por minuto por usuário).
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
@@ -585,6 +610,7 @@ Em Buscar e em Favoritos, a paginação fica no fim da página: com lista curta,
   - **contratos sendo atualizados:** com o 503 da API, a lista, o detalhe e os Favoritos mostram "Atualizando os contratos" (não é falha) e tentam de novo a cada 15 s, com o botão "Tentar de novo";
   - **busca em todos os contratos:** com "Incluir encerrados", a tela mostra "Buscando em todos os contratos…" enquanto a consulta roda;
   - no rodapé, a última coleta diária de contratos.
+- **Página do CNPJ (`/cnpj/:cnpj`):** ver a seção [Página do CNPJ](#página-do-cnpj); abre pelas caixas de busca, pelos nomes de órgãos e fornecedores e pelo atalho dos filtros de CNPJ.
 - **Telas sem a marca da fonte** (parte 7 do plano `.plans/licitacoes-base-nacional.md`):
   - nenhum texto de tela cita o PNCP: "Número de controle", "Abrir edital original", "Ver documento original", "Buscando os itens…", "Edital" nas ações rápidas e avisos neutros;
   - os links ao documento original continuam, para o site oficial;

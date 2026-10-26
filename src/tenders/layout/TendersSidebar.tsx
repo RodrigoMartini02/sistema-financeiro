@@ -11,6 +11,7 @@ const ICONS: Record<TendersRouteKey, LucideIcon> = {
   buscar: Search,
   contratos: CalendarClock,
   contrato: CalendarClock,
+  cnpj: Building2,
   edital: Search,
   buscas: Bookmark,
   favoritos: Heart,

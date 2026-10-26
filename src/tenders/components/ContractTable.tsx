@@ -2,10 +2,11 @@ import { Link, type To } from 'react-router-dom';
 import type { ContractListItem } from '../types';
 import { formatIsoDate } from '../utils/dates';
 import { formatMoneyValue } from '../utils/money';
+import { CnpjLink } from './CnpjLink';
 import { ContractBadges, ExpiryBadge } from './ContractBadges';
 import { ContractFavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
-import { noticePlace } from './NoticeCard';
+import { NoticePlace } from './NoticeCard';
 
 interface ContractTableProps {
   contracts: ContractListItem[];
@@ -58,7 +59,7 @@ export function ContractTable({ contracts, todayIso, compact, detailLinkFor, det
                 >
                   {contract.highlightedExcerpt ? <HighlightedText text={contract.highlightedExcerpt} /> : contract.contractObject}
                 </Link>
-                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(contract) || 'Órgão não informado'}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400"><NoticePlace notice={contract} /></p>
                 {!compact && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     <ContractBadges contract={contract} todayIso={todayIso} />
@@ -67,7 +68,7 @@ export function ContractTable({ contracts, todayIso, compact, detailLinkFor, det
               </td>
               <td className={`${cellPadding} text-xs text-slate-700 dark:text-slate-200`}>
                 <span className="line-clamp-2" title={contract.supplierName ?? undefined}>
-                  {contract.supplierName ?? 'Não informado'}
+                  <CnpjLink cnpj={contract.supplierDocument}>{contract.supplierName ?? 'Não informado'}</CnpjLink>
                 </span>
               </td>
               <td className={`${cellPadding} text-right font-semibold tabular-nums text-slate-800 dark:text-slate-100`}>

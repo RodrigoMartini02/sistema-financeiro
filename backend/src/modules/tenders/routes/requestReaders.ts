@@ -67,10 +67,10 @@ function assertDateRange(from: string | null, to: string | null, label: string):
   }
 }
 
-export function readPagination(query: RequestValues): { page: number; perPage: number } {
+export function readPagination(query: RequestValues, defaultPerPage = DEFAULT_PER_PAGE): { page: number; perPage: number } {
   return {
     page: readPositiveInt(query['page'], 1),
-    perPage: readPositiveInt(query['perPage'], DEFAULT_PER_PAGE),
+    perPage: readPositiveInt(query['perPage'], defaultPerPage),
   };
 }
 

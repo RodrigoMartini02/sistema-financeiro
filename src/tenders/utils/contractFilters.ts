@@ -1,4 +1,6 @@
 import { CONTRACT_SORTS, type ContractSort, type SearchTermsMode } from '../types';
+import { onlyDigits } from '../../utils/brazilDocuments';
+import { isCnpjFormat } from './cnpj';
 import { addDaysToIsoDate } from './dates';
 import { TERMS_MODE_LABELS, dateRangeLabel, formatCnpj, valueRangeLabel } from './labels';
 import { decimalToReais } from './money';
@@ -12,8 +14,6 @@ import {
   dateParam,
   datePair,
   decimalParam,
-  isValidCnpj,
-  normalizeCnpj,
   numberParam,
   positiveInt,
   uniqueValid,
@@ -166,9 +166,9 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
           termsMode: params.get(P.termsMode)?.toUpperCase() === 'OU' ? ('OU' as const) : ('E' as const),
           states: uniqueValid(params.getAll(P.state), (value) => value.toUpperCase(), (value) => STATE_PATTERN.test(value)),
           municipalityCodes: uniqueValid(params.getAll(P.municipality), (value) => value, (value) => MUNICIPALITY_PATTERN.test(value)),
-          agencyCnpjs: uniqueValid(params.getAll(P.agency), normalizeCnpj, isValidCnpj),
+          agencyCnpjs: uniqueValid(params.getAll(P.agency), onlyDigits, isCnpjFormat),
           categories: uniqueValid(params.getAll(P.category), (value) => value, (value) => positiveInt(value) !== null).map(Number),
-          supplierCnpjs: uniqueValid(params.getAll(P.supplier), normalizeCnpj, isValidCnpj),
+          supplierCnpjs: uniqueValid(params.getAll(P.supplier), onlyDigits, isCnpjFormat),
           minValue,
           maxValue: minValue !== null && maxValue !== null && Number(minValue) > Number(maxValue) ? null : maxValue,
           includeWithoutValue: params.get(P.includeWithoutValue) === '1',

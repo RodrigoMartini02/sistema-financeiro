@@ -1,9 +1,10 @@
 import type { DuckDBConnection } from '@duckdb/node-api';
-import { sqlLiteral } from './duckdb';
+import { requireCnpjFormat } from '../cnpj';
+import { integerOf, sqlLiteral, textOrNull } from './duckdb';
 
 // Consultas de leitura dos vencedores (plano .plans/licitacoes-vencedores.md): o resumo de um fornecedor pelo CNPJ,
 // os órgãos em que ele mais venceu e a lista das licitações. Rodam numa conexão do leitor (reader.ts) aberto com o
-// conjunto `vencedores`, e por enquanto só o comando `winners-lookup` as usa (a página do CNPJ é da Parte 4).
+// conjunto `vencedores`; o comando `winners-lookup` e a página do CNPJ (services/cnpjPage.ts) as usam.
 //
 // O CNPJ é conferido contra o formato e entra como literal, nunca como parâmetro nem em `list_contains`: com literais o
 // DuckDB usa os mínimos e máximos dos arquivos para pular os que não têm o fornecedor (medido: 4 a 5 ms contra 61 ms
@@ -11,34 +12,16 @@ import { sqlLiteral } from './duckdb';
 // logo depois de `|`, e as chaves das pessoas que não são PJ nunca começam por 14 dígitos seguidos de `|`.
 // Contagens saem com `::INTEGER` (nunca BigInt) e as somas em reais chegam como texto, sem passar por ponto flutuante.
 
-const CNPJ_PATTERN = /^\d{14}$/;
 const DEFAULT_LIST_LIMIT = 20;
 const MAX_LIST_LIMIT = 500;
 const DEFAULT_AGENCY_LIMIT = 10;
 const MAX_AGENCY_LIMIT = 100;
 
-/** O CNPJ não tem 14 dígitos: nada vira consulta. */
-export class InvalidWinnerCnpjError extends Error {
-  constructor() {
-    super('CNPJ inválido: informe os 14 dígitos');
-    this.name = 'InvalidWinnerCnpjError';
-  }
-}
-
-export function isWinnerCnpj(value: unknown): value is string {
-  return typeof value === 'string' && CNPJ_PATTERN.test(value);
-}
-
-/** Condição das linhas de um fornecedor; o CNPJ já foi conferido. */
+/** Condição das linhas de um fornecedor; o CNPJ é conferido contra o formato (fora dele, `InvalidCnpjError`). */
 function supplierCondition(cnpj: string): string {
-  if (!isWinnerCnpj(cnpj)) {
-    throw new InvalidWinnerCnpjError();
-  }
+  requireCnpjFormat(cnpj);
   return `chave >= ${sqlLiteral(`${cnpj}|`)} AND chave < ${sqlLiteral(`${cnpj}}`)} AND fornecedor_documento = ${sqlLiteral(cnpj)}`;
 }
-
-const integerOf = (value: unknown): number => Number(value ?? 0);
-const textOrNull = (value: unknown): string | null => (value === null || value === undefined ? null : String(value));
 
 export interface WinnerYearSummary {
   year: number;
@@ -49,6 +32,8 @@ export interface WinnerYearSummary {
 }
 
 export interface WinnerSummary {
+  /** O nome do fornecedor no resultado mais recente; null sem vitórias. */
+  name: string | null;
   purchases: number;
   items: number;
   totalValue: string;
@@ -64,7 +49,8 @@ export async function queryWinnerSummary(connection: DuckDBConnection, cnpj: str
   const total = await connection.runAndReadAll(`
     SELECT count(*)::INTEGER AS licitacoes, coalesce(sum(quantidade_itens), 0)::INTEGER AS itens,
            coalesce(sum(valor_homologado_total), 0)::DECIMAL(38,2) AS valor,
-           min(primeira_data_resultado) AS primeira, max(ultima_data_resultado) AS ultima
+           min(primeira_data_resultado) AS primeira, max(ultima_data_resultado) AS ultima,
+           arg_max(fornecedor_nome, ultima_data_resultado) AS nome
       FROM vencedores WHERE ${where}`);
   const byYear = await connection.runAndReadAll(`
     SELECT ano_compra, count(*)::INTEGER AS licitacoes, coalesce(sum(quantidade_itens), 0)::INTEGER AS itens,
@@ -72,6 +58,7 @@ export async function queryWinnerSummary(connection: DuckDBConnection, cnpj: str
       FROM vencedores WHERE ${where} GROUP BY ano_compra ORDER BY ano_compra DESC`);
   const row = total.getRowObjectsJson()[0] ?? {};
   return {
+    name: textOrNull(row['nome']),
     purchases: integerOf(row['licitacoes']),
     items: integerOf(row['itens']),
     totalValue: String(row['valor'] ?? '0.00'),
@@ -111,6 +98,12 @@ export async function queryTopAgencies(connection: DuckDBConnection, cnpj: strin
     items: integerOf(row['itens']),
     totalValue: String(row['valor'] ?? '0.00'),
   }));
+}
+
+/** Quantas licitações o fornecedor venceu: o total da lista paginada. */
+export async function queryWinnerCount(connection: DuckDBConnection, cnpj: string): Promise<number> {
+  const result = await connection.runAndReadAll(`SELECT count(*)::INTEGER FROM vencedores WHERE ${supplierCondition(cnpj)}`);
+  return integerOf(result.getRows()[0]?.[0]);
 }
 
 /** Uma licitação vencida, sem o mapa de itens (o Parquet é colunar: a coluna que não se pede não é lida). */

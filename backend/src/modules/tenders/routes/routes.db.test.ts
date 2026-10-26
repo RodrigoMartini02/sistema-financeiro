@@ -12,10 +12,11 @@ import {
   withRollback,
 } from '../collector/dbTestSupport';
 import { ContractStoreUnavailableError, type ContractStoreAccess } from '../contractStore/reader';
-import { openTestContractStore, sampleContract } from '../contractStore/storeTestSupport';
+import { openTestContractStore, sampleContract, sampleResult, sampleSupplier } from '../contractStore/storeTestSupport';
 import { postgresSearchFields } from '../contractStore/textSearch';
 import { tenderEnabledAccounts } from '../db/schema';
 import type { TenderAccount } from '../services/access';
+import type { CnpjSummary, CnpjWinnerItem } from '../services/cnpjPage';
 import type { ContractDetail } from '../services/contractDetail';
 import type { ContractSavedSearchView } from '../services/contractSavedSearches';
 import type { ContractListItem } from '../services/contractSearch';
@@ -27,11 +28,17 @@ import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noti
 import type { SavedSearchView } from '../services/savedSearches';
 import type { SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
+import { CNPJ_RATE_LIMIT } from './cnpj';
 import { createTendersRoutes } from './index';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 
 // Rotas por HTTP, montadas como no server.ts (authenticate simulado com o
 // usuário do teste) e com o banco da transação desfeita do teste.
+
+/** CNPJs válidos (dígitos verificadores certos) da página do CNPJ: um fornecedor, um órgão e um que nenhum dado tem. */
+const SUPPLIER_CNPJ = '11222333000181';
+const AGENCY_CNPJ = '12345678000195';
+const UNKNOWN_CNPJ = '98765432000198';
 
 type TestUser = { id: number; type: 'membro' | 'titular' | 'admin' };
 
@@ -460,16 +467,17 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
-  test('contratos: conta sem o módulo, 404; colaborador sem acesso, 403; assinatura vencida, 402', async () => {
+  test('contratos e página do CNPJ: conta sem o módulo, 404; colaborador sem acesso, 403; assinatura vencida, 402', async () => {
     await withRollback(async (tx) => {
       const notEnabled = await createTestAccount(tx, 'http-contrato-sem', { enabled: false });
       const enabled = await createTestAccount(tx, 'http-contrato-com');
       const memberWithoutAccess = await addAccountMember(tx, enabled, 'http-contrato-semlib', { access: false });
       const contractPath = `/api/tenders/contracts/${encodeURIComponent(sampleContract(1).pncpControlNumber)}`;
+      const cnpjPaths = [`/api/tenders/cnpj/${SUPPLIER_CNPJ}`, `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners`];
       await withApi(tx, async (call) => {
         const outsider = { id: notEnabled.ownerId, type: 'titular' as const };
         const blocked = { id: memberWithoutAccess, type: 'membro' as const };
-        for (const path of ['/api/tenders/contracts', contractPath, '/api/tenders/contract-searches']) {
+        for (const path of ['/api/tenders/contracts', contractPath, '/api/tenders/contract-searches', ...cnpjPaths]) {
           assert.equal((await call('GET', path, { as: outsider })).status, 404, path);
           assert.equal((await call('GET', path, { as: blocked })).status, 403, path);
         }
@@ -481,6 +489,9 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const titular = { id: enabled.ownerId, type: 'titular' as const };
         assert.equal((await call('GET', '/api/tenders/contracts', { as: titular })).status, 402);
         assert.equal((await call('PUT', `${contractPath}/favorite`, { as: titular })).status, 402);
+        for (const path of cnpjPaths) {
+          assert.equal((await call('GET', path, { as: titular })).status, 402, path);
+        }
       });
     });
   });
@@ -627,6 +638,152 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
           { contracts: status.body.data.contracts.contracts, activeContracts: status.body.data.contracts.activeContracts, countedOn: status.body.data.contracts.countedOn },
           { contracts: null, activeContracts: null, countedOn: null },
         );
+      });
+    });
+  });
+
+  test('página do CNPJ por HTTP: resumo como fornecedor e como órgão, licitações vencidas com paginação e CNPJ sem dados', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-cnpj');
+      const supplier = sampleSupplier(SUPPLIER_CNPJ, 'ALFA LTDA');
+      const purchase = (sequence: number) => `${AGENCY_CNPJ}-1-${String(sequence).padStart(6, '0')}/2026`;
+      const common = { agencyCnpj: AGENCY_CNPJ, agencyName: 'Prefeitura de Teste', supplierDocument: SUPPLIER_CNPJ, supplierName: 'ALFA LTDA' };
+      const store = await openTestContractStore(
+        [
+          sampleContract(1, { ...common, globalValue: '100.00', expiresOn: '2030-01-01', publishedAt: '2026-03-01T10:00:00' }),
+          sampleContract(2, { ...common, globalValue: '50.50', termStart: '2024-01-01', originalTermEnd: '2025-01-01', expiresOn: '2025-01-01', publishedAt: '2026-02-01T10:00:00' }),
+        ],
+        {
+          winners: [
+            sampleResult(1, { supplier, purchaseControlNumber: purchase(1), valueCents: 100_000, resultDate: '2026-09-10' }),
+            sampleResult(2, { supplier, purchaseControlNumber: purchase(1), valueCents: 50_000, resultDate: '2026-09-11' }),
+            sampleResult(1, { supplier, purchaseControlNumber: purchase(2), valueCents: 20_000, resultDate: '2026-09-20' }),
+            sampleResult(1, { supplier, purchaseControlNumber: purchase(3), valueCents: 5_000, resultDate: '2026-08-01' }),
+          ],
+        },
+      );
+      try {
+        await withApi(
+          tx,
+          async (call) => {
+            const as = { id: account.ownerId, type: 'titular' as const };
+
+            const asSupplier = await call<CnpjSummary>('GET', `/api/tenders/cnpj/${SUPPLIER_CNPJ}`, { as });
+            assert.equal(asSupplier.status, 200);
+            const summary = asSupplier.body.data;
+            assert.equal(summary.cnpj, SUPPLIER_CNPJ);
+            assert.equal(summary.name, 'ALFA LTDA');
+            assert.deepEqual(summary.supplier?.contracts, {
+              total: 2,
+              active: 1,
+              totalValue: 150.5,
+              firstPublishedAt: '2026-02-01T10:00:00-03:00',
+              lastPublishedAt: '2026-03-01T10:00:00-03:00',
+            });
+            assert.deepEqual(summary.supplier?.winners, {
+              purchases: 3,
+              items: 4,
+              totalValue: 1750,
+              firstResultDate: '2026-08-01',
+              lastResultDate: '2026-09-20',
+              byYear: [{ year: 2026, purchases: 3, items: 4, totalValue: 1750 }],
+            });
+            assert.deepEqual(summary.supplier?.topAgencies, [{ cnpj: AGENCY_CNPJ, name: 'Prefeitura de Teste', contracts: 2, totalValue: 150.5 }]);
+            assert.equal(summary.agency, null, 'o fornecedor não é órgão');
+            assert.deepEqual(summary.coverage, { contractsFrom: '2026-02-01', winnersFrom: '2026-08-01', winnersTo: '2026-09-20' });
+
+            // Como órgão: os contratos do armazém e os editais abertos do banco (os encerrados não contam).
+            const before = await call<CnpjSummary>('GET', `/api/tenders/cnpj/${AGENCY_CNPJ}`, { as });
+            const baseline = before.body.data.agency?.openNotices ?? 0;
+            const noticeId = await insertTestNotice(tx, { pncpControlNumber: purchase(2), agencyCnpj: AGENCY_CNPJ, agencyName: 'Prefeitura (edital)', proposalClosesAt: '2099-11-20T09:30:00' });
+            await insertTestNotice(tx, { agencyCnpj: AGENCY_CNPJ, agencyName: 'Prefeitura (edital)', proposalClosesAt: '2099-11-21T09:30:00' });
+            await insertTestNotice(tx, { agencyCnpj: AGENCY_CNPJ, agencyName: 'Prefeitura (edital)', proposalClosesAt: '2020-01-01T09:30:00' });
+            const asAgency = await call<CnpjSummary>('GET', `/api/tenders/cnpj/${AGENCY_CNPJ}`, { as });
+            assert.equal(asAgency.status, 200);
+            assert.equal(asAgency.body.data.supplier, null, 'o órgão não é fornecedor');
+            assert.equal(asAgency.body.data.name, 'Prefeitura de Teste', 'o nome mais recente do armazém vale antes do edital');
+            assert.equal(asAgency.body.data.agency?.openNotices, baseline + 2);
+            assert.deepEqual(asAgency.body.data.agency?.contracts, {
+              total: 2,
+              active: 1,
+              totalValue: 150.5,
+              firstPublishedAt: '2026-02-01T10:00:00-03:00',
+              lastPublishedAt: '2026-03-01T10:00:00-03:00',
+            });
+            assert.deepEqual(asAgency.body.data.agency?.topSuppliers, [{ cnpj: SUPPLIER_CNPJ, name: 'ALFA LTDA', contracts: 2, totalValue: 150.5 }]);
+
+            // Licitações vencidas: a mais recente primeiro, 2 por página, o edital ligado só onde ele existe.
+            const first = await call<Paginated<CnpjWinnerItem>>('GET', `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners?perPage=2`, { as });
+            assert.equal(first.status, 200);
+            assert.deepEqual(
+              { page: first.body.data.page, perPage: first.body.data.perPage, total: first.body.data.total, totalPages: first.body.data.totalPages },
+              { page: 1, perPage: 2, total: 3, totalPages: 2 },
+            );
+            assert.deepEqual(first.body.data.items.map((item) => [item.purchaseControlNumber, item.items, item.totalValue, item.noticeId]), [
+              [purchase(2), 1, 200, noticeId],
+              [purchase(1), 2, 1500, null],
+            ]);
+            assert.equal(first.body.data.items[0]?.agencyName, 'Prefeitura (edital)', 'a fonte de resultados não traz o nome do órgão; o edital traz');
+            assert.equal(first.body.data.items[1]?.agencyName, null);
+            assert.equal(first.body.data.items[1]?.link, `https://pncp.gov.br/app/editais/${AGENCY_CNPJ}/2026/1`);
+            const second = await call<Paginated<CnpjWinnerItem>>('GET', `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners?perPage=2&page=2`, { as });
+            assert.deepEqual(second.body.data.items.map((item) => item.purchaseControlNumber), [purchase(3)]);
+            const standard = await call<Paginated<CnpjWinnerItem>>('GET', `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners`, { as });
+            assert.equal(standard.body.data.perPage, 10, 'o padrão da página do CNPJ é 10');
+
+            // CNPJ válido sem nenhum dado: 200, os dois blocos nulos e a cobertura.
+            const empty = await call<CnpjSummary>('GET', `/api/tenders/cnpj/${UNKNOWN_CNPJ}`, { as });
+            assert.equal(empty.status, 200);
+            assert.deepEqual(empty.body.data, { cnpj: UNKNOWN_CNPJ, name: null, supplier: null, agency: null, coverage: summary.coverage });
+            const noWins = await call<Paginated<CnpjWinnerItem>>('GET', `/api/tenders/cnpj/${UNKNOWN_CNPJ}/winners`, { as });
+            assert.deepEqual(noWins.body.data, { items: [], page: 1, perPage: 10, total: 0, totalPages: 0 });
+          },
+          store.reader,
+        );
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
+  test('página do CNPJ: CNPJ inválido e paginação fora da faixa, 400; sem cópia do armazém, 503; limite por pessoa, 429', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-cnpj-validacao');
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+        for (const invalid of ['123', 'abc', '11222333000182', '00000000000000', '112223330001811', encodeURIComponent('11.222.333/0001-81')]) {
+          for (const path of [`/api/tenders/cnpj/${invalid}`, `/api/tenders/cnpj/${invalid}/winners`]) {
+            const response = await call('GET', path, { as });
+            assert.equal(response.status, 400, path);
+            assert.equal(response.body.message, 'Validation error');
+            assert.deepEqual(response.body.errors, [{ field: 'cnpj', message: 'CNPJ inválido' }]);
+          }
+        }
+        const badPage = await call('GET', `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners?perPage=51&page=0`, { as });
+        assert.equal(badPage.status, 400);
+        assert.deepEqual(badPage.body.errors?.map((error) => error.field).sort(), ['page', 'perPage']);
+
+        // O armazém sem cópia pronta (padrão do withApi): o resumo e as vitórias esperam, com o código próprio.
+        for (const path of [`/api/tenders/cnpj/${SUPPLIER_CNPJ}`, `/api/tenders/cnpj/${SUPPLIER_CNPJ}/winners`]) {
+          const response = await call('GET', path, { as });
+          assert.equal(response.status, 503, path);
+          assert.deepEqual(response.body, {
+            success: false,
+            code: 'CONTRACT_STORE_UPDATING',
+            message: 'Os contratos estão sendo atualizados. Tente de novo em instantes.',
+          });
+        }
+      });
+
+      // O limite é por pessoa e conta todos os pedidos, válidos ou não.
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+        for (let index = 0; index < CNPJ_RATE_LIMIT.max; index += 1) {
+          assert.equal((await call('GET', '/api/tenders/cnpj/123', { as })).status, 400);
+        }
+        const limited = await call('GET', '/api/tenders/cnpj/123', { as });
+        assert.equal(limited.status, 429);
+        assert.equal(limited.body.success, false);
       });
     });
   });

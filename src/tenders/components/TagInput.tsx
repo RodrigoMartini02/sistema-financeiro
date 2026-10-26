@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
-import { X } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export type TagParseResult = { value: string } | { error: string };
 
@@ -13,6 +14,10 @@ interface TagInputProps {
   parse: (text: string) => TagParseResult;
   /** Como a etiqueta aparece (ex.: CNPJ com pontuação). */
   format?: (value: string) => string;
+  /** Para onde a etiqueta leva (ex.: a página do CNPJ); sem endereço, a etiqueta fica só com o "x". */
+  linkFor?: (value: string) => string | null;
+  /** Texto do atalho de `linkFor`, para leitores de tela e dica ("Abrir a página do CNPJ"). */
+  linkLabel?: string;
   placeholder?: string;
   maxItems: number;
   maxItemsMessage: string;
@@ -34,6 +39,8 @@ export function TagInput({
   onChange,
   parse,
   format = (value) => value,
+  linkFor,
+  linkLabel = 'Abrir',
   placeholder,
   maxItems,
   maxItemsMessage,
@@ -87,23 +94,36 @@ export function TagInput({
           disabled ? 'cursor-not-allowed opacity-50' : '',
         ].join(' ')}
       >
-        {values.map((value) => (
-          <span
-            key={value}
-            className="inline-flex max-w-full items-center gap-1 rounded-md bg-brand-50 py-0.5 pl-2 pr-1 text-[12px] font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
-          >
-            <span className="truncate">{format(value)}</span>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(values.filter((item) => item !== value))}
-              aria-label={`Remover ${format(value)}`}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-brand-600 hover:bg-brand-100 dark:text-brand-300 dark:hover:bg-brand-500/20"
+        {values.map((value) => {
+          const linkPath = linkFor?.(value) ?? null;
+          return (
+            <span
+              key={value}
+              className="inline-flex max-w-full items-center gap-1 rounded-md bg-brand-50 py-0.5 pl-2 pr-1 text-[12px] font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-200"
             >
-              <X size={12} aria-hidden="true" />
-            </button>
-          </span>
-        ))}
+              <span className="truncate">{format(value)}</span>
+              {linkPath && (
+                <Link
+                  to={linkPath}
+                  aria-label={`${linkLabel} ${format(value)}`}
+                  title={linkLabel}
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-brand-600 hover:bg-brand-100 dark:text-brand-300 dark:hover:bg-brand-500/20"
+                >
+                  <ArrowUpRight size={12} aria-hidden="true" />
+                </Link>
+              )}
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(values.filter((item) => item !== value))}
+                aria-label={`Remover ${format(value)}`}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-brand-600 hover:bg-brand-100 dark:text-brand-300 dark:hover:bg-brand-500/20"
+              >
+                <X size={12} aria-hidden="true" />
+              </button>
+            </span>
+          );
+        })}
         <input
           id={id}
           type="text"

@@ -72,6 +72,19 @@ test('busca rápida leva para Buscar com o texto; vazio não navega', () => {
   assert.equal(quickSearchPath('   '), null);
 });
 
+test('busca rápida: um CNPJ válido (com ou sem pontuação) leva à página dele; CNPJ com dígito errado segue como texto', () => {
+  assert.equal(quickSearchPath('22.493.902/0001-40'), '/cnpj/22493902000140');
+  assert.equal(quickSearchPath('  22493902000140 '), '/cnpj/22493902000140');
+  assert.equal(quickSearchPath('10337488000192'), '/buscar?q=10337488000192', 'dígito verificador errado: busca de texto');
+  assert.equal(quickSearchPath('22493902000140 limpeza'), '/buscar?q=22493902000140%20limpeza');
+});
+
+test('página do CNPJ: título da barra e fora do menu', () => {
+  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  assert.equal(routeForPath('/cnpj/22493902000140')?.title, 'CNPJ');
+  assert.equal(menuRoutes(titular).some((route) => route.key === 'cnpj'), false, 'a página abre pelas buscas e pelos nomes, não pelo menu');
+});
+
 test('nome de quem está logado, gravado pelo login; ausente ou ilegível vira "Usuário"', () => {
   assert.equal(loggedUserName(JSON.stringify({ nome: 'Rodrigo', sobrenome: 'Martini' })), 'Rodrigo Martini');
   assert.equal(loggedUserName(JSON.stringify({ nome: 'Ana' })), 'Ana');

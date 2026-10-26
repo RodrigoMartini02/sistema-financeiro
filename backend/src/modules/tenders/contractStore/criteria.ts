@@ -1,5 +1,7 @@
 import { listValue, type DuckDBValue } from '@duckdb/node-api';
+import { isCnpjFormat } from '../cnpj';
 import type { ContractCriteria } from '../services/contractSearch';
+import { sqlLiteral } from './duckdb';
 import { SKIPPED_WORD, type SearchPhrasesProvider } from './textSearch';
 
 // A regra única dos critérios de contratos no armazém (plano
@@ -115,6 +117,41 @@ export function contractCriteriaCondition(phrased: PhrasedContractCriteria, para
   }
 
   return conditions.length > 0 ? conditions.join(' AND ') : 'true';
+}
+
+/** Conjunto do armazém que uma lista de contratos lê: os vigentes, todos os contratos ou o ordenado por fornecedor. */
+export type ContractListDataset = 'vigentes' | 'contratos' | 'fornecedor';
+
+/**
+ * O conjunto que atende a busca (plano .plans/licitacoes-pagina-cnpj.md). Com filtro de fornecedor e sem critério que
+ * precise do texto do contrato (termos, exclusões e grupos de dígitos do número, que só `vigentes` e `contratos`
+ * guardam), a busca lê o `fornecedor`: todos os contratos, em arquivos ordenados pelo CNPJ do fornecedor, dos quais
+ * o DuckDB pula quase todos. Nos outros casos, `contratos` (todos) ou `vigentes`, como sempre.
+ */
+export function contractListDataset(
+  phrased: PhrasedContractCriteria,
+  options: { allContracts: boolean; numberGroups: readonly string[] },
+): ContractListDataset {
+  const usesText = phrased.termPhrases.length > 0 || phrased.excludedPhrases.some((phrases) => phrases.length > 0);
+  if (phrased.criteria.supplierCnpjs.length > 0 && !usesText && options.numberGroups.length === 0) {
+    return 'fornecedor';
+  }
+  return options.allContracts ? 'contratos' : 'vigentes';
+}
+
+/**
+ * Condição só para o DuckDB pular arquivos, somada às de `contractCriteriaCondition` (que continuam valendo e dão o
+ * resultado): `fornecedor_documento IN (...)`, com os CNPJs como literais, depois de conferidos contra o formato, porque
+ * com `list_contains` e parâmetro o DuckDB não usa os mínimos e máximos dos arquivos. Lista com algum CNPJ fora do
+ * formato (CPF mascarado, texto) fica sem a poda, e a condição exata decide.
+ * Não há poda por órgão: medida no armazém local (351 mil contratos), a faixa do CNPJ do órgão no número de controle
+ * não pula arquivo nenhum, porque `contratos` é ordenado por UF antes do número, e só soma custo.
+ */
+export function supplierPruneCondition(criteria: Pick<ContractCriteria, 'supplierCnpjs'>): string | null {
+  if (criteria.supplierCnpjs.length === 0 || !criteria.supplierCnpjs.every(isCnpjFormat)) {
+    return null;
+  }
+  return `fornecedor_documento IN (${criteria.supplierCnpjs.map(sqlLiteral).join(', ')})`;
 }
 
 /** Contrato vigente: vencimento de hoje (AAAA-MM-DD, Brasília) em diante; sem vencimento não é vigente. */

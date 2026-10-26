@@ -12,6 +12,7 @@ import { formatIsoDateTime } from '../utils/dates';
 import { formatCnpj } from '../utils/labels';
 import { formatMoneyValue } from '../utils/money';
 import { SEARCH_URL_PARAMS } from '../utils/searchFilters';
+import { CnpjLink } from './CnpjLink';
 import { CountdownBadge } from './CountdownBadge';
 import { FavoriteButton } from './FavoriteButton';
 import { LoadError, LoadingBlock } from './LoadStates';
@@ -130,7 +131,7 @@ export function NoticeDetailContent({ notice, inDrawer }: NoticeDetailContentPro
         <h2 className="text-base font-semibold leading-snug text-slate-900 dark:text-slate-100 sm:text-lg">{notice.procurementObject}</h2>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
           <InfoItem label="Órgão">
-            {notice.agencyName ?? 'Não informado'}
+            {notice.agencyName ? <CnpjLink cnpj={notice.agencyCnpj}>{notice.agencyName}</CnpjLink> : 'Não informado'}
             {notice.agencyCnpj && <span className="block text-xs text-slate-500 dark:text-slate-400">CNPJ {formatCnpj(notice.agencyCnpj)}</span>}
           </InfoItem>
           {notice.unitName && notice.unitName !== notice.agencyName && <InfoItem label="Unidade">{notice.unitName}</InfoItem>}

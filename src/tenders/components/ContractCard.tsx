@@ -2,10 +2,11 @@ import { Link, type To } from 'react-router-dom';
 import type { ContractListItem } from '../types';
 import { formatIsoDate } from '../utils/dates';
 import { formatMoneyValue } from '../utils/money';
+import { CnpjLink } from './CnpjLink';
 import { ContractBadges, ExpiryBadge } from './ContractBadges';
 import { ContractFavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
-import { noticePlace } from './NoticeCard';
+import { NoticePlace } from './NoticeCard';
 
 interface ContractCardProps {
   contract: ContractListItem;
@@ -36,8 +37,12 @@ export function ContractCard({ contract, todayIso, detailLink, detailLinkState }
           {contract.highlightedExcerpt ? <HighlightedText text={contract.highlightedExcerpt} /> : contract.contractObject}
         </Link>
       </h3>
-      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(contract) || 'Órgão não informado'}</p>
-      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">Fornecedor: {contract.supplierName ?? 'Não informado'}</p>
+      <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+        <NoticePlace notice={contract} />
+      </p>
+      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+        Fornecedor: <CnpjLink cnpj={contract.supplierDocument}>{contract.supplierName ?? 'Não informado'}</CnpjLink>
+      </p>
 
       <dl className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2 text-xs">
         <div>

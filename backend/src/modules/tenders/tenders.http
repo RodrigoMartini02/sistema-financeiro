@@ -179,6 +179,14 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/contracts/{{contractKey}}/favorite?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
+### Página do CNPJ: o que o CNPJ é como fornecedor e como órgão (14 dígitos com dígitos verificadores certos; 60 por minuto)
+GET {{baseUrl}}/cnpj/22493902000140?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Página do CNPJ: licitações vencidas (da mais recente para a mais antiga; 10 por página, no máximo 50)
+GET {{baseUrl}}/cnpj/22493902000140/winners?accountId={{accountId}}&page=1&perPage=10
+Authorization: Bearer {{token}}
+
 ### Buscas salvas de contratos, com activeCount (vigentes agora); limite de 50 à parte das de editais
 GET {{baseUrl}}/contract-searches?accountId={{accountId}}
 Authorization: Bearer {{token}}

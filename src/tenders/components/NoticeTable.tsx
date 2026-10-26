@@ -6,7 +6,7 @@ import { CountdownBadge } from './CountdownBadge';
 import { FavoriteButton } from './FavoriteButton';
 import { HighlightedText } from './HighlightedText';
 import { NoticeBadges } from './NoticeBadges';
-import { noticePlace } from './NoticeCard';
+import { NoticePlace } from './NoticeCard';
 import { TrackingStatusPill } from './Pill';
 import { TrackingActions } from './TrackingActions';
 
@@ -59,7 +59,7 @@ export function NoticeTable({ notices, compact, detailLinkFor, detailLinkState }
                 >
                   {notice.highlightedExcerpt ? <HighlightedText text={notice.highlightedExcerpt} /> : notice.procurementObject}
                 </Link>
-                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(notice) || 'Órgão não informado'}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400"><NoticePlace notice={notice} /></p>
                 {!compact && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     <NoticeBadges notice={notice} />
