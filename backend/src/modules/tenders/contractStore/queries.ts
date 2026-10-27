@@ -258,6 +258,77 @@ async function readExpiring(
   }));
 }
 
+/** Os vigentes que vencem nos próximos 90 dias, contados em três janelas, e os mais próximos de vencer. */
+export interface ExpiringSummary {
+  /** Cada contrato uma vez, mesmo que bata com mais de uma fonte. As janelas são acumuladas (a de 60 dias inclui a de 30). */
+  within30Days: number;
+  within60Days: number;
+  within90Days: number;
+  nearest: ExpiringContractDetail[];
+}
+
+export interface ExpiringContractDetail extends ExpiringContract {
+  agencyName: string | null;
+  state: string | null;
+  /** Reais com 2 casas ("1234.50"); null sem valor global. */
+  globalValue: string | null;
+}
+
+/** Última janela do resumo, em dias depois de hoje (Brasília). */
+export const EXPIRING_SUMMARY_DAYS = 90;
+
+/**
+ * Resumo dos vigentes que vencem nos próximos 90 dias entre as fontes dadas: os critérios das buscas salvas e as
+ * chaves dos favoritos. Uma consulta só, com as fontes em OU, para o contrato que bate com duas fontes contar uma vez.
+ * Só as `nearestLimit` linhas mais próximas voltam, então o tamanho da resposta não depende da busca.
+ */
+export async function summarizeExpiring(
+  connection: DuckDBConnection,
+  today: string,
+  sources: { criteria: readonly PhrasedContractCriteria[]; keys: readonly string[] },
+  nearestLimit: number,
+): Promise<ExpiringSummary> {
+  const params = new SqlParameters();
+  const sourceConditions = sources.criteria.map((phrased) => `(${contractCriteriaCondition(phrased, params)})`);
+  const literals = keyLiterals(sources.keys);
+  if (literals !== '') {
+    sourceConditions.push(`numero_controle_pncp IN (${literals})`);
+  }
+  if (sourceConditions.length === 0) {
+    return { within30Days: 0, within60Days: 0, within90Days: 0, nearest: [] };
+  }
+
+  const day = params.add(today);
+  const where = `vencimento BETWEEN ${day}::DATE AND ${day}::DATE + ${EXPIRING_SUMMARY_DAYS} AND (${sourceConditions.join(' OR ')})`;
+  const totals = await connection.runAndReadAll(
+    `SELECT count(*) FILTER (WHERE vencimento <= ${day}::DATE + 30)::INTEGER AS ate_30,
+            count(*) FILTER (WHERE vencimento <= ${day}::DATE + 60)::INTEGER AS ate_60,
+            count(*)::INTEGER AS ate_90
+       FROM vigentes WHERE ${where}`,
+    params.values,
+  );
+  const nearest = await connection.runAndReadAll(
+    `SELECT numero_controle_pncp, vencimento, objeto, orgao_razao_social, uf, valor_global
+       FROM vigentes WHERE ${where}
+      ORDER BY vencimento, numero_controle_pncp LIMIT ${Math.max(0, Math.trunc(nearestLimit))}`,
+    params.values,
+  );
+  const row = totals.getRows()[0];
+  return {
+    within30Days: integerOf(row?.[0]),
+    within60Days: integerOf(row?.[1]),
+    within90Days: integerOf(row?.[2]),
+    nearest: nearest.getRowObjectsJson().map((item) => ({
+      controlNumber: String(item['numero_controle_pncp']),
+      expiresOn: String(item['vencimento']),
+      contractObject: String(item['objeto']),
+      agencyName: item['orgao_razao_social'] === null ? null : String(item['orgao_razao_social']),
+      state: item['uf'] === null ? null : String(item['uf']),
+      globalValue: item['valor_global'] === null ? null : String(item['valor_global']),
+    })),
+  };
+}
+
 /** Vigentes que vencem na janela e batem com os critérios (as buscas salvas). */
 export function readExpiringByCriteria(
   connection: DuckDBConnection,

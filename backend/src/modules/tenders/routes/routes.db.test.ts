@@ -22,6 +22,7 @@ import type { ContractSavedSearchView } from '../services/contractSavedSearches'
 import type { ContractListItem } from '../services/contractSearch';
 import { addAccountMember, uniqueToken } from '../services/apiTestSupport';
 import type { DashboardView } from '../services/dashboard';
+import type { ExpiringContractsView } from '../services/dashboardContracts';
 import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
@@ -593,9 +594,28 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         // Tirar o favorito, listar e salvar buscas, e os editais não dependem do armazém.
         assert.equal((await call('DELETE', `/api/tenders/contracts/${key}/favorite`, { as })).status, 200);
         assert.equal((await call('GET', '/api/tenders/contract-searches', { as })).status, 200);
+        // Início: sem busca de contratos nem favorito, o bloco de contratos a vencer responde vazio sem consultar o armazém.
+        const emptyExpiring = await call<ExpiringContractsView>('GET', '/api/tenders/dashboard/contracts', { as });
+        assert.equal(emptyExpiring.status, 200);
+        assert.deepEqual(emptyExpiring.body.data, {
+          within30Days: 0,
+          within60Days: 0,
+          within90Days: 0,
+          nearest: [],
+          sources: { savedSearches: 0, favorites: 0 },
+        });
         const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', { as, body: { name: 'Sem total ainda', terms: ['limpeza'] } });
         assert.equal(created.status, 201);
         assert.equal(created.body.data.activeCount, null);
+        // Com uma busca de contratos, só o bloco de contratos a vencer espera o armazém: o painel do Início segue.
+        assert.equal((await call('GET', '/api/tenders/dashboard', { as })).status, 200);
+        const expiring = await call('GET', '/api/tenders/dashboard/contracts', { as });
+        assert.equal(expiring.status, 503);
+        assert.deepEqual(expiring.body, {
+          success: false,
+          code: 'CONTRACT_STORE_UPDATING',
+          message: 'Os contratos estão sendo atualizados. Tente de novo em instantes.',
+        });
         assert.equal((await call('GET', '/api/tenders/notices?q=qualquercoisa', { as })).status, 200);
       });
     });

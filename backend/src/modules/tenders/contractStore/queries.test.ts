@@ -10,6 +10,7 @@ import {
   readContract,
   readExpiringByCriteria,
   readExpiringByKeys,
+  summarizeExpiring,
   type ContractListQuery,
 } from './queries';
 import { openTestContractStore, sampleContract, simplePhrases, type TestContractStore } from './storeTestSupport';
@@ -179,4 +180,60 @@ test('janelas de vencimento: as duas pontas entram; critérios ou chaves; na ord
   assert.deepEqual((await byKeys([key(3), key(1), key(4), key(5)], { from: 0, to: 30 })).map((item) => item.controlNumber), [key(1), key(3)], 'o vencido e o sem vencimento não entram');
   assert.deepEqual(await byKeys([], { from: 0, to: 30 }), []);
   assert.deepEqual(await byKeys(['lixo'], { from: 0, to: 30 }), []);
+});
+
+test('resumo dos que vencem: janelas acumuladas de 30, 60 e 90 dias, fontes em OU sem repetir e só os mais próximos', async () => {
+  const summaryStore = await openTestContractStore([
+    sampleContract(1, { contractObject: 'Limpeza predial', expiresOn: day(10), globalValue: '300.00' }),
+    sampleContract(2, { contractObject: 'Limpeza viária', expiresOn: day(45), globalValue: null }),
+    sampleContract(3, { contractObject: 'Limpeza urbana', expiresOn: day(90) }),
+    sampleContract(4, { contractObject: 'Limpeza de caixa', expiresOn: day(91) }),
+    sampleContract(5, { contractObject: 'Vigilância armada', expiresOn: day(20) }),
+    sampleContract(6, { contractObject: 'Limpeza antiga', expiresOn: day(-1), originalTermEnd: day(-1), termStart: '2024-01-01' }),
+  ]);
+  try {
+    const keyOf = (sequence: number) => sampleContract(sequence).pncpControlNumber;
+    const summarize = async (criteria: Partial<ContractCriteria>[], keysOfFavorites: string[], limit = 5) => {
+      const list = await Promise.all(criteria.map((item) => phrased(item)));
+      return summaryStore.reader.query((connection) => summarizeExpiring(connection, TODAY, { criteria: list, keys: keysOfFavorites }, limit));
+    };
+
+    const byCriteria = await summarize([{ terms: ['limpeza'] }], []);
+    assert.deepEqual(
+      [byCriteria.within30Days, byCriteria.within60Days, byCriteria.within90Days],
+      [1, 2, 3],
+      'o de 91 dias e o já vencido ficam de fora; as janelas são acumuladas',
+    );
+    assert.deepEqual(byCriteria.nearest.map((item) => item.controlNumber), [keyOf(1), keyOf(2), keyOf(3)], 'do vencimento mais próximo ao mais distante');
+    assert.deepEqual(byCriteria.nearest[0], {
+      controlNumber: keyOf(1),
+      expiresOn: day(10),
+      contractObject: 'Limpeza predial',
+      agencyName: 'Prefeitura de Teste',
+      state: 'SP',
+      globalValue: '300.00',
+    });
+    assert.equal(byCriteria.nearest[1]?.globalValue, null, 'contrato sem valor global');
+
+    const limited = await summarize([{ terms: ['limpeza'] }], [], 2);
+    assert.equal(limited.within90Days, 3, 'o limite corta a lista, não a contagem');
+    assert.deepEqual(limited.nearest.map((item) => item.controlNumber), [keyOf(1), keyOf(2)]);
+
+    const both = await summarize([{ terms: ['limpeza'] }], [keyOf(1), keyOf(5)]);
+    assert.deepEqual(
+      [both.within30Days, both.within60Days, both.within90Days],
+      [2, 3, 4],
+      'o favorito que também bate com a busca conta uma vez; o outro entra pela chave',
+    );
+
+    const twoSearches = await summarize([{ terms: ['limpeza'] }, { terms: ['limpeza', 'vigilancia'], termsMode: 'OU' }], []);
+    assert.equal(twoSearches.within90Days, 4, 'duas buscas que se sobrepõem não repetem o contrato');
+
+    const none = await summarize([], []);
+    assert.deepEqual(none, { within30Days: 0, within60Days: 0, within90Days: 0, nearest: [] });
+    const invalidKey = await summarize([], ['lixo']);
+    assert.deepEqual(invalidKey, { within30Days: 0, within60Days: 0, within90Days: 0, nearest: [] });
+  } finally {
+    await summaryStore.close();
+  }
 });

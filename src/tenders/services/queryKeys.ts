@@ -38,6 +38,8 @@ export const tendersQueryKeys = {
   cnpj: (cnpj: string) => ['tenders', 'cnpj', cnpj] as const,
   cnpjWinners: (cnpj: string) => ['tenders', 'cnpj', cnpj, 'winners'] as const,
   dashboard: ['tenders', 'dashboard'] as const,
+  /** Contratos que vencem, do Início: lê o armazém, então tem consulta própria. */
+  dashboardContracts: ['tenders', 'dashboard', 'contracts'] as const,
   domains: ['tenders', 'domains'] as const,
   /** Prefixo das notificações: listas e contador do sino. */
   notifications: ['tenders', 'notifications'] as const,
