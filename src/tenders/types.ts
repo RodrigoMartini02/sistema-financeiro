@@ -385,13 +385,70 @@ export interface ContractSearchPreview {
   items: ContractListItem[];
 }
 
+export interface DashboardSavedSearch {
+  id: number;
+  name: string;
+  active: boolean;
+  openCount: number;
+  /** Editais abertos que a busca trouxe pela primeira vez hoje, nos últimos 7 e nos últimos 30 dias. */
+  newToday: number;
+  newLast7Days: number;
+  newLast30Days: number;
+}
+
+export interface DashboardContractSavedSearch {
+  id: number;
+  name: string;
+  active: boolean;
+  /** Vigentes na última contagem; null = ainda não contado. */
+  activeCount: number | null;
+  countedAt: string | null;
+}
+
+/** O que a pessoa já fez no módulo; o Início usa para mostrar o guia da conta vazia. */
+export interface DashboardSetup {
+  hasSavedSearch: boolean;
+  hasTracking: boolean;
+  hasFavorite: boolean;
+  notificationsEnabled: boolean;
+}
+
 export interface DashboardView {
-  cards: { newToday: number; closingIn7Days: number; analyzing: number; participating: number };
+  cards: { newToday: number; closingIn7Days: number; analyzing: number; participating: number; unreadChanges: number };
+  /** Valor estimado (não é receita) dos editais abertos acompanhados como Analisar ou Vou participar. */
+  pipeline: { estimatedValue: number; noticesWithoutValue: number };
+  funnel: { analyzing: number; participating: number; discarded: number; enteredLast7Days: number; enteredLast30Days: number };
   closingSoon: NoticeListItem[];
   openByState: Array<{ state: string; count: number }>;
-  savedSearches: Array<{ id: number; name: string; active: boolean; openCount: number }>;
+  savedSearches: DashboardSavedSearch[];
+  contractSavedSearches: DashboardContractSavedSearch[];
+  /** Favoritos com prazo aberto, os que encerram primeiro. */
+  favorites: NoticeListItem[];
+  notifications: { unreadCount: number; recent: TenderNotification[] };
+  setup: DashboardSetup;
   lastUpdateAt: string | null;
   lastRunFailed: boolean;
+}
+
+export interface ExpiringContract {
+  controlNumber: string;
+  /** AAAA-MM-DD. */
+  expiresOn: string;
+  /** Dias de hoje até o vencimento; 0 vence hoje. */
+  daysLeft: number;
+  contractObject: string;
+  agencyName: string | null;
+  state: string | null;
+  globalValue: number | null;
+}
+
+/** Contratos que vencem em 30, 60 e 90 dias, das buscas de contratos ativas e dos favoritos (janelas acumuladas). */
+export interface ExpiringContractsView {
+  within30Days: number;
+  within60Days: number;
+  within90Days: number;
+  nearest: ExpiringContract[];
+  sources: { savedSearches: number; favorites: number };
 }
 
 export interface Municipality {

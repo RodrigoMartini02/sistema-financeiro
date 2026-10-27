@@ -1,112 +1,40 @@
-import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookmarkPlus, ChevronRight, Clock, MapPin, TriangleAlert } from 'lucide-react';
+import { MapPin, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '../../ui/EmptyState';
 import { getLocalTodayIso } from '../../utils/date';
 import { CountBars } from '../components/CountBars';
-import { CountdownBadge } from '../components/CountdownBadge';
-import { DashboardCards } from '../components/DashboardCards';
+import { FunnelChart, UnreadNotifications } from '../components/DashboardActivity';
+import { AgendaList, FavoritesList } from '../components/DashboardAgenda';
+import { DashboardCards, type ContractsIndicator } from '../components/DashboardCards';
+import { ExpiringContractsPanel } from '../components/DashboardContracts';
+import { Panel, panelLinkClass } from '../components/DashboardPanel';
+import { ContractSearchesSummary, SavedSearchesSummary } from '../components/DashboardSearches';
+import { DashboardSetupGuide } from '../components/DashboardSetupGuide';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
-import { noticePlace } from '../components/NoticeCard';
-import { Pill, TrackingStatusPill } from '../components/Pill';
+import { useExpiringContracts } from '../hooks/useExpiringContracts';
 import { fetchDashboard } from '../services/overviewService';
 import { tendersQueryKeys } from '../services/queryKeys';
-import type { TendersApiError } from '../services/tendersApiError';
-import type { DashboardView } from '../types';
+import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
+import type { DashboardView, ExpiringContractsView } from '../types';
+import { buildSetupGuide, expiringHint } from '../utils/dashboard';
 import { formatIsoDateTime } from '../utils/dates';
-import { SEARCH_URL_PARAMS } from '../utils/searchFilters';
 
-const linkClass = 'text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300';
-
-function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
+/** O indicador de contratos que vencem: o valor chega com a consulta do armazém, e até lá (ou se falhar) mostra o porquê. */
+function contractsIndicator(contracts: { data: ExpiringContractsView | undefined; isPending: boolean; error: TendersApiError | null }): ContractsIndicator {
+  if (contracts.data) return { value: contracts.data.within30Days, hint: expiringHint(contracts.data) };
+  if (contracts.isPending) return { value: null, hint: 'Carregando…' };
+  return { value: null, hint: isContractStoreUpdating(contracts.error) ? 'Contratos sendo atualizados' : 'Indisponível agora' };
 }
 
-function ClosingSoon({ notices }: { notices: DashboardView['closingSoon'] }) {
-  if (notices.length === 0) {
-    return (
-      <EmptyState
-        icon={Clock}
-        title="Nenhum edital acompanhado com prazo aberto."
-        description="Marque Analisar ou Vou participar nos editais da busca para acompanhar os prazos aqui."
-        action={
-          <Link to="/buscar" className={linkClass}>
-            Buscar editais
-          </Link>
-        }
-      />
-    );
-  }
-  return (
-    <ul className="divide-y divide-slate-100 dark:divide-slate-700">
-      {notices.map((notice) => (
-        <li key={notice.id} className="py-2.5 first:pt-0 last:pb-0">
-          <Link to={`/editais/${notice.id}`} className="group block rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600">
-            <p className="line-clamp-2 text-sm font-semibold text-slate-800 group-hover:text-brand-700 group-hover:underline dark:text-slate-100 dark:group-hover:text-brand-300">
-              {notice.procurementObject}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{noticePlace(notice)}</p>
-          </Link>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <CountdownBadge closesAt={notice.proposalClosesAt} />
-            {notice.tracking && <TrackingStatusPill status={notice.tracking.status} />}
-            <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">{formatIsoDateTime(notice.proposalClosesAt)}</span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function SavedSearchesSummary({ searches }: { searches: DashboardView['savedSearches'] }) {
-  if (searches.length === 0) {
-    return (
-      <EmptyState
-        icon={BookmarkPlus}
-        title="Nenhuma busca salva."
-        action={
-          <Link to="/buscas" className={linkClass}>
-            Criar busca
-          </Link>
-        }
-      />
-    );
-  }
-  return (
-    <ul className="grid grid-cols-1 gap-1">
-      {searches.map((search) => (
-        <li key={search.id}>
-          <Link
-            to={`/buscar?${SEARCH_URL_PARAMS.savedSearch}=${search.id}`}
-            className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-600 dark:hover:bg-slate-700/50"
-          >
-            <span className={`min-w-0 flex-1 truncate font-semibold ${search.active ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}>
-              {search.name}
-            </span>
-            {!search.active && <Pill tone="muted">Pausada</Pill>}
-            <span className="tabular-nums text-xs font-semibold text-slate-600 dark:text-slate-300">
-              {search.openCount.toLocaleString('pt-BR')} {search.openCount === 1 ? 'aberto' : 'abertos'}
-            </span>
-            <ChevronRight size={14} className="text-slate-400" aria-hidden="true" />
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** Início (escopo, seção 9.4): indicadores, prazos, editais por UF e buscas salvas. */
+/**
+ * Início (escopo, seção 9.4, e plano .plans/licitacoes-inicio-painel.md): indicadores, agenda de prazos, contratos que
+ * vencem, funil, editais por UF, notificações, favoritos e buscas salvas. Os contratos que vencem vêm de outra consulta,
+ * que lê o armazém: o Início abre sem esperar por ela.
+ */
 export function HomeScreen() {
   const dashboard = useQuery<DashboardView, TendersApiError>({ queryKey: tendersQueryKeys.dashboard, queryFn: fetchDashboard });
+  const expiring = useExpiringContracts();
 
   if (dashboard.isPending) return <LoadingBlock label="Carregando o painel…" />;
   if (dashboard.isError) {
@@ -114,17 +42,61 @@ export function HomeScreen() {
   }
 
   const view = dashboard.data;
+  const todayIso = getLocalTodayIso();
+  const setupGuide = buildSetupGuide(view.setup, view.contractSavedSearches.length > 0);
   return (
     <section className="grid grid-cols-1 gap-4">
-      <DashboardCards cards={view.cards} todayIso={getLocalTodayIso()} />
+      {setupGuide.show && <DashboardSetupGuide guide={setupGuide} />}
+
+      <DashboardCards cards={view.cards} pipeline={view.pipeline} contracts={contractsIndicator(expiring)} todayIso={todayIso} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Panel title="Encerrando em breve">
-            <ClosingSoon notices={view.closingSoon} />
+        <div className="grid grid-cols-1 content-start gap-4 lg:col-span-2">
+          <Panel title="Agenda de prazos">
+            <AgendaList notices={view.closingSoon} todayIso={todayIso} />
+          </Panel>
+          <Panel
+            title="Contratos vencendo"
+            action={
+              <Link to="/contratos" className={panelLinkClass}>
+                Ver contratos
+              </Link>
+            }
+          >
+            <ExpiringContractsPanel query={expiring} />
+          </Panel>
+          <Panel
+            title="Favoritos com prazo aberto"
+            action={
+              <Link to="/favoritos" className={panelLinkClass}>
+                Ver favoritos
+              </Link>
+            }
+          >
+            <FavoritesList notices={view.favorites} />
           </Panel>
         </div>
         <div className="grid grid-cols-1 content-start gap-4">
+          <Panel
+            title="Funil de acompanhamento"
+            action={
+              <Link to="/acompanhamento" className={panelLinkClass}>
+                Ver quadro
+              </Link>
+            }
+          >
+            <FunnelChart funnel={view.funnel} />
+          </Panel>
+          <Panel
+            title={view.notifications.unreadCount > 0 ? `Notificações não lidas (${view.notifications.unreadCount.toLocaleString('pt-BR')})` : 'Notificações não lidas'}
+            action={
+              <Link to="/notificacoes" className={panelLinkClass}>
+                Ver todas
+              </Link>
+            }
+          >
+            <UnreadNotifications notifications={view.notifications} />
+          </Panel>
           <Panel title="Editais abertos por UF">
             {view.openByState.length === 0 ? (
               <EmptyState icon={MapPin} title="Sem dados ainda." description="O gráfico usa os editais abertos das suas buscas salvas." />
@@ -135,12 +107,22 @@ export function HomeScreen() {
           <Panel
             title="Minhas buscas salvas"
             action={
-              <Link to="/buscas" className={linkClass}>
+              <Link to="/buscas" className={panelLinkClass}>
                 Ver todas
               </Link>
             }
           >
             <SavedSearchesSummary searches={view.savedSearches} />
+          </Panel>
+          <Panel
+            title="Minhas buscas de contratos"
+            action={
+              <Link to="/contratos" className={panelLinkClass}>
+                Ver contratos
+              </Link>
+            }
+          >
+            <ContractSearchesSummary searches={view.contractSavedSearches} />
           </Panel>
         </div>
       </div>

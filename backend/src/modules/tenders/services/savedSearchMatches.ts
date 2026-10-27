@@ -54,19 +54,37 @@ export async function countOpenMatchesBySearch(
   return new Map(result.rows.map((row) => [Number(row.id), Number(row.open_count)]));
 }
 
+/** Editais abertos que uma busca ativa trouxe pela primeira vez hoje (Brasília), nos últimos 7 e nos últimos 30 dias. */
+export interface SearchNewMatches {
+  searchId: number;
+  newToday: number;
+  newLast7Days: number;
+  newLast30Days: number;
+}
+
 export interface OpenMatchesSummary {
   /** Abertos coletados pela primeira vez hoje (Brasília) que batem com alguma busca ativa. */
   newToday: number;
   /** As 10 UFs com mais editais abertos que batem com alguma busca ativa. */
   openByState: Array<{ state: string; count: number }>;
+  /** Por busca ativa com algum edital aberto; a busca que não aparece aqui não tem edital aberto. */
+  newBySearch: SearchNewMatches[];
 }
+
+type OpenMatchesRow = {
+  new_today: string;
+  open_by_state: Array<{ state: string; count: number }>;
+  new_by_search: Array<{ searchId: number; newToday: number; newLast7Days: number; newLast30Days: number }>;
+};
 
 /** Resumo do painel pelas buscas salvas ativas do usuário na conta. */
 export async function summarizeOpenMatches(db: TendersDb, accountId: number, userId: number): Promise<OpenMatchesSummary> {
-  const result = await db.execute<{ new_today: string; open_by_state: Array<{ state: string; count: number }> }>(sql`
+  // `por_busca` guarda o edital por busca, então os novos de cada busca saem da mesma varredura que
+  // alimenta o total e as UFs (`casados`, sem repetir o edital que bate com mais de uma busca).
+  const result = await db.execute<OpenMatchesRow>(sql`
     WITH buscas AS MATERIALIZED (${searchesWithQueries({ accountId, userId, onlyActive: true })}),
-    casados AS (
-      SELECT DISTINCT m.id, m.uf, m.primeira_coleta_em
+    por_busca AS MATERIALIZED (
+      SELECT bs.id AS busca_id, m.id, m.uf, m.primeira_coleta_em
         FROM buscas bs
         CROSS JOIN LATERAL (
           SELECT e.id, e.uf, e.primeira_coleta_em FROM licitacoes.edital e
@@ -75,6 +93,9 @@ export async function summarizeOpenMatches(db: TendersDb, accountId: number, use
           SELECT e.id, e.uf, e.primeira_coleta_em FROM licitacoes.edital e
            WHERE bs.consulta IS NULL AND ${MATCHES_SEARCH}
         ) m
+    ),
+    casados AS (
+      SELECT DISTINCT id, uf, primeira_coleta_em FROM por_busca
     )
     SELECT
       (SELECT count(*) FROM casados
@@ -83,10 +104,27 @@ export async function summarizeOpenMatches(db: TendersDb, accountId: number, use
       (SELECT coalesce(json_agg(json_build_object('state', por_uf.uf, 'count', por_uf.total) ORDER BY por_uf.total DESC, por_uf.uf), '[]'::json)
          FROM (SELECT uf, count(*) AS total FROM casados WHERE uf IS NOT NULL
                 GROUP BY uf ORDER BY total DESC, uf LIMIT 10) por_uf
-      ) AS open_by_state`);
+      ) AS open_by_state,
+      (SELECT coalesce(json_agg(json_build_object(
+                'searchId', novos.busca_id, 'newToday', novos.hoje, 'newLast7Days', novos.sete_dias, 'newLast30Days', novos.trinta_dias
+              ) ORDER BY novos.busca_id), '[]'::json)
+         FROM (SELECT busca_id,
+                      count(*) FILTER (
+                        WHERE primeira_coleta_em >= date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo'
+                      ) AS hoje,
+                      count(*) FILTER (WHERE primeira_coleta_em >= now() - interval '7 days') AS sete_dias,
+                      count(*) FILTER (WHERE primeira_coleta_em >= now() - interval '30 days') AS trinta_dias
+                 FROM por_busca GROUP BY busca_id) novos
+      ) AS new_by_search`);
   const row = result.rows[0];
   return {
     newToday: Number(row?.new_today ?? 0),
     openByState: (row?.open_by_state ?? []).map((item) => ({ state: String(item.state).trim(), count: Number(item.count) })),
+    newBySearch: (row?.new_by_search ?? []).map((item) => ({
+      searchId: Number(item.searchId),
+      newToday: Number(item.newToday),
+      newLast7Days: Number(item.newLast7Days),
+      newLast30Days: Number(item.newLast30Days),
+    })),
   };
 }

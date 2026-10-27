@@ -5,6 +5,7 @@ import { readNewMemberInput } from '../../../services/memberInput';
 import { requireTenderTitular, requireTenderTitularOrAdmin, tenderAccessOf } from '../middleware/tenderAccess';
 import { listCollectionRuns, readCollectionOverview } from '../services/collectionOverview';
 import { readDashboard } from '../services/dashboard';
+import { readExpiringContracts } from '../services/dashboardContracts';
 import { createDomainListsReader } from '../services/domainLists';
 import { syncRecurringAmount } from '../services/recurringAmount';
 import { readSubscription } from '../services/subscription';
@@ -25,6 +26,15 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
     tenderRoute('Tender dashboard failed:', 'Não foi possível carregar o painel agora.', async (req, res) => {
       const access = tenderAccessOf(req);
       res.json({ success: true, data: await readDashboard(deps.db, { accountId: access.account.id, userId: access.userId }) });
+    }),
+  );
+
+  // GET /api/tenders/dashboard/contracts: contratos que vencem em 30, 60 e 90 dias (lê o armazém do R2; sem cópia pronta, 503).
+  router.get(
+    '/dashboard/contracts',
+    tenderRoute('Tender dashboard contracts failed:', 'Não foi possível carregar os contratos a vencer agora.', async (req, res) => {
+      const access = tenderAccessOf(req);
+      res.json({ success: true, data: await readExpiringContracts(deps, { accountId: access.account.id, userId: access.userId }) });
     }),
   );
 
