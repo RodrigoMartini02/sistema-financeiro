@@ -258,20 +258,20 @@ async function readExpiring(
   }));
 }
 
-/** Os vigentes que vencem nos próximos 90 dias, contados em três janelas, e os mais próximos de vencer. */
+/** Os vigentes que vencem nos próximos 90 dias, contados em três janelas e por categoria do processo. */
 export interface ExpiringSummary {
   /** Cada contrato uma vez, mesmo que bata com mais de uma fonte. As janelas são acumuladas (a de 60 dias inclui a de 30). */
   within30Days: number;
   within60Days: number;
   within90Days: number;
-  nearest: ExpiringContractDetail[];
+  /** Os que vencem em até 90 dias, por categoria, a maior primeiro; `categoryId` nulo: contrato sem categoria. */
+  byCategory: ExpiringCategoryCount[];
 }
 
-export interface ExpiringContractDetail extends ExpiringContract {
-  agencyName: string | null;
-  state: string | null;
-  /** Reais com 2 casas ("1234.50"); null sem valor global. */
-  globalValue: string | null;
+export interface ExpiringCategoryCount {
+  categoryId: number | null;
+  categoryName: string | null;
+  count: number;
 }
 
 /** Última janela do resumo, em dias depois de hoje (Brasília). */
@@ -280,13 +280,11 @@ export const EXPIRING_SUMMARY_DAYS = 90;
 /**
  * Resumo dos vigentes que vencem nos próximos 90 dias entre as fontes dadas: os critérios das buscas salvas e as
  * chaves dos favoritos. Uma consulta só, com as fontes em OU, para o contrato que bate com duas fontes contar uma vez.
- * Só as `nearestLimit` linhas mais próximas voltam, então o tamanho da resposta não depende da busca.
  */
 export async function summarizeExpiring(
   connection: DuckDBConnection,
   today: string,
   sources: { criteria: readonly PhrasedContractCriteria[]; keys: readonly string[] },
-  nearestLimit: number,
 ): Promise<ExpiringSummary> {
   const params = new SqlParameters();
   const sourceConditions = sources.criteria.map((phrased) => `(${contractCriteriaCondition(phrased, params)})`);
@@ -295,36 +293,30 @@ export async function summarizeExpiring(
     sourceConditions.push(`numero_controle_pncp IN (${literals})`);
   }
   if (sourceConditions.length === 0) {
-    return { within30Days: 0, within60Days: 0, within90Days: 0, nearest: [] };
+    return { within30Days: 0, within60Days: 0, within90Days: 0, byCategory: [] };
   }
 
   const day = params.add(today);
-  const where = `vencimento BETWEEN ${day}::DATE AND ${day}::DATE + ${EXPIRING_SUMMARY_DAYS} AND (${sourceConditions.join(' OR ')})`;
-  const totals = await connection.runAndReadAll(
-    `SELECT count(*) FILTER (WHERE vencimento <= ${day}::DATE + 30)::INTEGER AS ate_30,
+  const result = await connection.runAndReadAll(
+    `SELECT categoria_id, categoria_nome,
+            count(*) FILTER (WHERE vencimento <= ${day}::DATE + 30)::INTEGER AS ate_30,
             count(*) FILTER (WHERE vencimento <= ${day}::DATE + 60)::INTEGER AS ate_60,
             count(*)::INTEGER AS ate_90
-       FROM vigentes WHERE ${where}`,
+       FROM vigentes
+      WHERE vencimento BETWEEN ${day}::DATE AND ${day}::DATE + ${EXPIRING_SUMMARY_DAYS} AND (${sourceConditions.join(' OR ')})
+      GROUP BY categoria_id, categoria_nome
+      ORDER BY ate_90 DESC, categoria_nome`,
     params.values,
   );
-  const nearest = await connection.runAndReadAll(
-    `SELECT numero_controle_pncp, vencimento, objeto, orgao_razao_social, uf, valor_global
-       FROM vigentes WHERE ${where}
-      ORDER BY vencimento, numero_controle_pncp LIMIT ${Math.max(0, Math.trunc(nearestLimit))}`,
-    params.values,
-  );
-  const row = totals.getRows()[0];
+  const rows = result.getRows();
   return {
-    within30Days: integerOf(row?.[0]),
-    within60Days: integerOf(row?.[1]),
-    within90Days: integerOf(row?.[2]),
-    nearest: nearest.getRowObjectsJson().map((item) => ({
-      controlNumber: String(item['numero_controle_pncp']),
-      expiresOn: String(item['vencimento']),
-      contractObject: String(item['objeto']),
-      agencyName: item['orgao_razao_social'] === null ? null : String(item['orgao_razao_social']),
-      state: item['uf'] === null ? null : String(item['uf']),
-      globalValue: item['valor_global'] === null ? null : String(item['valor_global']),
+    within30Days: rows.reduce((total, row) => total + integerOf(row[2]), 0),
+    within60Days: rows.reduce((total, row) => total + integerOf(row[3]), 0),
+    within90Days: rows.reduce((total, row) => total + integerOf(row[4]), 0),
+    byCategory: rows.map((row) => ({
+      categoryId: row[0] === null ? null : integerOf(row[0]),
+      categoryName: row[1] === null ? null : String(row[1]),
+      count: integerOf(row[4]),
     })),
   };
 }

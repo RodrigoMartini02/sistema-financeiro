@@ -17,7 +17,7 @@ import { VirtualCardList } from './VirtualCardList';
 import { WinnerCard } from './WinnerCard';
 
 // As listas da página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md): os 10 contratos e os 10 editais mais recentes,
-// pelas mesmas buscas das telas Contratos a vencer e Buscar (os mesmos cards e favoritos), e as licitações vencidas,
+// pelas mesmas buscas das telas Contratos a vencer e Editais (os mesmos cards e favoritos), e as licitações vencidas,
 // com rolagem infinita. Cada lista tem os seus estados de carregando, vazio, erro e "atualizando".
 
 /** De quanto em quanto tempo a lista tenta de novo enquanto os contratos estão sendo atualizados. */

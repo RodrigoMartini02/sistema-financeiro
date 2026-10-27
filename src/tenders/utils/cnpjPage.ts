@@ -5,7 +5,7 @@ import { withPaging } from './infiniteList';
 import { DEFAULT_SEARCH_STATE, toApiQuery, toSearchParams, type SearchState } from './searchFilters';
 
 // A página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md): a aba, as buscas curtas das listas (as mesmas buscas das
-// telas Contratos a vencer e Buscar, já filtradas pelo CNPJ), os links "Ver todos" e a nota de cobertura dos dados.
+// telas Contratos a vencer e Editais, já filtradas pelo CNPJ), os links "Ver todos" e a nota de cobertura dos dados.
 
 /** Quantos itens de cada lista a página mostra; o resto fica no "Ver todos". */
 export const CNPJ_LIST_SIZE = 10;
@@ -56,7 +56,7 @@ export function cnpjNoticesApiQuery(cnpj: string): string {
   return withPaging(toApiQuery(noticesState(cnpj)), { page: 1, perPage: CNPJ_LIST_SIZE });
 }
 
-/** "Ver todos" os editais abertos: a tela Buscar já filtrada pelo órgão. */
+/** "Ver todos" os editais abertos: a tela Editais já filtrada pelo órgão. */
 export function cnpjNoticesPath(cnpj: string): string {
   return `/buscar?${toSearchParams(noticesState(cnpj)).toString()}`;
 }

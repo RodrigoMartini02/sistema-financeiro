@@ -1,4 +1,4 @@
-import { Bell, Bookmark, Building2, CalendarClock, ClipboardList, Heart, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
+import { Bookmark, Building2, CalendarClock, ClipboardList, Heart, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 
@@ -7,7 +7,7 @@ import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 // ícones de 768 a 1279 px); na gaveta do celular, sempre.
 
 const ICONS: Record<TendersRouteKey, LucideIcon> = {
-  inicio: LayoutDashboard,
+  dashboard: LayoutDashboard,
   buscar: Search,
   contratos: CalendarClock,
   contrato: CalendarClock,
@@ -16,7 +16,6 @@ const ICONS: Record<TendersRouteKey, LucideIcon> = {
   buscas: Bookmark,
   favoritos: Heart,
   acompanhamento: ClipboardList,
-  notificacoes: Bell,
   configuracoes: Settings,
   contas: Building2,
 };

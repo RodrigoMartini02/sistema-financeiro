@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CollectionRun } from '../types';
 import { runDurationLabel, runErrorLines } from './collectionRuns';
-import { NOTIFICATION_PANEL_FILTERS, notificationTarget, notificationsQuery } from './notifications';
+import { notificationTarget } from './notifications';
 
 test('notificação: o clique abre o link gravado, relativo à base do app', () => {
   assert.equal(notificationTarget({ link: '/editais/123', noticeId: 123 }), '/editais/123');
@@ -25,14 +25,6 @@ test('notificação de contrato: abre o contrato pelo link gravado (a barra da c
   assert.equal(notificationTarget({ link: 'https://exemplo.com/x', noticeId: null, contractKey: key }), path);
   assert.equal(notificationTarget({ link: '', noticeId: null, contractKey: null }), null);
   assert.equal(notificationTarget({ link: '', noticeId: null, contractKey: 'qualquer coisa' }), null, 'chave fora do formato não vira link');
-});
-
-test('notificação: query da lista e do painel do sino', () => {
-  assert.equal(notificationsQuery(NOTIFICATION_PANEL_FILTERS), 'page=1&perPage=10');
-  assert.equal(
-    notificationsQuery({ unreadOnly: true, type: 'PRAZO_1D', page: 2, perPage: 50 }),
-    'unreadOnly=true&type=PRAZO_1D&page=2&perPage=50',
-  );
 });
 
 const run = (startedAt: string | null, finishedAt: string | null): Pick<CollectionRun, 'startedAt' | 'finishedAt'> => ({ startedAt, finishedAt });

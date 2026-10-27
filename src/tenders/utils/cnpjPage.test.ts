@@ -50,7 +50,7 @@ test('"Ver todos" os contratos: a tela já filtrada pelo CNPJ, com os encerrados
   assert.equal(state.sort, 'publishedDesc');
 });
 
-test('editais do órgão: os abertos, inclusive os que encerram em breve e os descartados, e o que a tela Buscar lê de volta', () => {
+test('editais do órgão: os abertos, inclusive os que encerram em breve e os descartados, e o que a tela Editais lê de volta', () => {
   const api = new URLSearchParams(cnpjNoticesApiQuery(CNPJ));
   assert.deepEqual(api.getAll('agencyCnpj'), [CNPJ]);
   assert.equal(api.get('openOnly'), 'true');

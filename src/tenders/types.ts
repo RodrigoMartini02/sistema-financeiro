@@ -385,69 +385,80 @@ export interface ContractSearchPreview {
   items: ContractListItem[];
 }
 
-export interface DashboardSavedSearch {
+/** Quantidade por modalidade, pelo id da modalidade (texto); a modalidade que não aparece tem zero. */
+export type CountsByModality = Record<string, number>;
+
+export interface DailyPublications {
+  /** AAAA-MM-DD, dia de Brasília. */
+  day: string;
+  byModality: CountsByModality;
+}
+
+export interface MonthlyPublications {
+  /** AAAA-MM. */
+  month: string;
+  /** O mês corrente, que só tem os dias até ontem. */
+  partial: boolean;
+  byModality: CountsByModality;
+}
+
+export interface ModalityCard {
   id: number;
   name: string;
-  active: boolean;
-  openCount: number;
-  /** Editais abertos que a busca trouxe pela primeira vez hoje, nos últimos 7 e nos últimos 30 dias. */
-  newToday: number;
-  newLast7Days: number;
-  newLast30Days: number;
+  /** Publicados nos últimos 30 dias, até ontem. */
+  published30Days: number;
+  open: number;
+  analyzing: number;
+  participating: number;
+  /** Vou participar com o prazo de proposta já vencido. */
+  participated: number;
+  /** Publicados por dia: 30 valores, do mais antigo ao mais novo (ontem). */
+  daily: number[];
 }
 
-export interface DashboardContractSavedSearch {
-  id: number;
-  name: string;
-  active: boolean;
-  /** Vigentes na última contagem; null = ainda não contado. */
-  activeCount: number | null;
-  countedAt: string | null;
-}
-
-/** O que a pessoa já fez no módulo; o Início usa para mostrar o guia da conta vazia. */
-export interface DashboardSetup {
-  hasSavedSearch: boolean;
-  hasTracking: boolean;
-  hasFavorite: boolean;
-  notificationsEnabled: boolean;
-}
-
+/** Quantidades do Dashboard: a base de editais inteira, os acompanhamentos da conta e as buscas salvas da pessoa. */
 export interface DashboardView {
-  cards: { newToday: number; closingIn7Days: number; analyzing: number; participating: number; unreadChanges: number };
-  /** Valor estimado (não é receita) dos editais abertos acompanhados como Analisar ou Vou participar. */
-  pipeline: { estimatedValue: number; noticesWithoutValue: number };
-  funnel: { analyzing: number; participating: number; discarded: number; enteredLast7Days: number; enteredLast30Days: number };
-  closingSoon: NoticeListItem[];
+  cards: {
+    publishedYesterday: number;
+    published7Days: number;
+    published30Days: number;
+    openNow: number;
+    newToday: number;
+    analyzing: number;
+    participating: number;
+    closingIn7Days: number;
+    participated: number;
+  };
+  /** As modalidades que a base tem (publicadas, abertas ou acompanhadas), por id. */
+  modalities: ModalityCard[];
+  publications: {
+    /** Os últimos 30 dias, até ontem, do mais antigo ao mais novo, sem dia faltando. */
+    daily: DailyPublications[];
+    /** Os últimos 12 meses, até o corrente, sem mês faltando. */
+    monthly: MonthlyPublications[];
+    /** Quando a base começou a receber editais (AAAA-MM-DD); antes disso as séries subestimam. */
+    coverageSince: string | null;
+  };
+  /** Editais com entrada em Analisar ou Vou participar nos últimos 30 dias, e quantos deles estão em Vou participar e em Participei. */
+  funnel: { tracked: number; participating: number; participated: number };
+  /** Acompanhados abertos por semana de encerramento, a partir de hoje: 4 semanas. */
+  deadlineLoad: Array<{ startDay: string; count: number }>;
   openByState: Array<{ state: string; count: number }>;
-  savedSearches: DashboardSavedSearch[];
-  contractSavedSearches: DashboardContractSavedSearch[];
-  /** Favoritos com prazo aberto, os que encerram primeiro. */
-  favorites: NoticeListItem[];
-  notifications: { unreadCount: number; recent: TenderNotification[] };
-  setup: DashboardSetup;
+  /** Esfera do PNCP (F, E, M, D) dos editais abertos; null: não informada. */
+  openBySphere: Array<{ sphere: string | null; count: number }>;
+  /** Órgãos com mais editais publicados nos últimos 30 dias. */
+  topAgencies: Array<{ cnpj: string; name: string | null; count: number }>;
   lastUpdateAt: string | null;
   lastRunFailed: boolean;
 }
 
-export interface ExpiringContract {
-  controlNumber: string;
-  /** AAAA-MM-DD. */
-  expiresOn: string;
-  /** Dias de hoje até o vencimento; 0 vence hoje. */
-  daysLeft: number;
-  contractObject: string;
-  agencyName: string | null;
-  state: string | null;
-  globalValue: number | null;
-}
-
-/** Contratos que vencem em 30, 60 e 90 dias, das buscas de contratos ativas e dos favoritos (janelas acumuladas). */
+/** Contratos que vencem em 30, 60 e 90 dias (janelas acumuladas), das buscas de contratos ativas e dos favoritos. */
 export interface ExpiringContractsView {
   within30Days: number;
   within60Days: number;
   within90Days: number;
-  nearest: ExpiringContract[];
+  /** Os que vencem em até 90 dias, por categoria; categoryId nulo: contrato sem categoria. */
+  byCategory: Array<{ categoryId: number | null; categoryName: string | null; count: number }>;
   sources: { savedSearches: number; favorites: number };
 }
 
@@ -462,7 +473,6 @@ export interface DomainLists {
   situations: Array<{ id: number; name: string }>;
   states: string[];
   trackingStatuses: TrackingStatus[];
-  notificationTypes: string[];
   /** Categorias dos contratos do PNCP. */
   contractCategories: Array<{ id: number; name: string }>;
   /** Tipos de contrato do PNCP, com nomes curtos (contrato, empenho, carta contrato...). */
@@ -561,13 +571,6 @@ export interface TenderNotification {
   savedSearchId: number | null;
   readAt: string | null;
   createdAt: string | null;
-}
-
-export interface NotificationFilters {
-  unreadOnly: boolean;
-  type: TenderNotificationType | null;
-  page: number;
-  perPage: number;
 }
 
 export const COLLECTION_RUN_TYPES = [

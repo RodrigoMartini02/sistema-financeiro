@@ -1,7 +1,5 @@
 import { Router } from 'express';
-import { query } from 'express-validator';
 import { validate } from '../../../middleware/validation';
-import { TENDER_NOTIFICATION_TYPES } from '../domains';
 import { tenderAccessOf } from '../middleware/tenderAccess';
 import {
   countUnreadNotifications,
@@ -11,7 +9,7 @@ import {
 } from '../services/notificationInbox';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
-import { readNotificationFilters } from './requestReaders';
+import { readPagination } from './requestReaders';
 import { idParam, paginationQuery } from './validators';
 
 // Notificações da pessoa logada, na conta da requisição (escopo, seção 8.3).
@@ -23,18 +21,13 @@ export function notificationRoutes(deps: TendersApiDeps): Router {
     return { accountId: access.account.id, userId: access.userId };
   };
 
-  // GET /api/tenders/notifications?unreadOnly=&type=&page=&perPage=
+  // GET /api/tenders/notifications?page=&perPage=
   router.get(
     '/',
-    [
-      query('unreadOnly').optional().isIn(['true', 'false', '1', '0']).withMessage('Use true ou false'),
-      query('type').optional().isIn([...TENDER_NOTIFICATION_TYPES]).withMessage('Tipo de notificação inválido'),
-      ...paginationQuery(),
-      validate,
-    ],
+    [...paginationQuery(), validate],
     tenderRoute('Tender notification list failed:', 'Não foi possível carregar as notificações agora.', async (req, res) => {
-      const filters = readNotificationFilters(req.query as Record<string, unknown>);
-      res.json({ success: true, data: await listNotifications(deps.db, requesterOf(req), filters) });
+      const { page, perPage } = readPagination(req.query as Record<string, unknown>);
+      res.json({ success: true, data: await listNotifications(deps.db, requesterOf(req), page, perPage) });
     }),
   );
 

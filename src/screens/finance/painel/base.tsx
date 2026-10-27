@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import type { ReactNode } from 'react';
+import { motion, type Variants } from 'framer-motion';
+import { useTransicao } from './graficoBase';
+
+// Os gráficos usam useTransicao, Legenda e Vazio sem passar por aqui (graficoBase.tsx não importa o framer-motion);
+// os três continuam saindo deste módulo para as telas do Painel.
+export { Legenda, useTransicao, Vazio } from './graficoBase';
 
 // ---------------------------------------------------------------------------
 // Animação
@@ -15,41 +20,6 @@ const ENTRADA_CARD: Variants = {
   oculto: { opacity: 0.35, y: 10 },
   visivel: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] } },
 };
-
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-
-/**
- * Transição de valores: a cada `chave` nova, `p` vai de 0 a 1 e `de` guarda o
- * valor anterior (null na primeira vez, quando o gráfico nasce do zero). Com
- * "reduzir movimento" ligado, `p` já nasce em 1.
- */
-export function useTransicao<T>(alvo: T, chave: string, duracao = 700): { de: T | null; p: number } {
-  const reduzir = useReducedMotion();
-  const ultimo = useRef<T | null>(null);
-  const [estado, setEstado] = useState<{ de: T | null; p: number }>({ de: null, p: reduzir ? 1 : 0 });
-
-  useEffect(() => {
-    const de = ultimo.current;
-    ultimo.current = alvo;
-    if (reduzir) {
-      setEstado({ de, p: 1 });
-      return undefined;
-    }
-    let quadro = 0;
-    const inicio = performance.now();
-    const passo = (agora: number) => {
-      const t = Math.min(1, (agora - inicio) / duracao);
-      setEstado({ de, p: easeOut(t) });
-      if (t < 1) quadro = requestAnimationFrame(passo);
-    };
-    quadro = requestAnimationFrame(passo);
-    return () => cancelAnimationFrame(quadro);
-    // `alvo` acompanha a `chave`; reagir só à chave evita reiniciar a cada render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chave, reduzir, duracao]);
-
-  return estado;
-}
 
 /** Número que conta até o valor novo. */
 export function NumeroAnimado({ valor, formatar }: { valor: number; formatar: (valor: number) => string }) {
@@ -112,29 +82,6 @@ export function Indicador({ rotulo, valor, nota, tom = 'text-slate-900 dark:text
       <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-slate-500 dark:text-slate-400">{nota}</span>
     </CardPainel>
   );
-}
-
-export function Legenda({ itens }: { itens: { cor: string; nome: string; padrao?: boolean }[] }) {
-  return (
-    <ul className="m-0 flex list-none flex-wrap gap-x-3.5 gap-y-1 p-0 text-[11.5px] text-slate-600 dark:text-slate-300">
-      {itens.map((item) => (
-        <li key={item.nome} className="inline-flex items-center gap-1.5">
-          <span
-            className="h-2 w-2 shrink-0 rounded-sm"
-            style={item.padrao
-              ? { background: `repeating-linear-gradient(45deg, ${item.cor} 0 1.5px, transparent 1.5px 3px)`, border: `1px solid ${item.cor}` }
-              : { background: item.cor }}
-            aria-hidden="true"
-          />
-          {item.nome}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export function Vazio({ children }: { children: ReactNode }) {
-  return <p className="m-0 my-auto py-7 text-center text-[13px] text-slate-500 dark:text-slate-400">{children}</p>;
 }
 
 /** Totais em linha (rótulo pequeno em cima, valor embaixo). */

@@ -3,7 +3,7 @@ import { tendersRequest } from './tendersApi';
 
 // Notificações da pessoa logada, na conta (o contador do sino fica em useUnreadNotificationsCount).
 
-/** `apiQuery`: parâmetros já montados (utils/notifications → `notificationsQuery`). */
+/** `apiQuery`: parâmetros já montados (utils/notifications → `NOTIFICATION_PANEL_QUERY`). */
 export function fetchNotifications(apiQuery: string): Promise<Paginated<TenderNotification>> {
   return tendersRequest<Paginated<TenderNotification>>(`/notifications?${apiQuery}`);
 }

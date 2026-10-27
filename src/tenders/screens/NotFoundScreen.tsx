@@ -12,7 +12,7 @@ export function NotFoundScreen() {
         title="Este endereço não existe em Licitações."
         action={
           <Link to="/" className="text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400">
-            Voltar para o Início
+            Voltar para o Dashboard
           </Link>
         }
       />

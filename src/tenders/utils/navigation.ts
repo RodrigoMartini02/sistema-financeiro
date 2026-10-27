@@ -4,7 +4,7 @@
 import { cnpjFromSearchText, cnpjPagePath } from './cnpj';
 
 export type TendersRouteKey =
-  | 'inicio'
+  | 'dashboard'
   | 'buscar'
   | 'contratos'
   | 'contrato'
@@ -13,7 +13,6 @@ export type TendersRouteKey =
   | 'buscas'
   | 'favoritos'
   | 'acompanhamento'
-  | 'notificacoes'
   | 'configuracoes'
   | 'contas';
 
@@ -30,8 +29,8 @@ export interface TendersRoute {
 }
 
 export const TENDERS_ROUTES: readonly TendersRoute[] = [
-  { key: 'inicio', path: '/', title: 'Início', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'buscar', path: '/buscar', title: 'Buscar', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'dashboard', path: '/', title: 'Dashboard', inMenu: true, restricted: false, platformAdminOnly: false },
+  { key: 'buscar', path: '/buscar', title: 'Editais', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
   { key: 'cnpj', path: '/cnpj/:cnpj', title: 'CNPJ', inMenu: false, restricted: false, platformAdminOnly: false },
@@ -39,7 +38,6 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'notificacoes', path: '/notificacoes', title: 'Notificações', inMenu: true, restricted: false, platformAdminOnly: false },
   { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: true, restricted: true, platformAdminOnly: false },
   { key: 'contas', path: '/admin/contas', title: 'Contas habilitadas', inMenu: true, restricted: false, platformAdminOnly: true },
 ];
@@ -82,7 +80,7 @@ export function routeForPath(pathname: string): TendersRoute | null {
 }
 
 /**
- * Busca rápida da barra superior: um CNPJ válido leva à página dele; o resto, para Buscar com o texto; vazio não navega.
+ * Busca rápida da barra superior: um CNPJ válido leva à página dele; o resto, para Editais com o texto; vazio não navega.
  */
 export function quickSearchPath(text: string): string | null {
   const query = text.trim();

@@ -41,7 +41,7 @@ import {
   type SearchState,
 } from '../utils/searchFilters';
 
-// Buscar (escopo, seção 9.4): filtros na URL, chips, cards com rolagem infinita,
+// Editais (escopo, seção 9.4): filtros na URL, chips, cards com rolagem infinita,
 // ações rápidas, "Salvar esta busca" e o edital no painel lateral (?edital=).
 
 /** Identifica o edital na lista. */

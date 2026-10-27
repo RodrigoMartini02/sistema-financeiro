@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCoresGrafico } from '../coresGrafico';
-import { useTransicao } from '../base';
+import { useTransicao } from '../graficoBase';
 import { FAIXAS_COMPROMETIMENTO } from '../painelFormat';
 
 const LARGURA = 120;

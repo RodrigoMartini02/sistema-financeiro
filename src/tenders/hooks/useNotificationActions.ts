@@ -30,14 +30,14 @@ export function useMarkAllNotificationsRead() {
 }
 
 /** Clique na notificação: marca como lida (se ainda não lida) e abre o destino do link. */
-export function useOpenNotification(onOpen?: () => void) {
+export function useOpenNotification(onOpen: () => void) {
   const navigate = useNavigate();
   const markRead = useMarkNotificationRead();
   return (notification: TenderNotification) => {
     if (!notification.readAt) {
       markRead.mutate(notification.id);
     }
-    onOpen?.();
+    onOpen();
     const target = notificationTarget(notification);
     if (target) {
       navigate(target);

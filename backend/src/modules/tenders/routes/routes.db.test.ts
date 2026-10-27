@@ -601,7 +601,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
           within30Days: 0,
           within60Days: 0,
           within90Days: 0,
-          nearest: [],
+          byCategory: [],
           sources: { savedSearches: 0, favorites: 0 },
         });
         const created = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', { as, body: { name: 'Sem total ainda', terms: ['limpeza'] } });

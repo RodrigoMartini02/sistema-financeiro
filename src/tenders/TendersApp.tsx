@@ -8,12 +8,11 @@ import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
 import { CnpjScreen } from './screens/CnpjScreen';
 import { ContractScreen } from './screens/ContractScreen';
 import { ContractsScreen } from './screens/ContractsScreen';
+import { DashboardScreen } from './screens/DashboardScreen';
 import { FavoritesScreen } from './screens/FavoritesScreen';
 import { ExpiredScreen, GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
-import { HomeScreen } from './screens/HomeScreen';
 import { NoticeScreen } from './screens/NoticeScreen';
 import { NotFoundScreen } from './screens/NotFoundScreen';
-import { NotificationsScreen } from './screens/NotificationsScreen';
 import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -61,7 +60,7 @@ export function TendersApp() {
   return (
     <Routes>
       <Route element={<TendersShell access={access.data} />}>
-        <Route index element={<HomeScreen />} />
+        <Route index element={<DashboardScreen />} />
         <Route path="buscar" element={<SearchScreen />} />
         <Route path="contratos" element={<ContractsScreen />} />
         <Route path="contratos/:chave" element={<ContractScreen />} />
@@ -70,7 +69,6 @@ export function TendersApp() {
         <Route path="buscas" element={<SavedSearchesScreen />} />
         <Route path="favoritos" element={<FavoritesScreen />} />
         <Route path="acompanhamento" element={<TrackingScreen />} />
-        <Route path="notificacoes" element={<NotificationsScreen />} />
         <Route path="configuracoes" element={<SettingsScreen />} />
         <Route path="admin/contas" element={<AdminAccountsScreen />} />
         <Route path="*" element={<NotFoundScreen />} />

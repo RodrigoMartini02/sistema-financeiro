@@ -70,7 +70,7 @@ export function SavedSearchCard({ search, lookups, onEdit, onDuplicate, onDelete
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <ToggleRow
               label="Ativa"
-              description={active ? 'Conta no Início e nas notificações.' : 'Pausada: fora do Início e sem avisos.'}
+              description={active ? 'Conta no Dashboard e nas notificações.' : 'Pausada: fora do Dashboard e sem avisos.'}
               checked={active}
               disabled={patch.isPending}
               onChange={() => patch.mutate({ id: search.id, changes: { active: !active } })}

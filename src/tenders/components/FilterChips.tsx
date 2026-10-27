@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 
-/** Um filtro ativo: o texto do chip e o estado da tela sem ele (Buscar ou Contratos a vencer). */
+/** Um filtro ativo: o texto do chip e o estado da tela sem ele (Editais ou Contratos a vencer). */
 interface Chip<State> {
   key: string;
   label: string;

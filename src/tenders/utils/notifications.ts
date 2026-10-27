@@ -1,4 +1,4 @@
-import type { NotificationFilters, TenderNotification } from '../types';
+import type { TenderNotification } from '../types';
 import { contractPath, isContractKey } from './contractKey';
 import { TENDERS_APP_BASE } from './modulePaths';
 
@@ -6,18 +6,8 @@ import { TENDERS_APP_BASE } from './modulePaths';
 // ou o contrato pelo link gravado, que é relativo ao início do app
 // (/editais/123 ou /contratos/<chave codificada>).
 
-/** Painel do sino: as 10 mais recentes. */
-export const NOTIFICATION_PANEL_FILTERS: NotificationFilters = { unreadOnly: false, type: null, page: 1, perPage: 10 };
-
-/** Query de `GET /api/tenders/notifications`. */
-export function notificationsQuery(filters: NotificationFilters): string {
-  const params = new URLSearchParams();
-  if (filters.unreadOnly) params.set('unreadOnly', 'true');
-  if (filters.type) params.set('type', filters.type);
-  params.set('page', String(filters.page));
-  params.set('perPage', String(filters.perPage));
-  return params.toString();
-}
+/** Query de `GET /api/tenders/notifications` do painel do sino: as 10 mais recentes. */
+export const NOTIFICATION_PANEL_QUERY = 'perPage=10';
 
 const APP_PATH = /^\/(?!\/)\S*$/;
 

@@ -152,7 +152,7 @@ export function criteriaCondition(criteria: NoticeCriteria): SQL {
 /** Edital ainda recebendo proposta (prazo não vencido e situação 1). */
 export const openCondition = sql`licitacoes.fn_edital_aberto(${noticeRow})`;
 
-function startOfBrasiliaDay(date: string): SQL {
+export function startOfBrasiliaDay(date: string): SQL {
   return sql`(${date}::date)::timestamp AT TIME ZONE ${BRASILIA_TIME_ZONE}`;
 }
 

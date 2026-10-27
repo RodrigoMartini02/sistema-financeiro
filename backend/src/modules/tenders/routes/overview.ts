@@ -25,7 +25,7 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
     '/dashboard',
     tenderRoute('Tender dashboard failed:', 'Não foi possível carregar o painel agora.', async (req, res) => {
       const access = tenderAccessOf(req);
-      res.json({ success: true, data: await readDashboard(deps.db, { accountId: access.account.id, userId: access.userId }) });
+      res.json({ success: true, data: await readDashboard(deps.db, { accountId: access.account.id, userId: access.userId }, deps.now()) });
     }),
   );
 

@@ -30,10 +30,3 @@ export function decimalToReais(text: string | null | undefined): number | null {
 export function formatMoneyValue(value: number | null | undefined): string {
   return value === null || value === undefined ? VALUE_NOT_INFORMED : formatCurrency(value);
 }
-
-const COMPACT_CURRENCY = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 });
-
-/** "R$ 1,5 mil", "R$ 12,3 mi": o valor curto dos indicadores, que cabem no cartão; o valor inteiro vai no título. */
-export function formatCompactMoney(value: number): string {
-  return COMPACT_CURRENCY.format(value);
-}

@@ -2,7 +2,7 @@
 // Itens e arquivos do PNCP ficam fora de `notices`: mudar o acompanhamento
 // invalida a busca, o edital e o histórico, mas não busca o PNCP de novo.
 //
-// As listas com rolagem infinita (editais, contratos e notificações) guardam os dados em outro formato
+// As listas com rolagem infinita (editais e contratos) guardam os dados em outro formato
 // (`pages`), por isso têm chaves próprias, com `infinite` no terceiro lugar, dentro dos mesmos grupos.
 const INFINITE_LIST = 'infinite';
 
@@ -38,15 +38,13 @@ export const tendersQueryKeys = {
   cnpj: (cnpj: string) => ['tenders', 'cnpj', cnpj] as const,
   cnpjWinners: (cnpj: string) => ['tenders', 'cnpj', cnpj, 'winners'] as const,
   dashboard: ['tenders', 'dashboard'] as const,
-  /** Contratos que vencem, do Início: lê o armazém, então tem consulta própria. */
+  /** Contratos que vencem, do Dashboard: lê o armazém, então tem consulta própria. */
   dashboardContracts: ['tenders', 'dashboard', 'contracts'] as const,
   domains: ['tenders', 'domains'] as const,
   /** Prefixo das notificações: listas e contador do sino. */
   notifications: ['tenders', 'notifications'] as const,
   /** A lista curta do painel do sino. */
   notificationList: (apiQuery: string) => ['tenders', 'notifications', 'list', apiQuery] as const,
-  /** A página Notificações, em lista infinita. */
-  notificationInfiniteList: (apiQuery: string) => ['tenders', 'notifications', INFINITE_LIST, apiQuery] as const,
   team: ['tenders', 'team'] as const,
   /** Prefixo das assinaturas: mudar usuários ou pagar invalida todas. */
   billingAll: ['tenders', 'billing'] as const,

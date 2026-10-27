@@ -31,7 +31,7 @@ export function TendersTopBar({ title, unreadCount, userName, accountName, onOpe
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Atalho "/": foca a busca rápida (fora de campos de texto); no celular, sem o campo, abre Buscar.
+  // Atalho "/": foca a busca rápida (fora de campos de texto); no celular, sem o campo, abre Editais.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || isTypingTarget(event.target)) return;

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { formatCurrency } from '../../formatters';
 import { useCoresGrafico } from '../coresGrafico';
-import { useTransicao } from '../base';
+import { useTransicao } from '../graficoBase';
 import { formatarPercentual } from '../painelFormat';
 import { ConteudoDetalhe, useDetalhe } from './Detalhe';
 

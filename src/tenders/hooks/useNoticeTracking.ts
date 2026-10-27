@@ -7,7 +7,7 @@ import type { NoticeTracking, TrackingStatus, TrackingView } from '../types';
 
 // Acompanhamento do edital na conta. Depois de mudar: o edital muda nas listas
 // em cache sem reler todas as páginas; edital, histórico, quadro e painel do
-// Início são recarregados.
+// Dashboard são recarregados.
 
 function useAfterTrackingChange() {
   const queryClient = useQueryClient();

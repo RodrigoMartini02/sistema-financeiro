@@ -18,7 +18,7 @@ import {
 } from './searchFilters';
 
 // Estado da tela "Contratos a vencer" (plano .plans/licitacoes-contratos-a-vencer.md,
-// Parte B), no modelo de Buscar (searchFilters.ts): mora na URL, para o link ser
+// Parte B), no modelo de Editais (searchFilters.ts): mora na URL, para o link ser
 // compartilhável e o voltar do navegador funcionar; os valores padrão ficam fora
 // dela. Daqui saem também a query da API e os chips dos filtros ativos. O tipo
 // de contrato e "Incluir encerrados" são da parte 2 do plano
@@ -92,7 +92,7 @@ export function defaultContractSort(includeClosed: boolean): ContractSort {
   return includeClosed ? 'publishedDesc' : 'expiryAsc';
 }
 
-/** Parâmetros da URL de "Contratos a vencer", em português como os de Buscar. */
+/** Parâmetros da URL de "Contratos a vencer", em português como os de Editais. */
 export const CONTRACT_URL_PARAMS = {
   q: 'q',
   termsMode: 'modo',

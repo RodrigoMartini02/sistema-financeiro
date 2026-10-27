@@ -9,7 +9,7 @@ export function NoticeScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const noticeId = id && /^\d+$/.test(id) && Number(id) > 0 ? Number(id) : null;
-  // Chegou por link direto (primeira página aberta no app): voltar leva para Buscar.
+  // Chegou por link direto (primeira página aberta no app): voltar leva para Editais.
   const canGoBack = location.key !== 'default';
 
   return (
@@ -29,7 +29,7 @@ export function NoticeScreen() {
             title="Edital não encontrado."
             action={
               <Link to="/buscar" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
-                Ir para Buscar
+                Ir para Editais
               </Link>
             }
           />

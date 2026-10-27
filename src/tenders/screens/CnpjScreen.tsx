@@ -168,7 +168,7 @@ export function CnpjScreen() {
   const location = useLocation();
   const digits = onlyDigits(param ?? '');
   const cnpj = isValidCnpj(digits) ? digits : null;
-  // Chegou por link direto (primeira página aberta no app): voltar leva para Buscar.
+  // Chegou por link direto (primeira página aberta no app): voltar leva para Editais.
   const canGoBack = location.key !== 'default';
 
   const summary = useQuery<CnpjSummary, TendersApiError>({
@@ -188,7 +188,7 @@ export function CnpjScreen() {
         description="Confira os 14 dígitos do CNPJ."
         action={
           <Link to="/buscar" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
-            Ir para Buscar
+            Ir para Editais
           </Link>
         }
       />

@@ -19,7 +19,7 @@ import {
 import { withPaging } from './infiniteList';
 import { decimalToReais, isDecimalValue } from './money';
 
-// Estado da tela Buscar (escopo, seção 9.4). Mora na URL, para o link ser
+// Estado da tela Editais (escopo, seção 9.4). Mora na URL, para o link ser
 // compartilhável e o voltar do navegador funcionar; os valores padrão ficam
 // fora dela. Daqui saem também a query da API e os chips dos filtros ativos.
 // A página não fica no estado nem na URL: a lista tem rolagem infinita, e quem
@@ -28,7 +28,7 @@ import { decimalToReais, isDecimalValue } from './money';
 export const CLOSING_SHORTCUT_DAYS = [7, 15, 30] as const;
 
 /**
- * Prazo mínimo padrão de Buscar: só os editais que encerram a partir de hoje +
+ * Prazo mínimo padrão de Editais: só os editais que encerram a partir de hoje +
  * 3 dias, porque com menos não dá tempo de preparar a proposta. O filtro
  * "Incluir os que encerram em menos de 3 dias" traz os demais.
  */
@@ -98,7 +98,7 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   sort: 'closingAsc',
 };
 
-/** Parâmetros da URL de Buscar, em português como o `?edital=`. */
+/** Parâmetros da URL de Editais, em português como o `?edital=`. */
 export const SEARCH_URL_PARAMS = {
   q: 'q',
   termsMode: 'modo',
@@ -124,7 +124,7 @@ export const SEARCH_URL_PARAMS = {
   sort: 'ordem',
 } as const;
 
-/** Edital aberto no painel lateral de Buscar. */
+/** Edital aberto no painel lateral de Editais. */
 export const NOTICE_URL_PARAM = 'edital';
 
 const SORT_URL_VALUES: Record<NoticeSort, string> = {

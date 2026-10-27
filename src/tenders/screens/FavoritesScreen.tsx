@@ -112,8 +112,8 @@ function FavoriteNotices() {
         getKey={noticeKey}
         resetKey={FAVORITE_NOTICES_QUERY}
         label="Editais favoritos"
-        emptyDescription="Marque o coração de um edital, em Buscar ou na página dele, para encontrá-lo aqui."
-        emptyLink={{ to: '/buscar', label: 'Ir para Buscar' }}
+        emptyDescription="Marque o coração de um edital, em Editais ou na página dele, para encontrá-lo aqui."
+        emptyLink={{ to: '/buscar', label: 'Ir para Editais' }}
         renderItem={(notice) => <NoticeCard notice={notice} detailLink={`/editais/${notice.id}`} />}
       />
     </>

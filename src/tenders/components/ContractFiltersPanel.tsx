@@ -39,7 +39,7 @@ interface ContractFiltersPanelProps {
 }
 
 /**
- * Filtros de "Contratos a vencer", como os de Buscar: escolhas valem na hora;
+ * Filtros de "Contratos a vencer", como os de Editais: escolhas valem na hora;
  * valores, datas e número, ao sair do campo. Com busca salva, os critérios vêm
  * dela e ficam travados aqui; o tipo e os encerrados são só da tela e valem
  * também com ela.

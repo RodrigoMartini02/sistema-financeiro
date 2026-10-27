@@ -37,7 +37,7 @@ import { noticePlace } from './NoticeCard';
 import { TagInput, type TagParseResult } from './TagInput';
 
 // Formulário da busca salva (escopo, seção 9.4): diálogo grande com prévia ao
-// vivo. Serve para criar, editar e "Salvar esta busca" (Buscar).
+// vivo. Serve para criar, editar e "Salvar esta busca" (Editais).
 
 const PREVIEW_DEBOUNCE_MS = 500;
 const FORM_FIELDS = new Set<string>([

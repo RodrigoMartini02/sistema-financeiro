@@ -1,240 +1,219 @@
-import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
-import { tenderContractFavorites, tenderFavorites, tenderNotifications, tenderTrackingHistory, tenderTrackings } from '../db/schema';
+import { addCalendarDays, brasiliaDate } from '../collector/dates';
+import { tenderTrackingHistory, tenderTrackings } from '../db/schema';
+import { TENDER_MODALITIES } from '../domains';
 import { readLastDataUpdate } from './collectionOverview';
-import { listContractSavedSearches } from './contractSavedSearches';
-import { EMPTY_CRITERIA, openCondition, searchedNotice, searchNotices, type NoticeListItem } from './noticeSearch';
-import { listNotifications, type NotificationView } from './notificationInbox';
+import { DAILY_DAYS, readMarket, type CountsByModality, type MarketView } from './dashboardMarket';
+import { openCondition, searchedNotice, startOfBrasiliaDay } from './noticeSearch';
 import { summarizeOpenMatches } from './savedSearchMatches';
-import { listSavedSearches } from './savedSearches';
 
-// Painel da tela Início (escopo, seção 9.4, com a decisão 5 do plano da Fase 2 e o plano
-// .plans/licitacoes-inicio-painel.md):
-// - "Novos hoje": abertos coletados hoje que batem com alguma busca salva ativa do usuário;
-// - "Encerrando em 7 dias": acompanhados pela conta (Analisar ou Vou participar);
-// - "Em análise" e "Vou participar": acompanhamentos da conta com edital aberto;
-// - valor estimado em disputa e funil de acompanhamento da conta;
-// - alterações e notificações não lidas da pessoa, favoritos com prazo aberto e buscas salvas.
+// Dashboard do módulo (escopo, seção 9.4, e plano .plans/licitacoes-dashboard-gestao.md): só quantidades.
+// - da base de editais inteira (dashboardMarket.ts): publicações por dia, mês e modalidade, abertos, esfera e órgãos;
+// - da conta: acompanhamentos por modalidade (em análise, vou participar, participei), funil e carga de prazos;
+// - das buscas salvas da pessoa: "Novos hoje" e abertos por UF.
 // Os contratos que vencem ficam em dashboardContracts.ts: leem o armazém do R2 e têm rota própria.
 
-export const CLOSING_SOON_LIMIT = 10;
-export const FAVORITES_LIMIT = 5;
-export const RECENT_NOTIFICATIONS_LIMIT = 5;
 const ACTIVE_TRACKING = ['ANALISAR', 'PARTICIPAR'] as const;
-const FUNNEL_ENTRY_DAYS = { short: 7, long: 30 } as const;
+const FUNNEL_DAYS = 30;
+const DEADLINE_WEEKS = 4;
+const WEEK_DAYS = 7;
 
 interface Requester {
   accountId: number;
   userId: number;
 }
 
+export interface ModalityCard {
+  id: number;
+  name: string;
+  /** Publicados nos últimos 30 dias, até ontem. */
+  published30Days: number;
+  open: number;
+  analyzing: number;
+  participating: number;
+  /** Vou participar com o prazo de proposta já vencido. */
+  participated: number;
+  /** Publicados por dia, 30 valores, do mais antigo ao mais novo (ontem). */
+  daily: number[];
+}
+
 export interface DashboardView {
-  cards: { newToday: number; closingIn7Days: number; analyzing: number; participating: number; unreadChanges: number };
-  /** Valor estimado (não é receita) dos editais abertos acompanhados como Analisar ou Vou participar. */
-  pipeline: { estimatedValue: number; noticesWithoutValue: number };
-  funnel: { analyzing: number; participating: number; discarded: number; enteredLast7Days: number; enteredLast30Days: number };
-  closingSoon: NoticeListItem[];
-  openByState: Array<{ state: string; count: number }>;
-  savedSearches: Array<{
-    id: number;
-    name: string;
-    active: boolean;
-    openCount: number;
+  cards: {
+    publishedYesterday: number;
+    published7Days: number;
+    published30Days: number;
+    openNow: number;
     newToday: number;
-    newLast7Days: number;
-    newLast30Days: number;
-  }>;
-  contractSavedSearches: Array<{ id: number; name: string; active: boolean; activeCount: number | null; countedAt: string | null }>;
-  favorites: NoticeListItem[];
-  notifications: { unreadCount: number; recent: NotificationView[] };
-  /** O que a pessoa já fez no módulo; o Início usa para mostrar o guia da conta vazia. */
-  setup: { hasSavedSearch: boolean; hasTracking: boolean; hasFavorite: boolean; notificationsEnabled: boolean };
+    analyzing: number;
+    participating: number;
+    closingIn7Days: number;
+    participated: number;
+  };
+  /** As modalidades que a base tem (publicadas, abertas ou acompanhadas), por id. */
+  modalities: ModalityCard[];
+  publications: MarketView['publications'];
+  /** Editais com entrada em Analisar ou Vou participar nos últimos 30 dias, e quantos deles estão em Vou participar e em Participei. */
+  funnel: { tracked: number; participating: number; participated: number };
+  /** Acompanhados abertos por semana de encerramento, a partir de hoje: 4 semanas. */
+  deadlineLoad: Array<{ startDay: string; count: number }>;
+  openByState: Array<{ state: string; count: number }>;
+  openBySphere: MarketView['open']['bySphere'];
+  topAgencies: MarketView['topAgencies'];
   lastUpdateAt: string | null;
   lastRunFailed: boolean;
 }
 
-async function countAccountTrackings(db: TendersDb, accountId: number) {
+interface TrackingByModality {
+  modalityId: number | null;
+  analyzing: number;
+  participating: number;
+  participated: number;
+  closingIn7Days: number;
+}
+
+async function readTrackings(db: TendersDb, accountId: number): Promise<TrackingByModality[]> {
   const isActive = inArray(tenderTrackings.status, [...ACTIVE_TRACKING]);
-  const [row] = await db
+  return db
     .select({
-      total: sql<number>`count(*)`.mapWith(Number),
+      modalityId: searchedNotice.modalityId,
       analyzing: sql<number>`count(*) FILTER (WHERE ${tenderTrackings.status} = 'ANALISAR' AND ${openCondition})`.mapWith(Number),
       participating: sql<number>`count(*) FILTER (WHERE ${tenderTrackings.status} = 'PARTICIPAR' AND ${openCondition})`.mapWith(Number),
-      discarded: sql<number>`count(*) FILTER (WHERE ${tenderTrackings.status} = 'DESCARTADO')`.mapWith(Number),
+      participated: sql<number>`count(*) FILTER (
+        WHERE ${tenderTrackings.status} = 'PARTICIPAR' AND ${searchedNotice.proposalClosesAt} <= now())`.mapWith(Number),
       closingIn7Days: sql<number>`count(*) FILTER (
         WHERE ${isActive}
           AND ${openCondition}
           AND ${searchedNotice.proposalClosesAt} <= now() + interval '7 days')`.mapWith(Number),
-      estimatedValue: sql<number>`coalesce(sum(${searchedNotice.estimatedTotalValue}) FILTER (WHERE ${isActive} AND ${openCondition}), 0)`.mapWith(Number),
-      noticesWithoutValue: sql<number>`count(*) FILTER (
-        WHERE ${isActive} AND ${openCondition} AND ${searchedNotice.estimatedTotalValue} IS NULL)`.mapWith(Number),
     })
     .from(tenderTrackings)
     .innerJoin(searchedNotice, eq(searchedNotice.id, tenderTrackings.noticeId))
-    .where(eq(tenderTrackings.accountId, accountId));
-  return {
-    total: row?.total ?? 0,
-    analyzing: row?.analyzing ?? 0,
-    participating: row?.participating ?? 0,
-    discarded: row?.discarded ?? 0,
-    closingIn7Days: row?.closingIn7Days ?? 0,
-    estimatedValue: row?.estimatedValue ?? 0,
-    noticesWithoutValue: row?.noticesWithoutValue ?? 0,
-  };
+    .where(eq(tenderTrackings.accountId, accountId))
+    .groupBy(searchedNotice.modalityId);
 }
 
-/** Editais que a conta passou a acompanhar (Analisar ou Vou participar) nos últimos 7 e 30 dias, cada edital uma vez. */
-async function countRecentEntries(db: TendersDb, accountId: number) {
+async function readFunnel(db: TendersDb, accountId: number): Promise<DashboardView['funnel']> {
   const [row] = await db
     .select({
-      last7Days: sql<number>`count(DISTINCT ${tenderTrackingHistory.noticeId}) FILTER (
-        WHERE ${tenderTrackingHistory.createdAt} >= now() - ${`${FUNNEL_ENTRY_DAYS.short} days`}::interval)`.mapWith(Number),
-      last30Days: sql<number>`count(DISTINCT ${tenderTrackingHistory.noticeId})`.mapWith(Number),
+      tracked: sql<number>`count(DISTINCT ${tenderTrackingHistory.noticeId})`.mapWith(Number),
+      participating: sql<number>`count(DISTINCT ${tenderTrackingHistory.noticeId}) FILTER (
+        WHERE ${tenderTrackings.status} = 'PARTICIPAR')`.mapWith(Number),
+      participated: sql<number>`count(DISTINCT ${tenderTrackingHistory.noticeId}) FILTER (
+        WHERE ${tenderTrackings.status} = 'PARTICIPAR' AND ${searchedNotice.proposalClosesAt} <= now())`.mapWith(Number),
     })
     .from(tenderTrackingHistory)
+    .leftJoin(
+      tenderTrackings,
+      and(eq(tenderTrackings.accountId, tenderTrackingHistory.accountId), eq(tenderTrackings.noticeId, tenderTrackingHistory.noticeId)),
+    )
+    .innerJoin(searchedNotice, eq(searchedNotice.id, tenderTrackingHistory.noticeId))
     .where(
       and(
         eq(tenderTrackingHistory.accountId, accountId),
         inArray(tenderTrackingHistory.newStatus, [...ACTIVE_TRACKING]),
-        sql`${tenderTrackingHistory.createdAt} >= now() - ${`${FUNNEL_ENTRY_DAYS.long} days`}::interval`,
+        sql`${tenderTrackingHistory.createdAt} >= now() - ${`${FUNNEL_DAYS} days`}::interval`,
       ),
     );
-  return { last7Days: row?.last7Days ?? 0, last30Days: row?.last30Days ?? 0 };
+  return { tracked: row?.tracked ?? 0, participating: row?.participating ?? 0, participated: row?.participated ?? 0 };
 }
 
-async function countUnreadChanges(db: TendersDb, requester: Requester): Promise<number> {
-  const [row] = await db
-    .select({ total: count() })
-    .from(tenderNotifications)
+async function readDeadlineLoad(db: TendersDb, accountId: number, today: string): Promise<DashboardView['deadlineLoad']> {
+  const weekOfDeadline = sql<number>`(((${searchedNotice.proposalClosesAt} AT TIME ZONE 'America/Sao_Paulo')::date - ${today}::date) / ${WEEK_DAYS})::int`;
+  const rows = await db
+    .select({ week: weekOfDeadline, total: sql<number>`count(*)`.mapWith(Number) })
+    .from(tenderTrackings)
+    .innerJoin(searchedNotice, eq(searchedNotice.id, tenderTrackings.noticeId))
     .where(
       and(
-        eq(tenderNotifications.accountId, requester.accountId),
-        eq(tenderNotifications.userId, requester.userId),
-        eq(tenderNotifications.type, 'EDITAL_ALTERADO'),
-        isNull(tenderNotifications.readAt),
+        eq(tenderTrackings.accountId, accountId),
+        inArray(tenderTrackings.status, [...ACTIVE_TRACKING]),
+        openCondition,
+        lt(searchedNotice.proposalClosesAt, startOfBrasiliaDay(addCalendarDays(today, DEADLINE_WEEKS * WEEK_DAYS))),
       ),
-    );
-  return row?.total ?? 0;
+    )
+    // Posição 1: a expressão leva parâmetro, e o banco só a reconhece como a mesma do select por posição.
+    .groupBy(sql`1`);
+  const byWeek = new Map(rows.map((row) => [row.week, row.total]));
+  return Array.from({ length: DEADLINE_WEEKS }, (_, week) => ({
+    startDay: addCalendarDays(today, week * WEEK_DAYS),
+    count: byWeek.get(week) ?? 0,
+  }));
 }
 
-/** Se a pessoa tem algum favorito na conta, de edital ou de contrato. */
-async function hasAnyFavorite(db: TendersDb, requester: Requester): Promise<boolean> {
-  const [notices, contracts] = await Promise.all([
-    db
-      .select({ noticeId: tenderFavorites.noticeId })
-      .from(tenderFavorites)
-      .where(and(eq(tenderFavorites.accountId, requester.accountId), eq(tenderFavorites.userId, requester.userId)))
-      .limit(1),
-    db
-      .select({ contractKey: tenderContractFavorites.contractKey })
-      .from(tenderContractFavorites)
-      .where(and(eq(tenderContractFavorites.accountId, requester.accountId), eq(tenderContractFavorites.userId, requester.userId)))
-      .limit(1),
-  ]);
-  return notices.length > 0 || contracts.length > 0;
+const MODALITY_NAMES = new Map<number, string>(TENDER_MODALITIES.map((modality) => [modality.id, modality.name]));
+
+function sum(values: Iterable<number>): number {
+  let total = 0;
+  for (const value of values) {
+    total += value;
+  }
+  return total;
 }
 
-export async function readDashboard(db: TendersDb, requester: Requester): Promise<DashboardView> {
-  const [
-    trackings,
-    recentEntries,
-    matches,
-    closingSoon,
-    favorites,
-    savedSearches,
-    contractSavedSearches,
-    unreadNotifications,
-    unreadChanges,
-    hasFavorite,
-    lastUpdate,
-  ] = await Promise.all([
-    countAccountTrackings(db, requester.accountId),
-    countRecentEntries(db, requester.accountId),
+function countOf(counts: CountsByModality, modalityId: number): number {
+  return counts[String(modalityId)] ?? 0;
+}
+
+/** Um card por modalidade que a base tem: com publicação nos últimos 12 meses, edital aberto ou acompanhamento da conta. */
+export function buildModalityCards(market: MarketView, trackings: readonly TrackingByModality[]): ModalityCard[] {
+  const ids = new Set<number>();
+  for (const point of [...market.publications.daily, ...market.publications.monthly]) {
+    Object.keys(point.byModality).forEach((id) => ids.add(Number(id)));
+  }
+  Object.keys(market.open.byModality).forEach((id) => ids.add(Number(id)));
+  for (const tracking of trackings) {
+    if (tracking.modalityId !== null) ids.add(tracking.modalityId);
+  }
+
+  return [...ids]
+    .sort((a, b) => a - b)
+    .map((id) => {
+      const tracking = trackings.find((item) => item.modalityId === id);
+      const daily = market.publications.daily.map((point) => countOf(point.byModality, id));
+      return {
+        id,
+        name: MODALITY_NAMES.get(id) ?? `Modalidade ${id}`,
+        published30Days: sum(daily),
+        open: countOf(market.open.byModality, id),
+        analyzing: tracking?.analyzing ?? 0,
+        participating: tracking?.participating ?? 0,
+        participated: tracking?.participated ?? 0,
+        daily,
+      };
+    });
+}
+
+export async function readDashboard(db: TendersDb, requester: Requester, now: Date): Promise<DashboardView> {
+  const today = brasiliaDate(now);
+  const [market, trackings, funnel, deadlineLoad, matches, lastUpdate] = await Promise.all([
+    readMarket(db, now),
+    readTrackings(db, requester.accountId),
+    readFunnel(db, requester.accountId),
+    readDeadlineLoad(db, requester.accountId, today),
     summarizeOpenMatches(db, requester.accountId, requester.userId),
-    searchNotices(db, requester, {
-      criteria: EMPTY_CRITERIA,
-      publishedFrom: null,
-      publishedTo: null,
-      closingFrom: null,
-      closingTo: null,
-      openOnly: true,
-      trackingStatuses: [...ACTIVE_TRACKING],
-      hideDiscarded: true,
-      favoritesOnly: false,
-      numberGroups: [],
-      purchaseYear: null,
-      sort: 'closingAsc',
-      page: 1,
-      perPage: CLOSING_SOON_LIMIT,
-    }),
-    searchNotices(db, requester, {
-      criteria: EMPTY_CRITERIA,
-      publishedFrom: null,
-      publishedTo: null,
-      closingFrom: null,
-      closingTo: null,
-      openOnly: true,
-      trackingStatuses: [],
-      hideDiscarded: true,
-      favoritesOnly: true,
-      numberGroups: [],
-      purchaseYear: null,
-      sort: 'closingAsc',
-      page: 1,
-      perPage: FAVORITES_LIMIT,
-    }),
-    listSavedSearches(db, requester),
-    listContractSavedSearches(db, requester),
-    listNotifications(db, requester, { unreadOnly: true, type: null, page: 1, perPage: RECENT_NOTIFICATIONS_LIMIT }),
-    countUnreadChanges(db, requester),
-    hasAnyFavorite(db, requester),
     readLastDataUpdate(db),
   ]);
 
-  const newBySearch = new Map(matches.newBySearch.map((item) => [item.searchId, item]));
-
+  const dailyTotals = market.publications.daily.map((point) => sum(Object.values(point.byModality)));
   return {
     cards: {
+      publishedYesterday: dailyTotals[DAILY_DAYS - 1] ?? 0,
+      published7Days: sum(dailyTotals.slice(-WEEK_DAYS)),
+      published30Days: sum(dailyTotals),
+      openNow: market.open.total,
       newToday: matches.newToday,
-      closingIn7Days: trackings.closingIn7Days,
-      analyzing: trackings.analyzing,
-      participating: trackings.participating,
-      unreadChanges,
+      analyzing: sum(trackings.map((item) => item.analyzing)),
+      participating: sum(trackings.map((item) => item.participating)),
+      closingIn7Days: sum(trackings.map((item) => item.closingIn7Days)),
+      participated: sum(trackings.map((item) => item.participated)),
     },
-    pipeline: { estimatedValue: trackings.estimatedValue, noticesWithoutValue: trackings.noticesWithoutValue },
-    funnel: {
-      analyzing: trackings.analyzing,
-      participating: trackings.participating,
-      discarded: trackings.discarded,
-      enteredLast7Days: recentEntries.last7Days,
-      enteredLast30Days: recentEntries.last30Days,
-    },
-    closingSoon: closingSoon.items,
+    modalities: buildModalityCards(market, trackings),
+    publications: market.publications,
+    funnel,
+    deadlineLoad,
     openByState: matches.openByState,
-    savedSearches: savedSearches.map(({ id, name, active, openCount }) => ({
-      id,
-      name,
-      active,
-      openCount,
-      newToday: newBySearch.get(id)?.newToday ?? 0,
-      newLast7Days: newBySearch.get(id)?.newLast7Days ?? 0,
-      newLast30Days: newBySearch.get(id)?.newLast30Days ?? 0,
-    })),
-    contractSavedSearches: contractSavedSearches.map(({ id, name, active, activeCount, countedAt }) => ({
-      id,
-      name,
-      active,
-      activeCount,
-      countedAt,
-    })),
-    favorites: favorites.items,
-    notifications: { unreadCount: unreadNotifications.total, recent: unreadNotifications.items },
-    setup: {
-      hasSavedSearch: savedSearches.length > 0 || contractSavedSearches.length > 0,
-      hasTracking: trackings.total > 0,
-      hasFavorite,
-      notificationsEnabled: [...savedSearches, ...contractSavedSearches].some((search) => search.active && search.notify),
-    },
+    openBySphere: market.open.bySphere,
+    topAgencies: market.topAgencies,
     lastUpdateAt: lastUpdate.lastUpdateAt,
     lastRunFailed: lastUpdate.lastRunFailed,
   };

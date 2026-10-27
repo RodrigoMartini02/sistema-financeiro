@@ -1,5 +1,5 @@
 import { RequestInputError } from '../../../utils/requestInput';
-import type { ContractSort, NoticeSort, SearchTermsMode, TenderNotificationType, TrackingFilter } from '../domains';
+import type { ContractSort, NoticeSort, SearchTermsMode, TrackingFilter } from '../domains';
 import type { ContractSavedSearchInput } from '../services/contractSavedSearches';
 import type { ContractCriteria, ContractSearchFilters } from '../services/contractSearch';
 import { numberGroupsOf, type NoticeCriteria, type NoticeSearchFilters } from '../services/noticeSearch';
@@ -241,18 +241,5 @@ export function readContractSavedSearchInput(body: RequestValues): ContractSaved
     name: String(body['name'] ?? '').trim(),
     ...(typeof body['notify'] === 'boolean' ? { notify: body['notify'] } : {}),
     ...(typeof body['active'] === 'boolean' ? { active: body['active'] } : {}),
-  };
-}
-
-export function readNotificationFilters(query: RequestValues): {
-  unreadOnly: boolean;
-  type: TenderNotificationType | null;
-  page: number;
-  perPage: number;
-} {
-  return {
-    unreadOnly: readBoolean(query['unreadOnly'], false),
-    type: typeof query['type'] === 'string' && query['type'] !== '' ? (query['type'] as TenderNotificationType) : null,
-    ...readPagination(query),
   };
 }

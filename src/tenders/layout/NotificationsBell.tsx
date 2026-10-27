@@ -2,7 +2,6 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { Z_SYSTEM_OVERLAY } from '../../ui/zIndex';
 import { LoadError } from '../components/LoadStates';
 import { useMarkAllNotificationsRead, useOpenNotification } from '../hooks/useNotificationActions';
@@ -12,15 +11,14 @@ import type { TendersApiError } from '../services/tendersApiError';
 import type { Paginated, TenderNotification, TenderNotificationType } from '../types';
 import { formatIsoDateTime } from '../utils/dates';
 import { NOTIFICATION_TYPE_LABELS } from '../utils/labels';
-import { NOTIFICATION_PANEL_FILTERS, notificationsQuery } from '../utils/notifications';
+import { NOTIFICATION_PANEL_QUERY } from '../utils/notifications';
 
 // Sino da barra superior (escopo, seção 9.4): painel lateral à direita com as
 // 10 mais recentes, no visual do painel de notificações do app de finanças
-// (AppShell). O clique marca como lida e abre o edital ou o contrato; no rodapé, "Marcar
-// todas como lidas" e "Ver todas". O painel vai para o body: a barra superior
+// (AppShell). O clique marca como lida e abre o edital ou o contrato; no rodapé,
+// "Marcar todas como lidas". O painel vai para o body: a barra superior
 // tem desfoque, que prenderia o `fixed` dentro dela.
 
-const PANEL_QUERY = notificationsQuery(NOTIFICATION_PANEL_FILTERS);
 const FOCUSABLE = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
 const AMBER_CIRCLE = 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-900';
@@ -81,7 +79,7 @@ export function NotificationsBell({ unreadCount, buttonClassName }: Notification
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
-  // Abrir uma notificação ou "Ver todas" navega: o foco fica na página nova.
+  // Abrir uma notificação navega: o foco fica na página nova.
   const close = useCallback(() => setOpen(false), []);
   // Esc, X e clique fora: o foco volta para o sino.
   const dismiss = useCallback(() => {
@@ -91,8 +89,8 @@ export function NotificationsBell({ unreadCount, buttonClassName }: Notification
   const openNotification = useOpenNotification(close);
   const markAll = useMarkAllNotificationsRead();
   const list = useQuery<Paginated<TenderNotification>, TendersApiError>({
-    queryKey: tendersQueryKeys.notificationList(PANEL_QUERY),
-    queryFn: () => fetchNotifications(PANEL_QUERY),
+    queryKey: tendersQueryKeys.notificationList(NOTIFICATION_PANEL_QUERY),
+    queryFn: () => fetchNotifications(NOTIFICATION_PANEL_QUERY),
     enabled: open,
   });
 
@@ -221,7 +219,7 @@ export function NotificationsBell({ unreadCount, buttonClassName }: Notification
                   {markAll.error.message}
                 </p>
               )}
-              <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 dark:border-slate-800">
+              <div className="flex items-center border-t border-slate-100 px-5 py-3 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => markAll.mutate()}
@@ -230,9 +228,6 @@ export function NotificationsBell({ unreadCount, buttonClassName }: Notification
                 >
                   Marcar todas como lidas
                 </button>
-                <Link to="/notificacoes" onClick={close} className={`${linkClass} text-sm`}>
-                  Ver todas
-                </Link>
               </div>
             </aside>
           </>,

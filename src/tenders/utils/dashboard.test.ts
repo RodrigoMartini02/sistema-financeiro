@@ -1,106 +1,165 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { DashboardView, ModalityCard } from '../types';
 import {
-  buildSetupGuide,
-  closesWithin24Hours,
-  expiringBars,
+  MAX_MODALITY_SERIES,
+  agencyItems,
+  buildPublicationChart,
+  coverageNote,
+  deadlineWeekItems,
+  expiringCategoryItems,
   expiringHint,
-  funnelBars,
-  groupAgenda,
-  pipelineHint,
-  savedSearchHealth,
+  expiringWindowItems,
+  funnelItems,
+  modalityColorIndex,
+  modalityLink,
+  modalitySparkline,
+  sphereItems,
+  stateItems,
 } from './dashboard';
-import { formatCompactMoney } from './money';
 
-const TODAY = '2026-10-26';
+const card = (id: number, name: string): ModalityCard => ({
+  id,
+  name,
+  published30Days: 0,
+  open: 0,
+  analyzing: 0,
+  participating: 0,
+  participated: 0,
+  daily: [],
+});
 
-const at = (day: string, time = '10:00:00') => ({ proposalClosesAt: `${day}T${time}-03:00` });
+function view(overrides: Partial<Pick<DashboardView['publications'], 'daily' | 'monthly' | 'coverageSince'>> = {}, modalities = [card(8, 'Dispensa'), card(6, 'Pregão – Eletrônico')]) {
+  return {
+    modalities,
+    publications: {
+      daily: [
+        { day: '2026-10-24', byModality: { '6': 3, '8': 1 } },
+        { day: '2026-10-25', byModality: { '6': 5 } },
+      ],
+      monthly: [
+        { month: '2026-09', partial: false, byModality: { '8': 4 } },
+        { month: '2026-10', partial: true, byModality: { '6': 8, '8': 1 } },
+      ],
+      coverageSince: null,
+      ...overrides,
+    },
+  };
+}
 
-test('agenda: agrupa por dia do prazo, na ordem recebida, e só mostra os grupos com itens', () => {
-  const notices = [
-    { id: 1, ...at('2026-10-26', '17:00:00') },
-    { id: 2, ...at('2026-10-26', '18:00:00') },
-    { id: 3, ...at('2026-10-27') },
-    { id: 4, ...at('2026-10-29') },
-    { id: 5, ...at('2026-11-02') },
-    { id: 6, ...at('2026-11-03') },
-    { id: 7, proposalClosesAt: null },
-  ];
-  const groups = groupAgenda(notices, TODAY);
+test('cores das modalidades: seguem a modalidade e não a posição; as 4 da coleta ficam nas 4 primeiras cores', () => {
+  assert.deepEqual([6, 8, 4, 7].map(modalityColorIndex), [0, 1, 2, 3]);
+  assert.equal(modalityColorIndex(13) > modalityColorIndex(1), true);
+  assert.equal(modalityColorIndex(99), 13, 'fora da lista fica depois de todas');
+});
+
+test('publicações por dia: séries só das modalidades com dado, na ordem da cor; barras com rótulo, título e total', () => {
+  const chart = buildPublicationChart(view(), 'daily');
   assert.deepEqual(
-    groups.map((group) => [group.key, group.label, group.items.map((item) => item.id)]),
+    chart.series,
     [
-      ['today', 'Hoje', [1, 2]],
-      ['tomorrow', 'Amanhã', [3]],
-      ['week', 'Esta semana', [4, 5]],
-      ['later', 'Depois', [6, 7]],
+      { key: '6', label: 'Pregão – Eletrônico', colorIndex: 0 },
+      { key: '8', label: 'Dispensa', colorIndex: 1 },
     ],
-    'hoje + 7 dias ainda é "esta semana"; sem prazo vai para "depois"',
+    'a ordem é a da cor (Pregão Eletrônico antes de Dispensa), mesmo vindo depois na lista',
   );
-  assert.deepEqual(groupAgenda([{ id: 9, ...at('2026-11-20') }], TODAY).map((group) => group.key), ['later']);
-  assert.deepEqual(groupAgenda([], TODAY), []);
+  assert.deepEqual(chart.bars[0], { key: '2026-10-24', label: '24/10', title: '24/10/2026', values: { '6': 3, '8': 1 }, total: 4 });
+  assert.deepEqual(chart.bars[1]?.values, { '6': 5, '8': 0 }, 'a modalidade sem edital no dia vem com zero');
+  assert.equal(chart.total, 9);
 });
 
-test('agenda: prazo de dia que já passou no relógio local cai em "hoje", não some', () => {
-  const [group] = groupAgenda([{ id: 1, ...at('2026-10-25') }], TODAY);
-  assert.equal(group?.key, 'today');
+test('publicações por mês: rótulo "mês/ano", e o mês corrente avisa que é até ontem', () => {
+  const chart = buildPublicationChart(view(), 'monthly');
+  assert.deepEqual(chart.bars.map((bar) => [bar.label, bar.title]), [
+    ['set/26', 'setembro de 2026'],
+    ['out/26', 'outubro de 2026 (até ontem)'],
+  ]);
+  assert.equal(chart.total, 13);
 });
 
-test('prazo em até 24 h: só antes de acabar e dentro do dia', () => {
-  const now = new Date('2026-10-26T12:00:00-03:00');
-  assert.equal(closesWithin24Hours('2026-10-26T17:00:00-03:00', now), true);
-  assert.equal(closesWithin24Hours('2026-10-27T12:00:00-03:00', now), true, 'o limite de 24 h entra');
-  assert.equal(closesWithin24Hours('2026-10-27T12:01:00-03:00', now), false);
-  assert.equal(closesWithin24Hours('2026-10-26T11:59:00-03:00', now), false, 'já encerrado');
-  assert.equal(closesWithin24Hours(null, now), false);
-  assert.equal(closesWithin24Hours('lixo', now), false);
+test('publicações: a modalidade sem edital na janela não ganha série, e acima de 8 o resto vira "Outras" em cinza', () => {
+  const none = buildPublicationChart(view({}, [card(6, 'A'), card(13, 'Sem dado')]), 'daily');
+  assert.deepEqual(none.series.map((series) => series.key), ['6']);
+
+  const ids = [6, 8, 4, 7, 1, 2, 3, 5, 9, 10];
+  const modalities = ids.map((id) => card(id, `Modalidade ${id}`));
+  const byModality = Object.fromEntries(ids.map((id) => [String(id), 1]));
+  const many = buildPublicationChart(view({ daily: [{ day: '2026-10-25', byModality }] }, modalities), 'daily');
+  assert.equal(many.series.length, MAX_MODALITY_SERIES + 1);
+  assert.deepEqual(many.series.at(-1), { key: 'other', label: 'Outras', colorIndex: null });
+  assert.equal(many.bars[0]?.values['other'], 2, 'as duas que sobraram (9 e 10) somam em Outras');
+  assert.equal(many.bars[0]?.total, 10, 'o total não muda com o agrupamento');
 });
 
-test('busca salva: pausada, ativa sem novos em 30 dias, ou em dia', () => {
-  assert.equal(savedSearchHealth({ active: false, newLast30Days: 9 }), 'paused');
-  assert.equal(savedSearchHealth({ active: true, newLast30Days: 0 }), 'quiet');
-  assert.equal(savedSearchHealth({ active: true, newLast30Days: 1 }), 'active');
+test('aviso de cobertura: só quando a base é mais nova que o começo da janela', () => {
+  assert.equal(coverageNote(null, '2026-09-26'), null);
+  assert.equal(coverageNote('2026-09-26', '2026-09-26'), null, 'a base já existia no primeiro dia');
+  assert.equal(coverageNote('2026-01-01', '2026-09-26'), null);
+  assert.equal(
+    coverageNote('2026-10-10', '2026-09-26'),
+    'A base começou a receber editais em 10/10/2026; antes disso os números aparecem menores que o real.',
+  );
+  assert.match(buildPublicationChart(view({ coverageSince: '2026-10-25' }), 'daily').note ?? '', /25\/10\/2026/);
+  assert.match(buildPublicationChart(view({ coverageSince: '2026-09-20' }), 'monthly').note ?? '', /20\/09\/2026/, 'no mês, o começo é o dia 1 do primeiro mês');
+  assert.equal(buildPublicationChart(view({ coverageSince: '2026-09-01' }), 'monthly').note, null);
 });
 
-test('guia da conta vazia: só sem busca salva e sem acompanhamento; cada passo marca o que já foi feito', () => {
-  const empty = buildSetupGuide({ hasSavedSearch: false, hasTracking: false, hasFavorite: false, notificationsEnabled: false }, false);
-  assert.equal(empty.show, true);
-  assert.deepEqual(empty.steps.map((step) => [step.key, step.done, step.to]), [
-    ['search', false, '/buscas'],
-    ['favorite', false, '/buscar'],
-    ['notifications', false, '/buscas'],
-    ['contracts', false, '/contratos'],
+test('mini-gráfico do card de modalidade e o link que filtra Editais pela modalidade', () => {
+  const bars = modalitySparkline({ daily: [0, 4] }, ['2026-10-24', '2026-10-25']);
+  assert.deepEqual(bars[1], { key: '2026-10-25', label: '25/10', title: '25/10/2026', values: { published: 4 }, total: 4 });
+  assert.match(modalityLink(6), /^\/buscar\?.*modalidade=6/);
+});
+
+test('funil: % de cada etapa sobre a anterior, sem % quando a anterior é zero', () => {
+  assert.deepEqual(funnelItems({ tracked: 20, participating: 5, participated: 1 }), [
+    { key: 'tracked', label: 'Acompanhados', count: 20 },
+    { key: 'participating', label: 'Vou participar', count: 5, suffix: '25%' },
+    { key: 'participated', label: 'Participei', count: 1, suffix: '20%' },
+  ]);
+  assert.deepEqual(funnelItems({ tracked: 0, participating: 0, participated: 0 }).map((item) => item.suffix), [undefined, undefined, undefined]);
+});
+
+test('carga de prazos: cada semana vai do dia inicial a seis dias depois', () => {
+  assert.deepEqual(deadlineWeekItems([{ startDay: '2026-10-26', count: 3 }, { startDay: '2026-11-02', count: 0 }]), [
+    { key: '2026-10-26', label: '26/10 a 01/11', count: 3 },
+    { key: '2026-11-02', label: '02/11 a 08/11', count: 0 },
+  ]);
+  assert.equal(deadlineWeekItems([{ startDay: '2026-12-28', count: 1 }])[0]?.label, '28/12 a 03/01', 'na virada do ano');
+});
+
+test('esfera, órgãos, UF e contratos que vencem', () => {
+  assert.deepEqual(sphereItems([{ sphere: 'M', count: 9 }, { sphere: 'F', count: 3 }, { sphere: null, count: 1 }, { sphere: 'X', count: 1 }]).map((item) => item.label), [
+    'Municipal',
+    'Federal',
+    'Não informada',
+    'X',
   ]);
 
-  assert.equal(buildSetupGuide({ hasSavedSearch: true, hasTracking: false, hasFavorite: false, notificationsEnabled: true }, false).show, false);
-  assert.equal(buildSetupGuide({ hasSavedSearch: false, hasTracking: true, hasFavorite: false, notificationsEnabled: false }, false).show, false);
-
-  const partial = buildSetupGuide({ hasSavedSearch: false, hasTracking: false, hasFavorite: true, notificationsEnabled: false }, true);
-  assert.deepEqual(partial.steps.map((step) => step.done), [false, true, false, true]);
-});
-
-test('barras do funil e dos contratos que vencem, e os textos dos indicadores', () => {
-  assert.deepEqual(funnelBars({ analyzing: 4, participating: 2, discarded: 7, enteredLast7Days: 1, enteredLast30Days: 3 }), [
-    { key: 'analyzing', label: 'Em análise', count: 4 },
-    { key: 'participating', label: 'Vou participar', count: 2 },
-    { key: 'discarded', label: 'Descartados', count: 7 },
+  const agencies = agencyItems([
+    { cnpj: '22493902000140', name: 'Prefeitura A', count: 7 },
+    { cnpj: '11111111111111', name: null, count: 2 },
   ]);
-  assert.deepEqual(expiringBars({ within30Days: 2, within60Days: 5, within90Days: 9 }), [
-    { key: '30', label: 'Até 30 dias', count: 2 },
-    { key: '60', label: 'Até 60 dias', count: 5 },
-    { key: '90', label: 'Até 90 dias', count: 9 },
+  assert.deepEqual(agencies[0], { key: '22493902000140', label: 'Prefeitura A', count: 7, to: '/cnpj/22493902000140' });
+  assert.equal(agencies[1]?.to, undefined, 'CNPJ inválido não vira link');
+  assert.equal(agencies[1]?.label, '11.111.111/1111-11', 'sem nome, o CNPJ formatado');
+
+  assert.deepEqual(stateItems([{ state: 'SP', count: 4 }]), [{ key: 'SP', label: 'SP', count: 4 }]);
+
+  assert.deepEqual(expiringWindowItems({ within30Days: 2, within60Days: 5, within90Days: 9 }).map((item) => [item.label, item.count]), [
+    ['Até 30 dias', 2],
+    ['Até 60 dias', 5],
+    ['Até 90 dias', 9],
   ]);
-
-  assert.equal(pipelineHint({ estimatedValue: 10, noticesWithoutValue: 0 }), 'Valor estimado dos acompanhados abertos');
-  assert.equal(pipelineHint({ estimatedValue: 10, noticesWithoutValue: 1 }), 'Estimado; 1 edital sem valor');
-  assert.equal(pipelineHint({ estimatedValue: 10, noticesWithoutValue: 1200 }), 'Estimado; 1.200 editais sem valor');
-
+  assert.deepEqual(
+    expiringCategoryItems([
+      { categoryId: 7, categoryName: 'Obras', count: 3 },
+      { categoryId: null, categoryName: null, count: 1 },
+    ]),
+    [
+      { key: '7', label: 'Obras', count: 3 },
+      { key: 'none', label: 'Sem categoria', count: 1 },
+    ],
+  );
   assert.equal(expiringHint({ within60Days: 0, within90Days: 0, sources: { savedSearches: 0, favorites: 0 } }), 'Salve uma busca de contratos para acompanhar');
   assert.equal(expiringHint({ within60Days: 5, within90Days: 1200, sources: { savedSearches: 1, favorites: 0 } }), 'Em 60 dias: 5 · em 90: 1.200');
-});
-
-test('valor compacto dos indicadores', () => {
-  assert.match(formatCompactMoney(1500), /^R\$\s1,5\smil$/);
-  assert.match(formatCompactMoney(12_300_000), /^R\$\s12,3\smi$/);
-  assert.match(formatCompactMoney(0), /^R\$\s0$/);
 });

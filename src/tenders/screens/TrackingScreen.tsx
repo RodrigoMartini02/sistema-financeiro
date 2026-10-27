@@ -62,7 +62,7 @@ export function TrackingScreen() {
       <EmptyState
         icon={ClipboardList}
         title="Nenhum edital acompanhado ainda."
-        description="Em Buscar, marque Analisar, Vou participar ou Descartar num edital para ele aparecer aqui."
+        description="Em Editais, marque Analisar, Vou participar ou Descartar num edital para ele aparecer aqui."
         action={
           <Link to="/buscar" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
             Buscar editais

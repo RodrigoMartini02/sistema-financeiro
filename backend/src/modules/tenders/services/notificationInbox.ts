@@ -29,13 +29,6 @@ export interface NotificationView {
   createdAt: string | null;
 }
 
-export interface NotificationListFilters {
-  unreadOnly: boolean;
-  type: TenderNotificationType | null;
-  page: number;
-  perPage: number;
-}
-
 function ownNotifications(requester: Requester) {
   return and(eq(tenderNotifications.accountId, requester.accountId), eq(tenderNotifications.userId, requester.userId));
 }
@@ -52,21 +45,18 @@ export function notificationTitle(storedTitle: string): string {
 export async function listNotifications(
   db: TendersDb,
   requester: Requester,
-  filters: NotificationListFilters,
+  page: number,
+  perPage: number,
 ): Promise<Paginated<NotificationView>> {
-  const where = and(
-    ownNotifications(requester),
-    filters.unreadOnly ? isNull(tenderNotifications.readAt) : undefined,
-    filters.type ? eq(tenderNotifications.type, filters.type) : undefined,
-  );
+  const where = ownNotifications(requester);
   const [rows, totals] = await Promise.all([
     db
       .select()
       .from(tenderNotifications)
       .where(where)
       .orderBy(desc(tenderNotifications.createdAt), desc(tenderNotifications.id))
-      .limit(filters.perPage)
-      .offset((filters.page - 1) * filters.perPage),
+      .limit(perPage)
+      .offset((page - 1) * perPage),
     db.select({ total: count() }).from(tenderNotifications).where(where),
   ]);
   const total = totals[0]?.total ?? 0;
@@ -83,10 +73,10 @@ export async function listNotifications(
       readAt: toBrasiliaIso(row.readAt),
       createdAt: toBrasiliaIso(row.createdAt),
     })),
-    page: filters.page,
-    perPage: filters.perPage,
+    page,
+    perPage,
     total,
-    totalPages: Math.ceil(total / filters.perPage),
+    totalPages: Math.ceil(total / perPage),
   };
 }
 

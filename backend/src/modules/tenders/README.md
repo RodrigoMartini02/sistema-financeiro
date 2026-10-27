@@ -391,7 +391,7 @@ Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados,
   - as listas de contratos e de editais da página usam as rotas que já existem (`GET /contracts` e `GET /notices`).
 - **Nomes:** o nome de pessoa jurídica sai como está no cadastro público do CNPJ (MEI traz o CPF no nome, "NOME 12345678901"); o documento de pessoa física segue mascarado, e não existe busca por CPF nem página de pessoa física.
 - **Tela** `/cnpj/:cnpj` (`src/tenders/screens/CnpjScreen.tsx`): cabeçalho com o nome, o CNPJ e a nota de cobertura (sem citar a fonte); abas "Como fornecedor" e "Como órgão" (`aba=fornecedor|orgao`, a que tem dado primeiro); indicadores, licitações vencidas por ano, ranking de parceiros (com link para o CNPJ de cada um), os 10 contratos mais recentes e "Ver todos" (a tela Contratos a vencer já filtrada, com os encerrados), os editais abertos do órgão e as licitações vencidas, com rolagem infinita.
-- **Entradas:** as três caixas de busca (barra superior, Buscar e Contratos a vencer) abrem a página quando o texto é um CNPJ válido, com ou sem pontuação; os nomes de órgão e fornecedor viram link quando o CNPJ é válido (cards, tabelas, detalhes, vencedores e rankings); as etiquetas dos filtros "Órgão (CNPJ)" e "Fornecedor (CNPJ)" têm o atalho "Abrir a página do CNPJ".
+- **Entradas:** as três caixas de busca (barra superior, Editais e Contratos a vencer) abrem a página quando o texto é um CNPJ válido, com ou sem pontuação; os nomes de órgão e fornecedor viram link quando o CNPJ é válido (cards, tabelas, detalhes, vencedores e rankings); as etiquetas dos filtros "Órgão (CNPJ)" e "Fornecedor (CNPJ)" têm o atalho "Abrir a página do CNPJ".
 
 ## Contratos a vencer (dados)
 
@@ -616,11 +616,11 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 
 ### Telas (Fase 4)
 
-Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Início, Buscar, Detalhe e Buscas salvas; a Parte 4B traz Acompanhamento, Notificações e Configurações.
+Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Dashboard, Editais, Detalhe e Buscas salvas; a Parte 4B traz Acompanhamento, o sino de notificações e Configurações.
 
-As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Buscar e no formulário de Busca salva (plano `.plans/licitacoes-usabilidade-favoritos.md`).
+As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Editais e no formulário de Busca salva (plano `.plans/licitacoes-usabilidade-favoritos.md`).
 
-**Listas com rolagem infinita** (plano `.plans/licitacoes-lista-infinita.md`): Buscar, Contratos a vencer, Favoritos (as duas abas), Notificações, as licitações vencidas da página do CNPJ e o histórico da Coleta não têm "Por página", Anterior e Próxima, nem alternância Cards/Tabela ou modo Compacta:
+**Listas com rolagem infinita** (plano `.plans/licitacoes-lista-infinita.md`): Editais, Contratos a vencer, Favoritos (as duas abas), as licitações vencidas da página do CNPJ e o histórico da Coleta não têm "Por página", Anterior e Próxima, nem alternância Cards/Tabela ou modo Compacta:
 - a lista começa com 50 itens e pede os próximos 50 (`page` e `perPage=50` da API) quando a pessoa chega perto do fim; o rodapé mostra "Mostrando N de T", "Carregando…", "Fim da lista" ou o erro com "Tentar de novo" (a lista que já chegou fica);
 - é virtualizada (`@tanstack/react-virtual`, virtualizador de janela): só os cards perto da tela ficam desenhados, e o Ctrl+F do navegador só acha o que está desenhado;
 - a página não vai para a URL (`pagina` e `porPagina` de links antigos são ignorados, e o link abre do início); mudar filtro ou ordem recomeça do topo;
@@ -628,7 +628,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 - favoritar e acompanhar mudam o item na lista em cache, sem reler as páginas; só as listas filtradas por favorito ou por acompanhamento são relidas (`services/listCache.ts`);
 - as peças são `hooks/useInfiniteList.ts`, `components/VirtualCardList.tsx`, `utils/infiniteList.ts` e as chaves `infinite` de `services/queryKeys.ts`.
 
-**Cartão padrão** (`components/ListCard.tsx`): editais, contratos, licitações vencidas, buscas salvas, notificações da página e execuções da Coleta usam a mesma casca, e cada tela só preenche os encaixes (selos e ação no topo, título, linhas de contexto, métricas e rodapé de ações). O quadro de Acompanhamento, o sino, o Início, a Equipe e Admin › contas têm formato próprio.
+**Cartão padrão** (`components/ListCard.tsx`): editais, contratos, licitações vencidas, buscas salvas e execuções da Coleta usam a mesma casca, e cada tela só preenche os encaixes (selos e ação no topo, título, linhas de contexto, métricas e rodapé de ações). O quadro de Acompanhamento, o sino, o Dashboard, a Equipe e Admin › contas têm formato próprio.
 
 **Contas habilitadas (`/admin/contas`)** (planos `.plans/licitacoes-acesso-rotina-diaria.md` e `.plans/licitacoes-produto.md`):
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
@@ -637,8 +637,14 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 - tirar a cortesia pede confirmação, porque, sem teste nem período pago, a conta fica vencida (na conta em uso, o admin pode perder o acesso ao módulo);
 - dar cortesia a uma conta com recorrente avisa que a cobrança no cartão continua até o titular cancelar.
 
-- **Início (`/`):** os quatro indicadores (cada um abre a lista correspondente em Buscar), "Encerrando em breve", editais abertos por UF e "Minhas buscas salvas", com o rodapé da última coleta (âmbar se ela falhou).
-- **Buscar (`/buscar`):**
+- **Dashboard (`/`):** só números e gráficos de quantidade, sem valor de edital em R$ e sem listas (`GET /dashboard`, e `GET /dashboard/contracts` à parte, porque lê o armazém e carrega sem atrasar o resto):
+  - oito cards: publicados ontem (com 7 e 30 dias), abertos agora, novos hoje nas minhas buscas, contratos vencendo em 30 dias, em análise, vou participar, encerrando em 7 dias e participei; cada um abre a lista correspondente em Editais ou em Contratos a vencer;
+  - um card por modalidade que a base tem: publicados em 30 dias, mini-gráfico diário, abertos, em análise, vou participar e participei; abre Editais filtrado pela modalidade;
+  - gráficos: publicações por dia (30 dias) ou por mês (12 meses), empilhadas por modalidade (a cor segue a modalidade, em ordem fixa); funil dos últimos 30 dias (acompanhados, vou participar e participei); carga de prazos das próximas 4 semanas; abertos por UF das buscas salvas; esfera dos abertos; órgãos que mais publicam; contratos que vencem em 30, 60 e 90 dias e por categoria, das buscas de contratos ativas e dos favoritos;
+  - **Participei** é derivado: Vou participar com o prazo de proposta já vencido (não há status de participação, e isso não prova que a proposta foi enviada);
+  - as publicações contam os editais divulgados (situação 1) da base, por dia de Brasília e até ontem: a coleta roda 1 vez por dia, às 06:00, então "hoje" é parcial. A base só tem editais com prazo de proposta, nas modalidades coletadas, e a limpeza semanal apaga os encerrados há mais de 12 meses (os acompanhados e os favoritados ficam). Por isso "ano" vira "últimos 12 meses", e o gráfico avisa "a base começou a receber editais em…" quando a coleta é mais nova que a janela;
+  - o rodapé mostra a última coleta (âmbar se ela falhou).
+- **Editais (`/buscar`):**
   - **prazo mínimo:** por padrão, só aparecem os editais que encerram a partir de hoje + 3 dias (contados por dia), porque com menos não dá tempo de preparar a proposta;
     - o filtro "Incluir os que encerram em menos de 3 dias" (`prazoCurto=1`) traz os demais;
     - a barra de resultados avisa quantos ficaram de fora, com "Mostrar";
@@ -650,9 +656,9 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - ações rápidas, coração de favorito e "Salvar esta busca";
   - filtro "Só favoritos" (`favoritos=1`);
   - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle" (número da compra, processo ou número de controle) vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
-- **Detalhe:** abre no painel lateral (`?edital=<id>` em Buscar) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
+- **Detalhe:** abre no painel lateral (`?edital=<id>` em Editais) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
 - **Contratos a vencer (`/contratos`):**
-  - os contratos vigentes, no modelo de Buscar: filtros na URL, chips, "Limpar tudo", cards com rolagem infinita, coração de favorito e "Salvar esta busca";
+  - os contratos vigentes, no modelo de Editais: filtros na URL, chips, "Limpar tudo", cards com rolagem infinita, coração de favorito e "Salvar esta busca";
   - filtros: vencimento de/até, com os atalhos de 30, 90, 180 e 365 dias, "Só favoritos", número e ano do contrato, UF, município, categoria, valor global, publicação, órgão e fornecedor (CNPJ);
   - o card mostra o objeto, o órgão e o local, o fornecedor, o valor global e o vencimento, com "Vence em N dias" (vermelho até 30, âmbar até 90) e os selos "Prorrogado" e "Vencido";
   - detalhe no painel lateral (`?contrato=<chave>`) e na rota `/contratos/:chave` (a barra da chave vai codificada): vigência, aditivos e rescisões, dados do contrato, fornecedor e valores, "Ver documento original" e "Edital de origem";
@@ -677,15 +683,14 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - arrastar e soltar no desktop e "Mover para…" em cada card, para o teclado e o celular; a mudança mantém a observação gravada;
   - só o quadro: não há visão em tabela.
 - **Notificações:**
-  - o sino abre um painel lateral à direita, no visual do painel de notificações do app de finanças, com as 10 mais recentes, "Marcar todas como lidas" e "Ver todas";
-  - página `/notificacoes`, em cards com rolagem infinita, com filtro por tipo e por não lidas;
+  - o sino abre um painel lateral à direita, no visual do painel de notificações do app de finanças, com as 10 mais recentes e "Marcar todas como lidas"; não há página de notificações, o sino é o único lugar;
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).
 - **Configurações (`/configuracoes`):**
   - **Usuários** (só o titular): "Você (titular)", o acesso de cada colaborador ativo da conta e "Adicionar usuário" (login próprio, já com acesso ao módulo), com o preço por usuário;
   - **Assinatura** (só o titular): situação, valor do mês, pagar (Pix, cartão ou recorrente) e cancelar o recorrente;
   - **Coleta** (titular ou admin): última varredura e últimos lembretes de prazo, com a próxima execução prevista pela rotina diária das 06:00, e o histórico em cards com rolagem infinita, com os erros de cada execução. A agenda fica em `COLLECTION_SCHEDULE` (`services/collectionOverview.ts`); a incremental não está agendada.
 
-**Parâmetros da URL de Buscar** (em português; os padrões ficam fora):
+**Parâmetros da URL de Editais** (em português; os padrões ficam fora):
 
 | URL | API | Observação |
 | --- | --- | --- |
@@ -701,7 +706,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 | `busca` | `savedSearchId` | os critérios vêm da busca salva, e os da tela saem |
 | `ordem` | `sort` | `prazo`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; a página (`page`) e o tamanho (`perPage=50`) não vão para a URL: quem pede cada página os acrescenta |
 
-**Parâmetros da URL de Contratos a vencer** (os mesmos nomes de Buscar, quando o filtro é o mesmo):
+**Parâmetros da URL de Contratos a vencer** (os mesmos nomes de Editais, quando o filtro é o mesmo):
 
 | URL | API | Observação |
 | --- | --- | --- |
@@ -712,7 +717,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 | `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa, inclusive os vencidos |
 | `numero`, `ano` | `number`, `contractYear` | número com ao menos um dígito; ano do contrato, de 2000 a 2100 |
 | `busca` | `savedSearchId` | busca salva de contratos: os critérios vêm dela |
-| `ordem` | `sort` | `vencimento`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; sem página na URL, como em Buscar |
+| `ordem` | `sort` | `vencimento`, `recentes`, `maior-valor`, `menor-valor`, `relevancia`; sem página na URL, como em Editais |
 
 **Observação do acompanhamento:** o `PUT /notices/:id/tracking` grava o status e a observação juntos, e a observação ausente vira vazia. Por isso a ação rápida da lista lê o edital antes de gravar e reenvia a observação atual.
 

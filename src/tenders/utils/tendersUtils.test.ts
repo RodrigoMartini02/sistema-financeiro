@@ -32,13 +32,12 @@ test('menu: Configurações só para quem administra o módulo', () => {
   const admin = { manageTeam: false, manageBilling: false, viewCollectionRuns: true, manageEnabledAccounts: true };
   const colaborador = { manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), [
-    'inicio',
+    'dashboard',
     'buscar',
     'contratos',
     'buscas',
     'favoritos',
     'acompanhamento',
-    'notificacoes',
     'configuracoes',
   ]);
   assert.equal(canOpenSettings(admin), true);
@@ -56,9 +55,9 @@ test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', 
 });
 
 test('título da barra pela rota; rota desconhecida não tem título de menu', () => {
-  assert.equal(routeForPath('/')?.title, 'Início');
-  assert.equal(routeForPath('/buscar')?.title, 'Buscar');
-  assert.equal(routeForPath('/buscar/')?.title, 'Buscar');
+  assert.equal(routeForPath('/')?.title, 'Dashboard');
+  assert.equal(routeForPath('/buscar')?.title, 'Editais');
+  assert.equal(routeForPath('/buscar/')?.title, 'Editais');
   assert.equal(routeForPath('/editais/123')?.title, 'Edital');
   assert.equal(routeForPath('/contratos')?.title, 'Contratos a vencer');
   assert.equal(routeForPath('/contratos/45')?.title, 'Contrato');
@@ -67,7 +66,7 @@ test('título da barra pela rota; rota desconhecida não tem título de menu', (
   assert.equal(NOT_FOUND_TITLE, 'Página não encontrada');
 });
 
-test('busca rápida leva para Buscar com o texto; vazio não navega', () => {
+test('busca rápida leva para Editais com o texto; vazio não navega', () => {
   assert.equal(quickSearchPath('  software de gestão  '), '/buscar?q=software%20de%20gest%C3%A3o');
   assert.equal(quickSearchPath('   '), null);
 });

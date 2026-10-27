@@ -32,7 +32,7 @@ export function NoticePlace({ notice }: { notice: Pick<NoticeListItem, 'agencyNa
 
 interface NoticeCardProps {
   notice: NoticeListItem;
-  /** Onde o objeto leva: o painel lateral (Buscar) ou a página do edital. */
+  /** Onde o objeto leva: o painel lateral (Editais) ou a página do edital. */
   detailLink: To;
   detailLinkState?: unknown;
 }

@@ -5,7 +5,6 @@ import {
   CONTRACT_CATEGORIES,
   CONTRACT_TYPES,
   TENDER_MODALITIES,
-  TENDER_NOTIFICATION_TYPES,
   TENDER_SITUATIONS,
   TRACKING_STATUSES,
 } from '../domains';
@@ -28,7 +27,6 @@ export interface DomainLists {
   situations: typeof TENDER_SITUATIONS;
   states: typeof BRAZILIAN_STATES;
   trackingStatuses: typeof TRACKING_STATUSES;
-  notificationTypes: typeof TENDER_NOTIFICATION_TYPES;
   contractCategories: typeof CONTRACT_CATEGORIES;
   contractTypes: typeof CONTRACT_TYPES;
   municipalities: Municipality[];
@@ -61,7 +59,6 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
       situations: TENDER_SITUATIONS,
       states: BRAZILIAN_STATES,
       trackingStatuses: TRACKING_STATUSES,
-      notificationTypes: TENDER_NOTIFICATION_TYPES,
       contractCategories: CONTRACT_CATEGORIES,
       contractTypes: CONTRACT_TYPES,
       municipalities: cached.municipalities,

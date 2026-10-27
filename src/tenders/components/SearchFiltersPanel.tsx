@@ -61,7 +61,7 @@ interface SearchFiltersPanelProps {
 }
 
 /**
- * Filtros de Buscar (escopo, seção 9.4). Escolhas valem na hora; valores e
+ * Filtros de Editais (escopo, seção 9.4). Escolhas valem na hora; valores e
  * datas, ao sair do campo. Com busca salva, os critérios vêm dela e ficam
  * travados aqui.
  */

@@ -10,7 +10,7 @@ import {
 import type { TendersApiError } from '../services/tendersApiError';
 import type { SavedSearch, SavedSearchBody } from '../types';
 
-// Buscas salvas. Depois de mudar: a lista, o painel do Início e os editais
+// Buscas salvas. Depois de mudar: a lista, o Dashboard e os editais
 // (o detalhe mostra as buscas que batem; a busca pela busca salva muda junto).
 
 function useInvalidateSavedSearches() {

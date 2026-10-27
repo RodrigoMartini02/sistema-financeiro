@@ -22,7 +22,7 @@ import { NoticeTrackingTab } from './NoticeTrackingTab';
 import { TrackingStatusPill } from './Pill';
 import { TabPanel, Tabs } from './Tabs';
 
-// Detalhe do edital (escopo, seção 9.4): no painel lateral de Buscar e na
+// Detalhe do edital (escopo, seção 9.4): no painel lateral de Editais e na
 // rota própria /editais/:id.
 
 const TABS = [
@@ -215,7 +215,7 @@ export function NoticeDetailView({ noticeId, inDrawer }: { noticeId: number; inD
           description="Ele pode ter saído da base (editais encerrados há mais de 12 meses ou sem prazo de proposta)."
           action={
             <Link to="/buscar" className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300">
-              Ir para Buscar
+              Ir para Editais
             </Link>
           }
         />

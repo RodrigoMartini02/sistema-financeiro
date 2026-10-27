@@ -46,7 +46,7 @@ async function notify(
 describe('notificações da pessoa (banco local)', { skip: databaseTestsSkipReason }, () => {
   after(closeLocalTestDatabase);
 
-  test('lista, filtros, contagem e marcar: só as da própria pessoa, na conta', async () => {
+  test('lista, contagem e marcar: só as da própria pessoa, na conta', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'notif');
       const other = await createTestAccount(tx, 'notif-outra');
@@ -60,15 +60,11 @@ describe('notificações da pessoa (banco local)', { skip: databaseTestsSkipReas
       const fromColleague = await notify(tx, colleagueRequester, 'NOVO_EDITAL');
       await notify(tx, requesterOf(other), 'NOVO_EDITAL');
 
-      const all = await listNotifications(tx, me, { unreadOnly: false, type: null, page: 1, perPage: 20 });
+      const all = await listNotifications(tx, me, 1, 20);
       assert.equal(all.total, 3);
       assert.ok(all.items.every((item) => item.link.startsWith('/editais/')));
 
-      const unread = await listNotifications(tx, me, { unreadOnly: true, type: null, page: 1, perPage: 20 });
-      assert.equal(unread.total, 2);
-      const deadlines = await listNotifications(tx, me, { unreadOnly: false, type: 'PRAZO_1D', page: 1, perPage: 20 });
-      assert.equal(deadlines.total, 1);
-      const paged = await listNotifications(tx, me, { unreadOnly: false, type: null, page: 2, perPage: 2 });
+      const paged = await listNotifications(tx, me, 2, 2);
       assert.equal(paged.items.length, 1);
       assert.equal(paged.totalPages, 2);
 
