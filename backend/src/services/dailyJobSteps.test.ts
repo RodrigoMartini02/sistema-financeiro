@@ -7,10 +7,10 @@ const WEEKDAY_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
+  'tenders-federal-cycle',
   'tenders-contract-reminders',
   'tenders-winners-daily',
   'tenders-contracts-backfill',
-  'tenders-federal-cycle',
   'tenders-federal-backfill',
   'tenders-winners-backfill',
 ];
@@ -19,11 +19,11 @@ const SUNDAY_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
+  'tenders-federal-cycle',
   'tenders-contract-reminders',
   'tenders-winners-daily',
   'tenders-cleanup',
   'tenders-contracts-backfill',
-  'tenders-federal-cycle',
   'tenders-federal-backfill',
   'tenders-winners-backfill',
 ];
@@ -37,19 +37,22 @@ test('rotina diária: domingo em Brasília acrescenta a limpeza de editais, ante
   assert.deepEqual(dailyJobSteps(new Date('2026-10-11T09:00:00Z')), SUNDAY_STEPS);
 });
 
-test('rotina diária: as cargas vêm por último: contratos, ciclo e carga dos federais e, no fim, os vencedores', () => {
+test('rotina diária: as três cargas vêm depois das atualizações e avisos', () => {
   for (const instant of ['2026-10-07T09:00:00Z', '2026-10-11T09:00:00Z']) {
     const steps = dailyJobSteps(new Date(instant));
-    assert.deepEqual(steps.slice(-4), ['tenders-contracts-backfill', 'tenders-federal-cycle', 'tenders-federal-backfill', 'tenders-winners-backfill']);
+    assert.deepEqual(steps.slice(-3), ['tenders-contracts-backfill', 'tenders-federal-backfill', 'tenders-winners-backfill']);
   }
 });
 
-test('rotina diária: o ciclo dos federais (curto) vem antes da carga deles, e a limpeza dos editais antes de tudo isso', () => {
+test('rotina diária: o ciclo federal precede os avisos de contratos e qualquer carga histórica', () => {
   for (const instant of ['2026-10-07T09:00:00Z', '2026-10-11T09:00:00Z']) {
     const steps = dailyJobSteps(new Date(instant));
     assert.ok(steps.indexOf('tenders-federal-cycle') < steps.indexOf('tenders-federal-backfill'));
+    assert.ok(steps.indexOf('tenders-federal-cycle') < steps.indexOf('tenders-contracts-backfill'));
+    assert.ok(steps.indexOf('tenders-federal-cycle') < steps.indexOf('tenders-contract-reminders'));
+    assert.ok(steps.indexOf('tenders-contracts-daily') < steps.indexOf('tenders-federal-cycle'));
     if (steps.includes('tenders-cleanup')) {
-      assert.ok(steps.indexOf('tenders-cleanup') < steps.indexOf('tenders-federal-cycle'));
+      assert.ok(steps.indexOf('tenders-federal-cycle') < steps.indexOf('tenders-cleanup'));
     }
   }
 });

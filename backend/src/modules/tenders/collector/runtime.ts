@@ -7,6 +7,7 @@ import { loadCollectorConfig } from './config';
 import { createCollectorDatabase } from './database';
 import { createCollectorLogger } from './logger';
 import { PncpClient } from './pncpClient';
+import { CollectorResourceBudget } from './resourceBudget';
 import type { CollectorContext } from './runs';
 
 // Ambiente de uma execução do coletor: configuração (variáveis de ambiente),
@@ -53,12 +54,15 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
     onRetry: (info) => logger.warn('Nova tentativa na consulta de resultados', { ...info }),
   });
   const storage = config.storage ? createR2Storage(config.storage) : null;
+  // A quota pertence ao contêiner, não apenas à pasta de contratos. Outros
+  // temporários da mesma execução também consomem a folga de publicação.
+  const resourceBudget = new CollectorResourceBudget({ directory: tmpdir(), logger });
   if (!storage) {
     logger.warn('R2 desligado: as variáveis TENDERS_ARCHIVE_* e TENDERS_STORAGE_PREFIX não estão definidas');
   }
 
   return {
-    context: { db, pool, pncp, contractsPncp, termsPncp, comprasGov, storage, contractWorkDirectory: CONTRACT_WORK_DIRECTORY, config, logger, now: () => new Date() },
+    context: { db, pool, pncp, contractsPncp, termsPncp, comprasGov, storage, resourceBudget, contractWorkDirectory: CONTRACT_WORK_DIRECTORY, config, logger, now: () => new Date() },
     close: async () => {
       storage?.close();
       await pool.end();

@@ -8,11 +8,11 @@ export const DAILY_JOB_STEPS = [
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
+  'tenders-federal-cycle',
   'tenders-contract-reminders',
   'tenders-winners-daily',
   'tenders-cleanup',
   'tenders-contracts-backfill',
-  'tenders-federal-cycle',
   'tenders-federal-backfill',
   'tenders-winners-backfill',
 ] as const;
@@ -35,12 +35,12 @@ export const FEDERAL_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-federa
 
 /**
  * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
- * varredura de Licitações, os lembretes de prazo, a coleta dos contratos, os
- * avisos de vencimento dos contratos, a coleta diária dos vencedores (curta e
+ * varredura de Licitações, os lembretes de prazo, as atualizações PNCP e federal
+ * dos contratos, os avisos de vencimento e a coleta diária dos vencedores (curta e
  * diária: vai antes das cargas, que passam de 9 h), aos domingos a limpeza dos
  * editais, a carga inicial de contratos (a mais longa: só roda com dias
- * pendentes e com o R2 configurado) e, por último, o ciclo e a carga dos
- * contratos federais e a carga dos vencedores, que se adaptam ao tempo que
+ * pendentes e com o R2 configurado) e, por último, as cargas dos
+ * contratos federais e dos vencedores, que se adaptam ao tempo que
  * sobrar na rotina (planos dos vencedores e dos federais). Os contratos não
  * têm limpeza: os encerrados ficam na base (plano
  * .plans/licitacoes-base-nacional.md).
@@ -51,13 +51,14 @@ export function dailyJobSteps(now: Date): DailyJobStep[] {
     'tenders-sweep',
     'tenders-deadline-reminders',
     'tenders-contracts-daily',
+    'tenders-federal-cycle',
     'tenders-contract-reminders',
     'tenders-winners-daily',
   ];
   if (isSundayInBrasilia(now)) {
     steps.push('tenders-cleanup');
   }
-  steps.push('tenders-contracts-backfill', 'tenders-federal-cycle', 'tenders-federal-backfill', 'tenders-winners-backfill');
+  steps.push('tenders-contracts-backfill', 'tenders-federal-backfill', 'tenders-winners-backfill');
   return steps;
 }
 

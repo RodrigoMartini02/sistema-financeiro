@@ -198,3 +198,72 @@ test('R2 fora do ar: sem cópia continua indisponível; com cópia, a versão em
     });
   });
 });
+
+test('download ultrapassado por várias publicações tenta o manifesto atual sem expor uma versão parcial', async () => {
+  await withTempDirectory(async (root) => {
+    const { storage } = createMemoryStorage();
+    const directory = join(root, 'gravador');
+    const publishVersion = (version: number) => publishWith(storage, directory, version, async (writer) => {
+      await writer.upsert([sampleContract(1, { payloadHash: `hash-v${version}`, contractObject: `Objeto v${version}` })]);
+    });
+    await publishVersion(1);
+    let advanceWhileDownloading = false;
+    const readerStorage: ObjectStorage = {
+      ...storage,
+      async downloadToFile(key, path) {
+        if (advanceWhileDownloading) {
+          advanceWhileDownloading = false;
+          await publishVersion(3);
+          await publishVersion(4);
+        }
+        await storage.downloadToFile(key, path);
+      },
+    };
+    await withReader(readerStorage, join(root, 'leitor'), async (reader) => {
+      assert.equal(await reader.refresh(), true);
+      await publishVersion(2);
+      advanceWhileDownloading = true;
+      assert.equal(await reader.refresh(), true);
+      assert.equal(reader.status().revision, '4.1');
+      assert.equal(await count(reader, 'contratos'), 1);
+      assert.equal(await reader.query(async (connection) => (await connection.runAndReadAll('SELECT objeto FROM contratos')).getRows()[0]?.[0]), 'Objeto v4');
+    });
+  });
+});
+
+test('consulta atravessa três versões sem perder arquivos; limpeza pendente ocorre sem uma nova publicação', async () => {
+  await withTempDirectory(async (root) => {
+    const { storage, objects } = createMemoryStorage();
+    const directory = join(root, 'gravador');
+    const readerDirectory = join(root, 'leitor');
+    const publishVersion = (version: number) => publishWith(storage, directory, version, async (writer) => {
+      await writer.upsert([sampleContract(1, { payloadHash: `hash-v${version}` })]);
+    });
+    await publishVersion(1);
+    const first = parseManifest(objects.get(MANIFEST_KEY) ?? new Uint8Array()).datasets.contratos[0];
+    assert.ok(first);
+    await withReader(storage, readerDirectory, async (reader) => {
+      await reader.refresh();
+      let release = () => {};
+      let started = () => {};
+      const running = new Promise<void>((resolve) => { started = resolve; });
+      const query = reader.query(async () => {
+        started();
+        await new Promise<void>((resolve) => { release = resolve; });
+      });
+      await running;
+      try {
+        await publishVersion(2);
+        await reader.refresh();
+        await publishVersion(3);
+        await reader.refresh();
+        assert.equal(await exists(localPath(readerDirectory, first.path)), true);
+      } finally {
+        release();
+        await query;
+      }
+      assert.equal(await reader.refresh(), false, 'a versão não mudou, mas a limpeza pode prosseguir');
+      assert.equal(await exists(localPath(readerDirectory, first.path)), false);
+    }, { queryTimeoutMs: 30_000 });
+  });
+});

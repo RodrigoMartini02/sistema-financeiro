@@ -1,8 +1,10 @@
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
 import type { ContractTermSummary, TenderContractRow } from '../collector/contractMapping';
 import type { CollectorLogger } from '../collector/logger';
+import { addCalendarDays, brasiliaDate } from '../collector/dates';
+import type { CollectorResourceBudget } from '../collector/resourceBudget';
 import type { ObjectStorage } from '../objectStorage';
 import { openDuckDb, parquetList, sqlLiteral, toDuckDbPath } from './duckdb';
 import {
@@ -62,6 +64,7 @@ export interface ContractStoreWriterOptions {
   threads?: number;
   /** Linhas por arquivo; sem ele, MAX_ROWS_PER_FILE (os testes usam limites pequenos). */
   maxRowsPerFile?: Partial<Record<StoreDataset, number>>;
+  resourceBudget?: CollectorResourceBudget;
 }
 
 /** O que a coleta precisa saber de um contrato já gravado. */
@@ -176,40 +179,101 @@ const PENDING_TERMS_CONDITION = `data_atualizacao_global IS NOT NULL
 export class ContractStoreWriter {
   private publishCount = 0;
   private sequence = 0;
+  private workReady = true;
+  private closed = false;
+  private publishing = false;
+  private readonly openedOn: string;
 
   private constructor(
     private readonly options: ContractStoreWriterOptions,
-    private readonly instance: DuckDBInstance,
-    private readonly connection: DuckDBConnection,
+    private instance: DuckDBInstance,
+    private connection: DuckDBConnection,
     private manifest: StoreManifest | null,
-  ) {}
+  ) {
+    this.openedOn = brasiliaDate(options.now());
+  }
+
+  /** Uma publicação pode estar confirmada mesmo se a manutenção local impedir outro bloco. */
+  get canContinue(): boolean {
+    return this.workReady && !this.closed;
+  }
+
+  private assertWorkReady(): void {
+    if (!this.canContinue) {
+      throw new Error('O armazém foi publicado, mas a cópia de trabalho precisa ser reaberta antes de continuar');
+    }
+  }
+
+  private async prepareWork(phase: string, additionalBytes = 0): Promise<void> {
+    if (!this.options.resourceBudget) {
+      return;
+    }
+    const reserve = this.publishing ? 0 : this.options.resourceBudget.publicationReserveBytes;
+    const sample = await this.options.resourceBudget.check(phase, additionalBytes, reserve);
+    // A medição pode abranger outros temporários do contêiner; não somá-los
+    // ao teto deste DuckDB. Usar só a folga restante é conservador também
+    // quando uma consulta anterior ainda mantém um arquivo de spill aberto.
+    const available = this.options.resourceBudget.limitBytes - sample.totalBytes - additionalBytes - reserve;
+    await this.connection.run(`SET max_temp_directory_size = ${sqlLiteral(`${Math.max(1, Math.floor(available))}B`)}`);
+  }
+
+  private static async clearWorkFiles(directory: string): Promise<void> {
+    const root = resolve(directory);
+    const temporary = resolve(root, 'tmp');
+    if (dirname(temporary) !== root) {
+      throw new Error('Diretório temporário do gravador fora da pasta de trabalho');
+    }
+    const databasePath = join(root, WORK_DATABASE);
+    await rm(databasePath, { force: true });
+    await rm(`${databasePath}.wal`, { force: true });
+    await rm(temporary, { recursive: true, force: true });
+  }
+
+  private static async openWorkDatabase(options: ContractStoreWriterOptions) {
+    const opened = await openDuckDb({
+      path: join(options.directory, WORK_DATABASE),
+      memoryLimitMb: options.memoryLimitMb ?? DEFAULT_MEMORY_LIMIT_MB,
+      threads: options.threads ?? DEFAULT_THREADS,
+      tempDirectory: join(options.directory, 'tmp'),
+      maxTempDirectoryBytes: await options.resourceBudget?.availableTempBytes(),
+    });
+    try {
+      await opened.connection.run(`CREATE TABLE mudancas (${columnDefinitions('contratos')}, PRIMARY KEY (numero_controle_pncp))`);
+      await opened.connection.run(`CREATE TABLE vazio (${columnDefinitions('contratos')})`);
+      return opened;
+    } catch (error) {
+      opened.connection.closeSync();
+      opened.instance.closeSync();
+      throw error;
+    }
+  }
 
   static async open(options: ContractStoreWriterOptions): Promise<ContractStoreWriter> {
     await mkdir(options.directory, { recursive: true });
     const manifest = await readManifest(options.storage);
-    // Só os conjuntos de contratos: os vencedores são de outro gravador e não passam por aqui.
-    const downloaded = await downloadManifestFiles(options.storage, manifest, options.directory, CONTRACT_DATASETS);
+    await ContractStoreWriter.clearWorkFiles(options.directory);
+    // Sem conexões locais abertas e sob a trava do coletor: sobras de uma
+    // execução interrompida não podem bloquear a admissão da cópia válida.
     await removeUnusedLocalFiles(options.directory, [manifest]);
+    // Só os conjuntos de contratos: os vencedores são de outro gravador e não passam por aqui.
+    const downloaded = await downloadManifestFiles(options.storage, manifest, options.directory, CONTRACT_DATASETS, options.resourceBudget);
     options.logger.info('Cópia de trabalho do armazém de contratos pronta', {
       revision: manifest?.revision ?? null,
       files: manifestFiles(manifest, CONTRACT_DATASETS).length,
       downloaded,
     });
 
-    const databasePath = join(options.directory, WORK_DATABASE);
-    await rm(databasePath, { force: true });
-    await rm(`${databasePath}.wal`, { force: true });
-    const { instance, connection } = await openDuckDb({
-      path: databasePath,
-      memoryLimitMb: options.memoryLimitMb ?? DEFAULT_MEMORY_LIMIT_MB,
-      threads: options.threads ?? DEFAULT_THREADS,
-      tempDirectory: join(options.directory, 'tmp'),
-    });
-    await connection.run(`CREATE TABLE mudancas (${columnDefinitions('contratos')}, PRIMARY KEY (numero_controle_pncp))`);
-    await connection.run(`CREATE TABLE vazio (${columnDefinitions('contratos')})`);
+    const { instance, connection } = await ContractStoreWriter.openWorkDatabase(options);
     const writer = new ContractStoreWriter(options, instance, connection, manifest);
-    await writer.refreshCurrentView();
-    return writer;
+    try {
+      await writer.refreshCurrentView();
+      return writer;
+    } catch (error) {
+      await writer.close().catch((cleanupError: unknown) => {
+        options.logger.warn('Falha ao fechar cópia de trabalho que não pôde ser aberta', { error: cleanupError });
+      });
+      throw error;
+    }
   }
 
   /** O manifesto em uso (o publicado por último). */
@@ -219,12 +283,14 @@ export class ContractStoreWriter {
 
   /** Contratos novos ou mudados ainda não publicados. */
   async pendingChanges(): Promise<number> {
+    this.assertWorkReady();
     const result = await this.connection.runAndReadAll('SELECT count(*)::INTEGER FROM mudancas');
     return Number(result.getRows()[0]?.[0] ?? 0);
   }
 
   /** Estado já gravado dos contratos, numa consulta só: das mudanças da execução ou dos arquivos. */
   async readStates(controlNumbers: readonly string[]): Promise<Map<string, ContractStoreState>> {
+    this.assertWorkReady();
     const unique = [...new Set(controlNumbers)];
     if (unique.length === 0) {
       return new Map();
@@ -259,6 +325,7 @@ export class ContractStoreWriter {
    * já está publicado ou gravado na execução, e só contratos do PNCP (a chave do federal começa por `comprasgov-`).
    */
   async findPncpTwins(rows: readonly TenderContractRow[]): Promise<Set<string>> {
+    this.assertWorkReady();
     const twins = new Set<string>();
     const candidates = rows
       .map((row) => ({ row, number: twinNumber(row.contractNumber) }))
@@ -299,6 +366,7 @@ export class ContractStoreWriter {
 
   /** Total de contratos com termos pendentes (para os detalhes da reconsulta). */
   async countPendingTerms(): Promise<number> {
+    this.assertWorkReady();
     const result = await this.connection.runAndReadAll(
       `SELECT count(*)::INTEGER FROM ${this.currentRows(PENDING_TERMS_COLUMNS)} WHERE ${PENDING_TERMS_CONDITION}`,
     );
@@ -311,6 +379,7 @@ export class ContractStoreWriter {
    * voltam no dia seguinte).
    */
   async readPendingTerms(limit: number, excludedControlNumbers: readonly string[]): Promise<PendingTermsContract[]> {
+    this.assertWorkReady();
     const notExcluded =
       excludedControlNumbers.length > 0 ? `AND numero_controle_pncp NOT IN (${excludedControlNumbers.map(sqlLiteral).join(', ')})` : '';
     const result = await this.connection.runAndReadAll(`
@@ -337,19 +406,16 @@ export class ContractStoreWriter {
    * São no máximo os contratos de uma reconsulta.
    */
   async saveCheckedTerms(checked: readonly CheckedContractTerms[]): Promise<void> {
+    this.assertWorkReady();
     if (checked.length === 0) {
       return;
     }
     const path = join(this.options.directory, 'termos.ndjson');
-    await writeFile(
-      path,
-      checked
-        .map((item) =>
-          JSON.stringify({ numero_controle_pncp: item.pncpControlNumber, vencimento: item.expiresOn, aditivos: JSON.stringify(item.amendments) }),
-        )
-        .join('\n'),
-      'utf8',
-    );
+    const body = checked.map((item) =>
+      JSON.stringify({ numero_controle_pncp: item.pncpControlNumber, vencimento: item.expiresOn, aditivos: JSON.stringify(item.amendments) }),
+    ).join('\n');
+    await this.prepareWork('contract-terms-json', Buffer.byteLength(body, 'utf8') * 3);
+    await writeFile(path, body, 'utf8');
     const replaced: Record<string, string> = {
       vencimento: 't.vencimento',
       aditivos: 't.aditivos',
@@ -359,6 +425,7 @@ export class ContractStoreWriter {
       .map((spec) => `${replaced[spec.column] ?? `b.${spec.column}`} AS ${spec.column}`)
       .join(', ');
     try {
+      await this.prepareWork('contract-terms-apply', Buffer.byteLength(body, 'utf8') * 2);
       // Tabela temporária antes de gravar: a leitura e a gravação não se misturam na mesma tabela.
       await this.connection.run(`
         CREATE OR REPLACE TEMP TABLE termos_atualizados AS
@@ -381,6 +448,7 @@ export class ContractStoreWriter {
    * regravar arquivos sem necessidade). Os campos de busca vêm do Postgres.
    */
   async upsert(rows: readonly TenderContractRow[]): Promise<ContractUpsertResult> {
+    this.assertWorkReady();
     // O mesmo contrato duas vezes na página: fica o último.
     const unique = [...new Map(rows.map((row) => [row.pncpControlNumber, row])).values()];
     if (unique.length === 0) {
@@ -420,21 +488,44 @@ export class ContractStoreWriter {
 
   /**
    * Publica as mudanças: as partes afetadas de contratos e fornecedor, os
-   * vigentes inteiros, os arquivos novos e o manifesto. Sem mudança, não
-   * publica nada (null). Depois, as mudanças ficam zeradas e a cópia de
-   * trabalho passa a ser a versão nova (a carga publica mais de uma vez).
+   * vigentes afetados, os arquivos novos e o manifesto. Mudança de dia também
+   * publica, mesmo sem contratos alterados. O banco de trabalho é renovado
+   * depois do manifesto, evitando acumular espaço entre publicações.
    */
   async publish(): Promise<PublishSummary | null> {
+    this.assertWorkReady();
+    this.publishing = true;
+    try {
+      if (this.options.resourceBudget) {
+        return await this.options.resourceBudget.measure('contract-publication', () => this.publishChanges());
+      }
+      return await this.publishChanges();
+    } finally {
+      this.publishing = false;
+    }
+  }
+
+  private publicationDay(): string {
+    // `today` também é usado nos testes e nos reparos. Avança apenas os dias
+    // de calendário decorridos desde a abertura, sem substituir essa referência.
+    const elapsedDays = Math.round((Date.parse(brasiliaDate(this.options.now())) - Date.parse(this.openedOn)) / 86_400_000);
+    return addCalendarDays(this.options.today, elapsedDays);
+  }
+
+  private async publishChanges(): Promise<PublishSummary | null> {
     const changedContracts = await this.pendingChanges();
-    if (changedContracts === 0) {
+    const day = this.publicationDay();
+    if (changedContracts === 0 && (!this.manifest || this.manifest.today === day)) {
       return null;
     }
+    await this.options.resourceBudget?.check('contract-publication');
     this.publishCount += 1;
     this.sequence = 0;
     const revision = `${this.options.version}.${this.publishCount}`;
     const written: WrittenFile[] = [];
 
     // Onde os contratos mudados estavam antes: a parte antiga também é regravada sem eles.
+    await this.prepareWork('contract-old-keys');
     await this.connection.run(`
       CREATE OR REPLACE TEMP TABLE antigos AS
       SELECT ${SLICE_PARTITION} AS particao, ${PART_KEY.contratos} AS chave_contratos, ${PART_KEY.fornecedor} AS chave_fornecedor
@@ -443,16 +534,17 @@ export class ContractStoreWriter {
 
     const contratos = await this.rewriteSlicedDataset('contratos', revision, written);
     const fornecedor = await this.rewriteSlicedDataset('fornecedor', revision, written);
-    const { vigentes, totals } = await this.rebuildActiveDataset(revision, written);
+    const { vigentes, totals } = await this.rewriteActiveDataset(revision, written, day);
 
     for (const file of written) {
+      await this.options.resourceBudget?.check('contract-upload');
       await this.options.storage.putObject(file.path, await readFile(file.localPath), PARQUET_CONTENT_TYPE);
     }
     const next: StoreManifest = {
       format: 1,
       revision,
       publishedAt: this.options.now().toISOString(),
-      today: this.options.today,
+      today: day,
       totals,
       // Os vencedores seguem como estavam: sem esta linha, a publicação de contratos os apagaria do manifesto e,
       // na limpeza, do bucket (plano .plans/licitacoes-vencedores.md).
@@ -462,9 +554,32 @@ export class ContractStoreWriter {
 
     const previous = this.manifest;
     this.manifest = next;
-    await this.connection.run('DELETE FROM mudancas');
-    await this.refreshCurrentView();
-    const filesDeleted = await this.removeUnusedRemoteFiles([previous, next]);
+    // O manifesto é o ponto de confirmação. Falhas posteriores não tornam
+    // a publicação inexistente e não podem impedir a confirmação do seu bloco.
+    try {
+      this.workReady = false;
+      this.connection.closeSync();
+      this.instance.closeSync();
+      await ContractStoreWriter.clearWorkFiles(this.options.directory);
+      const opened = await ContractStoreWriter.openWorkDatabase(this.options);
+      this.instance = opened.instance;
+      this.connection = opened.connection;
+      this.workReady = true;
+      await this.refreshCurrentView();
+    } catch (error) {
+      if (this.workReady) {
+        this.workReady = false;
+        this.connection.closeSync();
+        this.instance.closeSync();
+      }
+      this.options.logger.warn('Armazém publicado; a cópia de trabalho não pôde ser reaberta', { revision, error });
+    }
+    let filesDeleted = 0;
+    try {
+      filesDeleted = await this.removeUnusedRemoteFiles([previous, next]);
+    } catch (error) {
+      this.options.logger.warn('Armazém publicado; limpeza remota adiada', { revision, error });
+    }
     await this.removeUnusedLocalCopies(next);
 
     const summary: PublishSummary = {
@@ -480,11 +595,16 @@ export class ContractStoreWriter {
   }
 
   async close(): Promise<void> {
-    this.connection.closeSync();
-    this.instance.closeSync();
-    const databasePath = join(this.options.directory, WORK_DATABASE);
-    await rm(databasePath, { force: true });
-    await rm(`${databasePath}.wal`, { force: true });
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+    if (this.workReady) {
+      this.workReady = false;
+      this.connection.closeSync();
+      this.instance.closeSync();
+    }
+    await ContractStoreWriter.clearWorkFiles(this.options.directory);
   }
 
   private async refreshCurrentView(): Promise<void> {
@@ -495,8 +615,12 @@ export class ContractStoreWriter {
 
   private async insertChanges(records: Record<string, unknown>[]): Promise<void> {
     const path = join(this.options.directory, 'pagina.ndjson');
-    await writeFile(path, records.map((record) => JSON.stringify(record)).join('\n'), 'utf8');
+    const body = records.map((record) => JSON.stringify(record)).join('\n');
+    const bytes = Buffer.byteLength(body, 'utf8');
+    await this.prepareWork('contract-page-json', bytes * 3);
+    await writeFile(path, body, 'utf8');
     try {
+      await this.prepareWork('contract-page-apply', bytes * 2);
       await this.connection.run(`
         INSERT OR REPLACE INTO mudancas
         SELECT ${columnList('contratos')}
@@ -519,6 +643,8 @@ export class ContractStoreWriter {
     const key = storeFileKey(dataset, partition, revision, this.sequence);
     const path = localPath(this.options.directory, key);
     await mkdir(dirname(path), { recursive: true });
+    const largestFile = Math.max(0, ...manifestFiles(this.manifest, [dataset]).map((file) => file.bytes));
+    await this.prepareWork('contract-parquet', Math.max(8_000_000, largestFile * 2));
     await this.connection.run(`COPY (${selectSql} ORDER BY ${ROW_ORDER[dataset]}) TO ${sqlLiteral(toDuckDbPath(path))} (${parquetOptions})`);
     const counted = await this.connection.runAndReadAll(`SELECT count(*)::INTEGER FROM read_parquet(${sqlLiteral(toDuckDbPath(path))})`);
     const file: WrittenFile = {
@@ -534,7 +660,7 @@ export class ContractStoreWriter {
   }
 
   /** As faixas atuais do conjunto, por ano, em ordem. */
-  private sliceRanges(dataset: SlicedDataset): Map<string, SliceRange[]> {
+  private sliceRanges(dataset: StoreDataset): Map<string, SliceRange[]> {
     const byPartition = new Map<string, ManifestFile[]>();
     for (const file of datasetFiles(this.manifest, dataset)) {
       byPartition.set(file.partition, [...(byPartition.get(file.partition) ?? []), file]);
@@ -622,6 +748,7 @@ export class ContractStoreWriter {
     firstFrom: string,
     written: WrittenFile[],
   ): Promise<ManifestFile[]> {
+    await this.prepareWork('contract-part-boundaries');
     const key = PART_KEY[dataset];
     const total = Number((await this.connection.runAndReadAll(`SELECT count(*)::INTEGER FROM ${source}`)).getRows()[0]?.[0] ?? 0);
     if (total === 0) {
@@ -654,35 +781,84 @@ export class ContractStoreWriter {
     return sorted.map((file, index) => (index === 0 || sorted[index - 1]?.partition !== file.partition ? { ...file, from: '' } : file));
   }
 
-  /** Refaz os vigentes inteiros (o dia muda e os vencidos saem) e conta os totais da versão nova. */
-  private async rebuildActiveDataset(revision: string, written: WrittenFile[]): Promise<{ vigentes: ManifestFile[]; totals: StoreManifest['totals'] }> {
-    const today = `${sqlLiteral(this.options.today)}::DATE`;
-    const columns = columnList('vigentes');
+  /**
+   * Marca apenas as partes de origem/destino atingidas por alterações ou pela
+   * passagem do dia. Só as chaves são materializadas; os contratos completos
+   * continuam nos Parquets e cada parte é gerada por uma visão filtrada.
+   */
+  private async rewriteActiveDataset(revision: string, written: WrittenFile[], day: string): Promise<{ vigentes: ManifestFile[]; totals: StoreManifest['totals'] }> {
+    const today = `${sqlLiteral(day)}::DATE`;
+    const previousDay = `${sqlLiteral(this.manifest?.today ?? day)}::DATE`;
+    const newBand = activeBandExpression(today);
+    const oldBand = activeBandExpression(previousDay);
+    const key = PART_KEY.vigentes;
     const notChanged = 'numero_controle_pncp NOT IN (SELECT numero_controle_pncp FROM mudancas)';
-    // Tabela do banco de trabalho (em disco), não TEMP: as temporárias ficam só na
-    // memória, e os vigentes da produção (1 a 1,5 milhão) não cabem nela.
-    await this.connection.run(`
-      CREATE OR REPLACE TABLE novos_vigentes AS
-      SELECT ${columns}, ${activeBandExpression(today)} AS faixa FROM (
-        SELECT ${columns} FROM atual_contratos WHERE vencimento >= ${today} AND ${notChanged}
-        UNION ALL BY NAME
-        SELECT ${columns} FROM mudancas WHERE vencimento >= ${today})`);
+    const changedKeys = [
+      `SELECT ${newBand} AS partition_key, ${key} AS row_key FROM mudancas WHERE vencimento >= ${today}`,
+      `SELECT ${oldBand}, ${key} FROM atual_contratos
+        WHERE vencimento >= ${previousDay} AND numero_controle_pncp IN (SELECT numero_controle_pncp FROM mudancas)`,
+    ];
+    if (this.manifest && this.manifest.today !== day) {
+      // Origem e destino são calculados separadamente: um contrato vencido sai
+      // só da origem; uma mudança de granularidade atinge as duas partições.
+      changedKeys.push(
+        `SELECT ${oldBand}, ${key} FROM atual_contratos
+          WHERE ${notChanged} AND vencimento >= ${previousDay}
+            AND (vencimento < ${today} OR ${oldBand} <> ${newBand})`,
+        `SELECT ${newBand}, ${key} FROM atual_contratos
+          WHERE ${notChanged} AND vencimento >= ${today}
+            AND (vencimento < ${previousDay} OR ${oldBand} <> ${newBand})`,
+      );
+    }
+    await this.prepareWork('contract-active-keys');
+    await this.connection.run(`CREATE OR REPLACE TEMP TABLE active_change_keys AS ${changedKeys.join(' UNION ALL ')}`);
+    const ranges = this.sliceRanges('vigentes');
+    const rangeRows = [...ranges.values()].flat();
+    const affected = new Set<SliceRange>();
+    if (rangeRows.length > 0) {
+      const values = rangeRows
+        .map((range, index) => `(${index}, ${sqlLiteral(range.partition)}, ${sqlLiteral(range.from)}, ${range.to === null ? 'NULL' : sqlLiteral(range.to)})`)
+        .join(', ');
+      const hits = await this.connection.runAndReadAll(`
+        WITH ranges(part_index, partition_key, first_key, last_key) AS (VALUES ${values})
+        SELECT DISTINCT r.part_index FROM ranges r JOIN active_change_keys c
+          ON c.partition_key = r.partition_key AND c.row_key >= r.first_key
+         AND (r.last_key IS NULL OR c.row_key < r.last_key)`);
+      for (const [index] of hits.getRows()) {
+        const range = rangeRows[Number(index)];
+        if (range) {
+          affected.add(range);
+        }
+      }
+    }
+    const known = [...ranges.keys()];
+    const newPartitions = await this.connection.runAndReadAll(`
+      SELECT DISTINCT partition_key FROM active_change_keys
+       ${known.length > 0 ? `WHERE partition_key NOT IN (${known.map(sqlLiteral).join(', ')})` : ''}`);
+    for (const [partition] of newPartitions.getRows()) {
+      affected.add({ partition: String(partition), from: '', to: null, file: null });
+    }
+
+    const columns = columnList('vigentes');
+    const rewritten: ManifestFile[] = [];
+    for (const range of affected) {
+      const bounds = [`${key} >= ${sqlLiteral(range.from)}`, ...(range.to === null ? [] : [`${key} < ${sqlLiteral(range.to)}`])].join(' AND ');
+      await this.connection.run(`CREATE OR REPLACE TEMP VIEW active_part AS
+        SELECT ${columns} FROM ${this.currentRows(columns)}
+         WHERE vencimento >= ${today} AND ${newBand} = ${sqlLiteral(range.partition)} AND ${bounds}`);
+      rewritten.push(...(await this.writeParts('vigentes', range.partition, revision, 'active_part', range.from, written)));
+    }
+    await this.connection.run('DROP VIEW IF EXISTS active_part');
+    await this.connection.run('DROP TABLE active_change_keys');
+    const kept = rangeRows.filter((range) => !affected.has(range)).map((range) => range.file).filter((file): file is ManifestFile => file !== null);
     const counts = await this.connection.runAndReadAll(`
       SELECT count(*)::INTEGER, count(*) FILTER (WHERE vencimento >= ${today})::INTEGER, count(*) FILTER (WHERE vencimento IS NULL)::INTEGER
-        FROM (SELECT vencimento FROM atual_contratos WHERE ${notChanged} UNION ALL SELECT vencimento FROM mudancas)`);
+        FROM ${this.currentRows('vencimento')}`);
     const [contracts, active, withoutExpiry] = (counts.getRows()[0] ?? [0, 0, 0]).map(Number);
-
-    // Cada faixa em partes: a semana de 31/12 (fim do ano fiscal) pode ter centenas de milhares de contratos.
-    const vigentes: ManifestFile[] = [];
-    const bands = await this.connection.runAndReadAll('SELECT DISTINCT faixa FROM novos_vigentes ORDER BY faixa');
-    for (const [band] of bands.getRows()) {
-      const partition = String(band);
-      await this.connection.run(`CREATE OR REPLACE TEMP VIEW faixa_atual AS SELECT ${columns} FROM novos_vigentes WHERE faixa = ${sqlLiteral(partition)}`);
-      vigentes.push(...(await this.writeParts('vigentes', partition, revision, 'faixa_atual', '', written)));
-    }
-    await this.connection.run('DROP VIEW IF EXISTS faixa_atual');
-    await this.connection.run('DROP TABLE novos_vigentes');
-    return { vigentes, totals: { contracts: contracts ?? 0, active: active ?? 0, withoutExpiry: withoutExpiry ?? 0 } };
+    return {
+      vigentes: this.normalizedSlices([...kept, ...rewritten]),
+      totals: { contracts: contracts ?? 0, active: active ?? 0, withoutExpiry: withoutExpiry ?? 0 },
+    };
   }
 
   /** Apaga do bucket os arquivos do armazém que nenhum dos manifestos usa. */

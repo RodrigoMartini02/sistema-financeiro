@@ -24,6 +24,8 @@ export interface FederalReadQuery {
   window: ComprasGovWindow | null;
   /** Limita as páginas da primeira leitura (só a sondagem usa); com limite, a leitura não vale como completa e não se divide. */
   maxPages?: number;
+  /** Verificada antes de pedir cada página e releitura; false preserva a janela como pendente. */
+  beforePage?: () => Promise<boolean>;
 }
 
 export interface FederalRead {
@@ -45,6 +47,8 @@ export interface FederalRead {
   splits: number;
   /** A falha da fonte que interrompeu a leitura, se houve: o que veio antes continua em `rows`. */
   failure: ComprasGovRequestError | null;
+  /** Interrupção pelo orçamento do coletor, sem atribuir falha à fonte. */
+  stoppedByLimit?: boolean;
 }
 
 /** Janela que se pode dividir ao meio: tem mais de um dia, é de uma consulta com janela, não é uma amostra e ainda não foi dividida demais. */
@@ -85,19 +89,38 @@ export async function readFederal(client: ComprasGovClient, query: FederalReadQu
         // O limite de páginas vale para a primeira leitura: a sondagem só quer uma amostra.
         ...(query.maxPages !== undefined ? { maxPages: query.maxPages } : {}),
       };
-      for await (const page of client.pages(query.window, pagesOptions)) {
-        read.pages += 1;
-        if (page.pageNumber === 1) {
-          read.announced = page.totalRecords;
-        }
-        for (const raw of page.records) {
-          const identity = payloadHash(raw);
-          if (seen.has(identity)) {
-            read.repeated += 1;
-          } else {
-            seen.set(identity, raw);
+      const pages = client.pages(query.window, pagesOptions);
+      try {
+        while (true) {
+          if (query.beforePage && !(await query.beforePage())) {
+            read.rows = [...seen.values()];
+            read.stoppedByLimit = true;
+            read.firstPassDistinct = read.passes === 1 ? seen.size : read.firstPassDistinct;
+            return read;
+          }
+          const next = await pages.next();
+          if (next.done) {
+            break;
+          }
+          const page = next.value;
+          read.pages += 1;
+          if (page.pageNumber === 1) {
+            read.announced = page.totalRecords;
+          }
+          for (const raw of page.records) {
+            const identity = payloadHash(raw);
+            if (seen.has(identity)) {
+              read.repeated += 1;
+            } else {
+              seen.set(identity, raw);
+            }
+          }
+          if (page.remainingPages <= 0 || page.records.length === 0 || (query.maxPages !== undefined && read.pages >= query.maxPages)) {
+            break;
           }
         }
+      } finally {
+        await pages.return(undefined);
       }
       if (read.passes === 1) {
         read.firstPassDistinct = seen.size;
@@ -110,16 +133,20 @@ export async function readFederal(client: ComprasGovClient, query: FederalReadQu
     // Ainda faltou linha depois das leituras da janela inteira: cada metade é conferida sozinha.
     if (seen.size < read.announced && canSplit(query, depth)) {
       const middle = middleDay(query.window);
-      const halves = [
-        await readFederal(client, { ...query, window: { from: query.window.from, to: middle } }, depth + 1),
-        await readFederal(client, { ...query, window: { from: addCalendarDays(middle, 1), to: query.window.to } }, depth + 1),
-      ];
+      const first = await readFederal(client, { ...query, window: { from: query.window.from, to: middle } }, depth + 1);
+      const halves = [first];
+      if (!first.stoppedByLimit) {
+        halves.push(await readFederal(client, { ...query, window: { from: addCalendarDays(middle, 1), to: query.window.to } }, depth + 1));
+      }
       read.splits += 1;
       for (const half of halves) {
         read.pages += half.pages;
         read.repeated += half.repeated;
         read.splits += half.splits;
         read.failure ??= half.failure;
+        if (half.stoppedByLimit) {
+          read.stoppedByLimit = true;
+        }
         for (const raw of half.rows) {
           const identity = payloadHash(raw);
           if (!seen.has(identity)) {
@@ -128,7 +155,7 @@ export async function readFederal(client: ComprasGovClient, query: FederalReadQu
         }
       }
       read.rows = [...seen.values()];
-      read.complete = halves.every((half) => half.complete);
+      read.complete = !read.stoppedByLimit && halves.length === 2 && halves.every((half) => half.complete);
       return read;
     }
   } catch (error) {

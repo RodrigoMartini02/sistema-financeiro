@@ -1,6 +1,7 @@
 import { AGENCIES_ENDPOINT, CONTRACTS_BY_END_ENDPOINT, CONTRACTS_BY_START_ENDPOINT, UNITS_ENDPOINT, type ComprasGovEndpoint, type ComprasGovWindow } from './comprasGovClient';
+import type { ContractUpsertResult } from '../contractStore/writer';
 import { ARCHIVE_DATASETS, type RunArchive } from './archive';
-import { backfillBlockMinutes, flushArchiveOrAbort } from './blockTime';
+import { assertArchiveHealthy, backfillBlockMinutes, collectionStopReason, type CollectionLimitReason } from './blockTime';
 import type { TenderContractRow } from './contractMapping';
 import { addCalendarDays, brasiliaDate } from './dates';
 import {
@@ -34,6 +35,7 @@ import {
 import { readFederal } from './federalSource';
 import { maskPersonDocument } from './resultMapping';
 import { COLLECTOR_LOCK_KEYS } from './repository';
+import { CollectorResourceLimitError } from './resourceBudget';
 import { RunContractStore } from './runContractStore';
 import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTally } from './runs';
 
@@ -75,7 +77,7 @@ export const FEDERAL_CYCLE_NOT_STARTED = 'ciclo de contratos federais não inici
 export const FEDERAL_CYCLE_NO_TIME = 'sem tempo na rotina para o ciclo de contratos federais';
 
 /** Por que o bloco parou antes de terminar os órgãos pendentes. */
-export type FederalStopReason = 'time' | 'source';
+export type FederalStopReason = CollectionLimitReason | 'source';
 
 // --- Janelas (puras) ---
 
@@ -214,6 +216,7 @@ interface WindowOutcome {
   lastInclusion: string | null;
   /** CNPJ do PNCP aprendido dos números de controle das linhas desta janela. */
   learnedCnpj: string | null;
+  stoppedBy: CollectionLimitReason | null;
 }
 
 /** O andamento de um órgão ao longo de uma execução, até a publicação. */
@@ -387,9 +390,19 @@ async function readAgencyWindow(
   agency: FederalAgencyState,
   endpoint: ComprasGovEndpoint,
   window: ComprasGovWindow,
+  stopAt: number,
 ): Promise<WindowOutcome> {
   const fetchStartedAt = performance.now();
-  const read = await readFederal(context.comprasGov, { endpoint, params: { codigoOrgao: agency.code }, window });
+  let stoppedBy: CollectionLimitReason | null = null;
+  const read = await readFederal(context.comprasGov, {
+    endpoint,
+    params: { codigoOrgao: agency.code },
+    window,
+    beforePage: async () => {
+      stoppedBy = await collectionStopReason(context, stopAt, store.canContinue);
+      return stoppedBy === null;
+    },
+  });
   metrics.fetchMs += performance.now() - fetchStartedAt;
   metrics.windows += 1;
   metrics.pages += read.pages;
@@ -398,6 +411,9 @@ async function readAgencyWindow(
   metrics.repeatedRows += read.repeated;
   metrics.rowsRead += read.rows.length;
   tally.recordsRead += read.rows.length;
+  if (read.stoppedByLimit) {
+    return { completed: false, sourceFailed: false, ingestible: 0, latestEnd: null, lastInclusion: null, learnedCnpj: null, stoppedBy };
+  }
 
   // O CNPJ do PNCP vem das linhas desta janela; sem elas, do que já se aprendeu do órgão, e por último da matriz do cadastro.
   const learned = learnedCnpjOf(read.rows);
@@ -425,8 +441,13 @@ async function readAgencyWindow(
   mapped.ingestible -= twins.size;
 
   const contracts = [...mapped.contracts.values()];
-  const rawsToArchive: unknown[] = mapped.refused.map((raw) => maskPersonDocument(raw));
+  await archive.append(ARCHIVE_DATASETS.federalContracts, mapped.refused.map((raw) => maskPersonDocument(raw)));
+  assertArchiveHealthy(archive);
   for (let start = 0; start < contracts.length; start += UPSERT_BATCH_SIZE) {
+    stoppedBy = await collectionStopReason(context, stopAt, store.canContinue);
+    if (stoppedBy !== null) {
+      break;
+    }
     const batch = contracts.slice(start, start + UPSERT_BATCH_SIZE);
     const applyStartedAt = performance.now();
     const states = await store.writer.readStates(batch.map(({ row }) => row.pncpControlNumber));
@@ -441,25 +462,34 @@ async function readAgencyWindow(
       }
       return !superseded;
     });
-    for (const { row } of current) {
-      const previous = states.get(row.pncpControlNumber);
-      if (previous && previous.expiresOn !== row.expiresOn) {
-        store.noteExpiryChange({ controlNumber: row.pncpControlNumber, expiresOn: row.expiresOn, contractObject: row.contractObject });
+    let result: ContractUpsertResult;
+    try {
+      result = await store.writer.upsert(current.map(({ row }) => row));
+    } catch (error) {
+      if (!(error instanceof CollectorResourceLimitError)) {
+        throw error;
       }
+      stoppedBy = 'disk';
+      break;
     }
-    const result = await store.writer.upsert(current.map(({ row }) => row));
     metrics.applyMs += performance.now() - applyStartedAt;
     tally.newCount += result.insertedCount;
     tally.updatedCount += result.updatedCount;
+    const rawsToArchive: unknown[] = [];
     for (const { row, raw } of current) {
       if (result.changedKeys.has(row.pncpControlNumber)) {
         rawsToArchive.push(maskPersonDocument(raw));
+        const previous = states.get(row.pncpControlNumber);
+        if (previous && previous.expiresOn !== row.expiresOn) {
+          store.noteExpiryChange({ controlNumber: row.pncpControlNumber, expiresOn: row.expiresOn, contractObject: row.contractObject });
+        }
       }
     }
+    await archive.append(ARCHIVE_DATASETS.federalContracts, rawsToArchive);
+    assertArchiveHealthy(archive);
   }
-  await archive.append(ARCHIVE_DATASETS.federalContracts, rawsToArchive);
 
-  let completed = read.complete;
+  let completed = read.complete && stoppedBy === null;
   if (read.failure !== null) {
     metrics.failedWindows += 1;
     tally.addError({ kind: 'request', agency: agency.code, window, ...read.failure.details, message: read.failure.message });
@@ -485,16 +515,15 @@ async function readAgencyWindow(
     latestEnd: mapped.latestEnd,
     lastInclusion: mapped.lastInclusion,
     learnedCnpj: learned,
+    stoppedBy,
   };
 }
 
 /** Publica o armazém (com o bruto já enviado) e só então grava o andamento do que foi lido. */
 async function publishThen(archive: RunArchive, store: RunContractStore, metrics: FederalMetrics, mark: () => Promise<void>): Promise<void> {
-  await flushArchiveOrAbort(archive);
   const startedAt = performance.now();
-  await store.publish();
+  await store.publish(archive, mark);
   metrics.publishMs += performance.now() - startedAt;
-  await mark();
 }
 
 function allowedByOption(agency: FederalAgencyState, code: string | undefined): boolean {
@@ -548,6 +577,7 @@ export async function runFederalLoad(context: CollectorContext, options: Federal
     COLLECTOR_LOCK_KEYS.contracts,
     async (tally, archive, runId) => {
       const startedAt = context.now().getTime();
+      const stopAt = startedAt + maxMinutes * 60_000;
       const today = brasiliaDate(context.now());
       const currentYear = Number(today.slice(0, 4));
       const metrics = new FederalMetrics();
@@ -594,11 +624,15 @@ export async function runFederalLoad(context: CollectorContext, options: Federal
           awaiting.set(agency.code, progress);
 
           for (const year of years) {
-            if ((context.now().getTime() - startedAt) / 60_000 >= maxMinutes) {
-              stoppedBy = 'time';
+            stoppedBy = await collectionStopReason(context, stopAt, store.canContinue);
+            if (stoppedBy !== null) {
               break agencies;
             }
-            const outcome = await readAgencyWindow(context, tally, archive, store, metrics, directory, agency, CONTRACTS_BY_START_ENDPOINT, yearWindow(year));
+            const outcome = await readAgencyWindow(context, tally, archive, store, metrics, directory, agency, CONTRACTS_BY_START_ENDPOINT, yearWindow(year), stopAt);
+            if (outcome.stoppedBy !== null) {
+              stoppedBy = outcome.stoppedBy;
+              break agencies;
+            }
             if (!outcome.completed) {
               consecutiveFailures += 1;
               if (consecutiveFailures >= MAX_CONSECUTIVE_FAILED_WINDOWS) {
@@ -625,7 +659,9 @@ export async function runFederalLoad(context: CollectorContext, options: Federal
           }
         }
         // As sobras do bloco, e o que janelas interrompidas já gravaram nas mudanças.
-        await publishAndMark();
+        if (store.canContinue) {
+          await publishAndMark();
+        }
       } finally {
         const progressNow = await readFederalProgress(context.db, fromYear);
         tally.details['backfill'] = {
@@ -685,6 +721,7 @@ export async function runFederalCycle(context: CollectorContext, options: Federa
     COLLECTOR_LOCK_KEYS.contracts,
     async (tally, archive, runId) => {
       const startedAt = context.now().getTime();
+      const stopAt = startedAt + maxMinutes * 60_000;
       const today = brasiliaDate(context.now());
       const metrics = new FederalMetrics();
       const directory = await prepareDirectory(context, tally);
@@ -723,7 +760,7 @@ export async function runFederalCycle(context: CollectorContext, options: Federa
       };
 
       /** Lê todas as janelas do órgão; só se todas vierem completas ele entra na fila da publicação. */
-      const readAgency = async (agency: FederalAgencyState, kind: 'cycle' | 'remeasure'): Promise<'done' | 'time' | 'source'> => {
+      const readAgency = async (agency: FederalAgencyState, kind: 'cycle' | 'remeasure'): Promise<'done' | FederalStopReason> => {
         const plan: Array<{ endpoint: ComprasGovEndpoint; window: ComprasGovWindow }> =
           kind === 'cycle'
             ? [
@@ -735,10 +772,14 @@ export async function runFederalCycle(context: CollectorContext, options: Federa
         const readAt = context.now();
         metrics.agenciesRead += 1;
         for (const { endpoint, window } of plan) {
-          if ((context.now().getTime() - startedAt) / 60_000 >= maxMinutes) {
-            return 'time';
+          const limit = await collectionStopReason(context, stopAt, store.canContinue);
+          if (limit !== null) {
+            return limit;
           }
-          const outcome = await readAgencyWindow(context, tally, archive, store, metrics, directory, agency, endpoint, window);
+          const outcome = await readAgencyWindow(context, tally, archive, store, metrics, directory, agency, endpoint, window, stopAt);
+          if (outcome.stoppedBy !== null) {
+            return outcome.stoppedBy;
+          }
           if (!outcome.completed) {
             consecutiveFailures += 1;
             return consecutiveFailures >= MAX_CONSECUTIVE_FAILED_WINDOWS ? 'source' : 'done';
@@ -769,7 +810,9 @@ export async function runFederalCycle(context: CollectorContext, options: Federa
             await publishAndMark();
           }
         }
-        await publishAndMark();
+        if (store.canContinue) {
+          await publishAndMark();
+        }
       } finally {
         tally.details['cycle'] = {
           maxMinutes,

@@ -184,3 +184,37 @@ test('erro que não é da fonte sobe: um bug não vira janela não lida', async 
   });
   await assert.rejects(() => readFederal(client, query), /bug no relógio/);
 });
+
+test('orçamento interrompe antes da primeira página sem pedido e deixa a janela pendente', async () => {
+  const { client, urls } = fakeSource(rowsOf(30));
+  const read = await readFederal(client, { ...query, beforePage: async () => false });
+  assert.equal(read.stoppedByLimit, true);
+  assert.equal(read.complete, false);
+  assert.equal(read.failure, null);
+  assert.equal(read.pages, 0);
+  assert.equal(urls.length, 0);
+});
+
+test('orçamento entre páginas preserva as linhas lidas sem pedir páginas adicionais ou reler a janela', async () => {
+  const { client, urls } = fakeSource(rowsOf(1_200));
+  let admissions = 0;
+  const read = await readFederal(client, { ...query, beforePage: async () => ++admissions <= 1 });
+  assert.equal(read.stoppedByLimit, true);
+  assert.equal(read.complete, false);
+  assert.equal(read.failure, null);
+  assert.equal(read.rows.length, 500);
+  assert.equal(read.firstPassDistinct, 500);
+  assert.equal(read.pages, 1);
+  assert.equal(read.passes, 1);
+  assert.equal(urls.length, 1);
+});
+
+test('a última página completa não precisa de outra admissão para confirmar a leitura', async () => {
+  const { client, urls } = fakeSource(rowsOf(30));
+  let admissions = 0;
+  const read = await readFederal(client, { ...query, beforePage: async () => ++admissions <= 1 });
+  assert.equal(read.complete, true);
+  assert.equal(read.stoppedByLimit, undefined);
+  assert.equal(admissions, 1);
+  assert.equal(urls.length, 1);
+});

@@ -94,6 +94,8 @@ export class ContractStoreReader {
   private timer: NodeJS.Timeout | null = null;
   private stopped = false;
   private refreshing: Promise<boolean> | null = null;
+  private activeQueries = 0;
+  private refreshFailed = false;
   private readonly idle: DuckDBConnection[];
   private readonly waiters: Waiter[] = [];
 
@@ -166,6 +168,7 @@ export class ContractStoreReader {
     const timeoutMs = this.options.queryTimeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS;
     const startedAt = Date.now();
     const connection = await this.acquire(timeoutMs);
+    this.activeQueries += 1;
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
@@ -180,6 +183,7 @@ export class ContractStoreReader {
       throw error;
     } finally {
       clearTimeout(timer);
+      this.activeQueries -= 1;
       this.release(connection);
     }
   }
@@ -206,7 +210,7 @@ export class ContractStoreReader {
     if (this.stopped) {
       return;
     }
-    const delay = this.ready
+    const delay = this.ready && !this.refreshFailed
       ? (this.options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS)
       : (this.options.retryIntervalMs ?? DEFAULT_RETRY_INTERVAL_MS);
     this.timer = setTimeout(() => void this.refreshAndSchedule(), delay);
@@ -216,19 +220,40 @@ export class ContractStoreReader {
 
   private async doRefresh(): Promise<boolean> {
     try {
-      const next = await readManifest(this.options.storage);
-      if (this.ready && next?.revision === this.manifest?.revision) {
-        return false;
+      let next = await readManifest(this.options.storage);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (this.ready && next?.revision === this.manifest?.revision) {
+          this.refreshFailed = false;
+          await this.removeOldFiles();
+          return false;
+        }
+        let downloaded: number;
+        try {
+          downloaded = await downloadManifestFiles(this.options.storage, next, this.options.directory, this.datasets);
+        } catch (error) {
+          // Duas publicações podem tornar os arquivos deste manifesto obsoletos
+          // durante o download. Tenta a versão atual uma vez, mantendo a cópia válida.
+          if (attempt === 0) {
+            const latest = await readManifest(this.options.storage);
+            if (latest?.revision !== next?.revision) {
+              next = latest;
+              continue;
+            }
+          }
+          throw error;
+        }
+        await this.swapViews(next);
+        this.previousManifest = this.ready ? this.manifest : null;
+        this.manifest = next;
+        this.ready = true;
+        this.refreshFailed = false;
+        this.options.logger.info('Cópia dos contratos atualizada', { revision: next?.revision ?? null, downloaded });
+        await this.removeOldFiles();
+        return true;
       }
-      const downloaded = await downloadManifestFiles(this.options.storage, next, this.options.directory, this.datasets);
-      await this.swapViews(next);
-      this.previousManifest = this.ready ? this.manifest : null;
-      this.manifest = next;
-      this.ready = true;
-      this.options.logger.info('Cópia dos contratos atualizada', { revision: next?.revision ?? null, downloaded });
-      await this.removeOldFiles();
-      return true;
+      return false;
     } catch (error) {
+      this.refreshFailed = true;
       this.options.logger.warn('Cópia dos contratos não atualizada agora', { error, ready: this.ready });
       return false;
     }
@@ -253,6 +278,11 @@ export class ContractStoreReader {
 
   /** Fica a versão em uso e a anterior; no Windows, arquivo ainda aberto fica para a próxima troca. */
   private async removeOldFiles(): Promise<void> {
+    // Uma consulta pode atravessar mais de duas trocas. Só limpar sem leitores
+    // ativos; as novas consultas usam a versão corrente, que continua protegida.
+    if (this.activeQueries > 0) {
+      return;
+    }
     try {
       await removeUnusedLocalFiles(this.options.directory, [this.manifest, this.previousManifest]);
     } catch (error) {

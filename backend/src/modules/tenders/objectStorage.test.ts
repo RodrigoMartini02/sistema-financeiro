@@ -162,3 +162,47 @@ test('R2: resposta de erro vira exceção, sem as chaves na mensagem', async () 
     }
   }, 403);
 });
+
+test('R2: métricas contam operações, páginas e bytes sem incluir dados ou credenciais', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'r2-metricas-'));
+  try {
+    await withFakeS3(async (endpoint) => {
+      const storage = createR2Storage({ endpoint, ...fakeSettings });
+      try {
+        await storage.putObject('dados/a', Buffer.from('abc'), 'text/plain');
+        await storage.putObject('dados/b', Buffer.from('de'), 'text/plain');
+        await storage.putObject('dados/c', Buffer.from('f'), 'text/plain');
+        assert.equal(Buffer.from((await storage.getObject('dados/a')) ?? []).toString(), 'abc');
+        await storage.downloadToFile('dados/b', join(directory, 'b'));
+        await storage.listKeys('dados/');
+        await storage.deleteObject('dados/c');
+        assert.deepEqual(storage.metrics?.(), {
+          putRequests: 3, getRequests: 2, listRequests: 2, deleteRequests: 1, failedRequests: 0,
+          uploadAttemptedBytes: 6, uploadedBytes: 6, downloadedBytes: 5,
+        });
+        const snapshot = storage.metrics?.();
+        if (snapshot) {
+          snapshot.putRequests = -1;
+        }
+        assert.equal(storage.metrics?.().putRequests, 3, 'o snapshot não altera os contadores');
+        assert.doesNotMatch(JSON.stringify(storage.metrics?.()), /chave-de-teste|segredo-de-teste|dados\/a/);
+      } finally {
+        storage.close();
+      }
+    });
+    await withFakeS3(async (endpoint) => {
+      const storage = createR2Storage({ endpoint, ...fakeSettings });
+      try {
+        await assert.rejects(storage.putObject('dados/recusado', Buffer.from('abc'), 'text/plain'));
+        assert.equal(storage.metrics?.().putRequests, 1);
+        assert.equal(storage.metrics?.().failedRequests, 1);
+        assert.equal(storage.metrics?.().uploadAttemptedBytes, 3);
+        assert.equal(storage.metrics?.().uploadedBytes, 0);
+      } finally {
+        storage.close();
+      }
+    }, 403);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

@@ -547,6 +547,7 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
           expiryChanged: 1,
           failed: 0,
           stoppedByFailures: false,
+          stoppedByLimit: null,
         });
         assert.equal(outcome.updatedCount, 2);
         assert.equal(termsRequested.length, 2, 'sem sinal e já conferido não são consultados');
@@ -595,6 +596,7 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
           expiryChanged: 0,
           failed: 3,
           stoppedByFailures: true,
+          stoppedByLimit: null,
         });
         assert.equal(down.errorCount, 3);
         assert.equal(termsRequests, 3);
@@ -1040,7 +1042,7 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
     });
   });
 
-  test('arquivo bruto: falha no R2 conta erro e a coleta segue, com o contrato gravado no armazém', async () => {
+  test('arquivo bruto: falha no R2 impede publicação e confirmação das consultas', async () => {
     await withRollback(async (tx) => {
       await withEnvironment(
         async (env) => {
@@ -1048,12 +1050,14 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
           const context = contextOf(tx, env, { contractsFetch: publicationOnly([record]), now: () => NOW });
 
           const outcome = assertRan(await runContractsDaily(context));
-          assert.equal(outcome.status, 'PARCIAL');
+          assert.equal(outcome.status, 'FALHA');
           assert.deepEqual(outcome.details.errors, [
             { kind: 'archive', key: `pncp/contratos/2026/10/13/${outcome.runId}-0001.jsonl.gz`, message: 'R2 fora do ar' },
+            { kind: 'fatal', message: 'O arquivo bruto não foi enviado ao R2: a publicação foi cancelada e nada foi dado como lido' },
           ]);
           assert.deepEqual(outcome.details['archive'], { enabled: true, files: 0, records: 0, bytes: 0, failures: 1 });
-          assert.ok(await storedContract(env, record.numeroControlePNCP), 'o contrato entra na base mesmo sem o arquivo bruto');
+          assert.equal(await storedContract(env, record.numeroControlePNCP), null, 'o bloco sem bruto não entra no manifesto');
+          assert.ok(queriesOf(outcome).every((query) => query[3] === false), 'nenhuma consulta foi confirmada');
         },
         (key) => key.startsWith('pncp/'),
       );

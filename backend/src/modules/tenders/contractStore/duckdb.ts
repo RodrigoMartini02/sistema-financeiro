@@ -13,6 +13,8 @@ export interface DuckDbOptions {
   threads: number;
   /** Onde o DuckDB grava o que não cabe na memória. */
   tempDirectory: string;
+  /** Teto dos temporários, separado do espaço ocupado pelo banco e pelos Parquets. */
+  maxTempDirectoryBytes?: number;
 }
 
 export interface OpenedDuckDb {
@@ -26,6 +28,7 @@ export async function openDuckDb(options: DuckDbOptions): Promise<OpenedDuckDb> 
     memory_limit: `${options.memoryLimitMb}MB`,
     threads: String(options.threads),
     temp_directory: toDuckDbPath(options.tempDirectory),
+    ...(options.maxTempDirectoryBytes === undefined ? {} : { max_temp_directory_size: `${Math.max(1, Math.floor(options.maxTempDirectoryBytes))}B` }),
     autoinstall_known_extensions: 'false',
     autoload_known_extensions: 'false',
   });

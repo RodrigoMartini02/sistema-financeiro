@@ -1,4 +1,5 @@
 import type { RunArchive } from './archive';
+import type { CollectorContext } from './runs';
 
 // O que as cargas em blocos (contratos, vencedores e contratos federais) têm em comum: o tempo do bloco dentro do
 // prazo da rotina diária e o envio do arquivo bruto antes de publicar o armazém.
@@ -20,14 +21,41 @@ export function backfillBlockMinutes(configuredMinutes: number, deadlineAt: numb
 }
 
 /**
- * Descarrega o arquivo bruto antes de publicar. O envio que falha não lança (conta erro e descarta a parte), então a
- * comparação das falhas antes e depois é o que cancela a publicação: sem o bruto, nada é dado como lido.
+ * Confere também falhas anteriores ao flush: uma parte descartada durante append não volta a existir só porque
+ * o envio final funcionou. Nenhuma publicação posterior desta execução pode confirmar esse bloco incompleto.
  */
 export async function flushArchiveOrAbort(archive: RunArchive): Promise<void> {
-  const before = archive.summary()?.failures ?? 0;
+  assertArchiveHealthy(archive);
   await archive.flush();
-  const after = archive.summary()?.failures ?? 0;
-  if (after > before) {
+  assertArchiveHealthy(archive);
+}
+
+export function assertArchiveHealthy(archive: RunArchive): void {
+  if ((archive.summary()?.failures ?? 0) > 0) {
     throw new Error('O arquivo bruto não foi enviado ao R2: a publicação foi cancelada e nada foi dado como lido');
   }
+}
+
+/** A confirmação pertence a esta publicação, não ao fato de alguma publicação anterior ter funcionado. */
+export async function publishAndConfirm<T>(archive: RunArchive, publish: () => Promise<T>, confirm: (result: T) => Promise<void>): Promise<T> {
+  await flushArchiveOrAbort(archive);
+  const result = await publish();
+  await confirm(result);
+  return result;
+}
+
+export type CollectionLimitReason = 'time' | 'disk' | 'local';
+
+/** O limite de tempo para antes da publicação; a reserva de disco é administrada pelo orçamento compartilhado. */
+export async function collectionStopReason(context: CollectorContext, stopAt?: number, localReady = true): Promise<CollectionLimitReason | null> {
+  if (!localReady) {
+    return 'local';
+  }
+  if (stopAt !== undefined && context.now().getTime() >= stopAt) {
+    return 'time';
+  }
+  if (context.resourceBudget && !(await context.resourceBudget.canContinue())) {
+    return 'disk';
+  }
+  return null;
 }

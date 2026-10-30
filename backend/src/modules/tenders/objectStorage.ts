@@ -1,7 +1,7 @@
 import { createWriteStream } from 'node:fs';
 import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
   DeleteObjectCommand,
@@ -30,19 +30,41 @@ export interface ObjectStorage {
   /** Todas as chaves que começam com `prefix`. */
   listKeys(prefix: string): Promise<string[]>;
   deleteObject(key: string): Promise<void>;
+  /** Contadores agregados desta instância; os clientes simulados podem omitir. */
+  metrics?(): ObjectStorageMetrics;
   /** Fecha as conexões, no fim do uso. */
   close(): void;
+}
+
+export interface ObjectStorageMetrics {
+  putRequests: number;
+  getRequests: number;
+  listRequests: number;
+  deleteRequests: number;
+  failedRequests: number;
+  /** Bytes dos corpos enviados, incluindo tentativas repetidas do SDK. */
+  uploadAttemptedBytes: number;
+  /** Bytes dos objetos cujo envio foi confirmado. */
+  uploadedBytes: number;
+  /** Bytes efetivamente lidos, inclusive partes de downloads que falharam. */
+  downloadedBytes: number;
 }
 
 const R2_CONNECTION_TIMEOUT_MS = 10_000;
 const R2_REQUEST_TIMEOUT_MS = 120_000;
 
 /** Grava num arquivo temporário e renomeia no fim: arquivo pela metade nunca fica com o nome final. */
-async function writeStreamToFile(body: Readable, filePath: string): Promise<void> {
+async function writeStreamToFile(body: Readable, filePath: string, onBytes: (bytes: number) => void): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
   const partialPath = `${filePath}.parcial`;
   try {
-    await pipeline(body, createWriteStream(partialPath));
+    const countBytes = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        onBytes(chunk.length);
+        callback(null, chunk);
+      },
+    });
+    await pipeline(body, countBytes, createWriteStream(partialPath));
     await rename(partialPath, filePath);
   } catch (error) {
     await rm(partialPath, { force: true });
@@ -56,6 +78,16 @@ function isMissingObject(error: unknown): boolean {
 
 /** Cliente S3 do Cloudflare R2: região "auto", com o endpoint, as chaves e a pasta da configuração. */
 export function createR2Storage(settings: StorageSettings): ObjectStorage {
+  const metrics: ObjectStorageMetrics = {
+    putRequests: 0,
+    getRequests: 0,
+    listRequests: 0,
+    deleteRequests: 0,
+    failedRequests: 0,
+    uploadAttemptedBytes: 0,
+    uploadedBytes: 0,
+    downloadedBytes: 0,
+  };
   const client = new S3Client({
     region: 'auto',
     endpoint: settings.endpoint,
@@ -72,6 +104,32 @@ export function createR2Storage(settings: StorageSettings): ObjectStorage {
       throwOnRequestTimeout: true,
     },
   });
+  // Deserialize roda dentro do ciclo de retries: conta cada tentativa HTTP, não só
+  // cada chamada de alto nível. Não armazena chaves, headers ou credenciais.
+  client.middlewareStack.add(
+    (next, context) => async (args) => {
+      if (context.commandName === 'PutObjectCommand') {
+        metrics.putRequests += 1;
+        const input = args.input as { Body?: unknown };
+        if (input.Body instanceof Uint8Array) {
+          metrics.uploadAttemptedBytes += input.Body.byteLength;
+        }
+      } else if (context.commandName === 'GetObjectCommand') {
+        metrics.getRequests += 1;
+      } else if (context.commandName === 'ListObjectsV2Command') {
+        metrics.listRequests += 1;
+      } else if (context.commandName === 'DeleteObjectCommand') {
+        metrics.deleteRequests += 1;
+      }
+      try {
+        return await next(args);
+      } catch (error) {
+        metrics.failedRequests += 1;
+        throw error;
+      }
+    },
+    { step: 'deserialize', name: 'collectorStorageMetrics', priority: 'high' },
+  );
   const bucket = settings.bucket;
   const fullKey = (key: string) => `${settings.prefix}/${key}`;
   const folder = `${settings.prefix}/`;
@@ -79,11 +137,23 @@ export function createR2Storage(settings: StorageSettings): ObjectStorage {
   return {
     async putObject(key, body, contentType) {
       await client.send(new PutObjectCommand({ Bucket: bucket, Key: fullKey(key), Body: body, ContentType: contentType }));
+      metrics.uploadedBytes += body.byteLength;
     },
     async getObject(key) {
       try {
         const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: fullKey(key) }));
-        return response.Body ? await response.Body.transformToByteArray() : new Uint8Array();
+        if (!response.Body) {
+          return new Uint8Array();
+        }
+        if (response.Body instanceof Readable) {
+          response.Body.on('data', (chunk: Buffer) => {
+            metrics.downloadedBytes += chunk.length;
+          });
+          return await response.Body.transformToByteArray();
+        }
+        const body = await response.Body.transformToByteArray();
+        metrics.downloadedBytes += body.byteLength;
+        return body;
       } catch (error) {
         if (isMissingObject(error)) {
           return null;
@@ -96,7 +166,9 @@ export function createR2Storage(settings: StorageSettings): ObjectStorage {
       if (!(response.Body instanceof Readable)) {
         throw new Error(`Resposta do R2 sem corpo para ${key}`);
       }
-      await writeStreamToFile(response.Body, filePath);
+      await writeStreamToFile(response.Body, filePath, (bytes) => {
+        metrics.downloadedBytes += bytes;
+      });
     },
     async listKeys(prefix) {
       const keys: string[] = [];
@@ -119,6 +191,7 @@ export function createR2Storage(settings: StorageSettings): ObjectStorage {
     async deleteObject(key) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: fullKey(key) }));
     },
+    metrics: () => ({ ...metrics }),
     close: () => client.destroy(),
   };
 }

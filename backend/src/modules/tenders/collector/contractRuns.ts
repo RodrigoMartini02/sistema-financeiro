@@ -1,7 +1,7 @@
 import { ContractStoreReader } from '../contractStore/reader';
 import type { CheckedContractTerms, ContractStoreState, PendingTermsContract } from '../contractStore/writer';
 import { ARCHIVE_DATASETS, type RunArchive } from './archive';
-import { backfillBlockMinutes } from './blockTime';
+import { assertArchiveHealthy, backfillBlockMinutes, collectionStopReason, DEADLINE_MARGIN_MINUTES, type CollectionLimitReason } from './blockTime';
 import { addCalendarDays, brasiliaDate, toPncpDate } from './dates';
 import {
   contractExpiryFromTerms,
@@ -15,6 +15,7 @@ import { markBackfillDayCompleted, readCompletedBackfillDays, readLastCompletedD
 import type { TendersDb } from './database';
 import { PNCP_CONTRACT_ENDPOINTS, PncpRequestError, type PncpContractEndpoint, type PncpQueryParams } from './pncpClient';
 import { COLLECTOR_LOCK_KEYS } from './repository';
+import { CollectorResourceLimitError } from './resourceBudget';
 import { RunContractStore, requireStorage } from './runContractStore';
 import { withCollectionRun, type CollectorContext, type RunOutcome, type RunTally } from './runs';
 
@@ -61,7 +62,7 @@ export const BACKFILL_FINISHED = 'carga concluída: nenhum dia pendente';
 export const BACKFILL_NO_TIME = 'sem tempo na rotina para a carga de contratos';
 
 /** Por que o bloco da carga parou antes de terminar os dias pendentes. */
-export type BackfillStopReason = 'time' | 'pncp';
+export type BackfillStopReason = CollectionLimitReason | 'pncp';
 
 /** Requisições dos dois clientes de contratos (consulta e termos), para o registro da execução. */
 function contractRequests(context: CollectorContext): number {
@@ -76,6 +77,7 @@ interface QueryCounts {
   termsChecked: number;
   /** Contratos com falha do PNCP nos termos: a reconsulta da mesma execução os pula. */
   failedTerms: string[];
+  stoppedBy: CollectionLimitReason | null;
 }
 
 /** O que a consulta dos termos precisa do contrato (na coleta e na reconsulta). */
@@ -102,6 +104,7 @@ async function checkContractTerms(
       sequence: contract.contractSequence,
     });
     await archive.append(ARCHIVE_DATASETS.contractTerms, [terms], { controlNumber: contract.pncpControlNumber });
+    assertArchiveHealthy(archive);
     // Sem data de fim (null), o vencimento só sai dos termos.
     const originalTermEnd = contract.originalTermEnd ?? null;
     if (terms === null) {
@@ -176,6 +179,7 @@ async function collectContractPage(
   store: RunContractStore,
   records: unknown[],
   counts: QueryCounts,
+  stopAt?: number,
 ): Promise<void> {
   const withoutExpiry: Record<ContractWithoutExpiryReason, number> = { withoutEndDate: 0, implausibleTerm: 0 };
   const candidates: Array<{ row: TenderContractRow; hasChangeSignal: boolean }> = [];
@@ -194,15 +198,24 @@ async function collectContractPage(
   const stored = await store.writer.readStates(candidates.map((candidate) => candidate.row.pncpControlNumber));
   const rows: TenderContractRow[] = [];
   for (const { row, hasChangeSignal } of candidates) {
+    // Uma página pode exigir centenas de consultas de termos; não consumir a margem de publicação dentro dela.
+    if (stopAt !== undefined && context.now().getTime() >= stopAt) {
+      counts.completed = false;
+      counts.stoppedBy = 'time';
+      break;
+    }
     const previous = stored.get(row.pncpControlNumber);
     const resolved = await resolveContractExpiry(context, tally, archive, row, hasChangeSignal, previous, counts);
-    if (previous && previous.expiresOn !== resolved.expiresOn) {
-      store.noteExpiryChange({ controlNumber: resolved.pncpControlNumber, expiresOn: resolved.expiresOn, contractObject: resolved.contractObject });
-    }
     rows.push(resolved);
   }
 
   const result = await store.writer.upsert(rows);
+  for (const row of rows) {
+    const previous = stored.get(row.pncpControlNumber);
+    if (result.changedKeys.has(row.pncpControlNumber) && previous && previous.expiresOn !== row.expiresOn) {
+      store.noteExpiryChange({ controlNumber: row.pncpControlNumber, expiresOn: row.expiresOn, contractObject: row.contractObject });
+    }
+  }
   tally.newCount += result.insertedCount;
   tally.updatedCount += result.updatedCount;
   counts.storedCount += rows.length;
@@ -223,28 +236,51 @@ async function collectContractQuery(
   store: RunContractStore,
   endpoint: PncpContractEndpoint,
   params: PncpQueryParams,
+  stopAt?: number,
 ): Promise<QueryCounts> {
-  const counts: QueryCounts = { completed: true, recordsRead: 0, storedCount: 0, termsChecked: 0, failedTerms: [] };
+  const counts: QueryCounts = { completed: true, recordsRead: 0, storedCount: 0, termsChecked: 0, failedTerms: [], stoppedBy: null };
+  const pages = context.contractsPncp.pages(endpoint, params);
   try {
-    for await (const page of context.contractsPncp.pages(endpoint, params)) {
+    while (true) {
+      counts.stoppedBy = await collectionStopReason(context, stopAt, store.canContinue);
+      if (counts.stoppedBy !== null) {
+        counts.completed = false;
+        break;
+      }
+      const next = await pages.next();
+      if (next.done) {
+        break;
+      }
+      const page = next.value;
       tally.recordsRead += page.records.length;
       counts.recordsRead += page.records.length;
       await archive.append(ARCHIVE_DATASETS.contracts, page.records);
-      await collectContractPage(context, tally, archive, store, page.records, counts);
+      assertArchiveHealthy(archive);
+      await collectContractPage(context, tally, archive, store, page.records, counts, stopAt);
       context.logger.debug('Página de contratos gravada', {
         endpoint,
         params,
         page: page.pageNumber,
         remainingPages: page.remainingPages,
       });
+      if (counts.stoppedBy !== null || page.remainingPages <= 0 || page.records.length === 0) {
+        break;
+      }
     }
   } catch (error) {
-    if (!(error instanceof PncpRequestError)) {
+    if (error instanceof CollectorResourceLimitError) {
+      counts.completed = false;
+      counts.stoppedBy = 'disk';
+      context.logger.info('Consulta de contratos pausada pelo orçamento de disco', { endpoint });
+    } else if (error instanceof PncpRequestError) {
+      counts.completed = false;
+      tally.addError({ kind: 'request', params, ...error.details, message: error.message });
+      context.logger.warn('Consulta de contratos ao PNCP interrompida', { endpoint, params, error });
+    } else {
       throw error;
     }
-    counts.completed = false;
-    tally.addError({ kind: 'request', params, ...error.details, message: error.message });
-    context.logger.warn('Consulta de contratos ao PNCP interrompida', { endpoint, params, error });
+  } finally {
+    await pages.return(undefined);
   }
   tally.addDetailCount('termsChecked', counts.termsChecked);
   return counts;
@@ -290,6 +326,7 @@ export interface TermsRetryDetail {
   failed: number;
   /** Parou depois de MAX_CONSECUTIVE_TERMS_FAILURES falhas seguidas. */
   stoppedByFailures: boolean;
+  stoppedByLimit: CollectionLimitReason | null;
 }
 
 /**
@@ -307,7 +344,8 @@ async function retryPendingTerms(
   store: RunContractStore,
   limit: number,
   failedInThisRun: string[],
-): Promise<void> {
+  stopAt?: number,
+): Promise<CollectionLimitReason | null> {
   const summary: TermsRetryDetail = {
     pendingAtStart: await store.writer.countPendingTerms(),
     checked: 0,
@@ -315,18 +353,25 @@ async function retryPendingTerms(
     expiryChanged: 0,
     failed: 0,
     stoppedByFailures: false,
+    stoppedByLimit: null,
   };
   tally.details['termsRetry'] = summary;
   if (summary.pendingAtStart === 0) {
-    return;
+    return null;
   }
 
   const pending = await store.writer.readPendingTerms(limit, failedInThisRun);
   const checked: CheckedContractTerms[] = [];
+  const expiryChanges: ChangedContractExpiry[] = [];
   let consecutiveFailures = 0;
   for (const contract of pending) {
+    summary.stoppedByLimit = await collectionStopReason(context, stopAt, store.canContinue);
+    if (summary.stoppedByLimit !== null) {
+      break;
+    }
     summary.checked += 1;
     const check = await checkContractTerms(context, tally, archive, contract);
+    assertArchiveHealthy(archive);
     if (!check.ok) {
       summary.failed += 1;
       consecutiveFailures += 1;
@@ -339,15 +384,28 @@ async function retryPendingTerms(
     consecutiveFailures = 0;
     checked.push({ pncpControlNumber: contract.pncpControlNumber, expiresOn: check.expiresOn, amendments: check.amendments });
     if (check.expiresOn !== contract.expiresOn) {
-      summary.expiryChanged += 1;
-      store.noteExpiryChange(changedExpiryOf(contract, check.expiresOn));
+      expiryChanges.push(changedExpiryOf(contract, check.expiresOn));
     }
   }
 
-  await store.writer.saveCheckedTerms(checked);
+  try {
+    await store.writer.saveCheckedTerms(checked);
+  } catch (error) {
+    if (!(error instanceof CollectorResourceLimitError)) {
+      throw error;
+    }
+    summary.stoppedByLimit = 'disk';
+    context.logger.info('Reconsulta de termos pausada pelo orçamento de disco', { checked: summary.checked });
+    return 'disk';
+  }
+  for (const change of expiryChanges) {
+    store.noteExpiryChange(change);
+  }
   summary.resolved = checked.length;
+  summary.expiryChanged = expiryChanges.length;
   tally.updatedCount += checked.length;
   context.logger.info('Reconsulta dos termos de contratos', { ...summary });
+  return summary.stoppedByLimit;
 }
 
 function changedExpiryOf(contract: PendingTermsContract, expiresOn: string | null): ChangedContractExpiry {
@@ -357,6 +415,8 @@ function changedExpiryOf(contract: PendingTermsContract, expiresOn: string | nul
 export interface DailyOptions {
   /** Contratos da reconsulta dos termos; sem ele, TERMS_RETRY_LIMIT. */
   termsRetryLimit?: number;
+  /** Prazo global da rotina; a coleta deixa a margem de publicação antes dele. */
+  deadlineAt?: number;
 }
 
 /**
@@ -388,23 +448,34 @@ export function runContractsDaily(context: CollectorContext, options: DailyOptio
       tally.details['queries'] = queries;
 
       const store = await RunContractStore.open(context, tally, runId, today);
+      const stopAt = options.deadlineAt === undefined ? undefined : options.deadlineAt - DEADLINE_MARGIN_MINUTES * 60_000;
+      const eligibleQueries: DailyQueryDetail[] = [];
       try {
         const failedTerms: string[] = [];
+        let stoppedBy: CollectionLimitReason | null = null;
         for (const { endpoint, from, to } of windows) {
           const params = { dataInicial: toPncpDate(from), dataFinal: toPncpDate(to) };
-          const counts = await collectContractQuery(context, tally, archive, store, endpoint, params);
-          queries.push({ endpoint, from, to, completed: counts.completed, recordsRead: counts.recordsRead });
+          const counts = await collectContractQuery(context, tally, archive, store, endpoint, params, stopAt);
+          const query: DailyQueryDetail = { endpoint, from, to, completed: false, recordsRead: counts.recordsRead };
+          queries.push(query);
+          if (counts.completed) {
+            eligibleQueries.push(query);
+          }
           failedTerms.push(...counts.failedTerms);
-        }
-        await retryPendingTerms(context, tally, archive, store, options.termsRetryLimit ?? TERMS_RETRY_LIMIT, failedTerms);
-        await store.publish();
-      } catch (error) {
-        if (!store.published) {
-          for (const query of queries) {
-            query.completed = false;
+          stoppedBy = counts.stoppedBy;
+          if (stoppedBy !== null) {
+            break;
           }
         }
-        throw error;
+        if (stoppedBy === null) {
+          stoppedBy = await retryPendingTerms(context, tally, archive, store, options.termsRetryLimit ?? TERMS_RETRY_LIMIT, failedTerms, stopAt);
+        }
+        tally.details['stoppedBy'] = stoppedBy;
+        await store.publish(archive, async () => {
+          for (const query of eligibleQueries) {
+            query.completed = true;
+          }
+        });
       } finally {
         await store.close();
       }
@@ -493,6 +564,7 @@ export async function runContractsBackfill(context: CollectorContext, options: B
     COLLECTOR_LOCK_KEYS.contracts,
     async (tally, archive, runId) => {
       const startedAt = context.now().getTime();
+      const stopAt = startedAt + maxMinutes * 60_000;
       const { from, to } = range;
       const publishEveryDays = options.publishEveryDays ?? BACKFILL_PUBLISH_EVERY_DAYS;
       const pendingDays = await pendingBackfillDays(context.db, range);
@@ -505,24 +577,29 @@ export async function runContractsBackfill(context: CollectorContext, options: B
 
       const store = await RunContractStore.open(context, tally, runId, brasiliaDate(context.now()));
       const publishAndMarkDays = async () => {
-        await store.publish();
-        for (const { day, counts } of awaitingPublication) {
-          await markBackfillDayCompleted(context.db, day, counts);
-          daysCompleted += 1;
-          context.logger.info('Dia da carga de contratos concluído', { day, ...counts });
-        }
+        await store.publish(archive, async () => {
+          for (const { day, counts } of awaitingPublication) {
+            await markBackfillDayCompleted(context.db, day, counts);
+            daysCompleted += 1;
+            context.logger.info('Dia da carga de contratos concluído', { day, ...counts });
+          }
+        });
         awaitingPublication = [];
       };
 
       try {
         for (const day of pendingDays) {
-          if ((context.now().getTime() - startedAt) / 60_000 >= maxMinutes) {
-            stoppedBy = 'time';
+          stoppedBy = await collectionStopReason(context, stopAt, store.canContinue);
+          if (stoppedBy !== null) {
             break;
           }
 
           const pncpDay = toPncpDate(day);
-          const counts = await collectContractQuery(context, tally, archive, store, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay });
+          const counts = await collectContractQuery(context, tally, archive, store, 'contratos', { dataInicial: pncpDay, dataFinal: pncpDay }, stopAt);
+          if (counts.stoppedBy !== null) {
+            stoppedBy = counts.stoppedBy;
+            break;
+          }
           if (!counts.completed) {
             failedDays += 1;
             consecutiveFailures += 1;
@@ -542,7 +619,9 @@ export async function runContractsBackfill(context: CollectorContext, options: B
           }
         }
         // As sobras do bloco, e o que dias interrompidos já gravaram nas mudanças.
-        await publishAndMarkDays();
+        if (store.canContinue) {
+          await publishAndMarkDays();
+        }
       } finally {
         // Também numa falha: os dias que chegaram a ser publicados e marcados ficam registrados.
         const pendingAfter = pendingDays.length - daysCompleted;

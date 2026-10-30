@@ -3,7 +3,7 @@ import type { ContractTermSummary, TenderContractRow } from '../collector/contra
 // Formato do armazém de contratos no R2 (plano .plans/licitacoes-contratos-no-r2.md,
 // Parte R1): arquivos Parquet em quatro conjuntos, cada um na ordem da busca que
 // atende, e um manifesto (manifest.ts) com a lista dos arquivos em uso.
-//   vigentes    vencimento de hoje em diante, refeito a cada publicação, por
+//   vigentes    vencimento de hoje em diante, atualizado por partes, por
 //               faixa de vencimento (semana no 1º ano, mês no 2º, ano até 10
 //               anos e "depois"), por vencimento e UF;
 //   contratos   todos, por ano do contrato, por UF e número de controle (no
@@ -38,7 +38,7 @@ export type StoreDataset = (typeof STORE_DATASETS)[number];
 export const CONTRACT_DATASETS = ['vigentes', 'contratos', 'fornecedor'] as const satisfies readonly StoreDataset[];
 export type ContractDataset = (typeof CONTRACT_DATASETS)[number];
 
-/** Conjuntos de contratos por ano em que só as partes mudadas são regravadas (os vigentes são refeitos inteiros). */
+/** Conjuntos de contratos particionados por ano do contrato. */
 export type SlicedDataset = Exclude<ContractDataset, 'vigentes'>;
 
 /** Linhas por arquivo: acima disso, a parte é dividida. O fornecedor tem linhas mais estreitas. */

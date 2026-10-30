@@ -13,6 +13,7 @@ import { errorMessage, type CollectorLogger } from './logger';
 import { mapPncpRecord, type TenderNoticeRow } from './mapping';
 import { notifyChangedNotices, notifyNewNotices, notifyNewNoticesCollectedSince, notifyUpcomingDeadlines } from './notifications';
 import { PncpRequestError, type PncpClient, type PncpEndpoint, type PncpQueryParams } from './pncpClient';
+import type { CollectorResourceBudget } from './resourceBudget';
 import {
   COLLECTOR_LOCK_KEYS,
   deleteExpiredNotices,
@@ -44,6 +45,8 @@ export interface CollectorContext {
   storage: ObjectStorage | null;
   /** Pasta do disco onde a coleta de contratos mantém a cópia de trabalho do armazém. */
   contractWorkDirectory: string;
+  /** Orçamento compartilhado da rotina; ausente em testes que não usam disco real. */
+  resourceBudget?: CollectorResourceBudget;
   config: CollectorConfig;
   logger: CollectorLogger;
   now: () => Date;
@@ -163,6 +166,9 @@ export async function withCollectionRun(
     const archiveSummary = archive.summary();
     if (archiveSummary) {
       tally.details['archive'] = archiveSummary;
+    }
+    if (context.resourceBudget) {
+      tally.details['resources'] = context.resourceBudget.summary();
     }
     const summary = tally.summarize(status, requestCount());
     await finishCollectionRun(context.db, runId, summary);

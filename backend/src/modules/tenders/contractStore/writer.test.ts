@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { TenderContractRow } from '../collector/contractMapping';
+import { CollectorResourceBudget, CollectorResourceLimitError } from '../collector/resourceBudget';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
 import { openDuckDb, sqlLiteral, toDuckDbPath } from './duckdb';
 import { FILES_FOLDER, MANIFEST_KEY } from './layout';
-import { manifestFiles, parseManifest, type StoreManifest } from './manifest';
+import { manifestFiles, parseManifest, serializeManifest, type StoreManifest } from './manifest';
 import { publishWith, quietLogger, sampleContract, simpleSearchFields, withTempDirectory } from './storeTestSupport';
 import { ContractStoreWriter, twinNumber } from './writer';
 
@@ -367,6 +368,244 @@ test('carga: várias publicações na mesma execução, cada uma partindo da ant
       await writer.close();
     }
     assert.equal(manifestOf(objects).revision, '7.2');
+  });
+});
+
+test('vigentes incrementais: alteração pequena reutiliza as partes não afetadas e o banco fica vazio entre publicações', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const limits = { maxRowsPerFile: { vigentes: 3, contratos: 3, fornecedor: 3 } };
+    await publishWith(storage, directory, 1, async (writer) => {
+      await writer.upsert(Array.from({ length: 9 }, (_, index) => at(index + 1)));
+    }, limits);
+    const before = manifestOf(objects).datasets.vigentes;
+    assert.equal(before.length, 3);
+    const writer = await ContractStoreWriter.open({
+      storage, directory, version: 2, searchFields: simpleSearchFields,
+      today: '2026-10-19', now: () => new Date('2026-10-19T12:00:00Z'), logger: quietLogger,
+      ...limits,
+    });
+    try {
+      const emptyDatabaseBytes = (await stat(join(directory, 'trabalho.duckdb'))).size;
+      await writer.upsert([at(5, { payloadHash: 'conteudo-novo' })]);
+      await writer.publish();
+      const after = manifestOf(objects).datasets.vigentes;
+      assert.equal(after[0]?.path, before[0]?.path);
+      assert.notEqual(after[1]?.path, before[1]?.path);
+      assert.equal(after[2]?.path, before[2]?.path);
+      assert.equal(await writer.pendingChanges(), 0);
+      assert.equal((await stat(join(directory, 'trabalho.duckdb'))).size, emptyDatabaseBytes, 'o banco é renovado sem carregar os dados do lote');
+      assert.equal(writer.canContinue, true);
+      assert.deepEqual(await controlNumbers(objects, 'vigentes'), Array.from({ length: 9 }, (_, index) => at(index + 1).pncpControlNumber));
+      await writer.upsert([at(1, { payloadHash: 'outro-lote' })]);
+      await writer.publish();
+      assert.equal((await stat(join(directory, 'trabalho.duckdb'))).size, emptyDatabaseBytes, 'outra publicação não acumula espaço');
+    } finally {
+      await writer.close();
+    }
+  });
+});
+
+test('vigentes incrementais: prorrogação, vencimento, ausência de data e mudança de UF atingem origem e destino', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const limits = { maxRowsPerFile: { vigentes: 2 } };
+    await publishWith(storage, directory, 1, async (writer) => {
+      await writer.upsert([at(1), at(2), at(3), at(4), at(5, { expiresOn: null }), at(6, { expiresOn: '2026-01-01' })]);
+    }, limits);
+    await publishWith(storage, directory, 2, async (writer) => {
+      await writer.upsert([
+        at(1, { expiresOn: '2028-04-12', payloadHash: 'prorrogado' }),
+        at(2, { expiresOn: '2026-01-01', payloadHash: 'vencido' }),
+        at(3, { expiresOn: null, payloadHash: 'sem-fim' }),
+        at(4, { state: 'AC', payloadHash: 'mudou-uf' }),
+        at(5, { expiresOn: '2027-01-10', payloadHash: 'ganhou-fim' }),
+        at(6, { expiresOn: '2027-01-10', payloadHash: 'renovado' }),
+      ]);
+    }, limits);
+    const numbers = await controlNumbers(objects, 'vigentes');
+    assert.deepEqual(new Set(numbers), new Set([1, 4, 5, 6].map((number) => at(number).pncpControlNumber)));
+    assert.equal(numbers.length, 4);
+    assert.deepEqual(manifestOf(objects).totals, { contracts: 6, active: 4, withoutExpiry: 1 });
+    const rows = [];
+    for (const file of manifestOf(objects).datasets.vigentes) {
+      assert.ok(file.rows <= 2);
+      rows.push(...await rowsOf(objects, file.path, 'sequencial_contrato, uf, vencimento'));
+    }
+    assert.equal(rows.find((row) => row['sequencial_contrato'] === 4)?.['uf'], 'AC');
+    assert.equal(rows.find((row) => row['sequencial_contrato'] === 1)?.['vencimento'], '2028-04-12');
+  });
+});
+
+test('virada de Brasília sem mudanças remove vencidos e move as faixas de 365, 730 e 3650 dias sem regravar os outros conjuntos', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    let instant = new Date('2026-10-20T02:59:00Z'); // Ainda 19/10 em Brasília.
+    const dayAfter = (days: number) => new Date(Date.parse('2026-10-19') + days * 86_400_000).toISOString().slice(0, 10);
+    const writer = await ContractStoreWriter.open({
+      storage, directory, version: 1, searchFields: simpleSearchFields,
+      today: '2026-10-19', now: () => instant, logger: quietLogger,
+    });
+    try {
+      await writer.upsert([
+        at(1, { expiresOn: dayAfter(0) }), at(2),
+        at(3, { expiresOn: dayAfter(365) }), at(4, { expiresOn: dayAfter(730) }),
+        at(5, { expiresOn: dayAfter(3650) }), at(6, { expiresOn: null }),
+        at(7, { expiresOn: dayAfter(-1) }),
+      ]);
+      await writer.publish();
+      const before = manifestOf(objects);
+      const stablePart = before.datasets.vigentes.find((file) => file.partition === '2027-01-04');
+      assert.ok(stablePart);
+      assert.equal(await writer.publish(), null, 'mesmo dia sem alterações não publica');
+      instant = new Date('2026-10-20T03:01:00Z');
+      const summary = await writer.publish();
+      assert.equal(summary?.changedContracts, 0);
+      assert.equal(manifestOf(objects).today, '2026-10-20');
+      assert.deepEqual(summary?.totals, { contracts: 7, active: 4, withoutExpiry: 1 });
+      const after = manifestOf(objects);
+      assert.deepEqual(after.datasets.contratos, before.datasets.contratos);
+      assert.deepEqual(after.datasets.fornecedor, before.datasets.fornecedor);
+      assert.ok(after.datasets.vigentes.some((file) => file.path === stablePart.path), 'parte estável continua sendo o mesmo arquivo');
+      const partitionBySequence = new Map<number, string>();
+      for (const file of after.datasets.vigentes) {
+        for (const row of await rowsOf(objects, file.path, 'sequencial_contrato')) {
+          partitionBySequence.set(Number(row['sequencial_contrato']), file.partition);
+        }
+      }
+      assert.equal(partitionBySequence.has(1), false, 'o vencido saiu');
+      assert.equal(partitionBySequence.get(3), '2027-10-18', 'mensal passa a semanal');
+      assert.equal(partitionBySequence.get(4), '2028-10-01', 'anual passa a mensal');
+      assert.equal(partitionBySequence.get(5), '2036-01-01', 'depois passa a anual');
+      assert.equal(await writer.publish(), null);
+    } finally {
+      await writer.close();
+    }
+  });
+});
+
+test('mudança somente do dia publica o manifesto sem regravar partes estáveis', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    await publishWith(storage, directory, 1, async (writer) => { await writer.upsert([at(1)]); });
+    const before = manifestOf(objects);
+    const summary = await publishWith(storage, directory, 2, async () => {}, { today: '2026-10-20' });
+    assert.equal(summary?.filesWritten, 0);
+    assert.deepEqual(manifestOf(objects).datasets, before.datasets);
+    assert.equal(manifestOf(objects).today, '2026-10-20');
+  });
+});
+
+test('Parquet inválido na abertura fecha o banco de trabalho e permite recuperar a cópia', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const invalidKey = `${FILES_FOLDER}/contratos/2026/invalido.parquet`;
+    objects.set(invalidKey, Buffer.from('arquivo incompleto'));
+    objects.set(MANIFEST_KEY, serializeManifest({
+      format: 1, revision: 'invalida', publishedAt: '2026-10-19T12:00:00Z', today: '2026-10-19',
+      totals: { contracts: 1, active: 0, withoutExpiry: 1 },
+      datasets: { contratos: [{ path: invalidKey, rows: 1, bytes: 18, partition: '2026', from: '' }], vigentes: [], fornecedor: [], vencedores: [] },
+    }));
+    await assert.rejects(ContractStoreWriter.open({
+      storage, directory, version: 2, searchFields: simpleSearchFields, today: '2026-10-19',
+      now: () => new Date('2026-10-19T12:00:00Z'), logger: quietLogger,
+    }));
+    await assert.rejects(stat(join(directory, 'trabalho.duckdb')), { code: 'ENOENT' });
+    objects.delete(MANIFEST_KEY);
+    const summary = await publishWith(storage, directory, 3, async (writer) => { await writer.upsert([at(1)]); });
+    assert.equal(summary?.totals.contracts, 1);
+  });
+});
+
+test('retomada remove órfãos antes de verificar o orçamento dos downloads', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage } = createMemoryStorage();
+    await publishWith(storage, join(directory, 'origem'), 1, async (writer) => { await writer.upsert([at(1)]); });
+    const work = join(directory, 'retomada');
+    const orphanDirectory = join(work, FILES_FOLDER, 'contratos', '2026');
+    await mkdir(orphanDirectory, { recursive: true });
+    const orphan = join(orphanDirectory, 'publicacao-interrompida.parquet');
+    await writeFile(orphan, Buffer.alloc(2_000_000));
+    const budget = new CollectorResourceBudget({ directory: work, limitBytes: 1_000_000, publicationReserveBytes: 64_000 });
+    const writer = await ContractStoreWriter.open({
+      storage, directory: work, version: 2, searchFields: simpleSearchFields, resourceBudget: budget,
+      today: '2026-10-19', now: () => new Date('2026-10-19T12:00:00Z'), logger: quietLogger,
+    });
+    try {
+      assert.equal((await writer.readStates([at(1).pncpControlNumber])).size, 1);
+      await assert.rejects(stat(orphan), { code: 'ENOENT' });
+    } finally {
+      await writer.close();
+    }
+  });
+});
+
+test('falha de limpeza posterior ao manifesto não oculta a publicação confirmada', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    const failingCleanup: ObjectStorage = { ...storage, async listKeys() { throw new Error('limpeza indisponível'); } };
+    const summary = await publishWith(failingCleanup, directory, 1, async (writer) => { await writer.upsert([at(1)]); });
+    assert.equal(summary?.revision, manifestOf(objects).revision);
+    assert.equal(summary?.totals.contracts, 1);
+    assert.equal(summary?.filesDeleted, 0);
+  });
+});
+
+test('falha ao reabrir o banco depois do manifesto devolve a publicação e impede outro bloco', async () => {
+  await withTempDirectory(async (directory) => {
+    class ReopenBudget extends CollectorResourceBudget {
+      failReopen = false;
+      override async availableTempBytes(): Promise<number> {
+        if (this.failReopen) {
+          throw new Error('reabertura indisponível');
+        }
+        return super.availableTempBytes();
+      }
+    }
+    const resourceBudget = new ReopenBudget({ directory });
+    const { storage, objects } = createMemoryStorage();
+    const afterCommit: ObjectStorage = {
+      ...storage,
+      async putObject(key, body, contentType) {
+        await storage.putObject(key, body, contentType);
+        if (key === MANIFEST_KEY) {
+          resourceBudget.failReopen = true;
+        }
+      },
+    };
+    const writer = await ContractStoreWriter.open({
+      storage: afterCommit, directory, version: 1, searchFields: simpleSearchFields,
+      today: '2026-10-19', now: () => new Date('2026-10-19T12:00:00Z'), logger: quietLogger, resourceBudget,
+    });
+    try {
+      await writer.upsert([at(1)]);
+      const summary = await writer.publish();
+      assert.equal(summary?.revision, manifestOf(objects).revision);
+      assert.equal(summary?.totals.contracts, 1);
+      assert.equal(writer.canContinue, false);
+      await assert.rejects(writer.upsert([at(2)]), /cópia de trabalho precisa ser reaberta/);
+    } finally {
+      await writer.close();
+    }
+  });
+});
+
+test('página larga é recusada antes de criar JSON sem espaço para aplicar e publicar', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage } = createMemoryStorage();
+    const resourceBudget = new CollectorResourceBudget({ directory, limitBytes: 3_000_000, publicationReserveBytes: 1_000_000 });
+    const writer = await ContractStoreWriter.open({
+      storage, directory, version: 1, searchFields: simpleSearchFields,
+      today: '2026-10-19', now: () => new Date('2026-10-19T12:00:00Z'), logger: quietLogger, resourceBudget,
+    });
+    try {
+      await assert.rejects(writer.upsert([at(1, { additionalInformation: 'a'.repeat(2_000_000) })]), CollectorResourceLimitError);
+      await assert.rejects(stat(join(directory, 'pagina.ndjson')), { code: 'ENOENT' });
+      assert.equal(await writer.pendingChanges(), 0);
+      assert.equal(writer.currentManifest, null);
+    } finally {
+      await writer.close();
+    }
   });
 });
 

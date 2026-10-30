@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { CollectorContext } from '../modules/tenders/collector/runs';
-import { runTendersStep, type StepLimits } from './dailyJobs';
+import { collectorResourceMetrics, runTendersStep, type StepLimits } from './dailyJobs';
+import { CollectorResourceBudget } from '../modules/tenders/collector/resourceBudget';
 import { FEDERAL_STEPS, WINNERS_STEPS } from './dailyJobSteps';
 
 // As etapas dos vencedores só rodam com TENDERS_WINNERS_ENABLED=1 (plano .plans/licitacoes-vencedores.md) e as dos
@@ -49,4 +50,16 @@ test('cada chave liga só as etapas dela: vencedores desligados não pulam os fe
   assert.equal(await runTendersStep('tenders-winners-daily', contextWith(false, winnersLog, true), LIMITS), 'skipped');
   assert.equal(winnersLog.length, 1);
   assert.equal(winnersLog[0]?.message, 'Vencedores desligados: etapa pulada');
+});
+
+test('métricas da rotina: falha de medição não impede etapa independente nem oculta a pendência', async () => {
+  const context = contextWith(false, []);
+  context.resourceBudget = new CollectorResourceBudget({
+    directory: 'nao-usado',
+    sampleDisk: async () => { throw new Error('pasta temporária indisponível'); },
+  });
+  const result = await collectorResourceMetrics(context, 'etapa:fim');
+  assert.equal(result.resources?.measurementFailures, 1);
+  assert.equal(result.resources?.last, null);
+  assert.equal(result.storage, null);
 });

@@ -1,5 +1,6 @@
 import { access, readdir, rm } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import type { CollectorResourceBudget } from '../collector/resourceBudget';
 import type { ObjectStorage } from '../objectStorage';
 import { FILES_FOLDER, STORE_DATASETS, type StoreDataset } from './layout';
 import { manifestFiles, type StoreManifest } from './manifest';
@@ -11,7 +12,16 @@ import { manifestFiles, type StoreManifest } from './manifest';
 
 /** Caminho local de um arquivo do bucket. */
 export function localPath(directory: string, key: string): string {
-  return join(directory, ...key.split('/'));
+  const root = resolve(directory);
+  const target = resolve(root, ...key.split('/'));
+  const inside = relative(root, target);
+  if (
+    !key || key.includes('\\') || key.split('/').includes('..') || isAbsolute(key) || /^[A-Za-z]:/.test(key) ||
+    !inside || inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)
+  ) {
+    throw new Error('Caminho do armazém fora do diretório de trabalho');
+  }
+  return target;
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -32,14 +42,28 @@ export async function downloadManifestFiles(
   manifest: StoreManifest | null,
   directory: string,
   datasets: readonly StoreDataset[] = STORE_DATASETS,
+  resourceBudget?: CollectorResourceBudget,
 ): Promise<number> {
-  let downloaded = 0;
+  const missing = [];
   for (const file of manifestFiles(manifest, datasets)) {
-    const path = localPath(directory, file.path);
-    if (await exists(path)) {
-      continue;
+    if (!(await exists(localPath(directory, file.path)))) {
+      missing.push(file);
     }
-    await storage.downloadToFile(file.path, path);
+  }
+  // Recusa antes do primeiro download quando a cópia completa não cabe com
+  // a reserva de publicação. O rename do download não duplica o arquivo.
+  if (resourceBudget) {
+    await resourceBudget.check('download-manifest-preflight', missing.reduce((bytes, file) => bytes + file.bytes, 0), resourceBudget.publicationReserveBytes);
+  }
+  let downloaded = 0;
+  for (const file of missing) {
+    const path = localPath(directory, file.path);
+    if (resourceBudget) {
+      await resourceBudget.check('download-manifest-file', file.bytes, resourceBudget.publicationReserveBytes);
+      await resourceBudget.measure('download-manifest-file', () => storage.downloadToFile(file.path, path));
+    } else {
+      await storage.downloadToFile(file.path, path);
+    }
     downloaded += 1;
   }
   return downloaded;

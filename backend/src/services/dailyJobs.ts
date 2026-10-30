@@ -5,6 +5,7 @@ import { createCollectorLogger, type CollectorLogger } from '../modules/tenders/
 import { runResultsBackfill, runResultsDaily } from '../modules/tenders/collector/resultRuns';
 import { runCleanup, runDeadlineReminders, runSweep, type CollectorContext, type RunOutcome } from '../modules/tenders/collector/runs';
 import { createCollectorRuntime, type CollectorRuntime } from '../modules/tenders/collector/runtime';
+import type { ObjectStorageMetrics } from '../modules/tenders/objectStorage';
 import { FEDERAL_STEPS, WINNERS_STEPS, dailyJobSteps, planLifecycleUrl, type DailyJobStep } from './dailyJobSteps';
 
 // Rotina diária do Cron Job do Render (`npm run daily-jobs`, scripts/dailyJobs.ts).
@@ -21,7 +22,7 @@ export interface StepLimits {
 const TENDERS_RUNS: Record<TendersStep, (context: CollectorContext, limits: StepLimits) => Promise<RunOutcome>> = {
   'tenders-sweep': runSweep,
   'tenders-deadline-reminders': runDeadlineReminders,
-  'tenders-contracts-daily': (context) => runContractsDaily(context),
+  'tenders-contracts-daily': (context, { deadlineAt }) => runContractsDaily(context, { deadlineAt }),
   'tenders-contract-reminders': runContractReminders,
   // Só com TENDERS_WINNERS_ENABLED=1 (ver runTendersStep).
   'tenders-winners-daily': runResultsDaily,
@@ -73,6 +74,31 @@ function rssMb(): number {
   return Math.round(process.memoryUsage().rss / BYTES_PER_MB);
 }
 
+/** Só métricas: uma falha de medição não impede uma etapa independente. */
+export async function collectorResourceMetrics(context: CollectorContext, phase: string) {
+  if (context.resourceBudget) {
+    try {
+      await context.resourceBudget.sample(phase);
+    } catch {
+      // A admissão do trabalho faz sua própria verificação estrita de capacidade.
+      // O resumo conserva a falha de medição e o último valor conhecido.
+    }
+  }
+  return {
+    resources: context.resourceBudget?.summary() ?? null,
+    storage: context.storage?.metrics?.() ?? null,
+  };
+}
+
+function storageDifference(after: ObjectStorageMetrics | null, before: ObjectStorageMetrics | null): ObjectStorageMetrics | null {
+  if (!after) {
+    return null;
+  }
+  return Object.fromEntries(
+    Object.entries(after).map(([key, value]) => [key, value - (before?.[key as keyof ObjectStorageMetrics] ?? 0)]),
+  ) as unknown as ObjectStorageMetrics;
+}
+
 /**
  * Uma execução do coletor. FALHA vira erro; coleta pulada (trava ocupada) não. As etapas dos vencedores só rodam com
  * TENDERS_WINNERS_ENABLED=1 e as dos contratos federais, com TENDERS_FEDERAL_ENABLED=1; desligadas, são puladas com o
@@ -119,15 +145,32 @@ export async function runDailyJobs(env: NodeJS.ProcessEnv, now: Date = new Date(
   try {
     for (const step of steps) {
       const startedAt = Date.now();
-      logger.info('Etapa iniciada', { step, rssMb: rssMb() });
+      const storageBefore = collector.runtime?.context.storage?.metrics?.() ?? null;
+      const before = collector.runtime ? await collectorResourceMetrics(collector.runtime.context, `${step}:inicio`) : {};
+      logger.info('Etapa iniciada', { step, rssMb: rssMb(), ...before });
       try {
         const result =
           step === 'plan-lifecycle' ? await runPlanLifecycle(env, logger) : await runTendersStep(step, collectorContext(), limits);
         // O rssMb de cada etapa mostra, em produção, se a memória do processo volta ao nível de antes entre elas.
-        logger.info('Etapa finalizada', { step, result, durationMs: Date.now() - startedAt, rssMb: rssMb() });
+        const metrics = collector.runtime ? await collectorResourceMetrics(collector.runtime.context, `${step}:fim`) : null;
+        logger.info('Etapa finalizada', {
+          step,
+          result,
+          durationMs: Date.now() - startedAt,
+          rssMb: rssMb(),
+          ...metrics,
+          storageDelta: storageDifference(metrics?.storage ?? null, storageBefore),
+        });
       } catch (error) {
         failedSteps.push(step);
-        logger.error('Etapa falhou', { step, durationMs: Date.now() - startedAt, error });
+        const metrics = collector.runtime ? await collectorResourceMetrics(collector.runtime.context, `${step}:falha`) : null;
+        logger.error('Etapa falhou', {
+          step,
+          durationMs: Date.now() - startedAt,
+          error,
+          ...metrics,
+          storageDelta: storageDifference(metrics?.storage ?? null, storageBefore),
+        });
       }
     }
   } finally {
@@ -136,6 +179,7 @@ export async function runDailyJobs(env: NodeJS.ProcessEnv, now: Date = new Date(
     }
   }
 
-  logger.info('Rotina diária finalizada', { failedSteps });
+  const metrics = collector.runtime ? await collectorResourceMetrics(collector.runtime.context, 'rotina:fim') : {};
+  logger.info('Rotina diária finalizada', { failedSteps, ...metrics });
   return failedSteps.length === 0;
 }
