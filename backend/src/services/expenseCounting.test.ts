@@ -13,6 +13,14 @@ import {
 
 const TODAY = '2026-10-07';
 
+test('previsões e canceladas ficam fora da contagem, mesmo pagas ou com data passada', () => {
+  const planned = expense({ status: 'prevista', recurring: false, dueDate: '2026-01-01' });
+  assert.equal(isCountedExpense(planned, TODAY), false);
+  assert.equal(isCountedExpense({ ...planned, paid: true }, '2027-01-01'), false);
+  assert.equal(isCountedExpense({ ...planned, status: 'ativa' }, TODAY), true);
+  assert.equal(isCountedExpense({ ...planned, status: 'cancelada' }, TODAY), false);
+});
+
 function expense(overrides: Partial<CountableExpense> = {}): CountableExpense {
   return {
     recurring: true, paid: false, paymentMethod: 'credito', cardId: 6,
@@ -47,6 +55,7 @@ test('paga conta sempre; despesa que não é mensal conta sempre', () => {
 
 test('SQL cru: a mesma regra, com o apelido e o marcador da data', () => {
   const condition = countedExpenseSql('d', '$6');
+  assert.match(condition, /COALESCE\(d\.status, 'ativa'\) = 'ativa'/);
   assert.match(condition, /COALESCE\(d\.recorrente, false\)/);
   assert.match(condition, /d\.forma_pagamento = 'credito' AND d\.cartao_id IS NOT NULL/);
   assert.match(condition, /COALESCE\(d\.data_compra, d\.data_vencimento\)/);

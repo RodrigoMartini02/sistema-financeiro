@@ -29,8 +29,12 @@ import { MAX_PAYMENT_CANDIDATES, lastDayOfMonth, nextOpenPerGroup, toOpenExpense
 import { INVOICE_EXPENSE_METHOD, INVOICE_MESSAGES, invoiceEditRefusal } from '../services/cardInvoiceRules';
 import { hasInvoiceProtectedRows, isCreditWithCardExpense } from '../services/cardInvoiceService';
 import { paidCreditRefusal, recurringPaymentRefusal } from '../services/expenseSeries';
+import fixedExpenseRoutes from './fixedExpenses';
+import { cancelFixedOccurrence, moveFixedOccurrence, writeFixedOccurrence } from '../services/fixedExpenseService';
 
 const router = Router();
+// Herda plano ativo, acesso à tela e autenticação do router de despesas.
+router.use('/fixed', authenticate, fixedExpenseRoutes);
 
 function buildWhereClause(
   userId: number,
@@ -301,6 +305,17 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
   }
 });
 
+router.post('/:id/confirm', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const expenseId = readQueryId(req.params['id'], 'Despesa inválida');
+    if (expenseId === null) throw new RequestInputError('Despesa inválida');
+    const updated = await writeFixedOccurrence(req.user!.id, expenseId, readUpdateExpenseInput(req.body), true, getTodayIsoInTimezone());
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    sendRequestError(res, error, 'Confirm expense forecast:', req.user?.id, 'Não foi possível confirmar a previsão');
+  }
+});
+
 // PUT /api/expenses/:id — edita uma linha e, numa série, as outras do alcance; o nº de parcelas só muda com installmentCount
 router.put('/:id', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -317,6 +332,14 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const input = readUpdateExpenseInput(req.body);
+    if (current.status === 'prevista') {
+      const updated = await writeFixedOccurrence(req.user!.id, expenseId, input, false, getTodayIsoInTimezone());
+      res.json({ success: true, data: updated, seriesUpdated: 0, interestUpdated: 0, installmentsCreated: 0, installmentsDeleted: 0 });
+      return;
+    }
+    if (current.fixedExpenseId !== null && (current.status === 'cancelada' || input.installmentCount !== null)) {
+      throw new RequestInputError('A despesa fixa não pode ser convertida em parcelamento ou editar uma ocorrência retirada');
+    }
     // Compra paga pela fatura e linha gerada por ela têm campos travados; no
     // crédito com cartão, o pagamento só muda pela fatura.
     const lockRefusal = invoiceEditRefusal(current.invoiceEditLock, current.lockableFields, {
@@ -435,6 +458,14 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
       return;
     }
 
+    const currentFixed = await findExpenseForUpdate(donoCancel, expenseId);
+    if (currentFixed?.fixedExpenseId !== null && currentFixed?.fixedExpenseId !== undefined) {
+      if (ids !== undefined && ids !== String(expenseId)) throw new RequestInputError('Retire uma ocorrência fixa por vez');
+      await cancelFixedOccurrence(req.user!.id, expenseId);
+      res.json({ success: true, message: 'Expense cancelled' });
+      return;
+    }
+
     if (ids !== undefined) {
       const selectedIds = ids.split(',').map((v) => parseInt(v.trim())).filter((v) => Number.isInteger(v));
       if (selectedIds.length === 0) {
@@ -485,8 +516,7 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
 
     res.json({ success: true, message: 'Expense cancelled' });
   } catch (error) {
-    console.error('Cancel expense error:', error);
-    res.status(500).json({ success: false, message: 'Failed to cancel expense' });
+    sendRequestError(res, error, 'Cancel expense error:', req.user?.id, 'Não foi possível cancelar a despesa');
   }
 });
 
@@ -507,6 +537,14 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     const donoDelete = await resolveOwnerForWrite('despesas', expenseId, req.user!.id);
     if (donoDelete === null) {
       res.status(404).json({ success: false, message: 'Expense not found' });
+      return;
+    }
+
+    const currentFixed = await findExpenseForUpdate(donoDelete, expenseId);
+    if (currentFixed?.fixedExpenseId !== null && currentFixed?.fixedExpenseId !== undefined) {
+      if (ids !== undefined && ids !== String(expenseId)) throw new RequestInputError('Retire uma ocorrência fixa por vez');
+      await cancelFixedOccurrence(req.user!.id, expenseId);
+      res.json({ success: true, message: 'Expense removed' });
       return;
     }
 
@@ -543,7 +581,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       }
 
       await pool.query(
-        `DELETE FROM despesas WHERE id = ANY($1) AND usuario_id = $2`,
+        `DELETE FROM despesas WHERE id = ANY($1) AND usuario_id = $2 AND despesa_fixa_id IS NULL`,
         [selectedIds, donoDelete],
       );
     } else if (delete_group === 'true') {
@@ -552,7 +590,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         return;
       }
       await pool.query(
-        `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2`,
+        `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2 AND despesa_fixa_id IS NULL`,
         [expenseId, donoDelete],
       );
     } else {
@@ -561,7 +599,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         return;
       }
       const result = await pool.query(
-        'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 RETURNING id',
+        'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 AND despesa_fixa_id IS NULL RETURNING id',
         [expenseId, donoDelete],
       );
       if (result.rows.length === 0) {
@@ -572,8 +610,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
 
     res.json({ success: true, message: 'Expense deleted' });
   } catch (error) {
-    console.error('Delete expense error:', error);
-    res.status(500).json({ success: false, message: 'Failed to delete expense' });
+    sendRequestError(res, error, 'Delete expense error:', req.user?.id, 'Não foi possível remover a despesa');
   }
 });
 
@@ -584,6 +621,10 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
     const { data_pagamento, valor_pago } = req.body as Record<string, unknown>;
 
     const paymentDate = data_pagamento ?? getTodayIsoInTimezone();
+    const current = Number.isInteger(expenseId) ? await findExpenseForUpdate(req.user!.id, expenseId) : null;
+    if (current?.status === 'prevista') {
+      throw new RequestInputError('Confirme a previsão antes de registrar o pagamento', 409);
+    }
 
     // Despesa no credito com cartao e paga pela fatura, nunca sozinha (lote,
     // assistente). A condicao se repete no proprio UPDATE, contra corrida.
@@ -599,6 +640,7 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
       `UPDATE despesas
        SET pago = true, data_pagamento = $1, valor_pago = COALESCE($2, valor_original)
        WHERE id = $3 AND usuario_id = $4
+         AND status = 'ativa'
          AND NOT (COALESCE(forma_pagamento, '') = $5 AND cartao_id IS NOT NULL)
        RETURNING *`,
       [paymentDate, valor_pago ?? null, expenseId, req.user!.id, INVOICE_EXPENSE_METHOD],
@@ -613,8 +655,7 @@ router.post('/:id/pay', authenticate, async (req: Request, res: Response): Promi
 
     res.json({ success: true, message: 'Payment processed', data: expense });
   } catch (error) {
-    console.error('Pay expense error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process payment' });
+    sendRequestError(res, error, 'Pay expense error:', req.user?.id, 'Não foi possível registrar o pagamento');
   }
 });
 
@@ -624,7 +665,7 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
     const expenseId = parseInt(req.params['id']!);
 
     const existing = await pool.query(
-      `SELECT data_vencimento, pago FROM despesas WHERE id = $1 AND usuario_id = $2`,
+      `SELECT data_vencimento, pago, status, despesa_fixa_id FROM despesas WHERE id = $1 AND usuario_id = $2`,
       [expenseId, req.user!.id],
     );
 
@@ -633,9 +674,13 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
       return;
     }
 
-    const despesa = existing.rows[0] as { data_vencimento: string; pago: boolean };
+    const despesa = existing.rows[0] as { data_vencimento: string; pago: boolean; status: string; despesa_fixa_id: number | null };
+    if (despesa.despesa_fixa_id !== null) {
+      res.json({ success: true, data: await moveFixedOccurrence(req.user!.id, expenseId) });
+      return;
+    }
 
-    if (despesa.pago) {
+    if (despesa.pago || despesa.status === 'cancelada') {
       res.status(400).json({ success: false, message: 'Cannot move a paid expense' });
       return;
     }
@@ -656,14 +701,13 @@ router.post('/:id/mover', authenticate, async (req: Request, res: Response): Pro
     const newDueDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`;
 
     const result = await pool.query(
-      `UPDATE despesas SET data_vencimento_original = COALESCE(data_vencimento_original, data_vencimento), data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 RETURNING *`,
+      `UPDATE despesas SET data_vencimento_original = COALESCE(data_vencimento_original, data_vencimento), data_vencimento = $1, mes = $2, ano = $3 WHERE id = $4 AND usuario_id = $5 AND NOT COALESCE(pago,false) AND status <> 'cancelada' RETURNING *`,
       [newDueDate, nextMonth - 1, nextYear, expenseId, req.user!.id],
     );
 
     res.json({ success: true, message: 'Expense moved to next month', data: result.rows[0] });
   } catch (error) {
-    console.error('Move expense error:', error);
-    res.status(500).json({ success: false, message: 'Failed to move expense' });
+    sendRequestError(res, error, 'Move expense error:', req.user?.id, 'Não foi possível mover a despesa');
   }
 });
 

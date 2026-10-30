@@ -2,15 +2,17 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { eq, and, ne, or, ilike } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { users, categories, cards as cardsTable, expenses, incomes } from '../db/schema';
+import { users } from '../db/schema';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { resolveMemberAccountId } from '../middleware/permissions';
 import { validateDocument } from '../middleware/validation';
 import { ensureDefaultCategories } from '../services/defaultCategories';
 import { findAccountAccessWithDocument, findOwnLoginWithDocument } from '../services/documentConflicts';
 import { ensureDefaultIncomeClassifications } from '../services/incomeClassificationCatalog';
+import { clearUserFinancialData } from '../services/clearFinancialDataService';
 import { accountWhere } from '../utils/accountFilter';
 import { isActiveFamilyMember } from '../utils/familyVisibility';
+import { sendRequestError } from '../utils/requestInput';
 
 const router = Router();
 
@@ -653,16 +655,7 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
       return;
     }
 
-    await Promise.all([
-      db.delete(incomes).where(eq(incomes.userId, userId)),
-      db.delete(expenses).where(eq(expenses.userId, userId)),
-      db.delete(categories).where(eq(categories.userId, userId)),
-      db.delete(cardsTable).where(eq(cardsTable.userId, userId)),
-    ]);
-
-    await db.update(users)
-      .set({ financialData: null, categories: null, cards: null, updatedAt: new Date() })
-      .where(eq(users.id, userId));
+    await clearUserFinancialData(userId);
 
     // Membro vinculado a conta de outra pessoa nao tem catalogo proprio —
     // recriar categorias padrao aqui deixaria sobras soltas (conta_id nulo)
@@ -674,8 +667,7 @@ router.delete('/:id/clear-data', authenticate, async (req: Request, res: Respons
 
     res.json({ success: true, message: 'System reset: data, categories, cards and notifications cleared.' });
   } catch (error) {
-    console.error('Clear data error:', error);
-    res.status(500).json({ success: false, message: 'Failed to clear data' });
+    sendRequestError(res, error, 'Clear data error:', req.user?.id, 'Não foi possível limpar os dados');
   }
 });
 

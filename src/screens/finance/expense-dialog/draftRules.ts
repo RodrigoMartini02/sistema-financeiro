@@ -32,6 +32,8 @@ export interface RuleContext {
    * o mesmo, resolveEditedPayment).
    */
   editing?: boolean;
+  /** Previsão existente: a data não significa confirmação ou pagamento. */
+  forecast?: boolean;
   /** Na edição: o juros embutido gravado na parcela (`embeddedInstallmentInterest`), só para o resumo mostrar. */
   savedInterest?: number | null;
 }
@@ -271,7 +273,7 @@ export function installmentMismatch(draft: ExpenseDraft): string | null {
 
 // ── Resumo ─────────────────────────────────────────────────────────────────
 
-export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento';
+export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento' | 'Previsão';
 
 /** Cor da situação na linha de resumo (modal e card do assistente). */
 export const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
@@ -280,6 +282,7 @@ export const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
   'Entra na fatura': 'info',
   'Com vencidas': 'danger',
   'Em andamento': 'info',
+  'Previsão': 'neutral',
 };
 
 export interface DraftSummary {
@@ -301,7 +304,8 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   const due = effectiveDueDate(draft, context);
   const today = context.todayIso;
   const credit = draft.paymentMethod === 'credito';
-  const autoPay = !context.editing;
+  const forecast = draft.billingType === 'fixed' || context.forecast === true;
+  const autoPay = !context.editing && !forecast;
   const firstLabel = draft.billingType === 'single' ? 'Vence ' : '1ª vence ';
 
   let dueText: string;
@@ -314,6 +318,15 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   } else dueText = `${firstLabel}${isoToShortBrDate(due.date)}`;
 
   const badges: SummaryBadge[] = [];
+
+  if (forecast && !draft.paid) {
+    return {
+      status: 'Previsão',
+      dueText: `Vence ${isoToShortBrDate(due.date)}`,
+      totalText: draft.billingType === 'fixed' ? `${formatCents(amount)}/mês · até dezembro` : `valor a confirmar ${formatCents(amount)}`,
+      badges,
+    };
+  }
 
   if (draft.billingType === 'installments') {
     const count = draft.installmentCount;
@@ -380,6 +393,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
 }
 
 export function helpText(draft: ExpenseDraft): string {
+  if (draft.billingType === 'fixed') return 'O valor é uma referência: cada mês pode ser ajustado ao confirmar a conta';
   if (draft.billingType === 'installments') return 'Marque as parcelas pagas no botão de parcelas';
   if (draft.paymentMethod === 'credito') {
     return draft.paid ? 'Pago: o limite do cartão é liberado agora' : 'Vencimento vem da fatura. Altere só se combinou outra data';

@@ -29,6 +29,8 @@ interface EntryDialogFrameProps {
   top: ReactNode;
   /** O lote; null quando está vazio. */
   batch: { count: number; sumCents: number; header: ReactNode; rows: ReactNode } | null;
+  /** Fluxos com ação própria, sem misturar previsões ao lote de criação. */
+  extraContent?: ReactNode;
   /** "despesa"/"despesas", "receita"/"receitas". */
   itemNoun: ItemNoun;
   footerMessage: string;
@@ -50,13 +52,13 @@ interface EntryDialogFrameProps {
  * autocomplete e dos popovers o Enter é deles (eles marcam o evento).
  */
 export function EntryDialogFrame({
-  title, description, onRequestClose, onSave, onAddToBatch, top, batch, itemNoun,
+  title, description, onRequestClose, onSave, onAddToBatch, top, batch, extraContent, itemNoun,
   footerMessage, footerTone, saveLabel, canSave, saving, toast,
 }: EntryDialogFrameProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return;
     const target = event.target as HTMLElement;
-    if (target.tagName !== 'INPUT' || target.closest('[data-floating-panel]')) return;
+    if (target.tagName !== 'INPUT' || target.closest('[data-floating-panel], [data-independent-save]')) return;
     event.preventDefault();
     if (!event.shiftKey) onSave();
     else if (onAddToBatch && target.closest('[data-entry-row]')) onAddToBatch();
@@ -68,8 +70,9 @@ export function EntryDialogFrame({
         <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-3.5 pt-3.5 lg:overflow-hidden xl:px-5">
           <div className="flex-none">{top}</div>
 
-          {batch && (
-            <div className="flex flex-col lg:min-h-0 lg:flex-1">
+          {(batch || extraContent) && (
+            <div className="scrollbar-thin lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              {batch && <div className="flex flex-col">
               <div className="flex-none" style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '20px 8px 8px', borderBottom: `1px solid ${SEPARATOR}` }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>No lote</span>
                 <span style={{ fontSize: 12, color: C.textSoft }}>
@@ -80,9 +83,11 @@ export function EntryDialogFrame({
                 </span>
               </div>
               <div className="flex-none">{batch.header}</div>
-              <div className="scrollbar-thin flex flex-col gap-2 pt-2 lg:min-h-0 lg:flex-1 lg:gap-0 lg:overflow-y-auto lg:pt-0">
+              <div className="flex flex-col gap-2 pt-2 lg:gap-0 lg:pt-0">
                 {batch.rows}
               </div>
+              </div>}
+              {extraContent}
             </div>
           )}
         </div>

@@ -46,9 +46,10 @@ type LancamentoItem =
   | { kind: 'despesa'; id: number; chave: string; data: Expense }
   | { kind: 'receita'; id: number; chave: string; data: Income };
 
-type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada';
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada' | 'prevista';
 
 const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
+  prevista: 'text-amber-700 dark:text-amber-400',
   pago: 'text-green-600 dark:text-green-400',
   atrasada: 'text-red-600 dark:text-red-400',
   em_dia: 'text-slate-600 dark:text-slate-300',
@@ -60,7 +61,7 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada', prevista: 'Previsão',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -70,6 +71,7 @@ export function getFirstName(nome?: string | null): string {
 
 function getExpenseStatusKey(item: Expense): ExpenseStatusKey {
   if (item.status === 'cancelada') return 'cancelada';
+  if (item.status === 'prevista') return 'prevista';
   if (isRenegotiated(item)) return 'renegociada';
   if (!isCountedExpense(item, getLocalTodayIso())) return 'agendada';
   return getExpenseStatus(item);
@@ -316,7 +318,9 @@ export function LancamentosTable({
     }
     const ok = await confirm({
       title: 'Excluir despesa',
-      message: `Excluir "${item.descricao}"? Esta ação não pode ser desfeita.`,
+      message: item.fixedExpenseId != null
+        ? `Retirar "${item.descricao}"? O histórico será preservado como cancelado para esta conta não ser prevista novamente neste mês.`
+        : `Excluir "${item.descricao}"? Esta ação não pode ser desfeita.`,
       confirmLabel: 'Excluir despesa',
     });
     if (ok) finance.deleteExpense.mutate({ id: item.id });

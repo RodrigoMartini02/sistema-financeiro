@@ -38,3 +38,11 @@ test('passa a contar no dia seguinte à data, inclusive na virada do mês e do a
   assert.equal(countsFromDate(expense({ dataCompra: '2026-10-31' })), '2026-11-01');
   assert.equal(countsFromDate(expense({ formaPagamento: 'pix', cartaoId: null, dataVencimento: '2026-12-31' })), '2027-01-01');
 });
+
+test('previsão de fixa não entra nas somas pela passagem da data ou por inferência de pagamento', () => {
+  const planned = expense({ status: 'prevista', recorrente: false, formaPagamento: 'pix', cartaoId: null, dataVencimento: '2026-01-01' });
+  assert.equal(isCountedExpense(planned, TODAY), false);
+  assert.equal(isCountedExpense({ ...planned, pago: true }, '2027-01-01'), false);
+  assert.equal(isCountedExpense({ ...planned, status: 'ativa' }, TODAY), true);
+  assert.equal(isCountedExpense({ ...planned, status: 'cancelada' }, TODAY), false);
+});

@@ -7,7 +7,7 @@
 import type { Expense } from '../types/finance';
 import { INVOICE_EXPENSE_METHOD } from './cardInvoice';
 
-type CountableExpense = Pick<Expense, 'recorrente' | 'pago' | 'formaPagamento' | 'cartaoId' | 'dataCompra' | 'dataVencimento'>;
+type CountableExpense = Pick<Expense, 'recorrente' | 'pago' | 'formaPagamento' | 'cartaoId' | 'dataCompra' | 'dataVencimento' | 'status'>;
 
 /** A data que decide quando a ocorrência mensal passa a contar ('AAAA-MM-DD'). */
 export function countingDate(expense: Omit<CountableExpense, 'recorrente' | 'pago'>): string {
@@ -26,6 +26,7 @@ export function countsFromDate(expense: Omit<CountableExpense, 'recorrente' | 'p
 
 /** Conta nas somas: não é mensal, está paga, ou a data dela já passou (conta a partir do dia seguinte). */
 export function isCountedExpense(expense: CountableExpense, today: string): boolean {
+  if (expense.status === 'prevista' || expense.status === 'cancelada') return false;
   if (!expense.recorrente || expense.pago) return true;
   return countingDate(expense) < today;
 }

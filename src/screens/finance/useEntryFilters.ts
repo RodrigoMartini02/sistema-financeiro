@@ -26,6 +26,8 @@ export interface EntryFilterState {
 }
 
 interface EntryFilterOptions {
+  /** Relatórios mostram somente despesas confirmadas. */
+  includeForecasts?: boolean;
   /** Formas de pagamento que existem nos lançamentos carregados. */
   paymentMethods: string[];
   /** Cartões dos lançamentos carregados: [id, nome]. */
@@ -39,7 +41,7 @@ const ALL_TYPES: EntryType[] = ['receita', 'despesa'];
  * cada grupo, os grupos prontos para o MultiFilterPanel e o escopo de pessoas.
  * Quem usa decide onde aplicar (Movimentações na tela; Relatórios no backend).
  */
-export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
+export function useEntryFilters({ paymentMethods, cards, includeForecasts = false }: EntryFilterOptions) {
   const accountId = getActiveAccountId();
   const meQ = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, staleTime: 5 * 60_000 });
   const membersQ = useQuery({
@@ -110,6 +112,7 @@ export function useEntryFilters({ paymentMethods, cards }: EntryFilterOptions) {
           { value: 'pago', label: 'Pago' },
           { value: 'em_dia', label: 'Em dia' },
           { value: 'atrasada', label: 'Atrasada' },
+          ...(includeForecasts ? [{ value: 'prevista', label: 'Previsão' }] : []),
         ],
         selected: statuses,
         onChange: (next: Set<string>) => setStatuses(next as Set<ExpenseStatus>),

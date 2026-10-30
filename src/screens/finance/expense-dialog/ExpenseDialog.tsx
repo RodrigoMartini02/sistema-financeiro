@@ -9,7 +9,8 @@ import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
 import { createExpense, fetchExpenseGroup, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
-import { C, chipStyle } from '../../../ui/dialogFormTokens';
+import { C, chipStyle, neutralOutlineButtonStyle, saveButtonStyle } from '../../../ui/dialogFormTokens';
+import { confirmFixedExpense, createFixedExpense } from '../../../services/fixedExpensesService';
 import { INVOICE_MESSAGES, invoiceEditLock, payInvoiceShortcut } from '../../../utils/cardInvoice';
 import {
   cashPriceInterestNote, cashPriceInterestPreview, installmentScopeRows, openFollowingOccurrences, paidInstallmentsNote,
@@ -45,6 +46,9 @@ import { InstallmentCountField } from './InstallmentCountField';
 import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
 import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSuggestions';
+import { FixedExpensesSection } from './FixedExpensesSection';
+import { FixedExpenseManager } from './FixedExpenseManager';
+import { buildFixedExpenseInput, canCreateFixedFromExpense, initialFixedMonth, isFixedMonth } from './fixedExpenseDrafts';
 
 const TOAST_DURATION_MS = 2800;
 const EXPENSE_NOUN = { singular: 'despesa', plural: 'despesas' };
@@ -62,6 +66,8 @@ interface ExpenseDialogProps {
   expense?: Expense | null;
   /** Dia clicado no calendário (ISO): vira a data da compra, travada na linha de entrada. */
   presetDate?: string;
+  /** Mês consultado na tela de origem, independente da data da compra. */
+  initialMonth?: string;
   onClose: () => void;
   /**
    * Edição de uma despesa no crédito com cartão: o atalho "Pagar fatura". Quem abriu
@@ -77,13 +83,14 @@ interface ExpenseDialogProps {
  * linha só, e fecha ao salvar. Cada abertura começa do zero (o lote não
  * sobrevive ao fechar).
  */
-export function ExpenseDialog({ open, expense, presetDate, onClose, onPayInvoice }: ExpenseDialogProps) {
+export function ExpenseDialog({ open, expense, presetDate, initialMonth, onClose, onPayInvoice }: ExpenseDialogProps) {
   if (!open) return null;
   return (
     <ExpenseDialogContent
-      key={expense?.id ?? 'new'}
+      key={`${expense?.id ?? 'new'}:${getActiveAccountId() ?? 'none'}`}
       expense={expense ?? null}
       presetDate={presetDate}
+      initialMonth={initialMonth}
       onClose={onClose}
       onPayInvoice={onPayInvoice}
     />
@@ -118,21 +125,31 @@ function useSuggestedPayment(
 interface ExpenseDialogContentProps {
   expense: Expense | null;
   presetDate?: string;
+  initialMonth?: string;
   onClose: () => void;
   onPayInvoice?: ExpenseDialogProps['onPayInvoice'];
 }
 
-function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: ExpenseDialogContentProps) {
+function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPayInvoice }: ExpenseDialogContentProps) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const todayIso = useMemo(() => getLocalTodayIso(), []);
+  const [dialogAccountId] = useState(() => getActiveAccountId());
   const isEdit = expense !== null;
+  const isForecast = expense?.status === 'prevista';
+  const [fixedOpened, setFixedOpened] = useState(false);
+  const [fixedVisible, setFixedVisible] = useState(false);
+  const [fixedBusy, setFixedBusy] = useState(false);
+  const [managerOpened, setManagerOpened] = useState(false);
+  const [convertingToFixed, setConvertingToFixed] = useState(false);
+  const [firstMonth, setFirstMonth] = useState(() => initialFixedMonth(initialMonth, expense?.dataVencimento ?? presetDate, todayIso));
+  const pendingMonth = initialFixedMonth(initialMonth, presetDate, todayIso);
   const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
   const descriptionRef = useRef<HTMLInputElement>(null);
 
   const [state, dispatch] = useReducer(dialogReducer, null, () => initialDialogState(expense
     ? draftFromExpense(expense)
-    : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), paymentMethodTouched: false })));
+    : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), purchaseDateTouched: !!presetDate, paymentMethodTouched: false })));
 
   const permissions = useOwnPermissions() ?? {};
   const categoriesQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
@@ -169,8 +186,9 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
     cards,
     savedDueDate: expense?.dataVencimento,
     editing: expense !== null,
+    forecast: isForecast,
     savedInterest: expense ? embeddedInstallmentInterest(expense) : null,
-  }), [todayIso, cards, expense]);
+  }), [todayIso, cards, expense, isForecast]);
 
   // Histórico já carregado pelas telas (todos os meses em cache), para "Recentes" e a sugestão de categoria.
   const categoryHistory = useMemo(() => {
@@ -220,15 +238,20 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
     paymentMethod: from.paymentMethod,
     cardId: from.cardId,
     purchaseDate: from.purchaseDate,
+    purchaseDateTouched: from.purchaseDateTouched,
     paymentMethodTouched: true,
   });
 
   const requestClose = () => {
-    if (!state.saving) onClose();
+    if (!state.saving && !fixedBusy) onClose();
   };
 
   const addToBatch = () => {
-    if (isEdit || state.saving) return;
+    if (isEdit || state.saving || fixedBusy) return;
+    if (state.entry.billingType === 'fixed') {
+      dispatch({ type: 'showErrors', errors: {}, message: 'Use “Salvar despesa fixa” para gerar as previsões. O lote de despesas comuns será preservado.' });
+      return;
+    }
     const errors = validateDraft(state.entry, context);
     if (hasErrors(errors)) {
       dispatch({ type: 'showErrors', errors: { ...state.errors, [state.entry.key]: errors }, message: errorMessage(errors) });
@@ -272,7 +295,53 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
     }
   };
 
+  const saveFixed = async () => {
+    if (state.saving || fixedBusy) return;
+    if (getActiveAccountId() !== dialogAccountId) {
+      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente o lançamento.' });
+      return;
+    }
+    const errors = validateDraft(state.entry, { ...context, editing: true });
+    if (hasErrors(errors) || !isFixedMonth(firstMonth) || getActiveAccountId() === null) {
+      dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: hasErrors(errors)
+        ? errorMessage(errors) : getActiveAccountId() === null ? 'Selecione uma conta para cadastrar a fixa.' : 'Informe o mês inicial das previsões.' });
+      return;
+    }
+    dispatch({ type: 'savingStarted', total: 1 });
+    try {
+      await createFixedExpense(buildFixedExpenseInput(state.entry, context, getActiveAccountId(), firstMonth, convertingToFixed ? expense?.id : undefined));
+      invalidateExpenseQueries(qc);
+      if (convertingToFixed) {
+        onClose();
+      } else {
+        dispatch({ type: 'draftSaved', key: state.entry.key, nextEntry: nextEntry(state.entry) });
+        dispatch({ type: 'savingFinished', toast: '✓ Despesa fixa salva. As previsões aguardam confirmação.' });
+      }
+    } catch (cause) {
+      dispatch({ type: 'savingFailed', message: cause instanceof Error ? cause.message : 'Não foi possível salvar a despesa fixa.' });
+    }
+  };
+
+  const confirmEditedForecast = async () => {
+    if (!expense || !isForecast || state.saving || fixedBusy) return;
+    if (getActiveAccountId() !== dialogAccountId) {
+      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente a previsão.' });
+      return;
+    }
+    const errors = validateDraft(state.entry, context);
+    if (hasErrors(errors)) { dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: errorMessage(errors) }); return; }
+    dispatch({ type: 'savingStarted', total: 1 });
+    try {
+      await confirmFixedExpense(expense.id, buildUpdateInput(state.entry, context));
+      invalidateExpenseQueries(qc);
+      onClose();
+    } catch (cause) {
+      dispatch({ type: 'savingFailed', message: cause instanceof Error ? cause.message : 'Não foi possível confirmar a previsão.' });
+    }
+  };
+
   const saveNew = async () => {
+    if (state.entry.billingType === 'fixed') { await saveFixed(); return; }
     const entryFilled = isDraftFilled(state.entry);
     const items = entryFilled ? [...state.batch, state.entry] : state.batch;
     if (items.length === 0) {
@@ -309,8 +378,12 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   };
 
   const save = () => {
-    if (state.saving) return;
-    void (expense ? saveEdit(expense) : saveNew());
+    if (state.saving || fixedBusy) return;
+    if (getActiveAccountId() !== dialogAccountId) {
+      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente o lançamento.' });
+      return;
+    }
+    void (convertingToFixed ? saveFixed() : expense ? saveEdit(expense) : saveNew());
   };
 
   const rowHandlers = (key: number) => ({
@@ -322,6 +395,20 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   const pendingCountFor = (key: number) => (state.pendingInstallmentCount?.key === key ? state.pendingInstallmentCount.count : null);
 
   const entry = state.entry;
+  let displayedEntry = entry;
+  let fixedDateError = '';
+  if (entry.billingType === 'fixed' && !isEdit) {
+    try {
+      const preview = buildFixedExpenseInput(entry, context, dialogAccountId, firstMonth);
+      displayedEntry = {
+        ...entry,
+        purchaseDate: isoToBrDate(preview.purchaseDate),
+        dueDate: entry.dueDate || isoToBrDate(preview.dueDate),
+      };
+    } catch (cause) {
+      fixedDateError = cause instanceof Error ? cause.message : 'Confira as datas da primeira previsão.';
+    }
+  }
   const entryInstallments = entry.billingType === 'installments';
   const entryFilled = isDraftFilled(entry);
   const toSaveCount = isEdit ? 1 : state.batch.length + (entryFilled ? 1 : 0);
@@ -329,7 +416,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   const entryLimit = cardLimitText(entry, cards, resources.cardLimits);
 
   // Despesa ligada à fatura do cartão: a edição não mexe no que a fatura define.
-  const lock = expense ? invoiceEditLock(expense) : null;
+  const lock = expense && !convertingToFixed && !isForecast ? invoiceEditLock(expense) : null;
   const invoiceLock = lock === null ? undefined : {
     reason: lock === 'credit-payment' ? INVOICE_MESSAGES.creditPayment : INVOICE_MESSAGES.lockedRow,
     locksValueAndMethod: lock !== 'credit-payment',
@@ -337,7 +424,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   };
 
   // No crédito com cartão o pagamento é pela fatura: o atalho abre o "Pagar fatura" no mês e no cartão da despesa.
-  const invoiceShortcut = expense && onPayInvoice ? payInvoiceShortcut(expense) : null;
+  const invoiceShortcut = expense && !isForecast && !convertingToFixed && onPayInvoice ? payInvoiceShortcut(expense) : null;
   const payInvoiceAction = invoiceShortcut && onPayInvoice ? {
     label: invoiceShortcut.label,
     title: 'Fecha esta edição e abre o pagamento da fatura. O que não foi salvo aqui se perde.',
@@ -352,6 +439,13 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
   if (state.footerError) {
     footerMessage = state.footerError;
     footerTone = 'danger';
+  } else if (fixedDateError) {
+    footerMessage = fixedDateError;
+    footerTone = 'danger';
+  } else if (entry.billingType === 'fixed' || convertingToFixed) {
+    footerMessage = convertingToFixed ? 'A despesa atual será preservada. As próximas ocorrências serão previstas até dezembro.' : 'Gera previsões até dezembro. Cada conta será confirmada quando você souber o valor.';
+  } else if (isForecast) {
+    footerMessage = 'Salvar alterações mantém a previsão. Use “Confirmar despesa” quando souber o valor da conta.';
   } else if (lock === 'invoice-item') {
     footerMessage = 'Paga pela fatura do cartão: valor, forma, cartão, vencimento e pagamento só mudam desfazendo o pagamento da fatura.';
   } else if (lock === 'generated') {
@@ -401,7 +495,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
     ? previewInstallmentCount(series, expense, nextInstallmentCount, entryAmount)
     : null;
   // A despesa ligada à fatura (paga por ela ou gerada por ela) já fica de fora em canBecomeInstallments; no crédito com cartão ela pode virar parcelada.
-  const canSplitSingle = expense !== null && canBecomeInstallments(expense);
+  const canSplitSingle = expense !== null && !expense.fixedExpenseId && !convertingToFixed && !isForecast && canBecomeInstallments(expense);
   const splitPreview = canSplitSingle && nextInstallmentCount !== null && entryAmount !== null
     ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount)
     : null;
@@ -416,7 +510,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
     : null;
 
   const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
-  const editBillingLabel = expense
+  const editBillingLabel = convertingToFixed ? 'Fixa' : expense?.fixedExpenseId ? 'Fixa' : expense
     ? expense.parcelado && expense.parcela
       ? `Parcela ${expense.parcela}`
       : expense.recorrente ? recurringLabel : splitPreview ? `Parcelada em ${splitPreview.count}x` : 'Não repete'
@@ -437,6 +531,24 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
             onChange={(choice) => dispatch({ type: 'update', key: entry.key, patch: choice })}
           />
           {entryLimit && <span style={{ fontSize: 12, color: C.textSoft }}>{entryLimit}</span>}
+          <button
+            type="button" style={neutralOutlineButtonStyle} aria-expanded={fixedVisible} disabled={state.saving !== null || fixedBusy}
+            onClick={() => { setFixedOpened(true); setFixedVisible((value) => !value); }}
+          >
+            ☆ Despesas fixas
+          </button>
+        </div>
+      )}
+
+      {isEdit && (
+        <div data-independent-save className="flex flex-wrap items-center gap-2 px-2 pb-3">
+          {isForecast && <button type="button" disabled={state.saving !== null || fixedBusy} style={saveButtonStyle} onClick={() => void confirmEditedForecast()}>Confirmar despesa</button>}
+          {expense?.fixedExpenseId && <button type="button" disabled={state.saving !== null || fixedBusy} style={neutralOutlineButtonStyle} aria-expanded={managerOpened} onClick={() => setManagerOpened((value) => !value)}>Gerenciar fixa</button>}
+          {expense && canCreateFixedFromExpense(expense) && <button type="button" disabled={state.saving !== null || fixedBusy} style={neutralOutlineButtonStyle} onClick={() => {
+            setConvertingToFixed((value) => !value);
+            setFirstMonth(expense.dataVencimento.slice(0, 7));
+            setNextInstallmentCount(null);
+          }}>{convertingToFixed ? 'Cancelar criação da fixa' : 'Tornar despesa fixa'}</button>}
         </div>
       )}
 
@@ -461,7 +573,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
           texto da anterior (o valor digitado seria gravado ao sair do campo). */}
       <ExpenseRow
         key={entry.key}
-        draft={entry}
+        draft={displayedEntry}
         variant={isEdit ? 'edit' : 'entry'}
         resources={resources}
         errors={state.errors[entry.key]}
@@ -470,6 +582,7 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
         readOnlyBilling={editBillingLabel}
         readOnlyBillingReason={expense ? billingLockReason(expense) : undefined}
         invoiceLock={invoiceLock}
+        hidePayment={isForecast || convertingToFixed}
         payInvoiceAction={payInvoiceAction}
         creditOnlyPayment={expense?.recorrente === true}
         pendingInstallmentCount={pendingCountFor(entry.key)}
@@ -477,6 +590,19 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
         onAddToBatch={addToBatch}
         {...rowHandlers(entry.key)}
       />
+
+      {(entry.billingType === 'fixed' || convertingToFixed) && (
+        <div data-independent-save className="flex flex-wrap items-center gap-3 px-2 pt-3 text-xs text-slate-500">
+          <label className="flex items-center gap-2 font-medium text-slate-600 dark:text-slate-300">
+            {convertingToFixed ? 'Mês da despesa atual' : 'Primeiro mês'}
+            <input type="month" min="2000-01" max="2100-12" aria-label="Primeiro mês da despesa fixa" value={firstMonth} disabled={convertingToFixed || state.saving !== null}
+              onChange={(event) => { if (isFixedMonth(event.target.value)) setFirstMonth(event.target.value); }}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900" />
+          </label>
+          <span>{convertingToFixed ? 'Mantém esta despesa e gera somente os meses seguintes.' : `Gera previsões de ${firstMonth.slice(5)}/${firstMonth.slice(0, 4)} até dezembro.`}</span>
+          {!convertingToFixed && <span>As datas são da primeira previsão. Datas automáticas anteriores ao mês inicial serão avançadas; as datas informadas serão preservadas.</span>}
+        </div>
+      )}
 
       {canSplitSingle && (
         <>
@@ -616,13 +742,17 @@ function ExpenseDialogContent({ expense, presetDate, onClose, onPayInvoice }: Ex
       description="Registre uma saída financeira"
       onRequestClose={requestClose}
       onSave={save}
-      onAddToBatch={isEdit ? undefined : addToBatch}
+      onAddToBatch={isEdit || entry.billingType === 'fixed' ? undefined : addToBatch}
       top={top}
       batch={batch}
+      extraContent={<>
+        {!isEdit && fixedOpened && <FixedExpensesSection initialMonth={pendingMonth} visible={fixedVisible} disabled={state.saving !== null} resources={resources} onBusyChange={setFixedBusy} />}
+        {isEdit && managerOpened && expense?.fixedExpenseId && <FixedExpenseManager resources={resources} initialSourceId={expense.fixedExpenseId} disabled={state.saving !== null} onBusyChange={setFixedBusy} />}
+      </>}
       itemNoun={EXPENSE_NOUN}
       footerMessage={footerMessage}
       footerTone={footerTone}
-      saveLabel={isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa'}
+      saveLabel={entry.billingType === 'fixed' || convertingToFixed ? 'Salvar despesa fixa' : isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa'}
       canSave={toSaveCount > 0}
       saving={state.saving}
       toast={state.toast}

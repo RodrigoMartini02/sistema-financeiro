@@ -22,7 +22,7 @@ import { ReportEntries, buildReportRows, type ReportSort, type ReportSortKey } f
 import { PERIOD_PRESETS, presetPeriod, samePeriod, type ReportPeriod } from './reportPeriod';
 
 const TYPE_TO_API: Record<EntryType, ReportEntryType> = { receita: 'income', despesa: 'expense' };
-const STATUS_TO_API: Record<ExpenseStatus, ReportExpenseStatus> = { pago: 'paid', em_dia: 'on_time', atrasada: 'overdue' };
+const STATUS_TO_API: Partial<Record<ExpenseStatus, ReportExpenseStatus>> = { pago: 'paid', em_dia: 'on_time', atrasada: 'overdue' };
 const PAYMENT_DATE_TO_API: Record<PaymentDateWindow, ReportPaymentDateWindow> = { hoje: 'today', semana: 'week', mes: 'month' };
 
 const PILL = 'inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-medium transition';
@@ -71,7 +71,10 @@ export function ReportsScreen() {
       startDate: appliedPeriod.start,
       endDate: appliedPeriod.end,
       types: state.types.size === 2 ? [] : sorted([...state.types].map((type) => TYPE_TO_API[type])),
-      expenseStatuses: expenseFilters ? sorted([...state.statuses].map((status) => STATUS_TO_API[status])) : [],
+      expenseStatuses: expenseFilters ? sorted([...state.statuses].flatMap((status) => {
+        const mapped = STATUS_TO_API[status];
+        return mapped ? [mapped] : [];
+      })) : [],
       categoryIds: expenseFilters ? sorted([...state.categoryIds].map(Number), byNumber) : [],
       paymentMethods: expenseFilters ? sorted(state.paymentMethods) : [],
       cardIds: expenseFilters ? sorted([...state.cardIds].map(Number), byNumber) : [],

@@ -6,7 +6,7 @@ import { daysAgoLocalIso, getLocalTodayIso } from './date';
 import { isCreditWithCard } from './cardInvoice';
 
 export type EntryType = 'receita' | 'despesa';
-export type ExpenseStatus = 'pago' | 'em_dia' | 'atrasada';
+export type ExpenseStatus = 'pago' | 'em_dia' | 'atrasada' | 'prevista';
 export type PaymentDateWindow = 'hoje' | 'semana' | 'mes';
 
 /** Filtros do painel; conjunto vazio não filtra. */
@@ -32,6 +32,7 @@ export interface ReferenceDates {
 }
 
 export function getExpenseStatus(item: Expense, today = getLocalTodayIso()): ExpenseStatus {
+  if (item.status === 'prevista') return 'prevista';
   if (item.pago) return 'pago';
   return item.dataVencimento < today ? 'atrasada' : 'em_dia';
 }
@@ -53,7 +54,7 @@ export function expensesPaidByPeople(items: readonly Expense[], visibility: Expe
  * do crédito com cartão, que é pago pela fatura.
  */
 export function isBatchSelectable(item: Expense): boolean {
-  return !item.pago && item.status !== 'cancelada' && !isCreditWithCard(item);
+  return !item.pago && item.status !== 'cancelada' && item.status !== 'prevista' && !isCreditWithCard(item);
 }
 
 /**

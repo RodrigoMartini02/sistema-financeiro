@@ -119,7 +119,7 @@ export function MovimentacoesScreen() {
 
   // Botão de filtros (mesmo de Relatórios): estado único que também controla
   // a faixa de limite de cartões e a tabela combinada.
-  const filters = useEntryFilters({ paymentMethods: tableData.formas, cards: tableData.cartoes });
+  const filters = useEntryFilters({ paymentMethods: tableData.formas, cards: tableData.cartoes, includeForecasts: true });
   const { meId: meIdStr, familyScope: escopoFamilia, visibleNames: nomesVisiveis } = filters;
 
   const activeAccountId = getActiveAccountId();
@@ -151,7 +151,8 @@ export function MovimentacoesScreen() {
   );
   const todayIso = getLocalTodayIso();
   const expensesInTotal = expensesPaid.filter((item) => isCountedExpense(item, todayIso));
-  const scheduledCount = expensesPaid.length - expensesInTotal.length;
+  const plannedCount = expensesPaid.filter((item) => item.status === 'prevista').length;
+  const scheduledCount = expensesPaid.length - expensesInTotal.length - plannedCount;
   const despesasMes = expensesInTotal.reduce((sum, item) => sum + effectiveExpenseValue(item), 0);
   const resultadoMes = receitasMes - despesasLancadasMes;
   const saldoAtual = saldoAnterior + receitasMes - (dashboard?.balance.despesasPagas ?? 0);
@@ -190,7 +191,7 @@ export function MovimentacoesScreen() {
               )}
               {controls.newExpense && (
                 <div className="relative">
-                  <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa')}>
+                  <button type="button" style={dangerButtonStyle} onClick={() => setQuickAction('nova-despesa', `${year}-${String(month + 1).padStart(2, '0')}`)}>
                     <Plus size={15} /> Nova despesa
                   </button>
                   {novaDespesaGuide.isVisible && (
@@ -240,7 +241,7 @@ export function MovimentacoesScreen() {
               label="Despesa do mês"
               value={formatCurrency(despesasMes)}
               tone="expense"
-              note={`${expensesInTotal.length} lançamento(s)${filters.hasActiveFilters ? ' filtrado(s)' : ''}${scheduledCount > 0 ? ` · ${scheduledCount} agendada(s)` : ''}`}
+              note={`${expensesInTotal.length} lançamento(s)${filters.hasActiveFilters ? ' filtrado(s)' : ''}${plannedCount > 0 ? ` · ${plannedCount} previsão(ões)` : ''}${scheduledCount > 0 ? ` · ${scheduledCount} agendada(s)` : ''}`}
             />
             <MovementMetricCard
               label="Resultado do mês"

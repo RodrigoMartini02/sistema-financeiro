@@ -10,6 +10,7 @@ import {
   jsonb,
   timestamp,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from './users';
@@ -18,6 +19,7 @@ import { categories } from './categories';
 import { cards } from './cards';
 import { incomes } from './incomes';
 import { invoicePayments } from './invoicePayments';
+import { fixedExpenses } from './fixedExpenses';
 
 export const expenses = pgTable(
   'despesas',
@@ -47,7 +49,10 @@ export const expenses = pgTable(
     amountPaid: decimal('valor_pago', { precision: 10, scale: 2 }),
     originalAmount: decimal('valor_original', { precision: 10, scale: 2 }),
     recurring: boolean('recorrente').default(false),
-    // 'ativa' | 'cancelada'. Toda leitura financeira filtra por ela: sem o
+    fixedExpenseId: integer('despesa_fixa_id').references(() => fixedExpenses.id, { onDelete: 'restrict' }),
+    fixedCompetence: date('fixa_competencia'),
+    estimatedAmount: decimal('valor_previsto', { precision: 10, scale: 2 }),
+    // 'ativa' | 'cancelada' | 'prevista'. Toda leitura financeira filtra por ela: sem o
     // filtro, lancamento cancelado volta a somar nos totais.
     status: varchar('status', { length: 20 }).notNull().default('ativa'),
     attachments: jsonb('anexos'),
@@ -74,6 +79,12 @@ export const expenses = pgTable(
       table.year,
     ),
     accountIdx: index('idx_despesas_conta').on(table.accountId),
+    fixedCompetenceUnique: uniqueIndex('uq_despesas_fixa_competencia')
+      .on(table.fixedExpenseId, table.fixedCompetence)
+      .where(sql`${table.fixedExpenseId} IS NOT NULL`),
+    fixedPendingIdx: index('idx_despesas_fixas_pendentes')
+      .on(table.accountId, table.userId, table.fixedCompetence)
+      .where(sql`${table.status} = 'prevista'`),
     installmentGroupIdx: index('idx_despesas_grupo_parcelamento').on(table.installmentGroupId),
     sourceIncomeIdx: index('idx_despesas_receita_origem')
       .on(table.sourceIncomeId)

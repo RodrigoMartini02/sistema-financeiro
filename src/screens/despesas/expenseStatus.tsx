@@ -4,7 +4,7 @@ import { getLocalTodayIso, isoToShortBrDate } from '../../utils/date';
 import { countsFromDate, isCountedExpense } from '../../utils/expenseCounting';
 import { formatCurrency } from '../finance/formatters';
 
-type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada';
+type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada' | 'prevista';
 
 function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
   if (item.pago) return 'pago';
@@ -14,6 +14,7 @@ function getStatus(item: Expense): 'pago' | 'em_dia' | 'atrasada' {
 // Cor por estado, compartilhada entre Status e Valor: o valor herda a cor do
 // estado em vez de repetir a informacao com um codigo proprio.
 const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
+  prevista: 'text-amber-700 dark:text-amber-400',
   pago: 'text-green-600 dark:text-green-400',
   atrasada: 'text-red-600 dark:text-red-400',
   // Sem cor propria: "em dia" e o estado neutro, o unico que nao pede nada do
@@ -29,7 +30,7 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada', prevista: 'Previsão',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -43,6 +44,7 @@ export function formatDiferenca(diff: number): string {
 
 function getStatusKey(item: Expense): ExpenseStatusKey {
   if (item.status === 'cancelada') return 'cancelada';
+  if (item.status === 'prevista') return 'prevista';
   if (isRenegotiated(item)) return 'renegociada';
   if (!isCountedExpense(item, getLocalTodayIso())) return 'agendada';
   return getStatus(item);

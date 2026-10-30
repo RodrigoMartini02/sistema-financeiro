@@ -3,7 +3,7 @@ import {
   type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo,
 } from './demoFakeDatabase';
 import type {
-  CardInvoice, ExpenseCreateInput, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentEntry, InvoicePaymentInput,
+  CardInvoice, ExpenseCreateInput, ExpenseUpdateInput, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentEntry, InvoicePaymentInput,
 } from '../../types/finance';
 import { PERMISSION_FLAGS } from '../../types/permissions';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
@@ -11,6 +11,8 @@ import {
   installmentAmountsOf, invoiceDueDate, invoiceMonthLabel, isCreditWithCard, summarizeInvoicePayment,
 } from '../../utils/cardInvoice';
 import { addMonthsClamped, invoiceDueDate as purchaseInvoiceDueDate, splitAmountInCents } from '../../utils/expenseSchedule';
+import { resolveFixedExpensesDemo, updateDemoExpense } from './fixedExpensesDemo';
+import { buildDemoPanel, countedDemoExpense, demoExpenseDate } from './panelDemo';
 
 export interface FakeApiRequestInit {
   method?: string;
@@ -37,10 +39,21 @@ export function resolveFakeApiRequest(
   init?: FakeApiRequestInit,
 ): unknown {
   const method = (init?.method ?? 'GET').toUpperCase();
+  const fixed = resolveFixedExpensesDemo(db, endpoint, method, init?.body);
+  if (fixed.handled) return fixed.data;
+
+  if (matchEndpoint(endpoint, /^\/(usuarios|users)\/me$/) && method === 'GET') {
+    return { id: 0, nome: 'Você', nomeExibicao: 'Você', email: 'demo@example.invalid', tipo: 'titular', status: 'ativo', plano_status: 'ativo', plano_tipo: 'premium' };
+  }
+  if (matchEndpoint(endpoint, /^\/account-members$/) && method === 'GET') return [];
+
+  if (matchEndpoint(endpoint, /^\/financial\/painel$/) && method === 'GET') {
+    return buildDemoPanel(db, new URLSearchParams(endpoint.split('?')[1] ?? ''));
+  }
 
   // Receitas
   if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'GET') {
-    return db.receitas;
+    return db.receitas.map((row) => ({ ...row, autor_nome: 'Você' }));
   }
   if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'POST') {
     const created = buildDemoIncomeRows(parseBody<IncomeCreateInput>(init));
@@ -76,7 +89,13 @@ export function resolveFakeApiRequest(
 
   // Despesas
   if (matchEndpoint(endpoint, /^\/expenses$/) && method === 'GET') {
-    return db.despesas;
+    const params = new URLSearchParams(endpoint.split('?')[1] ?? '');
+    const month = params.get('mes');
+    const year = params.get('ano');
+    return db.despesas.filter((row) => {
+      const date = demoExpenseDate(row);
+      return (month === null || Number(date.slice(5, 7)) - 1 === Number(month)) && (year === null || Number(date.slice(0, 4)) === Number(year));
+    }).map((row) => ({ ...row, usuario_id: 0, autor_nome: 'Você', cartao_dono_id: row.cartao_id === null ? null : 0, cartao_dono_nome: row.cartao_id === null ? null : 'Você' }));
   }
   if (matchEndpoint(endpoint, /^\/expenses$/) && method === 'POST') {
     const created = buildDemoExpenseRows(db, parseBody<ExpenseCreateInput>(init));
@@ -97,7 +116,25 @@ export function resolveFakeApiRequest(
   const despesaIdMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)$/);
   if (despesaIdMatch && method === 'DELETE') {
     const id = Number(despesaIdMatch[1]);
-    db.despesas = db.despesas.filter((item) => item.id !== id);
+    const fixedRow = db.despesas.find((item) => item.id === id && item.despesa_fixa_id != null);
+    if (fixedRow) fixedRow.status = 'cancelada';
+    else db.despesas = db.despesas.filter((item) => item.id !== id);
+    return undefined;
+  }
+  if (despesaIdMatch && method === 'PUT') return updateDemoExpense(db, Number(despesaIdMatch[1]), parseBody<ExpenseUpdateInput>(init));
+  const cancelExpense = matchEndpoint(endpoint, /^\/expenses\/(\d+)\/cancelar$/);
+  if (cancelExpense && method === 'PUT') {
+    const row = db.despesas.find((item) => item.id === Number(cancelExpense[1]));
+    if (row) row.status = 'cancelada';
+    return undefined;
+  }
+  const moveExpense = matchEndpoint(endpoint, /^\/expenses\/(\d+)\/mover$/);
+  if (moveExpense && method === 'POST') {
+    const row = db.despesas.find((item) => item.id === Number(moveExpense[1]));
+    if (!row || row.pago || row.status === 'cancelada') throw new Error('Despesa indisponível para mover');
+    row.data_vencimento = addMonthsClamped(row.data_vencimento, 1);
+    row.mes = Number(row.data_vencimento.slice(5, 7)) - 1;
+    row.ano = Number(row.data_vencimento.slice(0, 4));
     return undefined;
   }
   const despesaPayMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)\/pay$/);
@@ -105,12 +142,13 @@ export function resolveFakeApiRequest(
     const id = Number(despesaPayMatch[1]);
     const body = parseBody<Record<string, unknown>>(init);
     const target = db.despesas.find((item) => item.id === id);
+    if (!target || target.status !== 'ativa') throw new Error('Confirme a previsão antes de registrar o pagamento');
     if (target && isCreditWithCard({ formaPagamento: target.forma_pagamento, cartaoId: target.cartao_id })) {
       throw new Error('Despesa no crédito é paga pela fatura do cartão.');
     }
     db.despesas = db.despesas.map((item) =>
       item.id === id
-        ? { ...item, pago: true, data_pagamento: String(body.data_pagamento ?? todayIso()) }
+        ? { ...item, pago: true, data_pagamento: String(body.data_pagamento ?? todayIso()), valor_pago: Number(body.valor_pago ?? item.valor_original ?? 0) }
         : item,
     );
     return undefined;
@@ -134,12 +172,17 @@ export function resolveFakeApiRequest(
 
   // Saldo do mês — calculado a partir do estado fake
   if (matchEndpoint(endpoint, /^\/meses\/\d+\/\d+\/saldo$/)) {
-    const totalReceitas = db.receitas.reduce((sum, item) => sum + item.valor_liquido, 0);
-    const totalDespesas = db.despesas.reduce((sum, item) => sum + (item.valor_original ?? 0), 0);
+    const [, year, month] = endpoint.match(/^\/meses\/(\d+)\/(\d+)\/saldo/) ?? [];
+    const prefix = `${year}-${String(Number(month) + 1).padStart(2, '0')}`;
+    const totalReceitas = db.receitas.filter((row) => row.status === 'ativa' && row.data_recebimento.startsWith(prefix)).reduce((sum, row) => sum + row.valor_liquido, 0);
+    const rows = db.despesas.filter((row) => countedDemoExpense(row) && demoExpenseDate(row).startsWith(prefix));
+    const value = (row: RawExpenseDemo) => row.pago && row.valor_pago != null ? row.valor_pago : row.valor_original ?? 0;
+    const totalDespesas = rows.reduce((sum, row) => sum + value(row), 0);
     return {
       saldo_anterior: 0,
       receitas: totalReceitas,
       despesas: totalDespesas,
+      despesas_pagas: rows.filter((row) => row.pago).reduce((sum, row) => sum + value(row), 0),
       saldo_final: totalReceitas - totalDespesas,
     };
   }
@@ -168,6 +211,14 @@ export function resolveFakeApiRequest(
   }
 
   // Cartões
+  if (matchEndpoint(endpoint, /^\/cartoes\/limites$/) && method === 'GET') {
+    return db.cartoes.map((card) => {
+      const rows = db.despesas.filter((row) => row.cartao_id === card.id && row.forma_pagamento === 'credito' && !row.pago && countedDemoExpense(row));
+      const usado = rows.reduce((sum, row) => sum + (row.valor_original ?? 0), 0);
+      return { id: card.id, nome: card.nome, limite: card.limite ?? 0, usado, disponivel: (card.limite ?? 0) - usado,
+        vencido: rows.filter((row) => row.data_vencimento < todayIso()).reduce((sum, row) => sum + (row.valor_original ?? 0), 0) };
+    });
+  }
   if (matchEndpoint(endpoint, /^\/cartoes$/) && method === 'GET') {
     return db.cartoes;
   }
@@ -213,6 +264,7 @@ export function resolveFakeApiRequest(
 
 /** As mesmas linhas que o backend grava: a única, a mensal até dezembro ou uma por parcela. */
 function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): RawExpenseDemo[] {
+  if (input.billingType === 'fixed') throw new Error('Cadastre a fixa pela configuração de previsões');
   const category = db.categorias.find((item) => item.id === input.categoryId);
   const card = db.cartoes.find((item) => item.id === input.cardId);
   const row = (
@@ -466,7 +518,7 @@ function buildDemoReport(db: DemoFakeDatabase, params: URLSearchParams): Report 
   const categoryName = (id: number | null) => db.categorias.find((category) => category.id === id);
 
   const expenses: ReportExpense[] = wants('expense') ? db.despesas
-    .filter((row) => row.status !== 'cancelada' && row.data_vencimento >= start && row.data_vencimento <= end)
+    .filter((row) => countedDemoExpense(row) && demoExpenseDate(row) >= start && demoExpenseDate(row) <= end)
     .map((row) => {
       const category = categoryName(row.categoria_id);
       const group = category?.parent_id ? categoryName(category.parent_id) : undefined;

@@ -37,6 +37,7 @@ import {
   variacaoPercentual,
   type DespesaPainel,
   type ReceitaPainel,
+  projectExpenseTotals,
 } from './painelCalculos';
 
 function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
@@ -65,6 +66,36 @@ function receita(parcial: Partial<ReceitaPainel>): ReceitaPainel {
   // Sem informar o bruto, a receita não teve desconto: bruto igual ao líquido.
   return { usuarioId: 1, dataRecebimento: '2026-09-05', valor, valorBruto: valor, retencoes: 0, classificacaoId: null, ...parcial };
 }
+
+test('projeção substitui a previsão pelo confirmado sem somar a ocorrência duas vezes', () => {
+  const period = { de: '2026-09-01', ate: '2026-09-30' };
+  const rows = Array.from({ length: 3 }, () => despesa({ status: 'prevista', fixedExpenseId: 10 }));
+  assert.deepEqual(projectExpenseTotals(rows, period, '2026-09-20'), {
+    confirmed: 0, scheduled: 0, planned: 300, total: 300, plannedCount: 3,
+  });
+  rows[0] = { ...rows[0]!, status: 'ativa', valorOriginal: 120 };
+  assert.deepEqual(projectExpenseTotals(rows, period, '2026-09-20'), {
+    confirmed: 120, scheduled: 0, planned: 200, total: 320, plannedCount: 2,
+  });
+  assert.deepEqual(agregarTipoGasto([rows[0]!]), { fixo: 120, parcela: 0, livre: 0 });
+});
+
+test('projeção inclui agendadas legadas, exclui canceladas e usa o mês do pagamento', () => {
+  const rows = [
+    despesa({ status: 'ativa', recorrente: true, purchaseDate: '2026-09-25', dataVencimento: '2026-09-28', formaPagamento: 'credito', cartaoId: 1, valorOriginal: 15.15 }),
+    despesa({ status: 'cancelada', fixedExpenseId: 2, valorOriginal: 1000 }),
+    despesa({ status: 'ativa', fixedExpenseId: 3, pago: true, valorOriginal: 100, valorPago: 105.25, dataPagamento: '2026-10-01' }),
+    despesa({ status: 'prevista', fixedExpenseId: 4, valorOriginal: 50 }),
+  ];
+  assert.deepEqual(projectExpenseTotals(rows, { de: '2026-09-01', ate: '2026-09-30' }, '2026-09-20'), {
+    confirmed: 0, scheduled: 15.15, planned: 50, total: 65.15, plannedCount: 1,
+  });
+  assert.deepEqual(projectExpenseTotals(rows, { de: '2026-10-01', ate: '2026-10-31' }, '2026-10-02'), {
+    confirmed: 105.25, scheduled: 0, planned: 0, total: 105.25, plannedCount: 0,
+  });
+  const selected = filtrarDespesasPainel(rows, { ...SEM_FILTROS_DESPESA, cardIds: [1] });
+  assert.equal(projectExpenseTotals(selected, { de: '2026-09-01', ate: '2026-09-30' }, '2026-09-20').total, 15.15);
+});
 
 test('valida datas ISO reais e rejeita datas inexistentes', () => {
   assert.equal(dataIsoValida('2026-02-28'), true);

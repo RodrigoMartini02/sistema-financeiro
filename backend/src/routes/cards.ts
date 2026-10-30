@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { eq, and, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { cards, expenses } from '../db/schema';
+import { cards, expenses, fixedExpenses } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { accountWhere } from '../utils/accountFilter';
 import { resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
@@ -350,6 +350,16 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     const totalUses = parseInt((usageResult.rows[0] as { total: string }).total);
     if (totalUses > 0) {
       res.status(400).json({ success: false, message: `Cannot delete: card is used in ${totalUses} expense(s).` });
+      return;
+    }
+
+    // O dono já foi autorizado acima; fontes de outros membros que usam
+    // este cartão também impedem exclusão, mesmo quando estão inativas.
+    const [fixedReference] = await db.select({ id: fixedExpenses.id }).from(fixedExpenses)
+      .innerJoin(cards, eq(cards.id, fixedExpenses.cardId))
+      .where(and(eq(cards.id, cardId), eq(cards.userId, req.user!.id))).limit(1);
+    if (fixedReference) {
+      res.status(400).json({ success: false, message: 'Não é possível excluir: o cartão é usado em um cadastro de despesa fixa, ativo ou inativo.' });
       return;
     }
 

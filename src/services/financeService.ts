@@ -1,4 +1,5 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
+import { createFixedExpense } from './fixedExpensesService';
 import type {
   Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
   Income, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentMethod, MonthBalance, OpenExpense, PainelData, PainelFiltro,
@@ -28,6 +29,9 @@ interface RawExpense {
   mes: number; ano: number; status?: string | null; pago?: boolean; parcelado?: boolean; recorrente?: boolean;
   numero_parcelas?: number | null; parcela_atual?: number | null; observacoes?: string | null;
   grupo_parcelamento_id?: number | null;
+  despesa_fixa_id?: number | null;
+  fixa_competencia?: string | null;
+  valor_previsto?: string | number | null;
   valor_original?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null;
   data_criacao?: string | null;
@@ -118,7 +122,10 @@ function expenseFromApi(r: RawExpense): Expense {
     dataCriacao: r.data_criacao ?? null,
     autorNome: r.autor_nome ?? null,
     dataPagamento: r.data_pagamento, mes: r.mes, ano: r.ano,
-    status: (r.status as 'ativa' | 'cancelada') ?? 'ativa',
+    status: (r.status as Expense['status']) ?? 'ativa',
+    fixedExpenseId: r.despesa_fixa_id ?? null,
+    fixedCompetence: r.fixa_competencia ?? null,
+    estimatedAmount: r.valor_previsto != null ? asNumber(r.valor_previsto) : null,
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,
     parcela, parcelaAtual: r.parcelado ? r.parcela_atual ?? null : null,
     totalParcelas: r.parcelado ? r.numero_parcelas ?? null : null, grupoParcelamentoId: r.grupo_parcelamento_id ?? null,
@@ -208,6 +215,15 @@ export async function updateIncome(id: number, input: IncomeUpdateInput): Promis
 
 /** Grava a despesa inteira de uma vez: a única, a mensal até dezembro ou todas as parcelas. */
 export async function createExpense(input: ExpenseCreateInput): Promise<void> {
+  if (input.billingType === 'fixed') {
+    await createFixedExpense({
+      accountId: input.accountId, description: input.description, categoryId: input.categoryId,
+      amount: input.amount, paymentMethod: input.paymentMethod, cardId: input.cardId,
+      purchaseDate: input.purchaseDate, dueDate: input.dueDate,
+      firstMonth: input.firstMonth ?? input.dueDate.slice(0, 7),
+    });
+    return;
+  }
   await apiRequest<unknown>('/expenses', { method: 'POST', body: JSON.stringify(input) });
 }
 

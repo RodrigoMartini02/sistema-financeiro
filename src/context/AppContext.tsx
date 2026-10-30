@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 
 interface AppContextValue {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   // Quick-open dialogs from header
   quickAction: 'none' | 'nova-despesa' | 'nova-receita';
-  setQuickAction: (a: 'none' | 'nova-despesa' | 'nova-receita') => void;
+  setQuickAction: (a: 'none' | 'nova-despesa' | 'nova-receita', month?: string) => void;
+  /** Contexto do mês consultado; não muda a data de compra do formulário. */
+  quickActionMonth?: string;
   // Telas que precisam ocupar a altura restante da viewport sem scroll de
   // página (ex: calendário de Movimentações) avisam o AppShell por aqui.
   fillViewport: boolean;
@@ -20,7 +22,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('dark', saved === 'dark');
     return saved;
   });
-  const [quickAction, setQuickAction] = useState<AppContextValue['quickAction']>('none');
+  const [quickAction, setQuickActionValue] = useState<AppContextValue['quickAction']>('none');
+  const [quickActionMonth, setQuickActionMonth] = useState<string>();
+  const setQuickAction = useCallback((action: AppContextValue['quickAction'], month?: string) => {
+    setQuickActionMonth(action === 'nova-despesa' ? month : undefined);
+    setQuickActionValue(action);
+  }, []);
   const [fillViewport, setFillViewport] = useState(false);
 
   const toggleTheme = () => {
@@ -33,7 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, quickAction, setQuickAction, fillViewport, setFillViewport }}>
+    <AppContext.Provider value={{ theme, toggleTheme, quickAction, setQuickAction, quickActionMonth, fillViewport, setFillViewport }}>
       {children}
     </AppContext.Provider>
   );

@@ -43,6 +43,8 @@ export interface ExpenseDraft {
   /** Parcelado: valor à vista (sem juros), opcional. O que a soma das parcelas passa dele é o juros embutido. */
   cashPriceCents: number | null;
   purchaseDate: string;
+  /** Distingue a data escolhida pelo usuário do valor inicial automático. */
+  purchaseDateTouched?: boolean;
   /** Vazio: o vencimento é calculado. */
   dueDate: string;
   paid: boolean;
@@ -62,6 +64,7 @@ export interface DraftCarryOver {
   paymentMethod: PaymentMethod;
   cardId: number | null;
   purchaseDate: string;
+  purchaseDateTouched?: boolean;
   paymentMethodTouched: boolean;
 }
 
@@ -85,6 +88,7 @@ export function createDraft(carryOver: DraftCarryOver): ExpenseDraft {
     attachments: [],
     invoiceNumber: '',
     invoiceDate: '',
+    purchaseDateTouched: false,
     ...carryOver,
   };
 }
@@ -97,6 +101,7 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
       paymentMethod: isPaymentMethod(expense.formaPagamento) ? expense.formaPagamento : 'pix',
       cardId: expense.cartaoId ?? null,
       purchaseDate: isoToBrDate(expense.dataCompra ?? expense.dataVencimento),
+      purchaseDateTouched: true,
       paymentMethodTouched: true,
     }),
     description: expense.descricao,
@@ -152,6 +157,9 @@ export type DialogAction =
  * histórico), a cobrança volta para "Não repete".
  */
 export function withRecurringOnCredit(draft: ExpenseDraft): ExpenseDraft {
+  if (draft.billingType === 'fixed') {
+    return { ...draft, paid: false, paymentDate: '', amountPaidCents: null };
+  }
   return draft.billingType === 'monthly' && draft.paymentMethod !== 'credito' ? { ...draft, billingType: 'single' } : draft;
 }
 

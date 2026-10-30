@@ -1,9 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { and, eq } from 'drizzle-orm';
-import { db, pool } from '../db/client';
-import { expenses, incomes, years } from '../db/schema';
+import { pool } from '../db/client';
 import { authenticate } from '../middleware/auth';
-import { returnStockOfYear } from '../services/incomeService';
+import { deleteUserYear } from '../services/yearService';
 
 const router = Router();
 
@@ -65,13 +63,7 @@ router.delete('/:year', authenticate, async (req: Request, res: Response): Promi
 
     // Tudo numa transação: as vendas do ano voltam ao estoque antes de as
     // receitas sumirem, e nada fica pela metade se uma etapa falhar.
-    const userId = req.user!.id;
-    await db.transaction(async (transaction) => {
-      await returnStockOfYear(transaction, userId, year);
-      await transaction.delete(incomes).where(and(eq(incomes.userId, userId), eq(incomes.year, year)));
-      await transaction.delete(expenses).where(and(eq(expenses.userId, userId), eq(expenses.year, year)));
-      await transaction.delete(years).where(and(eq(years.userId, userId), eq(years.year, year)));
-    });
+    await deleteUserYear(req.user!.id, year);
 
     res.json({ success: true, message: 'Year deleted' });
   } catch (error) {

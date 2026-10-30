@@ -33,7 +33,7 @@ function initialDemoSection(): AppSection {
 
 function DemoAppContent() {
   const [section, setSection] = useState<AppSection>(initialDemoSection);
-  const { quickAction, setQuickAction } = useAppContext();
+  const { quickAction, setQuickAction, quickActionMonth } = useAppContext();
 
   const renderContent = () => {
     switch (section) {
@@ -49,7 +49,7 @@ function DemoAppContent() {
       {renderContent()}
 
       <IncomeDialog open={quickAction === 'nova-receita'} onClose={() => setQuickAction('none')} />
-      <ExpenseDialog open={quickAction === 'nova-despesa'} onClose={() => setQuickAction('none')} />
+      <ExpenseDialog open={quickAction === 'nova-despesa'} initialMonth={quickActionMonth} onClose={() => setQuickAction('none')} />
     </AppShell>
   );
 }

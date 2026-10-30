@@ -9,6 +9,7 @@
 
 import { expenseCashDate } from './cashDate';
 import { dataDoLancamento } from './fixedIncomeSchedule';
+import { isCountedExpense } from './expenseCounting';
 
 export interface Periodo {
   de: string;
@@ -16,6 +17,9 @@ export interface Periodo {
 }
 
 export interface DespesaPainel {
+  status?: string | null;
+  fixedExpenseId?: number | null;
+  purchaseDate?: string | null;
   /** Quem paga: o dono do cartão quando há cartão; sem cartão, quem cadastrou. É a pessoa das visões de dinheiro. */
   usuarioId: number;
   /** Quem cadastrou a despesa (quem usou o cartão). */
@@ -267,7 +271,7 @@ export type TipoGasto = 'fixo' | 'parcela' | 'livre';
 
 /** Fixa é compromisso permanente, parcela é compromisso que termina, o resto dá para cortar. */
 export function classificarTipoGasto(despesa: DespesaPainel): TipoGasto {
-  if (despesa.recorrente) {
+  if (despesa.recorrente || despesa.fixedExpenseId != null) {
     return 'fixo';
   }
   if (despesa.parcelado) {
@@ -364,6 +368,49 @@ export const dataDeCaixa = expenseCashDate;
 
 export function despesasDoPeriodo(despesas: DespesaPainel[], periodo: Periodo): DespesaPainel[] {
   return despesas.filter((despesa) => dentroDoPeriodo(dataDeCaixa(despesa), periodo));
+}
+
+export interface ExpenseProjection {
+  confirmed: number;
+  scheduled: number;
+  planned: number;
+  total: number;
+  plannedCount: number;
+}
+
+/** Uma ocorrência entra uma vez: confirmada, recorrência ainda agendada ou previsão da fixa. */
+export function projectExpenseTotals(expenses: DespesaPainel[], period: Periodo, today: string): ExpenseProjection {
+  let confirmedCents = 0;
+  let scheduledCents = 0;
+  let plannedCents = 0;
+  let plannedCount = 0;
+  for (const expense of despesasDoPeriodo(expenses, period)) {
+    if (expense.status === 'cancelada') continue;
+    const amount = Math.round(valorEfetivo(expense) * 100);
+    if (expense.status === 'prevista') {
+      plannedCents += amount;
+      plannedCount += 1;
+    } else if (isCountedExpense({
+      status: expense.status,
+      recurring: expense.recorrente,
+      paid: expense.pago,
+      paymentMethod: expense.formaPagamento,
+      cardId: expense.cartaoId,
+      purchaseDate: expense.purchaseDate ?? null,
+      dueDate: expense.dataVencimento,
+    }, today)) {
+      confirmedCents += amount;
+    } else {
+      scheduledCents += amount;
+    }
+  }
+  return {
+    confirmed: confirmedCents / 100,
+    scheduled: scheduledCents / 100,
+    planned: plannedCents / 100,
+    total: (confirmedCents + scheduledCents + plannedCents) / 100,
+    plannedCount,
+  };
 }
 
 export function receitasDoPeriodo(receitas: ReceitaPainel[], periodo: Periodo): ReceitaPainel[] {

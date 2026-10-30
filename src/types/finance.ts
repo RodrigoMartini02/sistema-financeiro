@@ -131,7 +131,11 @@ export interface Expense {
   dataPagamento?: string | null;
   mes: number;
   ano: number;
-  status?: 'ativa' | 'cancelada';
+  status?: 'ativa' | 'cancelada' | 'prevista';
+  /** Origem mensal da fixa; a competência não muda ao ajustar vencimento ou pagamento. */
+  fixedExpenseId?: number | null;
+  fixedCompetence?: string | null;
+  estimatedAmount?: number | null;
   pago: boolean;
   recorrente: boolean;
   parcelado: boolean;
@@ -281,7 +285,7 @@ export function isPaymentMethod(value: string): value is PaymentMethod {
 }
 
 /** Não repete, recorrente (até dezembro do ano da 1ª ocorrência) ou parcelado (uma linha por parcela). */
-export type ExpenseBillingType = 'single' | 'monthly' | 'installments';
+export type ExpenseBillingType = 'single' | 'monthly' | 'installments' | 'fixed';
 
 export interface ExpensePaymentInput {
   paid: boolean;
@@ -309,7 +313,7 @@ interface ExpenseFieldsInput {
 
 /** Corpo do POST /expenses. Datas em ISO e valores em reais. */
 export type ExpenseCreateInput = ExpenseFieldsInput & { accountId: number | null } & (
-  | ({ billingType: 'single' | 'monthly'; amount: number; dueDate: string } & ExpensePaymentInput)
+  | ({ billingType: 'single' | 'monthly' | 'fixed'; amount: number; dueDate: string; firstMonth?: string } & ExpensePaymentInput)
   /** `cashPrice`: o valor à vista (sem juros); o que a soma das parcelas passa dele o servidor grava como juros embutido. */
   | { billingType: 'installments'; installments: ExpenseInstallmentInput[]; cashPrice: number | null }
 );
@@ -338,6 +342,59 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
    * em aberto, ela vira a parcela 1. Ausente não muda.
    */
   installmentCount?: number | null;
+}
+
+/** Configuração mensal; valores em reais e datas em ISO. */
+export interface FixedExpenseCreateInput {
+  accountId: number | null;
+  description: string;
+  categoryId: number | null;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  cardId: number | null;
+  purchaseDate: string;
+  dueDate: string;
+  /** Mês inicial da previsão, YYYY-MM. */
+  firstMonth: string;
+  sourceExpenseId?: number | null;
+}
+
+export interface FixedExpenseUpdateInput extends FixedExpenseCreateInput {
+  applyToFuture: boolean;
+}
+
+export interface FixedExpense extends Omit<FixedExpenseCreateInput, 'sourceExpenseId'> {
+  id: number;
+  userId: number;
+  registeredYear: number;
+  active: boolean;
+}
+
+/** Resposta em inglês da API de pendências; normalizada para Expense no cliente. */
+export interface FixedExpenseOccurrenceDto {
+  id: number;
+  userId: number;
+  accountId: number | null;
+  description: string;
+  amount: number;
+  estimatedAmount: number | null;
+  categoryId: number | null;
+  categoryName: string | null;
+  parentCategoryName: string | null;
+  paymentMethod: PaymentMethod;
+  cardId: number | null;
+  cardName: string | null;
+  purchaseDate: string | null;
+  dueDate: string;
+  month: number;
+  year: number;
+  status: 'prevista';
+  fixedExpenseId: number;
+  fixedCompetence: string;
+  createdAt?: string | null;
+  attachments?: Attachment[] | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
 }
 
 export interface FinanceDashboardData {
@@ -406,6 +463,8 @@ export interface PainelData {
   periodoAnterior: PainelPeriodo;
   tipoConta: 'pessoal' | 'empresa';
   totalLancamentos: number;
+  /** Projeção separada dos totais atuais; ausente nas respostas anteriores. */
+  expenseProjection?: { confirmed: number; scheduled: number; planned: number; total: number; plannedCount: number };
   resumo: {
     entrou: number;
     saiu: number;

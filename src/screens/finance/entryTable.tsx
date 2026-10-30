@@ -23,7 +23,10 @@ export function getPaymentMethodLabel(method: string): string {
 // colunas independentes no banco e ha registros antigos com ambos true. A
 // prioridade e explicita: parcelada vence, porque o contador de parcelas prova
 // que a despesa tem fim. Sem cor propria: aqui a cor seria so decoracao.
-export function EntryTypeBadge({ item }: { item: Pick<Expense, 'parcela' | 'recorrente'> }) {
+export function EntryTypeBadge({ item }: { item: Pick<Expense, 'parcela' | 'recorrente' | 'fixedExpenseId'> }) {
+  if (item.fixedExpenseId != null) {
+    return <span className="text-xs text-slate-600 dark:text-slate-300">Fixa</span>;
+  }
   if (item.parcela) {
     return <span className="text-xs text-slate-600 dark:text-slate-300">{item.parcela}</span>;
   }

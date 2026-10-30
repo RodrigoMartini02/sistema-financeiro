@@ -32,6 +32,8 @@ export function getApiUrl() {
 }
 
 export function getActiveAccountId() {
+  // A demonstração usa identidade própria, sem ler ou gravar a conta da sessão real.
+  if (IS_DEMO_DOCUMENT) return 1;
   const raw = localStorage.getItem('contaAtivaId');
   if (!raw) return null;
   const parsed = Number(raw);

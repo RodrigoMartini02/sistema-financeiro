@@ -255,7 +255,7 @@ export function payInvoiceShortcut(
   expense: InvoiceFields & Pick<Expense, 'pago' | 'status' | 'dataVencimento'>,
 ): PayInvoiceShortcut | null {
   if (invoiceEditLock(expense) !== 'credit-payment' || expense.cartaoId == null) return null;
-  if (expense.pago || expense.status === 'cancelada') return null;
+  if (expense.pago || expense.status === 'cancelada' || expense.status === 'prevista') return null;
   const invoiceMonth = expense.dataVencimento.slice(0, 7);
   return { invoiceMonth, cardId: expense.cartaoId, label: `Pagar fatura de ${invoiceMonthLabel(invoiceMonth)}` };
 }
@@ -263,6 +263,7 @@ export function payInvoiceShortcut(
 /** O botão de pagar de cada linha: no crédito com cartão fica desligado, porque o pagamento é pela fatura. */
 export function expensePayButton(expense: Pick<Expense, 'formaPagamento' | 'cartaoId' | 'pago' | 'status'>): { label: string; disabled: boolean } {
   if (expense.status === 'cancelada') return { label: 'Cancelada', disabled: true };
+  if (expense.status === 'prevista') return { label: 'Confirme o valor da previsão antes de pagar', disabled: true };
   if (expense.pago) return { label: 'Já pago', disabled: true };
   if (isCreditWithCard(expense)) return { label: INVOICE_MESSAGES.creditPayment, disabled: true };
   return { label: 'Marcar como pago', disabled: false };

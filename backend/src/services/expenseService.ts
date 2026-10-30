@@ -141,6 +141,8 @@ export async function createExpense(userId: number, input: CreateExpenseInput, t
 }
 
 export interface ExpenseForUpdate {
+  status: string;
+  fixedExpenseId: number | null;
   accountId: number | null;
   cardId: number | null;
   categoryId: number | null;
@@ -159,6 +161,8 @@ export async function findExpenseForUpdate(ownerId: number, expenseId: number): 
   const [row] = await db
     .select({
       accountId: expenses.accountId,
+      status: expenses.status,
+      fixedExpenseId: expenses.fixedExpenseId,
       cardId: expenses.cardId,
       categoryId: expenses.categoryId,
       installment: expenses.installment,
@@ -181,6 +185,8 @@ export async function findExpenseForUpdate(ownerId: number, expenseId: number): 
   if (!row) return null;
   const amount = Number(row.originalAmount ?? 0);
   return {
+    status: row.status,
+    fixedExpenseId: row.fixedExpenseId,
     accountId: row.accountId,
     cardId: row.cardId,
     categoryId: row.categoryId,

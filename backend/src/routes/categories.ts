@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { db, pool } from '../db/client';
-import { categories, type Category } from '../db/schema';
+import { categories, fixedExpenses, type Category } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import {
   canReceiveEntries,
@@ -521,6 +521,16 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
     const totalUses = parseInt((usageResult.rows[0] as { total: string }).total);
     if (totalUses > 0) {
       res.status(400).json({ success: false, message: `Cannot delete: category is used in ${totalUses} expense(s).` });
+      return;
+    }
+
+    // Integridade do catálogo já autorizado: fontes inativas e referências
+    // de outras contas também preservam o vínculo, sem expor seus dados.
+    const [fixedReference] = await db.select({ id: fixedExpenses.id }).from(fixedExpenses)
+      .innerJoin(categories, eq(categories.id, fixedExpenses.categoryId))
+      .where(and(eq(categories.id, categoryId), eq(categories.userId, existing.usuarioId))).limit(1);
+    if (fixedReference) {
+      res.status(400).json({ success: false, message: 'Não é possível excluir: a categoria é usada em um cadastro de despesa fixa, ativo ou inativo.' });
       return;
     }
 

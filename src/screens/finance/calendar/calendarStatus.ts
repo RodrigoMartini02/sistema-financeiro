@@ -5,6 +5,7 @@ export type CalendarItemKind = 'despesa' | 'receita' | 'compromisso';
 export type CalendarItemStatus = 'pago' | 'atrasado' | 'em_dia' | 'previsto';
 
 export function getExpenseStatus(expense: Expense): CalendarItemStatus {
+  if (expense.status === 'prevista') return 'previsto';
   if (expense.pago) return 'pago';
   return expense.dataVencimento < getLocalTodayIso() ? 'atrasado' : 'em_dia';
 }

@@ -11,6 +11,7 @@ import { getTodayIsoInTimezone } from '../utils/date';
 import { INVOICE_EXPENSE_METHOD } from './cardInvoiceRules';
 
 export interface CountableExpense {
+  status?: string | null;
   recurring: boolean;
   paid: boolean;
   paymentMethod: string | null;
@@ -29,13 +30,14 @@ export function countingDate(expense: Pick<CountableExpense, 'paymentMethod' | '
 
 /** Conta nas somas: não é mensal, está paga, ou a data dela já passou (conta a partir do dia seguinte). */
 export function isCountedExpense(expense: CountableExpense, today: string): boolean {
+  if (expense.status === 'prevista' || expense.status === 'cancelada') return false;
   if (!expense.recurring || expense.paid) return true;
   return countingDate(expense) < today;
 }
 
 /** A mesma regra de isCountedExpense, como condição das consultas de soma (Drizzle). */
 export function countedExpenseCondition(today: string = getTodayIsoInTimezone()): SQL {
-  return sql`NOT (
+  return sql`COALESCE(${expenses.status}, 'ativa') = 'ativa' AND NOT (
     COALESCE(${expenses.recurring}, false)
     AND NOT COALESCE(${expenses.paid}, false)
     AND (CASE WHEN ${expenses.paymentMethod} = ${INVOICE_EXPENSE_METHOD} AND ${expenses.cardId} IS NOT NULL
@@ -51,7 +53,7 @@ export function countedExpenseCondition(today: string = getTodayIsoInTimezone())
  * do sistema, nunca um dado do pedido.
  */
 export function countedExpenseSql(alias: string, todayParam: string): string {
-  return `NOT (
+  return `COALESCE(${alias}.status, 'ativa') = 'ativa' AND NOT (
     COALESCE(${alias}.recorrente, false)
     AND NOT COALESCE(${alias}.pago, false)
     AND (CASE WHEN ${alias}.forma_pagamento = '${INVOICE_EXPENSE_METHOD}' AND ${alias}.cartao_id IS NOT NULL

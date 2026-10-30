@@ -9,10 +9,12 @@ const BILLING_OPTIONS: ReadonlyArray<{ type: ExpenseBillingType; label: string }
   { type: 'single', label: 'Não repete' },
   { type: 'installments', label: 'Parcelado' },
   { type: 'monthly', label: 'Recorrente' },
+  { type: 'fixed', label: 'Fixa' },
 ];
 
 export function billingLabel(draft: ExpenseDraft): string {
   if (draft.billingType === 'installments') return `${draft.installmentCount}x`;
+  if (draft.billingType === 'fixed') return 'Fixa';
   return draft.billingType === 'monthly' ? 'Mensal' : 'Não repete';
 }
 
@@ -157,6 +159,9 @@ export function BillingPopover({
 
         {draft.billingType === 'monthly' && (
           <span style={sectionStyle}>A recorrência segue a fatura do cartão, até dezembro.</span>
+        )}
+        {draft.billingType === 'fixed' && (
+          <span style={sectionStyle}>Gera previsões mensais até dezembro. Você confirma o valor de cada conta quando recebê-la.</span>
         )}
       </FloatingPanel>
     </>

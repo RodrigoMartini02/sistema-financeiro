@@ -39,6 +39,7 @@ import { ReceitaDespesa } from './painel/ReceitaDespesa';
 import { TodasAsContas } from './painel/TodasAsContas';
 import { ENTRADA_PAINEL, EsqueletoPainel } from './painel/base';
 import { OndeMaisGastou } from './painel/OndeMaisGastou';
+import { ExpenseProjectionCard } from './painel/ExpenseProjectionCard';
 
 const GRUPO_MEMBROS = 'membros';
 const GRUPO_CATEGORIA = 'categoria';
@@ -208,7 +209,9 @@ export function FinanceDashboard() {
     ...[...cartaoIds].map((id) => nomeDe(opcoesCartao, id)),
   ];
 
-  const semLancamentos = !!dados && dados.totalLancamentos === 0;
+  const semLancamentos = !!dados && dados.totalLancamentos === 0
+    && (dados.expenseProjection?.plannedCount ?? 0) === 0
+    && (dados.expenseProjection?.scheduled ?? 0) === 0;
   const anteriorEhMes = !!dados && dados.periodoAnterior.de.endsWith('-01')
     && dados.periodoAnterior.ate.slice(0, 7) === dados.periodoAnterior.de.slice(0, 7)
     && dados.periodo.de.endsWith('-01');
@@ -278,6 +281,7 @@ export function FinanceDashboard() {
               anteriorEhMes={anteriorEhMes}
               filtrado={filtrado}
             />
+            {dados.expenseProjection && <ExpenseProjectionCard projection={dados.expenseProjection} />}
             {dados.empresa && <ExtrasContaEmpresa empresa={dados.empresa} periodo={dados.periodo} />}
             <ReceitaDespesa serie={dados.serie} somenteDespesas={filtrado} />
             <DeOndeVeioDinheiro dados={dados} semComprometimento={filtrado} />

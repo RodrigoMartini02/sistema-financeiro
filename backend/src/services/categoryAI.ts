@@ -130,7 +130,7 @@ export async function updatePopularCategories(userId: number): Promise<Array<Rec
     const result = await pool.query(
       `SELECT categoria_id, forma_pagamento, COUNT(*) as total
        FROM despesas
-       WHERE usuario_id = $1 AND categoria_id IS NOT NULL
+       WHERE usuario_id = $1 AND categoria_id IS NOT NULL AND status = 'ativa'
        GROUP BY categoria_id, forma_pagamento
        ORDER BY total DESC
        LIMIT 10`,

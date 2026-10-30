@@ -153,3 +153,10 @@ test('atalho "Pagar fatura": linha de pagamento de fatura (paga, renegociada ou 
   // O atalho existe exatamente onde a trava é a do "Pago pela fatura do cartão".
   assert.equal(invoiceEditLock(expense()), 'credit-payment');
 });
+
+test('previsão não oferece pagamento nem atalho de fatura até confirmar', () => {
+  for (const row of [expense({ status: 'prevista' }), expense({ status: 'prevista', formaPagamento: 'pix', cartaoId: null })]) {
+    assert.deepEqual(expensePayButton(row), { label: 'Confirme o valor da previsão antes de pagar', disabled: true });
+    assert.equal(payInvoiceShortcut(row), null);
+  }
+});

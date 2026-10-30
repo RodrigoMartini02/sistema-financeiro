@@ -49,7 +49,7 @@ export interface RowResources {
 
 export function amountLabel(draft: ExpenseDraft): string {
   if (draft.billingType === 'installments') return draft.amountIsTotal ? 'Valor total' : 'Valor da parcela';
-  return draft.billingType === 'monthly' ? 'Valor mensal' : 'Valor';
+  return draft.billingType === 'monthly' || draft.billingType === 'fixed' ? 'Valor mensal' : 'Valor';
 }
 
 /** Nota fiscal da despesa na conta PJ, no painel dos comprovantes. */
@@ -117,13 +117,15 @@ interface ExpenseRowProps {
   onFocus: () => void;
   onAddToBatch?: () => void;
   onRemove?: () => void;
+  /** Cadastro de fonte ou edição de estimativa: pagamento só na confirmação explícita. */
+  hidePayment?: boolean;
 }
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
   draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, readOnlyBillingReason, invoiceLock,
   creditOnlyPayment = false, payInvoiceAction, pendingInstallmentCount, descriptionRef, onUpdate,
-  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove,
+  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove, hidePayment = false,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
   const paymentLocked = invoiceLock !== undefined;
@@ -132,6 +134,7 @@ export function ExpenseRow({
   const lockedCardName = draft.cardId !== null ? context.cards.find((card) => card.id === draft.cardId)?.nome ?? null : null;
   const isEntry = variant === 'entry';
   const installments = draft.billingType === 'installments';
+  const template = draft.billingType === 'fixed';
   const matches = suggestions?.suggestions?.matches ?? [];
   const preferredCardIds = suggestions?.suggestions?.preferredCardIds ?? { debito: null, credito: null };
 
@@ -248,7 +251,7 @@ export function ExpenseRow({
             label={amountLabel(draft)}
             valueCents={draft.amountCents}
             onChange={(cents) => onUpdate({ amountCents: cents })}
-            suffix={draft.billingType === 'monthly' ? '/mês' : undefined}
+            suffix={draft.billingType === 'monthly' || template ? '/mês' : undefined}
             invalid={errors?.amount}
             disabled={valueLocked}
             title={valueLocked ? invoiceLock!.reason : undefined}
@@ -259,7 +262,7 @@ export function ExpenseRow({
           <DateField
             label="Data da compra"
             value={draft.purchaseDate}
-            onChange={(text) => onUpdate({ purchaseDate: text })}
+            onChange={(text) => onUpdate({ purchaseDate: text, purchaseDateTouched: true })}
             todayIso={context.todayIso}
             emptyFallback={isoToBrDate(context.todayIso)}
             disabled={purchaseLocked}
@@ -281,7 +284,11 @@ export function ExpenseRow({
           />
         </GridCell>
 
-        {installments ? (
+        {template || hidePayment ? (
+          <GridCell label="Pagamento" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
+            <span style={{ fontSize: 11, color: C.textSoft }}>Confirme o valor quando receber a conta</span>
+          </GridCell>
+        ) : installments ? (
           <GridCell label="Pagamento das parcelas" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
             <InstallmentsPopover draft={draft} context={context} onUpdate={onUpdate} />
           </GridCell>
@@ -327,7 +334,7 @@ export function ExpenseRow({
         )}
 
         <div className="flex items-center lg:block">
-          <AttachmentsPopover
+          {template ? <span title="Comprovantes são adicionados ao confirmar cada mês" style={{ color: C.textFaint }}>—</span> : <AttachmentsPopover
             attachments={draft.attachments}
             onChange={(attachments) => onUpdate({ attachments })}
             label={resources.isCompany ? 'Comprovantes e nota fiscal' : 'Comprovantes'}
@@ -337,12 +344,12 @@ export function ExpenseRow({
             {resources.isCompany && (
               <InvoiceFields draft={draft} todayIso={context.todayIso} invalid={!!errors?.invoiceDate} onUpdate={onUpdate} />
             )}
-          </AttachmentsPopover>
+          </AttachmentsPopover>}
         </div>
 
         <div className="flex items-center justify-end lg:block">
-          {isEntry && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
-          {variant === 'batch' && <RemoveFromBatchButton onClick={onRemove} />}
+          {isEntry && !template && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
+          {variant === 'batch' && onRemove && <RemoveFromBatchButton onClick={onRemove} />}
         </div>
 
         {installments && <InstallmentValueFields draft={draft} onUpdate={onUpdate} />}

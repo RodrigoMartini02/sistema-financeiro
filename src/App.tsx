@@ -110,7 +110,7 @@ function AppContent() {
   const session = useAuthSession({ enabled: isAppRoute });
   const [section, setSection] = useState<AppSection>('movimentacoes');
   const [openConfigRequest, setOpenConfigRequest] = useState<{ token: number; item: ConfigItemId } | undefined>();
-  const { quickAction, setQuickAction, fillViewport } = useAppContext();
+  const { quickAction, setQuickAction, quickActionMonth, fillViewport } = useAppContext();
 
   const planQuery = useQuery({
     queryKey: queryKeys.planStatus,
@@ -227,7 +227,7 @@ function AppContent() {
       {renderContent()}
 
       <IncomeDialog open={quickAction === 'nova-receita'} onClose={() => setQuickAction('none')} />
-      <ExpenseDialog open={quickAction === 'nova-despesa'} onClose={() => setQuickAction('none')} />
+      <ExpenseDialog open={quickAction === 'nova-despesa'} initialMonth={quickActionMonth} onClose={() => setQuickAction('none')} />
       <OnboardingChecklistModal
         open={onboarding.isVisible}
         items={onboarding.items}

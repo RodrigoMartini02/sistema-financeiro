@@ -38,6 +38,16 @@ test('status: pago, atrasada (vencida antes de hoje) e em dia', () => {
   assert.equal(getExpenseStatus(expense(3, { dataVencimento: '2026-10-15' }), DATES.today), 'em_dia');
 });
 
+test('previsão vencida tem filtro próprio e não pode ser paga no lote comum', () => {
+  const planned = expense(1, { status: 'prevista', fixedExpenseId: 4, dataVencimento: '2026-01-01' });
+  const confirmed = expense(2, { status: 'ativa', dataVencimento: '2026-01-01' });
+  assert.equal(getExpenseStatus(planned, DATES.today), 'prevista');
+  assert.equal(isBatchSelectable(planned), false);
+  assert.equal(isBatchSelectable(confirmed), true);
+  assert.deepEqual(run([planned, confirmed], filters({ statuses: new Set(['prevista']) })), [1]);
+  assert.deepEqual(run([planned, confirmed], filters({ statuses: new Set(['atrasada']) })), [2]);
+});
+
 test('sem filtro passam todas; sem "despesa" no tipo, nenhuma', () => {
   const items = [expense(1), expense(2)];
   assert.deepEqual(run(items, filters()), [1, 2]);

@@ -1,4 +1,5 @@
 import { daysAgoLocalIso } from '../../utils/date';
+import type { Attachment } from '../../types/finance';
 
 export interface RawIncomeDemo {
   id: number;
@@ -44,7 +45,10 @@ export interface RawExpenseDemo {
   valor_original: number | null;
   numero_nf: string | null;
   data_emissao_nf: string | null;
-  anexos: null;
+  anexos: Attachment[] | null;
+  despesa_fixa_id?: number | null;
+  fixa_competencia?: string | null;
+  valor_previsto?: number | null;
   // Pagamento da fatura do cartão na demo (fakeApiResolver): os mesmos campos que a API devolve.
   valor_pago?: number | null;
   grupo_parcelamento_id?: number | null;
