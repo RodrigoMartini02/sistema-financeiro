@@ -9,6 +9,7 @@ export interface LinhaHorizontal {
   id: string;
   nome: string;
   valor: number;
+  forecast?: number;
   meta?: number | null;
   /** % do total (modo "parte"). */
   parte?: number;
@@ -49,8 +50,9 @@ function Selo({ linha, modo }: { linha: LinhaHorizontal; modo: 'meta' | 'parte' 
 }
 
 /** Trilho com a barra que cresce da esquerda ao aparecer. */
-function Trilho({ largura, cor, segmentos, meta, fina }: {
+function Trilho({ largura, forecastWidth = 0, cor, segmentos, meta, fina }: {
   largura: number;
+  forecastWidth?: number;
   cor: string;
   segmentos?: LinhaHorizontal['segmentos'];
   meta?: number | null;
@@ -72,6 +74,10 @@ function Trilho({ largura, cor, segmentos, meta, fina }: {
           <span key={segmento.nome} className="h-full" style={{ width: `${(segmento.valor / total) * 100}%`, background: segmento.cor }} />
         ))}
       </span>
+      {forecastWidth > 0 && <span
+        className="absolute inset-y-0 rounded-r-full transition-[width,left] duration-700 ease-out motion-reduce:transition-none"
+        style={{ left: `${montado ? largura : 0}%`, width: `${montado ? forecastWidth : 0}%`, background: `repeating-linear-gradient(135deg, ${cor} 0 2px, transparent 2px 5px)` }}
+      />}
       {meta != null && (
         <span className="absolute -inset-y-1 w-0.5 rounded-sm bg-slate-900 dark:bg-white" style={{ left: `calc(${meta}% - 1px)` }} aria-hidden="true" />
       )}
@@ -87,7 +93,7 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
   // A primeira linha com subcategorias já vem aberta, para mostrar que dá para abrir.
   const [abertas, setAbertas] = useState<Set<string>>(() => new Set(linhas.filter((l) => l.subs?.length).slice(0, 1).map((l) => l.id)));
 
-  const maximo = Math.max(1, ...linhas.map((linha) => Math.max(linha.valor, modo === 'meta' ? linha.meta ?? 0 : 0)));
+  const maximo = Math.max(1, ...linhas.map((linha) => Math.max(linha.valor + (linha.forecast ?? 0), modo === 'meta' ? linha.meta ?? 0 : 0)));
   const visiveis = limiteVisivel && !todas ? linhas.slice(0, limiteVisivel) : linhas;
   const ocultas = linhas.length - visiveis.length;
 
@@ -97,6 +103,9 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
 
   const mostrarDetalhe = (linha: LinhaHorizontal, sub: boolean, evento: { clientX: number; clientY: number }) => {
     const extras: [string, ReactNode, string?][] = [];
+    if ((linha.forecast ?? 0) > 0) {
+      extras.push(['Lançado', formatCurrency(linha.valor)], ['Previsto', formatCurrency(linha.forecast ?? 0)]);
+    }
     if (modo === 'meta' && linha.meta) {
       extras.push(['Meta', formatCurrency(linha.meta)]);
       extras.push([linha.valor > linha.meta ? 'Passou' : 'Falta', formatCurrency(Math.abs(linha.meta - linha.valor))]);
@@ -106,7 +115,7 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
       for (const segmento of linha.segmentos!) extras.push([segmento.nome, formatCurrency(segmento.valor), segmento.cor]);
     }
     detalhe.mostrar(evento, (
-      <ConteudoDetalhe nome={linha.nome} cor={corDa(linha, sub)} valor={linha.valor} parte={modo === 'parte' ? linha.parte : null} linhas={extras} observacoes={linha.observacoes} />
+      <ConteudoDetalhe nome={linha.nome} cor={corDa(linha, sub)} valor={linha.valor + (linha.forecast ?? 0)} parte={modo === 'parte' ? linha.parte : null} linhas={extras} observacoes={linha.observacoes} />
     ));
   };
 
@@ -145,6 +154,7 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
         <span className="order-3 col-span-2 sm:order-none sm:col-span-1">
           <Trilho
             largura={(linha.valor / maximo) * 100}
+            forecastWidth={((linha.forecast ?? 0) / maximo) * 100}
             cor={corDa(linha, sub)}
             segmentos={linha.segmentos}
             meta={modo === 'meta' && linha.meta ? (linha.meta / maximo) * 100 : null}
@@ -152,7 +162,10 @@ export function BarrasHorizontais({ linhas, modo, limiteVisivel }: BarrasHorizon
           />
         </span>
         <span className={`flex items-center justify-end gap-2 tabular-nums ${sub ? 'text-[13px] text-slate-600 dark:text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
-          {formatCurrency(linha.valor)}
+          <span className="text-right">
+            {formatCurrency(linha.valor)}
+            {(linha.forecast ?? 0) > 0 && <span className="block text-[11px] font-normal text-slate-500 dark:text-slate-400">+ {formatCurrency(linha.forecast ?? 0)} previsto</span>}
+          </span>
           <Selo linha={linha} modo={modo} />
         </span>
       </div>

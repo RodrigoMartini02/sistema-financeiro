@@ -33,6 +33,15 @@ export interface ExpenseDraft {
   /** Parcelado, chave "Total": o valor digitado é o total, dividido nas parcelas (sem ela, é o de cada parcela). */
   amountIsTotal: boolean;
   billingType: ExpenseBillingType;
+  endMonth?: string;
+  initialEndMonth?: string;
+  /** ID existente: esta linha confirma uma previsão em vez de criar despesa. */
+  forecastId?: number;
+  fixedExpenseId?: number;
+  forecastDueDate?: string;
+  deferred?: boolean;
+  dirty?: boolean;
+  deferError?: string;
   installmentCount: number;
   /** Valor ajustado à mão, por índice da parcela (a loja arredondou diferente). */
   installmentAdjustments: Record<number, number>;
@@ -108,6 +117,13 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
     categoryId: expense.categoriaId ?? null,
     amountCents,
     dueDate: isoToBrDate(expense.dataVencimento),
+    billingType: expense.fixedExpenseId ? 'fixed' : 'single',
+    endMonth: expense.fixedEndMonth ?? '',
+    initialEndMonth: expense.fixedEndMonth ?? '',
+    forecastId: expense.status === 'prevista' ? expense.id : undefined,
+    fixedExpenseId: expense.fixedExpenseId ?? undefined,
+    forecastDueDate: expense.status === 'prevista' ? expense.dataVencimento : undefined,
+    deferred: expense.deferred === true,
     paid: expense.pago,
     paymentDate: expense.pago ? isoToBrDate(expense.dataPagamento ?? expense.dataVencimento) : '',
     // Paga: o valor pago gravado (a paga antiga sem valor pago vale o valor da despesa) volta no campo e é
@@ -133,6 +149,7 @@ export interface DraftErrors {
   recurring?: true;
   installments?: true;
   invoiceDate?: true;
+  endMonth?: true;
 }
 
 export interface DialogState extends BatchState<ExpenseDraft, DraftErrors> {
@@ -146,6 +163,8 @@ export function initialDialogState(entry: ExpenseDraft): DialogState {
 
 export type DialogAction =
   | BatchAction<ExpenseDraft, DraftErrors>
+  | { type: 'mergeForecasts'; expenses: Expense[]; excludedIds: readonly number[] }
+  | { type: 'setDeferred'; ids: number[]; deferred: boolean; error?: string }
   /** Forma e cartão sugeridos pelo histórico: muda a despesa sem apagar os erros apontados. */
   | { type: 'applySuggestion'; key: number; patch: Pick<ExpenseDraft, 'paymentMethod' | 'cardId'> }
   | { type: 'setInstallmentCount'; key: number; count: number; force: boolean }
@@ -157,9 +176,6 @@ export type DialogAction =
  * histórico), a cobrança volta para "Não repete".
  */
 export function withRecurringOnCredit(draft: ExpenseDraft): ExpenseDraft {
-  if (draft.billingType === 'fixed') {
-    return { ...draft, paid: false, paymentDate: '', amountPaidCents: null };
-  }
   return draft.billingType === 'monthly' && draft.paymentMethod !== 'credito' ? { ...draft, billingType: 'single' } : draft;
 }
 
@@ -169,6 +185,23 @@ function keepBelow<T>(record: Record<number, T>, count: number): Record<number, 
 
 export function dialogReducer(state: DialogState, action: DialogAction): DialogState {
   switch (action.type) {
+    case 'mergeForecasts': {
+      const incoming = new Map(action.expenses.filter((expense) => expense.status === 'prevista' && !action.excludedIds.includes(expense.id)).map((expense) => [expense.id, expense]));
+      const present = new Set<number>();
+      const batch = state.batch.flatMap((draft) => {
+        if (draft.forecastId === undefined) return [draft];
+        const expense = incoming.get(draft.forecastId);
+        if (!expense) return [];
+        present.add(draft.forecastId);
+        return [draft.dirty || draft.deferError ? draft : { ...draftFromExpense(expense), key: draft.key }];
+      });
+      for (const expense of incoming.values()) if (!present.has(expense.id)) batch.push(draftFromExpense(expense));
+      return { ...state, batch };
+    }
+
+    case 'setDeferred':
+      return { ...state, batch: state.batch.map((draft) => draft.forecastId !== undefined && action.ids.includes(draft.forecastId)
+        ? { ...draft, deferred: action.deferred, dirty: true, deferError: action.error } : draft) };
     case 'applySuggestion':
       return updateDraft<ExpenseDraft, DialogState>(state, action.key, (draft) => withRecurringOnCredit({ ...draft, ...action.patch }));
 
@@ -176,7 +209,7 @@ export function dialogReducer(state: DialogState, action: DialogAction): DialogS
       return updateDraft<ExpenseDraft, DialogState>(
         batchReducer<ExpenseDraft, DraftErrors, DialogState>(state, action),
         action.key,
-        withRecurringOnCredit,
+        (draft) => withRecurringOnCredit({ ...draft, dirty: true }),
       );
 
     case 'setInstallmentCount': {

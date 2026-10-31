@@ -6,6 +6,7 @@ export interface CategoriaConsolidada {
   categoriaId: number | null;
   categoria: string;
   total: number;
+  forecast?: number;
   pessoas: Map<number, { usuarioId: number; nome: string | null; valor: number }>;
 }
 
@@ -25,13 +26,14 @@ export interface RaizConsolidada {
 function consolidarCategorias(linhas: PainelCategoria[]): Map<string, CategoriaConsolidada & { parentId: number | null; parentNome: string | null }> {
   const porChave = new Map<string, CategoriaConsolidada & { parentId: number | null; parentNome: string | null }>();
   for (const linha of linhas) {
-    if (linha.total <= 0) continue;
+    if (linha.total + (linha.forecast ?? 0) <= 0) continue;
     const chave = String(linha.categoriaId ?? linha.categoria);
-    const atual = porChave.get(chave) ?? {
+    const atual: CategoriaConsolidada & { parentId: number | null; parentNome: string | null } = porChave.get(chave) ?? {
       chave, categoriaId: linha.categoriaId, categoria: linha.categoria, total: 0, pessoas: new Map(),
       parentId: linha.parentId, parentNome: linha.parentNome,
     };
     atual.total += linha.total;
+    if (linha.forecast) atual.forecast = (atual.forecast ?? 0) + linha.forecast;
     if (linha.usuarioId !== null) {
       const pessoa = atual.pessoas.get(linha.usuarioId);
       if (pessoa) pessoa.valor += linha.total;

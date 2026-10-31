@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../db/client';
+import { db, pool } from '../db/client';
+import { and, inArray } from 'drizzle-orm';
+import { fixedExpenses } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { getTodayIsoInTimezone } from '../utils/date';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
@@ -30,7 +32,7 @@ import { INVOICE_EXPENSE_METHOD, INVOICE_MESSAGES, invoiceEditRefusal } from '..
 import { hasInvoiceProtectedRows, isCreditWithCardExpense } from '../services/cardInvoiceService';
 import { paidCreditRefusal, recurringPaymentRefusal } from '../services/expenseSeries';
 import fixedExpenseRoutes from './fixedExpenses';
-import { cancelFixedOccurrence, moveFixedOccurrence, writeFixedOccurrence } from '../services/fixedExpenseService';
+import { cancelFixedOccurrence, fixedEndMonth, moveFixedOccurrence, writeFixedOccurrence } from '../services/fixedExpenseService';
 
 const router = Router();
 // Herda plano ativo, acesso à tela e autenticação do router de despesas.
@@ -132,7 +134,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     // O mês da lista é o de caixa: a despesa paga fica no mês do pagamento, a em aberto no do vencimento.
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id', expenseCashDateSql('d'));
 
-    const result = await pool.query(
+    const result = await pool.query<{ usuario_id: number; conta_id: number | null; despesa_fixa_id: number | null }>(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
@@ -156,7 +158,20 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       params,
     );
 
-    res.json({ success: true, data: result.rows });
+    const fixedRows = result.rows.filter(row => row.despesa_fixa_id !== null && row.conta_id !== null);
+    const sources = fixedRows.length ? await db.select({
+      id: fixedExpenses.id, userId: fixedExpenses.userId, accountId: fixedExpenses.accountId,
+      endMonth: fixedExpenses.endMonth, registeredYear: fixedExpenses.registeredYear, dueDate: fixedExpenses.dueDate,
+    }).from(fixedExpenses).where(and(
+      inArray(fixedExpenses.id, fixedRows.map(row => row.despesa_fixa_id!)),
+      inArray(fixedExpenses.userId, fixedRows.map(row => row.usuario_id)),
+      inArray(fixedExpenses.accountId, fixedRows.map(row => row.conta_id!)),
+    )) : [];
+    const sourceById = new Map(sources.map(source => [source.id, source]));
+    res.json({ success: true, data: result.rows.map(row => {
+      const source = row.despesa_fixa_id === null ? undefined : sourceById.get(row.despesa_fixa_id);
+      return { ...row, fixa_mes_final: source?.userId === row.usuario_id && source.accountId === row.conta_id ? fixedEndMonth(source) : null };
+    }) });
   } catch (error) {
     console.error('List expenses error:', error);
     res.status(500).json({ success: false, message: 'Failed to list expenses' });
@@ -332,6 +347,9 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
 
     const input = readUpdateExpenseInput(req.body);
+    if (current.fixedExpenseId === null && input.endMonth != null) {
+      throw new RequestInputError('O mês final é só para uma despesa fixa');
+    }
     if (current.status === 'prevista') {
       const updated = await writeFixedOccurrence(req.user!.id, expenseId, input, false, getTodayIsoInTimezone());
       res.json({ success: true, data: updated, seriesUpdated: 0, interestUpdated: 0, installmentsCreated: 0, installmentsDeleted: 0 });
@@ -385,6 +403,11 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
     const cardId = await resolveCardForWrite(input.cardId, input.paymentMethod, req.user!.id, current.accountId, current.cardId);
+    if (current.fixedExpenseId !== null) {
+      const updated = await writeFixedOccurrence(req.user!.id, expenseId, { ...input, cardId }, false, getTodayIsoInTimezone());
+      res.json({ success: true, data: updated, seriesUpdated: 0, interestUpdated: 0, installmentsCreated: 0, installmentsDeleted: 0 });
+      return;
+    }
     // Numa série, a edição alcança as outras linhas: no mensal, as próximas em
     // aberto; no parcelado, o alcance escolhido no modal (applyTo).
     const result = await updateExpense(ownerId, expenseId, { ...input, cardId }, current, getTodayIsoInTimezone());

@@ -26,9 +26,12 @@ function avisoRenegociacao(fatura: RenegotiatedInvoice): string {
 /** Para onde foi o dinheiro: despesas por categoria em destaque, como foram pagas e as formas mês a mês. */
 export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
   const cores = useCoresGrafico();
-  const total = dados.resumo.saiu;
+  const forecastTotal = dados.formasPagamento.reduce((sum, method) => sum + (method.forecast ?? 0), 0);
+  const total = dados.resumo.saiu + forecastTotal;
   const { aVista, parcelado } = dados.aVistaParcelado;
   const { fixo, parcela, livre } = dados.tipoGasto;
+  const forecastType = dados.tipoGastoForecast;
+  const forecastPayment = dados.aVistaParceladoForecast;
   const totalCartoes = dados.cartoes.reduce((soma, cartao) => soma + cartao.gasto, 0);
   const renegociacoes = dados.renegotiatedInvoices ?? [];
   // O bloco aparece também quando só houve renegociação de fatura no período.
@@ -60,10 +63,11 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
               fatias={formas.map((forma) => ({
                 nome: forma.nome,
                 valor: forma.valor,
+                forecast: forma.forecast,
                 cor: forma.cor,
                 detalhes: [
                   ['Compras', compras(forma.quantidade)],
-                  ['Ticket médio', formatCurrency(forma.valor / forma.quantidade)],
+                  ...(forma.quantidade > 0 ? [['Ticket médio', formatCurrency(forma.valor / forma.quantidade)] as [string, string]] : []),
                   ...(forma.juros > 0 ? [['Juros', formatCurrency(forma.juros)] as [string, string]] : []),
                 ],
               }))}
@@ -108,7 +112,7 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
               ordenar={false}
               tamanhoMinimo={TAMANHO_PIZZA_MENOR}
               vazio="Sem despesas no período."
-              fatias={[{ nome: 'À vista', valor: aVista }, { nome: 'Parcelado', valor: parcelado }]}
+              fatias={[{ nome: 'À vista', valor: aVista, forecast: forecastPayment?.aVista }, { nome: 'Parcelado', valor: parcelado, forecast: forecastPayment?.parcelado }]}
             />
           </CardPainel>
           {/* Sem cartões, o último card ocupa as duas colunas. */}
@@ -119,7 +123,7 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
               legendaAoLado={!temCartoes}
               tamanhoMinimo={TAMANHO_PIZZA_MENOR}
               vazio="Sem despesas no período."
-              fatias={[{ nome: 'Contas fixas', valor: fixo }, { nome: 'Parcelas', valor: parcela }, { nome: 'Dia a dia', valor: livre }]}
+              fatias={[{ nome: 'Contas fixas', valor: fixo, forecast: forecastType?.fixo }, { nome: 'Parcelas', valor: parcela, forecast: forecastType?.parcela }, { nome: 'Dia a dia', valor: livre, forecast: forecastType?.livre }]}
             />
           </CardPainel>
         </div>
@@ -131,17 +135,23 @@ export function ComoDinheiroSaiu({ dados }: { dados: PainelData }) {
             <h3 className="m-0 text-sm font-medium text-slate-900 dark:text-white">
               Formas de pagamento por {unidadeDaSerie(dados.serie.granularidade).singular}
             </h3>
-            <Legenda itens={formas.map((forma) => ({ cor: forma.cor, nome: forma.nome }))} />
+            <Legenda itens={[
+              ...formas.map((forma) => ({ cor: forma.cor, nome: forma.nome })),
+              ...(forecastTotal > 0 ? [{ cor: cores.neutro, nome: 'Previsão · hachurada' }] : []),
+            ]} />
           </div>
           <Barras
             altura={230}
             empilhar
             mostrarParte
-            series={formas.map((forma) => ({ chave: forma.forma, rotulo: forma.nome, cor: forma.cor }))}
+            series={formas.flatMap((forma) => [
+              { chave: forma.forma, rotulo: `${forma.nome} · lançado`, cor: forma.cor },
+              ...((forma.forecast ?? 0) > 0 ? [{ chave: `forecast:${forma.forma}`, rotulo: `${forma.nome} · previsto`, cor: forma.cor, padrao: true }] : []),
+            ])}
             pontos={dados.serie.pontos.map((ponto) => ({
               rotulo: rotuloDoTrecho(ponto.inicio, ponto.fim, dados.serie.granularidade),
               futuro: trechoFuturo(ponto.inicio),
-              valores: ponto.formas,
+              valores: { ...ponto.formas, ...Object.fromEntries(Object.entries(ponto.forecastMethods ?? {}).map(([method, amount]) => [`forecast:${method}`, amount])) },
             }))}
             linhasExtras={(ponto) => [['Total', formatCurrency(Object.values(ponto.valores).reduce((soma, valor) => soma + valor, 0))]]}
           />

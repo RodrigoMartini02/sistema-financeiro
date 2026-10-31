@@ -17,6 +17,7 @@ export const fixedExpenses = pgTable('despesas_fixas', {
   purchaseDate: date('data_compra_referencia').notNull(),
   dueDate: date('data_vencimento_referencia').notNull(),
   firstMonth: date('primeira_competencia').notNull(),
+  endMonth: date('mes_final'),
   registeredYear: integer('ano_registrado').notNull(),
   active: boolean('ativa').notNull().default(true),
   createdAt: timestamp('data_criacao').notNull().defaultNow(),

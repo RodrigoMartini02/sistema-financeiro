@@ -9,8 +9,8 @@ import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
 import { createExpense, fetchExpenseGroup, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
-import { C, chipStyle, neutralOutlineButtonStyle, saveButtonStyle } from '../../../ui/dialogFormTokens';
-import { confirmFixedExpense, createFixedExpense } from '../../../services/fixedExpensesService';
+import { C, chipStyle } from '../../../ui/dialogFormTokens';
+import { confirmFixedExpense, deferFixedExpenses, fetchPendingFixedExpenses } from '../../../services/fixedExpensesService';
 import { INVOICE_MESSAGES, invoiceEditLock, payInvoiceShortcut } from '../../../utils/cardInvoice';
 import {
   cashPriceInterestNote, cashPriceInterestPreview, installmentScopeRows, openFollowingOccurrences, paidInstallmentsNote,
@@ -43,12 +43,10 @@ import {
 } from './draftState';
 import { ExpenseRow, amountLabel, type RowResources } from './ExpenseRow';
 import { InstallmentCountField } from './InstallmentCountField';
-import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
+import { BATCH_GRID_CLASS, BATCH_FIXED_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS, ENTRY_FIXED_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
 import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSuggestions';
-import { FixedExpensesSection } from './FixedExpensesSection';
-import { FixedExpenseManager } from './FixedExpenseManager';
-import { buildFixedExpenseInput, canCreateFixedFromExpense, initialFixedMonth, isFixedMonth } from './fixedExpenseDrafts';
+import { canCreateFixedFromExpense, contextForDraft, initialFixedMonth, readyToSave } from './fixedExpenseDrafts';
 
 const TOAST_DURATION_MS = 2800;
 const EXPENSE_NOUN = { singular: 'despesa', plural: 'despesas' };
@@ -137,12 +135,9 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const [dialogAccountId] = useState(() => getActiveAccountId());
   const isEdit = expense !== null;
   const isForecast = expense?.status === 'prevista';
-  const [fixedOpened, setFixedOpened] = useState(false);
-  const [fixedVisible, setFixedVisible] = useState(false);
-  const [fixedBusy, setFixedBusy] = useState(false);
-  const [managerOpened, setManagerOpened] = useState(false);
-  const [convertingToFixed, setConvertingToFixed] = useState(false);
-  const [firstMonth, setFirstMonth] = useState(() => initialFixedMonth(initialMonth, expense?.dataVencimento ?? presetDate, todayIso));
+  const [deferBusy, setDeferBusy] = useState(false);
+  const deferBusyRef = useRef(false);
+  const savedForecastIds = useRef<number[]>([]);
   const pendingMonth = initialFixedMonth(initialMonth, presetDate, todayIso);
   const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
   const descriptionRef = useRef<HTMLInputElement>(null);
@@ -150,6 +145,18 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const [state, dispatch] = useReducer(dialogReducer, null, () => initialDialogState(expense
     ? draftFromExpense(expense)
     : createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: isoToBrDate(presetDate ?? todayIso), purchaseDateTouched: !!presetDate, paymentMethodTouched: false })));
+
+  const pendingQuery = useQuery({
+    queryKey: queryKeys.fixedExpensePending(dialogAccountId, pendingMonth),
+    queryFn: () => fetchPendingFixedExpenses(pendingMonth, dialogAccountId),
+    enabled: !isEdit && dialogAccountId !== null && getActiveAccountId() === dialogAccountId,
+  });
+  useEffect(() => {
+    if (pendingQuery.data && !state.saving && !deferBusy && getActiveAccountId() === dialogAccountId) {
+      dispatch({ type: 'mergeForecasts', expenses: pendingQuery.data, excludedIds: savedForecastIds.current });
+    }
+  }, [pendingQuery.data, state.saving, deferBusy, dialogAccountId]);
+
 
   const permissions = useOwnPermissions() ?? {};
   const categoriesQuery = useQuery({ queryKey: queryKeys.categorias(), queryFn: () => fetchCategorias() });
@@ -243,15 +250,11 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   });
 
   const requestClose = () => {
-    if (!state.saving && !fixedBusy) onClose();
+    if (!state.saving && !deferBusy) onClose();
   };
 
   const addToBatch = () => {
-    if (isEdit || state.saving || fixedBusy) return;
-    if (state.entry.billingType === 'fixed') {
-      dispatch({ type: 'showErrors', errors: {}, message: 'Use “Salvar despesa fixa” para gerar as previsões. O lote de despesas comuns será preservado.' });
-      return;
-    }
+    if (isEdit || state.saving || deferBusy) return;
     const errors = validateDraft(state.entry, context);
     if (hasErrors(errors)) {
       dispatch({ type: 'showErrors', errors: { ...state.errors, [state.entry.key]: errors }, message: errorMessage(errors) });
@@ -280,14 +283,19 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     try {
       // No mensal, o servidor sempre leva a edição às próximas; no parcelado, vai o alcance escolhido.
       // O "À vista" e o nº de parcelas só vão com "Todas": são da compra inteira.
-      await updateExpense(target.id, {
-        ...buildUpdateInput(state.entry, context),
-        ...(isInstallmentSeries ? { applyTo: installmentScope } : {}),
-        ...(isInstallmentSeries && installmentScope === 'all' && seriesCashPriceCents !== null
-          ? { cashPrice: toReais(seriesCashPriceCents) }
-          : {}),
-        ...(installmentCountToSend !== null ? { installmentCount: installmentCountToSend } : {}),
-      });
+      if (state.entry.billingType === 'fixed' && !target.fixedExpenseId) {
+        const input = buildCreateInput(state.entry, context, dialogAccountId);
+        if (input.billingType === 'fixed') await createExpense({ ...input, sourceExpenseId: target.id });
+      } else {
+        await updateExpense(target.id, {
+          ...buildUpdateInput(state.entry, context),
+          ...(isInstallmentSeries ? { applyTo: installmentScope } : {}),
+          ...(isInstallmentSeries && installmentScope === 'all' && seriesCashPriceCents !== null
+            ? { cashPrice: toReais(seriesCashPriceCents) }
+            : {}),
+          ...(installmentCountToSend !== null ? { installmentCount: installmentCountToSend } : {}),
+        });
+      }
       invalidateExpenseQueries(qc);
       onClose();
     } catch (error) {
@@ -295,95 +303,65 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     }
   };
 
-  const saveFixed = async () => {
-    if (state.saving || fixedBusy) return;
-    if (getActiveAccountId() !== dialogAccountId) {
-      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente o lançamento.' });
-      return;
-    }
-    const errors = validateDraft(state.entry, { ...context, editing: true });
-    if (hasErrors(errors) || !isFixedMonth(firstMonth) || getActiveAccountId() === null) {
-      dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: hasErrors(errors)
-        ? errorMessage(errors) : getActiveAccountId() === null ? 'Selecione uma conta para cadastrar a fixa.' : 'Informe o mês inicial das previsões.' });
-      return;
-    }
-    dispatch({ type: 'savingStarted', total: 1 });
+  const setDeferred = async (ids: number[], deferred: boolean) => {
+    if (!ids.length || deferBusyRef.current || state.saving || getActiveAccountId() !== dialogAccountId) return;
+    deferBusyRef.current = true;
+    setDeferBusy(true);
+    dispatch({ type: 'setDeferred', ids, deferred });
     try {
-      await createFixedExpense(buildFixedExpenseInput(state.entry, context, getActiveAccountId(), firstMonth, convertingToFixed ? expense?.id : undefined));
-      invalidateExpenseQueries(qc);
-      if (convertingToFixed) {
-        onClose();
-      } else {
-        dispatch({ type: 'draftSaved', key: state.entry.key, nextEntry: nextEntry(state.entry) });
-        dispatch({ type: 'savingFinished', toast: '✓ Despesa fixa salva. As previsões aguardam confirmação.' });
-      }
+      await deferFixedExpenses(ids, deferred, dialogAccountId);
+      qc.setQueryData<Expense[]>(queryKeys.fixedExpensePending(dialogAccountId, pendingMonth), (current) => current?.map((row) =>
+        ids.includes(row.id) ? { ...row, deferred } : row));
+      dispatch({ type: 'setDeferred', ids, deferred });
     } catch (cause) {
-      dispatch({ type: 'savingFailed', message: cause instanceof Error ? cause.message : 'Não foi possível salvar a despesa fixa.' });
-    }
-  };
-
-  const confirmEditedForecast = async () => {
-    if (!expense || !isForecast || state.saving || fixedBusy) return;
-    if (getActiveAccountId() !== dialogAccountId) {
-      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente a previsão.' });
-      return;
-    }
-    const errors = validateDraft(state.entry, context);
-    if (hasErrors(errors)) { dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: errorMessage(errors) }); return; }
-    dispatch({ type: 'savingStarted', total: 1 });
-    try {
-      await confirmFixedExpense(expense.id, buildUpdateInput(state.entry, context));
-      invalidateExpenseQueries(qc);
-      onClose();
-    } catch (cause) {
-      dispatch({ type: 'savingFailed', message: cause instanceof Error ? cause.message : 'Não foi possível confirmar a previsão.' });
+      dispatch({ type: 'setDeferred', ids, deferred: true, error: cause instanceof Error ? cause.message : 'Não foi possível gravar o adiamento. Altere a marcação para tentar novamente.' });
+    } finally {
+      deferBusyRef.current = false;
+      setDeferBusy(false);
     }
   };
 
   const saveNew = async () => {
-    if (state.entry.billingType === 'fixed') { await saveFixed(); return; }
+    const withoutAmount = state.batch.filter((draft) => draft.forecastId !== undefined && !draft.deferred
+      && (!Number.isFinite(draft.amountCents) || (draft.amountCents ?? 0) <= 0)).map((draft) => draft.forecastId!);
+    if (withoutAmount.length) await setDeferred(withoutAmount, true);
+    const batch = state.batch.filter(readyToSave);
     const entryFilled = isDraftFilled(state.entry);
-    const items = entryFilled ? [...state.batch, state.entry] : state.batch;
+    const items = entryFilled ? [...batch, state.entry] : batch;
     if (items.length === 0) {
-      dispatch({ type: 'showErrors', errors: { [state.entry.key]: validateDraft(state.entry, context) }, message: EMPTY_FORM_MESSAGE });
+      dispatch({ type: 'showErrors', errors: state.batch.length ? {} : { [state.entry.key]: validateDraft(state.entry, context) },
+        message: state.batch.length ? 'Nenhuma despesa pronta para registrar.' : EMPTY_FORM_MESSAGE });
       return;
     }
     const { errors, message } = collectBatchErrors<ExpenseDraft, DraftErrors>({
-      batch: state.batch,
-      entry: entryFilled ? state.entry : null,
-      validate: (draft) => validateDraft(draft, context),
-      hasErrors,
-      describe: errorMessage,
-      itemLabel: 'Despesa',
+      batch, entry: entryFilled ? state.entry : null,
+      validate: (draft) => validateDraft(draft, contextForDraft(draft, context)),
+      hasErrors, describe: errorMessage, itemLabel: 'Despesa',
     });
-    if (message) {
-      dispatch({ type: 'showErrors', errors, message });
-      return;
-    }
-
-    const accountId = getActiveAccountId();
+    if (message) { dispatch({ type: 'showErrors', errors, message }); return; }
     const result = await saveInOrder<ExpenseDraft, DraftErrors>({
-      items,
-      entryKey: state.entry.key,
-      nextEntry: nextEntry(state.entry),
-      save: (draft) => createExpense(buildCreateInput(draft, context, accountId)),
-      dispatch,
-      itemLabel: 'Despesa',
-      fallbackMessage: 'Não foi possível registrar a despesa.',
+      items, entryKey: state.entry.key, nextEntry: nextEntry(state.entry),
+      save: async (draft) => {
+        if (getActiveAccountId() !== dialogAccountId) throw new Error('A conta mudou. Feche e abra novamente o lançamento.');
+        const draftContext = contextForDraft(draft, context);
+        if (draft.forecastId !== undefined) {
+          await confirmFixedExpense(draft.forecastId, buildUpdateInput(draft, draftContext));
+          savedForecastIds.current.push(draft.forecastId);
+        } else await createExpense(buildCreateInput(draft, draftContext, dialogAccountId));
+      },
+      dispatch, itemLabel: 'Despesa', fallbackMessage: 'Não foi possível registrar a despesa.',
     });
     if (result.saved > 0) invalidateExpenseQueries(qc);
-    if (!result.failed) {
-      dispatch({ type: 'savingFinished', toast: items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada' });
-    }
+    if (!result.failed) dispatch({ type: 'savingFinished', toast: items.length > 1 ? `✓ ${items.length} despesas registradas` : '✓ Despesa registrada' });
   };
 
   const save = () => {
-    if (state.saving || fixedBusy) return;
+    if (state.saving || deferBusyRef.current) return;
     if (getActiveAccountId() !== dialogAccountId) {
       dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente o lançamento.' });
       return;
     }
-    void (convertingToFixed ? saveFixed() : expense ? saveEdit(expense) : saveNew());
+    void (expense ? saveEdit(expense) : saveNew());
   };
 
   const rowHandlers = (key: number) => ({
@@ -395,28 +373,20 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const pendingCountFor = (key: number) => (state.pendingInstallmentCount?.key === key ? state.pendingInstallmentCount.count : null);
 
   const entry = state.entry;
-  let displayedEntry = entry;
-  let fixedDateError = '';
-  if (entry.billingType === 'fixed' && !isEdit) {
-    try {
-      const preview = buildFixedExpenseInput(entry, context, dialogAccountId, firstMonth);
-      displayedEntry = {
-        ...entry,
-        purchaseDate: isoToBrDate(preview.purchaseDate),
-        dueDate: entry.dueDate || isoToBrDate(preview.dueDate),
-      };
-    } catch (cause) {
-      fixedDateError = cause instanceof Error ? cause.message : 'Confira as datas da primeira previsão.';
-    }
-  }
   const entryInstallments = entry.billingType === 'installments';
   const entryFilled = isDraftFilled(entry);
-  const toSaveCount = isEdit ? 1 : state.batch.length + (entryFilled ? 1 : 0);
+  const readyBatch = state.batch.filter(readyToSave);
+  const toSaveCount = isEdit ? 1 : readyBatch.length + (entryFilled ? 1 : 0);
+  const forecasts = state.batch.filter((draft) => draft.forecastId !== undefined);
+  const allDeferred = forecasts.length > 0 && forecasts.every((draft) => draft.deferred);
+  const someDeferred = forecasts.some((draft) => draft.deferred);
+  const wideBilling = state.batch.some((draft) => draft.billingType === 'fixed');
+  const batchGrid = forecasts.length ? BATCH_FORECAST_GRID_CLASS : wideBilling ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS;
   const entryDuplicate = entrySuggestions.duplicateCreatedAt ? duplicateText(entrySuggestions.duplicateCreatedAt) : null;
   const entryLimit = cardLimitText(entry, cards, resources.cardLimits);
 
   // Despesa ligada à fatura do cartão: a edição não mexe no que a fatura define.
-  const lock = expense && !convertingToFixed && !isForecast ? invoiceEditLock(expense) : null;
+  const lock = expense && !isForecast ? invoiceEditLock(expense) : null;
   const invoiceLock = lock === null ? undefined : {
     reason: lock === 'credit-payment' ? INVOICE_MESSAGES.creditPayment : INVOICE_MESSAGES.lockedRow,
     locksValueAndMethod: lock !== 'credit-payment',
@@ -424,7 +394,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   };
 
   // No crédito com cartão o pagamento é pela fatura: o atalho abre o "Pagar fatura" no mês e no cartão da despesa.
-  const invoiceShortcut = expense && !isForecast && !convertingToFixed && onPayInvoice ? payInvoiceShortcut(expense) : null;
+  const invoiceShortcut = expense && !isForecast && onPayInvoice ? payInvoiceShortcut(expense) : null;
   const payInvoiceAction = invoiceShortcut && onPayInvoice ? {
     label: invoiceShortcut.label,
     title: 'Fecha esta edição e abre o pagamento da fatura. O que não foi salvo aqui se perde.',
@@ -439,13 +409,9 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   if (state.footerError) {
     footerMessage = state.footerError;
     footerTone = 'danger';
-  } else if (fixedDateError) {
-    footerMessage = fixedDateError;
+  } else if (pendingQuery.error && !isEdit) {
+    footerMessage = 'Não foi possível carregar as previsões. Feche e abra o lançamento para tentar novamente.';
     footerTone = 'danger';
-  } else if (entry.billingType === 'fixed' || convertingToFixed) {
-    footerMessage = convertingToFixed ? 'A despesa atual será preservada. As próximas ocorrências serão previstas até dezembro.' : 'Gera previsões até dezembro. Cada conta será confirmada quando você souber o valor.';
-  } else if (isForecast) {
-    footerMessage = 'Salvar alterações mantém a previsão. Use “Confirmar despesa” quando souber o valor da conta.';
   } else if (lock === 'invoice-item') {
     footerMessage = 'Paga pela fatura do cartão: valor, forma, cartão, vencimento e pagamento só mudam desfazendo o pagamento da fatura.';
   } else if (lock === 'generated') {
@@ -456,7 +422,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     footerMessage = entryDuplicate;
     footerTone = 'warning';
   } else if (!isEdit && toSaveCount === 0) {
-    footerMessage = EMPTY_FORM_MESSAGE;
+    footerMessage = state.batch.length ? 'Nenhuma despesa pronta para registrar.' : EMPTY_FORM_MESSAGE;
   } else if (state.batch.length > 0) {
     footerMessage = entryFilled ? 'A linha de cima também entra ao salvar.' : 'Revise o lote e salve.';
   } else if (!isEdit) {
@@ -495,7 +461,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     ? previewInstallmentCount(series, expense, nextInstallmentCount, entryAmount)
     : null;
   // A despesa ligada à fatura (paga por ela ou gerada por ela) já fica de fora em canBecomeInstallments; no crédito com cartão ela pode virar parcelada.
-  const canSplitSingle = expense !== null && !expense.fixedExpenseId && !convertingToFixed && !isForecast && canBecomeInstallments(expense);
+  const canSplitSingle = expense !== null && !expense.fixedExpenseId && entry.billingType !== 'fixed' && !isForecast && canBecomeInstallments(expense);
   const splitPreview = canSplitSingle && nextInstallmentCount !== null && entryAmount !== null
     ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount)
     : null;
@@ -510,7 +476,8 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     : null;
 
   const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
-  const editBillingLabel = convertingToFixed ? 'Fixa' : expense?.fixedExpenseId ? 'Fixa' : expense
+  const canConvertToFixed = expense !== null && canCreateFixedFromExpense(expense);
+  const editBillingLabel = expense?.fixedExpenseId ? 'Fixa' : expense
     ? expense.parcelado && expense.parcela
       ? `Parcela ${expense.parcela}`
       : expense.recorrente ? recurringLabel : splitPreview ? `Parcelada em ${splitPreview.count}x` : 'Não repete'
@@ -531,35 +498,18 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
             onChange={(choice) => dispatch({ type: 'update', key: entry.key, patch: choice })}
           />
           {entryLimit && <span style={{ fontSize: 12, color: C.textSoft }}>{entryLimit}</span>}
-          <button
-            type="button" style={neutralOutlineButtonStyle} aria-expanded={fixedVisible} disabled={state.saving !== null || fixedBusy}
-            onClick={() => { setFixedOpened(true); setFixedVisible((value) => !value); }}
-          >
-            ☆ Despesas fixas
-          </button>
-        </div>
-      )}
 
-      {isEdit && (
-        <div data-independent-save className="flex flex-wrap items-center gap-2 px-2 pb-3">
-          {isForecast && <button type="button" disabled={state.saving !== null || fixedBusy} style={saveButtonStyle} onClick={() => void confirmEditedForecast()}>Confirmar despesa</button>}
-          {expense?.fixedExpenseId && <button type="button" disabled={state.saving !== null || fixedBusy} style={neutralOutlineButtonStyle} aria-expanded={managerOpened} onClick={() => setManagerOpened((value) => !value)}>Gerenciar fixa</button>}
-          {expense && canCreateFixedFromExpense(expense) && <button type="button" disabled={state.saving !== null || fixedBusy} style={neutralOutlineButtonStyle} onClick={() => {
-            setConvertingToFixed((value) => !value);
-            setFirstMonth(expense.dataVencimento.slice(0, 7));
-            setNextInstallmentCount(null);
-          }}>{convertingToFixed ? 'Cancelar criação da fixa' : 'Tornar despesa fixa'}</button>}
         </div>
       )}
 
       {isEdit ? (
-        <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+        <div className={`${HEADER_GRID_CLASS} ${entry.billingType === 'fixed' ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
           <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Pagamento</span><span>Cobrança</span>
           <span>Valor <RequiredMark /></span><span>Compra</span><span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span>
           <span>Valor pago</span><span /><span />
         </div>
       ) : (
-        <div className={`${HEADER_GRID_CLASS} ${ENTRY_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+        <div className={`${HEADER_GRID_CLASS} ${entry.billingType === 'fixed' ? ENTRY_FIXED_GRID_CLASS : ENTRY_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
           <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Cobrança</span>
           <span>{amountLabel(entry)} <RequiredMark /></span><span>Compra</span><span>{entryInstallments ? '1ª vence' : 'Vencimento'}</span>
           {entryInstallments
@@ -573,16 +523,16 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
           texto da anterior (o valor digitado seria gravado ao sair do campo). */}
       <ExpenseRow
         key={entry.key}
-        draft={displayedEntry}
+        draft={entry}
         variant={isEdit ? 'edit' : 'entry'}
         resources={resources}
         errors={state.errors[entry.key]}
         showSummary
         suggestions={entrySuggestions}
-        readOnlyBilling={editBillingLabel}
+        readOnlyBilling={canConvertToFixed ? undefined : editBillingLabel}
+        fixedConversion={canConvertToFixed}
         readOnlyBillingReason={expense ? billingLockReason(expense) : undefined}
-        invoiceLock={invoiceLock}
-        hidePayment={isForecast || convertingToFixed}
+        invoiceLock={isForecast ? { reason: 'O pagamento é registrado ao lançar a previsão pelo lote.', locksValueAndMethod: false, locksDueDate: false } : invoiceLock}
         payInvoiceAction={payInvoiceAction}
         creditOnlyPayment={expense?.recorrente === true}
         pendingInstallmentCount={pendingCountFor(entry.key)}
@@ -590,19 +540,6 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
         onAddToBatch={addToBatch}
         {...rowHandlers(entry.key)}
       />
-
-      {(entry.billingType === 'fixed' || convertingToFixed) && (
-        <div data-independent-save className="flex flex-wrap items-center gap-3 px-2 pt-3 text-xs text-slate-500">
-          <label className="flex items-center gap-2 font-medium text-slate-600 dark:text-slate-300">
-            {convertingToFixed ? 'Mês da despesa atual' : 'Primeiro mês'}
-            <input type="month" min="2000-01" max="2100-12" aria-label="Primeiro mês da despesa fixa" value={firstMonth} disabled={convertingToFixed || state.saving !== null}
-              onChange={(event) => { if (isFixedMonth(event.target.value)) setFirstMonth(event.target.value); }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-900" />
-          </label>
-          <span>{convertingToFixed ? 'Mantém esta despesa e gera somente os meses seguintes.' : `Gera previsões de ${firstMonth.slice(5)}/${firstMonth.slice(0, 4)} até dezembro.`}</span>
-          {!convertingToFixed && <span>As datas são da primeira previsão. Datas automáticas anteriores ao mês inicial serão avançadas; as datas informadas serão preservadas.</span>}
-        </div>
-      )}
 
       {canSplitSingle && (
         <>
@@ -709,28 +646,48 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   );
 
   const batch = state.batch.length > 0 ? {
-    count: state.batch.length,
+    count: readyBatch.length,
     // No parcelado, o total das parcelas (o valor da linha pode ser o de cada parcela).
-    sumCents: state.batch.reduce((sum, draft) => (
+    sumCents: readyBatch.reduce((sum, draft) => (
       sum + (draft.billingType === 'installments' ? installmentsTotal(draft) : draft.amountCents ?? 0)
     ), 0),
     header: (
-      <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '10px 8px 4px' }}>
+      <>
+      {forecasts.length > 0 && (
+        <label className="flex items-center gap-2 px-2 pt-3 text-xs lg:hidden" style={{ color: C.textSoft }}>
+          <input type="checkbox" aria-label="Adiar todas as fixas"
+            checked={allDeferred} ref={(node) => { if (node) node.indeterminate = someDeferred && !allDeferred; }}
+            disabled={deferBusy || state.saving !== null} onChange={(event) => void setDeferred(forecasts.map((draft) => draft.forecastId!), event.target.checked)}
+            className="h-4 w-4 accent-cyan-600" />
+          Adiar todas
+        </label>
+      )}
+      <div className={`${HEADER_GRID_CLASS} ${batchGrid}`} style={{ ...columnHeaderStyle, padding: '10px 8px 4px' }}>
+        {forecasts.length > 0 && <span className="flex flex-col gap-1 text-[10px]">Adiar<input type="checkbox" aria-label="Adiar todas as fixas" title="Adiar todas as fixas"
+          checked={allDeferred} ref={(node) => { if (node) node.indeterminate = someDeferred && !allDeferred; }}
+          disabled={deferBusy || state.saving !== null} onChange={(event) => void setDeferred(forecasts.map((draft) => draft.forecastId!), event.target.checked)}
+          className="h-4 w-4 accent-cyan-600" /></span>}
         <span>Descrição</span><span>Categoria</span><span>Pagamento</span><span>Cobrança</span><span>Valor</span><span>Compra</span>
         <span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span><span>Valor pago</span><span /><span />
       </div>
+      </>
     ),
     rows: state.batch.map((draft) => (
       <ExpenseRow
         key={draft.key}
         draft={draft}
         variant="batch"
-        resources={resources}
+        resources={{ ...resources, context: contextForDraft(draft, context), forecastColumn: forecasts.length > 0, fixedBillingColumn: wideBilling }}
         errors={state.errors[draft.key]}
+        readOnlyBilling={draft.forecastId !== undefined ? 'Fixa' : undefined}
+        invoiceLock={draft.forecastId !== undefined && draft.paymentMethod === 'credito' && draft.cardId !== null
+          ? { reason: 'Despesa no crédito é paga pela fatura.', locksValueAndMethod: false, locksDueDate: false } : undefined}
+        deferDisabled={deferBusy || state.saving !== null}
+        onDefer={(deferred) => { if (draft.forecastId !== undefined) void setDeferred([draft.forecastId], deferred); }}
         showSummary={draft.key === state.activeKey}
         suggestions={draft.key === state.activeKey ? activeSuggestions : null}
         pendingInstallmentCount={pendingCountFor(draft.key)}
-        onRemove={() => dispatch({ type: 'removeFromBatch', key: draft.key })}
+        onRemove={draft.forecastId === undefined ? () => dispatch({ type: 'removeFromBatch', key: draft.key }) : undefined}
         {...rowHandlers(draft.key)}
       />
     )),
@@ -742,18 +699,14 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
       description="Registre uma saída financeira"
       onRequestClose={requestClose}
       onSave={save}
-      onAddToBatch={isEdit || entry.billingType === 'fixed' ? undefined : addToBatch}
+      onAddToBatch={isEdit ? undefined : addToBatch}
       top={top}
       batch={batch}
-      extraContent={<>
-        {!isEdit && fixedOpened && <FixedExpensesSection initialMonth={pendingMonth} visible={fixedVisible} disabled={state.saving !== null} resources={resources} onBusyChange={setFixedBusy} />}
-        {isEdit && managerOpened && expense?.fixedExpenseId && <FixedExpenseManager resources={resources} initialSourceId={expense.fixedExpenseId} disabled={state.saving !== null} onBusyChange={setFixedBusy} />}
-      </>}
       itemNoun={EXPENSE_NOUN}
       footerMessage={footerMessage}
       footerTone={footerTone}
-      saveLabel={entry.billingType === 'fixed' || convertingToFixed ? 'Salvar despesa fixa' : isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa'}
-      canSave={toSaveCount > 0}
+      saveLabel={isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} despesas` : 'Registrar despesa'}
+      canSave={toSaveCount > 0 && !deferBusy}
       saving={state.saving}
       toast={state.toast}
     />

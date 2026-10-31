@@ -36,6 +36,7 @@ interface BillingPopoverProps {
   onUpdate: (patch: DraftPatch) => void;
   onSetInstallmentCount: (count: number, force: boolean) => void;
   onCancelInstallmentCount: () => void;
+  fixedConversion?: boolean;
 }
 
 /**
@@ -43,12 +44,13 @@ interface BillingPopoverProps {
  * do parcelado (cada parcela ou o total) e o valor à vista ficam na linha, em InstallmentValueFields.
  */
 export function BillingPopover({
-  draft, recurringAvailable, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount,
+  draft, recurringAvailable, pendingInstallmentCount, onUpdate, onSetInstallmentCount, onCancelInstallmentCount, fixedConversion = false,
 }: BillingPopoverProps) {
   const [open, setOpen] = useState(false);
   const [countText, setCountText] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const options = BILLING_OPTIONS.filter((option) => option.type !== 'monthly' || recurringAvailable);
+  const options = BILLING_OPTIONS.filter((option) => fixedConversion
+    ? option.type === 'single' || option.type === 'fixed' : option.type !== 'monthly' || recurringAvailable);
 
   const commitCount = () => {
     if (countText === null) return;
@@ -159,9 +161,6 @@ export function BillingPopover({
 
         {draft.billingType === 'monthly' && (
           <span style={sectionStyle}>A recorrência segue a fatura do cartão, até dezembro.</span>
-        )}
-        {draft.billingType === 'fixed' && (
-          <span style={sectionStyle}>Gera previsões mensais até dezembro. Você confirma o valor de cada conta quando recebê-la.</span>
         )}
       </FloatingPanel>
     </>

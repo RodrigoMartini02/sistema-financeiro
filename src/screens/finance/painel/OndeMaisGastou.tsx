@@ -30,9 +30,9 @@ interface OndeMaisGastouProps {
 /** Categorias da maior para a menor, com as subcategorias e, com várias pessoas, a parte de cada uma. */
 export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmentarPorMembro }: OndeMaisGastouProps) {
   const cores = useCoresGrafico();
-  const linhasComGasto = porCategoria.filter((linha) => linha.total > 0);
+  const linhasComGasto = porCategoria.filter((linha) => linha.total + (linha.forecast ?? 0) > 0);
   if (linhasComGasto.length === 0) return null;
-  const total = linhasComGasto.reduce((soma, linha) => soma + linha.total, 0);
+  const total = linhasComGasto.reduce((soma, linha) => soma + linha.total + (linha.forecast ?? 0), 0);
 
   const somarSegmento = (destino: Map<number, Segmento>, usuarioId: number, nome: string | null, valor: number) => {
     const atual = destino.get(usuarioId);
@@ -53,20 +53,22 @@ export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmen
     .map((raiz) => {
       const subs = [...raiz.subs].sort((a, b) => b.total - a.total);
       const valor = (raiz.proprio?.total ?? 0) + subs.reduce((soma, sub) => soma + sub.total, 0);
+      const forecast = (raiz.proprio?.forecast ?? 0) + subs.reduce((sum, sub) => sum + (sub.forecast ?? 0), 0);
       return {
         id: raiz.chave,
         nome: raiz.nome,
         valor,
-        parte: (valor / total) * 100,
+        forecast,
+        parte: ((valor + forecast) / total) * 100,
         segmentos: segmentosDe([...(raiz.proprio ? [raiz.proprio] : []), ...subs]),
         observacoes: observacoesPorOutros(porOutros, [raiz.categoriaId, ...subs.map((sub) => sub.categoriaId)], valor),
         subs: subs.map((sub) => ({
-          id: sub.chave, nome: sub.categoria, valor: sub.total, parte: (sub.total / total) * 100,
+          id: sub.chave, nome: sub.categoria, valor: sub.total, forecast: sub.forecast, parte: ((sub.total + (sub.forecast ?? 0)) / total) * 100,
           segmentos: segmentosDe([sub]), observacoes: observacoesPorOutros(porOutros, [sub.categoriaId], sub.total),
         })),
       };
     })
-    .sort((a, b) => b.valor - a.valor);
+    .sort((a, b) => b.valor + b.forecast - a.valor - a.forecast);
 
   const pessoasNaLegenda = segmentarPorMembro
     ? [...new Map(linhas.flatMap((linha) => linha.segmentos ?? []).map((segmento) => [segmento.nome, segmento])).values()]
@@ -76,9 +78,12 @@ export function OndeMaisGastou({ porCategoria, porOutros, coresPorPessoa, segmen
     <Secao titulo="Categorias">
       <CardPainel>
         <CabecalhoCard titulo="Onde mais gastou" valor={formatCurrency(total)} />
-        <Legenda itens={segmentarPorMembro
-          ? pessoasNaLegenda.map((segmento) => ({ cor: segmento.cor, nome: segmento.nome }))
-          : [{ cor: cores.destaque, nome: 'Categoria' }, { cor: cores.destaqueSuave, nome: 'Subcategoria' }]}
+        <Legenda itens={[
+          ...(segmentarPorMembro
+            ? pessoasNaLegenda.map((segmento) => ({ cor: segmento.cor, nome: segmento.nome }))
+            : [{ cor: cores.destaque, nome: 'Categoria' }, { cor: cores.destaqueSuave, nome: 'Subcategoria' }]),
+          ...(linhasComGasto.some(row => (row.forecast ?? 0) > 0) ? [{ cor: cores.destaque, nome: 'Previsão · hachurada' }] : []),
+        ]}
         />
         <BarrasHorizontais linhas={linhas} modo="parte" limiteVisivel={CATEGORIAS_VISIVEIS} />
       </CardPainel>

@@ -40,7 +40,7 @@ const EXPENSE_DEPENDENT_QUERIES = new Set<unknown>([
   'dashboard', 'painel', 'accounts-overview', 'card-limits', 'budget-overview', 'budget-overview-range',
   'reports', 'expense-group', 'expense-suggestions', 'expense-duplicate', 'despesas-em-aberto',
   'card-invoices', 'card-invoices-overdue', 'card-usage', 'series-renewals', 'despesas-vencidas',
-  'fixed-expenses', 'fixed-expense-pending',
+  'fixed-expense-pending',
 ]);
 
 export function invalidateExpenseQueries(qc: QueryClient) {
@@ -62,7 +62,6 @@ export function invalidateIncomeQueries(qc: QueryClient) {
 }
 
 export const queryKeys = {
-  fixedExpenses: (accountId: number | null) => ['fixed-expenses', accountId ?? 'none'] as const,
   fixedExpensePending: (accountId: number | null, month: string) => ['fixed-expense-pending', accountId ?? 'none', month] as const,
   session: ['session'] as const,
   planStatus: ['plano-status'] as const,

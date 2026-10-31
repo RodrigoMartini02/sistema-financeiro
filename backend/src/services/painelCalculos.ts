@@ -9,7 +9,6 @@
 
 import { expenseCashDate } from './cashDate';
 import { dataDoLancamento } from './fixedIncomeSchedule';
-import { isCountedExpense } from './expenseCounting';
 
 export interface Periodo {
   de: string;
@@ -370,49 +369,6 @@ export function despesasDoPeriodo(despesas: DespesaPainel[], periodo: Periodo): 
   return despesas.filter((despesa) => dentroDoPeriodo(dataDeCaixa(despesa), periodo));
 }
 
-export interface ExpenseProjection {
-  confirmed: number;
-  scheduled: number;
-  planned: number;
-  total: number;
-  plannedCount: number;
-}
-
-/** Uma ocorrência entra uma vez: confirmada, recorrência ainda agendada ou previsão da fixa. */
-export function projectExpenseTotals(expenses: DespesaPainel[], period: Periodo, today: string): ExpenseProjection {
-  let confirmedCents = 0;
-  let scheduledCents = 0;
-  let plannedCents = 0;
-  let plannedCount = 0;
-  for (const expense of despesasDoPeriodo(expenses, period)) {
-    if (expense.status === 'cancelada') continue;
-    const amount = Math.round(valorEfetivo(expense) * 100);
-    if (expense.status === 'prevista') {
-      plannedCents += amount;
-      plannedCount += 1;
-    } else if (isCountedExpense({
-      status: expense.status,
-      recurring: expense.recorrente,
-      paid: expense.pago,
-      paymentMethod: expense.formaPagamento,
-      cardId: expense.cartaoId,
-      purchaseDate: expense.purchaseDate ?? null,
-      dueDate: expense.dataVencimento,
-    }, today)) {
-      confirmedCents += amount;
-    } else {
-      scheduledCents += amount;
-    }
-  }
-  return {
-    confirmed: confirmedCents / 100,
-    scheduled: scheduledCents / 100,
-    planned: plannedCents / 100,
-    total: (confirmedCents + scheduledCents + plannedCents) / 100,
-    plannedCount,
-  };
-}
-
 export function receitasDoPeriodo(receitas: ReceitaPainel[], periodo: Periodo): ReceitaPainel[] {
   return receitas.filter((receita) => dentroDoPeriodo(receita.dataRecebimento, periodo));
 }
@@ -440,6 +396,8 @@ export interface PontoSerie extends BaldeSerie {
   despesas: number;
   /** Despesas do trecho por forma de pagamento (mesma chave de `agregarFormasPagamento`). */
   formas: Record<string, number>;
+  forecast?: number;
+  forecastMethods?: Record<string, number>;
   pago: number;
   juros: number;
   descontos: number;
@@ -458,6 +416,7 @@ export function montarSerie(
   receitas: ReceitaPainel[],
   janela: JanelaSerie,
   incluirJurosDaReceita = true,
+  forecasts: DespesaPainel[] = [],
 ): PontoSerie[] {
   const pontos: PontoSerie[] = baldesDaSerie(janela).map((balde) => ({ ...balde, receitas: 0, despesas: 0, formas: {}, pago: 0, juros: 0, descontos: 0 }));
   const pontoDe = (iso: string) => pontos.find((ponto) => iso >= ponto.inicio && iso <= ponto.fim);
@@ -485,6 +444,16 @@ export function montarSerie(
     }
   }
 
+  for (const expense of forecasts) {
+    if (expense.status !== 'prevista') continue;
+    const point = pontoDe(expense.dataVencimento);
+    if (!point) continue;
+    const amount = expense.valorOriginal;
+    const method = expense.formaPagamento || FORMA_NAO_INFORMADA;
+    point.forecast = (point.forecast ?? 0) + amount;
+    point.forecastMethods ??= {};
+    point.forecastMethods[method] = (point.forecastMethods[method] ?? 0) + amount;
+  }
   return pontos;
 }
 
@@ -522,9 +491,10 @@ export interface FormaPagamentoAgregada {
   valor: number;
   quantidade: number;
   juros: number;
+  forecast?: number;
 }
 
-export function agregarFormasPagamento(despesas: DespesaPainel[]): FormaPagamentoAgregada[] {
+export function agregarFormasPagamento(despesas: DespesaPainel[], forecasts: DespesaPainel[] = []): FormaPagamentoAgregada[] {
   const porForma = new Map<string, FormaPagamentoAgregada>();
   for (const despesa of despesas) {
     const forma = despesa.formaPagamento || FORMA_NAO_INFORMADA;
@@ -534,7 +504,14 @@ export function agregarFormasPagamento(despesas: DespesaPainel[]): FormaPagament
     atual.juros += jurosDaDespesa(despesa);
     porForma.set(forma, atual);
   }
-  return [...porForma.values()].sort((a, b) => b.valor - a.valor);
+  for (const expense of forecasts) {
+    if (expense.status !== 'prevista') continue;
+    const method = expense.formaPagamento || FORMA_NAO_INFORMADA;
+    const current = porForma.get(method) ?? { forma: method, valor: 0, quantidade: 0, juros: 0 };
+    current.forecast = (current.forecast ?? 0) + expense.valorOriginal;
+    porForma.set(method, current);
+  }
+  return [...porForma.values()].sort((a, b) => b.valor + (b.forecast ?? 0) - a.valor - (a.forecast ?? 0));
 }
 
 export function agregarGastoPorCartao(despesas: DespesaPainel[]): Map<number, number> {
@@ -605,11 +582,11 @@ export function agregarEmDia(despesas: DespesaPainel[], periodo: Periodo): EmDia
 export interface ContasEmAberto {
   atraso: { valor: number; quantidade: number };
   proximos30Dias: { valor: number; quantidade: number };
-  comprometido: Array<{ ano: number; mes: number; parcelas: number; outras: number }>;
+  comprometido: Array<{ ano: number; mes: number; parcelas: number; outras: number; forecast?: number }>;
 }
 
 /** Situação de hoje, independente do período: `naoPagas` são despesas ainda em aberto. */
-export function agregarContasEmAberto(naoPagas: DespesaPainel[], hoje: string): ContasEmAberto {
+export function agregarContasEmAberto(naoPagas: DespesaPainel[], hoje: string, forecasts: DespesaPainel[] = []): ContasEmAberto {
   const limiteProximos = somarDias(hoje, DIAS_PROXIMOS_VENCIMENTOS);
   const janela = janelaComprometido(hoje);
   const resultado: ContasEmAberto = {
@@ -641,6 +618,12 @@ export function agregarContasEmAberto(naoPagas: DespesaPainel[], hoje: string): 
       else mes.outras += valor;
     }
   }
+  for (const expense of forecasts) {
+    if (expense.status !== 'prevista' || expense.dataVencimento < hoje || !dentroDoPeriodo(expense.dataVencimento, janela)) continue;
+    const date = paraData(expense.dataVencimento);
+    const month = resultado.comprometido.find(item => item.ano === date.getUTCFullYear() && item.mes === date.getUTCMonth());
+    if (month) month.forecast = (month.forecast ?? 0) + expense.valorOriginal;
+  }
   return resultado;
 }
 
@@ -665,15 +648,22 @@ export function agregarJurosDescontos(despesas: DespesaPainel[], receitas: Recei
 }
 
 /** Uma linha por (categoria, pessoa): a tela soma por categoria e usa a quebra por pessoa nas barras. */
-export function agregarCategorias(despesas: DespesaPainel[]): Array<{ categoriaId: number | null; usuarioId: number; total: number }> {
-  const porChave = new Map<string, { categoriaId: number | null; usuarioId: number; total: number }>();
+export function agregarCategorias(despesas: DespesaPainel[], forecasts: DespesaPainel[] = []): Array<{ categoriaId: number | null; usuarioId: number; total: number; forecast?: number }> {
+  const porChave = new Map<string, { categoriaId: number | null; usuarioId: number; total: number; forecast?: number }>();
   for (const despesa of despesas) {
     const chave = `${despesa.categoriaId ?? 'sem'}:${despesa.usuarioId}`;
     const atual = porChave.get(chave) ?? { categoriaId: despesa.categoriaId, usuarioId: despesa.usuarioId, total: 0 };
     atual.total += valorEfetivo(despesa);
     porChave.set(chave, atual);
   }
-  return [...porChave.values()].sort((a, b) => b.total - a.total);
+  for (const expense of forecasts) {
+    if (expense.status !== 'prevista') continue;
+    const key = `${expense.categoriaId ?? 'sem'}:${expense.usuarioId}`;
+    const current = porChave.get(key) ?? { categoriaId: expense.categoriaId, usuarioId: expense.usuarioId, total: 0 };
+    current.forecast = (current.forecast ?? 0) + expense.valorOriginal;
+    porChave.set(key, current);
+  }
+  return [...porChave.values()].sort((a, b) => b.total + (b.forecast ?? 0) - a.total - (a.forecast ?? 0));
 }
 
 /**
@@ -772,7 +762,8 @@ export interface FatiaPainel {
   id: number | null;
   nome: string;
   valor: number;
-  subcategorias: Array<{ id: number; nome: string; valor: number }>;
+  forecast?: number;
+  subcategorias: Array<{ id: number; nome: string; valor: number; forecast?: number }>;
 }
 
 /**
@@ -781,11 +772,11 @@ export interface FatiaPainel {
  * `rotuloSemRaiz` ("Sem categoria").
  */
 export function agruparPorRaiz(
-  itens: Array<{ id: number | null; valor: number }>,
+  itens: Array<{ id: number | null; valor: number; forecast?: number }>,
   arvore: Map<number, ItemArvorePainel>,
   rotuloSemRaiz: string,
 ): FatiaPainel[] {
-  const raizes = new Map<number | null, FatiaPainel & { subs: Map<number, { id: number; nome: string; valor: number }> }>();
+  const raizes = new Map<number | null, FatiaPainel & { subs: Map<number, { id: number; nome: string; valor: number; forecast?: number }> }>();
 
   for (const item of itens) {
     const atual = item.id !== null ? arvore.get(item.id) : undefined;
@@ -799,10 +790,12 @@ export function agruparPorRaiz(
       raizes.set(chave, fatia);
     }
     fatia.valor += item.valor;
+    if (item.forecast) fatia.forecast = (fatia.forecast ?? 0) + item.forecast;
 
     if (pai && atual) {
       const sub = fatia.subs.get(atual.id) ?? { id: atual.id, nome: atual.nome, valor: 0 };
       sub.valor += item.valor;
+      if (item.forecast) sub.forecast = (sub.forecast ?? 0) + item.forecast;
       fatia.subs.set(atual.id, sub);
     }
   }

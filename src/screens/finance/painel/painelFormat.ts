@@ -86,7 +86,10 @@ export function paraFatias(fatias: PainelFatia[]): FatiaPizza[] {
   return fatias.map((fatia) => ({
     nome: fatia.nome,
     valor: fatia.valor,
-    detalhes: fatia.subcategorias.map((sub) => [sub.nome, formatCurrency(sub.valor)]),
+    forecast: fatia.forecast,
+    detalhes: fatia.subcategorias.map((sub) => [sub.nome, sub.forecast
+      ? `${formatCurrency(sub.valor)} lançado · ${formatCurrency(sub.forecast)} previsto`
+      : formatCurrency(sub.valor)]),
   }));
 }
 

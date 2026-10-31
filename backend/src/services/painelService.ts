@@ -50,7 +50,6 @@ import {
   resumirReceitasPainel,
   agruparPorRaiz,
   sumUpcomingInterest,
-  projectExpenseTotals,
   SEM_CATEGORIA,
   type ItemArvorePainel,
   type FatiaPainel,
@@ -66,7 +65,6 @@ import {
   type ReceitaPainel,
   type ReceitasPainelResumo,
   type TipoGasto,
-  type ExpenseProjection,
 } from './painelCalculos';
 
 export type TipoConta = 'pessoal' | 'empresa';
@@ -86,7 +84,7 @@ export interface PainelEntrada {
 }
 
 export interface PainelResposta {
-  expenseProjection: ExpenseProjection;
+  forecastCount: number;
   periodo: Periodo;
   periodoAnterior: Periodo;
   tipoConta: TipoConta;
@@ -117,9 +115,11 @@ export interface PainelResposta {
   }>;
   aVistaParcelado: { aVista: number; parcelado: number };
   tipoGasto: Record<TipoGasto, number>;
+  tipoGastoForecast: Record<TipoGasto, number>;
+  aVistaParceladoForecast: { aVista: number; parcelado: number };
   emDia: EmDiaAgregado;
   contasEmAberto: ContasEmAberto;
-  planejado: Array<{ categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number }> | null;
+  planejado: Array<{ categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number; forecast?: number }> | null;
   porPessoa: Array<{ usuarioId: number; nome: string; receitas: number; despesas: number }>;
   jurosDescontos: {
     periodo: { juros: number; descontos: number };
@@ -131,7 +131,7 @@ export interface PainelResposta {
   };
   /** Faturas renegociadas (pagamento parcial ou parcelado) com o mês dentro do período. */
   renegotiatedInvoices: RenegotiatedInvoice[];
-  categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; parentNome: string | null; usuarioId: number; autorNome: string | null; total: number }>;
+  categorias: Array<{ categoriaId: number | null; categoria: string; parentId: number | null; parentNome: string | null; usuarioId: number; autorNome: string | null; total: number; forecast?: number }>;
   /** De onde veio o dinheiro: recebido e a receber por classificação, comprometimento previsto, fixa × variável. */
   receitas: ReceitasPainelResumo;
   /** Para onde foi: despesas do período pela categoria principal. */
@@ -242,15 +242,15 @@ async function buscarDespesas(entrada: PainelEntrada, janela: Periodo): Promise<
   return linhas.map(paraDespesaPainel);
 }
 
-/** Projeção explícita: inclui previstas e agendadas, sem relaxar os totais financeiros existentes. */
-async function fetchExpenseProjectionRows(input: PainelEntrada): Promise<DespesaPainel[]> {
+/** Estimativas e opções de filtro, inclusive recorrentes agendadas. As somas atuais usam sua consulta anterior. */
+async function fetchChartExpenses(input: PainelEntrada, window: Periodo): Promise<DespesaPainel[]> {
   const cashDate = expenseCashDateColumn();
   const rows = await db.select(colunasDespesa).from(expenses).where(and(
     inArray(expensePayer, input.escopo),
     accountFilter(expenses.accountId, expenses.userId, input.accountId),
     inArray(expenses.status, [ACTIVE_STATUS, 'prevista']),
-    gte(cashDate, input.periodo.de),
-    lte(cashDate, input.periodo.ate),
+    gte(cashDate, window.de),
+    lte(cashDate, window.ate),
   ));
   return rows.map(paraDespesaPainel);
 }
@@ -462,7 +462,7 @@ async function montarCartoes(entrada: PainelEntrada, despesasPeriodo: DespesaPai
  * período. O gasto sai dos lançamentos do período exato (não dos meses
  * inteiros), com rollup de subcategoria no pai.
  */
-async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaPainel[]): Promise<PainelResposta['planejado']> {
+async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaPainel[], forecasts: DespesaPainel[]): Promise<PainelResposta['planejado']> {
   if (entrada.tipoConta !== 'pessoal' || !entrada.podeVerPlanejado) {
     return null;
   }
@@ -496,6 +496,7 @@ async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaP
     .from(categories).where(eq(categories.userId, donoCatalogo));
   const paiDe = new Map(hierarquia.map((categoria) => [categoria.id, categoria.parentId]));
   const gasto = gastoPorCategoriaComRollup(despesasPeriodo, paiDe);
+  const forecastByCategory = gastoPorCategoriaComRollup(forecasts, paiDe);
   const fator = fatorMetaProporcional(entrada.periodo);
 
   const categoriasFiltradas = entrada.filtros.categoryIds;
@@ -508,6 +509,7 @@ async function montarPlanejado(entrada: PainelEntrada, despesasPeriodo: DespesaP
       parentId: item.parentId,
       meta: item.targetAmount! * fator,
       gasto: gasto.get(item.categoryId) ?? 0,
+      forecast: forecastByCategory.get(item.categoryId) ?? 0,
     }))
     .sort((a, b) => b.gasto / (b.meta || 1) - a.gasto / (a.meta || 1));
 }
@@ -575,10 +577,11 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   // do início do ano (juros no ano) cobre tudo numa consulta só.
   const janelaBusca: Periodo = { de: menorData(anterior.de, inicioDoAno), ate: periodo.ate };
   const compromissos = janelaComprometido(hoje);
+  const forecastWindow = { de: menorData(periodo.de, compromissos.de), ate: periodo.ate > compromissos.ate ? periodo.ate : compromissos.ate };
 
   // Previstas desde o início do mês do período: a projeção das fixas precisa
   // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
-  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas, jurosAVencerSemFiltro, faturasRenegociadas, projectionRows] = await Promise.all([
+  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas, jurosAVencerSemFiltro, faturasRenegociadas, forecastRows] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
@@ -587,17 +590,18 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     buscarFixas(entrada),
     buscarJurosAVencer(entrada),
     buscarFaturasRenegociadas(entrada),
-    fetchExpenseProjectionRows(entrada),
+    fetchChartExpenses(entrada, forecastWindow),
   ]);
 
   // Os filtros do botão (categoria, cartão, forma) valem só para as despesas.
   const despesas = filtrarDespesasPainel(despesasSemFiltro, entrada.filtros);
   const naoPagas = filtrarDespesasPainel(naoPagasSemFiltro, entrada.filtros);
   const jurosAVencer = filtrarDespesasPainel(jurosAVencerSemFiltro, entrada.filtros);
-  const expenseProjection = projectExpenseTotals(filtrarDespesasPainel(projectionRows, entrada.filtros), periodo, hoje);
+  const forecasts = filtrarDespesasPainel(forecastRows.filter(row => row.status === 'prevista'), entrada.filtros);
+  const periodForecasts = despesasDoPeriodo(forecasts, periodo);
   // A série dos gráficos com o juros em aberto de cada trecho: a mesma lista (e os mesmos filtros) do total "Juros a vencer".
   const jurosAVencerPorTrecho = distribuirJurosAVencer(
-    montarSerie(despesas, receitas, janelaSerie, !temFiltroDeDespesa(entrada.filtros)),
+    montarSerie(despesas, receitas, janelaSerie, !temFiltroDeDespesa(entrada.filtros), periodForecasts),
     jurosAVencer,
   );
   const despesasPeriodo = despesasDoPeriodo(despesas, periodo);
@@ -605,7 +609,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const receitasParaJuros = (lista: ReceitaPainel[]): ReceitaPainel[] => (temFiltroDeDespesa(entrada.filtros) ? [] : lista);
   const resumoAtual = resumirPeriodo(despesasPeriodo, receitasPeriodo);
   const resumoAnterior = resumirPeriodo(despesasDoPeriodo(despesas, anterior), receitasDoPeriodo(receitas, anterior));
-  const categoriasAgregadas = agregarCategorias(despesasPeriodo);
+  const categoriasAgregadas = agregarCategorias(despesasPeriodo, periodForecasts);
   const porPessoa = agregarPorPessoa(despesasPeriodo, receitasPeriodo);
   const previstasPeriodo = receitasDoPeriodo(previstas, periodo);
   const projecoes = projetarFixas(fixas, [...receitas, ...previstas], periodo, hoje);
@@ -620,10 +624,10 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     findPeopleNames(entrada.escopo),
     buscarCategorias(idsCategorias),
     montarCartoes(entrada, despesasPeriodo),
-    montarPlanejado(entrada, despesasPeriodo),
+    montarPlanejado(entrada, despesasPeriodo, periodForecasts),
     entrada.tipoConta === 'empresa' ? buscarEstoqueBaixo(entrada) : Promise.resolve([]),
     buscarClassificacoes(idsClassificacoes),
-    buscarOpcoesDeFiltro(projectionRows),
+    buscarOpcoesDeFiltro(despesasDoPeriodo(forecastRows, periodo)),
   ]);
   const tipoGasto = agregarTipoGasto(despesasPeriodo);
 
@@ -632,7 +636,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const nomesAutores = await findPeopleNames([...new Set(porOutros.map((linha) => linha.autorId))].filter((id) => !nomesPessoas.has(id)));
 
   return {
-    expenseProjection,
+    forecastCount: periodForecasts.length,
     periodo,
     periodoAnterior: anterior,
     tipoConta: entrada.tipoConta,
@@ -645,12 +649,14 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       saldoFinal: saldoAnterior + resumoAtual.entrou - resumoAtual.saiu,
     },
     serie: { granularidade: janelaSerie.granularidade, pontos: jurosAVencerPorTrecho.pontos },
-    formasPagamento: agregarFormasPagamento(despesasPeriodo),
+    formasPagamento: agregarFormasPagamento(despesasPeriodo, periodForecasts),
     cartoes,
     aVistaParcelado: agregarAVistaParcelado(despesasPeriodo),
+    aVistaParceladoForecast: agregarAVistaParcelado(periodForecasts),
     tipoGasto,
+    tipoGastoForecast: agregarTipoGasto(periodForecasts),
     emDia: agregarEmDia(despesas, periodo),
-    contasEmAberto: agregarContasEmAberto(naoPagas, hoje),
+    contasEmAberto: agregarContasEmAberto(naoPagas, hoje, forecasts),
     planejado,
     porPessoa: [...porPessoa.entries()].map(([usuarioId, totais]) => ({
       usuarioId,
@@ -680,6 +686,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
         usuarioId: linha.usuarioId,
         autorNome: nomesPessoas.get(linha.usuarioId) ?? null,
         total: linha.total,
+        forecast: linha.forecast,
       };
     }),
     receitas: resumirReceitasPainel({
@@ -693,7 +700,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
       hoje,
     }),
     despesasPorCategoria: agruparPorRaiz(
-      categoriasAgregadas.map((linha) => ({ id: linha.categoriaId, valor: linha.total })),
+      categoriasAgregadas.map((linha) => ({ id: linha.categoriaId, valor: linha.total, forecast: linha.forecast })),
       categoriasPorId,
       SEM_CATEGORIA,
     ),

@@ -49,6 +49,8 @@ export interface RawExpenseDemo {
   despesa_fixa_id?: number | null;
   fixa_competencia?: string | null;
   valor_previsto?: number | null;
+  fixa_mes_final?: string | null;
+  adiada?: boolean;
   // Pagamento da fatura do cartão na demo (fakeApiResolver): os mesmos campos que a API devolve.
   valor_pago?: number | null;
   grupo_parcelamento_id?: number | null;

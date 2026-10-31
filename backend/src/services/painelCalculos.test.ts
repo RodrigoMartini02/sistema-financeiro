@@ -10,6 +10,7 @@ import {
   agregarGastoPorCartao,
   agregarGastoPorCartaoEPessoa,
   agregarCategoriasPorOutros,
+  agregarCategorias,
   agregarJurosDescontos,
   jurosDaReceita,
   agregarTipoGasto,
@@ -37,7 +38,6 @@ import {
   variacaoPercentual,
   type DespesaPainel,
   type ReceitaPainel,
-  projectExpenseTotals,
 } from './painelCalculos';
 
 function despesa(parcial: Partial<DespesaPainel>): DespesaPainel {
@@ -67,34 +67,52 @@ function receita(parcial: Partial<ReceitaPainel>): ReceitaPainel {
   return { usuarioId: 1, dataRecebimento: '2026-09-05', valor, valorBruto: valor, retencoes: 0, classificacaoId: null, ...parcial };
 }
 
-test('projeção substitui a previsão pelo confirmado sem somar a ocorrência duas vezes', () => {
+test('gráficos substituem previsão por lançado sem contaminar os indicadores de pagamento', () => {
   const period = { de: '2026-09-01', ate: '2026-09-30' };
   const rows = Array.from({ length: 3 }, () => despesa({ status: 'prevista', fixedExpenseId: 10 }));
-  assert.deepEqual(projectExpenseTotals(rows, period, '2026-09-20'), {
-    confirmed: 0, scheduled: 0, planned: 300, total: 300, plannedCount: 3,
-  });
+  let points = montarSerie([], [], janelaDaSerie(period), true, rows);
+  assert.equal(points.reduce((sum, point) => sum + (point.forecast ?? 0), 0), 300);
+  assert.ok(points.every(point => point.despesas === 0 && point.pago === 0 && point.juros === 0));
   rows[0] = { ...rows[0]!, status: 'ativa', valorOriginal: 120 };
-  assert.deepEqual(projectExpenseTotals(rows, period, '2026-09-20'), {
-    confirmed: 120, scheduled: 0, planned: 200, total: 320, plannedCount: 2,
-  });
+  const launched = rows.filter(row => row.status === 'ativa');
+  const forecasts = rows.filter(row => row.status === 'prevista');
+  points = montarSerie(launched, [], janelaDaSerie(period), true, forecasts);
+  assert.equal(points.reduce((sum, point) => sum + point.despesas, 0), 120);
+  assert.equal(points.reduce((sum, point) => sum + (point.forecast ?? 0), 0), 200);
+  assert.equal(points.reduce((sum, point) => sum + point.pago + point.juros, 0), 0);
+  assert.deepEqual(agregarFormasPagamento(launched, forecasts), [{ forma: 'pix', valor: 120, quantidade: 1, juros: 0, forecast: 200 }]);
+  assert.deepEqual(resumirPeriodo(launched, []), { entrou: 0, saiu: 120, pago: 0, aPagar: 120 });
   assert.deepEqual(agregarTipoGasto([rows[0]!]), { fixo: 120, parcela: 0, livre: 0 });
 });
 
-test('projeção inclui agendadas legadas, exclui canceladas e usa o mês do pagamento', () => {
+test('previsões respeitam período e filtros sem transformar adiamento em atraso', () => {
   const rows = [
-    despesa({ status: 'ativa', recorrente: true, purchaseDate: '2026-09-25', dataVencimento: '2026-09-28', formaPagamento: 'credito', cartaoId: 1, valorOriginal: 15.15 }),
-    despesa({ status: 'cancelada', fixedExpenseId: 2, valorOriginal: 1000 }),
-    despesa({ status: 'ativa', fixedExpenseId: 3, pago: true, valorOriginal: 100, valorPago: 105.25, dataPagamento: '2026-10-01' }),
-    despesa({ status: 'prevista', fixedExpenseId: 4, valorOriginal: 50 }),
+    despesa({ status: 'prevista', cartaoId: 1, dataVencimento: '2026-09-25', valorOriginal: 50 }),
+    despesa({ status: 'prevista', cartaoId: 2, dataVencimento: '2026-09-26', valorOriginal: 900 }),
+    despesa({ status: 'cancelada', cartaoId: 1, valorOriginal: 1000 }),
+    despesa({ status: 'prevista', cartaoId: 1, dataVencimento: '2026-10-01', valorOriginal: 75 }),
   ];
-  assert.deepEqual(projectExpenseTotals(rows, { de: '2026-09-01', ate: '2026-09-30' }, '2026-09-20'), {
-    confirmed: 0, scheduled: 15.15, planned: 50, total: 65.15, plannedCount: 1,
-  });
-  assert.deepEqual(projectExpenseTotals(rows, { de: '2026-10-01', ate: '2026-10-31' }, '2026-10-02'), {
-    confirmed: 105.25, scheduled: 0, planned: 0, total: 105.25, plannedCount: 0,
-  });
   const selected = filtrarDespesasPainel(rows, { ...SEM_FILTROS_DESPESA, cardIds: [1] });
-  assert.equal(projectExpenseTotals(selected, { de: '2026-09-01', ate: '2026-09-30' }, '2026-09-20').total, 15.15);
+  const series = montarSerie([], [], janelaDaSerie({ de: '2026-09-01', ate: '2026-09-30' }), true, selected);
+  assert.equal(series.reduce((sum, point) => sum + (point.forecast ?? 0), 0), 50);
+  const open = agregarContasEmAberto([], '2026-09-20', [
+    ...selected, despesa({ status: 'prevista', dataVencimento: '2026-09-01', valorOriginal: 300 }),
+  ]);
+  assert.deepEqual(open.atraso, { valor: 0, quantidade: 0 });
+  assert.deepEqual(open.proximos30Dias, { valor: 0, quantidade: 0 });
+  assert.equal(open.comprometido[0]!.forecast, 50);
+  assert.equal(open.comprometido[1]!.forecast, 75);
+  assert.ok(open.comprometido.every(month => month.parcelas === 0 && month.outras === 0));
+});
+
+test('categoria só prevista aparece no gráfico e no pai sem virar gasto lançado', () => {
+  const forecast = despesa({ status: 'prevista', categoriaId: 2, valorOriginal: 120 });
+  const categories = agregarCategorias([], [forecast]);
+  assert.deepEqual(categories, [{ categoriaId: 2, usuarioId: 1, total: 0, forecast: 120 }]);
+  const grouped = agruparPorRaiz(categories.map(row => ({ id: row.categoriaId, valor: row.total, forecast: row.forecast })), new Map([
+    [1, { id: 1, nome: 'Moradia', parentId: null }], [2, { id: 2, nome: 'Aluguel', parentId: 1 }],
+  ]), 'Sem categoria');
+  assert.deepEqual(grouped, [{ id: 1, nome: 'Moradia', valor: 0, forecast: 120, subcategorias: [{ id: 2, nome: 'Aluguel', valor: 0, forecast: 120 }] }]);
 });
 
 test('valida datas ISO reais e rejeita datas inexistentes', () => {

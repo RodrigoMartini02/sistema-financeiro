@@ -1,24 +1,31 @@
-import { and, asc, eq, gte, inArray } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, lte } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
 import { cards, categories, expenses, fixedExpenses, type Expense, type FixedExpense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
-import { addMonthsClamped, getMonthYearFromIsoDate } from '../utils/date';
-import { canEditOthersEntries, resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
+import { addMonthsClamped, getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
+import { resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { RequestInputError } from '../utils/requestInput';
 import { BudgetInputError, resolveFinancialAccount } from './budgetService';
 import { isExpenseCategoryAllowed } from './expenseCategoryCatalog';
 import { resolveEditedPayment } from './expensePayment';
-import { fixedConversionRefusal, fixedExpenseDates, fixedExpenseYearDates } from './fixedExpenseSchedule';
-import type { FixedExpenseInput, FixedExpenseUpdateInput } from './fixedExpenseInput';
+import { fixedConversionRefusal, fixedExpenseRangeDates } from './fixedExpenseSchedule';
+import { invoiceEditLockOf, invoiceEditRefusal } from './cardInvoiceRules';
+import { paidCreditRefusal, type InvoiceCardDays } from './expenseSeries';
+import type { FixedExpenseInput } from './fixedExpenseInput';
 import type { UpdateExpenseInput, PaymentMethod } from './expenseInput';
-import type { InvoiceCardDays } from './expenseSeries';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-const NOT_FOUND = 'Despesa fixa não encontrada';
+
+export function fixedEndMonth(source: Pick<FixedExpense, 'endMonth' | 'registeredYear' | 'dueDate'>): string {
+  return source.endMonth?.slice(0, 7)
+    ?? [`${source.registeredYear}-12`, source.dueDate.slice(0, 7)].sort().at(-1)!;
+}
 
 export function fixedExpenseDto(source: FixedExpense) {
-  return { ...source, amount: Number(source.amount), firstMonth: source.firstMonth.slice(0, 7) };
+  return { id: source.id, accountId: source.accountId, userId: source.userId, description: source.description,
+    categoryId: source.categoryId, amount: Number(source.amount), paymentMethod: source.paymentMethod,
+    cardId: source.cardId, purchaseDate: source.purchaseDate, dueDate: source.dueDate, endMonth: fixedEndMonth(source) };
 }
 
 async function accountFor(requesterId: number, accountId: number | null): Promise<number> {
@@ -30,40 +37,46 @@ async function accountFor(requesterId: number, accountId: number | null): Promis
   }
 }
 
-async function validateFields(requesterId: number, accountId: number, input: Pick<FixedExpenseInput, 'categoryId' | 'paymentMethod' | 'cardId'>) {
+async function validateFields(requesterId: number, accountId: number, input: Pick<FixedExpenseInput, 'categoryId' | 'paymentMethod' | 'cardId'>,
+  preserve: { category?: boolean; card?: boolean } = {}) {
   const [category] = await db.select({ active: categories.ativo }).from(categories).where(eq(categories.id, input.categoryId));
-  if (!category || category.active === false || !(await isExpenseCategoryAllowed(requesterId, accountId, input.categoryId))) {
+  if (!category || (!preserve.category && (category.active === false || !(await isExpenseCategoryAllowed(requesterId, accountId, input.categoryId))))) {
     throw new RequestInputError('Categoria indisponível para esta conta');
   }
   if (input.cardId === null) {
     if (input.paymentMethod === 'credito') throw new RequestInputError('Escolha o cartão de crédito');
     return null;
   }
-  const owners = await resolveVisibleCardOwnerIds(requesterId, accountId, true);
-  const [card] = await db.select({ id: cards.id, closingDay: cards.closingDay, dueDay: cards.dueDay, active: cards.active, type: cards.type })
+  const owners = preserve.card ? [] : await resolveVisibleCardOwnerIds(requesterId, accountId, true);
+  const [card] = await db.select({ id: cards.id, userId: cards.userId, accountId: cards.accountId,
+    closingDay: cards.closingDay, dueDay: cards.dueDay, active: cards.active, type: cards.type })
     .from(cards).where(and(
-      eq(cards.id, input.cardId), inArray(cards.userId, owners), accountCondition(cards.accountId, cards.userId, accountId),
+      eq(cards.id, input.cardId), preserve.card ? undefined : inArray(cards.userId, owners),
+      preserve.card ? undefined : accountCondition(cards.accountId, cards.userId, accountId),
     ));
-  if (!card || card.active === false || (card.type && card.type !== 'ambos' && card.type !== input.paymentMethod)) {
+  if (!card || (!preserve.card && card.active === false) || (card.type && card.type !== 'ambos' && card.type !== input.paymentMethod)) {
     throw new RequestInputError('Cartão indisponível para este lançamento');
   }
   return card;
 }
 
-async function sourceForWrite(requesterId: number, id: number): Promise<FixedExpense> {
-  // Só os dados de autorização são lidos antes de verificar conta e autor.
-  const [identity] = await db.select({ userId: fixedExpenses.userId, accountId: fixedExpenses.accountId })
-    .from(fixedExpenses).where(eq(fixedExpenses.id, id));
-  if (!identity) throw new RequestInputError(NOT_FOUND, 404);
-  await accountFor(requesterId, identity.accountId);
-  if (identity.userId !== requesterId && !(await canEditOthersEntries(requesterId, identity.accountId))) {
-    throw new RequestInputError(NOT_FOUND, 404);
+type AuthorizedCard = NonNullable<Awaited<ReturnType<typeof validateFields>>>;
+
+function requireUnchangedCard(locked: AuthorizedCard[], authorized: AuthorizedCard | null, allowInactive = false) {
+  if (!authorized) return;
+  const current = locked.find(card => card.id === authorized.id);
+  if (!current || (!allowInactive && current.active === false) || current.userId !== authorized.userId || current.accountId !== authorized.accountId
+    || current.type !== authorized.type || current.closingDay !== authorized.closingDay || current.dueDay !== authorized.dueDay) {
+    throw new RequestInputError('O cartão mudou. Atualize a tela antes de salvar.', 409);
   }
-  const [source] = await db.select().from(fixedExpenses).where(and(
-    eq(fixedExpenses.id, id), eq(fixedExpenses.userId, identity.userId), eq(fixedExpenses.accountId, identity.accountId),
-  ));
-  if (!source) throw new RequestInputError(NOT_FOUND, 404);
-  return source;
+}
+
+async function lockCategories(transaction: Transaction, ids: number[], preservedIds: number[] = []) {
+  const locked = await transaction.select({ id: categories.id, active: categories.ativo }).from(categories)
+    .where(inArray(categories.id, [...new Set(ids)])).orderBy(asc(categories.id)).for('update');
+  if (locked.length !== new Set(ids).size || locked.some(category => category.active === false && !preservedIds.includes(category.id))) {
+    throw new RequestInputError('Categoria indisponível para esta conta');
+  }
 }
 
 function sourceScope(source: FixedExpense) {
@@ -74,10 +87,8 @@ function occurrenceScope(source: FixedExpense) {
   return and(eq(expenses.fixedExpenseId, source.id), eq(expenses.userId, source.userId), accountCondition(expenses.accountId, expenses.userId, source.accountId));
 }
 
-async function writeYear(transaction: Transaction, source: FixedExpense, year: number, card: InvoiceCardDays | null, after?: string) {
-  const dates = fixedExpenseYearDates(source, year, card).filter(item => !after || item.competence > after);
-  if (dates.length === 0) return;
-  const rows: NewExpense[] = dates.map(item => {
+function scheduledRows(source: FixedExpense, endMonth: string, card: InvoiceCardDays | null): NewExpense[] {
+  return fixedExpenseRangeDates(source, endMonth, card).map(item => {
     const { mes, ano } = getMonthYearFromIsoDate(item.dueDate);
     return {
       userId: source.userId, accountId: source.accountId, categoryId: source.categoryId,
@@ -85,23 +96,21 @@ async function writeYear(transaction: Transaction, source: FixedExpense, year: n
       purchaseDate: item.purchaseDate, dueDate: item.dueDate, month: mes, year: ano,
       originalAmount: source.amount, estimatedAmount: source.amount,
       fixedExpenseId: source.id, fixedCompetence: item.competence,
-      status: 'prevista', paid: false, recurring: false, installment: false,
+      status: 'prevista', paid: false, recurring: false, installment: false, deferred: false,
     };
   });
-  // Unicidade inclui canceladas: gerar o ano novamente nunca ressuscita um mês retirado.
-  await transaction.insert(expenses).values(rows).onConflictDoNothing();
 }
 
-export async function listFixedExpenses(requesterId: number, requestedAccountId: number | null) {
-  const accountId = await accountFor(requesterId, requestedAccountId);
-  const sources = await db.select().from(fixedExpenses).where(and(
-    eq(fixedExpenses.accountId, accountId), eq(fixedExpenses.userId, requesterId),
-  )).orderBy(asc(fixedExpenses.description), asc(fixedExpenses.id));
-  return sources.map(fixedExpenseDto);
+async function extendRange(transaction: Transaction, source: FixedExpense, endMonth: string, card: InvoiceCardDays | null, fromDate?: string) {
+  const rows = scheduledRows(source, endMonth, card).filter(row => !fromDate || row.dueDate >= fromDate);
+  // Inclui canceladas: competências retiradas continuam ocupadas.
+  if (rows.length) await transaction.insert(expenses).values(rows).onConflictDoNothing();
 }
 
-export async function listPendingFixedExpenses(requesterId: number, requestedAccountId: number | null, month: string) {
+export async function listPendingFixedExpenses(requesterId: number, requestedAccountId: number | null, month: string, today = getTodayIsoInTimezone()) {
   const accountId = await accountFor(requesterId, requestedAccountId);
+  const start = `${month}-01`;
+  const end = addMonthsClamped(start, 1);
   const parent = alias(categories, 'fixed_category_parent');
   const rows = await db.select({
     id: expenses.id, userId: expenses.userId, accountId: expenses.accountId, description: expenses.description,
@@ -110,18 +119,57 @@ export async function listPendingFixedExpenses(requesterId: number, requestedAcc
     paymentMethod: expenses.paymentMethod, cardId: expenses.cardId, cardName: cards.name,
     purchaseDate: expenses.purchaseDate, dueDate: expenses.dueDate, month: expenses.month, year: expenses.year,
     status: expenses.status, fixedExpenseId: expenses.fixedExpenseId, fixedCompetence: expenses.fixedCompetence,
+    deferred: expenses.deferred, sourceEndMonth: fixedExpenses.endMonth, registeredYear: fixedExpenses.registeredYear,
+    sourceDueDate: fixedExpenses.dueDate,
     createdAt: expenses.createdAt, attachments: expenses.attachments, invoiceNumber: expenses.numeroNf, invoiceDate: expenses.dataEmissaoNf,
   }).from(expenses)
     .innerJoin(fixedExpenses, and(eq(fixedExpenses.id, expenses.fixedExpenseId), eq(fixedExpenses.userId, expenses.userId)))
     .leftJoin(categories, eq(categories.id, expenses.categoryId)).leftJoin(parent, eq(parent.id, categories.parentId))
     .leftJoin(cards, eq(cards.id, expenses.cardId))
     .where(and(eq(expenses.accountId, accountId), eq(fixedExpenses.accountId, accountId), eq(expenses.userId, requesterId),
-      eq(expenses.fixedCompetence, `${month}-01`), eq(expenses.status, 'prevista')))
+      gte(expenses.dueDate, start), lt(expenses.dueDate, end), lte(expenses.purchaseDate, today), eq(expenses.status, 'prevista')))
     .orderBy(asc(expenses.dueDate), asc(expenses.id));
-  return rows.map(row => ({ ...row, amount: Number(row.amount), estimatedAmount: row.estimatedAmount === null ? null : Number(row.estimatedAmount) }));
+  return rows.map(({ sourceEndMonth, registeredYear, sourceDueDate, ...row }) => ({
+    ...row, amount: Number(row.amount), estimatedAmount: row.estimatedAmount === null ? null : Number(row.estimatedAmount),
+    endMonth: sourceEndMonth?.slice(0, 7) ?? [`${registeredYear}-12`, sourceDueDate.slice(0, 7)].sort().at(-1)!,
+  }));
 }
 
-export async function createFixedExpense(requesterId: number, input: FixedExpenseInput) {
+export async function deferFixedExpenses(requesterId: number, requestedAccountId: number | null, ids: number[], deferred: boolean) {
+  const accountId = await accountFor(requesterId, requestedAccountId);
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length || uniqueIds.length > 500) throw new RequestInputError('Selecione de 1 a 500 previsões');
+  return db.transaction(async transaction => {
+    // Mesma ordem do editor: fontes antes das ocorrências. A leitura inicial
+    // só descobre os vínculos; tudo é revalidado depois dos locks.
+    const identities = await transaction.select({ id: expenses.id, status: expenses.status, fixedExpenseId: expenses.fixedExpenseId })
+      .from(expenses).where(and(inArray(expenses.id, uniqueIds), eq(expenses.userId, requesterId), eq(expenses.accountId, accountId)))
+      .orderBy(asc(expenses.id));
+    if (identities.length !== uniqueIds.length) throw new RequestInputError('Previsão não encontrada', 404);
+    if (identities.some(row => row.status !== 'prevista' || row.fixedExpenseId === null)) {
+      throw new RequestInputError('Uma previsão já foi lançada ou retirada. Atualize a lista.', 409);
+    }
+    const sourceIds = [...new Set(identities.map(row => row.fixedExpenseId!))];
+    const sources = await transaction.select({ id: fixedExpenses.id }).from(fixedExpenses).where(and(
+      inArray(fixedExpenses.id, sourceIds), eq(fixedExpenses.userId, requesterId), eq(fixedExpenses.accountId, accountId),
+    )).orderBy(asc(fixedExpenses.id)).for('update');
+    if (sources.length !== sourceIds.length) throw new RequestInputError('Previsão não encontrada', 404);
+    const rows = await transaction.select({ id: expenses.id, status: expenses.status, fixedExpenseId: expenses.fixedExpenseId })
+      .from(expenses).where(and(inArray(expenses.id, uniqueIds), eq(expenses.userId, requesterId), eq(expenses.accountId, accountId)))
+      .orderBy(asc(expenses.id)).for('update');
+    const sourceByExpense = new Map(identities.map(row => [row.id, row.fixedExpenseId]));
+    if (rows.length !== uniqueIds.length || rows.some(row => row.status !== 'prevista' || row.fixedExpenseId !== sourceByExpense.get(row.id))) {
+      throw new RequestInputError('Uma previsão mudou. Atualize a lista antes de adiar.', 409);
+    }
+    await transaction.update(expenses).set({ deferred }).where(and(inArray(expenses.id, uniqueIds),
+      eq(expenses.userId, requesterId), eq(expenses.accountId, accountId), eq(expenses.status, 'prevista')));
+    return { ids: uniqueIds, deferred };
+  });
+}
+
+export async function createFixedExpense(requesterId: number, input: FixedExpenseInput, today = getTodayIsoInTimezone()) {
+  if (input.endMonth < input.dueDate.slice(0, 7)) throw new RequestInputError('O mês final não pode ser anterior ao primeiro vencimento');
+  if (input.paymentMethod === 'credito' && input.paid) throw new RequestInputError('Despesa no crédito é paga pela fatura do cartão');
   const accountId = await accountFor(requesterId, input.accountId);
   const card = await validateFields(requesterId, accountId, input);
   const ownerId = input.sourceExpenseId === null ? requesterId : await resolveOwnerForWrite('despesas', input.sourceExpenseId, requesterId);
@@ -131,7 +179,12 @@ export async function createFixedExpense(requesterId: number, input: FixedExpens
   ));
   return db.transaction(async transaction => {
     const cardIds = [...new Set([input.cardId, sourceIdentity?.cardId ?? null].filter((id): id is number => id !== null))].sort((a, b) => a - b);
-    if (cardIds.length) await transaction.select({ id: cards.id }).from(cards).where(inArray(cards.id, cardIds)).orderBy(asc(cards.id)).for('update');
+    if (cardIds.length) {
+      const lockedCards = await transaction.select().from(cards)
+        .where(inArray(cards.id, cardIds)).orderBy(asc(cards.id)).for('update');
+      requireUnchangedCard(lockedCards, card);
+    }
+    await lockCategories(transaction, [input.categoryId]);
     let original: Expense | undefined;
     if (input.sourceExpenseId !== null) {
       [original] = await transaction.select().from(expenses).where(and(
@@ -141,142 +194,151 @@ export async function createFixedExpense(requesterId: number, input: FixedExpens
       if (original.cardId !== sourceIdentity?.cardId) throw new RequestInputError('A despesa mudou. Atualize a tela antes de criar a fixa.', 409);
       const refusal = fixedConversionRefusal(original);
       if (refusal) throw new RequestInputError(refusal, 409);
+      const paymentRefusal = invoiceEditRefusal(invoiceEditLockOf(original), {
+        amount: Number(original.originalAmount), dueDate: original.dueDate, paymentMethod: original.paymentMethod, cardId: original.cardId,
+        paid: original.paid === true, paymentDate: original.paymentDate, amountPaid: original.amountPaid === null ? null : Number(original.amountPaid),
+      }, input) ?? paidCreditRefusal({ paid: original.paid === true, paymentMethod: original.paymentMethod, cardId: original.cardId }, input);
+      if (paymentRefusal) throw new RequestInputError(paymentRefusal);
     }
+    const dueDate = input.dueDate;
+    if (input.endMonth < dueDate.slice(0, 7)) throw new RequestInputError('O mês final não pode ser anterior ao primeiro vencimento');
     const [source] = await transaction.insert(fixedExpenses).values({
-      userId: ownerId, accountId, categoryId: input.categoryId, description: input.description,
-      amount: input.amount.toFixed(2), paymentMethod: input.paymentMethod, cardId: input.cardId,
-      purchaseDate: input.purchaseDate, dueDate: input.dueDate, firstMonth: `${input.firstMonth}-01`,
-      registeredYear: Number(input.firstMonth.slice(0, 4)), active: true,
+      userId: ownerId, accountId, categoryId: input.categoryId,
+      description: input.description, amount: input.amount.toFixed(2), paymentMethod: input.paymentMethod,
+      cardId: input.cardId, purchaseDate: input.purchaseDate,
+      dueDate, firstMonth: `${dueDate.slice(0, 7)}-01`, endMonth: `${input.endMonth}-01`,
+      registeredYear: Number(input.endMonth.slice(0, 4)), active: true,
     }).returning();
     if (!source) throw new Error('Fixed expense insert returned no source');
+    const { mes, ano } = getMonthYearFromIsoDate(dueDate);
     if (original) {
       await transaction.update(expenses).set({
-        fixedExpenseId: source.id, fixedCompetence: `${input.firstMonth}-01`, estimatedAmount: original.originalAmount,
+        accountId, description: input.description, categoryId: input.categoryId,
+        originalAmount: input.amount.toFixed(2), paymentMethod: input.paymentMethod, cardId: input.cardId,
+        purchaseDate: input.purchaseDate, dueDate, month: mes, year: ano,
+        ...resolveEditedPayment(input, today), attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+        fixedExpenseId: source.id, fixedCompetence: source.firstMonth, estimatedAmount: input.amount.toFixed(2),
       }).where(and(eq(expenses.id, original.id), eq(expenses.userId, ownerId)));
+    } else {
+      const first = scheduledRows(source, input.endMonth, card)[0];
+      if (!first) throw new RequestInputError('Confira o mês final da despesa fixa');
+      await transaction.insert(expenses).values({
+        ...first, status: 'ativa', ...resolveEditedPayment(input, today),
+        attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+      });
     }
-    await writeYear(transaction, source, source.registeredYear, card, original ? `${input.firstMonth}-01` : undefined);
+    await extendRange(transaction, source, input.endMonth, card);
     return fixedExpenseDto(source);
-  });
-}
-
-export async function updateFixedExpense(requesterId: number, id: number, input: FixedExpenseUpdateInput, today: string) {
-  const source = await sourceForWrite(requesterId, id);
-  if ((input.accountId !== null && input.accountId !== source.accountId) || input.firstMonth !== source.firstMonth.slice(0, 7)) {
-    throw new RequestInputError('A conta e o mês inicial da fixa não podem mudar');
-  }
-  const card = await validateFields(requesterId, source.accountId, input);
-  return db.transaction(async transaction => {
-    const [locked] = await transaction.select().from(fixedExpenses).where(sourceScope(source)).for('update');
-    if (!locked) throw new RequestInputError(NOT_FOUND, 404);
-    const [updated] = await transaction.update(fixedExpenses).set({
-      description: input.description, categoryId: input.categoryId, amount: input.amount.toFixed(2),
-      paymentMethod: input.paymentMethod, cardId: input.cardId, purchaseDate: input.purchaseDate,
-      dueDate: input.dueDate, updatedAt: new Date(),
-    }).where(sourceScope(source)).returning();
-    if (!updated) throw new RequestInputError(NOT_FOUND, 404);
-    if (input.applyToFuture) {
-      const pending = await transaction.select({ id: expenses.id, competence: expenses.fixedCompetence })
-        .from(expenses).where(and(occurrenceScope(source), eq(expenses.status, 'prevista'), gte(expenses.dueDate, today)))
-        .orderBy(asc(expenses.id)).for('update');
-      for (const occurrence of pending) {
-        if (!occurrence.competence) continue;
-        const dates = fixedExpenseDates(updated, occurrence.competence, card);
-        const { mes, ano } = getMonthYearFromIsoDate(dates.dueDate);
-        await transaction.update(expenses).set({
-          description: updated.description, categoryId: updated.categoryId, originalAmount: updated.amount, estimatedAmount: updated.amount,
-          paymentMethod: updated.paymentMethod, cardId: updated.cardId, purchaseDate: dates.purchaseDate,
-          dueDate: dates.dueDate, month: mes, year: ano,
-        }).where(and(eq(expenses.id, occurrence.id), occurrenceScope(source), eq(expenses.status, 'prevista')));
-      }
-    }
-    return fixedExpenseDto(updated);
-  });
-}
-
-export async function deactivateFixedExpense(requesterId: number, id: number, today: string) {
-  const source = await sourceForWrite(requesterId, id);
-  await db.transaction(async transaction => {
-    await transaction.select({ id: fixedExpenses.id }).from(fixedExpenses).where(sourceScope(source)).for('update');
-    await transaction.update(fixedExpenses).set({ active: false, updatedAt: new Date() }).where(sourceScope(source));
-    await transaction.update(expenses).set({ status: 'cancelada' })
-      .where(and(occurrenceScope(source), eq(expenses.status, 'prevista'), gte(expenses.dueDate, today)));
-  });
-}
-
-export async function renewFixedExpense(requesterId: number, id: number, year: number) {
-  const source = await sourceForWrite(requesterId, id);
-  const card = await validateFields(requesterId, source.accountId, source as FixedExpense & { paymentMethod: PaymentMethod });
-  return db.transaction(async transaction => {
-    const [locked] = await transaction.select().from(fixedExpenses).where(sourceScope(source)).for('update');
-    if (!locked || !locked.active) throw new RequestInputError('Esta despesa fixa está desativada', 409);
-    // O cartão foi autorizado antes da transação. Uma edição que ganhou a
-    // corrida pode ter trocado cartão, categoria ou datas; não gerar com a
-    // fonte nova e o cartão antigo. Repetir a requisição revalida a versão nova.
-    if (locked.cardId !== source.cardId || locked.paymentMethod !== source.paymentMethod
-      || locked.purchaseDate !== source.purchaseDate || locked.dueDate !== source.dueDate
-      || locked.categoryId !== source.categoryId || locked.amount !== source.amount) {
-      throw new RequestInputError('A configuração da fixa mudou. Atualize a tela antes de renovar.', 409);
-    }
-    if (year !== locked.registeredYear && year !== locked.registeredYear + 1) {
-      throw new RequestInputError('Renove a despesa fixa para o próximo ano', 409);
-    }
-    await writeYear(transaction, locked, year, card);
-    const [updated] = await transaction.update(fixedExpenses).set({ registeredYear: Math.max(year, locked.registeredYear), updatedAt: new Date() })
-      .where(sourceScope(source)).returning();
-    return fixedExpenseDto(updated!);
   });
 }
 
 export async function fixedOccurrenceIdentity(requesterId: number, id: number) {
   const ownerId = await resolveOwnerForWrite('despesas', id, requesterId);
   if (ownerId === null) throw new RequestInputError('Despesa não encontrada', 404);
-  const [row] = await db.select({ accountId: expenses.accountId, fixedExpenseId: expenses.fixedExpenseId, cardId: expenses.cardId, status: expenses.status })
+  const [row] = await db.select({ accountId: expenses.accountId, fixedExpenseId: expenses.fixedExpenseId, cardId: expenses.cardId,
+    categoryId: expenses.categoryId, paymentMethod: expenses.paymentMethod, status: expenses.status })
     .from(expenses).where(and(eq(expenses.id, id), eq(expenses.userId, ownerId)));
   if (!row) throw new RequestInputError('Despesa não encontrada', 404);
   const accountId = await accountFor(requesterId, row.accountId);
   return { ...row, ownerId, accountId };
 }
 
-/** Edição de previsão preserva estado; confirmação é a única transição para ativa. */
+async function updateRange(transaction: Transaction, source: FixedExpense, endMonth: string, card: InvoiceCardDays | null, today: string) {
+  if (endMonth < source.dueDate.slice(0, 7)) throw new RequestInputError('O mês final não pode ser anterior ao primeiro vencimento');
+  if (endMonth === fixedEndMonth(source)) return;
+  if (endMonth > fixedEndMonth(source)) {
+    if (!source.active) throw new RequestInputError('Esta despesa fixa está desativada', 409);
+    await extendRange(transaction, source, endMonth, card, today);
+  } else {
+    await transaction.update(expenses).set({ status: 'cancelada' }).where(and(
+      occurrenceScope(source), eq(expenses.status, 'prevista'), gte(expenses.dueDate, today),
+      gte(expenses.dueDate, addMonthsClamped(`${endMonth}-01`, 1)),
+    ));
+  }
+  await transaction.update(fixedExpenses).set({ endMonth: `${endMonth}-01`, updatedAt: new Date() }).where(sourceScope(source));
+}
+
+/** Edição preserva o estado; somente confirmação explícita transforma previsão em lançamento. */
 export async function writeFixedOccurrence(requesterId: number, id: number, input: UpdateExpenseInput, confirm: boolean, today: string) {
   const identity = await fixedOccurrenceIdentity(requesterId, id);
-  if (identity.fixedExpenseId === null) throw new RequestInputError('Esta despesa não é uma previsão fixa', 409);
-  const fixedId = identity.fixedExpenseId;
+  if (identity.fixedExpenseId === null) throw new RequestInputError('Esta despesa não é fixa', 409);
   if (input.installmentCount !== null || input.cashPrice !== null || input.applyTo !== 'this') {
-    throw new RequestInputError('A previsão fixa é alterada somente neste mês');
+    throw new RequestInputError('A despesa fixa é alterada somente neste mês');
   }
-  if (!confirm && (input.paid || input.paymentDate !== null || input.amountPaid !== null)) {
-    throw new RequestInputError('Confirme a previsão antes de registrar o pagamento');
-  }
-  if (input.paymentMethod === 'credito' && input.paid) throw new RequestInputError('Despesa no crédito é paga pela fatura do cartão');
-  await validateFields(requesterId, identity.accountId, input);
+  const [source] = await db.select().from(fixedExpenses).where(and(
+    eq(fixedExpenses.id, identity.fixedExpenseId), eq(fixedExpenses.userId, identity.ownerId), eq(fixedExpenses.accountId, identity.accountId),
+  ));
+  if (!source) throw new RequestInputError('Vínculo da despesa fixa inválido', 409);
+  const historical = !confirm && identity.status === 'ativa';
+  const preserveCategory = historical && input.categoryId === identity.categoryId;
+  const preserveCard = historical && input.cardId === identity.cardId && input.paymentMethod === identity.paymentMethod;
+  const inputCard = await validateFields(requesterId, identity.accountId, input, { category: preserveCategory, card: preserveCard });
+  const widening = input.endMonth != null && input.endMonth > fixedEndMonth(source);
+  const sourceCard = widening
+    ? await validateFields(requesterId, source.accountId, source as FixedExpense & { paymentMethod: PaymentMethod })
+    : null;
   return db.transaction(async transaction => {
-    // A fatura também trava cartão antes das compras. Ordem estável evita inversão entre cartões.
-    const cardIds = [...new Set([identity.cardId, input.cardId].filter((value): value is number => value !== null))].sort((a, b) => a - b);
+    const cardIds = [...new Set([identity.cardId, input.cardId, widening ? source.cardId : null].filter((value): value is number => value !== null))].sort((a, b) => a - b);
     if (cardIds.length) {
-      const lockedCards = await transaction.select({ id: cards.id, active: cards.active }).from(cards)
+      const lockedCards = await transaction.select().from(cards)
         .where(inArray(cards.id, cardIds)).orderBy(asc(cards.id)).for('update');
-      if (input.cardId !== null && !lockedCards.some(card => card.id === input.cardId && card.active !== false)) {
-        throw new RequestInputError('Cartão indisponível para este lançamento');
-      }
+      requireUnchangedCard(lockedCards, inputCard, preserveCard);
+      requireUnchangedCard(lockedCards, sourceCard);
     }
+    const [lockedSource] = await transaction.select().from(fixedExpenses).where(sourceScope(source)).for('update');
+    if (!lockedSource) throw new RequestInputError('Vínculo da despesa fixa inválido', 409);
+    if (input.endMonth != null && fixedEndMonth(lockedSource) !== fixedEndMonth(source)) {
+      throw new RequestInputError('O limite da fixa mudou. Atualize a tela antes de salvar.', 409);
+    }
+    if (widening && (lockedSource.cardId !== source.cardId || lockedSource.paymentMethod !== source.paymentMethod
+      || lockedSource.purchaseDate !== source.purchaseDate || lockedSource.dueDate !== source.dueDate
+      || lockedSource.categoryId !== source.categoryId || lockedSource.amount !== source.amount)) {
+      throw new RequestInputError('A configuração da fixa mudou. Atualize a tela antes de salvar.', 409);
+    }
+    await lockCategories(transaction, widening ? [input.categoryId, source.categoryId] : [input.categoryId],
+      preserveCategory && (!widening || input.categoryId !== source.categoryId) ? [input.categoryId] : []);
     const [current] = await transaction.select().from(expenses).where(and(
       eq(expenses.id, id), eq(expenses.userId, identity.ownerId), accountCondition(expenses.accountId, expenses.userId, identity.accountId),
     )).for('update');
-    if (!current || current.fixedExpenseId !== identity.fixedExpenseId) throw new RequestInputError('Despesa não encontrada', 404);
-    const [source] = await transaction.select({ id: fixedExpenses.id }).from(fixedExpenses).where(and(
-      eq(fixedExpenses.id, fixedId), eq(fixedExpenses.userId, identity.ownerId), eq(fixedExpenses.accountId, identity.accountId),
-    ));
-    if (!source || current.fixedCompetence === null) throw new RequestInputError('Vínculo da despesa fixa inválido', 409);
-    if (current.status !== 'prevista') throw new RequestInputError('Esta previsão já foi confirmada ou retirada. Atualize a lista.', 409);
+    if (!current || current.fixedExpenseId !== source.id || current.fixedCompetence === null || current.status === 'cancelada') {
+      throw new RequestInputError('Despesa não encontrada', 404);
+    }
+    if ((!confirm && current.status !== identity.status)
+      || (preserveCategory && current.categoryId !== input.categoryId)
+      || (preserveCard && (current.cardId !== input.cardId || current.paymentMethod !== input.paymentMethod))) {
+      throw new RequestInputError('A despesa mudou. Atualize a tela antes de salvar.', 409);
+    }
+    if (confirm && (current.status !== 'prevista' || current.deferred)) {
+      throw new RequestInputError(current.deferred ? 'Esta previsão está adiada. Desmarque Adiar antes de lançar.' : 'Esta previsão já foi confirmada ou retirada. Atualize a lista.', 409);
+    }
+    if (!confirm && current.status === 'prevista' && (input.paid || input.paymentDate !== null || input.amountPaid !== null)) {
+      throw new RequestInputError('Confirme a previsão antes de registrar o pagamento');
+    }
+    if (current.status === 'prevista' && input.paymentMethod === 'credito' && input.paid) {
+      throw new RequestInputError('Despesa no crédito é paga pela fatura do cartão');
+    }
+    if (current.status === 'ativa') {
+      const refusal = invoiceEditRefusal(invoiceEditLockOf(current), {
+        amount: Number(current.originalAmount), dueDate: current.dueDate, paymentMethod: current.paymentMethod, cardId: current.cardId,
+        paid: current.paid === true, paymentDate: current.paymentDate, amountPaid: current.amountPaid === null ? null : Number(current.amountPaid),
+      }, input) ?? paidCreditRefusal({ paid: current.paid === true, paymentMethod: current.paymentMethod, cardId: current.cardId }, input);
+      if (refusal) throw new RequestInputError(refusal);
+    }
     const { mes, ano } = getMonthYearFromIsoDate(input.dueDate);
     const [updated] = await transaction.update(expenses).set({
       description: input.description, categoryId: input.categoryId, paymentMethod: input.paymentMethod, cardId: input.cardId,
       purchaseDate: input.purchaseDate, dueDate: input.dueDate, month: mes, year: ano,
       originalAmount: input.amount.toFixed(2), attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
-      ...(confirm ? resolveEditedPayment(input, today) : { paid: false, paymentDate: null, amountPaid: null }),
-      status: confirm ? 'ativa' : 'prevista',
-    }).where(and(eq(expenses.id, id), eq(expenses.userId, identity.ownerId), eq(expenses.status, 'prevista'))).returning();
+      ...(confirm || current.status === 'ativa' ? resolveEditedPayment(input, today) : { paid: false, paymentDate: null, amountPaid: null }),
+      status: confirm ? 'ativa' : current.status, ...(confirm ? { deferred: false } : {}),
+    }).where(and(eq(expenses.id, id), eq(expenses.userId, identity.ownerId))).returning();
+    if (input.endMonth != null) {
+      // A fonte permanece travada antes da ocorrência; intervalo e edição são uma operação só.
+      if (input.endMonth > fixedEndMonth(lockedSource) && !widening) throw new RequestInputError('O limite da fixa mudou. Atualize a tela antes de salvar.', 409);
+      await updateRange(transaction, lockedSource, input.endMonth, sourceCard, today);
+      const [final] = await transaction.select().from(expenses).where(and(eq(expenses.id, id), eq(expenses.userId, identity.ownerId)));
+      return final!;
+    }
     return updated!;
   });
 }

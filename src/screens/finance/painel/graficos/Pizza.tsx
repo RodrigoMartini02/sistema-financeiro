@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { formatCurrency } from '../../formatters';
 import { corDaPaleta, useCoresGrafico } from '../coresGrafico';
 import { useTransicao, Vazio } from '../graficoBase';
@@ -7,6 +7,7 @@ import { ConteudoDetalhe, useDetalhe } from './Detalhe';
 export interface FatiaPizza {
   nome: string;
   valor: number;
+  forecast?: number;
   /** Cor fixa (ex.: a da pessoa, a da situação); sem ela, a cor segue a paleta. */
   cor?: string;
   /** Linhas extras do detalhe (subcategorias, compras, limite...). */
@@ -48,22 +49,25 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
   const cores = useCoresGrafico();
   const detalhe = useDetalhe();
   const [ativa, setAtiva] = useState<string | null>(null);
+  const patternId = useId().replace(/:/g, '');
   // A cor de cada nome fica fixa enquanto o card existe: trocar o período não embaralha as cores.
   const indices = useRef(new Map<string, number>());
 
-  const itens = fatias.filter((fatia) => fatia.valor > 0);
-  if (ordenar) itens.sort((a, b) => b.valor - a.valor);
+  const amountOf = (slice: FatiaPizza) => slice.valor + (slice.forecast ?? 0);
+  const itens = fatias.filter((fatia) => amountOf(fatia) > 0);
+  if (ordenar) itens.sort((a, b) => amountOf(b) - amountOf(a));
   for (const item of itens) {
     if (!indices.current.has(item.nome)) indices.current.set(item.nome, indices.current.size);
   }
   const corDe = (item: FatiaPizza) => item.cor ?? corDaPaleta(indices.current.get(item.nome)!, cores);
 
-  const alvo = Object.fromEntries(itens.map((item) => [item.nome, item.valor]));
+  const alvo = Object.fromEntries(itens.map((item) => [item.nome, amountOf(item)]));
   const { de, p } = useTransicao(alvo, JSON.stringify(alvo));
 
   if (itens.length === 0) return <Vazio>{vazio}</Vazio>;
 
-  const total = itens.reduce((soma, item) => soma + item.valor, 0);
+  const total = itens.reduce((soma, item) => soma + amountOf(item), 0);
+  const hasForecasts = itens.some(item => (item.forecast ?? 0) > 0);
   const valorDesenhado = (nome: string) => (de ? (de[nome] ?? 0) + (alvo[nome]! - (de[nome] ?? 0)) * p : alvo[nome]!);
   const totalDesenhado = itens.reduce((soma, item) => soma + valorDesenhado(item.nome), 0);
   const varredura = de ? 1 : p;
@@ -75,7 +79,10 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
       return;
     }
     detalhe.mostrar(evento, (
-      <ConteudoDetalhe nome={item.nome} cor={corDe(item)} valor={item.valor} parte={(item.valor / total) * 100} linhas={item.detalhes} observacoes={item.observacoes} />
+      <ConteudoDetalhe nome={item.nome} cor={corDe(item)} valor={amountOf(item)} parte={(amountOf(item) / total) * 100} linhas={[
+        ...(hasForecasts ? [['Lançado', formatCurrency(item.valor)], ['Previsto', formatCurrency(item.forecast ?? 0)]] as [string, ReactNode][] : []),
+        ...(item.detalhes ?? []),
+      ]} observacoes={item.observacoes} />
     ));
   };
 
@@ -85,7 +92,12 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
     const inicio = angulo;
     angulo += tamanho;
     const meio = inicio + tamanho / 2;
-    return { item, d: arco(inicio, inicio + tamanho), dx: Math.cos(meio) * AFASTAMENTO, dy: Math.sin(meio) * AFASTAMENTO };
+    const split = inicio + tamanho * item.valor / amountOf(item);
+    return {
+      item, d: item.valor > 0 ? arco(inicio, split) : null,
+      forecastPath: (item.forecast ?? 0) > 0 ? arco(split, inicio + tamanho) : null,
+      dx: Math.cos(meio) * AFASTAMENTO, dy: Math.sin(meio) * AFASTAMENTO,
+    };
   }) : [];
 
   return (
@@ -98,11 +110,15 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
         style={legendaAoLado ? undefined : { minHeight: tamanhoMinimo }}
       >
         <svg viewBox="-130 -130 260 260" aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible">
-          {fatiasDesenhadas.map(({ item, d, dx, dy }) => (
-            <path
+          <defs>{itens.map(item => (
+            <pattern key={item.nome} id={`${patternId}-${indices.current.get(item.nome)}`} patternUnits="userSpaceOnUse" width={6} height={6} patternTransform="rotate(45)">
+              <rect width={6} height={6} fill={cores.superficie} />
+              <rect width={2.5} height={6} fill={corDe(item)} />
+            </pattern>
+          ))}</defs>
+          {fatiasDesenhadas.map(({ item, d, forecastPath, dx, dy }) => (
+            <g
               key={item.nome}
-              d={d}
-              fill={corDe(item)}
               stroke={cores.superficie}
               strokeWidth={1.5}
               strokeLinejoin="round"
@@ -114,7 +130,10 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
               onPointerEnter={(evento) => destacar(item, evento)}
               onPointerMove={detalhe.mover}
               onPointerLeave={() => destacar(null)}
-            />
+            >
+              {d && <path d={d} fill={corDe(item)} />}
+              {forecastPath && <path d={forecastPath} fill={`url(#${patternId}-${indices.current.get(item.nome)})`} />}
+            </g>
           ))}
         </svg>
       </div>
@@ -129,9 +148,12 @@ export function Pizza({ fatias, vazio, tamanhoMinimo, ordenar = true, legendaAoL
           >
             <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: corDe(item) }} aria-hidden="true" />
             {item.nome}
-            <span className="sr-only">: {formatCurrency(item.valor)}</span>
+            <span className="sr-only">: {formatCurrency(amountOf(item))}, previsto {formatCurrency(item.forecast ?? 0)}</span>
           </li>
         ))}
+        {hasForecasts && <li className="inline-flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] text-slate-500 dark:text-slate-400">
+        <span className="h-2.5 w-3 rounded-sm" style={{ background: `repeating-linear-gradient(135deg, ${cores.neutro} 0 2px, transparent 2px 5px)` }} />Previsão
+        </li>}
       </ul>
       {detalhe.caixa}
     </div>

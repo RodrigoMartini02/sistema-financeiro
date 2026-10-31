@@ -57,3 +57,20 @@ test('soma as linhas da mesma categoria e guarda a parte de cada pessoa; ignora 
   assert.deepEqual([...mercado.pessoas.values()].map((pessoa) => [pessoa.usuarioId, pessoa.valor]), [[1, 300], [15, 120]]);
   assert.equal(raizes[0]!.subs.length, 1);
 });
+
+test('preserva categoria só prevista e separa a previsão do gasto por pessoa', () => {
+  const roots = agruparCategoriasPorRaiz([
+    linha({ categoriaId: 20, categoria: 'Aluguel', parentId: 2, parentNome: 'Moradia', total: 0, forecast: 1000 }),
+    linha({ categoriaId: 21, categoria: 'Condomínio', parentId: 2, parentNome: 'Moradia', total: 200, forecast: 250 }),
+    linha({ categoriaId: 21, categoria: 'Condomínio', parentId: 2, parentNome: 'Moradia', total: 0, forecast: 50, usuarioId: 15 }),
+  ]);
+  assert.equal(roots.length, 1);
+  assert.equal(roots[0]!.nome, 'Moradia');
+  const rent = roots[0]!.subs.find(row => row.categoriaId === 20)!;
+  assert.equal(rent.total, 0);
+  assert.equal(rent.forecast, 1000);
+  const condominium = roots[0]!.subs.find(row => row.categoriaId === 21)!;
+  assert.equal(condominium.total, 200);
+  assert.equal(condominium.forecast, 300);
+  assert.equal([...condominium.pessoas.values()].reduce((sum, person) => sum + person.valor, 0), 200);
+});

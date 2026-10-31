@@ -9,6 +9,7 @@ const paraLinha = (item: ItemPlanejado): LinhaHorizontal => ({
   id: String(item.categoriaId),
   nome: item.categoria,
   valor: item.gasto,
+  forecast: item.forecast,
   meta: item.meta,
 });
 
@@ -33,6 +34,7 @@ export function Planejado({ itens }: { itens: NonNullable<PainelData['planejado'
           <Legenda itens={[
             { cor: cores.destaque, nome: 'Dentro da meta' },
             { cor: cores.negativo, nome: 'Acima da meta' },
+            ...(itens.some(item => (item.forecast ?? 0) > 0) ? [{ cor: cores.destaque, nome: 'Previsão · hachurada' }] : []),
           ]} />
         </div>
         {linhas.length === 0

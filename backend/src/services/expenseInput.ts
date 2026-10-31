@@ -6,6 +6,7 @@ import {
   readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, readRequiredId, roundCents,
 } from '../utils/requestInput';
 import { isCreditWithCard } from './cardInvoiceRules';
+import { parseEffectiveMonth } from './cardDueDate';
 
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -61,6 +62,7 @@ export type ExpenseScheduleInput =
 export type CreateExpenseInput = ExpenseFieldsInput & ExpenseScheduleInput & { accountId: number | null };
 
 export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
+  endMonth?: string | null;
   amount: number;
   dueDate: string;
   applyTo: ExpenseUpdateScope;
@@ -74,6 +76,14 @@ export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
    * inteira (`applyTo: 'all'`); na despesa única, ela vira a parcela 1. Nulo (ausente): não muda.
    */
   installmentCount: number | null;
+}
+
+export function readExpenseEndMonth(value: unknown): string {
+  const month = parseEffectiveMonth(value);
+  if (!month || Number(month.slice(0, 4)) < 2000 || Number(month.slice(0, 4)) > 2100) {
+    throw new RequestInputError('Escolha um mês e ano válidos para a despesa fixa');
+  }
+  return month.slice(0, 7);
 }
 
 export interface SuggestionsQuery {
@@ -225,6 +235,7 @@ export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
     applyTo,
     cashPrice,
     installmentCount: readOptionalInstallmentCount(record['installmentCount']),
+    ...(record['endMonth'] === undefined || record['endMonth'] === null ? {} : { endMonth: readExpenseEndMonth(record['endMonth']) }),
   };
 }
 

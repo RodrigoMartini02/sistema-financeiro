@@ -13,7 +13,7 @@ import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
 import { DateField } from '../../../ui/DateField';
 import { DescriptionField } from '../entry-dialog/DescriptionField';
-import { SEPARATOR, checkboxStyle, ellipsisStyle, fieldStyle } from '../entry-dialog/fieldStyles';
+import { SEPARATOR, checkboxStyle, ellipsisStyle, fieldStyle, linkButtonStyle } from '../entry-dialog/fieldStyles';
 import {
   AddToBatchButton, GridCell, GridRow, RemoveFromBatchButton, type RowVariant,
 } from '../entry-dialog/GridParts';
@@ -26,7 +26,7 @@ import {
   usesCard, type RuleContext,
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
-import { BATCH_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
+import { BATCH_GRID_CLASS, BATCH_FIXED_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS, ENTRY_FIXED_GRID_CLASS } from './expenseGrid';
 import { InstallmentValueFields } from './InstallmentValueFields';
 import { InstallmentsPopover } from './InstallmentsPopover';
 import { PaymentMethodPopover } from './PaymentMethodPopover';
@@ -45,11 +45,13 @@ export interface RowResources {
   lockPurchaseDate: boolean;
   /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
   createCategory?: (request: NewCategoryRequest) => Promise<number>;
+  fixedBillingColumn?: boolean;
+  forecastColumn?: boolean;
 }
 
 export function amountLabel(draft: ExpenseDraft): string {
   if (draft.billingType === 'installments') return draft.amountIsTotal ? 'Valor total' : 'Valor da parcela';
-  return draft.billingType === 'monthly' || draft.billingType === 'fixed' ? 'Valor mensal' : 'Valor';
+  return draft.billingType === 'monthly' ? 'Valor mensal' : 'Valor';
 }
 
 /** Nota fiscal da despesa na conta PJ, no painel dos comprovantes. */
@@ -117,24 +119,29 @@ interface ExpenseRowProps {
   onFocus: () => void;
   onAddToBatch?: () => void;
   onRemove?: () => void;
-  /** Cadastro de fonte ou edição de estimativa: pagamento só na confirmação explícita. */
-  hidePayment?: boolean;
+  onDefer?: (deferred: boolean) => void;
+  deferDisabled?: boolean;
+  fixedConversion?: boolean;
 }
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
   draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, readOnlyBillingReason, invoiceLock,
   creditOnlyPayment = false, payInvoiceAction, pendingInstallmentCount, descriptionRef, onUpdate,
-  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove, hidePayment = false,
+  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove, onDefer, deferDisabled = false, fixedConversion = false,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
-  const paymentLocked = invoiceLock !== undefined;
+  const paymentLocked = invoiceLock !== undefined || (draft.billingType === 'fixed' && draft.paymentMethod === 'credito' && draft.cardId !== null);
+  const paymentLockReason = invoiceLock?.reason ?? 'Despesa no crédito é paga pela fatura.';
   const valueLocked = invoiceLock?.locksValueAndMethod === true;
   const dueDateLocked = invoiceLock?.locksDueDate === true;
   const lockedCardName = draft.cardId !== null ? context.cards.find((card) => card.id === draft.cardId)?.nome ?? null : null;
   const isEntry = variant === 'entry';
   const installments = draft.billingType === 'installments';
-  const template = draft.billingType === 'fixed';
+  const fixed = draft.billingType === 'fixed';
+  const columns = isEntry ? (fixed ? ENTRY_FIXED_GRID_CLASS : ENTRY_GRID_CLASS)
+    : resources.forecastColumn ? BATCH_FORECAST_GRID_CLASS
+      : fixed || resources.fixedBillingColumn ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS;
   const matches = suggestions?.suggestions?.matches ?? [];
   const preferredCardIds = suggestions?.suggestions?.preferredCardIds ?? { debito: null, credito: null };
 
@@ -177,7 +184,12 @@ export function ExpenseRow({
 
   return (
     <>
-      <GridRow variant={variant} columnsClass={isEntry ? ENTRY_GRID_CLASS : BATCH_GRID_CLASS} onFocus={onFocus}>
+      <GridRow variant={variant} columnsClass={columns} onFocus={onFocus}>
+        {resources.forecastColumn && <GridCell label="Adiar" className={draft.forecastId === undefined ? 'hidden lg:flex' : undefined}>
+          {draft.forecastId !== undefined && <input type="checkbox" checked={draft.deferred === true} disabled={deferDisabled}
+            aria-label={`Adiar ${draft.description || 'despesa fixa'}`} title="Adiar" onChange={(event) => onDefer?.(event.target.checked)}
+            className="h-4 w-4 accent-cyan-600" />}
+        </GridCell>}
         <GridCell label="Descrição" required className="col-span-2 lg:col-span-1">
           <DescriptionField
             value={draft.description}
@@ -230,6 +242,8 @@ export function ExpenseRow({
         )}
 
         <GridCell label="Cobrança">
+          <div className="flex min-w-0 items-center gap-1">
+          <div className={fixed ? 'w-[62px] shrink-0' : 'min-w-0 flex-1'}>
           {readOnlyBilling ? (
             <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title={readOnlyBillingReason ?? 'A cobrança não muda na edição'}>
               <span style={ellipsisStyle}>{readOnlyBilling}</span>
@@ -238,12 +252,21 @@ export function ExpenseRow({
             <BillingPopover
               draft={draft}
               recurringAvailable={canBeRecurring(draft, context.cards)}
+              fixedConversion={fixedConversion}
               pendingInstallmentCount={pendingInstallmentCount}
               onUpdate={onUpdate}
               onSetInstallmentCount={onSetInstallmentCount}
               onCancelInstallmentCount={onCancelInstallmentCount}
             />
           )}
+          </div>
+          {fixed && <label className="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-slate-500">
+            Até
+            <input type="month" min="2000-01" max="2100-12" aria-label="Repetir até" value={draft.endMonth ?? ''}
+              onChange={(event) => onUpdate({ endMonth: event.target.value })} aria-invalid={errors?.endMonth || undefined}
+              style={{ ...fieldStyle({ invalid: errors?.endMonth }), minWidth: 0, width: '100%', padding: '0 3px' }} />
+          </label>}
+          </div>
         </GridCell>
 
         <GridCell label={amountLabel(draft)} required>
@@ -251,7 +274,7 @@ export function ExpenseRow({
             label={amountLabel(draft)}
             valueCents={draft.amountCents}
             onChange={(cents) => onUpdate({ amountCents: cents })}
-            suffix={draft.billingType === 'monthly' || template ? '/mês' : undefined}
+            suffix={draft.billingType === 'monthly' ? '/mês' : undefined}
             invalid={errors?.amount}
             disabled={valueLocked}
             title={valueLocked ? invoiceLock!.reason : undefined}
@@ -284,11 +307,7 @@ export function ExpenseRow({
           />
         </GridCell>
 
-        {template || hidePayment ? (
-          <GridCell label="Pagamento" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
-            <span style={{ fontSize: 11, color: C.textSoft }}>Confirme o valor quando receber a conta</span>
-          </GridCell>
-        ) : installments ? (
+        {installments ? (
           <GridCell label="Pagamento das parcelas" className="col-span-2 lg:border-l lg:border-[#dcebf1] lg:pl-2">
             <InstallmentsPopover draft={draft} context={context} onUpdate={onUpdate} />
           </GridCell>
@@ -301,7 +320,7 @@ export function ExpenseRow({
                   role="checkbox"
                   aria-checked={draft.paid}
                   aria-label="Já foi paga"
-                  title={paymentLocked ? invoiceLock!.reason : 'Já foi paga'}
+                  title={paymentLocked ? paymentLockReason : 'Já foi paga'}
                   onClick={togglePaid}
                   disabled={paymentLocked}
                   style={{ ...checkboxStyle(draft.paid), ...(paymentLocked ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
@@ -315,7 +334,7 @@ export function ExpenseRow({
                   todayIso={context.todayIso}
                   placeholder={draft.paid ? 'dd/mm/aaaa' : 'não paga'}
                   disabled={!draft.paid || paymentLocked}
-                  title={paymentLocked ? invoiceLock!.reason : undefined}
+                  title={paymentLocked ? paymentLockReason : undefined}
                   invalid={errors?.paymentDate}
                 />
               </div>
@@ -327,14 +346,14 @@ export function ExpenseRow({
                 onChange={(cents) => onUpdate({ amountPaidCents: cents })}
                 placeholder={draft.paid && draft.amountCents ? formatMoney(draft.amountCents / 100) : ''}
                 disabled={!draft.paid || paymentLocked}
-                title={paymentLocked ? invoiceLock!.reason : undefined}
+                title={paymentLocked ? paymentLockReason : undefined}
               />
             </GridCell>
           </>
         )}
 
         <div className="flex items-center lg:block">
-          {template ? <span title="Comprovantes são adicionados ao confirmar cada mês" style={{ color: C.textFaint }}>—</span> : <AttachmentsPopover
+          <AttachmentsPopover
             attachments={draft.attachments}
             onChange={(attachments) => onUpdate({ attachments })}
             label={resources.isCompany ? 'Comprovantes e nota fiscal' : 'Comprovantes'}
@@ -344,18 +363,18 @@ export function ExpenseRow({
             {resources.isCompany && (
               <InvoiceFields draft={draft} todayIso={context.todayIso} invalid={!!errors?.invoiceDate} onUpdate={onUpdate} />
             )}
-          </AttachmentsPopover>}
+          </AttachmentsPopover>
         </div>
 
         <div className="flex items-center justify-end lg:block">
-          {isEntry && !template && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
+          {isEntry && <AddToBatchButton filled={isDraftFilled(draft)} onClick={onAddToBatch} />}
           {variant === 'batch' && onRemove && <RemoveFromBatchButton onClick={onRemove} />}
         </div>
 
         {installments && <InstallmentValueFields draft={draft} onUpdate={onUpdate} />}
       </GridRow>
 
-      {showSummary && (
+      {showSummary && !fixed && (
         <SummaryLine
           content={summary && {
             status: { text: summary.status, tone: SUMMARY_TONE[summary.status] },
@@ -373,6 +392,14 @@ export function ExpenseRow({
           action={payInvoiceAction}
         />
       )}
+      {showSummary && fixed && payInvoiceAction && (
+        <div style={{ padding: '0 8px 10px' }}>
+          <button type="button" onClick={payInvoiceAction.onClick} title={payInvoiceAction.title} style={{ ...linkButtonStyle, fontWeight: 600 }}>
+            {payInvoiceAction.label}
+          </button>
+        </div>
+      )}
+      {draft.deferError && <p role="alert" className="m-0 px-2 text-xs text-rose-700">{draft.deferError}</p>}
     </>
   );
 }

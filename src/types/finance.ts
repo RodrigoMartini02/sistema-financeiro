@@ -136,6 +136,8 @@ export interface Expense {
   fixedExpenseId?: number | null;
   fixedCompetence?: string | null;
   estimatedAmount?: number | null;
+  fixedEndMonth?: string | null;
+  deferred?: boolean;
   pago: boolean;
   recorrente: boolean;
   parcelado: boolean;
@@ -313,7 +315,8 @@ interface ExpenseFieldsInput {
 
 /** Corpo do POST /expenses. Datas em ISO e valores em reais. */
 export type ExpenseCreateInput = ExpenseFieldsInput & { accountId: number | null } & (
-  | ({ billingType: 'single' | 'monthly' | 'fixed'; amount: number; dueDate: string; firstMonth?: string } & ExpensePaymentInput)
+  | ({ billingType: 'single' | 'monthly'; amount: number; dueDate: string } & ExpensePaymentInput)
+  | ({ billingType: 'fixed'; amount: number; dueDate: string; endMonth: string; sourceExpenseId?: number } & ExpensePaymentInput)
   /** `cashPrice`: o valor à vista (sem juros); o que a soma das parcelas passa dele o servidor grava como juros embutido. */
   | { billingType: 'installments'; installments: ExpenseInstallmentInput[]; cashPrice: number | null }
 );
@@ -331,6 +334,7 @@ export type ExpenseUpdateScope = 'this' | 'following' | 'all';
 export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentInput {
   amount: number;
   dueDate: string;
+  endMonth?: string | null;
   applyTo?: ExpenseUpdateScope;
   /**
    * Valor à vista (sem juros) da compra parcelada: refaz o juros das parcelas abertas. Ausente não mexe
@@ -345,28 +349,20 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
 }
 
 /** Configuração mensal; valores em reais e datas em ISO. */
-export interface FixedExpenseCreateInput {
+export interface FixedExpenseCreateInput extends ExpenseFieldsInput, ExpensePaymentInput {
   accountId: number | null;
-  description: string;
-  categoryId: number | null;
   amount: number;
-  paymentMethod: PaymentMethod;
-  cardId: number | null;
-  purchaseDate: string;
   dueDate: string;
-  /** Mês inicial da previsão, YYYY-MM. */
-  firstMonth: string;
+  /** Último mês de vencimento, inclusive, YYYY-MM. */
+  endMonth: string;
   sourceExpenseId?: number | null;
 }
 
-export interface FixedExpenseUpdateInput extends FixedExpenseCreateInput {
-  applyToFuture: boolean;
-}
-
-export interface FixedExpense extends Omit<FixedExpenseCreateInput, 'sourceExpenseId'> {
+export interface FixedExpense {
   id: number;
   userId: number;
-  registeredYear: number;
+  accountId: number;
+  endMonth: string;
   active: boolean;
 }
 
@@ -391,6 +387,8 @@ export interface FixedExpenseOccurrenceDto {
   status: 'prevista';
   fixedExpenseId: number;
   fixedCompetence: string;
+  endMonth: string;
+  deferred: boolean;
   createdAt?: string | null;
   attachments?: Attachment[] | null;
   invoiceNumber?: string | null;
@@ -431,6 +429,8 @@ export interface PainelPontoSerie {
   despesas: number;
   /** Despesas do trecho por forma de pagamento (mesma chave de `formasPagamento`). */
   formas: Record<string, number>;
+  forecast?: number;
+  forecastMethods?: Record<string, number>;
   pago: number;
   /** Juros e descontos das despesas que vencem no trecho, mais os juros e taxas das receitas recebidas nele. */
   juros: number;
@@ -448,6 +448,7 @@ export interface PainelCategoria {
   usuarioId: number;
   autorNome: string | null;
   total: number;
+  forecast?: number;
 }
 
 /** Soma pelo item principal (classificação ou categoria); subcategorias como detalhe. id null = sem classificação/categoria. */
@@ -455,7 +456,8 @@ export interface PainelFatia {
   id: number | null;
   nome: string;
   valor: number;
-  subcategorias: { id: number; nome: string; valor: number }[];
+  forecast?: number;
+  subcategorias: { id: number; nome: string; valor: number; forecast?: number }[];
 }
 
 export interface PainelData {
@@ -463,8 +465,8 @@ export interface PainelData {
   periodoAnterior: PainelPeriodo;
   tipoConta: 'pessoal' | 'empresa';
   totalLancamentos: number;
-  /** Projeção separada dos totais atuais; ausente nas respostas anteriores. */
-  expenseProjection?: { confirmed: number; scheduled: number; planned: number; total: number; plannedCount: number };
+  /** Ocorrências previstas no período; não entram nos indicadores de lançado/pago. */
+  forecastCount?: number;
   resumo: {
     entrou: number;
     saiu: number;
@@ -476,7 +478,7 @@ export interface PainelData {
     saldoFinal: number;
   };
   serie: { granularidade: PainelGranularidade; pontos: PainelPontoSerie[] };
-  formasPagamento: { forma: string; valor: number; quantidade: number; juros: number }[];
+  formasPagamento: { forma: string; valor: number; quantidade: number; juros: number; forecast?: number }[];
   cartoes: {
     id: number;
     nome: string;
@@ -490,15 +492,17 @@ export interface PainelData {
     porPessoa: { usuarioId: number; nome: string; gasto: number }[];
   }[];
   aVistaParcelado: { aVista: number; parcelado: number };
+  aVistaParceladoForecast?: { aVista: number; parcelado: number };
   tipoGasto: { fixo: number; parcela: number; livre: number };
+  tipoGastoForecast?: { fixo: number; parcela: number; livre: number };
   emDia: { cadastrado: number; pagoEmDia: number; pagoComAtraso: number; emAberto: number; quitadoDeAnteriores: number };
   contasEmAberto: {
     atraso: { valor: number; quantidade: number };
     proximos30Dias: { valor: number; quantidade: number };
-    comprometido: { ano: number; mes: number; parcelas: number; outras: number }[];
+    comprometido: { ano: number; mes: number; parcelas: number; outras: number; forecast?: number }[];
   };
   /** null quando o bloco não se aplica: conta empresa ou membro sem Planejamento. */
-  planejado: { categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number }[] | null;
+  planejado: { categoriaId: number; categoria: string; parentId: number | null; meta: number; gasto: number; forecast?: number }[] | null;
   porPessoa: { usuarioId: number; nome: string; receitas: number; despesas: number }[];
   jurosDescontos: {
     periodo: { juros: number; descontos: number };

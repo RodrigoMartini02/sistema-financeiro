@@ -304,8 +304,8 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
   const due = effectiveDueDate(draft, context);
   const today = context.todayIso;
   const credit = draft.paymentMethod === 'credito';
-  const forecast = draft.billingType === 'fixed' || context.forecast === true;
-  const autoPay = !context.editing && !forecast;
+  const forecast = context.forecast === true || draft.forecastId !== undefined;
+  const autoPay = !context.editing && !forecast && draft.billingType !== 'fixed';
   const firstLabel = draft.billingType === 'single' ? 'Vence ' : '1ª vence ';
 
   let dueText: string;
@@ -323,7 +323,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
     return {
       status: 'Previsão',
       dueText: `Vence ${isoToShortBrDate(due.date)}`,
-      totalText: draft.billingType === 'fixed' ? `${formatCents(amount)}/mês · até dezembro` : `valor a confirmar ${formatCents(amount)}`,
+      totalText: formatCents(amount),
       badges,
     };
   }
@@ -393,7 +393,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
 }
 
 export function helpText(draft: ExpenseDraft): string {
-  if (draft.billingType === 'fixed') return 'O valor é uma referência: cada mês pode ser ajustado ao confirmar a conta';
+  if (draft.billingType === 'fixed') return '';
   if (draft.billingType === 'installments') return 'Marque as parcelas pagas no botão de parcelas';
   if (draft.paymentMethod === 'credito') {
     return draft.paid ? 'Pago: o limite do cartão é liberado agora' : 'Vencimento vem da fatura. Altere só se combinou outra data';
@@ -435,6 +435,11 @@ export function validateDraft(draft: ExpenseDraft, context: RuleContext): DraftE
   if (draft.billingType === 'monthly' && !errors.card && !isCreditWithCard(draft, context.cards)) {
     errors.recurring = true;
   }
+  if (draft.billingType === 'fixed' && (!/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.endMonth ?? '')
+    || Number(draft.endMonth?.slice(0, 4)) < 2000 || Number(draft.endMonth?.slice(0, 4)) > 2100
+    || (!draft.fixedExpenseId && (draft.endMonth ?? '') < effectiveDueDate(draft, context).date.slice(0, 7)))) {
+    errors.endMonth = true;
+  }
   return errors;
 }
 
@@ -458,6 +463,7 @@ export function errorMessage(errors: DraftErrors): string {
   ].filter((item): item is string => typeof item === 'string');
   if (invalidDates.length) clauses.push(`confira ${joinWithAnd(invalidDates)}`);
   if (errors.recurring) clauses.push('a recorrente é só no cartão de crédito');
+  if (errors.endMonth) clauses.push('escolha o último mês da repetição');
   return toSentence(clauses);
 }
 
@@ -518,6 +524,12 @@ export function buildCreateInput(draft: ExpenseDraft, context: RuleContext, acco
       cashPrice: draft.cashPriceCents ? toReais(draft.cashPriceCents) : null,
     };
   }
+  if (draft.billingType === 'fixed') {
+    return {
+      ...fields, billingType: 'fixed', amount: toReais(draft.amountCents ?? 0),
+      dueDate: effectiveDueDate(draft, context).date, endMonth: draft.endMonth ?? '', ...singlePayment(draft, context),
+    };
+  }
   return {
     ...fields,
     billingType: draft.billingType,
@@ -533,6 +545,7 @@ export function buildUpdateInput(draft: ExpenseDraft, context: RuleContext): Exp
     amount: toReais(draft.amountCents ?? 0),
     dueDate: effectiveDueDate(draft, context).date,
     ...singlePayment(draft, context),
+    ...(draft.billingType === 'fixed' && draft.endMonth !== draft.initialEndMonth ? { endMonth: draft.endMonth || null } : {}),
   };
 }
 

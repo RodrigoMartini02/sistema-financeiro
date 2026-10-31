@@ -1,133 +1,108 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Expense } from '../../../types/finance';
-import type { Cartao } from '../../../types/config';
-import { createDraft, dialogReducer, initialDialogState } from './draftState';
-import { buildCreateInput, summarizeDraft } from './draftRules';
-import {
-  buildFixedExpenseInput, canCreateFixedFromExpense, initialFixedMonth, mergeFixedOccurrences, selectedFixedOccurrences,
-} from './fixedExpenseDrafts';
+import { saveInOrder } from '../entry-dialog/batchState';
+import { buildCreateInput, buildUpdateInput, validateDraft } from './draftRules';
+import { createDraft, dialogReducer, draftFromExpense, initialDialogState, type DialogState, type ExpenseDraft, type DraftErrors } from './draftState';
+import { canCreateFixedFromExpense, contextForDraft, initialFixedMonth, readyToSave } from './fixedExpenseDrafts';
 
-function forecast(id: number, month = '2026-11'): Expense {
-  return {
-    id, descricao: 'Energia', valorFinal: 100, categoria: 'Moradia', categoriaId: 1,
-    formaPagamento: 'pix', dataCompra: `${month}-01`, dataVencimento: `${month}-10`,
-    mes: Number(month.slice(5)) - 1, ano: Number(month.slice(0, 4)),
-    status: 'prevista', pago: false, recorrente: false, parcelado: false,
-    fixedExpenseId: 1, fixedCompetence: `${month}-01`,
-  };
-}
+const context = { todayIso: '2026-10-30', cards: [] };
+const draft = (patch: Partial<ExpenseDraft> = {}) => ({ ...createDraft({ paymentMethod: 'pix', cardId: null,
+  purchaseDate: '30/10/2026', paymentMethodTouched: true }), description: 'Energia', categoryId: 2, amountCents: 10000,
+  dueDate: '10/11/2026', ...patch });
+const forecast = (id: number, patch: Partial<Expense> = {}): Expense => ({ id, descricao: 'Energia', categoria: 'Moradia',
+  categoriaId: 2, formaPagamento: 'pix', valorFinal: 100, dataCompra: '2026-10-30', dataVencimento: '2026-11-10',
+  mes: 10, ano: 2026, status: 'prevista', pago: false, recorrente: false, parcelado: false,
+  fixedExpenseId: id + 100, fixedCompetence: '2026-11-01', fixedEndMonth: '2027-03', deferred: false, ...patch });
 
-test('pendências começam desmarcadas, clique repetido não duplica e refetch preserva valor ajustado', () => {
-  const initial = mergeFixedOccurrences([], [forecast(1), forecast(2), forecast(3)], '2026-11');
-  assert.equal(selectedFixedOccurrences(initial, '2026-11').length, 0);
-  initial[0] = { ...initial[0]!, selected: true, dirty: true, draft: { ...initial[0]!.draft, amountCents: 12000 } };
-  const refreshed = mergeFixedOccurrences(initial, [forecast(1), forecast(2), forecast(2), forecast(3)], '2026-11');
-  assert.equal(refreshed.length, 3);
-  assert.equal(selectedFixedOccurrences(refreshed, '2026-11')[0]!.draft.amountCents, 12000);
-  assert.equal(refreshed.reduce((sum, item) => sum + (item.draft.amountCents ?? 0), 0), 32000);
+test('Fixa antes ou depois do + produz o mesmo lançamento e preserva pagamento explícito', () => {
+  const initial = draft({ paid: true, paymentDate: '30/10/2026', amountPaidCents: 9500 });
+  let before = initialDialogState(initial);
+  before = dialogReducer(before, { type: 'update', key: initial.key, patch: { billingType: 'fixed', endMonth: '2027-03' } });
+  before = dialogReducer(before, { type: 'moveEntryToBatch', nextEntry: draft({ description: '', amountCents: null }) });
+  let after = initialDialogState(initial);
+  after = dialogReducer(after, { type: 'moveEntryToBatch', nextEntry: draft({ description: '', amountCents: null }) });
+  after = dialogReducer(after, { type: 'update', key: initial.key, patch: { billingType: 'fixed', endMonth: '2027-03' } });
+  const input = buildCreateInput(before.batch[0]!, context, 19);
+  assert.deepEqual(input, buildCreateInput(after.batch[0]!, context, 19));
+  assert.equal(input.billingType, 'fixed');
+  if (input.billingType !== 'fixed') throw new Error('Expected fixed input');
+  assert.equal(input.endMonth, '2027-03');
+  assert.equal(input.paid, true);
+  assert.equal(input.amountPaid, 95);
+  assert.equal(input.paymentDate, '2026-10-30');
+  assert.ok(!('firstMonth' in input));
 });
 
-test('atualizar cadastro reflete nova estimativa em linha ainda não editada', () => {
-  const items = mergeFixedOccurrences([], [forecast(1)], '2026-11');
-  const refreshed = mergeFixedOccurrences(items, [{ ...forecast(1), valorFinal: 150 }], '2026-11');
-  assert.equal(refreshed[0]!.draft.amountCents, 15000);
-  assert.equal(refreshed[0]!.draft.key, items[0]!.draft.key);
+test('Até é obrigatório, permite cruzar ano e não antecede a primeira ocorrência nova', () => {
+  assert.equal(validateDraft(draft({ billingType: 'fixed' }), context).endMonth, true);
+  assert.equal(validateDraft(draft({ billingType: 'fixed', endMonth: '2026-10' }), context).endMonth, true);
+  assert.equal(validateDraft(draft({ billingType: 'fixed', endMonth: '2027-03' }), context).endMonth, undefined);
+  assert.equal(validateDraft(draft({ billingType: 'fixed', endMonth: '2026-11' }), context).endMonth, undefined);
+  assert.equal(validateDraft(draft({ billingType: 'fixed', endMonth: '2027-13' }), context).endMonth, true);
 });
 
-test('seleção é restrita ao mês visível; outro mês mantém rascunho sem confirmação oculta', () => {
-  let items = mergeFixedOccurrences([], [forecast(1)], '2026-11');
-  items[0]!.selected = true;
-  items = mergeFixedOccurrences(items, [forecast(2, '2026-12')], '2026-12');
-  assert.equal(selectedFixedOccurrences(items, '2026-12').length, 0);
-  assert.equal(selectedFixedOccurrences(items, '2026-11').length, 1);
-  const externallyConfirmed = mergeFixedOccurrences(items, [], '2026-11');
-  assert.deepEqual(externallyConfirmed.map((item) => item.expense.id), [2]);
+test('previsões entram no mesmo lote, sem duplicatas e sem apagar rascunho alterado', () => {
+  let state = initialDialogState(draft());
+  state = dialogReducer(state, { type: 'moveEntryToBatch', nextEntry: draft({ description: '', amountCents: null }) });
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1), forecast(2), forecast(2)], excludedIds: [] });
+  const row = state.batch.find(item => item.forecastId === 1)!;
+  state = dialogReducer(state, { type: 'update', key: row.key, patch: { amountCents: 12345 } });
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1, { valorFinal: 150 }), forecast(2, { valorFinal: 200 })], excludedIds: [] });
+  assert.equal(state.batch.length, 3);
+  assert.equal(state.batch.find(item => item.forecastId === 1)!.amountCents, 12345);
+  assert.equal(state.batch.find(item => item.forecastId === 2)!.amountCents, 20000);
+  assert.equal(state.batch[0]!.forecastId, undefined);
 });
 
-test('mês das fixas segue contexto, calendário e hoje sem alterar a data da compra', () => {
-  assert.equal(initialFixedMonth('2026-12', '2026-11-15', '2026-10-30'), '2026-12');
-  assert.equal(initialFixedMonth(undefined, '2026-11-15', '2026-10-30'), '2026-11');
-  assert.equal(initialFixedMonth(undefined, undefined, '2026-10-30'), '2026-10');
+test('adiamento vem do servidor ao reabrir e falha permanece excluída do salvamento', () => {
+  let state = initialDialogState(draft());
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1, { deferred: true }), forecast(2)], excludedIds: [] });
+  assert.equal(readyToSave(state.batch[0]!), false);
+  assert.equal(readyToSave(state.batch[1]!), true);
+  state = dialogReducer(state, { type: 'setDeferred', ids: [2], deferred: true, error: 'Falha ao adiar' });
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1, { deferred: true }), forecast(2)], excludedIds: [] });
+  assert.equal(readyToSave(state.batch[1]!), false);
+  assert.equal(state.batch[1]!.deferError, 'Falha ao adiar');
+  state = dialogReducer(state, { type: 'setDeferred', ids: [2], deferred: false });
+  assert.equal(readyToSave(state.batch[1]!), true);
 });
 
-test('cadastro fixa não herda pagamento e usa estimativa com mês inicial explícito', () => {
-  const draft = {
-    ...createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: '01/11/2026', paymentMethodTouched: true }),
-    description: 'Aluguel', categoryId: 1, amountCents: 200000, paid: true,
-    paymentDate: '01/11/2026', amountPaidCents: 190000,
-  };
-  const next = dialogReducer(initialDialogState(draft), { type: 'update', key: draft.key, patch: { billingType: 'fixed' } });
-  assert.equal(next.entry.paid, false);
-  assert.equal(next.entry.paymentDate, '');
-  const context = { todayIso: '2026-11-10', cards: [] };
-  const input = buildFixedExpenseInput(next.entry, context, 19, '2026-11');
-  assert.equal(input.amount, 2000);
-  assert.equal(input.firstMonth, '2026-11');
-  assert.equal('paid' in input, false);
-  assert.equal(summarizeDraft(next.entry, context)?.status, 'Previsão');
+test('sem valor ou adiada não entra no lote a gravar; novas despesas permanecem independentes', () => {
+  const rows = [draft(), draftFromExpense(forecast(1)), draftFromExpense(forecast(2, { deferred: true })),
+    { ...draftFromExpense(forecast(3)), amountCents: null }, { ...draftFromExpense(forecast(4)), amountCents: 0 }];
+  assert.deepEqual(rows.filter(readyToSave).map(row => row.forecastId ?? 'nova'), ['nova', 1]);
 });
 
-test('conversão conserva referência à despesa existente e recusa séries/renegociação', () => {
-  const expense = { ...forecast(1), status: 'ativa' as const, fixedExpenseId: null };
-  assert.equal(canCreateFixedFromExpense(expense), true);
-  assert.equal(canCreateFixedFromExpense({ ...expense, parcelado: true }), false);
-  assert.equal(canCreateFixedFromExpense({ ...expense, recorrente: true }), false);
-  assert.equal(canCreateFixedFromExpense({ ...expense, invoiceOriginPaymentId: 1 }), false);
+test('confirmação usa contexto de edição e mantém dados da ocorrência', () => {
+  const row = { ...draftFromExpense(forecast(1)), amountCents: 12000, paid: true, paymentDate: '30/10/2026', amountPaidCents: 11500 };
+  const rowContext = contextForDraft(row, context);
+  assert.equal(rowContext.editing, true);
+  assert.equal(rowContext.savedDueDate, '2026-11-10');
+  const input = buildUpdateInput(row, rowContext);
+  assert.equal(input.amount, 120);
+  assert.equal(input.amountPaid, 115);
+  assert.equal(input.endMonth, undefined);
+  assert.equal(buildUpdateInput({ ...row, endMonth: '2027-04' }, rowContext).endMonth, '2027-04');
+});
+
+test('falha parcial conserva restantes e resposta antiga não reinsere previsão confirmada', async () => {
+  let state: DialogState = initialDialogState(draft({ description: '', amountCents: null }));
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1), forecast(2)], excludedIds: [] });
+  const saved: number[] = [];
+  const result = await saveInOrder<ExpenseDraft, DraftErrors>({ items: state.batch, entryKey: state.entry.key, nextEntry: state.entry,
+    save: async row => { if (row.forecastId === 2) throw new Error('Falha esperada'); saved.push(row.forecastId!); },
+    dispatch: action => { state = dialogReducer(state, action); }, itemLabel: 'Despesa', fallbackMessage: 'Falha' });
+  assert.equal(result.saved, 1);
+  state = dialogReducer(state, { type: 'mergeForecasts', expenses: [forecast(1), forecast(2)], excludedIds: saved });
+  assert.deepEqual(state.batch.map(row => row.forecastId), [2]);
+});
+
+test('mês de origem é preservado e conversão só aceita despesa única comum', () => {
+  assert.equal(initialFixedMonth('2027-02', '2026-12-30', '2026-10-30'), '2027-02');
+  assert.equal(initialFixedMonth(undefined, '2026-12-30', '2026-10-30'), '2026-12');
+  const common = forecast(1, { status: 'ativa', fixedExpenseId: null });
+  assert.equal(canCreateFixedFromExpense(common), true);
+  assert.equal(canCreateFixedFromExpense({ ...common, parcelado: true }), false);
   assert.equal(canCreateFixedFromExpense(forecast(1)), false);
-});
-
-test('fixa PIX iniciada em mês futuro avança apenas datas automáticas sem mudar o lançamento comum', () => {
-  const draft = {
-    ...createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: '30/10/2026', paymentMethodTouched: true }),
-    description: 'Aluguel', categoryId: 1, amountCents: 200000,
-  };
-  const context = { todayIso: '2026-10-30', cards: [] };
-  const input = buildFixedExpenseInput(draft, context, 19, '2026-11');
-  assert.equal(input.purchaseDate, '2026-11-30');
-  assert.equal(input.dueDate, '2026-11-30');
-  const common = buildCreateInput(draft, context, 19);
-  assert.equal(common.purchaseDate, '2026-10-30');
-  assert.equal(common.billingType === 'single' ? common.dueDate : null, '2026-10-30');
-  assert.equal(draft.purchaseDate, '30/10/2026');
-});
-
-test('fixa no crédito conserva compra anterior quando a fatura já vence no mês inicial', () => {
-  const card: Cartao = { id: 1, nome: 'Crédito', ativo: true, tipo: 'credito', dia_fechamento: 2, dia_vencimento: 9 };
-  const draft = {
-    ...createDraft({ paymentMethod: 'credito', cardId: card.id, purchaseDate: '30/10/2026', paymentMethodTouched: true }),
-    description: 'Assinatura', categoryId: 1, amountCents: 10000,
-  };
-  const context = { todayIso: '2026-10-30', cards: [card] };
-  const november = buildFixedExpenseInput(draft, context, 19, '2026-11');
-  assert.equal(november.purchaseDate, '2026-10-30');
-  assert.equal(november.dueDate, '2026-11-09');
-  const december = buildFixedExpenseInput(draft, context, 19, '2026-12');
-  assert.equal(december.purchaseDate, '2026-11-30');
-  assert.equal(december.dueDate, '2026-12-09');
-});
-
-test('fixa preserva compra e vencimento informados explicitamente, inclusive anteriores ao ciclo', () => {
-  const draft = {
-    ...createDraft({ paymentMethod: 'pix', cardId: null, purchaseDate: '10/10/2026', purchaseDateTouched: true, paymentMethodTouched: true }),
-    description: 'Aluguel', categoryId: 1, amountCents: 200000, dueDate: '15/10/2026',
-  };
-  const input = buildFixedExpenseInput(draft, { todayIso: '2026-10-30', cards: [] }, 19, '2026-11');
-  assert.equal(input.purchaseDate, '2026-10-10');
-  assert.equal(input.dueDate, '2026-10-15');
-  const automaticDue = buildFixedExpenseInput({ ...draft, dueDate: '' }, { todayIso: '2026-10-30', cards: [] }, 19, '2026-11');
-  assert.equal(automaticDue.purchaseDate, '2026-10-10');
-  assert.equal(automaticDue.dueDate, '2026-11-10');
-});
-
-test('compra explícita no crédito não é mudada para forçar outra fatura', () => {
-  const card: Cartao = { id: 1, nome: 'Crédito', ativo: true, tipo: 'credito', dia_fechamento: 20, dia_vencimento: 30 };
-  const draft = {
-    ...createDraft({ paymentMethod: 'credito', cardId: card.id, purchaseDate: '01/10/2026', purchaseDateTouched: true, paymentMethodTouched: true }),
-    description: 'Assinatura', categoryId: 1, amountCents: 10000,
-  };
-  assert.throws(() => buildFixedExpenseInput(draft, { todayIso: '2026-10-01', cards: [card] }, 19, '2026-11'), /anterior ao mês inicial/);
-  const manual = buildFixedExpenseInput({ ...draft, dueDate: '30/11/2026' }, { todayIso: '2026-10-01', cards: [card] }, 19, '2026-11');
-  assert.equal(manual.purchaseDate, '2026-10-01');
-  assert.equal(manual.dueDate, '2026-11-30');
 });

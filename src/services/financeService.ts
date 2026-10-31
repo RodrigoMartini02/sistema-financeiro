@@ -31,6 +31,8 @@ interface RawExpense {
   grupo_parcelamento_id?: number | null;
   despesa_fixa_id?: number | null;
   fixa_competencia?: string | null;
+  fixa_mes_final?: string | null;
+  adiada?: boolean;
   valor_previsto?: string | number | null;
   valor_original?: string | null; valor_pago?: string | null;
   numero_nf?: string | null; data_emissao_nf?: string | null;
@@ -125,6 +127,8 @@ function expenseFromApi(r: RawExpense): Expense {
     status: (r.status as Expense['status']) ?? 'ativa',
     fixedExpenseId: r.despesa_fixa_id ?? null,
     fixedCompetence: r.fixa_competencia ?? null,
+    fixedEndMonth: r.fixa_mes_final?.slice(0, 7) ?? null,
+    deferred: r.adiada === true,
     estimatedAmount: r.valor_previsto != null ? asNumber(r.valor_previsto) : null,
     pago: r.pago === true, recorrente: r.recorrente === true, parcelado: r.parcelado === true,
     parcela, parcelaAtual: r.parcelado ? r.parcela_atual ?? null : null,
@@ -220,7 +224,9 @@ export async function createExpense(input: ExpenseCreateInput): Promise<void> {
       accountId: input.accountId, description: input.description, categoryId: input.categoryId,
       amount: input.amount, paymentMethod: input.paymentMethod, cardId: input.cardId,
       purchaseDate: input.purchaseDate, dueDate: input.dueDate,
-      firstMonth: input.firstMonth ?? input.dueDate.slice(0, 7),
+      endMonth: input.endMonth, paid: input.paid, paymentDate: input.paymentDate, amountPaid: input.amountPaid,
+      attachments: input.attachments, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+      ...(input.sourceExpenseId === undefined ? {} : { sourceExpenseId: input.sourceExpenseId }),
     });
     return;
   }

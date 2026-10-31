@@ -52,6 +52,7 @@ export const expenses = pgTable(
     fixedExpenseId: integer('despesa_fixa_id').references(() => fixedExpenses.id, { onDelete: 'restrict' }),
     fixedCompetence: date('fixa_competencia'),
     estimatedAmount: decimal('valor_previsto', { precision: 10, scale: 2 }),
+    deferred: boolean('adiada').notNull().default(false),
     // 'ativa' | 'cancelada' | 'prevista'. Toda leitura financeira filtra por ela: sem o
     // filtro, lancamento cancelado volta a somar nos totais.
     status: varchar('status', { length: 20 }).notNull().default('ativa'),
@@ -84,6 +85,9 @@ export const expenses = pgTable(
       .where(sql`${table.fixedExpenseId} IS NOT NULL`),
     fixedPendingIdx: index('idx_despesas_fixas_pendentes')
       .on(table.accountId, table.userId, table.fixedCompetence)
+      .where(sql`${table.status} = 'prevista'`),
+    fixedPendingDueDateIdx: index('idx_despesas_fixas_pendentes_vencimento')
+      .on(table.accountId, table.userId, table.dueDate)
       .where(sql`${table.status} = 'prevista'`),
     installmentGroupIdx: index('idx_despesas_grupo_parcelamento').on(table.installmentGroupId),
     sourceIncomeIdx: index('idx_despesas_receita_origem')
