@@ -43,7 +43,6 @@ import {
   montarSerie,
   temFiltroDeDespesa,
   periodoAnterior,
-  primeiroDiaDoMes,
   receitasDoPeriodo,
   resumirPeriodo,
   resumirReceitasPainel,
@@ -554,14 +553,12 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const compromissos = janelaComprometido(hoje);
   const forecastWindow = { de: menorData(periodo.de, compromissos.de), ate: periodo.ate > compromissos.ate ? periodo.ate : compromissos.ate };
 
-  // Previstas desde o início do mês do período: a projeção das fixas precisa
-  // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
   const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, jurosAVencerSemFiltro, faturasRenegociadas, forecastRows] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
     calcularSaldoAnterior(entrada),
-    buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, RECEIVABLE_STATUSES),
+    buscarReceitas(entrada, periodo, RECEIVABLE_STATUSES),
     buscarJurosAVencer(entrada),
     buscarFaturasRenegociadas(entrada),
     fetchChartExpenses(entrada, forecastWindow),

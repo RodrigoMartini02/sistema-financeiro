@@ -10,7 +10,7 @@ import { formatCurrency } from '../screens/finance/formatters';
 import type { Expense } from '../types/finance';
 import { isCreditWithCard } from './cardInvoice';
 import { addMonthsClamped, splitAmountInCents } from './expenseSchedule';
-import { installmentScopeRows } from './expenseSeries';
+import { installmentScopeRows, rowCents } from './expenseSeries';
 
 export const MIN_INSTALLMENT_COUNT = 2;
 export const MAX_INSTALLMENT_COUNT = 360;
@@ -23,11 +23,6 @@ type PurchaseRow = Pick<
 
 function toCents(value: number): number {
   return Math.round(value * 100);
-}
-
-/** Valor da parcela como o servidor guarda (valor_original); a linha antiga sem ele vale o valor da linha. */
-function rowCents(row: Pick<Expense, 'valorFinal' | 'valorOriginal'>): number {
-  return toCents(row.valorOriginal ?? row.valorFinal);
 }
 
 const isCancelled = (row: Pick<Expense, 'status'>) => row.status === 'cancelada';

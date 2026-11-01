@@ -115,7 +115,7 @@ router.get('/duplicate', authenticate, async (req: Request, res: Response): Prom
   }
 });
 
-// POST /api/incomes — a receita e, com "Repetir até", as réplicas mensais, numa transação
+// POST /api/incomes — a receita e, na Fixa (billingType 'fixed' + endMonth), a série mensal até o mês final, numa transação
 router.post('/', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
     const input = readCreateIncomeInput(req.body);

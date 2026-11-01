@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { accounts, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes, users } from '../db/schema';
 import { RequestInputError } from '../utils/requestInput';
 import type { CreateIncomeInput, UpdateIncomeInput } from './incomeInput';
@@ -228,18 +228,10 @@ describe('receitas fixas no lançamento (banco local)', { skip: databaseTestsSki
     });
   });
 
-  test('duas séries na mesma categoria: aceitas depois da 0092; antes dela, a criação falha de forma recuperável', async () => {
+  test('duas séries na mesma categoria são aceitas e ficam independentes (exige a 0092)', async () => {
     await withScenario(async scenario => {
       await create(scenario);
-      const constraint = await services.client.db.execute(
-        sql`SELECT 1 FROM pg_constraint WHERE conname = 'uq_classificacoes_receita_fixas_conta_usuario'`);
-      const second = create(scenario, { description: 'Bônus', receiptDate: '2026-11-20', endMonth: '2026-12' });
-      if (constraint.rows.length > 0) {
-        await assert.rejects(second, refusedWith(409));
-        assert.equal((await series(scenario)).length, 4);
-        return;
-      }
-      await second;
+      await create(scenario, { description: 'Bônus', receiptDate: '2026-11-20', endMonth: '2026-12' });
       const sources = await sourcesOf(scenario);
       assert.equal(sources.length, 2);
       const list = await series(scenario);

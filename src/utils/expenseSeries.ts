@@ -67,7 +67,7 @@ function toCents(value: number): number {
 }
 
 /** Valor da parcela como o servidor guarda (valor_original); a linha antiga sem ele vale o valor da linha. */
-function rowCents(row: Pick<Expense, 'valorFinal' | 'valorOriginal'>): number {
+export function rowCents(row: Pick<Expense, 'valorFinal' | 'valorOriginal'>): number {
   return toCents(row.valorOriginal ?? row.valorFinal);
 }
 
