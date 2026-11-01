@@ -18,6 +18,13 @@ export const MIN_INSTALLMENTS = 2;
 export const MAX_INSTALLMENTS = 360;
 
 /**
+ * Como o valor da despesa única vira parcelas: `perInstallment` (o valor é o de cada parcela, a compra passa a valer
+ * N vezes) ou `total` (o valor é o total da compra, dividido entre as parcelas). A despesa paga só aceita `total`.
+ */
+export const INSTALLMENT_AMOUNT_MODES = ['perInstallment', 'total'] as const;
+export type InstallmentAmountMode = (typeof INSTALLMENT_AMOUNT_MODES)[number];
+
+/**
  * Alcance da edição na série: só a linha, ela e as próximas, ou todas. Só o
  * parcelado escolhe; o mensal sempre vale para as próximas em aberto.
  */
@@ -76,6 +83,14 @@ export interface UpdateExpenseInput extends ExpenseFieldsInput, PaymentInput {
    * inteira (`applyTo: 'all'`); na despesa única, ela vira a parcela 1. Nulo (ausente): não muda.
    */
   installmentCount: number | null;
+  /**
+   * Intenção de cobrança da edição: `installments` transforma a despesa única em parcelada (exige `installmentCount`);
+   * `single` diz que ela continua única (sem `installmentCount`). Ausente: o pedido anterior, em que o nº de
+   * parcelas sozinho já significa parcelar a despesa única em aberto. A fixa tem pedido próprio (POST).
+   */
+  billingType?: 'single' | 'installments';
+  /** Só na conversão em parcelada: valor por parcela (padrão) ou total da compra. A paga exige `total`. */
+  installmentAmountMode?: InstallmentAmountMode;
 }
 
 export function readExpenseEndMonth(value: unknown): string {
@@ -227,6 +242,8 @@ export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
   if (cashPrice !== null && applyTo !== 'all') {
     throw new RequestInputError('O valor à vista vale para a compra inteira: escolha "Todas as parcelas"');
   }
+  const installmentCount = readOptionalInstallmentCount(record['installmentCount']);
+  const { billingType, installmentAmountMode } = readInstallmentIntent(record, installmentCount);
   return {
     ...readFields(record),
     amount: readAmount(record['amount'], 'Informe o valor'),
@@ -234,8 +251,38 @@ export function readUpdateExpenseInput(body: unknown): UpdateExpenseInput {
     ...readPayment(record),
     applyTo,
     cashPrice,
-    installmentCount: readOptionalInstallmentCount(record['installmentCount']),
+    installmentCount,
+    ...(billingType === undefined ? {} : { billingType }),
+    ...(installmentAmountMode === undefined ? {} : { installmentAmountMode }),
     ...(record['endMonth'] === undefined || record['endMonth'] === null ? {} : { endMonth: readExpenseEndMonth(record['endMonth']) }),
+  };
+}
+
+/** A intenção da cobrança no PUT: coerente com o nº de parcelas, para o servidor nunca adivinhar o que a tela quis. */
+function readInstallmentIntent(
+  record: Record<string, unknown>,
+  installmentCount: number | null,
+): Pick<UpdateExpenseInput, 'billingType' | 'installmentAmountMode'> {
+  const billingType = record['billingType'];
+  if (billingType !== undefined && billingType !== 'single' && billingType !== 'installments') {
+    throw new RequestInputError('Tipo de cobrança inválido');
+  }
+  const amountMode = record['installmentAmountMode'];
+  if (amountMode !== undefined && !(INSTALLMENT_AMOUNT_MODES as readonly unknown[]).includes(amountMode)) {
+    throw new RequestInputError('Escolha se o valor é total ou por parcela');
+  }
+  if (billingType === 'installments' && installmentCount === null) {
+    throw new RequestInputError('Informe a quantidade para parcelar a despesa');
+  }
+  if (billingType === 'single' && installmentCount !== null) {
+    throw new RequestInputError('A despesa que não repete não pode ter parcelas');
+  }
+  if (amountMode !== undefined && installmentCount === null) {
+    throw new RequestInputError('Informe a quantidade para parcelar a despesa');
+  }
+  return {
+    ...(billingType === undefined ? {} : { billingType }),
+    ...(amountMode === undefined ? {} : { installmentAmountMode: amountMode as InstallmentAmountMode }),
   };
 }
 

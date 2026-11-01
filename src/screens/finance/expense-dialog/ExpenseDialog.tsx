@@ -19,12 +19,13 @@ import {
 import { embeddedInstallmentInterest } from '../../../utils/expenseValue';
 import {
   MIN_INSTALLMENT_COUNT, canBecomeInstallments, installmentCountNotes, minimumInstallmentCount, previewInstallmentCount,
-  previewSingleInstallments, purchaseInstallmentCount, reductionBlock, singleInstallmentsNotes,
+  previewSingleInstallments, purchaseInstallmentCount, reductionBlock, singleInstallmentsNotes, singleSplitBlock,
+  type SingleInstallmentsMode,
 } from '../../../utils/installmentCount';
 import {
   createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
-import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
+import { brDateInputToIso, getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { canManageCatalog } from '../../../utils/screenAccess';
 import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
@@ -43,7 +44,8 @@ import {
 } from './draftState';
 import { ExpenseRow, amountLabel, type RowResources } from './ExpenseRow';
 import {
-  editBillingNote, editBillingOptions, editBillingText, editBillingValue, fixedEndMinimum, pickEditBilling, seriesCountHint, type BillingMenu,
+  editBillingNote, editBillingOptions, editBillingText, editBillingValue, fixedEndMinimum, pickEditBilling, seriesCountHint, singleCountHint,
+  type BillingMenu,
 } from './billingMenu';
 import { BATCH_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
@@ -271,6 +273,13 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
       dispatch({ type: 'showErrors', errors: { [state.entry.key]: errors }, message: errorMessage(errors) });
       return;
     }
+    // Parcelar a despesa única: o servidor recusa o pagamento mudado na mesma edição e o valor sem R$ 0,01 por parcela.
+    const splitMessage = splitBlock
+      ?? (canSplitSingle && nextInstallmentCount !== null && !splitPreview ? 'O valor da despesa precisa dar pelo menos R$ 0,01 por parcela.' : null);
+    if (splitMessage) {
+      dispatch({ type: 'showErrors', errors: {}, message: splitMessage });
+      return;
+    }
     // Reduzir o nº de parcelas apaga parcelas abertas: só com a confirmação da pessoa.
     if (countPreview?.kind === 'delete'
       && !(await confirm({
@@ -295,7 +304,14 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
           ...(isInstallmentSeries && installmentScope === 'all' && seriesCashPriceCents !== null
             ? { cashPrice: toReais(seriesCashPriceCents) }
             : {}),
-          ...(installmentCountToSend !== null ? { installmentCount: installmentCountToSend } : {}),
+          // A intenção vai explícita com a quantidade; o modo do valor é só da despesa única que vira parcelada.
+          ...(installmentCountToSend !== null
+            ? {
+                installmentCount: installmentCountToSend,
+                billingType: 'installments' as const,
+                ...(isInstallmentSeries ? {} : { installmentAmountMode: splitMode }),
+              }
+            : {}),
         });
       }
       invalidateExpenseQueries(qc);
@@ -459,7 +475,8 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const creditCard = state.entry.paymentMethod === 'credito' && state.entry.cardId !== null
     ? cards.find((card) => card.id === state.entry.cardId) ?? null
     : null;
-  // Nº de parcelas: a parcelada ("Todas") muda o total da compra; a despesa única em aberto pode virar parcelada.
+  const countCard = creditCard ? { name: creditCard.nome } : null;
+  // Nº de parcelas: a parcelada ("Todas") muda o total da compra; a despesa única pode virar parcelada.
   const countEditable = expense !== null && series !== undefined && isInstallmentSeries && installmentScope === 'all' && lock !== 'generated';
   const countToday = expense && series && isInstallmentSeries ? purchaseInstallmentCount(series, expense) : null;
   const countMinimum = expense && series && isInstallmentSeries ? minimumInstallmentCount(series, expense) : 2;
@@ -469,11 +486,21 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     ? previewInstallmentCount(series, expense, nextInstallmentCount, entryAmount)
     : null;
   const canSplitSingle = offerSplit && entry.billingType !== 'fixed';
+  // A despesa paga já é uma compra feita: o valor é o total e o pagamento se divide entre as parcelas. A em aberto
+  // repete o valor em cada parcela.
+  const splitMode: SingleInstallmentsMode = expense?.pago ? 'total' : 'perInstallment';
+  const splitBlock = canSplitSingle && nextInstallmentCount !== null && expense ? singleSplitBlock(expense, entry) : null;
   const splitPreview = canSplitSingle && nextInstallmentCount !== null && entryAmount !== null
-    ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount)
+    ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount, splitMode)
     : null;
+  const splitPayment = splitMode === 'total' && entry.paid
+    ? {
+        paidCents: entry.amountPaidCents ?? entry.amountCents ?? 0,
+        paymentDate: brDateInputToIso(entry.paymentDate, todayIso) || effectiveDueDate(entry, context).date,
+      }
+    : null;
+  const splitNotes = splitBlock ? [splitBlock] : splitPreview ? singleInstallmentsNotes(splitPreview, countCard, splitPayment) : [];
   const installmentCountToSend = isInstallmentSeries ? (countPreview ? nextInstallmentCount : null) : (splitPreview ? nextInstallmentCount : null);
-  const countCard = creditCard ? { name: creditCard.nome } : null;
 
   const valueNotes = expense && series && isInstallmentSeries && installmentScope !== 'this' && entryAmount !== null
     ? seriesValueNotesFor(seriesValueImpact(series, expense, installmentScope, entryAmount), countPreview ? null : creditCard)
@@ -518,6 +545,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
       value: nextInstallmentCount ?? MIN_INSTALLMENT_COUNT,
       min: MIN_INSTALLMENT_COUNT,
       disabled: state.saving !== null,
+      hint: singleCountHint(expense.pago),
       onChange: (count) => setNextInstallmentCount(count),
     },
     fixedEnd: {
@@ -588,8 +616,8 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
         {...rowHandlers(entry.key)}
       />
 
-      {splitPreview && singleInstallmentsNotes(splitPreview, entryAmount ?? 0, countCard).map((note) => (
-        <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+      {splitNotes.map((note) => (
+        <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: splitBlock ? C.danger : C.textSoft }}>{note}</p>
       ))}
 
       {isInstallmentSeries && (

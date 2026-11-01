@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
-  installmentCountRefusal, planInstallmentCountChange, planSingleToInstallments, type CountChangeSubject, type CountRow,
+  installmentCountRefusal, planInstallmentCountChange, planSingleConversion, type CountChangeSubject, type CountRow,
 } from './installmentCount';
 
 function row(number: number, overrides: Partial<CountRow> = {}): CountRow {
@@ -101,7 +101,8 @@ describe('planInstallmentCountChange: reduzir', () => {
 
 describe('installmentCountRefusal', () => {
   const series: CountChangeSubject = {
-    isInstallment: true, recurring: false, groupId: 7, invoiceEditLock: null, paid: false, hasSourceIncome: false, currentCount: 3,
+    isInstallment: true, recurring: false, groupId: 7, invoiceEditLock: null, paid: false, creditWithCard: false,
+    hasSourceIncome: false, currentCount: 3,
   };
   const single: CountChangeSubject = { ...series, isInstallment: false, groupId: null, currentCount: null };
   const request = { installmentCount: 5, applyTo: 'all' as const, paid: false };
@@ -126,31 +127,133 @@ describe('installmentCountRefusal', () => {
     assert.match(installmentCountRefusal({ ...series, recurring: true }, request)!, /recorrente não tem nº de parcelas/);
   });
 
-  test('a despesa única passa quando está aberta, sem grupo e sem fatura', () => {
-    assert.equal(installmentCountRefusal(single, { ...request, applyTo: 'this' }), null);
+  test('a compra parcelada recusa o valor total: ele é só da despesa única que vira parcelada', () => {
+    assert.match(installmentCountRefusal(series, { ...request, amountMode: 'total' })!, /só vale para a despesa única/);
+    assert.equal(installmentCountRefusal(series, { ...request, amountMode: 'perInstallment' }), null);
   });
 
-  test('a única recusa se está paga (gravada ou no pedido), ligada à fatura, em grupo ou vinda de receita', () => {
-    assert.match(installmentCountRefusal({ ...single, paid: true }, request)!, /paga não vira parcelada/);
-    assert.match(installmentCountRefusal(single, { ...request, paid: true })!, /paga não vira parcelada/);
+  test('a despesa única em aberto passa, com o valor por parcela (o pedido antigo, sem modo) ou com o total', () => {
+    assert.equal(installmentCountRefusal(single, { ...request, applyTo: 'this' }), null);
+    assert.equal(installmentCountRefusal(single, { ...request, amountMode: 'perInstallment' }), null);
+    assert.equal(installmentCountRefusal(single, { ...request, amountMode: 'total' }), null);
+  });
+
+  test('a despesa única paga só vira parcelada pelo valor total, e com o pagamento como estava', () => {
+    const paid = { ...single, paid: true };
+    assert.equal(installmentCountRefusal(paid, { ...request, paid: true, amountMode: 'total' }), null);
+    for (const amountMode of [undefined, 'perInstallment' as const]) {
+      assert.match(installmentCountRefusal(paid, { ...request, paid: true, amountMode })!, /dividindo o valor total/);
+    }
+  });
+
+  test('a conversão não muda o pagamento junto: marcar ou desmarcar "paga" exige salvar antes', () => {
+    assert.match(installmentCountRefusal({ ...single, paid: true }, { ...request, paid: false, amountMode: 'total' })!, /Salve a mudança do pagamento/);
+    assert.match(installmentCountRefusal(single, { ...request, paid: true, amountMode: 'total' })!, /Salve a mudança do pagamento/);
+  });
+
+  test('a única recusa se está ligada à fatura, em grupo, vinda de receita ou paga no crédito com cartão', () => {
     assert.match(installmentCountRefusal({ ...single, invoiceEditLock: 'invoice-item' }, request)!, /ligada à fatura do cartão/);
     assert.match(installmentCountRefusal({ ...single, groupId: 3 }, request)!, /faz parte de um grupo/);
     assert.match(installmentCountRefusal({ ...single, hasSourceIncome: true }, request)!, /comissão/);
+    assert.match(
+      installmentCountRefusal({ ...single, paid: true, creditWithCard: true }, { ...request, paid: true, amountMode: 'total' })!,
+      /paga no crédito com cartão é paga pela fatura/,
+    );
+    // Em aberto no crédito com cartão pode: as parcelas seguem no mesmo cartão.
+    assert.equal(installmentCountRefusal({ ...single, creditWithCard: true }, request), null);
   });
 });
 
-describe('planSingleToInstallments', () => {
-  test('a despesa vira a parcela 1 e as parcelas 2 a N vencem mês a mês a partir do vencimento dela', () => {
-    assert.deepEqual(planSingleToInstallments('2026-01-31', 3), {
-      plan: {
-        nextCount: 3,
-        deleteIds: [],
-        create: [{ number: 2, dueDate: '2026-02-28' }, { number: 3, dueDate: '2026-03-31' }],
-      },
-    });
+describe('planSingleConversion', () => {
+  type ConversionInput = Parameters<typeof planSingleConversion>[0];
+  const base: ConversionInput = { dueDate: '2026-01-31', count: 3, mode: 'total', amountCents: 10000, paidCents: null, interestCents: 0 };
+  const plan = (patch: Partial<ConversionInput> = {}) => {
+    const result = planSingleConversion({ ...base, ...patch });
+    assert.ok('plan' in result, 'refusal' in result ? result.refusal : '');
+    return result.plan;
+  };
+  const sum = (values: Array<number | null>) => values.reduce<number>((total, value) => total + (value ?? 0), 0);
+
+  test('em aberto, por parcela: a despesa vira a parcela 1 e as demais vencem mês a mês, cada uma com o valor informado', () => {
+    const { nextCount, installments } = plan({ mode: 'perInstallment', amountCents: 21835 });
+    assert.equal(nextCount, 3);
+    assert.deepEqual(installments, [
+      { number: 1, dueDate: '2026-01-31', amountCents: 21835, paidCents: null, interestCents: 0 },
+      { number: 2, dueDate: '2026-02-28', amountCents: 21835, paidCents: null, interestCents: 0 },
+      { number: 3, dueDate: '2026-03-31', amountCents: 21835, paidCents: null, interestCents: 0 },
+    ]);
   });
 
-  test('fora de 2 a 360 recusa', () => {
-    assert.deepEqual(planSingleToInstallments('2026-01-10', 1), { refusal: 'Informe de 2 a 360 parcelas' });
+  test('por parcela, o juros que a despesa já guarda fica na parcela 1', () => {
+    const { installments } = plan({ mode: 'perInstallment', interestCents: 250 });
+    assert.deepEqual(installments.map((item) => item.interestCents), [250, 0, 0]);
+  });
+
+  test('por parcela, a despesa paga não entra: multiplicaria o que foi pago', () => {
+    assert.deepEqual(
+      planSingleConversion({ ...base, mode: 'perInstallment', paidCents: 10000 }),
+      { refusal: 'A despesa paga vira parcelada dividindo o valor total: informe o total da compra' },
+    );
+  });
+
+  test('total em aberto: R$ 100,00 em 3 soma exatamente R$ 100,00, com a diferença de centavos na última', () => {
+    const { installments } = plan();
+    assert.deepEqual(installments.map((item) => item.amountCents), [3333, 3333, 3334]);
+    assert.deepEqual(installments.map((item) => item.paidCents), [null, null, null]);
+    assert.deepEqual(installments.map((item) => item.dueDate), ['2026-01-31', '2026-02-28', '2026-03-31']);
+  });
+
+  test('total pago: o pagamento se divide na mesma proporção e todas as parcelas ficam quitadas', () => {
+    const { installments } = plan({ paidCents: 10000 });
+    assert.deepEqual(installments.map((item) => item.amountCents), [3333, 3333, 3334]);
+    assert.deepEqual(installments.map((item) => item.paidCents), [3333, 3333, 3334]);
+  });
+
+  test('total pago com juros e multa: o valor pago a mais anda junto e a soma continua exata', () => {
+    const { installments } = plan({ paidCents: 10500 });
+    assert.deepEqual(installments.map((item) => item.paidCents), [3499, 3499, 3502]);
+    assert.equal(sum(installments.map((item) => item.paidCents)), 10500);
+    assert.equal(sum(installments.map((item) => item.amountCents)), 10000);
+    assert.equal(sum(installments.map((item) => item.paidCents! - item.amountCents)), 500);
+  });
+
+  test('total pago com desconto: o valor pago a menos também se divide sem perder centavos', () => {
+    const { installments } = plan({ paidCents: 9500 });
+    assert.deepEqual(installments.map((item) => item.paidCents), [3166, 3166, 3168]);
+    assert.equal(sum(installments.map((item) => item.paidCents! - item.amountCents)), -500);
+  });
+
+  test('o juros que a despesa já guarda se divide entre as parcelas, sem passar do valor de cada uma', () => {
+    const { installments } = plan({ interestCents: 300 });
+    assert.deepEqual(installments.map((item) => item.interestCents), [100, 100, 100]);
+    const tiny = plan({ count: 2, amountCents: 3, interestCents: 3 });
+    assert.deepEqual(tiny.installments.map((item) => [item.amountCents, item.interestCents]), [[1, 1], [2, 2]]);
+  });
+
+  test('as somas nunca mudam, para qualquer total, pagamento e nº de parcelas', () => {
+    for (const amountCents of [1, 7, 100, 9999, 10001, 123456]) {
+      for (const count of [2, 3, 7, 12, 360]) {
+        if (amountCents < count) continue;
+        for (const paidCents of [null, 0, amountCents, Math.round(amountCents * 1.05), Math.round(amountCents * 0.9)]) {
+          const { installments } = plan({ amountCents, count, paidCents });
+          assert.equal(installments.length, count);
+          assert.equal(sum(installments.map((item) => item.amountCents)), amountCents);
+          assert.ok(installments.every((item) => item.amountCents >= 1));
+          if (paidCents !== null) assert.equal(sum(installments.map((item) => item.paidCents)), paidCents);
+          assert.deepEqual(installments.map((item) => item.number), Array.from({ length: count }, (_, index) => index + 1));
+        }
+      }
+    }
+  });
+
+  test('a conversão é determinística: o mesmo pedido dá o mesmo plano', () => {
+    assert.deepEqual(plan({ paidCents: 10500, interestCents: 120 }), plan({ paidCents: 10500, interestCents: 120 }));
+  });
+
+  test('recusa nº de parcelas fora de 2 a 360, total sem 1 centavo por parcela e valor inválido', () => {
+    assert.deepEqual(planSingleConversion({ ...base, count: 1 }), { refusal: 'Informe de 2 a 360 parcelas' });
+    assert.deepEqual(planSingleConversion({ ...base, count: 361 }), { refusal: 'Informe de 2 a 360 parcelas' });
+    assert.deepEqual(planSingleConversion({ ...base, amountCents: 2 }), { refusal: 'O total precisa permitir pelo menos R$ 0,01 por parcela' });
+    assert.deepEqual(planSingleConversion({ ...base, amountCents: 0 }), { refusal: 'Informe o valor da despesa' });
   });
 });

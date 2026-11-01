@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   billingLabel, draftBillingMenu, draftBillingOptions, editBillingNote, editBillingOptions, editBillingText, editBillingValue,
-  fixedEndMinimum, pickEditBilling, seriesCountHint, type DraftBillingHandlers,
+  fixedEndMinimum, pickEditBilling, seriesCountHint, singleCountHint, type DraftBillingHandlers,
 } from './billingMenu';
 import type { RuleContext } from './draftRules';
 import { createDraft, type ExpenseDraft } from './draftState';
@@ -105,6 +105,11 @@ test('edição da despesa única: escolher uma opção ajusta a cobrança do ras
   assert.deepEqual(pickEditBilling('installments', 5), { billingType: 'single', installmentCount: 5 });
   assert.deepEqual(pickEditBilling('fixed', 5), { billingType: 'fixed', installmentCount: null });
   assert.deepEqual(pickEditBilling('single', 5), { billingType: 'single', installmentCount: null });
+});
+
+test('parcelar a despesa única: só a paga explica que o valor é o total e o pagamento se divide', () => {
+  assert.equal(singleCountHint(false), undefined);
+  assert.equal(singleCountHint(true), 'Despesa paga: o valor é o total da compra e o pagamento se divide entre as parcelas.');
 });
 
 test('edição da parcelada: o texto abaixo do Parcelado diz por que não muda, ou o mínimo', () => {

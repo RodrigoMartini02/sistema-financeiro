@@ -154,6 +154,11 @@ export function pickEditBilling(
   return { billingType: 'single', installmentCount: null };
 }
 
+/** O texto abaixo da quantidade ao parcelar a despesa única: a paga divide o valor e o pagamento entre as parcelas. */
+export function singleCountHint(paid: boolean): string | undefined {
+  return paid ? 'Despesa paga: o valor é o total da compra e o pagamento se divide entre as parcelas.' : undefined;
+}
+
 /** O texto abaixo da linha do "Parcelado" na edição da parcelada: por que a quantidade não muda, ou o mínimo. */
 export function seriesCountHint(input: {
   /** As parcelas da compra já chegaram do servidor. */

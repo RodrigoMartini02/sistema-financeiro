@@ -355,10 +355,20 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
    */
   cashPrice?: number | null;
   /**
-   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única
-   * em aberto, ela vira a parcela 1. Ausente não muda.
+   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única,
+   * ela vira a parcela 1. Ausente não muda.
    */
   installmentCount?: number | null;
+  /**
+   * Intenção da cobrança, junto de `installmentCount`: o servidor recusa "parcelado" sem quantidade e quantidade
+   * sem "parcelado". Ausente mantém o pedido antigo (só a quantidade).
+   */
+  billingType?: Extract<ExpenseBillingType, 'single' | 'installments'>;
+  /**
+   * Só na despesa única que vira parcelada: `total` divide o valor da despesa entre as parcelas (a compra e o
+   * pagamento continuam os mesmos, e é o único modo da paga); `perInstallment` (padrão) repete o valor em cada parcela.
+   */
+  installmentAmountMode?: 'total' | 'perInstallment';
 }
 
 /** Configuração mensal; valores em reais e datas em ISO. */

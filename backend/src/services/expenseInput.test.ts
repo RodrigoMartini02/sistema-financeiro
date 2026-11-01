@@ -29,6 +29,12 @@ function singleBody(overrides: Record<string, unknown> = {}): Record<string, unk
   };
 }
 
+/** Corpo do PUT: o da criação, sem a conta e sem a cobrança (a edição só diz a cobrança quando vai parcelar). */
+function updateBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const { accountId: _account, billingType: _billingType, ...fields } = singleBody();
+  return { ...fields, ...overrides };
+}
+
 function installment(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { amount: 33.33, dueDate: '2026-10-10', paid: false, paymentDate: null, amountPaid: null, ...overrides };
 }
@@ -119,7 +125,7 @@ test('a categoria é obrigatória na criação e na edição', () => {
   assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: null })), 'Escolha a categoria');
   assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: undefined })), 'Escolha a categoria');
   assertRejects(() => readCreateExpenseInput(singleBody({ categoryId: 0 })), 'Escolha a categoria');
-  assertRejects(() => readUpdateExpenseInput(singleBody({ categoryId: null })), 'Escolha a categoria');
+  assertRejects(() => readUpdateExpenseInput(updateBody({ categoryId: null })), 'Escolha a categoria');
 });
 
 test('recusa valor acima do limite da coluna', () => {
@@ -162,42 +168,74 @@ test('recusa número da nota fiscal longo demais', () => {
 });
 
 test('edição lê só os campos editáveis', () => {
-  const input = readUpdateExpenseInput(singleBody({ paid: true, paymentDate: '2026-10-06', amountPaid: 190 }));
+  const input = readUpdateExpenseInput(updateBody({ paid: true, paymentDate: '2026-10-06', amountPaid: 190 }));
   assert.equal(input.amount, 187.4);
   assert.equal(input.paid, true);
   assert.equal(input.amountPaid, 190);
+  assert.equal('accountId' in input, false);
   assert.equal('billingType' in input, false);
 });
 
 test('edição: alcance na série ausente vale só esta; aceita as três opções e recusa outra', () => {
-  assert.equal(readUpdateExpenseInput(singleBody()).applyTo, 'this');
+  assert.equal(readUpdateExpenseInput(updateBody()).applyTo, 'this');
   for (const scope of ['this', 'following', 'all']) {
-    assert.equal(readUpdateExpenseInput(singleBody({ applyTo: scope })).applyTo, scope);
+    assert.equal(readUpdateExpenseInput(updateBody({ applyTo: scope })).applyTo, scope);
   }
-  assertRejects(() => readUpdateExpenseInput(singleBody({ applyTo: 'todas' })), 'Alcance da edição inválido');
+  assertRejects(() => readUpdateExpenseInput(updateBody({ applyTo: 'todas' })), 'Alcance da edição inválido');
 });
 
 test('edição: valor à vista ausente não mexe no juros; informado só vale com "Todas" e precisa ser válido', () => {
-  assert.equal(readUpdateExpenseInput(singleBody()).cashPrice, null);
-  assert.equal(readUpdateExpenseInput(singleBody({ cashPrice: null, applyTo: 'this' })).cashPrice, null);
-  assert.equal(readUpdateExpenseInput(singleBody({ cashPrice: 90, applyTo: 'all' })).cashPrice, 90);
+  assert.equal(readUpdateExpenseInput(updateBody()).cashPrice, null);
+  assert.equal(readUpdateExpenseInput(updateBody({ cashPrice: null, applyTo: 'this' })).cashPrice, null);
+  assert.equal(readUpdateExpenseInput(updateBody({ cashPrice: 90, applyTo: 'all' })).cashPrice, 90);
   for (const scope of ['this', 'following', undefined]) {
     assertRejects(
-      () => readUpdateExpenseInput(singleBody({ cashPrice: 90, applyTo: scope })),
+      () => readUpdateExpenseInput(updateBody({ cashPrice: 90, applyTo: scope })),
       'O valor à vista vale para a compra inteira: escolha "Todas as parcelas"',
     );
   }
-  assertRejects(() => readUpdateExpenseInput(singleBody({ cashPrice: -1, applyTo: 'all' })), 'Valor à vista inválido');
-  assertRejects(() => readUpdateExpenseInput(singleBody({ cashPrice: 'noventa', applyTo: 'all' })), 'Valor à vista inválido');
+  assertRejects(() => readUpdateExpenseInput(updateBody({ cashPrice: -1, applyTo: 'all' })), 'Valor à vista inválido');
+  assertRejects(() => readUpdateExpenseInput(updateBody({ cashPrice: 'noventa', applyTo: 'all' })), 'Valor à vista inválido');
 });
 
 test('edição: nº de parcelas ausente não muda; informado é inteiro de 2 a 360', () => {
-  assert.equal(readUpdateExpenseInput(singleBody()).installmentCount, null);
-  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: null })).installmentCount, null);
-  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: 2 })).installmentCount, 2);
-  assert.equal(readUpdateExpenseInput(singleBody({ installmentCount: 360, applyTo: 'all' })).installmentCount, 360);
+  assert.equal(readUpdateExpenseInput(updateBody()).installmentCount, null);
+  assert.equal(readUpdateExpenseInput(updateBody({ installmentCount: null })).installmentCount, null);
+  assert.equal(readUpdateExpenseInput(updateBody({ installmentCount: 2 })).installmentCount, 2);
+  assert.equal(readUpdateExpenseInput(updateBody({ installmentCount: 360, applyTo: 'all' })).installmentCount, 360);
   for (const invalid of [1, 0, -3, 361, 2.5, '5', Number.NaN]) {
-    assertRejects(() => readUpdateExpenseInput(singleBody({ installmentCount: invalid })), 'Informe de 2 a 360 parcelas');
+    assertRejects(() => readUpdateExpenseInput(updateBody({ installmentCount: invalid })), 'Informe de 2 a 360 parcelas');
+  }
+});
+
+test('edição: a intenção de parcelar vem com a quantidade, e o modo do valor só vale com ela', () => {
+  const converting = readUpdateExpenseInput(updateBody({ billingType: 'installments', installmentCount: 3, installmentAmountMode: 'total' }));
+  assert.deepEqual([converting.billingType, converting.installmentCount, converting.installmentAmountMode], ['installments', 3, 'total']);
+  const perInstallment = readUpdateExpenseInput(updateBody({ billingType: 'installments', installmentCount: 3, installmentAmountMode: 'perInstallment' }));
+  assert.equal(perInstallment.installmentAmountMode, 'perInstallment');
+  // O pedido anterior (só o nº de parcelas) continua valendo, sem intenção nem modo gravados.
+  const legacy = readUpdateExpenseInput(updateBody({ installmentCount: 3 }));
+  assert.equal('billingType' in legacy, false);
+  assert.equal('installmentAmountMode' in legacy, false);
+  // Quem diz que não repete confirma, sem parcelas.
+  assert.equal(readUpdateExpenseInput(updateBody({ billingType: 'single' })).billingType, 'single');
+});
+
+test('edição: recusa intenção sem quantidade, modo sem parcelas e valores desconhecidos', () => {
+  assertRejects(() => readUpdateExpenseInput(updateBody({ billingType: 'installments' })), 'Informe a quantidade para parcelar a despesa');
+  assertRejects(() => readUpdateExpenseInput(updateBody({ installmentAmountMode: 'total' })), 'Informe a quantidade para parcelar a despesa');
+  assertRejects(
+    () => readUpdateExpenseInput(updateBody({ billingType: 'single', installmentCount: 3 })),
+    'A despesa que não repete não pode ter parcelas',
+  );
+  for (const billingType of ['fixed', 'monthly', 'parcelado', 3]) {
+    assertRejects(() => readUpdateExpenseInput(updateBody({ billingType, installmentCount: 3 })), 'Tipo de cobrança inválido');
+  }
+  for (const mode of ['por parcela', 'TOTAL', 1, true]) {
+    assertRejects(
+      () => readUpdateExpenseInput(updateBody({ billingType: 'installments', installmentCount: 3, installmentAmountMode: mode })),
+      'Escolha se o valor é total ou por parcela',
+    );
   }
 });
 

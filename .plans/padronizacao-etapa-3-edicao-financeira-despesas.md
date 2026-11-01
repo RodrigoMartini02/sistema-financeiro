@@ -105,3 +105,29 @@ Permitir corrigir **Cobrança**, **Pago em** e **Valor pago** em despesas já ca
 
 - Pré-requisito: etapas 1 e 2 fechadas. Ler `AGENT.md` e `CLAUDE.md`; reconferir `git status`.
 - Ordem: servidor e testes → contrato → interface. Sem migrations, banco ou `.env` sem autorização; sem stage, commit, push ou deploy durante `/implementar`.
+
+## Execução (01/11/2026, branch `feat/R/edicao-financeira-despesas`, a partir de `cd2cc491`)
+
+Implementada e validada localmente; commitada pelo `/finalizar` na própria branch, **sem merge em main** (os testes de banco seguem pendentes). O patch do Codex serviu só de referência: o servidor foi feito do zero (ele nunca chamava a divisão) e a interface seguiu o menu da etapa 2, sem mudar `draft.billingType` na edição.
+
+**Servidor**
+- `installmentCount.ts`: `planSingleConversion` (puro) devolve as parcelas da despesa única que vira parcelada. Modo `perInstallment` (o que já existia: o valor se repete, o juros fica na parcela 1; recusa a paga) e modo `total`: `splitCents` no valor, divisão proporcional em centavos do valor pago (BigInt, resto na última) e `splitInterestWithinInstallments` no juros; vencimentos mês a mês a partir do original (fim de mês preservado); recusa total que não dê R$ 0,01 por parcela e quantidade fora de 2 a 360. `installmentCountRefusal` passou a receber o pagamento **antes** da edição (`paid`) e `creditWithCard`: recusa o modo `total` na série, a paga fora do modo `total`, a paga no crédito com cartão (paga pela fatura) e a mudança de pagamento na mesma edição ("Salve a mudança do pagamento antes de parcelar a despesa"). Saiu `planSingleToInstallments`.
+- `expenseInput.ts`: contrato do PUT com `billingType` (`single` | `installments`) e `installmentAmountMode` (`total` | `perInstallment`), validados em conjunto com `installmentCount` (`readInstallmentIntent`): parcelado sem quantidade, quantidade sem parcelado, modo sem quantidade e valores inválidos são recusados. O pedido antigo (só `installmentCount`) continua valendo.
+- `expenseService.ts`: `convertSingleToInstallments` roda **na mesma transação** da edição: a parcela 1 mantém o ID (`installmentGroupId = id`) e recebe a divisão (valor, valor pago, juros); as parcelas 2 a N entram já pagas, com a **mesma data de pagamento**, status ativo, sem anexos nem nota fiscal. `singleStillSame` relê a linha com `FOR UPDATE` depois do advisory lock da compra e devolve 409 ("A despesa mudou. Atualize a tela antes de parcelá-la.") se uma edição concorrente já parcelou, pagou ou ligou a despesa à fatura.
+
+**Interface**
+- `types/finance.ts`: `ExpenseUpdateInput.billingType` e `installmentAmountMode`.
+- `utils/installmentCount.ts`: `canBecomeInstallments` deixa de exigir "em aberto" e exclui só a paga no crédito com cartão; `previewSingleInstallments(..., mode)` com as parcelas em centavos; `singleInstallmentsNotes` com o aviso da divisão e do pagamento ("todas pagas em dd/mm/aaaa: o caixa não passa para os meses seguintes"); `singleSplitBlock` espelha a recusa do pagamento mudado.
+- `billingMenu.ts`: `singleCountHint` (a paga explica que o valor é o total e o pagamento se divide).
+- `ExpenseDialog.tsx`: a paga usa o modo `total`, a em aberto segue `perInstallment` (texto e total de antes); envia `{ installmentCount, billingType: 'installments', installmentAmountMode }` (na série, só `installmentCount` e `billingType`); trava o salvamento com a mensagem quando o pagamento mudou na mesma edição ou quando o total não dá R$ 0,01 por parcela.
+- Pago em / Valor pago: já eram editáveis na linha comum (o valor pago gravado volta no campo, então corrigir o valor não reescreve o pago; a data sozinha não paga) e o crédito com cartão segue travado pela fatura. Sem mudança nesta etapa.
+
+**Validação**
+- `npx tsc --noEmit -p tsconfig.json`, `npm --prefix backend run build` e `npm run build` sem erro; `npm test` 499 passam, 0 falham (eram 491); `npm --prefix backend test` 1017 passam, 0 falham, 1 ignorado (eram 1003); `git diff --check` limpo; nenhum arquivo de configuração, `.env` ou migration alterado.
+- Conferência visual (modo demonstração, pelo DOM, porque a captura de tela travou): a despesa paga oferece "Não repete / Parcelado / Fixa"; em 2x mostra a dica, a divisão ("R$ 74,20 em 2 parcelas de R$ 37,10") e o pagamento preservado; em 3x, "R$ 24,73 cada, a última de R$ 24,74"; desmarcar "paga" na mesma edição mostra a mensagem em vermelho e o Salvar fica bloqueado (modal aberto, mensagem no rodapé); a despesa em aberto mantém o texto de antes ("R$ 218,35 cada... total R$ 436,70") e sem a dica da paga.
+
+**Não executado / limitações**
+- **Testes de banco não rodaram.** O cenário novo está escrito em `expenseInstallmentCount.db.test.ts` (R$ 100,00 em 3 parcelas, paga com R$ 105,00: `33,33 / 33,33 / 33,34` e pago `34,99 / 34,99 / 35,02`, ID e data de pagamento preservados, vencimentos `31/10, 30/11, 31/12`, soma e caixa por mês, recusas, 409 de tela velha, crédito pago, recorrente). O banco local está 5 migrations atrás (0088 a 0092) e o runner exige a ordem; rodar exige criar um banco local descartável e aplicar as migrations nele, com autorização.
+- A demonstração (`demo.html`) não cria grupo de parcelas: ela mostra o menu e os avisos, mas não executa a conversão ao salvar.
+- Produção: nada tocado; a leitura do `migrations:status` de produção continua pendente com o usuário.
+- Decisão a confirmar depois: a despesa em aberto continua no modo "valor por parcela" (multiplica); só a paga divide o total. Padronizar a em aberto no modo "total" mudaria um comportamento que já existe e não estava neste plano.
