@@ -10,7 +10,7 @@
 //   a valer N vezes); paga, o valor informado é o total, e ele e o pagamento são divididos entre as parcelas, todas
 //   pagas na data do pagamento original: o caixa do mês não muda.
 import { addMonthsClamped } from '../utils/date';
-import type { InvoiceEditLock } from './cardInvoiceRules';
+import { invoiceEditLockOf, type InvoiceEditLock, type InvoiceLinkFields } from './cardInvoiceRules';
 import { MAX_INSTALLMENTS, MIN_INSTALLMENTS, type ExpenseUpdateScope, type InstallmentAmountMode } from './expenseInput';
 import { splitCents, splitInterestWithinInstallments } from './installmentSplit';
 
@@ -135,6 +135,37 @@ export function installmentCountRefusal(
     if (request.amountMode !== 'total') return 'A despesa paga vira parcelada dividindo o valor total: informe o total da compra';
   }
   return null;
+}
+
+/** A despesa única relida sob a trava da compra, com as colunas como o banco as guarda (as booleanas aceitam nulo). */
+export interface SingleExpenseRow extends InvoiceLinkFields {
+  installment: boolean | null;
+  installmentGroupId: number | null;
+  recurring: boolean | null;
+  status: string;
+  paid: boolean | null;
+}
+
+/** A despesa única como a rota a leu antes de a edição começar. */
+export interface SavedSingleExpense {
+  installmentGroupId: number | null;
+  recurring: boolean;
+  status: string;
+  paid: boolean;
+  invoiceEditLock: InvoiceEditLock | null;
+}
+
+/**
+ * A despesa continua sendo a que a rota leu: ainda única, no mesmo grupo, com a mesma situação, o mesmo pagamento e a
+ * mesma ligação com a fatura. Nulo numa coluna booleana vale falso dos dois lados (linha antiga sem o valor).
+ */
+export function singleExpenseUnchanged(fresh: SingleExpenseRow, saved: SavedSingleExpense): boolean {
+  return fresh.installment !== true
+    && fresh.installmentGroupId === saved.installmentGroupId
+    && (fresh.recurring === true) === saved.recurring
+    && fresh.status === saved.status
+    && (fresh.paid === true) === saved.paid
+    && invoiceEditLockOf(fresh) === saved.invoiceEditLock;
 }
 
 /** O que cada parcela guarda quando a despesa única vira parcelada; a parcela 1 é a própria despesa (mantém o ID). */

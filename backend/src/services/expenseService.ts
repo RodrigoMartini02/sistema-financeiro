@@ -27,7 +27,9 @@ import {
   type UpdateExpenseInput,
 } from './expenseInput';
 import { resolveEditedPayment, resolvePayment } from './expensePayment';
-import { installmentCountRefusal, planInstallmentCountChange, planSingleConversion, type CountChangeSubject } from './installmentCount';
+import {
+  installmentCountRefusal, planInstallmentCountChange, planSingleConversion, singleExpenseUnchanged, type CountChangeSubject,
+} from './installmentCount';
 import { embeddedInstallmentInterests, recalculatedInstallmentInterests } from './installmentSplit';
 
 const MATCH_LIMIT = 4;
@@ -318,13 +320,13 @@ async function singleStillSame(
     .from(expenses)
     .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)))
     .for('update');
-  return fresh !== undefined
-    && fresh.installment !== true
-    && fresh.installmentGroupId === current.series.installmentGroupId
-    && fresh.recurring === current.series.recurring
-    && fresh.status === current.status
-    && (fresh.paid === true) === current.lockableFields.paid
-    && invoiceEditLockOf(fresh) === current.invoiceEditLock;
+  return fresh !== undefined && singleExpenseUnchanged(fresh, {
+    installmentGroupId: current.series.installmentGroupId,
+    recurring: current.series.recurring,
+    status: current.status,
+    paid: current.lockableFields.paid,
+    invoiceEditLock: current.invoiceEditLock,
+  });
 }
 
 /**

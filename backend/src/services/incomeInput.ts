@@ -7,19 +7,16 @@ import {
   readRecord, readRequiredId,
 } from '../utils/requestInput';
 
-/** "Repetir até" gera no máximo 3 anos de réplicas. */
+/** A receita fixa gera no máximo 3 anos de ocorrências. */
 export const MAX_REPLICAS = 36;
+
+/** Pedido de uma tela aberta antes de o "Repetir até" virar Fixa: só recarregar a página resolve. */
+const STALE_SCREEN_MESSAGE = 'A tela está desatualizada: recarregue a página para lançar receitas fixas';
 
 const MAX_PRODUCT_ID_LENGTH = 36;
 /** Maior quantidade que cabe em decimal(12,3). */
 const MAX_QUANTITY = 999_999_999.999;
 const MIN_SEARCH_LENGTH = 2;
-
-export interface IncomeRepeatUntil {
-  /** 0 a 11. */
-  month: number;
-  year: number;
-}
 
 export interface IncomeProductSale {
   productId: string;
@@ -51,8 +48,6 @@ export interface CreateIncomeInput extends IncomeFieldsInput {
   billingType?: 'single' | 'fixed';
   endMonth?: string | null;
   received?: boolean;
-  /** Compatibilidade do consumidor anterior; o serviço usa a mesma série fixa. */
-  repeatUntil: IncomeRepeatUntil | null;
   productSale: IncomeProductSale | null;
   billableHours: IncomeBillableHours | null;
 }
@@ -123,25 +118,6 @@ function readQuantity(value: unknown, message: string): number {
   return Math.round(value * 1000) / 1000;
 }
 
-function readRepeatUntil(value: unknown, receiptDate: string): IncomeRepeatUntil | null {
-  if (value === undefined || value === null) return null;
-  const record = readRecord(value, 'Repetir até: informe mês e ano');
-  const month = record['month'];
-  const year = record['year'];
-  if (typeof month !== 'number' || !Number.isInteger(month) || month < 0 || month > 11
-    || typeof year !== 'number' || !Number.isInteger(year)) {
-    throw new RequestInputError('Repetir até: informe mês e ano');
-  }
-  const replicas = countMonthsUntil(receiptDate, month, year);
-  if (replicas < 1) {
-    throw new RequestInputError('Repetir até: escolha um mês depois do mês da receita');
-  }
-  if (replicas > MAX_REPLICAS) {
-    throw new RequestInputError(`Repetir até: no máximo ${MAX_REPLICAS} meses`);
-  }
-  return { month, year };
-}
-
 function readProductSale(value: unknown): IncomeProductSale | null {
   if (value === undefined || value === null) return null;
   const record = readRecord(value, 'Produto vendido inválido');
@@ -171,12 +147,13 @@ function readBillableHours(value: unknown): IncomeBillableHours | null {
 export function readCreateIncomeInput(body: unknown): CreateIncomeInput {
   const record = readRecord(body, 'Pedido inválido');
   const fields = readFields(record);
-  const legacyRepeat = readRepeatUntil(record['repeatUntil'], fields.receiptDate);
-  const billingType = record['billingType'] ?? (legacyRepeat ? 'fixed' : 'single');
+  // A aba aberta antes da publicação ainda manda `repeatUntil`: gravar só a receita única, sem as réplicas e sem avisar,
+  // seria pior que pedir para recarregar a página.
+  if (record['repeatUntil'] != null) throw new RequestInputError(STALE_SCREEN_MESSAGE);
+  const billingType = record['billingType'] ?? 'single';
   if (billingType !== 'single' && billingType !== 'fixed') throw new RequestInputError('Tipo de repetição inválido');
   if (record['received'] !== undefined && typeof record['received'] !== 'boolean') throw new RequestInputError('Informe se a receita foi recebida');
-  const endMonth = billingType === 'fixed'
-    ? readIncomeMonth(record['endMonth'] ?? (legacyRepeat ? `${legacyRepeat.year}-${String(legacyRepeat.month + 1).padStart(2, '0')}` : null)) : null;
+  const endMonth = billingType === 'fixed' ? readIncomeMonth(record['endMonth']) : null;
   if (endMonth && (endMonth < fields.receiptDate.slice(0, 7)
     || countMonthsUntil(fields.receiptDate, Number(endMonth.slice(5, 7)) - 1, Number(endMonth.slice(0, 4))) > MAX_REPLICAS)) {
     throw new RequestInputError(`Escolha um limite entre o mês da receita e ${MAX_REPLICAS} meses depois`);
@@ -184,10 +161,9 @@ export function readCreateIncomeInput(body: unknown): CreateIncomeInput {
   return {
     ...fields,
     accountId: readOptionalId(record['accountId'], 'Conta inválida'),
-    repeatUntil: legacyRepeat,
     billingType,
     endMonth,
-    received: record['received'] === undefined ? (legacyRepeat !== null || billingType === 'single') : record['received'],
+    received: record['received'] === undefined ? billingType === 'single' : record['received'],
     productSale: readProductSale(record['productSale']),
     billableHours: readBillableHours(record['billableHours']),
   };

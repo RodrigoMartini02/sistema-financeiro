@@ -7,8 +7,8 @@ import { RequestInputError } from '../utils/requestInput';
 import type { CreateIncomeInput, UpdateIncomeInput } from './incomeInput';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 
-// Exigem o banco local com a migration 0091 aplicada (colunas novas da fonte e `adiada`). O teste de duas séries na
-// mesma categoria muda de comportamento conforme a 0092 esteja ou não aplicada.
+// Exigem o banco local com as migrations 0091 (colunas novas da fonte e `adiada`) e 0092 (várias séries na mesma
+// categoria) aplicadas.
 
 async function loadServices() {
   const [client, incomeService, fixed, year] = await Promise.all([
@@ -43,7 +43,7 @@ async function withScenario(work: (scenario: Scenario) => Promise<void>) {
 
 function newFixed(scenario: Scenario, patch: Partial<CreateIncomeInput> = {}): CreateIncomeInput {
   return { accountId: scenario.accountId, description: 'Salário', categoryId: scenario.classificationId, grossAmount: 1000, netAmount: 1000,
-    receiptDate: '2026-11-10', clientId: null, representativeId: null, attachments: null, repeatUntil: null, productSale: null,
+    receiptDate: '2026-11-10', clientId: null, representativeId: null, attachments: null, productSale: null,
     billableHours: null, billingType: 'fixed', endMonth: '2027-02', received: false, ...patch };
 }
 
@@ -225,6 +225,19 @@ describe('receitas fixas no lançamento (banco local)', { skip: databaseTestsSki
         assert.deepEqual(deferred.map(row => row.deferred), [true]);
         assert.deepEqual(await services.fixed.listPendingIncomes(scenario.userId, scenario.accountId, '2026-12', '2026-11-30'), []);
       });
+    });
+  });
+
+  test('o lembrete do dia só traz a prevista de hoje que não foi adiada', async () => {
+    await withScenario(async scenario => {
+      await create(scenario, { receiptDate: TODAY, endMonth: '2026-12' });
+      const [today] = (await series(scenario)).filter(row => row.receiptDate === TODAY);
+      const reminders = () => services.fixed.listDueFixedIncomeReminders(TODAY);
+      assert.deepEqual((await reminders()).map(row => [row.userId, row.description]), [[scenario.userId, 'Salário']]);
+      await services.fixed.deferIncomes(scenario.userId, scenario.accountId, [today!.id], true);
+      assert.deepEqual(await reminders(), []);
+      await services.fixed.deferIncomes(scenario.userId, scenario.accountId, [today!.id], false);
+      assert.equal((await reminders()).length, 1);
     });
   });
 
