@@ -24,12 +24,6 @@ export function addMonthsClamped(isoDate: string, months: number): string {
   return clampedDate(year, monthIndex + months, day);
 }
 
-/** O dia `day` no mês da data informada, ou o último dia quando o mês é mais curto. */
-export function dateInMonth(isoDate: string, day: number): string {
-  const [year, monthIndex] = dateParts(isoDate);
-  return clampedDate(year, monthIndex, day);
-}
-
 export interface InvoiceCard {
   dia_fechamento?: number | null;
   dia_vencimento?: number | null;

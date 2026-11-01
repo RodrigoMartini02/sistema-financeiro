@@ -1,6 +1,7 @@
 import type { PainelData } from '../../types/finance';
 import { isCountedExpense } from '../../utils/expenseCounting';
-import { todayIso, type DemoFakeDatabase, type RawExpenseDemo } from './demoFakeDatabase';
+import { todayIso, type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo } from './demoFakeDatabase';
+import { demoIncomeCategories } from './fixedIncomesDemo';
 
 export function demoExpenseDate(row: RawExpenseDemo): string {
   return row.pago && row.data_pagamento ? row.data_pagamento : row.data_vencimento;
@@ -15,6 +16,25 @@ export function countedDemoExpense(row: RawExpenseDemo): boolean {
 
 const amountOf = (row: RawExpenseDemo) => row.pago && row.valor_pago != null ? row.valor_pago : row.valor_original ?? 0;
 const sum = (rows: RawExpenseDemo[]) => Math.round(rows.reduce((total, row) => total + amountOf(row), 0) * 100) / 100;
+
+function incomeGroups(db: DemoFakeDatabase, rows: RawIncomeDemo[]): PainelData['receitas']['porClassificacao'] {
+  const catalog = demoIncomeCategories(db);
+  const groups = new Map<number | null, PainelData['receitas']['porClassificacao'][number]>();
+  for (const row of rows) {
+    const category = catalog.find(item => item.id === row.classificacao_id);
+    const root = catalog.find(item => item.id === category?.parent_id) ?? category;
+    const id = root?.id ?? null;
+    const group = groups.get(id) ?? { id, nome: root?.nome ?? 'Sem categoria', valor: 0, subcategorias: [] };
+    group.valor += row.valor_liquido;
+    if (category && category.id !== id) {
+      const child = group.subcategorias.find(item => item.id === category.id);
+      if (child) child.valor += row.valor_liquido;
+      else group.subcategorias.push({ id: category.id, nome: category.nome, valor: row.valor_liquido });
+    }
+    groups.set(id, group);
+  }
+  return [...groups.values()];
+}
 
 /** Lançadas e previsões dos mesmos registros alimentam os gráficos, sem backend real. */
 export function buildDemoPanel(db: DemoFakeDatabase, params: URLSearchParams): PainelData {
@@ -36,6 +56,9 @@ export function buildDemoPanel(db: DemoFakeDatabase, params: URLSearchParams): P
   const incomes = db.receitas.filter((row) => row.status === 'ativa' && inPeriod(row.data_recebimento));
   const receivable = db.receitas.filter((row) => ['prevista', 'faturada'].includes(row.status) && inPeriod(row.data_recebimento));
   const entrou = incomes.reduce((total, row) => total + row.valor_liquido, 0);
+  const aReceber = receivable.reduce((total, row) => total + row.valor_liquido, 0);
+  const fixedIncomeTotal = [...incomes, ...receivable].filter(row => row.classificacao_fixa_id != null)
+    .reduce((total, row) => total + row.valor_liquido, 0);
   const saiu = sum(confirmed);
   const pago = sum(confirmed.filter((row) => row.pago));
   const first = new Date(`${de}T00:00:00Z`);
@@ -100,9 +123,10 @@ export function buildDemoPanel(db: DemoFakeDatabase, params: URLSearchParams): P
       proximos30Dias: { valor: 0, quantidade: 0 }, comprometido: committed },
     planejado: null, porPessoa: [{ usuarioId: 0, nome: 'Você', receitas: entrou, despesas: saiu }],
     jurosDescontos: { periodo: { juros: 0, descontos: 0 }, ano: { juros: 0, descontos: 0 }, upcomingInterest: 0, upcomingInterestOutside: 0 },
-    categorias, receitas: { porClassificacao: [], aReceber: { total: receivable.reduce((total, row) => total + row.valor_liquido, 0), porClassificacao: [] },
-      rendaPrevista: entrou + receivable.reduce((total, row) => total + row.valor_liquido, 0), comprometimentoPrevisto: entrou > 0 ? (saiu / entrou) * 100 : null,
-      fixa: 0, variavel: entrou, temFixa: false, periodoEncerrado: ate < today },
+    categorias, receitas: { porClassificacao: incomeGroups(db, incomes), aReceber: { total: aReceber, porClassificacao: incomeGroups(db, receivable) },
+      rendaPrevista: entrou + aReceber, comprometimentoPrevisto: entrou + aReceber > 0 ? (saiu / (entrou + aReceber)) * 100 : null,
+      fixa: fixedIncomeTotal, variavel: entrou + aReceber - fixedIncomeTotal,
+      temFixa: db.receitas.some(row => row.classificacao_fixa_id != null && row.status !== 'cancelada'), periodoEncerrado: ate < today },
     despesasPorCategoria: categorias.map((category) => ({ id: category.categoriaId, nome: category.categoria, valor: category.total, forecast: category.forecast, subcategorias: [] })),
     categoriasPorOutros: [], empresa: null,
     filterOptions: { paymentMethods: [...new Set(all.map((row) => row.forma_pagamento))], cards: db.cartoes.filter((card) => all.some((row) => row.cartao_id === card.id)).map((card) => ({ id: card.id, name: card.nome })) },

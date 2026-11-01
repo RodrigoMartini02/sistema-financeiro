@@ -10,6 +10,7 @@ import { fetchProdutos } from '../../../services/catalogoService';
 import { fetchClients, type ClientFilters } from '../../../services/clientsService';
 import { fetchContractsWithHours } from '../../../services/contractsService';
 import { createIncome, updateIncome } from '../../../services/financeService';
+import { confirmPredictedIncome, deferIncomes, fetchPendingIncomes } from '../../../services/fixedIncomesService';
 import { fetchClassificacoesReceita, saveClassificacaoReceita } from '../../../services/incomeClassificationsService';
 import { invalidateIncomeQueries, queryKeys } from '../../../services/queryKeys';
 import { fetchRepresentantes } from '../../../services/representantesService';
@@ -23,6 +24,7 @@ import {
 import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
 import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
 import { CONFIG_SCOPE_CLASS } from '../../../ui/configTokens';
+import { C } from '../../../ui/dialogFormTokens';
 import { ClientFormDialog } from '../../clients/ClientFormDialog';
 import { collectBatchErrors, initialBatchState, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';
@@ -31,15 +33,14 @@ import { RequiredMark, columnHeaderStyle } from '../entry-dialog/GridParts';
 import { duplicateText } from '../entry-dialog/SummaryLine';
 import {
   EMPTY_INCOME_MESSAGE, buildIncomeCreateInput, buildIncomeUpdateInput, effectiveNetCents, hasIncomeErrors, incomeErrorMessage,
-  isIncomeDraftFilled, receiptDateIso, validateIncomeDraft, type ClientOption, type IncomeRuleContext,
+  isIncomeDraftFilled, readyIncomeToSave, validateIncomeDraft, type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import {
   createIncomeDraft, incomeDialogReducer, incomeDraftFromIncome,
   type IncomeDraft, type IncomeDraftErrors, type IncomeDraftPatch,
 } from './draftState';
-import { COMPANY_GRID_CLASS, PERSONAL_GRID_CLASS } from './incomeGrid';
+import { COMPANY_GRID_CLASS, COMPANY_FORECAST_GRID_CLASS, PERSONAL_GRID_CLASS, PERSONAL_FORECAST_GRID_CLASS } from './incomeGrid';
 import { IncomeRow, type IncomeRowResources } from './IncomeRow';
-import { PredictedIncomesStrip } from './PredictedIncomesStrip';
 import { useIncomeSuggestions } from './useIncomeSuggestions';
 
 const TOAST_DURATION_MS = 2800;
@@ -54,6 +55,8 @@ interface IncomeDialogProps {
   income?: Income | null;
   /** Dia clicado no calendário (ISO): vira a data do recebimento, travada na linha de entrada. */
   presetDate?: string;
+  /** Mês consultado na tela de origem, independente da edição das datas. */
+  initialMonth?: string;
   onClose: () => void;
 }
 
@@ -63,28 +66,46 @@ interface IncomeDialogProps {
  * lote, gravados um a um, e o modal continua aberto. Na edição: uma linha só, e
  * fecha ao salvar. Cada abertura começa do zero.
  */
-export function IncomeDialog({ open, income, presetDate, onClose }: IncomeDialogProps) {
+export function IncomeDialog({ open, income, presetDate, initialMonth, onClose }: IncomeDialogProps) {
   if (!open) return null;
-  return <IncomeDialogContent key={income?.id ?? 'new'} income={income ?? null} presetDate={presetDate} onClose={onClose} />;
+  return <IncomeDialogContent key={`${income?.id ?? 'new'}:${getActiveAccountId() ?? 'none'}`}
+    income={income ?? null} presetDate={presetDate} initialMonth={initialMonth} onClose={onClose} />;
 }
 
 interface IncomeDialogContentProps {
   income: Income | null;
   presetDate?: string;
+  initialMonth?: string;
   onClose: () => void;
 }
 
-function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogContentProps) {
+function IncomeDialogContent({ income, presetDate, initialMonth, onClose }: IncomeDialogContentProps) {
   const qc = useQueryClient();
   const todayIso = useMemo(() => getLocalTodayIso(), []);
   const isEdit = income !== null;
   const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
-  const accountId = getActiveAccountId();
+  const [accountId] = useState(() => getActiveAccountId());
+  const [pendingMonth] = useState(() => initialMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(initialMonth)
+    ? initialMonth : (presetDate ?? todayIso).slice(0, 7));
+  const [deferBusy, setDeferBusy] = useState(false);
+  const deferBusyRef = useRef(false);
+  const savedForecastIds = useRef<number[]>([]);
   const descriptionRef = useRef<HTMLInputElement>(null);
 
   const [state, dispatch] = useReducer(incomeDialogReducer, null, () => initialBatchState<IncomeDraft, IncomeDraftErrors>(
     income ? incomeDraftFromIncome(income) : createIncomeDraft(isoToBrDate(presetDate ?? todayIso)),
   ));
+
+  const pendingQuery = useQuery({
+    queryKey: queryKeys.incomePending(accountId, pendingMonth),
+    queryFn: () => fetchPendingIncomes(pendingMonth, accountId),
+    enabled: !isEdit && accountId !== null && getActiveAccountId() === accountId,
+  });
+  useEffect(() => {
+    if (pendingQuery.data && !state.saving && !deferBusy && getActiveAccountId() === accountId) {
+      dispatch({ type: 'mergeForecasts', incomes: pendingQuery.data, excludedIds: savedForecastIds.current });
+    }
+  }, [pendingQuery.data, state.saving, deferBusy, accountId]);
 
   const categoriesQuery = useQuery({
     queryKey: queryKeys.classificacoesReceita(accountId),
@@ -195,11 +216,11 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
   };
 
   const requestClose = () => {
-    if (!state.saving) onClose();
+    if (!state.saving && !deferBusyRef.current) onClose();
   };
 
   const addToBatch = () => {
-    if (isEdit || state.saving) return;
+    if (isEdit || state.saving || deferBusyRef.current) return;
     const errors = validateIncomeDraft(state.entry, context);
     if (hasIncomeErrors(errors)) {
       dispatch({ type: 'showErrors', errors: { ...state.errors, [state.entry.key]: errors }, message: incomeErrorMessage(errors) });
@@ -224,15 +245,41 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     }
   };
 
+  const setDeferred = async (ids: number[], deferred: boolean) => {
+    if (!ids.length || deferBusyRef.current || state.saving || getActiveAccountId() !== accountId) return;
+    deferBusyRef.current = true;
+    setDeferBusy(true);
+    dispatch({ type: 'setDeferred', ids, deferred });
+    try {
+      await deferIncomes(ids, deferred, accountId);
+      qc.setQueryData<Income[]>(queryKeys.incomePending(accountId, pendingMonth), current => current?.map(row =>
+        ids.includes(row.id) ? { ...row, deferred } : row));
+      dispatch({ type: 'setDeferred', ids, deferred });
+    } catch (error) {
+      dispatch({ type: 'setDeferred', ids, deferred: true,
+        error: error instanceof Error ? error.message : 'Não foi possível gravar o adiamento. Altere a marcação para tentar novamente.' });
+    } finally {
+      deferBusyRef.current = false;
+      setDeferBusy(false);
+    }
+  };
+
   const saveNew = async () => {
+    const withoutAmount = state.batch.filter(draft => draft.forecastId !== undefined && !draft.deferred
+      && (!Number.isFinite(draft.grossCents) || (draft.grossCents ?? 0) <= 0
+        || !Number.isFinite(effectiveNetCents(draft, context)) || (effectiveNetCents(draft, context) ?? 0) <= 0))
+      .map(draft => draft.forecastId!);
+    if (withoutAmount.length) await setDeferred(withoutAmount, true);
+    const batch = state.batch.filter(draft => readyIncomeToSave(draft, context));
     const entryFilled = isIncomeDraftFilled(state.entry);
-    const items = entryFilled ? [...state.batch, state.entry] : state.batch;
+    const items = entryFilled ? [...batch, state.entry] : batch;
     if (items.length === 0) {
-      dispatch({ type: 'showErrors', errors: { [state.entry.key]: validateIncomeDraft(state.entry, context) }, message: EMPTY_INCOME_MESSAGE });
+      dispatch({ type: 'showErrors', errors: state.batch.length ? {} : { [state.entry.key]: validateIncomeDraft(state.entry, context) },
+        message: state.batch.length ? 'Nenhuma receita pronta para registrar.' : EMPTY_INCOME_MESSAGE });
       return;
     }
     const { errors, message } = collectBatchErrors<IncomeDraft, IncomeDraftErrors>({
-      batch: state.batch,
+      batch,
       entry: entryFilled ? state.entry : null,
       validate: (draft) => validateIncomeDraft(draft, context),
       hasErrors: hasIncomeErrors,
@@ -248,7 +295,16 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
       items,
       entryKey: state.entry.key,
       nextEntry: createIncomeDraft(state.entry.receiptDate),
-      save: (draft) => createIncome(buildIncomeCreateInput(draft, context, accountId)),
+      save: async draft => {
+        if (getActiveAccountId() !== accountId) throw new Error('A conta mudou. Feche e abra novamente o lançamento.');
+        if (draft.forecastId !== undefined) {
+          await confirmPredictedIncome(draft.forecastId, buildIncomeUpdateInput(draft, context));
+          savedForecastIds.current.push(draft.forecastId);
+        } else {
+          const created = await createIncome(buildIncomeCreateInput(draft, context, accountId));
+          if (created.status === 'prevista' || created.status === 'faturada') savedForecastIds.current.push(created.id);
+        }
+      },
       dispatch,
       itemLabel: 'Receita',
       fallbackMessage: 'Não foi possível registrar a receita.',
@@ -260,7 +316,11 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
   };
 
   const save = () => {
-    if (state.saving) return;
+    if (state.saving || deferBusyRef.current) return;
+    if (getActiveAccountId() !== accountId) {
+      dispatch({ type: 'showErrors', errors: {}, message: 'A conta mudou. Feche e abra novamente o lançamento.' });
+      return;
+    }
     void (income ? saveEdit(income) : saveNew());
   };
 
@@ -271,20 +331,28 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
 
   const entry = state.entry;
   const entryFilled = isIncomeDraftFilled(entry);
-  const toSaveCount = isEdit ? 1 : state.batch.length + (entryFilled ? 1 : 0);
+  const readyBatch = state.batch.filter(draft => readyIncomeToSave(draft, context));
+  const forecasts = state.batch.filter(draft => draft.forecastId !== undefined);
+  const allDeferred = forecasts.length > 0 && forecasts.every(draft => draft.deferred);
+  const someDeferred = forecasts.some(draft => draft.deferred);
+  const toSaveCount = isEdit ? 1 : readyBatch.length + (entryFilled ? 1 : 0);
   const entryDuplicate = entrySuggestions.duplicateCreatedAt ? duplicateText(entrySuggestions.duplicateCreatedAt) : null;
   const columnsClass = isCompany ? COMPANY_GRID_CLASS : PERSONAL_GRID_CLASS;
+  const batchColumnsClass = forecasts.length ? isCompany ? COMPANY_FORECAST_GRID_CLASS : PERSONAL_FORECAST_GRID_CLASS : columnsClass;
 
   let footerMessage = '';
   let footerTone: FooterTone = 'neutral';
   if (state.footerError) {
     footerMessage = state.footerError;
     footerTone = 'danger';
+  } else if (pendingQuery.error && !isEdit) {
+    footerMessage = 'Não foi possível carregar as previstas. Feche e abra o lançamento para tentar novamente.';
+    footerTone = 'danger';
   } else if (entryDuplicate) {
     footerMessage = entryDuplicate;
     footerTone = 'warning';
   } else if (!isEdit && toSaveCount === 0) {
-    footerMessage = EMPTY_INCOME_MESSAGE;
+    footerMessage = state.batch.length ? 'Nenhuma receita pronta para registrar.' : EMPTY_INCOME_MESSAGE;
   } else if (state.batch.length > 0) {
     footerMessage = entryFilled ? 'A linha de cima também entra ao salvar.' : 'Revise o lote e salve.';
   } else if (!isEdit) {
@@ -322,14 +390,20 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
     ) : undefined,
   };
 
-  const columnHeaders = (padding: string, required: boolean) => (
-    <div className={`${HEADER_GRID_CLASS} ${columnsClass}`} style={{ ...columnHeaderStyle, padding }}>
+  const columnHeaders = (padding: string, required: boolean, forecastColumn = false) => (
+    <div className={`${HEADER_GRID_CLASS} ${forecastColumn ? batchColumnsClass : columnsClass}`} style={{ ...columnHeaderStyle, padding }}>
+      {forecastColumn && <span className="flex flex-col gap-1 text-[10px]">Adiar<input type="checkbox" aria-label="Adiar todas as receitas previstas"
+        title="Adiar todas as receitas previstas" checked={allDeferred}
+        ref={node => { if (node) node.indeterminate = someDeferred && !allDeferred; }}
+        disabled={deferBusy || state.saving !== null}
+        onChange={event => void setDeferred(forecasts.map(draft => draft.forecastId!), event.target.checked)}
+        className="h-4 w-4 accent-cyan-600" /></span>}
       <span>Descrição {required && <RequiredMark />}</span>
       <span>Categoria</span>
       {isCompany && <span>Cliente</span>}
       <span>Valor bruto {required && <RequiredMark />}</span>
       <span>Valor líquido</span>
-      <span>Recebido em {required && <RequiredMark />}</span>
+      <span>Recebimento {required && <RequiredMark />}</span>
       <span>Repetir</span>
       {isCompany && <span />}
       <span /><span />
@@ -338,7 +412,6 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
 
   const top = (
     <>
-      {!isEdit && <PredictedIncomesStrip receiptIso={receiptDateIso(entry, todayIso) || todayIso} />}
       {columnHeaders('0 8px 6px', true)}
       {/* A chave recria a linha a cada receita nova: nenhum campo guarda o texto da anterior. */}
       <IncomeRow
@@ -358,20 +431,31 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
   );
 
   const batch = state.batch.length > 0 ? {
-    count: state.batch.length,
+    count: readyBatch.length,
     // O que vai entrar na conta: a soma dos valores líquidos.
-    sumCents: state.batch.reduce((sum, draft) => sum + (effectiveNetCents(draft, resources.context) ?? 0), 0),
-    header: columnHeaders('10px 8px 4px', false),
+    sumCents: readyBatch.reduce((sum, draft) => sum + (effectiveNetCents(draft, resources.context) ?? 0), 0),
+    header: <>
+      {forecasts.length > 0 && <label className="flex items-center gap-2 px-2 pt-3 text-xs lg:hidden" style={{ color: C.textSoft }}>
+        <input type="checkbox" aria-label="Adiar todas as receitas previstas" checked={allDeferred}
+          ref={node => { if (node) node.indeterminate = someDeferred && !allDeferred; }}
+          disabled={deferBusy || state.saving !== null}
+          onChange={event => void setDeferred(forecasts.map(draft => draft.forecastId!), event.target.checked)} className="h-4 w-4 accent-cyan-600" />
+        Adiar todas
+      </label>}
+      {columnHeaders('10px 8px 4px', false, forecasts.length > 0)}
+    </>,
     rows: state.batch.map((draft) => (
       <IncomeRow
         key={draft.key}
         draft={draft}
         variant="batch"
-        resources={resources}
+        resources={{ ...resources, forecastColumn: forecasts.length > 0 }}
         errors={state.errors[draft.key]}
         showSummary={draft.key === state.activeKey}
         suggestions={draft.key === state.activeKey ? activeSuggestions : null}
-        onRemove={() => dispatch({ type: 'removeFromBatch', key: draft.key })}
+        onRemove={draft.forecastId === undefined ? () => dispatch({ type: 'removeFromBatch', key: draft.key }) : undefined}
+        onDefer={deferred => { if (draft.forecastId !== undefined) void setDeferred([draft.forecastId], deferred); }}
+        deferDisabled={deferBusy || state.saving !== null}
         {...rowHandlers(draft.key)}
       />
     )),
@@ -391,7 +475,7 @@ function IncomeDialogContent({ income, presetDate, onClose }: IncomeDialogConten
       footerMessage={footerMessage}
       footerTone={footerTone}
       saveLabel={isEdit ? 'Salvar alterações' : toSaveCount > 1 ? `Salvar ${toSaveCount} receitas` : 'Registrar receita'}
-      canSave={toSaveCount > 0}
+      canSave={toSaveCount > 0 && !deferBusy}
       saving={state.saving}
       toast={state.toast}
       />

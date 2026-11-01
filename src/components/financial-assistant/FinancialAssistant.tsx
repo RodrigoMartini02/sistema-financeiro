@@ -1154,7 +1154,8 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           clientId: draft.clienteId ?? null,
           representativeId: draft.representanteId ?? null,
           attachments: draftAttachments.length > 0 ? draftAttachments : null,
-          repeatUntil: repeats ? { month: until.mes, year: until.ano } : null,
+          billingType: repeats ? 'fixed' : 'single',
+          ...(repeats ? { endMonth: `${until.ano}-${String(until.mes + 1).padStart(2, '0')}`, received: true } : {}),
           productSale: draft.produtoId && draft.quantidadeVendida
             ? { productId: draft.produtoId, quantity: draft.quantidadeVendida }
             : null,

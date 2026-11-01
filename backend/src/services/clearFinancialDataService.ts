@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, ne, or } from 'drizzle-orm';
 import { db } from '../db/client';
-import { cards, categories, expenses, fixedExpenses, incomes, users } from '../db/schema';
+import { cards, categories, expenses, fixedExpenses, incomeClassificationFixes, incomes, users } from '../db/schema';
 import { RequestInputError } from '../utils/requestInput';
 
 /** O reset individual nunca apaga lançamentos ou configurações de outra pessoa. */
@@ -13,6 +13,8 @@ export async function clearUserFinancialData(userId: number): Promise<void> {
       .where(eq(cards.userId, userId)).orderBy(asc(cards.id)).for('update');
     await transaction.select({ id: fixedExpenses.id }).from(fixedExpenses)
       .where(eq(fixedExpenses.userId, userId)).orderBy(asc(fixedExpenses.id)).for('update');
+    await transaction.select({ id: incomeClassificationFixes.id }).from(incomeClassificationFixes)
+      .where(eq(incomeClassificationFixes.userId, userId)).orderBy(asc(incomeClassificationFixes.id)).for('update');
     await transaction.select({ id: categories.id }).from(categories)
       .where(eq(categories.userId, userId)).orderBy(asc(categories.id)).for('update');
 
@@ -35,6 +37,7 @@ export async function clearUserFinancialData(userId: number): Promise<void> {
     await transaction.delete(expenses).where(eq(expenses.userId, userId));
     await transaction.delete(fixedExpenses).where(eq(fixedExpenses.userId, userId));
     await transaction.delete(incomes).where(eq(incomes.userId, userId));
+    await transaction.delete(incomeClassificationFixes).where(eq(incomeClassificationFixes.userId, userId));
     await transaction.delete(categories).where(eq(categories.userId, userId));
     await transaction.delete(cards).where(eq(cards.userId, userId));
     await transaction.update(users)

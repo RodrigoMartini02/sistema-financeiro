@@ -5,7 +5,7 @@ import { db, pool } from '../db/client';
 import * as schema from '../db/schema';
 import { incomes, type Income, type NewIncome } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
-import { getMonthYearFromIsoDate, getTodayIsoInTimezone, monthlyDatesUntil } from '../utils/date';
+import { getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { defaultReceiptDate } from './cashDate';
 import { escapeLikePattern, roundCents } from '../utils/requestInput';
 import { clients, contracts } from '../modules/contracts/db/schema';
@@ -17,6 +17,8 @@ import { contractRates, incomeValueColumns, resolveIncomeAmounts } from './contr
 import { INCOME_STATUS, OPEN_INCOME_STATUSES, type WithholdingAmounts, type WithholdingRates } from './contractTypes';
 import { CANCELLED_STATUS } from './entryQueries';
 import { STOCK_REASONS, returnSoldStock, sellProductInIncome, type StockExecutor } from './stock';
+import { changeFixedIncomeEndMonth, createFixedIncomeSource, fixedIncomeRows, lockIncomeForWrite, type IncomeTransaction } from './fixedIncomes';
+import { isClassificationAllowed } from './incomeClassificationCatalog';
 import type {
   CreateIncomeInput, IncomeDuplicateQuery, IncomeSuggestionsQuery, ReceiveIncomeInput, UpdateIncomeInput,
 } from './incomeInput';
@@ -89,16 +91,20 @@ async function resolveIncomeClient(
 }
 
 /**
- * Grava a receita e as réplicas de "Repetir até" numa transação: ou entram
- * todas, ou nenhuma. As réplicas repetem descrição, valor, categoria, cliente,
- * representante e o vínculo com o contrato das horas; os anexos, a venda do
- * produto e as horas lançadas ficam só na original. As réplicas nascem
- * previstas: o dinheiro ainda não caiu, e cada uma vira recebida com o
- * "Confirmar recebimento" (plano .plans/receita-fixa-ano-previsto.md). A
- * comissão mensal gera a despesa de comissão em cada lançamento; a única, só
- * na original. Horas de
- * contrato com órgão público: o valor digitado é o bruto e a receita vale o
- * líquido, com as retenções do contrato.
+ * Grava a receita e, na fixa, a série inteira numa transação: a fonte, a
+ * ocorrência atual e as próximas até o limite inclusivo. Ou entra tudo, ou
+ * nada. A atual nasce recebida só se o pedido marcar `received`; as próximas
+ * nascem sempre previstas (o dinheiro ainda não caiu) e cada uma vira recebida
+ * pelo lote ou pelo "Confirmar recebimento". As ocorrências repetem descrição,
+ * valor, categoria, cliente, representante e o vínculo com o contrato das
+ * horas; os anexos, a venda do produto e as horas lançadas ficam só na atual. A
+ * comissão mensal gera a despesa de comissão em cada ocorrência; a única, só na
+ * atual. Horas de contrato com órgão público: o valor digitado é o bruto e a
+ * receita vale o líquido, com as retenções do contrato.
+ *
+ * `repeatUntil` é o pedido do cliente anterior à fixa por lançamento: segue
+ * valendo só para um navegador com a versão antiga aberta durante a publicação,
+ * e vira a mesma série fixa já recebida.
  *
  * A receita e a despesa de comissão ficam com quem lançou (`authorId`). O
  * representante, o produto e o contrato são do catálogo da conta, procurados no
@@ -106,9 +112,9 @@ async function resolveIncomeClient(
  * colaborador.
  */
 export async function createIncome(authorId: number, catalogOwnerId: number, input: CreateIncomeInput): Promise<Income> {
-  const replicaDates = input.repeatUntil
-    ? monthlyDatesUntil(input.receiptDate, input.repeatUntil.month, input.repeatUntil.year)
-    : [];
+  const billingType = input.billingType ?? (input.repeatUntil ? 'fixed' : 'single');
+  const endMonth = input.endMonth ?? (input.repeatUntil
+    ? `${input.repeatUntil.year}-${String(input.repeatUntil.month + 1).padStart(2, '0')}` : null);
 
   const client = await pool.connect();
   try {
@@ -120,6 +126,10 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
       : null;
     const clientId = await resolveIncomeClient(input.accountId, input.clientId, hours);
     const amounts = resolveIncomeAmounts(input, hours?.rates ?? {});
+    const source = billingType === 'fixed'
+      ? await createFixedIncomeSource(transaction, authorId, { ...input, endMonth, clientId, grossAmount: amounts.gross, netAmount: amounts.net }) : null;
+    const replicaDates = source ? fixedIncomeRows(source, endMonth!).slice(1).map(row => row.receiptDate) : [];
+    const received = billingType !== 'fixed' || (input.received ?? Boolean(input.repeatUntil));
 
     const commission = input.representativeId !== null
       ? await findCommissionRule(client, catalogOwnerId, input.representativeId, input.categoryId)
@@ -145,7 +155,9 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
         productId: isOriginal ? input.productSale?.productId ?? null : null,
         soldQuantity: isOriginal && input.productSale ? String(input.productSale.quantity) : null,
         attachments: isOriginal ? input.attachments : null,
-        ...(isOriginal ? {} : { status: INCOME_STATUS.planned }),
+        status: isOriginal && received ? INCOME_STATUS.received : INCOME_STATUS.planned,
+        fixedClassificationId: source?.id ?? null,
+        fixedCompetence: source ? `${receiptDate.slice(0, 7)}-01` : null,
       };
     };
 
@@ -202,9 +214,9 @@ async function lockIncome(
   executor: StockExecutor,
   ownerId: number,
   incomeId: number,
-): Promise<{ id: number; status: string } | null> {
+): Promise<{ id: number; status: string; fixedClassificationId: number | null } | null> {
   const [income] = await executor
-    .select({ id: incomes.id, status: incomes.status })
+    .select({ id: incomes.id, status: incomes.status, fixedClassificationId: incomes.fixedClassificationId })
     .from(incomes)
     .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)))
     .limit(1)
@@ -254,7 +266,12 @@ export async function deleteIncome(ownerId: number, incomeId: number): Promise<b
     if (income.status !== CANCELLED_STATUS) {
       await undoIncomeEffects(transaction, income.id, STOCK_REASONS.incomeDeleted);
     }
-    await transaction.delete(incomes).where(eq(incomes.id, income.id));
+    // Uma competência retirada não pode ser recriada por ampliar a série.
+    if (income.fixedClassificationId !== null) {
+      await transaction.update(incomes).set({ status: CANCELLED_STATUS }).where(and(eq(incomes.id, income.id), eq(incomes.userId, ownerId)));
+    } else {
+      await transaction.delete(incomes).where(and(eq(incomes.id, income.id), eq(incomes.userId, ownerId)));
+    }
     return true;
   });
 }
@@ -288,6 +305,8 @@ export interface IncomeForUpdate {
   classificationId: number;
   /** Preenchido na receita com retenção: na edição, o valor digitado é o bruto e o líquido sai do contrato. */
   withholdings: WithholdingAmounts | null;
+  fixedClassificationId?: number | null;
+  status?: string;
 }
 
 export async function findIncomeForUpdate(ownerId: number, incomeId: number): Promise<IncomeForUpdate | null> {
@@ -298,6 +317,8 @@ export async function findIncomeForUpdate(ownerId: number, incomeId: number): Pr
       contractId: incomes.contractId,
       classificationId: incomes.classificationId,
       withholdings: incomes.withholdings,
+      fixedClassificationId: incomes.fixedClassificationId,
+      status: incomes.status,
     })
     .from(incomes)
     .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)));
@@ -315,35 +336,66 @@ export async function updateIncome(
   incomeId: number,
   current: IncomeForUpdate,
   input: UpdateIncomeInput,
+  today: string = getTodayIsoInTimezone(),
 ): Promise<Income | null> {
-  const clientId = current.contractId !== null
-    ? current.clientId
-    : await resolveIncomeClient(current.accountId, input.clientId, null, current.clientId);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const transaction = drizzle(client, { schema });
+    const locked = await lockIncomeForWrite(transaction, ownerId, incomeId);
+    if (!locked) { await client.query('ROLLBACK'); return null; }
+    if (locked.income.status === CANCELLED_STATUS) throw new RequestInputError('A receita cancelada não pode ser editada', 409);
+    if (current.status && current.status !== locked.income.status) throw new RequestInputError('A situação da receita mudou. Atualize a tela antes de editar.', 409);
+    // O snapshot da rota serve só à autorização inicial; os valores são relidos sob lock.
+    if (locked.income.accountId !== current.accountId) throw new RequestInputError('A receita mudou. Atualize a tela.', 409);
+    const updated = await writeIncomeFields(transaction, ownerId, locked.income, input);
+    const created = await changeFixedIncomeEndMonth(transaction, locked.source, updated, input, today);
+    await createExtendedCommissions(client, transaction, ownerId, created);
+    await client.query('COMMIT');
+    return updated;
+  } catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
+}
 
+async function writeIncomeFields(transaction: IncomeTransaction, ownerId: number, current: Income, input: UpdateIncomeInput): Promise<Income> {
+  if (input.categoryId !== current.classificationId
+    && !(await isClassificationAllowed(ownerId, current.accountId, input.categoryId))) {
+    throw new RequestInputError('Categoria indisponível para esta conta');
+  }
+  const clientId = current.contractId !== null ? current.clientId
+    : await resolveIncomeClient(current.accountId, input.clientId, null, current.clientId);
   let rates: WithholdingRates = {};
   if (current.withholdings !== null && current.contractId !== null) {
-    const [contract] = await db.select().from(contracts).where(eq(contracts.id, current.contractId)).limit(1);
+    const [contract] = await transaction.select().from(contracts).where(and(eq(contracts.id, current.contractId),
+      current.accountId === null ? undefined : eq(contracts.accountId, current.accountId))).limit(1);
     rates = contract ? contractRates(contract) : {};
   }
   const amounts = resolveIncomeAmounts(input, rates);
-
   const { mes, ano } = getMonthYearFromIsoDate(input.receiptDate);
-  const [updated] = await db
-    .update(incomes)
-    .set({
-      description: input.description,
-      ...incomeValueColumns(amounts),
-      receiptDate: input.receiptDate,
-      month: mes,
-      year: ano,
-      clientId,
-      classificationId: input.categoryId,
-      representativeId: input.representativeId,
-      attachments: input.attachments,
-    })
-    .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)))
-    .returning();
-  return updated ?? null;
+  const [updated] = await transaction.update(incomes).set({ description: input.description, ...incomeValueColumns(amounts),
+    receiptDate: input.receiptDate, month: mes, year: ano, clientId, classificationId: input.categoryId,
+    representativeId: input.representativeId, attachments: input.attachments,
+  }).where(and(eq(incomes.id, current.id), eq(incomes.userId, ownerId))).returning();
+  if (!updated) throw new RequestInputError('Receita não encontrada', 404);
+  return updated;
+}
+
+async function createExtendedCommissions(client: PoolClient, transaction: IncomeTransaction, ownerId: number, rows: Income[]): Promise<void> {
+  for (const row of rows) {
+    if (row.representativeId === null || row.accountId === null) continue;
+    const [account] = await transaction.select({ ownerId: schema.accounts.userId }).from(schema.accounts)
+      .where(eq(schema.accounts.id, row.accountId)).limit(1);
+    if (!account) continue;
+    const rule = await findCommissionRule(client, account.ownerId, row.representativeId, row.classificationId);
+    if (!rule || rule.type !== 'mensal') continue;
+    const commission = roundCents((Number(row.netAmount) * rule.percent) / 100);
+    if (commission <= 0) continue;
+    await createCommissionExpense({ client, authorId: ownerId, catalogOwnerId: account.ownerId,
+      representanteId: row.representativeId, valorComissao: commission, dataRecebimento: row.receiptDate,
+      mes: row.month, ano: row.year, contaId: row.accountId, incomeId: row.id });
+    await transaction.update(incomes).set({ commissionAmount: toDecimal(commission) })
+      .where(and(eq(incomes.id, row.id), eq(incomes.userId, ownerId)));
+  }
 }
 
 /** Já houve comissão de receita deste contrato nesta categoria (regra de comissão única). */
@@ -383,19 +435,22 @@ export async function receiveIncome(
   try {
     await client.query('BEGIN');
     const transaction = drizzle(client, { schema });
-    const [income] = await transaction
-      .select()
-      .from(incomes)
-      .where(and(eq(incomes.id, incomeId), eq(incomes.userId, ownerId)))
-      .limit(1)
-      .for('update');
+    const locked = await lockIncomeForWrite(transaction, ownerId, incomeId);
+    let income = locked?.income;
     if (!income || !OPEN_INCOME_STATUSES.includes(income.status)) {
       await client.query('ROLLBACK');
       return null;
     }
+    if (income.deferred) throw new RequestInputError('Desmarque Adiar antes de confirmar o recebimento', 409);
+    if (input.changes) {
+      income = await writeIncomeFields(transaction, ownerId, income, input.changes);
+      const created = await changeFixedIncomeEndMonth(transaction, locked?.source, income, input.changes, today);
+      await createExtendedCommissions(client, transaction, ownerId, created);
+    }
 
-    // Sem data informada, a prevista só vale se é do mês atual; senão, hoje: a confirmação não cai sozinha em mês fechado.
-    const receiptDate = input.receivedDate ?? defaultReceiptDate(income.receiptDate, today);
+    // A data vem dos campos editados (o lote sempre os envia), da data informada ou, sem nenhuma, da regra padrão: a
+    // prevista só vale se é do mês atual; senão, hoje — a confirmação não cai sozinha em mês fechado.
+    const receiptDate = input.changes?.receiptDate ?? input.receivedDate ?? defaultReceiptDate(income.receiptDate, today);
     const { mes: receiptMonth, ano: receiptYear } = getMonthYearFromIsoDate(receiptDate);
     const amount = input.receivedAmount ?? Number(income.netAmount);
     let commissionAmount = income.commissionAmount;
@@ -434,6 +489,7 @@ export async function receiveIncome(
       .update(incomes)
       .set({
         status: INCOME_STATUS.received,
+        deferred: false,
         receiptDate,
         month: receiptMonth,
         year: receiptYear,

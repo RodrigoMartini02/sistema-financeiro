@@ -10,9 +10,8 @@ export interface SummaryBadge {
   tone: StatusTone;
 }
 
-/** Situação, datas e total do lançamento, mais os avisos em pílulas. */
+/** Datas e total do lançamento, mais os avisos em pílulas. */
 export interface SummaryContent {
-  status: { text: string; tone: StatusTone };
   detail: string;
   total: string;
   badges: SummaryBadge[];
@@ -60,7 +59,7 @@ export function duplicateText(createdAtIso: string): string {
   return `Você já lançou isso em ${isoToShortBrDate(createdAtIso)} — é outra?`;
 }
 
-/** Linha sob o lançamento ativo: situação, datas, total, avisos, sugestão de categoria e ajuda. */
+/** Linha sob o lançamento ativo: datas, total, avisos, sugestão de categoria e ajuda. A situação fica na lista, não no modal. */
 export function SummaryLine({
   content, placeholder, categorySuggestion, onAcceptCategory, lastAmount, duplicate, help, compactTop, action = null,
 }: SummaryLineProps) {
@@ -74,7 +73,6 @@ export function SummaryLine({
     >
       {content ? (
         <>
-          <span style={pillStyle(content.status.tone)}>{content.status.text}</span>
           <span>{content.detail}</span>
           <span style={{ color: C.text, fontVariantNumeric: 'tabular-nums' }}>{content.total}</span>
           {content.badges.map((badge) => <span key={badge.text} style={pillStyle(badge.tone)}>{badge.text}</span>)}

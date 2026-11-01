@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ChevronDown, Tag, FolderTree } from 'lucide-react';
 import type { CategoriaFormValues, OpcaoCatalogo } from '../../types/config';
@@ -49,49 +49,26 @@ export interface GuiasCatalogo {
   desativar: Guia;
 }
 
-/**
- * Campos extras do modal (controlados) e selo na linha, para catálogos que
- * guardam mais que o nome — as classificações de receita (fixa). Sem extensão
- * o catálogo é só nome, como nas categorias.
- */
-export interface ExtensaoCatalogo<T, E> {
-  /**
-   * Valor inicial dos campos ao abrir o modal; `item` ausente = item novo.
-   * `temSubcategorias`: o item tem subcategorias ativas (é só o nome do grupo).
-   */
-  estadoInicial: (item?: T, temSubcategorias?: boolean) => E;
-  campos: (props: { item?: T; valor: E; alterar: (proximo: E) => void; temSubcategorias: boolean }) => ReactNode;
-  selo?: (item: T) => ReactNode;
-}
-
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
-function ItemDialog<T extends ItemCatalogo, E>({
-  open, item, initialParentId, temSubcategorias, exigeSubcategoria, isSaving, error, textos, guiaDesativar, extensao, onClose, onSave, onToggle,
+function ItemDialog<T extends ItemCatalogo>({
+  open, item, initialParentId, exigeSubcategoria, isSaving, error, textos, guiaDesativar, onClose, onSave, onToggle,
 }: {
   open: boolean;
   item?: T;
   initialParentId?: number;
-  temSubcategorias: boolean;
   /** Categoria nova nasce com a primeira subcategoria (conta pessoal): o grupo sozinho não recebe lançamento. */
   exigeSubcategoria: boolean;
   isSaving: boolean;
   error?: string;
   textos: TextosCatalogo;
   guiaDesativar?: Guia;
-  extensao?: ExtensaoCatalogo<T, E>;
   onClose: () => void;
-  onSave: (v: CategoriaFormValues, extras?: E) => void;
+  onSave: (v: CategoriaFormValues) => void;
   onToggle?: () => void;
 }) {
   // Categoria nova que nasce com subcategoria é só o nome do grupo, como a que já tem subcategorias.
   const grupoNovo = exigeSubcategoria && !item && !initialParentId;
-  const ehGrupo = temSubcategorias || grupoNovo;
-  const [extras, setExtras] = useState<E | undefined>(() => extensao?.estadoInicial(item, ehGrupo));
-  // Reabrir o modal (ou trocar de item) recomeça dos valores do item.
-  useEffect(() => {
-    if (open) setExtras(extensao?.estadoInicial(item, ehGrupo));
-  }, [open, item?.id, initialParentId, ehGrupo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const desativarGuide = useFirstAccessGuide(guiaDesativar?.chave ?? 'catalogo:sem-guia', {
     enabled: !!guiaDesativar && open && !!item && item.ativo,
@@ -117,11 +94,11 @@ function ItemDialog<T extends ItemCatalogo, E>({
     const fd = new FormData(e.currentTarget);
     const nome = String(fd.get('nome') ?? '').trim();
     if (item) {
-      onSave({ nome }, extras);
+      onSave({ nome });
       return;
     }
     const subcategoria = String(fd.get('subcategoria') ?? '').trim();
-    onSave({ nome, parent_id: initialParentId ?? null, ...(grupoNovo ? { subcategories: [subcategoria] } : {}) }, extras);
+    onSave({ nome, parent_id: initialParentId ?? null, ...(grupoNovo ? { subcategories: [subcategoria] } : {}) });
   };
 
   const title = item
@@ -162,8 +139,6 @@ function ItemDialog<T extends ItemCatalogo, E>({
               </p>
             </div>
           )}
-
-          {extensao && extras !== undefined && extensao.campos({ item, valor: extras, alterar: setExtras, temSubcategorias: ehGrupo })}
 
           {error && (
             <div style={{ borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '8px 10px', fontSize: 11.5, color: C.danger }}>
@@ -211,10 +186,9 @@ const LARGURA_ADICIONAR = 'w-[80px]';
 const LARGURA_SUBCATEGORIAS = 'w-[76px] sm:w-[140px]';
 
 function ItemRow<T extends ItemCatalogo>({
-  item, index, parentIndex, quantidadeSubs, expanded, destaque, tituloPadrao, selo, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
+  item, index, parentIndex, quantidadeSubs, expanded, destaque, tituloPadrao, onToggleExpand, onEdit, onCreateSubcategory, subcategoryGuide,
 }: {
   item: T;
-  selo?: (item: T) => ReactNode;
   /** Índice hierárquico já formatado: "01" na raiz, "1.1" na subcategoria. */
   index: string;
   parentIndex?: string;
@@ -267,7 +241,6 @@ function ItemRow<T extends ItemCatalogo>({
             {item.tipo != null && (
               <span style={cfgBadgeStyle} title={tituloPadrao}>P</span>
             )}
-            {selo?.(item)}
           </span>
           <span style={{ flex: 'none', fontSize: 11.5, fontWeight: 500, color: CFG.muted }}>
             {dataCriado ?? '—'}
@@ -335,25 +308,24 @@ function ItemRow<T extends ItemCatalogo>({
 
 // ─── Tela ────────────────────────────────────────────────────────────────────
 
-interface CatalogoEmArvoreProps<T extends ItemCatalogo, E> {
+interface CatalogoEmArvoreProps<T extends ItemCatalogo> {
   queryKey: readonly unknown[];
   /** Prefixo invalidado ao salvar: todas as variantes por conta, não só a ativa. */
   invalidarPrefixo: readonly unknown[];
   carregar: () => Promise<T[]>;
-  salvar: (values: CategoriaFormValues, id?: number, extras?: E) => Promise<unknown>;
+  salvar: (values: CategoriaFormValues, id?: number) => Promise<unknown>;
   alternar: (id: number) => Promise<void>;
   /** Cor da borda ao passar o mouse na linha. */
   destaque: string;
   textos: TextosCatalogo;
   guias?: GuiasCatalogo;
-  extensao?: ExtensaoCatalogo<T, E>;
   /** Conta pessoal: a categoria nova nasce com a primeira subcategoria, porque o grupo sozinho não recebe lançamento. */
   exigeSubcategoria?: boolean;
 }
 
-export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
-  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias, extensao, exigeSubcategoria = false,
-}: CatalogoEmArvoreProps<T, E>) {
+export function CatalogoEmArvore<T extends ItemCatalogo>({
+  queryKey, invalidarPrefixo, carregar, salvar, alternar, destaque, textos, guias, exigeSubcategoria = false,
+}: CatalogoEmArvoreProps<T>) {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; item?: T; parentId?: number }>({ open: false });
   const [mostrarDesativadas, setMostrarDesativadas] = useState(false);
@@ -382,7 +354,7 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
   const totalSubs = tree.reduce((n, r) => n + r.subs.length, 0);
 
   const saveMut = useMutation({
-    mutationFn: async ({ v, id, extras }: { v: CategoriaFormValues; id?: number; extras?: E }) => salvar(v, id, extras),
+    mutationFn: async ({ v, id }: { v: CategoriaFormValues; id?: number }) => salvar(v, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: invalidarPrefixo });
       setDialog({ open: false });
@@ -448,7 +420,6 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
                 expanded={isExpanded}
                 destaque={destaque}
                 tituloPadrao={textos.tituloPadrao}
-                selo={extensao?.selo}
                 onToggleExpand={() => toggleExpand(root.id)}
                 onEdit={(item) => setDialog({ open: true, item })}
                 onCreateSubcategory={(item) => setDialog({ open: true, parentId: item.id })}
@@ -465,7 +436,6 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
                   quantidadeSubs={0}
                   destaque={destaque}
                   tituloPadrao={textos.tituloPadrao}
-                  selo={extensao?.selo}
                   onEdit={(item) => setDialog({ open: true, item })}
                 />
               ))}
@@ -486,15 +456,13 @@ export function CatalogoEmArvore<T extends ItemCatalogo, E = undefined>({
         open={dialog.open}
         item={dialog.item}
         initialParentId={dialog.parentId}
-        temSubcategorias={!!dialog.item && todos.some((c) => c.parent_id === dialog.item!.id && c.ativo)}
         exigeSubcategoria={exigeSubcategoria}
         isSaving={saveMut.isPending}
         error={saveMut.error?.message}
         textos={textos}
         guiaDesativar={guias?.desativar}
-        extensao={extensao}
         onClose={() => setDialog({ open: false })}
-        onSave={(v, extras) => saveMut.mutate({ v, id: dialog.item?.id, extras })}
+        onSave={(v) => saveMut.mutate({ v, id: dialog.item?.id })}
         onToggle={dialog.item ? () => toggleMut.mutate(dialog.item!.id) : undefined}
       />
     </div>

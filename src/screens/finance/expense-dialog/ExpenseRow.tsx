@@ -21,12 +21,13 @@ import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { SummaryLine, duplicateText, type SummaryAction } from '../entry-dialog/SummaryLine';
 import { getPaymentMethodLabel } from '../entryTable';
 import { BillingPopover } from './BillingPopover';
+import { draftBillingMenu, type BillingMenu } from './billingMenu';
 import {
-  SUMMARY_TONE, canBeRecurring, cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft,
+  canBeRecurring, cardForMethod, computedDueDate, helpText, isDraftFilled, lastAmountText, summarizeDraft,
   usesCard, type RuleContext,
 } from './draftRules';
 import type { DraftErrors, DraftPatch, ExpenseDraft } from './draftState';
-import { BATCH_GRID_CLASS, BATCH_FIXED_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS, ENTRY_FIXED_GRID_CLASS } from './expenseGrid';
+import { BATCH_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { InstallmentValueFields } from './InstallmentValueFields';
 import { InstallmentsPopover } from './InstallmentsPopover';
 import { PaymentMethodPopover } from './PaymentMethodPopover';
@@ -45,7 +46,6 @@ export interface RowResources {
   lockPurchaseDate: boolean;
   /** Sem a permissão de Categorias, não há "+ cadastrar" no seletor. */
   createCategory?: (request: NewCategoryRequest) => Promise<number>;
-  fixedBillingColumn?: boolean;
   forecastColumn?: boolean;
 }
 
@@ -97,10 +97,12 @@ interface ExpenseRowProps {
   showSummary: boolean;
   /** Só para a linha com o resumo aberto. */
   suggestions: DraftSuggestions | null;
-  /** Edição: a cobrança só aparece ("Parcela 3/10", "Mensal"). */
+  /** Edição: a cobrança só aparece ("Mensal", "Não repete"), sem menu. */
   readOnlyBilling?: string;
   /** Edição: o motivo de a cobrança não mudar, na dica do campo. */
   readOnlyBillingReason?: string;
+  /** Edição: o menu da cobrança da despesa gravada. Sem ele, o menu sai do próprio rascunho. */
+  billingMenu?: BillingMenu;
   /**
    * Edição de despesa ligada à fatura do cartão: o pagamento fica travado (é pela
    * fatura); com `locksValueAndMethod`, também valor, forma e cartão; com
@@ -121,14 +123,13 @@ interface ExpenseRowProps {
   onRemove?: () => void;
   onDefer?: (deferred: boolean) => void;
   deferDisabled?: boolean;
-  fixedConversion?: boolean;
 }
 
 /** Uma despesa na grade: a linha de entrada, um item do lote ou a despesa em edição. */
 export function ExpenseRow({
-  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, readOnlyBillingReason, invoiceLock,
+  draft, variant, resources, errors, showSummary, suggestions, readOnlyBilling, readOnlyBillingReason, billingMenu, invoiceLock,
   creditOnlyPayment = false, payInvoiceAction, pendingInstallmentCount, descriptionRef, onUpdate,
-  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove, onDefer, deferDisabled = false, fixedConversion = false,
+  onSetInstallmentCount, onCancelInstallmentCount, onFocus, onAddToBatch, onRemove, onDefer, deferDisabled = false,
 }: ExpenseRowProps) {
   const { context, categories } = resources;
   const paymentLocked = invoiceLock !== undefined || (draft.billingType === 'fixed' && draft.paymentMethod === 'credito' && draft.cardId !== null);
@@ -139,9 +140,12 @@ export function ExpenseRow({
   const isEntry = variant === 'entry';
   const installments = draft.billingType === 'installments';
   const fixed = draft.billingType === 'fixed';
-  const columns = isEntry ? (fixed ? ENTRY_FIXED_GRID_CLASS : ENTRY_GRID_CLASS)
-    : resources.forecastColumn ? BATCH_FORECAST_GRID_CLASS
-      : fixed || resources.fixedBillingColumn ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS;
+  const columns = isEntry ? ENTRY_GRID_CLASS : resources.forecastColumn ? BATCH_FORECAST_GRID_CLASS : BATCH_GRID_CLASS;
+  const menu = billingMenu ?? draftBillingMenu(draft, context, {
+    recurringAvailable: canBeRecurring(draft, context.cards),
+    pendingCount: pendingInstallmentCount,
+    endMonthInvalid: !!errors?.endMonth,
+  }, { onUpdate, onSetInstallmentCount, onCancelInstallmentCount });
   const matches = suggestions?.suggestions?.matches ?? [];
   const preferredCardIds = suggestions?.suggestions?.preferredCardIds ?? { debito: null, credito: null };
 
@@ -242,31 +246,13 @@ export function ExpenseRow({
         )}
 
         <GridCell label="Cobrança">
-          <div className="flex min-w-0 items-center gap-1">
-          <div className={fixed ? 'w-[62px] shrink-0' : 'min-w-0 flex-1'}>
           {readOnlyBilling ? (
             <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title={readOnlyBillingReason ?? 'A cobrança não muda na edição'}>
               <span style={ellipsisStyle}>{readOnlyBilling}</span>
             </span>
           ) : (
-            <BillingPopover
-              draft={draft}
-              recurringAvailable={canBeRecurring(draft, context.cards)}
-              fixedConversion={fixedConversion}
-              pendingInstallmentCount={pendingInstallmentCount}
-              onUpdate={onUpdate}
-              onSetInstallmentCount={onSetInstallmentCount}
-              onCancelInstallmentCount={onCancelInstallmentCount}
-            />
+            <BillingPopover menu={menu} />
           )}
-          </div>
-          {fixed && <label className="flex min-w-0 flex-1 items-center gap-1 text-[11px] text-slate-500">
-            Até
-            <input type="month" min="2000-01" max="2100-12" aria-label="Repetir até" value={draft.endMonth ?? ''}
-              onChange={(event) => onUpdate({ endMonth: event.target.value })} aria-invalid={errors?.endMonth || undefined}
-              style={{ ...fieldStyle({ invalid: errors?.endMonth }), minWidth: 0, width: '100%', padding: '0 3px' }} />
-          </label>}
-          </div>
         </GridCell>
 
         <GridCell label={amountLabel(draft)} required>
@@ -377,7 +363,6 @@ export function ExpenseRow({
       {showSummary && !fixed && (
         <SummaryLine
           content={summary && {
-            status: { text: summary.status, tone: SUMMARY_TONE[summary.status] },
             detail: summary.dueText,
             total: summary.totalText,
             badges: summary.badges,

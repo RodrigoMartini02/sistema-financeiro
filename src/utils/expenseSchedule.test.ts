@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addMonthsClamped, dateInMonth, installmentDueDates, invoiceDueDate, splitAmountInCents } from './expenseSchedule';
+import { addMonthsClamped, installmentDueDates, invoiceDueDate, splitAmountInCents } from './expenseSchedule';
 
 test('divide o total em centavos com o resto na última parcela', () => {
   assert.deepEqual(splitAmountInCents(10000, 3), [3333, 3333, 3334]);
@@ -14,11 +14,6 @@ test('soma meses sem pular o fim do mês', () => {
   assert.equal(addMonthsClamped('2026-01-31', 2), '2026-03-31');
   assert.equal(addMonthsClamped('2026-12-15', 1), '2027-01-15');
   assert.deepEqual(installmentDueDates('2026-01-31', 3), ['2026-01-31', '2026-02-28', '2026-03-31']);
-});
-
-test('dia do mês cai no último dia quando o mês é mais curto', () => {
-  assert.equal(dateInMonth('2026-02-10', 31), '2026-02-28');
-  assert.equal(dateInMonth('2026-09-29', 10), '2026-09-10');
 });
 
 test('fatura: compra até o fechamento entra no mês, depois dele na seguinte', () => {

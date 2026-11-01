@@ -61,7 +61,7 @@ const STATUS_TEXT_COLOR: Record<ExpenseStatusKey, string> = {
 };
 
 const STATUS_LABEL: Record<ExpenseStatusKey, string> = {
-  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada', prevista: 'Previsão',
+  pago: 'Pago', atrasada: 'Atrasada', em_dia: 'Em dia', cancelada: 'Cancelada', renegociada: 'Renegociada', agendada: 'Agendada', prevista: 'Prevista',
 };
 
 export function getFirstName(nome?: string | null): string {
@@ -692,6 +692,7 @@ export function LancamentosTable({
       />
       <IncomeDialog
         open={incomeDialog.open}
+        initialMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
         income={incomeDialog.item}
         onClose={() => setIncomeDialog({ open: false })}
       />

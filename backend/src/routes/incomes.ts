@@ -7,13 +7,15 @@ import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
 import { isClassificationAllowed } from '../services/incomeClassificationCatalog';
 import { topUpOpenEndedContracts } from '../services/contractIncomes';
-import { ensureFixedIncomeYears } from '../services/fixedIncomes';
+import { deferIncomes, listPendingIncomes } from '../services/fixedIncomes';
 import {
   readCreateIncomeInput,
   readIncomeDuplicateQuery,
   readIncomeSuggestionsQuery,
   readReceiveIncomeInput,
   readUpdateIncomeInput,
+  readIncomeDeferral,
+  readIncomeMonth,
 } from '../services/incomeInput';
 import {
   cancelIncome,
@@ -57,10 +59,11 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       // O cliente vem do cadastro da conta da receita: o nome é sempre o atual.
       `SELECT r.*, cr.nome AS classificacao_nome, crp.nome AS classificacao_pai_nome, rep.nome AS representante_nome, COALESCE(ct.nome, TRIM(CONCAT(u.nome, ' ', u.sobrenome))) AS autor_nome,
-              cl.nome AS cliente_nome
+              cl.nome AS cliente_nome, COALESCE(f.mes_final, make_date(COALESCE(f.ano_registrado, EXTRACT(YEAR FROM f.data_criacao)::int),12,1)) AS fixa_mes_final
        FROM receitas r
        LEFT JOIN comercial.clientes cl ON cl.id = r.cliente_id AND cl.conta_id = r.conta_id
        LEFT JOIN classificacoes_receita cr ON cr.id = r.classificacao_id
+       LEFT JOIN classificacoes_receita_fixas f ON f.id = r.classificacao_fixa_id AND f.usuario_id = r.usuario_id AND f.conta_id = r.conta_id
        LEFT JOIN classificacoes_receita crp ON crp.id = cr.parent_id
        LEFT JOIN representantes rep ON rep.id = r.representante_id
        LEFT JOIN usuarios u ON u.id = r.usuario_id
@@ -74,6 +77,22 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     console.error('List incomes error:', error);
     res.status(500).json({ success: false, message: 'Failed to list incomes' });
   }
+});
+
+router.get('/pending', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const rawAccount = req.query['accountId'];
+    const accountId = rawAccount === undefined ? null : Number(rawAccount);
+    if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) throw new RequestInputError('Conta inválida');
+    res.json({ success: true, data: await listPendingIncomes(req.user!.id, accountId, readIncomeMonth(req.query['month'])) });
+  } catch (error) { sendRequestError(res, error, 'Pending incomes:', req.user?.id, 'Não foi possível buscar as receitas previstas'); }
+});
+
+router.patch('/defer', authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const input = readIncomeDeferral(req.body);
+    res.json({ success: true, data: await deferIncomes(req.user!.id, input.accountId, input.ids, input.deferred) });
+  } catch (error) { sendRequestError(res, error, 'Defer incomes:', req.user?.id, 'Não foi possível alterar o adiamento'); }
 });
 
 // GET /api/incomes/suggestions?description=&account_id=
@@ -148,18 +167,17 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   }
 });
 
-// POST /api/incomes/fixas/processar — checagem ao abrir o sistema: grava o ano
-// das receitas fixas de quem pediu que ainda não o têm (a rotina diária faz o
-// mesmo para todas) e completa as 12 mensalidades à frente dos contratos sem
-// prazo das contas dele.
-router.post('/fixas/processar', authenticate, async (req: Request, res: Response): Promise<void> => {
+// POST /api/incomes/contract-top-up — checagem ao abrir o sistema: completa as 12
+// mensalidades à frente dos contratos sem prazo das contas de quem pediu (a rotina
+// diária faz o mesmo para todas). As fixas manuais têm limite explícito e não
+// passam por aqui.
+router.post('/contract-top-up', authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await ensureFixedIncomeYears({ userId: req.user!.id });
     const contractIncomes = await topUpOpenEndedContracts({ userId: req.user!.id });
-    res.json({ success: true, data: { ...result, contractIncomes } });
+    res.json({ success: true, data: { contractIncomes } });
   } catch (error) {
-    console.error('Process fixed incomes error:', error);
-    res.status(500).json({ success: false, message: 'Failed to process fixed incomes' });
+    console.error('Top up contract incomes error:', error);
+    res.status(500).json({ success: false, message: 'Failed to top up contract incomes' });
   }
 });
 

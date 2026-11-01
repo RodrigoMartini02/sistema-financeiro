@@ -6,22 +6,13 @@ import {
   incomeClassifications,
   incomes,
   type IncomeClassification,
-  type IncomeClassificationFix,
 } from '../db/schema';
 import { authenticate } from '../middleware/auth';
 import { contracts } from '../modules/contracts/db/schema';
 import { ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
-import { getTodayIsoInTimezone } from '../utils/date';
-import {
-  findFixedIncomeSource,
-  registerFixedIncomeYear,
-  removeOpenFixedIncomes,
-  updateOpenFixedIncomes,
-} from '../services/fixedIncomes';
 import { canReceiveEntries, readInitialSubcategoryNames, requiresInitialSubcategory, selectableEntryIds } from '../services/catalogRules';
 import {
   belongsToCatalog,
-  canClassificationReceiveEntries,
   findCatalogClassification,
   resolveIncomeClassificationCatalog,
   type IncomeClassificationCatalog,
@@ -35,61 +26,12 @@ import {
 const router = Router();
 const NOME_MAXIMO = 100;
 
-const CONTRACT_BLOCKS_FIXED = 'Classification used by an active contract: the contract already launches these incomes';
-const GROUP_CANNOT_BE_FIXED = 'Classification is only a group name: set one of its subclassifications as fixed';
-
-function fixToResponse(fix: IncomeClassificationFix | undefined) {
-  if (!fix) return null;
+/** O catálogo organiza as receitas; a repetição pertence ao lançamento. */
+function toResponse(row: IncomeClassification, selectable?: boolean) {
   return {
-    valor: Number(fix.amount),
-    dia_recebimento: fix.dayOfMonth,
+    id: row.id, nome: row.name, parent_id: row.parentId, tipo: row.type, conta_id: row.accountId,
+    ativo: row.active, data_criacao: row.createdAt, data_atualizacao: row.updatedAt, selectable,
   };
-}
-
-/** `selectable` (quem recebe lançamento) só vai nas respostas que o calculam; a tela refaz a lista depois de editar. */
-function toResponse(row: IncomeClassification, fix?: IncomeClassificationFix, inActiveContract = false, selectable?: boolean) {
-  return {
-    id: row.id,
-    nome: row.name,
-    parent_id: row.parentId,
-    tipo: row.type,
-    conta_id: row.accountId,
-    ativo: row.active,
-    data_criacao: row.createdAt,
-    data_atualizacao: row.updatedAt,
-    // Receita fixa de quem pediu, nesta conta (a padrão é compartilhada entre contas).
-    fixa: fixToResponse(fix),
-    em_contrato_ativo: inActiveContract,
-    selectable,
-  };
-}
-
-/** Classificações apontadas por contrato ativo da conta: não podem ser fixas. */
-async function classificationsInActiveContracts(accountId: number): Promise<Set<number>> {
-  const rows = await db
-    .select({
-      monthly: contracts.monthlyClassificationId,
-      setup: contracts.setupClassificationId,
-      project: contracts.projectClassificationId,
-    })
-    .from(contracts)
-    .where(and(eq(contracts.accountId, accountId), eq(contracts.status, 'ativo')));
-  const ids = new Set<number>();
-  for (const row of rows) {
-    for (const id of [row.monthly, row.setup, row.project]) {
-      if (id !== null) ids.add(id);
-    }
-  }
-  return ids;
-}
-
-/** Receitas fixas da pessoa na conta, por classificação: cada pessoa vê só a sua. */
-async function fixesByClassification(accountId: number, userId: number): Promise<Map<number, IncomeClassificationFix>> {
-  const fixes = await db
-    .select()
-    .from(incomeClassificationFixes)
-    .where(and(eq(incomeClassificationFixes.accountId, accountId), eq(incomeClassificationFixes.userId, userId)));
-  return new Map(fixes.map((fix) => [fix.classificationId, fix]));
 }
 
 function readAccountId(value: unknown): number | null {
@@ -128,11 +70,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const catalog = await catalogFromRequest(req, res, req.query['conta_id']);
     if (!catalog) return;
 
-    const [rows, fixes, inContracts] = await Promise.all([
-      db.select().from(incomeClassifications).where(belongsToCatalog(catalog)).orderBy(asc(incomeClassifications.name)),
-      fixesByClassification(catalog.accountId, req.user!.id),
-      classificationsInActiveContracts(catalog.accountId),
-    ]);
+    const rows = await db.select().from(incomeClassifications).where(belongsToCatalog(catalog)).orderBy(asc(incomeClassifications.name));
 
     // Quem recebe lançamento é decidido aqui, uma vez só (catalogRules): a tela só obedece.
     const selectable = selectableEntryIds(
@@ -141,7 +79,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     );
     res.json({
       success: true,
-      data: rows.map((row) => toResponse(row, fixes.get(row.id), inContracts.has(row.id), selectable.has(row.id))),
+      data: rows.map((row) => toResponse(row, selectable.has(row.id))),
     });
   } catch (error) {
     console.error('List income classifications error:', error);
@@ -228,8 +166,8 @@ router.post('/', authenticate, async (req: Request, res: Response): Promise<void
       success: true,
       message: 'Income classification created',
       data: {
-        ...toResponse(created.classification, undefined, false, selectable),
-        subcategories: created.subcategories.map((subcategory) => toResponse(subcategory, undefined, false, true)),
+        ...toResponse(created.classification, selectable),
+        subcategories: created.subcategories.map((subcategory) => toResponse(subcategory, true)),
       },
     });
   } catch (error) {
@@ -271,101 +209,6 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
   } catch (error) {
     console.error('Update income classification error:', error);
     res.status(500).json({ success: false, message: 'Failed to update income classification' });
-  }
-});
-
-// PUT /api/income-classifications/:id/fixa?conta_id=
-// Liga, altera ou desliga a receita fixa de quem está logado NESTA conta (plano
-// .plans/receita-fixa-ano-previsto.md): cada pessoa tem a sua. Ligar grava as
-// previstas até dezembro; mudar o valor ou o dia atualiza as previstas em
-// aberto; desligar apaga as em aberto. Tudo numa transação.
-router.put('/:id/fixa', authenticate, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const catalog = await catalogFromRequest(req, res, req.query['conta_id']);
-    if (!catalog) return;
-
-    const id = Number(req.params['id']);
-    const existing = Number.isInteger(id) ? await findCatalogClassification(catalog, id) : null;
-    if (!existing) {
-      res.status(404).json({ success: false, message: 'Income classification not found' });
-      return;
-    }
-
-    const userId = req.user!.id;
-    const today = getTodayIsoInTimezone();
-    const { fixa, valor, dia_recebimento } = req.body as Record<string, unknown>;
-    const configWhere = and(
-      eq(incomeClassificationFixes.classificationId, id),
-      eq(incomeClassificationFixes.accountId, catalog.accountId),
-      eq(incomeClassificationFixes.userId, userId),
-    );
-
-    if (fixa !== true) {
-      await db.transaction(async (transaction) => {
-        const [current] = await transaction
-          .select({ id: incomeClassificationFixes.id })
-          .from(incomeClassificationFixes)
-          .where(configWhere)
-          .limit(1);
-        if (!current) return;
-        await removeOpenFixedIncomes(transaction, current.id, today);
-        await transaction.delete(incomeClassificationFixes).where(eq(incomeClassificationFixes.id, current.id));
-      });
-      res.json({ success: true, message: 'Fixed classification removed', data: toResponse(existing) });
-      return;
-    }
-
-    const amount = Math.round(Number(valor) * 100) / 100;
-    const day = Number(dia_recebimento);
-    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(day) || day < 1 || day > 31) {
-      res.status(400).json({ success: false, message: 'Fixed classification needs amount > 0 and day 1-31' });
-      return;
-    }
-
-    // Só quem recebe lançamento pode ser fixa (a receita prevista cairia nela): o
-    // grupo é só o nome, não se escolhe ao lançar.
-    if (!(await canClassificationReceiveEntries(catalog, existing))) {
-      res.status(400).json({ success: false, message: GROUP_CANNOT_BE_FIXED });
-      return;
-    }
-
-    // O contrato ativo já lança as receitas da classificação: a fixa duplicaria.
-    const inContracts = await classificationsInActiveContracts(catalog.accountId);
-    if (inContracts.has(id)) {
-      res.status(400).json({ success: false, message: CONTRACT_BLOCKS_FIXED });
-      return;
-    }
-
-    const amountText = amount.toFixed(2);
-    const saved = await db.transaction(async (transaction) => {
-      const [current] = await transaction.select().from(incomeClassificationFixes).where(configWhere).limit(1).for('update');
-      const [row] = current
-        ? await transaction
-          .update(incomeClassificationFixes)
-          .set({ amount: amountText, dayOfMonth: day, updatedAt: new Date() })
-          .where(eq(incomeClassificationFixes.id, current.id))
-          .returning()
-        : await transaction
-          .insert(incomeClassificationFixes)
-          .values({ classificationId: id, accountId: catalog.accountId, userId, amount: amountText, dayOfMonth: day })
-          .returning();
-
-      if (current && current.registeredYear !== null) {
-        if (current.amount !== amountText || current.dayOfMonth !== day) {
-          await updateOpenFixedIncomes(transaction, current.id, { amount: amountText, dayOfMonth: day }, today);
-        }
-      } else {
-        // Fixa nova (ou a antiga, sem o ano gravado): grava as previstas até dezembro.
-        const source = await findFixedIncomeSource(transaction, row!.id);
-        if (source) await registerFixedIncomeYear(transaction, source, today);
-      }
-      return row!;
-    });
-
-    res.json({ success: true, message: 'Fixed classification saved', data: toResponse(existing, saved, inContracts.has(id)) });
-  } catch (error) {
-    console.error('Save fixed income classification error:', error);
-    res.status(500).json({ success: false, message: 'Failed to save fixed classification' });
   }
 });
 
@@ -423,6 +266,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
       .select({
         total: sql<number>`(
           (SELECT COUNT(*) FROM ${incomes} WHERE ${incomes.classificationId} = ${id})
+          + (SELECT COUNT(*) FROM ${incomeClassificationFixes} WHERE ${incomeClassificationFixes.classificationId} = ${id})
           + (SELECT COUNT(*) FROM comissoes WHERE classificacao_id = ${id})
           + (SELECT COUNT(*) FROM ${contracts} WHERE ${contracts.monthlyClassificationId} = ${id}
              OR ${contracts.setupClassificationId} = ${id} OR ${contracts.projectClassificationId} = ${id})

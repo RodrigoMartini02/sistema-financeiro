@@ -18,6 +18,11 @@ interface RawIncome {
   produto_id?: string | null;
   anexos?: Attachment[] | null;
   autor_nome?: string | null;
+  usuario_id?: number;
+  classificacao_fixa_id?: number | null;
+  fixa_competencia?: string | null;
+  fixa_mes_final?: string | null;
+  adiada?: boolean;
 }
 
 interface RawExpense {
@@ -83,6 +88,11 @@ function incomeFromApi(r: RawIncome): Income {
     id: r.id, descricao: r.descricao, valorLiquido: asNumber(r.valor_liquido), valorBruto: asNumber(r.valor_bruto),
     data: r.data_recebimento, mes: r.mes, ano: r.ano,
     status: (r.status as 'ativa' | 'cancelada' | 'prevista' | 'faturada') ?? 'ativa',
+    autorId: r.usuario_id,
+    fixedIncomeId: r.classificacao_fixa_id ?? null,
+    fixedCompetence: r.fixa_competencia ?? null,
+    fixedEndMonth: r.fixa_mes_final?.slice(0, 7) ?? null,
+    deferred: r.adiada === true,
     contratoId: r.contrato_id ?? null,
     observacoes: r.observacoes,
     clienteId: r.cliente_id ?? null,
@@ -186,11 +196,11 @@ async function fetchMonthBalance(month: number, year: number): Promise<MonthBala
 }
 
 /**
- * Checagem ao abrir o sistema: grava o ano das receitas fixas de quem está
- * usando que ainda não o têm (a rotina diária faz o mesmo para todas).
+ * Checagem ao abrir o sistema: completa as mensalidades previstas dos contratos sem prazo das contas de quem está
+ * usando (a rotina diária faz o mesmo para todas). Devolve quantas receitas de contrato foram criadas.
  */
-export async function processarReceitasFixas(): Promise<{ registered: number }> {
-  return apiRequest<{ registered: number }>('/incomes/fixas/processar', { method: 'POST' });
+export async function topUpContractIncomes(): Promise<{ contractIncomes: number }> {
+  return apiRequest<{ contractIncomes: number }>('/incomes/contract-top-up', { method: 'POST' });
 }
 
 /**
@@ -208,9 +218,10 @@ export async function deleteIncome(id: number) {
   return apiRequest<void>(`/incomes/${id}`, { method: 'DELETE' });
 }
 
-/** Grava a receita e, com "Repetir até", as réplicas mensais, de uma vez (o servidor usa uma transação). */
-export async function createIncome(input: IncomeCreateInput): Promise<void> {
-  await apiRequest<unknown>('/incomes', { method: 'POST', body: JSON.stringify(input) });
+/** Grava a atual e as futuras da fixa na mesma transação; devolve a identidade da atual. */
+export async function createIncome(input: IncomeCreateInput): Promise<{ id: number; status: NonNullable<Income['status']> }> {
+  const created = await apiRequest<{ id: number; status: NonNullable<Income['status']> }>('/incomes', { method: 'POST', body: JSON.stringify(input) });
+  return { id: created.id, status: created.status };
 }
 
 export async function updateIncome(id: number, input: IncomeUpdateInput): Promise<void> {

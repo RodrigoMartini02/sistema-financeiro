@@ -6,18 +6,15 @@ import {
   C, cardStyle, dialogFooterStyle, labelStyle, neutralOutlineButtonOffStyle, saveButtonDisabledStyle, saveButtonStyle,
 } from '../../ui/dialogFormTokens';
 import { getActiveAccountId } from '../../services/apiClient';
-import { decideFixedIncomeRenewals, fetchFixedIncomeRenewals } from '../../services/fixedIncomeRenewalsService';
-import { invalidateExpenseQueries, invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
+import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import { decideSeriesRenewals, fetchSeriesRenewals } from '../../services/seriesRenewalsService';
-import type { FixedIncomeRenewalDecision, SeriesRenewal, SeriesRenewalDecision } from '../../types/finance';
+import type { SeriesRenewal, SeriesRenewalDecision } from '../../types/finance';
 import { getPaymentMethodLabel } from './entryTable';
 import { formatCurrency, formatDate } from './formatters';
 
 interface SeriesRenewalModalProps {
   /** Seção das despesas recorrentes: com a permissão de despesas. */
   showExpenses: boolean;
-  /** Seção das receitas fixas: com a permissão de receitas. */
-  showIncomes: boolean;
 }
 
 interface RenewalRow {
@@ -27,12 +24,7 @@ interface RenewalRow {
   amount: number;
 }
 
-interface Decisions {
-  series: SeriesRenewalDecision[];
-  fixed: FixedIncomeRenewalDecision[];
-}
-
-/** "Crédito · Nubank", "PIX". */
+/** "Crédito · Nubank", "Pix". */
 function paymentText(item: SeriesRenewal): string {
   const method = item.paymentMethod ? getPaymentMethodLabel(item.paymentMethod) : null;
   return [method, item.cardName].filter(Boolean).join(' · ') || '—';
@@ -84,14 +76,12 @@ function RenewalSection({ label, rows, unchecked, disabled, onToggle }: {
 
 /**
  * Renovação para o ano seguinte, ao entrar no app a partir de 1º de dezembro:
- * as despesas recorrentes que terminam em dezembro (plano
- * .plans/recorrente-ano-e-contagem.md) e as receitas fixas da pessoa (plano
- * .plans/receita-fixa-ano-previsto.md), cada seção com a permissão dela. Tudo
+ * as despesas recorrentes que terminam em dezembro. Tudo
  * vem marcado: "Renovar selecionadas" renova as marcadas e recusa as
  * desmarcadas; "Não renovar nenhuma" recusa todas. Fechar deixa para a próxima
  * vez que o app abrir. Carregando, com erro ou sem pendência, nada aparece.
  */
-export function SeriesRenewalModal({ showExpenses, showIncomes }: SeriesRenewalModalProps) {
+export function SeriesRenewalModal({ showExpenses }: SeriesRenewalModalProps) {
   const qc = useQueryClient();
   const accountId = getActiveAccountId();
   const [closed, setClosed] = useState(false);
@@ -104,66 +94,37 @@ export function SeriesRenewalModal({ showExpenses, showIncomes }: SeriesRenewalM
     enabled: showExpenses,
     staleTime: 10 * 60_000,
   });
-  const fixedQuery = useQuery({
-    queryKey: queryKeys.fixedIncomeRenewals(accountId),
-    queryFn: fetchFixedIncomeRenewals,
-    enabled: showIncomes,
-    staleTime: 10 * 60_000,
-  });
-
   const decideMutation = useMutation({
-    mutationFn: async ({ series, fixed }: Decisions) => {
-      await Promise.all([
-        series.length > 0 ? decideSeriesRenewals(series) : null,
-        fixed.length > 0 ? decideFixedIncomeRenewals(fixed) : null,
-      ]);
-    },
+    mutationFn: (decisions: SeriesRenewalDecision[]) => decideSeriesRenewals(decisions),
     onSuccess: () => {
       setClosed(true);
       invalidateExpenseQueries(qc);
-      invalidateIncomeQueries(qc);
     },
-    // Se uma das gravações falhou, a outra pode ter entrado: as listas refazem.
     onError: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.seriesRenewals(accountId) });
-      void qc.invalidateQueries({ queryKey: queryKeys.fixedIncomeRenewals(accountId) });
     },
   });
 
   const seriesItems = showExpenses ? seriesQuery.data ?? [] : [];
-  const fixedItems = showIncomes ? fixedQuery.data ?? [] : [];
   const seriesRows: RenewalRow[] = seriesItems.map((item) => ({
     key: `serie-${item.seriesId}`,
     title: item.description,
     detail: `${paymentText(item)} · última em ${formatDate(item.lastDueDate)}`,
     amount: item.amount,
   }));
-  const fixedRows: RenewalRow[] = fixedItems.map((item) => ({
-    key: `fixa-${item.fixedId}`,
-    title: item.description,
-    detail: `Receita fixa · dia ${item.dayOfMonth} de cada mês`,
-    amount: item.amount,
-  }));
-  const allRows = [...seriesRows, ...fixedRows];
+  const allRows = seriesRows;
 
-  const years = [...new Set([...seriesItems, ...fixedItems].map((item) => item.year))];
+  const years = [...new Set(seriesItems.map(item => item.year))];
   const singleYear = years.length === 1 ? years[0]! : null;
   const selectedCount = allRows.filter((row) => !unchecked.has(row.key)).length;
   const saving = decideMutation.isPending;
-  const savingDecline = saving && [...(decideMutation.variables?.series ?? []), ...(decideMutation.variables?.fixed ?? [])]
+  const savingDecline = saving && (decideMutation.variables ?? [])
     .every((decision) => !decision.renew);
   const canRenew = selectedCount > 0 && !saving;
 
-  const title = seriesRows.length > 0 && fixedRows.length > 0
-    ? 'Renovar despesas e receitas'
-    : fixedRows.length > 0 ? 'Renovar receitas fixas' : 'Renovar despesas recorrentes';
-
   function decide(renewSelected: boolean) {
     if (saving || allRows.length === 0) return;
-    decideMutation.mutate({
-      series: seriesItems.map((item) => ({ seriesId: item.seriesId, renew: renewSelected && !unchecked.has(`serie-${item.seriesId}`) })),
-      fixed: fixedItems.map((item) => ({ fixedId: item.fixedId, renew: renewSelected && !unchecked.has(`fixa-${item.fixedId}`) })),
-    });
+    decideMutation.mutate(seriesItems.map(item => ({ seriesId: item.seriesId, renew: renewSelected && !unchecked.has(`serie-${item.seriesId}`) })));
   }
 
   const toggle = (key: string) => setUnchecked((current) => toggled(current, key));
@@ -171,7 +132,7 @@ export function SeriesRenewalModal({ showExpenses, showIncomes }: SeriesRenewalM
   return (
     <Dialog
       open={!closed && allRows.length > 0}
-      title={title}
+      title="Renovar despesas recorrentes"
       description={singleYear ? `Terminam em dezembro de ${singleYear - 1}` : 'Terminam em dezembro'}
       onClose={() => setClosed(true)}
       size="sm"
@@ -186,7 +147,6 @@ export function SeriesRenewalModal({ showExpenses, showIncomes }: SeriesRenewalM
           </p>
 
           <RenewalSection label="DESPESAS RECORRENTES" rows={seriesRows} unchecked={unchecked} disabled={saving} onToggle={toggle} />
-          <RenewalSection label="RECEITAS FIXAS" rows={fixedRows} unchecked={unchecked} disabled={saving} onToggle={toggle} />
 
           {decideMutation.isError && (
             <div

@@ -3,13 +3,13 @@ import test from 'node:test';
 import type { Produto } from '../../../services/catalogoService';
 import type { ContractWithHours } from '../../../services/contractsService';
 import type { Representante } from '../../../services/representantesService';
-import type { ClassificacaoReceita } from '../../../types/config';
 import { formatCurrency } from '../formatters';
 import type { Income } from '../../../types/finance';
-import { createIncomeDraft, incomeDraftFromIncome, type IncomeDraft } from './draftState';
+import { createIncomeDraft, incomeDialogReducer, incomeDraftFromIncome, type IncomeDraft, type IncomeDraftErrors } from './draftState';
+import { initialBatchState } from '../entry-dialog/batchState';
 import {
   buildIncomeCreateInput, buildIncomeUpdateInput, calculatedAmountCents, commissionPreview, contractPrefill,
-  defaultRepeatUntil, effectiveNetCents, fixedCategoryPatch, incomeDuplicateQuery, incomeErrorMessage, monthLabel, productSaleInfo, replicaCount,
+  effectiveNetCents, incomeDuplicateQuery, incomeErrorMessage, productSaleInfo, readyIncomeToSave, replicaCount,
   summarizeIncomeDraft, validateIncomeDraft, withholdingPreview, type IncomeRuleContext,
 } from './draftRules';
 
@@ -51,13 +51,12 @@ function draft(overrides: Partial<IncomeDraft> = {}): IncomeDraft {
 
 const brl = (reais: number) => formatCurrency(reais);
 
-test('repetir até: meses depois do da receita e mês final padrão', () => {
-  assert.equal(replicaCount(draft({ repeatUntil: { month: 11, year: 2026 } }), TODAY), 3);
-  assert.equal(replicaCount(draft({ repeatUntil: { month: 8, year: 2026 } }), TODAY), 0);
+test('fixa: limite explícito inclusivo, sem assumir dezembro', () => {
+  assert.equal(replicaCount(draft({ billingType: 'fixed', endMonth: '2026-12' }), TODAY), 3);
+  assert.equal(replicaCount(draft({ billingType: 'fixed', endMonth: '2026-09' }), TODAY), 0);
   assert.equal(replicaCount(draft(), TODAY), 0);
-  assert.deepEqual(defaultRepeatUntil(draft(), TODAY), { month: 11, year: 2026 });
-  assert.deepEqual(defaultRepeatUntil(draft({ receiptDate: '10/12/2026' }), TODAY), { month: 11, year: 2027 });
-  assert.equal(monthLabel(11, 2026), 'dez/26');
+  assert.equal(createIncomeDraft('10/12/2026').endMonth, '');
+  assert.equal(replicaCount(draft({ billingType: 'fixed', receiptDate: '10/12/2026', endMonth: '2027-02' }), TODAY), 2);
 });
 
 test('prévia da comissão: mensal, única, sem comissão configurada e sem representante', () => {
@@ -69,11 +68,11 @@ test('prévia da comissão: mensal, única, sem comissão configurada e sem repr
   assert.deepEqual(commissionPreview(draft(), context), { kind: 'none' });
 });
 
-test('resumo: total com as réplicas e os avisos de comissão, estoque e horas', () => {
-  const repeated = summarizeIncomeDraft(draft({ repeatUntil: { month: 11, year: 2026 }, representativeId: 7 }), context);
-  assert.equal(repeated?.status.text, 'Recebida');
+test('resumo conserva valor e avisos de comissão, estoque e horas, sem tag de status', () => {
+  const repeated = summarizeIncomeDraft(draft({ billingType: 'fixed', endMonth: '2026-12', representativeId: 7 }), context);
+  assert.equal(repeated && 'status' in repeated, false);
   assert.equal(repeated?.detail, 'em 29/09');
-  assert.equal(repeated?.total, `${brl(1500)} · todo mês até dez/26 · 4 lançamentos`);
+  assert.equal(repeated?.total, brl(1500));
   assert.deepEqual(repeated?.badges, [{ text: `comissão de ${brl(150)} para Ana (10% · mensal)`, tone: 'info' }]);
 
   const missing = summarizeIncomeDraft(draft({ representativeId: 7, categoryId: 9 }), context);
@@ -111,15 +110,6 @@ test('horas de contrato com órgão público: o valor digitado é o bruto e a re
   assert.equal(commission.kind === 'rule' ? commission.amountCents : null, 40590);
 });
 
-test('categoria fixa preenche o valor vazio e o dia, menos com a data travada', () => {
-  const fixed = { id: 4, fixa: { valor: 4500, dia_recebimento: 31 } } as ClassificacaoReceita;
-  assert.deepEqual(fixedCategoryPatch(draft({ grossCents: null, receiptDate: '10/02/2026' }), fixed, TODAY, false), {
-    grossCents: 450000, receiptDate: '28/02/2026',
-  });
-  assert.deepEqual(fixedCategoryPatch(draft(), fixed, TODAY, true), {});
-  assert.deepEqual(fixedCategoryPatch(draft(), { ...fixed, fixa: null }, TODAY, false), {});
-});
-
 test('validação aponta os campos e monta a mensagem do rodapé', () => {
   const empty = validateIncomeDraft(draft({ description: ' ', grossCents: null }), context);
   assert.equal(incomeErrorMessage(empty), 'Preencha descrição e valor bruto.');
@@ -131,8 +121,9 @@ test('validação aponta os campos e monta a mensagem do rodapé', () => {
   const overBalance = validateIncomeDraft(draft({ clientId: 31, contractId: 8, hourTypeId: 21, hours: 12.5 }), context);
   assert.equal(incomeErrorMessage(overBalance), 'Lance no máximo o saldo de horas do contrato.');
 
-  const sameMonth = validateIncomeDraft(draft({ repeatUntil: { month: 8, year: 2026 } }), context);
-  assert.equal(incomeErrorMessage(sameMonth), 'Escolha em "Repetir até" um mês depois do da receita, em até 36 meses.');
+  assert.deepEqual(validateIncomeDraft(draft({ billingType: 'fixed', endMonth: '2026-09' }), context), {});
+  const invalidEnd = validateIncomeDraft(draft({ billingType: 'fixed', endMonth: '2026-08' }), context);
+  assert.equal(incomeErrorMessage(invalidEnd), 'Escolha em "Até" um mês válido, em até 36 meses da receita.');
 
   const tooMuch = validateIncomeDraft(draft({ productId: 'p-1', soldQuantity: 11 }), context);
   const noHours = validateIncomeDraft(draft({ contractId: 8, hourTypeId: 21, hours: null }), context);
@@ -142,28 +133,28 @@ test('validação aponta os campos e monta a mensagem do rodapé', () => {
   assert.equal(incomeErrorMessage(validateIncomeDraft(draft({ receiptDate: '31/02/2026' }), context)), 'Confira a data do recebimento.');
 });
 
-test('envio da receita nova: repetir até, produto e horas', () => {
+test('envio da receita nova: intenção de cobrança, produto e horas', () => {
   const input = buildIncomeCreateInput(draft({
-    clientId: 31, representativeId: 7, repeatUntil: { month: 11, year: 2026 },
+    clientId: 31, representativeId: 7,
     productId: 'p-1', soldQuantity: 2, contractId: 8, hourTypeId: 21, hours: 3,
   }), context, 17);
   assert.deepEqual(input, {
     description: 'Consultoria', categoryId: 4, grossAmount: 1500, netAmount: 1500, receiptDate: '2026-09-29', clientId: 31,
     representativeId: 7, attachments: null, accountId: 17,
-    repeatUntil: { month: 11, year: 2026 },
+    billingType: 'single',
     productSale: { productId: 'p-1', quantity: 2 },
     billableHours: { hourTypeId: 21, hours: 3 },
   });
 
   const simple = buildIncomeCreateInput(draft({ receiptDate: '5' }), context, null);
   assert.equal(simple.receiptDate, '2026-09-05');
-  assert.equal(simple.repeatUntil, null);
+  assert.equal(simple.billingType, 'single');
   assert.equal(simple.productSale, null);
   assert.equal(simple.billableHours, null);
 });
 
 test('edição envia só os campos da própria receita', () => {
-  const input = buildIncomeUpdateInput(draft({ repeatUntil: { month: 11, year: 2026 }, productId: 'p-1', soldQuantity: 1 }), context);
+  const input = buildIncomeUpdateInput(draft({ billingType: 'fixed', endMonth: '2026-12', productId: 'p-1', soldQuantity: 1 }), context);
   assert.equal('repeatUntil' in input, false);
   assert.equal('productSale' in input, false);
   assert.equal(input.grossAmount, 1500);
@@ -254,4 +245,54 @@ test('editar uma receita: bruto e líquido voltam preenchidos, e líquido igual 
   const semTaxa = incomeDraftFromIncome({ ...base, valorLiquido: 1000 });
   assert.equal(semTaxa.grossCents, 100000);
   assert.equal(semTaxa.netCents, null);
+});
+
+test('nova fixa registra recebimento explícito e limite, sem configuração na categoria', () => {
+  const fixed = draft({ billingType: 'fixed', endMonth: '2027-02' });
+  const predicted = buildIncomeCreateInput(fixed, context, 17);
+  assert.equal(predicted.billingType, 'fixed');
+  assert.equal(predicted.endMonth, '2027-02');
+  assert.equal(predicted.received, false);
+  assert.equal(buildIncomeCreateInput({ ...fixed, received: true }, context, 17).received, true);
+  assert.equal(validateIncomeDraft({ ...fixed, endMonth: '' }, context).endMonth, true);
+  assert.equal(validateIncomeDraft({ ...fixed, originContractId: 8 }, context).fixedOrigin, true);
+});
+
+test('editar uma fixa envia Até somente quando alterado, sem sobrescrever limite de refetch', () => {
+  const fixed = draft({ billingType: 'fixed', fixedIncomeId: 4, endMonth: '2027-02', initialEndMonth: '2027-02' });
+  assert.equal('endMonth' in buildIncomeUpdateInput(fixed, context), false);
+  assert.equal(buildIncomeUpdateInput({ ...fixed, endMonth: '2027-06' }, context).endMonth, '2027-06');
+  assert.deepEqual(validateIncomeDraft({ ...fixed, receiptDate: '10/03/2027', endMonth: '2026-12' }, context), {});
+});
+
+test('previstas adiadas, sem valor e com falha de adiamento ficam fora do salvamento', () => {
+  const predicted = draft({ forecastId: 3, fixedIncomeId: 4, billingType: 'fixed', endMonth: '2027-02' });
+  assert.equal(readyIncomeToSave(predicted, context), true);
+  assert.equal(readyIncomeToSave({ ...predicted, deferred: true }, context), false);
+  assert.equal(readyIncomeToSave({ ...predicted, grossCents: null }, context), false);
+  assert.equal(readyIncomeToSave({ ...predicted, netCents: 0 }, context), false);
+  assert.equal(readyIncomeToSave({ ...predicted, deferError: 'Falhou' }, context), false);
+  assert.equal(readyIncomeToSave({ ...predicted, forecastId: undefined, deferred: true }, context), true);
+});
+
+test('refetch preserva previsão editada e exclui confirmadas e a previsão recém-criada', () => {
+  const income: Income = {
+    id: 3, descricao: 'Salário', valorBruto: 1500, valorLiquido: 1500,
+    data: '2026-09-29', mes: 8, ano: 2026, status: 'prevista', classificacaoId: 4,
+    fixedIncomeId: 5, fixedCompetence: '2026-09-01', fixedEndMonth: '2027-02', deferred: false,
+  };
+  let state = initialBatchState<IncomeDraft, IncomeDraftErrors>(createIncomeDraft('29/09/2026'));
+  state = incomeDialogReducer(state, { type: 'mergeForecasts', incomes: [income], excludedIds: [] });
+  assert.equal(state.batch.length, 1);
+  const key = state.batch[0]!.key;
+  state = incomeDialogReducer(state, { type: 'update', key, patch: { grossCents: 170000 } });
+  state = incomeDialogReducer(state, { type: 'mergeForecasts', incomes: [{ ...income, valorBruto: 1600 }], excludedIds: [] });
+  assert.equal(state.batch[0]!.grossCents, 170000);
+  assert.equal(state.batch[0]!.key, key);
+  state = incomeDialogReducer(state, { type: 'setDeferred', ids: [income.id], deferred: true });
+  assert.equal(state.batch[0]!.deferred, true);
+  state = incomeDialogReducer(state, { type: 'mergeForecasts', incomes: [income], excludedIds: [] });
+  assert.equal(state.batch[0]!.deferred, true);
+  state = incomeDialogReducer(state, { type: 'mergeForecasts', incomes: [income, { ...income, id: 4 }], excludedIds: [3, 4] });
+  assert.deepEqual(state.batch, []);
 });

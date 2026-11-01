@@ -3,67 +3,64 @@
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
-/** Primeiro dia do mês da data: é a competência do lançamento. */
-export function competenciaDe(iso: string): string {
-  return `${iso.slice(0, 7)}-01`;
+/** Maior ampliação do limite numa só edição: o mesmo teto de volume da criação. */
+export const MAX_END_MONTH_GROWTH = 36;
+
+export interface FixedIncomeDate {
+  /** Primeiro dia do mês da ocorrência. */
+  competence: string;
+  receiptDate: string;
 }
 
-/** Dia do lançamento no mês: dia 31 em fevereiro vira o último dia do mês. */
-export function dataDoLancamento(competencia: string, diaRecebimento: number): string {
-  const [ano, mes] = competencia.split('-').map(Number);
-  const ultimoDia = new Date(ano!, mes!, 0).getDate();
-  return `${ano}-${pad(mes!)}-${pad(Math.min(diaRecebimento, ultimoDia))}`;
+/** Datas mensais ancoradas na referência, inclusive o último mês informado. */
+export function fixedIncomeRangeDates(referenceDate: string, endMonth: string): FixedIncomeDate[] {
+  const [year, month, day] = referenceDate.split('-').map(Number);
+  const months = (Number(endMonth.slice(0, 4)) - year!) * 12 + Number(endMonth.slice(5, 7)) - month!;
+  if (months < 0 || months > 1212) return [];
+  return Array.from({ length: months + 1 }, (_, index) => {
+    const date = new Date(Date.UTC(year!, month! - 1 + index, 1));
+    const finalDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    const prefix = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}`;
+    return { competence: `${prefix}-01`, receiptDate: `${prefix}-${pad(Math.min(day!, finalDay))}` };
+  });
 }
 
-function mesSeguinte(competencia: string): string {
-  const [ano, mes] = competencia.split('-').map(Number);
-  return mes === 12 ? `${ano! + 1}-01-01` : `${ano}-${pad(mes! + 1)}-01`;
+/** Primeiro dia do mês seguinte a `month` (AAAA-MM). */
+export function competenceAfter(month: string): string {
+  const year = Number(month.slice(0, 4));
+  const number = Number(month.slice(5, 7));
+  return number === 12 ? `${year + 1}-01-01` : `${year}-${pad(number + 1)}-01`;
+}
+
+export interface FixedIncomeEndChangePlan {
+  /** Meses ausentes que passam a existir como previstas, só de hoje em diante. */
+  create: FixedIncomeDate[];
+  /** Previstas futuras desta competência em diante saem da série; nulo quando o limite não diminui. */
+  removeFromCompetence: string | null;
 }
 
 /**
- * Primeiro mês do automático: o mês em que foi ligado, se o dia do
- * recebimento ainda não passou; senão, o mês seguinte.
+ * Efeito de mudar o último mês da fixa. Ampliar cria só os meses depois do
+ * limite antigo; reduzir tira as previstas futuras além do novo limite.
+ * Recebidas, faturadas, passadas e canceladas à mão ficam por conta de quem
+ * grava: a competência cancelada continua ocupada e nunca volta sozinha.
  */
-export function primeiraCompetencia(ligadoEm: string, diaRecebimento: number): string {
-  const competencia = competenciaDe(ligadoEm);
-  return ligadoEm <= dataDoLancamento(competencia, diaRecebimento) ? competencia : mesSeguinte(competencia);
-}
-
-/**
- * Competências gravadas como previstas ao ligar ou salvar a fixa (plano
- * .plans/receita-fixa-ano-previsto.md): da primeira — o mês de `inicio`, se o
- * dia ainda não passou, ou o seguinte — até dezembro do ano dela.
- */
-export function competenciasAteDezembro(inicio: string, diaRecebimento: number): string[] {
-  const primeira = primeiraCompetencia(inicio, diaRecebimento);
-  const ano = primeira.slice(0, 4);
-  const competencias: string[] = [];
-  for (let competencia = primeira; competencia.startsWith(ano); competencia = mesSeguinte(competencia)) {
-    competencias.push(competencia);
+export function planFixedIncomeEndChange(input: {
+  referenceDate: string;
+  oldEnd: string;
+  newEnd: string;
+  today: string;
+}): { refusal: string } | { plan: FixedIncomeEndChangePlan } {
+  const { referenceDate, oldEnd, newEnd, today } = input;
+  const range = fixedIncomeRangeDates(referenceDate, newEnd);
+  const growth = (Number(newEnd.slice(0, 4)) - Number(oldEnd.slice(0, 4))) * 12 + Number(newEnd.slice(5, 7)) - Number(oldEnd.slice(5, 7));
+  if (range.length === 0 || growth > MAX_END_MONTH_GROWTH) {
+    return { refusal: `O limite não pode ser anterior ao primeiro mês nem ampliar mais de ${MAX_END_MONTH_GROWTH} meses por vez` };
   }
-  return competencias;
-}
-
-/** Ano que a renovação grava: o seguinte ao último gravado, ou o ano de hoje, se a decisão demorou. */
-export function anoDaRenovacao(anoRegistrado: number, hoje: string): number {
-  return Math.max(anoRegistrado + 1, Number(hoje.slice(0, 4)));
-}
-
-/**
- * Competências da renovação para `ano`: janeiro a dezembro. Se a decisão vem
- * já dentro de `ano`, vale a regra de ligar a fixa: a partir do mês atual, se
- * o dia ainda não passou.
- */
-export function competenciasDaRenovacao(hoje: string, ano: number, diaRecebimento: number): string[] {
-  const inicioDoAno = `${ano}-01-01`;
-  return competenciasAteDezembro(hoje > inicioDoAno ? hoje : inicioDoAno, diaRecebimento)
-    .filter((competencia) => competencia.startsWith(`${ano}-`));
-}
-
-/**
- * A fixa pergunta se continua a partir de 1º de dezembro do último ano
- * gravado. Não há fim: a fixa continua ligada até alguém decidir.
- */
-export function renovacaoPendente(anoRegistrado: number, hoje: string): boolean {
-  return hoje >= `${anoRegistrado}-12-01`;
+  return {
+    plan: {
+      create: newEnd > oldEnd ? range.filter((item) => item.competence > `${oldEnd}-01` && item.receiptDate >= today) : [],
+      removeFromCompetence: newEnd < oldEnd ? competenceAfter(newEnd) : null,
+    },
+  };
 }

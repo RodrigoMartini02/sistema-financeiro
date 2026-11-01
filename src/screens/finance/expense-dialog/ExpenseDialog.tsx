@@ -18,7 +18,7 @@ import {
 } from '../../../utils/expenseSeries';
 import { embeddedInstallmentInterest } from '../../../utils/expenseValue';
 import {
-  MAX_INSTALLMENT_COUNT, canBecomeInstallments, installmentCountNotes, minimumInstallmentCount, previewInstallmentCount,
+  MIN_INSTALLMENT_COUNT, canBecomeInstallments, installmentCountNotes, minimumInstallmentCount, previewInstallmentCount,
   previewSingleInstallments, purchaseInstallmentCount, reductionBlock, singleInstallmentsNotes,
 } from '../../../utils/installmentCount';
 import {
@@ -42,8 +42,10 @@ import {
   type DialogAction, type DraftErrors, type DraftPatch, type ExpenseDraft,
 } from './draftState';
 import { ExpenseRow, amountLabel, type RowResources } from './ExpenseRow';
-import { InstallmentCountField } from './InstallmentCountField';
-import { BATCH_GRID_CLASS, BATCH_FIXED_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS, ENTRY_FIXED_GRID_CLASS } from './expenseGrid';
+import {
+  editBillingNote, editBillingOptions, editBillingText, editBillingValue, fixedEndMinimum, pickEditBilling, seriesCountHint, type BillingMenu,
+} from './billingMenu';
+import { BATCH_GRID_CLASS, BATCH_FORECAST_GRID_CLASS, ENTRY_GRID_CLASS } from './expenseGrid';
 import { PaymentMethodPopover, cardLimitText } from './PaymentMethodPopover';
 import { useExpenseSuggestions, type DraftSuggestions } from './useExpenseSuggestions';
 import { canCreateFixedFromExpense, contextForDraft, initialFixedMonth, readyToSave } from './fixedExpenseDrafts';
@@ -380,8 +382,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const forecasts = state.batch.filter((draft) => draft.forecastId !== undefined);
   const allDeferred = forecasts.length > 0 && forecasts.every((draft) => draft.deferred);
   const someDeferred = forecasts.some((draft) => draft.deferred);
-  const wideBilling = state.batch.some((draft) => draft.billingType === 'fixed');
-  const batchGrid = forecasts.length ? BATCH_FORECAST_GRID_CLASS : wideBilling ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS;
+  const batchGrid = forecasts.length ? BATCH_FORECAST_GRID_CLASS : BATCH_GRID_CLASS;
   const entryDuplicate = entrySuggestions.duplicateCreatedAt ? duplicateText(entrySuggestions.duplicateCreatedAt) : null;
   const entryLimit = cardLimitText(entry, cards, resources.cardLimits);
 
@@ -403,6 +404,11 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
       onPayInvoice({ invoiceMonth: invoiceShortcut.invoiceMonth, cardId: invoiceShortcut.cardId });
     },
   } : null;
+
+  // A despesa única em edição pode virar parcelada ou fixa pelo menu Cobrança. A ligada à fatura (paga por ela ou gerada
+  // por ela) já fica de fora em canBecomeInstallments; no crédito com cartão ela pode virar parcelada.
+  const offerSplit = expense !== null && !expense.fixedExpenseId && !isForecast && canBecomeInstallments(expense);
+  const canConvertToFixed = expense !== null && canCreateFixedFromExpense(expense);
 
   let footerMessage = '';
   let footerTone: FooterTone = 'neutral';
@@ -428,7 +434,9 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   } else if (!isEdit) {
     footerMessage = 'Enter registra · Shift+Enter adiciona ao lote';
   } else if (expense) {
-    footerMessage = billingLockReason(expense);
+    footerMessage = !isInstallmentSeries && (offerSplit || canConvertToFixed)
+      ? editBillingNote({ installments: offerSplit, fixed: canConvertToFixed })
+      : billingLockReason(expense);
   }
 
   const series = seriesQuery.data;
@@ -460,8 +468,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const countPreview = countEditable && series && expense && entryAmount !== null && nextInstallmentCount !== null
     ? previewInstallmentCount(series, expense, nextInstallmentCount, entryAmount)
     : null;
-  // A despesa ligada à fatura (paga por ela ou gerada por ela) já fica de fora em canBecomeInstallments; no crédito com cartão ela pode virar parcelada.
-  const canSplitSingle = expense !== null && !expense.fixedExpenseId && entry.billingType !== 'fixed' && !isForecast && canBecomeInstallments(expense);
+  const canSplitSingle = offerSplit && entry.billingType !== 'fixed';
   const splitPreview = canSplitSingle && nextInstallmentCount !== null && entryAmount !== null
     ? previewSingleInstallments(effectiveDueDate(state.entry, context).date, nextInstallmentCount, entryAmount)
     : null;
@@ -476,12 +483,52 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
     : null;
 
   const recurringLabel = followingCount > 0 ? `Mensal · também nas próximas ${followingCount}` : 'Mensal';
-  const canConvertToFixed = expense !== null && canCreateFixedFromExpense(expense);
-  const editBillingLabel = expense?.fixedExpenseId ? 'Fixa' : expense
-    ? expense.parcelado && expense.parcela
-      ? `Parcela ${expense.parcela}`
-      : expense.recorrente ? recurringLabel : splitPreview ? `Parcelada em ${splitPreview.count}x` : 'Não repete'
-    : undefined;
+  // O que fica só como texto na edição: a recorrente do cartão e a despesa que não pode mudar de cobrança.
+  const editBillingLabel = expense?.parcelado && expense.parcela ? `Parcela ${expense.parcela}` : expense?.recorrente ? recurringLabel : 'Não repete';
+
+  // Menu da cobrança na edição: a parcelada muda o nº de parcelas da compra; a única segue única, vira parcelada ou fixa.
+  // A série fixa usa o menu do próprio rascunho (só "Fixa", com o limite).
+  const entryHandlers = rowHandlers(entry.key);
+  const seriesMenu: BillingMenu | undefined = expense && isInstallmentSeries ? {
+    value: 'installments',
+    label: expense.parcela ? `Parcela ${expense.parcela}` : 'Parcelada',
+    options: ['installments'],
+    onSelect: () => undefined,
+    installments: {
+      value: countEditable ? countShown : countToday ?? expense.totalParcelas ?? countShown,
+      min: countMinimum,
+      disabled: !countEditable || state.saving !== null,
+      hint: seriesCountHint({
+        loaded: series !== undefined, scopeIsAll: installmentScope === 'all', generated: lock === 'generated', block: countBlock, shown: countShown,
+      }),
+      onChange: (count) => setNextInstallmentCount(count === countToday ? null : count),
+    },
+  } : undefined;
+  const singleChoice = editBillingValue(entry.billingType, nextInstallmentCount);
+  const singleMenu: BillingMenu | undefined = expense && !isInstallmentSeries && (offerSplit || canConvertToFixed) ? {
+    value: singleChoice,
+    label: editBillingText(singleChoice, nextInstallmentCount),
+    options: editBillingOptions({ installments: offerSplit, fixed: canConvertToFixed }),
+    onSelect: (type) => {
+      const choice = pickEditBilling(type, nextInstallmentCount);
+      setNextInstallmentCount(choice.installmentCount);
+      if (choice.billingType !== entry.billingType) entryHandlers.onUpdate({ billingType: choice.billingType });
+    },
+    installments: {
+      value: nextInstallmentCount ?? MIN_INSTALLMENT_COUNT,
+      min: MIN_INSTALLMENT_COUNT,
+      disabled: state.saving !== null,
+      onChange: (count) => setNextInstallmentCount(count),
+    },
+    fixedEnd: {
+      value: entry.endMonth ?? '',
+      min: fixedEndMinimum(entry, context),
+      invalid: !!state.errors[entry.key]?.endMonth,
+      onChange: (endMonth) => entryHandlers.onUpdate({ endMonth }),
+    },
+    invalid: entry.billingType === 'fixed' && !!state.errors[entry.key]?.endMonth,
+  } : undefined;
+  const billingMenu = seriesMenu ?? singleMenu;
 
   const top = (
     <>
@@ -503,13 +550,13 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
       )}
 
       {isEdit ? (
-        <div className={`${HEADER_GRID_CLASS} ${entry.billingType === 'fixed' ? BATCH_FIXED_GRID_CLASS : BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+        <div className={`${HEADER_GRID_CLASS} ${BATCH_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
           <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Pagamento</span><span>Cobrança</span>
           <span>Valor <RequiredMark /></span><span>Compra</span><span>Vencimento</span><span style={{ paddingLeft: 9 }}>Pago em</span>
           <span>Valor pago</span><span /><span />
         </div>
       ) : (
-        <div className={`${HEADER_GRID_CLASS} ${entry.billingType === 'fixed' ? ENTRY_FIXED_GRID_CLASS : ENTRY_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
+        <div className={`${HEADER_GRID_CLASS} ${ENTRY_GRID_CLASS}`} style={{ ...columnHeaderStyle, padding: '0 8px 6px' }}>
           <span>Descrição <RequiredMark /></span><span>Categoria <RequiredMark /></span><span>Cobrança</span>
           <span>{amountLabel(entry)} <RequiredMark /></span><span>Compra</span><span>{entryInstallments ? '1ª vence' : 'Vencimento'}</span>
           {entryInstallments
@@ -529,8 +576,8 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
         errors={state.errors[entry.key]}
         showSummary
         suggestions={entrySuggestions}
-        readOnlyBilling={canConvertToFixed ? undefined : editBillingLabel}
-        fixedConversion={canConvertToFixed}
+        readOnlyBilling={expense && !expense.fixedExpenseId && !billingMenu ? editBillingLabel : undefined}
+        billingMenu={billingMenu}
         readOnlyBillingReason={expense ? billingLockReason(expense) : undefined}
         invoiceLock={isForecast ? { reason: 'O pagamento é registrado ao lançar a previsão pelo lote.', locksValueAndMethod: false, locksDueDate: false } : invoiceLock}
         payInvoiceAction={payInvoiceAction}
@@ -541,27 +588,9 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
         {...rowHandlers(entry.key)}
       />
 
-      {canSplitSingle && (
-        <>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Parcelar em</span>
-            <InstallmentCountField
-              label="Parcelar a despesa em quantas parcelas"
-              value={nextInstallmentCount ?? 1}
-              min={1}
-              max={MAX_INSTALLMENT_COUNT}
-              disabled={state.saving !== null}
-              onChange={(count) => setNextInstallmentCount(count <= 1 ? null : count)}
-            />
-            <span style={{ fontSize: 12, color: C.textFaint }}>
-              {nextInstallmentCount === null ? 'Em 1, a despesa continua única.' : 'parcelas, uma por mês.'}
-            </span>
-          </div>
-          {splitPreview && singleInstallmentsNotes(splitPreview, entryAmount ?? 0, countCard).map((note) => (
-            <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
-          ))}
-        </>
-      )}
+      {splitPreview && singleInstallmentsNotes(splitPreview, entryAmount ?? 0, countCard).map((note) => (
+        <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+      ))}
 
       {isInstallmentSeries && (
         <>
@@ -594,32 +623,9 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
           ))}
           {installmentScope === 'all' && (
             <>
-              {countEditable && (
-                <>
-                  <div
-                    style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
-                    title="Só entram ou saem parcelas em aberto: as pagas e as da fatura do cartão ficam."
-                  >
-                    <span style={{ fontSize: 12, fontWeight: 600, color: C.chipOffText }}>Parcelas</span>
-                    <InstallmentCountField
-                      label="Número de parcelas da compra"
-                      value={countShown}
-                      min={countMinimum}
-                      max={MAX_INSTALLMENT_COUNT}
-                      disabled={state.saving !== null}
-                      onChange={(count) => setNextInstallmentCount(count === countToday ? null : count)}
-                    />
-                    <span style={{ fontSize: 12, color: C.textFaint }}>
-                      {countBlock && countShown <= countBlock.minimum
-                        ? `Mínimo ${countBlock.minimum}: a parcela ${countBlock.minimum} ${countBlock.reason}.`
-                        : 'Só entram ou saem parcelas em aberto.'}
-                    </span>
-                  </div>
-                  {countPreview && entryAmount !== null && installmentCountNotes(countPreview, entryAmount, countCard).map((note) => (
-                    <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
-                  ))}
-                </>
-              )}
+              {countEditable && countPreview && entryAmount !== null && installmentCountNotes(countPreview, entryAmount, countCard).map((note) => (
+                <p key={note} style={{ margin: 0, padding: '6px 8px 0', fontSize: 12, color: C.textSoft }}>{note}</p>
+              ))}
               <div
                 style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '10px 8px 0' }}
                 title="Valor sem juros. O que a soma das parcelas passa dele vira o juros das parcelas abertas."
@@ -677,9 +683,8 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
         key={draft.key}
         draft={draft}
         variant="batch"
-        resources={{ ...resources, context: contextForDraft(draft, context), forecastColumn: forecasts.length > 0, fixedBillingColumn: wideBilling }}
+        resources={{ ...resources, context: contextForDraft(draft, context), forecastColumn: forecasts.length > 0 }}
         errors={state.errors[draft.key]}
-        readOnlyBilling={draft.forecastId !== undefined ? 'Fixa' : undefined}
         invoiceLock={draft.forecastId !== undefined && draft.paymentMethod === 'credito' && draft.cardId !== null
           ? { reason: 'Despesa no crédito é paga pela fatura.', locksValueAndMethod: false, locksDueDate: false } : undefined}
         deferDisabled={deferBusy || state.saving !== null}

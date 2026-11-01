@@ -10,7 +10,7 @@ import type { ExpenseDraft } from './draftState';
 import { INVALID_BORDER, SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';
 
 export const PAYMENT_OPTIONS: ReadonlyArray<{ method: PaymentMethod; label: string; dot: string }> = [
-  { method: 'pix', label: 'PIX', dot: '#1f9e8f' },
+  { method: 'pix', label: 'Pix', dot: '#1f9e8f' },
   { method: 'dinheiro', label: 'Dinheiro', dot: '#4a9a52' },
   { method: 'debito', label: 'Débito', dot: '#c7851d' },
   { method: 'credito', label: 'Crédito', dot: C.primary },
