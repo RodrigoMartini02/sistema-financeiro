@@ -102,19 +102,14 @@ async function resolveIncomeClient(
  * atual. Horas de contrato com órgão público: o valor digitado é o bruto e a
  * receita vale o líquido, com as retenções do contrato.
  *
- * `repeatUntil` é o pedido do cliente anterior à fixa por lançamento: segue
- * valendo só para um navegador com a versão antiga aberta durante a publicação,
- * e vira a mesma série fixa já recebida.
- *
  * A receita e a despesa de comissão ficam com quem lançou (`authorId`). O
  * representante, o produto e o contrato são do catálogo da conta, procurados no
  * dono dela (`catalogOwnerId`): o titular, também quando quem lança é membro ou
  * colaborador.
  */
 export async function createIncome(authorId: number, catalogOwnerId: number, input: CreateIncomeInput): Promise<Income> {
-  const billingType = input.billingType ?? (input.repeatUntil ? 'fixed' : 'single');
-  const endMonth = input.endMonth ?? (input.repeatUntil
-    ? `${input.repeatUntil.year}-${String(input.repeatUntil.month + 1).padStart(2, '0')}` : null);
+  const billingType = input.billingType ?? 'single';
+  const endMonth = input.endMonth ?? null;
 
   const client = await pool.connect();
   try {
@@ -129,7 +124,7 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
     const source = billingType === 'fixed'
       ? await createFixedIncomeSource(transaction, authorId, { ...input, endMonth, clientId, grossAmount: amounts.gross, netAmount: amounts.net }) : null;
     const replicaDates = source ? fixedIncomeRows(source, endMonth!).slice(1).map(row => row.receiptDate) : [];
-    const received = billingType !== 'fixed' || (input.received ?? Boolean(input.repeatUntil));
+    const received = billingType !== 'fixed' || (input.received ?? false);
 
     const commission = input.representativeId !== null
       ? await findCommissionRule(client, catalogOwnerId, input.representativeId, input.categoryId)

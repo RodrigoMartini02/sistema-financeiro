@@ -171,10 +171,16 @@ export async function deferIncomes(requesterId: number, requestedAccountId: numb
   });
 }
 
+/** As previstas fixas de hoje que ainda pedem confirmação: a que a pessoa adiou (Adiar) não gera lembrete. */
+export async function listDueFixedIncomeReminders(today: string) {
+  return db.select({ userId: incomes.userId, description: incomes.description, amount: incomes.netAmount }).from(incomes)
+    .where(and(isNotNull(incomes.fixedClassificationId), eq(incomes.status, INCOME_STATUS.planned), eq(incomes.deferred, false),
+      eq(incomes.receiptDate, today)));
+}
+
 /** Mantém os lembretes existentes, sem gerar outro ano ou confirmar recebimento. */
 export async function sendFixedIncomeReminders(today = getTodayIsoInTimezone()): Promise<{ pushSent: number }> {
-  const rows = await db.select({ userId: incomes.userId, description: incomes.description, amount: incomes.netAmount }).from(incomes)
-    .where(and(isNotNull(incomes.fixedClassificationId), eq(incomes.status, INCOME_STATUS.planned), eq(incomes.receiptDate, today)));
+  const rows = await listDueFixedIncomeReminders(today);
   let pushSent = 0;
   for (const row of rows) {
     const { sent } = await sendPushToUser(row.userId, { title: 'Receita prevista para hoje',

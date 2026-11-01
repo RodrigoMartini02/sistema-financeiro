@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import {
-  installmentCountRefusal, planInstallmentCountChange, planSingleConversion, type CountChangeSubject, type CountRow,
+  installmentCountRefusal, planInstallmentCountChange, planSingleConversion, singleExpenseUnchanged, type CountChangeSubject,
+  type CountRow, type SavedSingleExpense, type SingleExpenseRow,
 } from './installmentCount';
 
 function row(number: number, overrides: Partial<CountRow> = {}): CountRow {
@@ -255,5 +256,40 @@ describe('planSingleConversion', () => {
     assert.deepEqual(planSingleConversion({ ...base, count: 361 }), { refusal: 'Informe de 2 a 360 parcelas' });
     assert.deepEqual(planSingleConversion({ ...base, amountCents: 2 }), { refusal: 'O total precisa permitir pelo menos R$ 0,01 por parcela' });
     assert.deepEqual(planSingleConversion({ ...base, amountCents: 0 }), { refusal: 'Informe o valor da despesa' });
+  });
+});
+
+describe('singleExpenseUnchanged: a despesa única continua a que a rota leu', () => {
+  const saved: SavedSingleExpense = { installmentGroupId: null, recurring: false, status: 'ativa', paid: false, invoiceEditLock: null };
+  const fresh = (patch: Partial<SingleExpenseRow> = {}): SingleExpenseRow => ({
+    installment: false, installmentGroupId: null, recurring: false, status: 'ativa', paid: false,
+    invoicePaymentId: null, invoiceOriginPaymentId: null, ...patch,
+  });
+
+  test('a mesma despesa passa', () => {
+    assert.equal(singleExpenseUnchanged(fresh(), saved), true);
+    assert.equal(singleExpenseUnchanged(fresh({ paid: true }), { ...saved, paid: true }), true);
+  });
+
+  test('coluna booleana nula (linha antiga) vale falso e não recusa', () => {
+    assert.equal(singleExpenseUnchanged(fresh({ recurring: null, paid: null, installment: null }), saved), true);
+    // Nula no banco e verdadeira na leitura da rota: aí mudou de fato.
+    assert.equal(singleExpenseUnchanged(fresh({ recurring: null }), { ...saved, recurring: true }), false);
+    assert.equal(singleExpenseUnchanged(fresh({ paid: null }), { ...saved, paid: true }), false);
+  });
+
+  test('qualquer mudança concorrente recusa: parcelou, entrou em grupo, virou recorrente, mudou de situação, foi paga ou foi para a fatura', () => {
+    for (const patch of [
+      { installment: true }, { installmentGroupId: 7 }, { recurring: true }, { status: 'cancelada' }, { paid: true },
+      { invoicePaymentId: 3 }, { invoiceOriginPaymentId: 3 },
+    ] satisfies Partial<SingleExpenseRow>[]) {
+      assert.equal(singleExpenseUnchanged(fresh(patch), saved), false, JSON.stringify(patch));
+    }
+  });
+
+  test('a trava da fatura lida antes tem de ser a mesma de agora', () => {
+    assert.equal(singleExpenseUnchanged(fresh({ invoicePaymentId: 3 }), { ...saved, invoiceEditLock: 'invoice-item' }), true);
+    assert.equal(singleExpenseUnchanged(fresh({ invoiceOriginPaymentId: 3 }), { ...saved, invoiceEditLock: 'generated' }), true);
+    assert.equal(singleExpenseUnchanged(fresh({ invoicePaymentId: 3 }), { ...saved, invoiceEditLock: 'generated' }), false);
   });
 });

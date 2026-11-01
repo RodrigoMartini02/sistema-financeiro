@@ -1138,7 +1138,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       save = async () => {
         const until = draft.replicarAte ?? null;
         const [receiptYear, receiptMonth] = date.split('-').map(Number);
-        // "Repetir até" o próprio mês da receita não repete nada.
+        // Limite no próprio mês da receita não gera série: ela fica única.
         const repeats = until !== null && until.ano * 12 + until.mes > receiptYear! * 12 + receiptMonth! - 1;
         await createIncome({
           // Sem conta escolhida no card, a receita entra na conta ativa.

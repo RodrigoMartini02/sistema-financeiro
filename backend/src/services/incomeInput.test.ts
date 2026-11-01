@@ -22,7 +22,6 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     clientId: 31,
     representativeId: null,
     attachments: null,
-    repeatUntil: null,
     productSale: null,
     billableHours: null,
     ...overrides,
@@ -38,17 +37,14 @@ test('lê a receita, apara a descrição e guarda o cliente do cadastro pelo id'
   assert.equal(input.description, 'Consultoria');
   assert.equal(input.clientId, 31);
   assert.equal(input.accountId, 17);
-  assert.equal(input.repeatUntil, null);
   assert.equal(readCreateIncomeInput(body({ clientId: null })).clientId, null);
 });
 
-test('lê repetir até, produto vendido e horas a faturar', () => {
+test('lê produto vendido e horas a faturar', () => {
   const input = readCreateIncomeInput(body({
-    repeatUntil: { month: 11, year: 2026 },
     productSale: { productId: 'a3f0c2d1-1111-4222-8333-944455556666', quantity: 2 },
     billableHours: { hourTypeId: 8, hours: 3.5 },
   }));
-  assert.deepEqual(input.repeatUntil, { month: 11, year: 2026 });
   assert.deepEqual(input.productSale, { productId: 'a3f0c2d1-1111-4222-8333-944455556666', quantity: 2 });
   assert.deepEqual(input.billableHours, { hourTypeId: 8, hours: 3.5 });
   assert.deepEqual(readCreateIncomeInput(body({ billableHours: { hourTypeId: 8, hours: 1.256 } })).billableHours, { hourTypeId: 8, hours: 1.26 });
@@ -74,17 +70,13 @@ test('a categoria é obrigatória na criação e na edição', () => {
   assertRejects(() => readUpdateIncomeInput(body({ categoryId: null })), 'Escolha a categoria');
 });
 
-test('repetir até precisa ser depois do mês da receita e no máximo 36 meses', () => {
-  assertRejects(
-    () => readCreateIncomeInput(body({ repeatUntil: { month: 8, year: 2026 } })),
-    'Repetir até: escolha um mês depois do mês da receita',
-  );
-  assertRejects(
-    () => readCreateIncomeInput(body({ repeatUntil: { month: 9, year: 2029 } })),
-    'Repetir até: no máximo 36 meses',
-  );
-  assertRejects(() => readCreateIncomeInput(body({ repeatUntil: { month: 12, year: 2026 } })), 'Repetir até: informe mês e ano');
-  assert.deepEqual(readCreateIncomeInput(body({ repeatUntil: { month: 8, year: 2029 } })).repeatUntil, { month: 8, year: 2029 });
+test('o pedido da tela antiga com repetir até é recusado e manda recarregar a página', () => {
+  const message = 'A tela está desatualizada: recarregue a página para lançar receitas fixas';
+  assertRejects(() => readCreateIncomeInput(body({ repeatUntil: { month: 11, year: 2026 } })), message);
+  assertRejects(() => readCreateIncomeInput(body({ repeatUntil: { month: 11, year: 2026 }, billingType: 'fixed', endMonth: '2026-12' })), message);
+  // Nulo ou ausente é o pedido da tela nova: segue a receita única de sempre.
+  assert.equal(readCreateIncomeInput(body({ repeatUntil: null })).billingType, 'single');
+  assert.equal('repeatUntil' in readCreateIncomeInput(body()), false);
 });
 
 test('produto e horas precisam de quantidade maior que zero', () => {
@@ -154,15 +146,11 @@ test('fixa: o limite vai do próprio mês da receita até 36 meses depois', () =
   assertRejects(() => readCreateIncomeInput(body({ billingType: 'fixed', endMonth: '2029-10' })), message);
 });
 
-test('não repete ignora o limite; o pedido antigo com repetir até vira a mesma fixa, já recebida', () => {
+test('não repete ignora o limite e nasce recebida', () => {
   const single = readCreateIncomeInput(body({ billingType: 'single', endMonth: '2026-12' }));
   assert.equal(single.billingType, 'single');
   assert.equal(single.endMonth, null);
   assert.equal(single.received, true);
-  const legacy = readCreateIncomeInput(body({ repeatUntil: { month: 11, year: 2026 } }));
-  assert.equal(legacy.billingType, 'fixed');
-  assert.equal(legacy.endMonth, '2026-12');
-  assert.equal(legacy.received, true);
 });
 
 test('edição aceita o limite da fixa e ignora o campo vazio', () => {
