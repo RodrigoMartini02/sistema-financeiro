@@ -42,23 +42,15 @@ export function fixedIncomeRows(source: IncomeClassificationFix, endMonth: strin
 export async function createFixedIncomeSource(transaction: IncomeTransaction, userId: number, input: CreateIncomeInput) {
   if (input.accountId === null || !input.endMonth) throw new RequestInputError('Escolha a conta e o último mês da receita fixa');
   if (input.billableHours) throw new RequestInputError('As horas já seguem o contrato e não podem gerar outra repetição fixa');
-  try {
-    const [source] = await transaction.insert(sources).values({
-      userId, accountId: input.accountId, classificationId: input.categoryId, description: input.description,
-      amount: input.netAmount.toFixed(2), grossAmount: input.grossAmount.toFixed(2),
-      dayOfMonth: Number(input.receiptDate.slice(8, 10)), referenceDate: input.receiptDate,
-      firstMonth: `${input.receiptDate.slice(0, 7)}-01`, endMonth: `${input.endMonth}-01`,
-      registeredYear: Number(input.endMonth.slice(0, 4)), clientId: input.clientId, representativeId: input.representativeId, active: true,
-    }).returning();
-    if (!source) throw new Error('Fixed income insert returned no source');
-    return source;
-  } catch (error) {
-    const reason = error && typeof error === 'object' && 'cause' in error ? error.cause : error;
-    if (reason && typeof reason === 'object' && 'constraint' in reason && reason.constraint === 'uq_classificacoes_receita_fixas_conta_usuario') {
-      throw new RequestInputError('Já existe uma receita fixa nesta categoria. Ela só poderá ser repetida depois da atualização do sistema; tente de novo mais tarde.', 409);
-    }
-    throw error;
-  }
+  const [source] = await transaction.insert(sources).values({
+    userId, accountId: input.accountId, classificationId: input.categoryId, description: input.description,
+    amount: input.netAmount.toFixed(2), grossAmount: input.grossAmount.toFixed(2),
+    dayOfMonth: Number(input.receiptDate.slice(8, 10)), referenceDate: input.receiptDate,
+    firstMonth: `${input.receiptDate.slice(0, 7)}-01`, endMonth: `${input.endMonth}-01`,
+    registeredYear: Number(input.endMonth.slice(0, 4)), clientId: input.clientId, representativeId: input.representativeId, active: true,
+  }).returning();
+  if (!source) throw new Error('Fixed income insert returned no source');
+  return source;
 }
 
 /** Fonte antes da ocorrência: mesma ordem usada no adiamento em grupo. */

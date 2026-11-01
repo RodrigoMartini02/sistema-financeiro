@@ -1,7 +1,7 @@
 import type { ExpenseUpdateInput, FixedExpenseCreateInput, FixedExpenseOccurrenceDto, PaymentMethod } from '../../types/finance';
 import { addMonthsClamped, invoiceDueDate } from '../../utils/expenseSchedule';
 import { brDateToIso, isoToBrDate } from '../../utils/date';
-import { generateId, todayIso, type DemoFakeDatabase, type RawExpenseDemo } from './demoFakeDatabase';
+import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawExpenseDemo } from './demoFakeDatabase';
 
 interface DemoFixedSource {
   id: number;
@@ -22,9 +22,7 @@ interface DemoFixedSource {
 const sourcesByDatabase = new WeakMap<DemoFakeDatabase, DemoFixedSource[]>();
 
 function sourcesOf(db: DemoFakeDatabase): DemoFixedSource[] {
-  const sources = sourcesByDatabase.get(db) ?? [];
-  sourcesByDatabase.set(db, sources);
-  return sources;
+  return getOrCreateList(sourcesByDatabase, db);
 }
 
 function sourceOf(db: DemoFakeDatabase, id: number): DemoFixedSource {

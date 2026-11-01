@@ -108,6 +108,13 @@ function todayIso(offsetDays = 0): string {
   return daysAgoLocalIso(-offsetDays);
 }
 
+/** A lista que cada demonstração guarda por banco falso, criada na primeira leitura. */
+function getOrCreateList<T>(store: WeakMap<DemoFakeDatabase, T[]>, db: DemoFakeDatabase): T[] {
+  const list = store.get(db) ?? [];
+  store.set(db, list);
+  return list;
+}
+
 function currentMonthYear() {
   const now = new Date();
   return { mes: now.getMonth(), ano: now.getFullYear() };
@@ -208,4 +215,4 @@ export function createDemoFakeDatabase(): DemoFakeDatabase {
   return createSeed();
 }
 
-export { generateId, todayIso };
+export { generateId, getOrCreateList, todayIso };

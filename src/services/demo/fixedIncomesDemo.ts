@@ -2,7 +2,7 @@ import type { ClassificacaoReceita } from '../../types/config';
 import type { IncomeCreateInput, IncomeOccurrenceDto, IncomeUpdateInput } from '../../types/finance';
 import { brDateToIso, isoToBrDate } from '../../utils/date';
 import { addMonthsClamped } from '../../utils/expenseSchedule';
-import { generateId, todayIso, type DemoFakeDatabase, type RawIncomeDemo } from './demoFakeDatabase';
+import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawIncomeDemo } from './demoFakeDatabase';
 
 interface DemoIncomeSource {
   id: number;
@@ -32,9 +32,7 @@ interface DemoIncomeRequest extends Partial<IncomeCreateInput> {
 }
 
 function sourcesOf(db: DemoFakeDatabase): DemoIncomeSource[] {
-  const sources = sourcesByDatabase.get(db) ?? [];
-  sourcesByDatabase.set(db, sources);
-  return sources;
+  return getOrCreateList(sourcesByDatabase, db);
 }
 
 export function demoIncomeCategories(db: DemoFakeDatabase): ClassificacaoReceita[] {
