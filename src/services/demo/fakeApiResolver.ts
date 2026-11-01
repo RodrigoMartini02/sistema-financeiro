@@ -1,9 +1,9 @@
 import {
   createDemoFakeDatabase, generateId, todayIso,
-  type DemoFakeDatabase, type RawExpenseDemo, type RawIncomeDemo,
+  type DemoFakeDatabase, type RawExpenseDemo,
 } from './demoFakeDatabase';
 import type {
-  CardInvoice, ExpenseCreateInput, ExpenseUpdateInput, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentEntry, InvoicePaymentInput,
+  CardInvoice, ExpenseCreateInput, ExpenseUpdateInput, InvoicePaymentEntry, InvoicePaymentInput,
 } from '../../types/finance';
 import { PERMISSION_FLAGS } from '../../types/permissions';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
@@ -12,6 +12,7 @@ import {
 } from '../../utils/cardInvoice';
 import { addMonthsClamped, invoiceDueDate as purchaseInvoiceDueDate, splitAmountInCents } from '../../utils/expenseSchedule';
 import { resolveFixedExpensesDemo, updateDemoExpense } from './fixedExpensesDemo';
+import { resolveFixedIncomesDemo } from './fixedIncomesDemo';
 import { buildDemoPanel, countedDemoExpense, demoExpenseDate } from './panelDemo';
 
 export interface FakeApiRequestInit {
@@ -41,6 +42,8 @@ export function resolveFakeApiRequest(
   const method = (init?.method ?? 'GET').toUpperCase();
   const fixed = resolveFixedExpensesDemo(db, endpoint, method, init?.body);
   if (fixed.handled) return fixed.data;
+  const income = resolveFixedIncomesDemo(db, endpoint, method, init?.body);
+  if (income.handled) return income.data;
 
   if (matchEndpoint(endpoint, /^\/(usuarios|users)\/me$/) && method === 'GET') {
     return { id: 0, nome: 'Você', nomeExibicao: 'Você', email: 'demo@example.invalid', tipo: 'titular', status: 'ativo', plano_status: 'ativo', plano_tipo: 'premium' };
@@ -55,36 +58,12 @@ export function resolveFakeApiRequest(
   if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'GET') {
     return db.receitas.map((row) => ({ ...row, autor_nome: 'Você' }));
   }
-  if (matchEndpoint(endpoint, /^\/incomes$/) && method === 'POST') {
-    const created = buildDemoIncomeRows(parseBody<IncomeCreateInput>(init));
-    db.receitas = [...created, ...db.receitas];
-    return created[0];
-  }
   // Sugestões e duplicata — sem histórico na demo
   if (matchEndpoint(endpoint, /^\/incomes\/suggestions$/)) {
     return { matches: [], lastAmount: null };
   }
   if (matchEndpoint(endpoint, /^\/incomes\/duplicate$/)) {
     return { duplicate: null };
-  }
-  const receitaIdMatch = matchEndpoint(endpoint, /^\/incomes\/(\d+)$/);
-  if (receitaIdMatch && method === 'DELETE') {
-    const id = Number(receitaIdMatch[1]);
-    db.receitas = db.receitas.filter((item) => item.id !== id);
-    return undefined;
-  }
-  if (receitaIdMatch && method === 'PUT') {
-    const id = Number(receitaIdMatch[1]);
-    const input = parseBody<IncomeUpdateInput>(init);
-    const [year, month] = input.receiptDate.split('-').map(Number);
-    db.receitas = db.receitas.map((item) => (item.id === id
-      ? {
-          ...item, descricao: input.description, valor_liquido: input.netAmount, valor_bruto: input.grossAmount, data_recebimento: input.receiptDate,
-          mes: month! - 1, ano: year!, cliente_id: input.clientId, classificacao_id: input.categoryId,
-          representante_id: input.representativeId,
-        }
-      : item));
-    return db.receitas.find((item) => item.id === id);
   }
 
   // Despesas
@@ -109,8 +88,8 @@ export function resolveFakeApiRequest(
   if (matchEndpoint(endpoint, /^\/expenses\/duplicate$/)) {
     return { duplicate: null };
   }
-  // Renovação das séries mensais e das receitas fixas: a demo não tem pendência
-  if (matchEndpoint(endpoint, /^\/(expenses\/series-renewals|incomes\/fixed-renewals)$/) && method === 'GET') {
+  // A demo não tem pendência de renovação das séries mensais do cartão.
+  if (matchEndpoint(endpoint, /^\/expenses\/series-renewals$/) && method === 'GET') {
     return [];
   }
   const despesaIdMatch = matchEndpoint(endpoint, /^\/expenses\/(\d+)$/);
@@ -243,7 +222,6 @@ export function resolveFakeApiRequest(
 
   // Listas auxiliares sem dado relevante na demo — devolver vazio
   if (matchEndpoint(endpoint, /^\/representantes$/)) return { success: true, data: [] };
-  if (matchEndpoint(endpoint, /^\/income-classifications$/)) return [];
   // Clientes, contratos e catálogo de serviços: a demo não tem cadastro de clientes.
   if (matchEndpoint(endpoint, /^\/clients$/)) return [];
   if (matchEndpoint(endpoint, /^\/clients\/summary$/)) {
@@ -484,27 +462,6 @@ function demoUndoInvoicePayment(db: DemoFakeDatabase, paymentId: number): DemoIn
   payment.reversedAt = `${todayIso()} 00:00:00`;
   payment.reversedByName = 'Você';
   return payment;
-}
-
-/** As mesmas linhas que o backend grava: a receita e uma cópia por mês até "Repetir até". */
-function buildDemoIncomeRows(input: IncomeCreateInput): RawIncomeDemo[] {
-  const row = (receiptDate: string): RawIncomeDemo => {
-    const [year, month] = receiptDate.split('-').map(Number);
-    return {
-      id: generateId(), descricao: input.description, valor_liquido: input.netAmount, valor_bruto: input.grossAmount, data_recebimento: receiptDate,
-      mes: month! - 1, ano: year!, status: 'ativa', contrato_id: null,
-      observacoes: null, cliente_id: input.clientId, cliente_nome: null, classificacao_id: input.categoryId, classificacao_nome: null,
-      representante_id: input.representativeId, representante_nome: null, valor_comissao: null, anexos: null,
-    };
-  };
-  const [year, month] = input.receiptDate.split('-').map(Number);
-  const replicas = input.repeatUntil
-    ? Math.max(0, (input.repeatUntil.year - year!) * 12 + input.repeatUntil.month - (month! - 1))
-    : 0;
-  return [
-    row(input.receiptDate),
-    ...Array.from({ length: replicas }, (_, index) => row(addMonthsClamped(input.receiptDate, index + 1))),
-  ];
 }
 
 const DEMO_PERSON = { id: 0, name: 'Você' };

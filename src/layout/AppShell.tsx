@@ -6,7 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser } from '../types/auth';
 import { getActiveAccountId } from '../services/apiClient';
-import { processarReceitasFixas } from '../services/financeService';
+import { topUpContractIncomes } from '../services/financeService';
 import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
 import { invalidateIncomeQueries, queryKeys } from '../services/queryKeys';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
@@ -246,17 +246,16 @@ export function AppShell({
   const canLaunchExpenses = ownPermissions?.accessExpenses === true;
   const hasConfigItems = !!ownPermissions && hasVisibleConfigItems(ownPermissions, configItemContext(user, contaTipo));
 
-  // Garantia da rotina diária: ao abrir o sistema, grava o ano das receitas
-  // fixas que ainda não o têm. Só para quem pode lançar receitas — para os
-  // demais o servidor recusaria.
-  const receitasFixas = useMutation({
-    mutationFn: processarReceitasFixas,
-    onSuccess: ({ registered }) => {
-      if (registered > 0) invalidateIncomeQueries(qc);
+  // Mantém a reposição das previsões dos contratos sem prazo ao abrir o app.
+  // As fixas manuais já têm intervalo explícito e não são renovadas aqui.
+  const contractTopUp = useMutation({
+    mutationFn: topUpContractIncomes,
+    onSuccess: ({ contractIncomes }) => {
+      if (contractIncomes > 0) invalidateIncomeQueries(qc);
     },
   });
   useEffect(() => {
-    if (!isDemoMode && canLaunchIncomes) receitasFixas.mutate();
+    if (!isDemoMode && canLaunchIncomes) contractTopUp.mutate();
   }, [isDemoMode, canLaunchIncomes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const notifAccountId = getActiveAccountId();
@@ -465,8 +464,8 @@ export function AppShell({
         </main>
       </div>
       {!isDemoMode && !telaDesktop && canUseAssistant && <FinancialAssistant />}
-      {/* A partir de 1º de dezembro, pergunta se as despesas recorrentes e as receitas fixas continuam (na demo, nunca há). */}
-      {(canLaunchExpenses || canLaunchIncomes) && <SeriesRenewalModal showExpenses={canLaunchExpenses} showIncomes={canLaunchIncomes} />}
+      {/* A partir de 1º de dezembro, pergunta se as despesas recorrentes continuam (na demo, nunca há). */}
+      {canLaunchExpenses && <SeriesRenewalModal showExpenses={canLaunchExpenses} />}
       {!isDemoMode && (
         <ConfigPanel
           open={configPanel.open && hasConfigItems}

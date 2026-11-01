@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { expenses } from '../db/schema';
 import { ACTIVE_STATUS, CANCELLED_STATUS } from './entryQueries';
@@ -78,11 +78,17 @@ export async function createCommissionExpense({
  * antiga sem vínculo com a receita não é tocada.
  */
 export async function cancelLinkedCommission(executor: Pick<typeof db, 'update'>, incomeId: number): Promise<void> {
+  await cancelLinkedCommissions(executor, [incomeId]);
+}
+
+/** O mesmo cancelamento para várias receitas de uma vez (sem uma consulta por receita). */
+export async function cancelLinkedCommissions(executor: Pick<typeof db, 'update'>, incomeIds: number[]): Promise<void> {
+  if (incomeIds.length === 0) return;
   await executor
     .update(expenses)
     .set({ status: CANCELLED_STATUS })
     .where(and(
-      eq(expenses.sourceIncomeId, incomeId),
+      inArray(expenses.sourceIncomeId, incomeIds),
       eq(expenses.status, ACTIVE_STATUS),
       sql`${expenses.paid} IS NOT TRUE`,
     ));

@@ -221,6 +221,7 @@ export function CalendarView({ month, year, subView }: Props) {
 
       <IncomeDialog
         open={dialog?.kind === 'receita'}
+        initialMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
         income={editingIncome}
         presetDate={dialog?.presetDate}
         onClose={() => setDialog(null)}

@@ -26,12 +26,17 @@ export interface Income {
   descricao: string;
   /** Quem cadastrou. Preenchido quando a conta tem mais de uma pessoa lancando. */
   autorNome?: string | null;
+  autorId?: number;
   /** O que entrou na conta (valor líquido): é o que soma em saldo e totais. */
   valorLiquido: number;
   data: string;
   mes: number;
   ano: number;
   status?: 'ativa' | 'cancelada' | 'prevista' | 'faturada';
+  fixedIncomeId?: number | null;
+  fixedCompetence?: string | null;
+  fixedEndMonth?: string | null;
+  deferred?: boolean;
   contratoId?: number | null;
   observacoes?: string | null;
   /** Cliente do cadastro (conta PJ): o nome é sempre o atual. */
@@ -48,12 +53,6 @@ export interface Income {
   /** Produto do catálogo vendido nesta receita: cancelar ou excluir devolve o estoque. */
   produtoId?: string | null;
   anexos?: Attachment[] | null;
-}
-
-/** "Repetir até": réplicas mensais até este mês (0-11) e ano. */
-export interface IncomeRepeatUntil {
-  month: number;
-  year: number;
 }
 
 /** Venda de um produto do catálogo: a quantidade baixa o estoque. */
@@ -84,13 +83,45 @@ interface IncomeFieldsInput {
 /** Corpo do POST /incomes. Datas em ISO e valores em reais. */
 export interface IncomeCreateInput extends IncomeFieldsInput {
   accountId: number | null;
-  repeatUntil: IncomeRepeatUntil | null;
+  billingType?: 'single' | 'fixed';
+  endMonth?: string;
+  /** Na fixa, só a primeira ocorrência pode nascer recebida. */
+  received?: boolean;
   productSale: IncomeProductSale | null;
   billableHours: IncomeBillableHours | null;
 }
 
 /** Corpo do PUT /incomes/:id: só os campos da própria receita. */
-export type IncomeUpdateInput = IncomeFieldsInput;
+export type IncomeUpdateInput = IncomeFieldsInput & { endMonth?: string };
+
+/** Ocorrência já gravada que pode ser recebida pelo lote, sem criar outra receita. */
+export interface IncomeOccurrenceDto {
+  id: number;
+  userId: number;
+  accountId: number | null;
+  description: string;
+  grossAmount: string | number;
+  netAmount: string | number;
+  receiptDate: string;
+  month: number;
+  year: number;
+  status: 'prevista' | 'faturada';
+  categoryId: number;
+  categoryName: string | null;
+  parentCategoryName: string | null;
+  clientId: number | null;
+  clientName: string | null;
+  representativeId: number | null;
+  representativeName: string | null;
+  commissionAmount: string | number | null;
+  contractId: number | null;
+  attachments: Attachment[] | null;
+  createdAt: string | null;
+  fixedIncomeId: number | null;
+  fixedCompetence: string | null;
+  endMonth: string | null;
+  deferred: boolean;
+}
 
 /** Despesa em aberto que o chip "Pagar despesa" do assistente oferece (GET /expenses/em-aberto). */
 export interface OpenExpense {
@@ -261,24 +292,6 @@ export interface SeriesRenewalResult {
   declined: number;
 }
 
-/** Receita fixa da pessoa que aguarda a decisão de continuar (GET /incomes/fixed-renewals). */
-export interface FixedIncomeRenewal {
-  /** A configuração da fixa. */
-  fixedId: number;
-  /** "Raiz › Nome", como a receita aparece na lista. */
-  description: string;
-  amount: number;
-  dayOfMonth: number;
-  /** Ano que a renovação grava. */
-  year: number;
-}
-
-/** Decisão do modal de renovação: a receita fixa continua ou não no ano seguinte. */
-export interface FixedIncomeRenewalDecision {
-  fixedId: number;
-  renew: boolean;
-}
-
 export const PAYMENT_METHODS = ['pix', 'dinheiro', 'debito', 'credito'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
@@ -342,10 +355,20 @@ export interface ExpenseUpdateInput extends ExpenseFieldsInput, ExpensePaymentIn
    */
   cashPrice?: number | null;
   /**
-   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única
-   * em aberto, ela vira a parcela 1. Ausente não muda.
+   * Novo nº de parcelas da compra: na parcelada vale para a compra inteira (`applyTo: 'all'`); na despesa única,
+   * ela vira a parcela 1. Ausente não muda.
    */
   installmentCount?: number | null;
+  /**
+   * Intenção da cobrança, junto de `installmentCount`: o servidor recusa "parcelado" sem quantidade e quantidade
+   * sem "parcelado". Ausente mantém o pedido antigo (só a quantidade).
+   */
+  billingType?: Extract<ExpenseBillingType, 'single' | 'installments'>;
+  /**
+   * Só na despesa única que vira parcelada: `total` divide o valor da despesa entre as parcelas (a compra e o
+   * pagamento continuam os mesmos, e é o único modo da paga); `perInstallment` (padrão) repete o valor em cada parcela.
+   */
+  installmentAmountMode?: 'total' | 'perInstallment';
 }
 
 /** Configuração mensal; valores em reais e datas em ISO. */

@@ -3,7 +3,7 @@ import { Router, Request, Response } from 'express';
 import { processPlanLifecycle } from '../services/plan-lifecycle';
 import { processExpenseAlerts } from '../services/expenseAlerts';
 import { topUpOpenEndedContracts } from '../services/contractIncomes';
-import { ensureFixedIncomeYears, sendFixedIncomeReminders } from '../services/fixedIncomes';
+import { sendFixedIncomeReminders } from '../services/fixedIncomes';
 
 const router = Router();
 
@@ -46,7 +46,7 @@ router.post('/expense-alerts', async (req: Request, res: Response): Promise<void
   // prazo: sem agendamento nem segredo novos no Render.
   try {
     const result = await processExpenseAlerts();
-    const fixedIncomes = { ...(await ensureFixedIncomeYears()), ...(await sendFixedIncomeReminders()) };
+    const fixedIncomes = await sendFixedIncomeReminders();
     const contractIncomes = await topUpOpenEndedContracts({ all: true });
     res.json({ success: true, data: { ...result, fixedIncomes, contractIncomes } });
   } catch (error) {

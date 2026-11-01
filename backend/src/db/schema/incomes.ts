@@ -9,6 +9,7 @@ import {
   jsonb,
   timestamp,
   index,
+  boolean,
 } from 'drizzle-orm/pg-core';
 
 import { users } from './users';
@@ -46,6 +47,7 @@ export const incomes = pgTable(
     // fixa: o par é único (não lança o mesmo mês duas vezes).
     fixedClassificationId: integer('classificacao_fixa_id').references(() => incomeClassificationFixes.id, { onDelete: 'set null' }),
     fixedCompetence: date('fixa_competencia'),
+    deferred: boolean('adiada').notNull().default(false),
     representativeId: integer('representante_id'),
     attachments: jsonb('anexos'),
     createdAt: timestamp('data_criacao').defaultNow(),

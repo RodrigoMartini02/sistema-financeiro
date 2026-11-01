@@ -41,7 +41,7 @@ export interface RuleContext {
 /** Por que a Cobrança não muda na edição: a dica do campo e o texto do rodapé. */
 export function billingLockReason(expense: Pick<Expense, 'parcelado'>): string {
   return expense.parcelado
-    ? 'A cobrança não muda na edição: o nº de parcelas muda em "Aplicar a › Todas"; para trocar a cobrança, exclua e lance de novo.'
+    ? 'A cobrança não muda na edição: o nº de parcelas muda no menu Cobrança, com "Todas" em "Aplicar a"; para trocar a cobrança, exclua e lance de novo.'
     : 'A cobrança não muda na edição: para trocá-la, exclua e lance de novo.';
 }
 
@@ -273,7 +273,7 @@ export function installmentMismatch(draft: ExpenseDraft): string | null {
 
 // ── Resumo ─────────────────────────────────────────────────────────────────
 
-export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento' | 'Previsão';
+export type SummaryStatus = 'Pago' | 'Agendado' | 'Entra na fatura' | 'Com vencidas' | 'Em andamento' | 'Prevista';
 
 /** Cor da situação na linha de resumo (modal e card do assistente). */
 export const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
@@ -282,7 +282,7 @@ export const SUMMARY_TONE: Record<SummaryStatus, StatusTone> = {
   'Entra na fatura': 'info',
   'Com vencidas': 'danger',
   'Em andamento': 'info',
-  'Previsão': 'neutral',
+  Prevista: 'neutral',
 };
 
 export interface DraftSummary {
@@ -321,7 +321,7 @@ export function summarizeDraft(draft: ExpenseDraft, context: RuleContext): Draft
 
   if (forecast && !draft.paid) {
     return {
-      status: 'Previsão',
+      status: 'Prevista',
       dueText: `Vence ${isoToShortBrDate(due.date)}`,
       totalText: formatCents(amount),
       badges,

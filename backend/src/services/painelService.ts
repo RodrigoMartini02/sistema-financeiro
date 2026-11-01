@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
-  INVOICE_PAYMENT_METHODS, cards, categories, expenses, incomeClassificationFixes, incomeClassifications, incomes, invoicePayments,
+  INVOICE_PAYMENT_METHODS, cards, categories, expenses, incomeClassifications, incomes, invoicePayments,
 } from '../db/schema';
 import { catalogoProdutos } from '../modules/catalogo/db/schema';
 import { getCardLimitsForOwners } from './cardLimitService';
@@ -44,7 +44,6 @@ import {
   temFiltroDeDespesa,
   periodoAnterior,
   primeiroDiaDoMes,
-  projetarFixas,
   receitasDoPeriodo,
   resumirPeriodo,
   resumirReceitasPainel,
@@ -59,7 +58,6 @@ import {
   type EmDiaAgregado,
   type FormaPagamentoAgregada,
   type Granularidade,
-  type FixaPainel,
   type Periodo,
   type PontoSerieComJurosAVencer,
   type ReceitaPainel,
@@ -333,6 +331,7 @@ async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: s
     valorBruto: incomes.grossAmount,
     retencoes: incomes.withholdings,
     classificacaoId: incomes.classificationId,
+    fixedIncomeId: incomes.fixedClassificationId,
   }).from(incomes).where(and(
     ...incomeBaseConditions(entrada.escopo, entrada.accountId, status),
     gte(incomes.receiptDate, janela.de),
@@ -344,30 +343,6 @@ async function buscarReceitas(entrada: PainelEntrada, janela: Periodo, status: s
     valorBruto: toNumber(linha.valorBruto),
     retencoes: sumWithholdings(linha.retencoes),
   }));
-}
-
-/**
- * Classificações fixas da conta do painel, configuradas por pessoas do escopo
- * (o filtro de pessoas vale também para a projeção). Sem conta, não há fixa:
- * a configuração é sempre de uma conta.
- */
-async function buscarFixas(entrada: PainelEntrada): Promise<FixaPainel[]> {
-  if (!entrada.accountId) {
-    return [];
-  }
-  const linhas = await db.select({
-    usuarioId: incomeClassificationFixes.userId,
-    classificacaoId: incomeClassificationFixes.classificationId,
-    valor: incomeClassificationFixes.amount,
-    diaRecebimento: incomeClassificationFixes.dayOfMonth,
-  }).from(incomeClassificationFixes)
-    .innerJoin(incomeClassifications, eq(incomeClassifications.id, incomeClassificationFixes.classificationId))
-    .where(and(
-      eq(incomeClassificationFixes.accountId, entrada.accountId),
-      inArray(incomeClassificationFixes.userId, entrada.escopo),
-      eq(incomeClassifications.active, true),
-    ));
-  return linhas.map((linha) => ({ ...linha, valor: toNumber(linha.valor) }));
 }
 
 /** Nomes das classificações usadas e das raízes delas (para agrupar a sub no pai). */
@@ -581,13 +556,12 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
 
   // Previstas desde o início do mês do período: a projeção das fixas precisa
   // saber se o mês já tem receita daquela classificação, mesmo antes de `de`.
-  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, fixas, jurosAVencerSemFiltro, faturasRenegociadas, forecastRows] = await Promise.all([
+  const [despesasSemFiltro, receitas, naoPagasSemFiltro, saldoAnterior, previstas, jurosAVencerSemFiltro, faturasRenegociadas, forecastRows] = await Promise.all([
     buscarDespesas(entrada, janelaBusca),
     buscarReceitas(entrada, janelaBusca),
     buscarDespesasNaoPagas(entrada, compromissos.ate),
     calcularSaldoAnterior(entrada),
     buscarReceitas(entrada, { de: primeiroDiaDoMes(periodo.de), ate: periodo.ate }, RECEIVABLE_STATUSES),
-    buscarFixas(entrada),
     buscarJurosAVencer(entrada),
     buscarFaturasRenegociadas(entrada),
     fetchChartExpenses(entrada, forecastWindow),
@@ -612,8 +586,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
   const categoriasAgregadas = agregarCategorias(despesasPeriodo, periodForecasts);
   const porPessoa = agregarPorPessoa(despesasPeriodo, receitasPeriodo);
   const previstasPeriodo = receitasDoPeriodo(previstas, periodo);
-  const projecoes = projetarFixas(fixas, [...receitas, ...previstas], periodo, hoje);
-  const idsClassificacoes = [...new Set([...receitasPeriodo, ...previstasPeriodo, ...projecoes]
+  const idsClassificacoes = [...new Set([...receitasPeriodo, ...previstasPeriodo]
     .map((item) => item.classificacaoId)
     .filter((id): id is number => id !== null))];
 
@@ -692,9 +665,7 @@ export async function montarPainel(entrada: PainelEntrada): Promise<PainelRespos
     receitas: resumirReceitasPainel({
       recebidas: receitasPeriodo,
       previstas: previstasPeriodo,
-      projecoes,
       classificacoes,
-      idsFixos: new Set(fixas.map((fixa) => fixa.classificacaoId)),
       saiu: resumoAtual.saiu,
       periodo,
       hoje,

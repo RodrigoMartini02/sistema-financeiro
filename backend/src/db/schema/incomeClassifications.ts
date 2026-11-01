@@ -7,8 +7,8 @@ import {
   boolean,
   decimal,
   timestamp,
+  date,
   index,
-  unique,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { users } from './users';
@@ -44,11 +44,8 @@ export const incomeClassifications = pgTable(
 export type IncomeClassification = typeof incomeClassifications.$inferSelect;
 export type NewIncomeClassification = typeof incomeClassifications.$inferInsert;
 
-// Classificação fixa: valor e dia por (classificação, conta, pessoa) — a padrão
-// é compartilhada entre contas do mesmo tipo, então a configuração não pode
-// morar na própria classificação (migration 0052), e cada pessoa tem a sua
-// (migration 0083). Ligar a fixa grava as previstas até dezembro (plano
-// .plans/receita-fixa-ano-previsto.md).
+// Fonte da série de receita. O nome físico e os IDs anteriores são preservados;
+// várias séries da pessoa podem usar a mesma classificação (migration 0092).
 export const incomeClassificationFixes = pgTable(
   'classificacoes_receita_fixas',
   {
@@ -67,12 +64,18 @@ export const incomeClassificationFixes = pgTable(
     dayOfMonth: smallint('dia_recebimento').notNull(),
     /** Até que ano as previstas foram gravadas; nulo na fixa antiga, até a rotina gravar o ano. */
     registeredYear: integer('ano_registrado'),
+    description: varchar('descricao', { length: 255 }),
+    grossAmount: decimal('valor_bruto', { precision: 12, scale: 2 }),
+    referenceDate: date('data_referencia'),
+    firstMonth: date('primeira_competencia'),
+    endMonth: date('mes_final'),
+    clientId: integer('cliente_id'),
+    representativeId: integer('representante_id'),
+    active: boolean('ativa').notNull().default(true),
     createdAt: timestamp('data_criacao').notNull().defaultNow(),
     updatedAt: timestamp('data_atualizacao').notNull().defaultNow(),
   },
   (table) => ({
-    classificationAccountUserUnique: unique('uq_classificacoes_receita_fixas_conta_usuario')
-      .on(table.classificationId, table.accountId, table.userId),
     accountIdx: index('idx_classificacoes_receita_fixas_conta').on(table.accountId),
     userIdx: index('idx_classificacoes_receita_fixas_usuario').on(table.userId),
   }),

@@ -4,9 +4,12 @@
 // - Só entra ou sai parcela aberta; a paga e a da fatura ficam (só o rótulo "x/N" muda).
 // - Aumentar cria as parcelas de N + 1 até o novo total, com o valor da parcela editada e sem juros.
 // - Reduzir apaga a cauda de parcelas abertas; o mínimo é a parcela mais alta que está paga, na fatura ou em edição.
+// - A despesa única vira a parcela 1: em aberto, o valor se repete em cada parcela; paga, o valor é o total da compra e
+//   o pagamento se divide entre as parcelas (todas pagas na data original, sem mexer no caixa).
 import { formatCurrency } from '../screens/finance/formatters';
 import type { Expense } from '../types/finance';
-import { addMonthsClamped } from './expenseSchedule';
+import { isCreditWithCard } from './cardInvoice';
+import { addMonthsClamped, splitAmountInCents } from './expenseSchedule';
 import { installmentScopeRows } from './expenseSeries';
 
 export const MIN_INSTALLMENT_COUNT = 2;
@@ -140,26 +143,57 @@ export function previewInstallmentCount<T extends PurchaseRow>(
   };
 }
 
-/** Despesa única em aberto que vira a parcela 1: as parcelas 2 a N vencem mês a mês a partir do vencimento. */
+/**
+ * Como o valor da despesa única passa às parcelas: `perInstallment` repete o valor em cada parcela (a compra cresce);
+ * `total` divide o valor entre elas, com o resto na última (a compra e o pagamento continuam os mesmos).
+ */
+export type SingleInstallmentsMode = 'total' | 'perInstallment';
+
+/** Despesa única que vira a parcela 1: as parcelas 2 a N vencem mês a mês a partir do vencimento. */
 export interface SingleInstallmentsPreview {
   count: number;
+  mode: SingleInstallmentsMode;
   /** Vencimento da última parcela, 'AAAA-MM-DD'. */
   lastDueDate: string;
+  /** O valor de cada parcela, em centavos. */
+  amountsCents: number[];
   newTotalCents: number;
 }
 
-export function previewSingleInstallments(dueDate: string, count: number, amount: number): SingleInstallmentsPreview | null {
+export function previewSingleInstallments(
+  dueDate: string,
+  count: number,
+  amount: number,
+  mode: SingleInstallmentsMode = 'perInstallment',
+): SingleInstallmentsPreview | null {
   if (!Number.isInteger(count) || count < MIN_INSTALLMENT_COUNT || count > MAX_INSTALLMENT_COUNT) return null;
-  return { count, lastDueDate: addMonthsClamped(dueDate, count - 1), newTotalCents: toCents(amount) * count };
+  const amountCents = toCents(amount);
+  // Dividir R$ 0,02 em 3 deixaria parcela sem valor: o servidor recusa.
+  if (mode === 'total' && amountCents < count) return null;
+  const amountsCents = mode === 'total' ? splitAmountInCents(amountCents, count) : Array.from({ length: count }, () => amountCents);
+  return {
+    count,
+    mode,
+    lastDueDate: addMonthsClamped(dueDate, count - 1),
+    amountsCents,
+    newTotalCents: amountsCents.reduce((sum, cents) => sum + cents, 0),
+  };
 }
 
-/** A despesa única que o modal oferece parcelar: em aberto, fora de fatura, sem grupo e que não é recorrente. */
+/**
+ * A despesa única que o modal oferece parcelar: fora de fatura, sem grupo, que não é recorrente nem cancelada.
+ * A paga também (o valor vira o total da compra e o pagamento se divide); fica de fora a paga no crédito com cartão,
+ * porque o pagamento dela é feito pela fatura.
+ */
 export function canBecomeInstallments(
-  expense: Pick<Expense, 'parcelado' | 'recorrente' | 'pago' | 'status' | 'invoicePaymentId' | 'invoiceOriginPaymentId' | 'grupoParcelamentoId'>,
+  expense: Pick<
+    Expense,
+    'parcelado' | 'recorrente' | 'pago' | 'status' | 'invoicePaymentId' | 'invoiceOriginPaymentId' | 'grupoParcelamentoId' | 'formaPagamento' | 'cartaoId'
+  >,
 ): boolean {
   return !expense.parcelado
     && !expense.recorrente
-    && !expense.pago
+    && !(expense.pago && isCreditWithCard(expense))
     && expense.status !== 'cancelada'
     && expense.invoicePaymentId == null
     && expense.invoiceOriginPaymentId == null
@@ -204,13 +238,50 @@ export function installmentCountNotes(
   return notes;
 }
 
-/** O aviso da despesa única que vira parcelada. */
-export function singleInstallmentsNotes(preview: SingleInstallmentsPreview, amount: number, card: { name: string } | null): string[] {
-  const amountText = money(toCents(amount));
-  const notes = [
-    `A despesa vira a parcela 1/${preview.count} e ${preview.count - 1 === 1 ? 'a parcela 2' : `as parcelas 2 a ${preview.count}`} ${preview.count - 1 === 1 ? 'é criada' : 'são criadas'}, de ${amountText} cada, uma por mês, até ${lastDateText(preview.lastDueDate)}. O total da compra passa a ser ${money(preview.newTotalCents)}.`,
-  ];
-  const added = preview.newTotalCents - toCents(amount);
+/**
+ * Por que a despesa única não vira parcelada neste salvamento, ou nulo. O servidor parcela com o pagamento que já
+ * está gravado: quem marcou ou desmarcou "paga" na mesma edição precisa salvar isso antes.
+ */
+export function singleSplitBlock(saved: Pick<Expense, 'pago'>, edited: { paid: boolean }): string | null {
+  return saved.pago !== edited.paid ? 'Salve a mudança do pagamento antes de parcelar a despesa.' : null;
+}
+
+/** O pagamento da despesa paga que vira parcelada, como a edição o deixou. */
+export interface SinglePaymentInfo {
+  /** Valor pago, em centavos. */
+  paidCents: number;
+  /** Data real do pagamento, 'AAAA-MM-DD'. */
+  paymentDate: string;
+}
+
+/** O aviso da despesa única que vira parcelada; com `payment`, o da paga, que reparte o pagamento entre as parcelas. */
+export function singleInstallmentsNotes(
+  preview: SingleInstallmentsPreview,
+  card: { name: string } | null,
+  payment: SinglePaymentInfo | null = null,
+): string[] {
+  const { count, amountsCents } = preview;
+  const first = amountsCents[0]!;
+  const last = amountsCents[count - 1]!;
+  const others = count - 1 === 1 ? 'a parcela 2 é criada' : `as parcelas 2 a ${count} são criadas`;
+  const until = `uma por mês, até ${lastDateText(preview.lastDueDate)}`;
+  const notes: string[] = [];
+  if (preview.mode === 'total') {
+    const each = first === last ? `${money(first)} cada` : `${money(first)} cada, a última de ${money(last)}`;
+    notes.push(
+      `A despesa de ${money(preview.newTotalCents)} é dividida em ${count} parcelas de ${each}, ${until}: ela vira a parcela 1/${count} e ${others}. O total da compra continua ${money(preview.newTotalCents)}.`,
+    );
+  } else {
+    notes.push(
+      `A despesa vira a parcela 1/${count} e ${others}, de ${money(first)} cada, ${until}. O total da compra passa a ser ${money(preview.newTotalCents)}.`,
+    );
+  }
+  if (payment) {
+    notes.push(
+      `O pagamento de ${money(payment.paidCents)} é dividido entre as parcelas, todas pagas em ${lastDateText(payment.paymentDate)}: o caixa não passa para os meses seguintes.`,
+    );
+  }
+  const added = preview.mode === 'total' ? 0 : preview.newTotalCents - first;
   if (card && added > 0) notes.push(`O limite usado do cartão ${card.name} sobe ${money(added)}.`);
   return notes;
 }

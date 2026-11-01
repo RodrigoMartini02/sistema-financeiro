@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { accounts, cards, categories, expenses, invoicePayments, users } from '../db/schema';
+import { RequestInputError } from '../utils/requestInput';
+import { expenseCashDateColumn } from './cashDate';
 import type { CreateExpenseInput, UpdateExpenseInput } from './expenseInput';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 
@@ -151,6 +153,23 @@ async function rows(scenario: Scenario) {
 }
 
 const labels = (list: Awaited<ReturnType<typeof rows>>) => list.map((row) => `${row.number}/${row.count}`);
+
+/** Soma, em centavos, de valores decimais gravados como texto ("33.33"). */
+const sumCents = (values: Array<string | null>) => values.reduce((total, value) => total + Math.round(Number(value ?? 0) * 100), 0);
+
+/** O que o caixa conta como pago entre duas datas (regime de caixa: a data do pagamento), em reais. */
+async function cashPaidBetween(scenario: Scenario, start: string, end: string): Promise<number> {
+  const [row] = await services.client.db
+    .select({ total: sql<string>`COALESCE(SUM(${expenses.amountPaid}), 0)` })
+    .from(expenses)
+    .where(and(
+      eq(expenses.userId, scenario.userId),
+      eq(expenses.status, 'ativa'),
+      eq(expenses.paid, true),
+      sql`${expenseCashDateColumn()} BETWEEN ${start} AND ${end}`,
+    ));
+  return Number(row!.total);
+}
 
 describe('nº de parcelas na edição (banco local)', { skip: databaseTestsSkipReason }, () => {
   before(async () => {
@@ -314,16 +333,117 @@ describe('nº de parcelas na edição (banco local)', { skip: databaseTestsSkipR
     });
   });
 
-  test('despesa única paga, recorrente ou ligada à fatura não vira parcelada e nada é gravado', async () => {
+  test('despesa única em aberto pelo total: R$ 100,00 em 3 = 33,33 + 33,33 + 33,34, todas em aberto, no mesmo grupo', async () => {
     await withScenario(async (scenario) => {
-      const paid = await insertSingle(scenario, { paid: true, paymentDate: '2026-10-31', amountPaid: '100.00' });
+      const id = await insertSingle(scenario);
+      await edit(scenario, id, {
+        amount: 100, dueDate: '2026-10-31', purchaseDate: '2026-10-05', installmentCount: 3,
+        billingType: 'installments', installmentAmountMode: 'total',
+      });
+      const list = await rows(scenario);
+      assert.equal(list[0]!.id, id);
+      assert.deepEqual(list.map((row) => row.amount), ['33.33', '33.33', '33.34']);
+      assert.deepEqual(list.map((row) => row.paid), [false, false, false]);
+      assert.ok(list.every((row) => row.groupId === id && row.amountPaid === null));
+    });
+  });
+
+  test('despesa única paga vira parcelada pelo total: ID da parcela 1 mantido, pagamento dividido, todas pagas na data original e caixa igual', async () => {
+    await withScenario(async (scenario) => {
+      const id = await insertSingle(scenario, { paid: true, paymentDate: '2026-10-31', amountPaid: '105.00' });
+      assert.equal(await cashPaidBetween(scenario, '2026-10-01', '2026-10-31'), 105);
+      const result = await edit(scenario, id, {
+        amount: 100, dueDate: '2026-10-31', purchaseDate: '2026-10-05', paid: true, paymentDate: '2026-10-31', amountPaid: 105,
+        installmentCount: 3, billingType: 'installments', installmentAmountMode: 'total',
+      });
+      assert.equal(result.installmentsCreated, 2);
+      const list = await rows(scenario);
+      assert.equal(list[0]!.id, id);
+      assert.deepEqual(labels(list), ['1/3', '2/3', '3/3']);
+      assert.deepEqual(list.map((row) => row.dueDate), ['2026-10-31', '2026-11-30', '2026-12-31']);
+      assert.deepEqual(list.map((row) => row.amount), ['33.33', '33.33', '33.34']);
+      assert.deepEqual(list.map((row) => row.amountPaid), ['34.99', '34.99', '35.02']);
+      assert.deepEqual(list.map((row) => row.paymentDate), ['2026-10-31', '2026-10-31', '2026-10-31']);
+      assert.deepEqual(list.map((row) => row.paid), [true, true, true]);
+      assert.ok(list.every((row) => row.groupId === id && row.installment === true));
+      assert.equal(sumCents(list.map((row) => row.amount)), 10000);
+      assert.equal(sumCents(list.map((row) => row.amountPaid)), 10500);
+      // O caixa não sai do mês do pagamento: nada passa para os vencimentos de novembro e dezembro.
+      assert.equal(await cashPaidBetween(scenario, '2026-10-01', '2026-10-31'), 105);
+      assert.equal(await cashPaidBetween(scenario, '2026-11-01', '2026-12-31'), 0);
+    });
+  });
+
+  test('despesa única paga só vira parcelada pelo total: por parcela é recusado e nada é gravado', async () => {
+    await withScenario(async (scenario) => {
+      const id = await insertSingle(scenario, { paid: true, paymentDate: '2026-10-31', amountPaid: '100.00' });
+      const paidEdit = { amount: 100, dueDate: '2026-10-31', paid: true, paymentDate: '2026-10-31', amountPaid: 100, installmentCount: 3 };
+      await assert.rejects(() => edit(scenario, id, paidEdit), /dividindo o valor total/);
       await assert.rejects(
-        () => edit(scenario, paid, { amount: 100, dueDate: '2026-10-31', paid: true, paymentDate: '2026-10-31', amountPaid: 100, installmentCount: 3 }),
-        /paga não vira parcelada/,
+        () => edit(scenario, id, { ...paidEdit, billingType: 'installments', installmentAmountMode: 'perInstallment' }),
+        /dividindo o valor total/,
       );
+      const list = await rows(scenario);
+      assert.equal(list.length, 1);
+      assert.deepEqual([list[0]!.amount, list[0]!.amountPaid, list[0]!.installment], ['100.00', '100.00', false]);
+    });
+  });
+
+  test('a conversão não muda o pagamento junto: marcar "paga" na mesma edição é recusado e nada é gravado', async () => {
+    await withScenario(async (scenario) => {
+      const id = await insertSingle(scenario);
+      await assert.rejects(
+        () => edit(scenario, id, {
+          amount: 100, dueDate: '2026-10-31', paid: true, paymentDate: '2026-10-31', amountPaid: 100, installmentCount: 3,
+          billingType: 'installments', installmentAmountMode: 'total',
+        }),
+        /Salve a mudança do pagamento/,
+      );
+      const list = await rows(scenario);
+      assert.equal(list.length, 1);
+      assert.deepEqual([list[0]!.paid, list[0]!.installment], [false, false]);
+    });
+  });
+
+  test('pedido com a tela velha não parcela outra vez: a despesa já parcelada por outra edição recusa com 409 e nada muda', async () => {
+    await withScenario(async (scenario) => {
+      const id = await insertSingle(scenario, { paid: true, paymentDate: '2026-10-31', amountPaid: '100.00' });
+      const stale = await services.service.findExpenseForUpdate(scenario.userId, id);
+      const convert = { amount: 100, dueDate: '2026-10-31', paid: true, paymentDate: '2026-10-31', amountPaid: 100, installmentCount: 3 };
+      await edit(scenario, id, { ...convert, billingType: 'installments', installmentAmountMode: 'total' });
+      await assert.rejects(
+        () => services.service.updateExpense(
+          scenario.userId, id, editInput(scenario, { ...convert, billingType: 'installments', installmentAmountMode: 'total' }), stale!, TODAY,
+        ),
+        (error: unknown) => error instanceof RequestInputError && error.status === 409,
+      );
+      const list = await rows(scenario);
+      assert.deepEqual(list.map((row) => row.amount), ['33.33', '33.33', '33.34']);
+      assert.equal(list.length, 3);
+    });
+  });
+
+  test('despesa única paga no crédito com cartão não vira parcelada: o pagamento é pela fatura', async () => {
+    await withScenario(async (scenario) => {
+      const id = await insertSingle(scenario, {
+        paymentMethod: 'credito', cardId: scenario.cardId, paid: true, paymentDate: '2026-10-31', amountPaid: '100.00',
+      });
+      await assert.rejects(
+        () => edit(scenario, id, {
+          amount: 100, dueDate: '2026-10-31', paymentMethod: 'credito', cardId: scenario.cardId, paid: true, paymentDate: '2026-10-31',
+          amountPaid: 100, installmentCount: 3, billingType: 'installments', installmentAmountMode: 'total',
+        }),
+        /paga no crédito com cartão é paga pela fatura/,
+      );
+      assert.equal((await rows(scenario)).length, 1);
+    });
+  });
+
+  test('despesa única recorrente ou ligada à fatura não vira parcelada e nada é gravado', async () => {
+    await withScenario(async (scenario) => {
       const recurring = await insertSingle(scenario, { recurring: true });
       await assert.rejects(() => edit(scenario, recurring, { amount: 100, dueDate: '2026-10-31', installmentCount: 3 }), /recorrente não tem nº de parcelas/);
-      assert.equal((await rows(scenario)).length, 2);
+      assert.equal((await rows(scenario)).length, 1);
     });
   });
 });

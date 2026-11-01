@@ -1,24 +1,22 @@
-// Regras puras do modal de receita, sem React: réplicas de "Repetir até",
+// Regras puras do modal de receita, sem React: receitas fixas por intervalo,
 // prévia da comissão, venda de produto, horas a faturar, resumo, validação e
 // montagem do que vai para a API.
 import type { Produto } from '../../../services/catalogoService';
 import type { ContractHourType, ContractWithHours, WithholdingRates } from '../../../services/contractsService';
 import type { IncomeDuplicateQuery } from '../../../services/incomeSuggestionsService';
 import type { Representante } from '../../../services/representantesService';
-import type { ClassificacaoReceita } from '../../../types/config';
 import {
-  MONTH_NAMES, type IncomeCreateInput, type IncomeRepeatUntil, type IncomeUpdateInput,
+  type IncomeCreateInput, type IncomeUpdateInput,
 } from '../../../types/finance';
 import { WITHHOLDING_TAXES } from '../../../utils/contractDisplay';
-import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
-import { dateInMonth } from '../../../utils/expenseSchedule';
+import { brDateInputToIso, isoToShortBrDate } from '../../../utils/date';
 import { formatCurrency } from '../formatters';
 import { formatCents, toCents, toReais } from '../entry-dialog/cents';
 import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
 import type { SummaryBadge, SummaryContent } from '../entry-dialog/SummaryLine';
 import type { IncomeDraft, IncomeDraftErrors } from './draftState';
 
-/** "Repetir até" gera no máximo 3 anos de réplicas (o mesmo limite do servidor). */
+/** A geração mensal conserva o limite de volume do servidor. */
 export const MAX_REPLICAS = 36;
 
 export const EMPTY_INCOME_MESSAGE = 'Preencha descrição, categoria e valor bruto para registrar.';
@@ -53,23 +51,24 @@ export function receiptDateIso(draft: IncomeDraft, todayIso: string): string {
   return brDateInputToIso(draft.receiptDate, todayIso);
 }
 
-/** "dez/26" (mês de 0 a 11). */
-export function monthLabel(month: number, year: number): string {
-  return `${MONTH_NAMES[month]!.slice(0, 3).toLowerCase()}/${String(year).slice(2)}`;
-}
-
-/** Quantas réplicas "Repetir até" gera: os meses depois do mês da receita até o escolhido. */
+/** Meses depois da primeira ocorrência até o limite inclusivo. */
 export function replicaCount(draft: IncomeDraft, todayIso: string): number {
   const receipt = receiptDateIso(draft, todayIso);
-  if (!draft.repeatUntil || !receipt) return 0;
+  if (draft.billingType !== 'fixed' || !isIncomeEndMonth(draft.endMonth) || !receipt) return 0;
   const [year, month] = receipt.split('-').map(Number);
-  return (draft.repeatUntil.year - year!) * 12 + (draft.repeatUntil.month - (month! - 1));
+  return (Number(draft.endMonth.slice(0, 4)) - year!) * 12 + Number(draft.endMonth.slice(5, 7)) - month!;
 }
 
-/** Mês final ao ligar "Todo mês até": dezembro do ano da receita, ou do ano seguinte se ela já é de dezembro. */
-export function defaultRepeatUntil(draft: IncomeDraft, todayIso: string): IncomeRepeatUntil {
-  const [year, month] = (receiptDateIso(draft, todayIso) || todayIso).split('-').map(Number);
-  return { month: 11, year: month === 12 ? year! + 1 : year! };
+export function isIncomeEndMonth(value: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && Number(value.slice(0, 4)) >= 2000 && Number(value.slice(0, 4)) <= 2100;
+}
+
+/** Adiadas e previsões sem valor válido continuam no lote, fora do salvamento. */
+export function readyIncomeToSave(draft: IncomeDraft, context: IncomeRuleContext): boolean {
+  if (draft.forecastId === undefined) return true;
+  const net = effectiveNetCents(draft, context);
+  return !draft.deferred && !draft.deferError && Number.isFinite(draft.grossCents) && (draft.grossCents ?? 0) > 0
+    && Number.isFinite(net) && (net ?? 0) > 0;
 }
 
 export type CommissionPreview =
@@ -183,24 +182,6 @@ export function calculatedAmountCents(draft: IncomeDraft, context: IncomeRuleCon
   return billableHoursInfo(draft, context)?.totalCents ?? null;
 }
 
-/**
- * Categoria fixa (valor e dia cadastrados): preenche o valor, se vazio, e o dia do
- * recebimento no mês da data. Data travada pelo calendário fica como está.
- */
-export function fixedCategoryPatch(
-  draft: IncomeDraft,
-  category: ClassificacaoReceita | undefined,
-  todayIso: string,
-  dateLocked: boolean,
-): Partial<IncomeDraft> {
-  const fixed = category?.fixa;
-  if (!fixed) return {};
-  const patch: Partial<IncomeDraft> = {};
-  if (!draft.grossCents) patch.grossCents = toCents(fixed.valor);
-  if (!dateLocked) patch.receiptDate = isoToBrDate(dateInMonth(receiptDateIso(draft, todayIso) || todayIso, fixed.dia_recebimento));
-  return patch;
-}
-
 /** O contrato das horas traz o cliente dele (a receita é desse cliente) e o representante, se vazio. */
 export function contractPrefill(draft: IncomeDraft, contract: ContractWithHours): Partial<IncomeDraft> {
   const patch: Partial<IncomeDraft> = { clientId: contract.clientId };
@@ -222,9 +203,10 @@ export function validateIncomeDraft(draft: IncomeDraft, context: IncomeRuleConte
   const hours = billableHoursInfo(draft, context);
   // As horas são do contrato de um cliente: a receita precisa ser desse cliente.
   if (hours && draft.clientId !== null && draft.clientId !== hours.contract.clientId) errors.client = true;
-  if (draft.repeatUntil) {
+  if (draft.billingType === 'fixed') {
     const replicas = replicaCount(draft, context.todayIso);
-    if (replicas < 1 || replicas > MAX_REPLICAS) errors.repeatUntil = true;
+    if (!isIncomeEndMonth(draft.endMonth) || (!draft.fixedIncomeId && (replicas < 0 || replicas > MAX_REPLICAS))) errors.endMonth = true;
+    if (!draft.fixedIncomeId && (draft.contractId !== null || draft.originContractId != null)) errors.fixedOrigin = true;
   }
   if (draft.productId) {
     const sale = productSaleInfo(draft, context);
@@ -248,7 +230,8 @@ export function incomeErrorMessage(errors: IncomeDraftErrors): string {
   if (errors.net) clauses.push('o valor líquido não pode passar do bruto');
   if (errors.receiptDate) clauses.push('confira a data do recebimento');
   if (errors.client) clauses.push('use o cliente do contrato das horas');
-  if (errors.repeatUntil) clauses.push(`escolha em "Repetir até" um mês depois do da receita, em até ${MAX_REPLICAS} meses`);
+  if (errors.endMonth) clauses.push(`escolha em "Até" um mês válido, em até ${MAX_REPLICAS} meses da receita`);
+  if (errors.fixedOrigin) clauses.push('o contrato já controla a repetição desta receita');
   if (errors.product) clauses.push('confira a quantidade do produto vendido');
   if (errors.hours) clauses.push('complete as horas a faturar');
   if (errors.hoursOverBalance) clauses.push('lance no máximo o saldo de horas do contrato');
@@ -261,10 +244,7 @@ export function incomeErrorMessage(errors: IncomeDraftErrors): string {
 export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleContext): SummaryContent | null {
   if (!draft.description.trim() || !draft.grossCents) return null;
   const receipt = receiptDateIso(draft, context.todayIso);
-  const replicas = replicaCount(draft, context.todayIso);
-  const repeats = draft.repeatUntil !== null && replicas > 0;
-  const total = formatCents(draft.grossCents)
-    + (repeats ? ` · todo mês até ${monthLabel(draft.repeatUntil!.month, draft.repeatUntil!.year)} · ${replicas + 1} lançamentos` : '');
+  const total = formatCents(draft.grossCents);
 
   const badges: SummaryBadge[] = [];
   const commission = commissionPreview(draft, context);
@@ -295,7 +275,6 @@ export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleCont
   }
 
   return {
-    status: { text: 'Recebida', tone: 'success' },
     detail: receipt ? `em ${isoToShortBrDate(receipt)}` : 'confira a data',
     total,
     badges,
@@ -303,7 +282,7 @@ export function summarizeIncomeDraft(draft: IncomeDraft, context: IncomeRuleCont
 }
 
 export function incomeHelpText(draft: IncomeDraft): string {
-  return draft.repeatUntil ? 'Cada mês vira uma receita, gravadas juntas' : 'Entra como recebida na data informada';
+  return draft.billingType === 'fixed' || draft.forecastId !== undefined ? '' : 'Entra como recebida na data informada';
 }
 
 export function incomeLastAmountText(lastAmount: number | null): string | null {
@@ -329,7 +308,8 @@ export function buildIncomeCreateInput(draft: IncomeDraft, context: IncomeRuleCo
   return {
     ...commonFields(draft, context),
     accountId,
-    repeatUntil: draft.repeatUntil && replicaCount(draft, context.todayIso) > 0 ? draft.repeatUntil : null,
+    billingType: draft.billingType,
+    ...(draft.billingType === 'fixed' ? { endMonth: draft.endMonth, received: draft.received } : {}),
     productSale: draft.productId && draft.soldQuantity ? { productId: draft.productId, quantity: draft.soldQuantity } : null,
     billableHours: draft.contractId !== null && draft.hourTypeId !== null && draft.hours
       ? { hourTypeId: draft.hourTypeId, hours: draft.hours }
@@ -339,7 +319,9 @@ export function buildIncomeCreateInput(draft: IncomeDraft, context: IncomeRuleCo
 
 /** Na edição vão só os campos da própria receita: repetir, produto e horas não se aplicam. */
 export function buildIncomeUpdateInput(draft: IncomeDraft, context: IncomeRuleContext): IncomeUpdateInput {
-  return commonFields(draft, context);
+  return { ...commonFields(draft, context),
+    ...(draft.fixedIncomeId !== undefined && draft.endMonth !== draft.initialEndMonth ? { endMonth: draft.endMonth } : {}),
+  };
 }
 
 /** Consulta de duplicata no servidor; null enquanto faltam descrição ou valor. */

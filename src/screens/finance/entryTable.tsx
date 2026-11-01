@@ -9,7 +9,7 @@ export const SECONDARY_CLASS = 'text-[11px] text-slate-400 dark:text-slate-500';
 export const DASH = <span className="text-slate-300 dark:text-slate-600">—</span>;
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  dinheiro: 'Dinheiro', pix: 'PIX',
+  dinheiro: 'Dinheiro', pix: 'Pix',
   debito: 'Débito', débito: 'Débito',
   credito: 'Crédito', crédito: 'Crédito',
   transferencia: 'Transferência',

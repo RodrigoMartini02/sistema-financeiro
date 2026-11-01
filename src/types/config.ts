@@ -40,12 +40,6 @@ export interface OpcaoCatalogo {
   is_system?: boolean;
 }
 
-/** Receita fixa de quem está logado, nesta conta: valor e dia do recebimento. Ligar grava o ano como previsto. */
-export interface ClassificacaoFixa {
-  valor: number;
-  dia_recebimento: number;
-}
-
 /** Classificação de receita: catálogo em árvore no mesmo molde das categorias de despesa. */
 export interface ClassificacaoReceita {
   id: number;
@@ -59,10 +53,6 @@ export interface ClassificacaoReceita {
   /** Ver `Categoria.selectable`. */
   selectable?: boolean;
   data_criacao: string;
-  /** Receita fixa de quem consultou, nesta conta; null quando não é fixa. */
-  fixa: ClassificacaoFixa | null;
-  /** Usada por contrato ativo da conta: o contrato já lança, então não pode ser fixa. */
-  em_contrato_ativo: boolean;
   subcategorias?: ClassificacaoReceita[];
 }
 

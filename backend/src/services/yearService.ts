@@ -6,7 +6,8 @@ import { returnStockOfYear } from './incomeService';
 export async function deleteUserYear(userId: number, year: number): Promise<void> {
   await db.transaction(async (transaction) => {
     await returnStockOfYear(transaction, userId, year);
-    await transaction.delete(incomes).where(and(eq(incomes.userId, userId), eq(incomes.year, year)));
+    await transaction.delete(incomes).where(and(eq(incomes.userId, userId), eq(incomes.year, year), isNull(incomes.fixedClassificationId)));
+    await transaction.update(incomes).set({ status: 'cancelada' }).where(and(eq(incomes.userId, userId), eq(incomes.year, year), isNotNull(incomes.fixedClassificationId)));
     // Remove comuns primeiro: uma conversão concorrente para fixa precisa ser
     // preservada e cancelada pelo update seguinte, sem liberar sua competência.
     await transaction.delete(expenses).where(and(

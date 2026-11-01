@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { asc, eq, inArray } from 'drizzle-orm';
-import { accounts, cards, categories, expenses, fixedExpenses, incomeClassifications, incomes, invoicePayments, users } from '../db/schema';
+import {
+  accounts, cards, categories, expenses, fixedExpenses, incomeClassificationFixes, incomeClassifications, incomes, invoicePayments, users,
+} from '../db/schema';
 import { RequestInputError } from '../utils/requestInput';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 
@@ -45,6 +47,12 @@ async function withPeople(work: (owner: Scenario, other: Scenario) => Promise<vo
       attachments: null, invoiceNumber: null, invoiceDate: null });
     await db.insert(incomes).values({ userId, accountId: scenario.accountId, description: 'Salário', netAmount: '500.00', grossAmount: '500.00',
       receiptDate: '2026-11-01', month: 10, year: 2026, classificationId: scenario.classificationId });
+    const [incomeSource] = await db.insert(incomeClassificationFixes).values({ userId, accountId: scenario.accountId,
+      classificationId: scenario.classificationId, amount: '500.00', dayOfMonth: 1, description: 'Salário fixo', grossAmount: '500.00',
+      referenceDate: '2026-11-01', firstMonth: '2026-11-01', endMonth: '2026-12-01', registeredYear: 2026 }).returning();
+    await db.insert(incomes).values({ userId, accountId: scenario.accountId, description: 'Salário fixo', netAmount: '500.00', grossAmount: '500.00',
+      receiptDate: '2026-12-01', month: 11, year: 2026, classificationId: scenario.classificationId, status: 'prevista',
+      fixedClassificationId: incomeSource!.id, fixedCompetence: '2026-12-01' });
     return scenario;
   }
   try {
@@ -54,6 +62,7 @@ async function withPeople(work: (owner: Scenario, other: Scenario) => Promise<vo
       await db.delete(expenses).where(inArray(expenses.userId, userIds));
       await db.delete(fixedExpenses).where(inArray(fixedExpenses.userId, userIds));
       await db.delete(incomes).where(inArray(incomes.userId, userIds));
+      await db.delete(incomeClassificationFixes).where(inArray(incomeClassificationFixes.userId, userIds));
       await db.delete(invoicePayments).where(inArray(invoicePayments.userId, userIds));
       await db.delete(cards).where(inArray(cards.userId, userIds));
       await db.delete(categories).where(inArray(categories.userId, userIds));
@@ -66,15 +75,16 @@ async function withPeople(work: (owner: Scenario, other: Scenario) => Promise<vo
 
 async function snapshot(userId: number) {
   const { db } = services.client;
-  const [expenseRows, sources, incomeRows, categoryRows, cardRows, profile] = await Promise.all([
+  const [expenseRows, sources, incomeRows, incomeSources, categoryRows, cardRows, profile] = await Promise.all([
     db.select().from(expenses).where(eq(expenses.userId, userId)).orderBy(asc(expenses.id)),
     db.select().from(fixedExpenses).where(eq(fixedExpenses.userId, userId)).orderBy(asc(fixedExpenses.id)),
     db.select().from(incomes).where(eq(incomes.userId, userId)).orderBy(asc(incomes.id)),
+    db.select().from(incomeClassificationFixes).where(eq(incomeClassificationFixes.userId, userId)).orderBy(asc(incomeClassificationFixes.id)),
     db.select().from(categories).where(eq(categories.userId, userId)).orderBy(asc(categories.id)),
     db.select().from(cards).where(eq(cards.userId, userId)).orderBy(asc(cards.id)),
     db.select({ financialData: users.financialData, categories: users.categories, cards: users.cards }).from(users).where(eq(users.id, userId)),
   ]);
-  return { expenseRows, sources, incomeRows, categoryRows, cardRows, profile };
+  return { expenseRows, sources, incomeRows, incomeSources, categoryRows, cardRows, profile };
 }
 
 describe('limpeza financeira com despesas fixas (banco local)', { skip: databaseTestsSkipReason }, () => {
@@ -85,7 +95,7 @@ describe('limpeza financeira com despesas fixas (banco local)', { skip: database
     await withPeople(async (owner, other) => {
       const otherBefore = await snapshot(other.userId);
       await services.clear.clearUserFinancialData(owner.userId);
-      assert.deepEqual(await snapshot(owner.userId), { expenseRows: [], sources: [], incomeRows: [], categoryRows: [], cardRows: [],
+      assert.deepEqual(await snapshot(owner.userId), { expenseRows: [], sources: [], incomeRows: [], incomeSources: [], categoryRows: [], cardRows: [],
         profile: [{ financialData: null, categories: null, cards: null }] });
       assert.deepEqual(await snapshot(other.userId), otherBefore);
     });

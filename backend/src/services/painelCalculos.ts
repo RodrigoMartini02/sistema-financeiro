@@ -8,7 +8,6 @@
 // usa UTC para não depender do fuso do servidor.
 
 import { expenseCashDate } from './cashDate';
-import { dataDoLancamento } from './fixedIncomeSchedule';
 
 export interface Periodo {
   de: string;
@@ -51,6 +50,7 @@ export interface ReceitaPainel {
   /** Soma das retenções de tributo (contrato com órgão público); não são juros. */
   retencoes: number;
   classificacaoId: number | null;
+  fixedIncomeId?: number | null;
 }
 
 export type Granularidade = 'semana' | 'mes' | 'ano';
@@ -701,59 +701,11 @@ export function gastoPorCategoriaComRollup(despesas: DespesaPainel[], paiDe: Map
 // ---------------------------------------------------------------------------
 // Receitas: de onde veio o dinheiro
 
-/** Classificação fixa da conta do painel (valor e dia configurados). */
-export interface FixaPainel {
-  /** De quem é a fixa: cada pessoa tem a sua. */
-  usuarioId: number;
-  classificacaoId: number;
-  valor: number;
-  diaRecebimento: number;
-}
-
 /** Item de catálogo em árvore (classificação de receita ou categoria de despesa). */
 export interface ItemArvorePainel {
   id: number;
   nome: string;
   parentId: number | null;
-}
-
-export interface OcorrenciaFixa {
-  classificacaoId: number;
-  valor: number;
-  data: string;
-}
-
-function meses(de: string, ate: string): string[] {
-  const lista: string[] = [];
-  for (let mes = primeiroDiaDoMes(de); mes <= ate; mes = somarMeses(mes, 1)) lista.push(mes);
-  return lista;
-}
-
-/**
- * O que as receitas fixas ainda devem trazer no período: uma ocorrência por
- * mês, no dia configurado, só de hoje em diante. Mês em que a mesma pessoa já
- * tem receita (recebida ou prevista) daquela classificação não projeta — seja
- * a prevista gravada pela fixa, seja a lançada à mão —, para não contar duas
- * vezes. A receita de outra pessoa na mesma classificação não esconde a fixa.
- */
-export function projetarFixas(fixas: FixaPainel[], lancadas: ReceitaPainel[], periodo: Periodo, hoje: string): OcorrenciaFixa[] {
-  const inicio = periodo.de > hoje ? periodo.de : hoje;
-  if (inicio > periodo.ate) return [];
-
-  const mesesComReceita = new Set(lancadas
-    .filter((receita) => receita.classificacaoId !== null)
-    .map((receita) => `${receita.usuarioId}|${receita.classificacaoId}|${receita.dataRecebimento.slice(0, 7)}`));
-
-  const ocorrencias: OcorrenciaFixa[] = [];
-  for (const fixa of fixas) {
-    for (const mes of meses(inicio, periodo.ate)) {
-      const data = dataDoLancamento(mes, fixa.diaRecebimento);
-      if (data < inicio || data > periodo.ate) continue;
-      if (mesesComReceita.has(`${fixa.usuarioId}|${fixa.classificacaoId}|${mes.slice(0, 7)}`)) continue;
-      ocorrencias.push({ classificacaoId: fixa.classificacaoId, valor: fixa.valor, data });
-    }
-  }
-  return ocorrencias;
 }
 
 /** Soma por item principal de um catálogo em árvore; subcategorias como detalhe. */
@@ -824,25 +776,20 @@ export interface ReceitasPainelResumo {
 export function resumirReceitasPainel(entrada: {
   recebidas: ReceitaPainel[];
   previstas: ReceitaPainel[];
-  projecoes: OcorrenciaFixa[];
   classificacoes: Map<number, ItemArvorePainel>;
-  /** Classificações configuradas como fixas na conta. */
-  idsFixos: Set<number>;
   saiu: number;
   periodo: Periodo;
   hoje: string;
 }): ReceitasPainelResumo {
-  const { recebidas, previstas, projecoes, classificacoes, idsFixos } = entrada;
-  const aReceber = [
-    ...previstas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor })),
-    ...projecoes.map((ocorrencia) => ({ id: ocorrencia.classificacaoId as number | null, valor: ocorrencia.valor })),
-  ];
+  const { recebidas, previstas, classificacoes } = entrada;
+  const aReceber = previstas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor }));
   const entrou = recebidas.map((receita) => ({ id: receita.classificacaoId, valor: receita.valor }));
   const renda = [...entrou, ...aReceber];
 
   const totalAReceber = somar(aReceber, (item) => item.valor);
   const rendaPrevista = somar(renda, (item) => item.valor);
-  const fixa = somar(renda.filter((item) => item.id !== null && idsFixos.has(item.id)), (item) => item.valor);
+  const fixedRows = [...recebidas, ...previstas].filter(item => item.fixedIncomeId != null);
+  const fixa = somar(fixedRows, item => item.valor);
 
   return {
     porClassificacao: agruparPorRaiz(entrou, classificacoes, SEM_CATEGORIA),
@@ -851,7 +798,7 @@ export function resumirReceitasPainel(entrada: {
     comprometimentoPrevisto: percentual(entrada.saiu, rendaPrevista),
     fixa,
     variavel: rendaPrevista - fixa,
-    temFixa: idsFixos.size > 0,
+    temFixa: fixedRows.length > 0,
     periodoEncerrado: entrada.periodo.ate < entrada.hoje,
   };
 }

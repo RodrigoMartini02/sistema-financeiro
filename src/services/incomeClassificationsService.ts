@@ -1,6 +1,6 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import type {
-  ClassificacaoFixa, ClassificacaoReceita, ClassificacaoReceitaFormValues, ComSubcategoriasCriadas,
+  ClassificacaoReceita, ClassificacaoReceitaFormValues, ComSubcategoriasCriadas,
 } from '../types/config';
 
 // Toda chamada leva a conta: o catálogo é o da conta (padrão do tipo dela +
@@ -33,18 +33,6 @@ export async function saveClassificacaoReceita(
       subcategories: values.subcategories?.map((name) => name.trim()),
       conta_id: accountId ?? getActiveAccountId(),
     }),
-  });
-}
-
-/** Liga ou altera a receita fixa de quem está logado nesta conta (grava o ano como previsto); `null` desliga. */
-export async function saveClassificacaoReceitaFixa(
-  id: number,
-  fixa: ClassificacaoFixa | null,
-  accountId?: number | null,
-): Promise<ClassificacaoReceita> {
-  return apiRequest<ClassificacaoReceita>(`/income-classifications/${id}/fixa${contaQuery(accountId)}`, {
-    method: 'PUT',
-    body: JSON.stringify(fixa ? { fixa: true, ...fixa } : { fixa: false }),
   });
 }
 

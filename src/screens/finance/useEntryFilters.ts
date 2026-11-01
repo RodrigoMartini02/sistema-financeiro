@@ -112,7 +112,7 @@ export function useEntryFilters({ paymentMethods, cards, includeForecasts = fals
           { value: 'pago', label: 'Pago' },
           { value: 'em_dia', label: 'Em dia' },
           { value: 'atrasada', label: 'Atrasada' },
-          ...(includeForecasts ? [{ value: 'prevista', label: 'Previsão' }] : []),
+          ...(includeForecasts ? [{ value: 'prevista', label: 'Prevista' }] : []),
         ],
         selected: statuses,
         onChange: (next: Set<string>) => setStatuses(next as Set<ExpenseStatus>),

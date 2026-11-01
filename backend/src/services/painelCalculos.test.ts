@@ -15,7 +15,6 @@ import {
   jurosDaReceita,
   agregarTipoGasto,
   agruparPorRaiz,
-  projetarFixas,
   resumirReceitasPainel,
   baldesDaSerie,
   classificarPagamento,
@@ -406,38 +405,6 @@ test('meta proporcional: mês inteiro vale 1, metade do mês vale metade', () =>
   assert.equal(fatorMetaProporcional({ de: '2026-09-01', ate: '2026-09-15' }), 0.5);
 });
 
-test('projeção das fixas: só de hoje em diante e sem mês já lançado', () => {
-  const fixas = [
-    { usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 },
-    { usuarioId: 1, classificacaoId: 20, valor: 800, diaRecebimento: 31 },
-  ];
-  const periodo = { de: '2026-09-01', ate: '2026-11-30' };
-  const lancadas = [receita({ classificacaoId: 10, dataRecebimento: '2026-10-04' })];
-  const ocorrencias = projetarFixas(fixas, lancadas, periodo, '2026-09-27');
-  assert.deepEqual(ocorrencias, [
-    { classificacaoId: 10, valor: 4500, data: '2026-11-05' },
-    { classificacaoId: 20, valor: 800, data: '2026-09-30' },
-    { classificacaoId: 20, valor: 800, data: '2026-10-31' },
-    { classificacaoId: 20, valor: 800, data: '2026-11-30' },
-  ]);
-});
-
-test('projeção das fixas: período encerrado não projeta nada', () => {
-  const fixas = [{ usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 }];
-  assert.deepEqual(projetarFixas(fixas, [], { de: '2026-08-01', ate: '2026-08-31' }, '2026-09-27'), []);
-});
-
-test('projeção das fixas: por pessoa, a receita de outra pessoa na mesma classificação não esconde a fixa', () => {
-  const fixas = [
-    { usuarioId: 1, classificacaoId: 10, valor: 4500, diaRecebimento: 5 },
-    { usuarioId: 15, classificacaoId: 10, valor: 3000, diaRecebimento: 5 },
-  ];
-  const lancadas = [receita({ usuarioId: 1, classificacaoId: 10, dataRecebimento: '2026-10-05' })];
-  assert.deepEqual(projetarFixas(fixas, lancadas, { de: '2026-10-01', ate: '2026-10-31' }, '2026-09-27'), [
-    { classificacaoId: 10, valor: 3000, data: '2026-10-05' },
-  ]);
-});
-
 test('agrupamento por classificação principal, com subcategorias e sem categoria', () => {
   const classificacoes = new Map([
     [1, { id: 1, nome: 'Salário', parentId: null }],
@@ -474,10 +441,8 @@ test('resumo de receitas: renda prevista, comprometimento e fixa × variável', 
   const classificacoes = new Map([[1, { id: 1, nome: 'Salário', parentId: null }], [3, { id: 3, nome: 'Freelance', parentId: null }]]);
   const resumo = resumirReceitasPainel({
     recebidas: [receita({ classificacaoId: 3, valor: 1000 })],
-    previstas: [],
-    projecoes: [{ classificacaoId: 1, valor: 4000, data: '2026-09-30' }],
+    previstas: [receita({ classificacaoId: 1, fixedIncomeId: 17, valor: 4000, dataRecebimento: '2026-09-30' })],
     classificacoes,
-    idsFixos: new Set([1]),
     saiu: 2500,
     periodo: { de: '2026-09-01', ate: '2026-09-30' },
     hoje: '2026-09-27',
@@ -492,7 +457,7 @@ test('resumo de receitas: renda prevista, comprometimento e fixa × variável', 
 
 test('resumo de receitas sem renda nem fixa devolve comprometimento nulo', () => {
   const resumo = resumirReceitasPainel({
-    recebidas: [], previstas: [], projecoes: [], classificacoes: new Map(), idsFixos: new Set(),
+    recebidas: [], previstas: [], classificacoes: new Map(),
     saiu: 300,
     periodo: { de: '2026-08-01', ate: '2026-08-31' }, hoje: '2026-09-27',
   });

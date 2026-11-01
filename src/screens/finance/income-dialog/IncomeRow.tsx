@@ -18,12 +18,12 @@ import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { SummaryLine, duplicateText } from '../entry-dialog/SummaryLine';
 import { ClientSelect } from './ClientSelect';
 import {
-  effectiveNetCents, fixedCategoryPatch, incomeHelpText, incomeLastAmountText, isIncomeDraftFilled, summarizeIncomeDraft, withholdingPreview,
+  effectiveNetCents, incomeHelpText, incomeLastAmountText, isIncomeDraftFilled, summarizeIncomeDraft, withholdingPreview,
   type ClientOption, type IncomeRuleContext,
 } from './draftRules';
 import type { IncomeDraft, IncomeDraftErrors, IncomeDraftPatch } from './draftState';
 import { IncomeDetailsPopover } from './IncomeDetailsPopover';
-import { COMPANY_GRID_CLASS, PERSONAL_GRID_CLASS } from './incomeGrid';
+import { COMPANY_GRID_CLASS, COMPANY_FORECAST_GRID_CLASS, PERSONAL_GRID_CLASS, PERSONAL_FORECAST_GRID_CLASS } from './incomeGrid';
 import { RepeatPopover } from './RepeatPopover';
 import type { IncomeDraftSuggestions } from './useIncomeSuggestions';
 
@@ -42,6 +42,7 @@ export interface IncomeRowResources {
   createClient?: (name: string) => Promise<ClientOption | null>;
   /** Edição: nome do cliente da receita, se ele não está mais entre os ativos. */
   clientFallbackName?: string | null;
+  forecastColumn?: boolean;
 }
 
 interface IncomeRowProps {
@@ -57,17 +58,22 @@ interface IncomeRowProps {
   onFocus: () => void;
   onAddToBatch?: () => void;
   onRemove?: () => void;
+  onDefer?: (deferred: boolean) => void;
+  deferDisabled?: boolean;
   /** Dicas de primeiro acesso da linha de entrada: em "Repetir" e no "⋯". */
   guides?: { repeat?: ReactNode; details?: ReactNode };
 }
 
 /** Uma receita na grade: a linha de entrada, um item do lote ou a receita em edição. */
 export function IncomeRow({
-  draft, variant, resources, errors, showSummary, suggestions, descriptionRef, onUpdate, onFocus, onAddToBatch, onRemove, guides,
+  draft, variant, resources, errors, showSummary, suggestions, descriptionRef, onUpdate, onFocus, onAddToBatch, onRemove,
+  onDefer, deferDisabled = false, guides,
 }: IncomeRowProps) {
   const { context, categories } = resources;
   const isEntry = variant === 'entry';
   const isEdit = variant === 'edit';
+  const forecast = draft.forecastId !== undefined;
+  const fixed = draft.billingType === 'fixed';
   const dateLocked = isEntry && resources.lockReceiptDate;
   const matches = suggestions?.suggestions?.matches ?? [];
 
@@ -78,13 +84,7 @@ export function IncomeRow({
     ? suggestIncomeClassificationForDescription(draft.description, history, categories)
     : null;
 
-  // Categoria fixa (valor e dia cadastrados) preenche o valor vazio e o dia do recebimento.
-  const chooseCategory = (categoryId: number | null) => onUpdate((current) => ({
-    categoryId,
-    ...(categoryId !== null
-      ? fixedCategoryPatch(current, categories.find((category) => category.id === categoryId), context.todayIso, dateLocked)
-      : {}),
-  }));
+  const chooseCategory = (categoryId: number | null) => onUpdate({ categoryId });
 
   const pickMatch = (match: IncomeSuggestionMatch) => onUpdate((current) => {
     const patch: Partial<IncomeDraft> = { description: match.description };
@@ -108,7 +108,16 @@ export function IncomeRow({
 
   return (
     <>
-      <GridRow variant={variant} columnsClass={context.isCompany ? COMPANY_GRID_CLASS : PERSONAL_GRID_CLASS} onFocus={onFocus}>
+      <GridRow variant={variant} columnsClass={resources.forecastColumn
+        ? context.isCompany ? COMPANY_FORECAST_GRID_CLASS : PERSONAL_FORECAST_GRID_CLASS
+        : context.isCompany ? COMPANY_GRID_CLASS : PERSONAL_GRID_CLASS} onFocus={onFocus}>
+        {resources.forecastColumn && (
+          <GridCell label="Adiar" className={forecast ? undefined : 'hidden lg:flex'}>
+            {forecast && <input type="checkbox" checked={draft.deferred === true} disabled={deferDisabled}
+              aria-label={`Adiar ${draft.description || 'receita prevista'}`} title="Adiar"
+              onChange={event => onDefer?.(event.target.checked)} className="h-4 w-4 accent-cyan-600" />}
+          </GridCell>
+        )}
         <GridCell label="Descrição" required className="col-span-2 lg:col-span-1">
           <DescriptionField
             value={draft.description}
@@ -137,14 +146,18 @@ export function IncomeRow({
 
         {context.isCompany && (
           <GridCell label="Cliente" className="col-span-2 lg:col-span-1">
-            <ClientSelect
+            {draft.originContractId != null ? (
+              <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title="O cliente é definido pelo contrato">
+                <span style={ellipsisStyle}>{context.clients.find(client => client.id === draft.clientId)?.name ?? draft.clientName ?? resources.clientFallbackName ?? 'Cliente do contrato'}</span>
+              </span>
+            ) : <ClientSelect
               value={draft.clientId}
               clients={context.clients}
               fallbackName={resources.clientFallbackName}
               onChange={(clientId) => onUpdate({ clientId })}
               onCreate={resources.createClient}
               invalid={!!errors?.client}
-            />
+            />}
           </GridCell>
         )}
 
@@ -165,7 +178,12 @@ export function IncomeRow({
           />
         </GridCell>
 
-        <GridCell label="Recebido em" required className="col-span-2 lg:col-span-1">
+        <GridCell label={fixed && !draft.received && !forecast ? 'Prevista para' : 'Recebido em'} required className="col-span-2 lg:col-span-1">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {fixed && !isEdit && !forecast && (
+            <input type="checkbox" checked={draft.received} onChange={event => onUpdate({ received: event.target.checked })}
+              aria-label="Recebida" title="Recebida" className="h-4 w-4 shrink-0 accent-cyan-600" />
+          )}
           <DateField
             label="Data do recebimento"
             value={draft.receiptDate}
@@ -176,16 +194,18 @@ export function IncomeRow({
             title={dateLocked ? 'Data definida pelo calendário' : 'Data do recebimento'}
             invalid={errors?.receiptDate}
           />
+          </div>
         </GridCell>
 
         <GridCell label="Repetir" className="col-span-2 lg:col-span-1">
-          {isEdit ? (
+          {(isEdit || forecast) && draft.fixedIncomeId === undefined ? (
             <span style={{ ...fieldStyle({ disabled: true }), display: 'flex', alignItems: 'center', color: C.textSoft }} title="A repetição não muda na edição">
               <span style={ellipsisStyle}>Não repete</span>
             </span>
           ) : (
             <div style={{ position: 'relative' }}>
-              <RepeatPopover draft={draft} todayIso={context.todayIso} invalid={!!errors?.repeatUntil} onUpdate={onUpdate} />
+              <RepeatPopover draft={draft} todayIso={context.todayIso} invalid={!!errors?.endMonth}
+                fixedOnly={draft.fixedIncomeId !== undefined} onUpdate={onUpdate} />
               {guides?.repeat}
             </div>
           )}
@@ -198,7 +218,7 @@ export function IncomeRow({
               <IncomeDetailsPopover
                 draft={draft}
                 context={context}
-                isEdit={isEdit}
+                isEdit={isEdit || forecast}
                 invalid={!!errors?.product || !!errors?.hours || !!errors?.hoursOverBalance}
                 onUpdate={onUpdate}
                 guide={guides?.details}
@@ -210,7 +230,7 @@ export function IncomeRow({
           </div>
           <div className="lg:flex lg:items-center lg:justify-end">
             {isEntry && <AddToBatchButton filled={isIncomeDraftFilled(draft)} onClick={onAddToBatch} />}
-            {variant === 'batch' && <RemoveFromBatchButton onClick={onRemove} />}
+            {variant === 'batch' && onRemove && <RemoveFromBatchButton onClick={onRemove} />}
           </div>
         </div>
       </GridRow>
@@ -227,6 +247,7 @@ export function IncomeRow({
           compactTop={isEntry}
         />
       )}
+      {draft.deferError && <p role="alert" className="m-0 px-2 text-xs text-rose-700">{draft.deferError}</p>}
     </>
   );
 }

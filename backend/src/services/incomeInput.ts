@@ -48,13 +48,17 @@ export interface IncomeFieldsInput {
 
 export interface CreateIncomeInput extends IncomeFieldsInput {
   accountId: number | null;
+  billingType?: 'single' | 'fixed';
+  endMonth?: string | null;
+  received?: boolean;
+  /** Compatibilidade do consumidor anterior; o serviço usa a mesma série fixa. */
   repeatUntil: IncomeRepeatUntil | null;
   productSale: IncomeProductSale | null;
   billableHours: IncomeBillableHours | null;
 }
 
 /** Na edição não há réplicas, produto nem horas: só os campos da própria receita. */
-export type UpdateIncomeInput = IncomeFieldsInput;
+export type UpdateIncomeInput = IncomeFieldsInput & { endMonth?: string };
 
 export interface IncomeSuggestionsQuery {
   /** Vazia quando o texto tem menos de 2 letras. */
@@ -66,6 +70,23 @@ export interface IncomeSuggestionsQuery {
 export interface ReceiveIncomeInput {
   receivedDate: string | null;
   receivedAmount: number | null;
+  changes?: UpdateIncomeInput;
+}
+
+export function readIncomeMonth(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)
+    || Number(value.slice(0, 4)) < 2000 || Number(value.slice(0, 4)) > 2100) {
+    throw new RequestInputError('Escolha um mês e ano válidos para a receita fixa');
+  }
+  return value;
+}
+
+export function readIncomeDeferral(body: unknown): { accountId: number | null; ids: number[]; deferred: boolean } {
+  const record = readRecord(body, 'Pedido inválido');
+  if (!Array.isArray(record['ids']) || record['ids'].length < 1 || record['ids'].length > 500
+    || typeof record['deferred'] !== 'boolean') throw new RequestInputError('Selecione de 1 a 500 receitas previstas');
+  return { accountId: readOptionalId(record['accountId'], 'Conta inválida'),
+    ids: [...new Set(record['ids'].map(id => readRequiredId(id, 'Receita inválida')))], deferred: record['deferred'] };
 }
 
 export interface IncomeDuplicateQuery {
@@ -150,10 +171,23 @@ function readBillableHours(value: unknown): IncomeBillableHours | null {
 export function readCreateIncomeInput(body: unknown): CreateIncomeInput {
   const record = readRecord(body, 'Pedido inválido');
   const fields = readFields(record);
+  const legacyRepeat = readRepeatUntil(record['repeatUntil'], fields.receiptDate);
+  const billingType = record['billingType'] ?? (legacyRepeat ? 'fixed' : 'single');
+  if (billingType !== 'single' && billingType !== 'fixed') throw new RequestInputError('Tipo de repetição inválido');
+  if (record['received'] !== undefined && typeof record['received'] !== 'boolean') throw new RequestInputError('Informe se a receita foi recebida');
+  const endMonth = billingType === 'fixed'
+    ? readIncomeMonth(record['endMonth'] ?? (legacyRepeat ? `${legacyRepeat.year}-${String(legacyRepeat.month + 1).padStart(2, '0')}` : null)) : null;
+  if (endMonth && (endMonth < fields.receiptDate.slice(0, 7)
+    || countMonthsUntil(fields.receiptDate, Number(endMonth.slice(5, 7)) - 1, Number(endMonth.slice(0, 4))) > MAX_REPLICAS)) {
+    throw new RequestInputError(`Escolha um limite entre o mês da receita e ${MAX_REPLICAS} meses depois`);
+  }
   return {
     ...fields,
     accountId: readOptionalId(record['accountId'], 'Conta inválida'),
-    repeatUntil: readRepeatUntil(record['repeatUntil'], fields.receiptDate),
+    repeatUntil: legacyRepeat,
+    billingType,
+    endMonth,
+    received: record['received'] === undefined ? (legacyRepeat !== null || billingType === 'single') : record['received'],
     productSale: readProductSale(record['productSale']),
     billableHours: readBillableHours(record['billableHours']),
   };
@@ -161,7 +195,8 @@ export function readCreateIncomeInput(body: unknown): CreateIncomeInput {
 
 /** Corpo do PUT /incomes/:id. */
 export function readUpdateIncomeInput(body: unknown): UpdateIncomeInput {
-  return readFields(readRecord(body, 'Pedido inválido'));
+  const record = readRecord(body, 'Pedido inválido');
+  return { ...readFields(record), ...(record['endMonth'] == null ? {} : { endMonth: readIncomeMonth(record['endMonth']) }) };
 }
 
 /** Corpo do PUT /incomes/:id/receber: `data_recebimento` e `valor_recebido`, opcionais. */
@@ -177,6 +212,7 @@ export function readReceiveIncomeInput(body: unknown): ReceiveIncomeInput {
     receivedAmount: !rawAmount
       ? null
       : readAmount(typeof rawAmount === 'string' ? Number(rawAmount) : rawAmount, 'Valor recebido inválido'),
+    ...(record['changes'] === undefined ? {} : { changes: readUpdateIncomeInput(record['changes']) }),
   };
 }
 

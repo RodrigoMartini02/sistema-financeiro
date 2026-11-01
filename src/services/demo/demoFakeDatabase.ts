@@ -19,7 +19,14 @@ export interface RawIncomeDemo {
   representante_id: number | null;
   representante_nome: string | null;
   valor_comissao: number | null;
-  anexos: null;
+  anexos: Attachment[] | null;
+  usuario_id?: number;
+  conta_id?: number | null;
+  classificacao_fixa_id?: number | null;
+  fixa_competencia?: string | null;
+  fixa_mes_final?: string | null;
+  adiada?: boolean;
+  data_criacao?: string | null;
 }
 
 export interface RawExpenseDemo {

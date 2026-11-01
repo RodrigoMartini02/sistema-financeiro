@@ -6,9 +6,13 @@
 // - Aumentar cria as parcelas novas continuando o calendário da última, com o valor da editada e sem juros.
 // - Reduzir apaga a cauda de parcelas abertas; se alguma da cauda está paga, na fatura ou é a editada, recusa e diz
 //   até quantas dá para reduzir.
+// - A despesa única vira a parcela 1 e mantém o ID. Em aberto, o valor informado é o de cada parcela (a compra passa
+//   a valer N vezes); paga, o valor informado é o total, e ele e o pagamento são divididos entre as parcelas, todas
+//   pagas na data do pagamento original: o caixa do mês não muda.
 import { addMonthsClamped } from '../utils/date';
 import type { InvoiceEditLock } from './cardInvoiceRules';
-import { MAX_INSTALLMENTS, MIN_INSTALLMENTS, type ExpenseUpdateScope } from './expenseInput';
+import { MAX_INSTALLMENTS, MIN_INSTALLMENTS, type ExpenseUpdateScope, type InstallmentAmountMode } from './expenseInput';
+import { splitCents, splitInterestWithinInstallments } from './installmentSplit';
 
 /** Parcela da compra como está gravada. */
 export interface CountRow {
@@ -93,7 +97,10 @@ export interface CountChangeSubject {
   recurring: boolean;
   groupId: number | null;
   invoiceEditLock: InvoiceEditLock | null;
+  /** Estava paga ANTES desta edição. */
   paid: boolean;
+  /** Crédito com cartão: o pagamento é pela fatura. */
+  creditWithCard: boolean;
   /** Comissão gerada por uma receita. */
   hasSourceIncome: boolean;
   /** O total gravado ("N" de "x/N"); nulo fora do parcelado. */
@@ -102,14 +109,17 @@ export interface CountChangeSubject {
 
 /**
  * Recusas do pedido (antes das contas da cauda). Numa compra parcelada vale para a compra inteira ("Todas"); na
- * despesa única, que vira a parcela 1, só se ela não está paga nem ligada à fatura. Devolve a mensagem, ou null.
+ * despesa única, que vira a parcela 1: não pode estar em grupo, ligada à fatura nem vir de comissão, a edição não pode
+ * mudar o pagamento (paga ou não) junto da conversão, e a paga só vira parcelada dividindo o valor total.
+ * Devolve a mensagem, ou null.
  */
 export function installmentCountRefusal(
   subject: CountChangeSubject,
-  request: { installmentCount: number; applyTo: ExpenseUpdateScope; paid: boolean },
+  request: { installmentCount: number; applyTo: ExpenseUpdateScope; paid: boolean; amountMode?: InstallmentAmountMode },
 ): string | null {
   if (subject.recurring) return 'A recorrente não tem nº de parcelas: ela segue a fatura do cartão, mês a mês';
   if (subject.isInstallment) {
+    if (request.amountMode === 'total') return 'O valor total só vale para a despesa única que vira parcelada';
     if (request.installmentCount === subject.currentCount) return null;
     if (request.applyTo !== 'all') return 'O nº de parcelas vale para a compra inteira: escolha "Todas as parcelas"';
     if (subject.invoiceEditLock === 'generated') return 'Parcela gerada pelo pagamento da fatura: o nº de parcelas não muda';
@@ -117,20 +127,102 @@ export function installmentCountRefusal(
     return null;
   }
   if (subject.groupId !== null) return 'Esta despesa faz parte de um grupo: ela não vira parcelada';
-  if (subject.paid || request.paid) return 'A despesa paga não vira parcelada: lance a compra parcelada de novo';
   if (subject.invoiceEditLock !== null) return 'A despesa ligada à fatura do cartão não vira parcelada';
   if (subject.hasSourceIncome) return 'A despesa gerada por uma receita (comissão) não vira parcelada';
+  if (subject.paid !== request.paid) return 'Salve a mudança do pagamento antes de parcelar a despesa';
+  if (subject.paid) {
+    if (subject.creditWithCard) return 'A despesa paga no crédito com cartão é paga pela fatura: ela não vira parcelada';
+    if (request.amountMode !== 'total') return 'A despesa paga vira parcelada dividindo o valor total: informe o total da compra';
+  }
   return null;
 }
 
-/** Despesa única que vira a parcela 1 de `count`: as parcelas 2 a `count`, mês a mês a partir do vencimento. */
-export function planSingleToInstallments(dueDate: string, count: number): InstallmentCountResult {
+/** O que cada parcela guarda quando a despesa única vira parcelada; a parcela 1 é a própria despesa (mantém o ID). */
+export interface ConvertedInstallment {
+  number: number;
+  dueDate: string;
+  amountCents: number;
+  /** Valor pago da parcela; nulo na parcela em aberto. */
+  paidCents: number | null;
+  interestCents: number;
+}
+
+export interface SingleConversionPlan {
+  nextCount: number;
+  /** Da parcela 1 à N, em ordem. */
+  installments: ConvertedInstallment[];
+}
+
+/**
+ * Divide o valor pago na proporção das parcelas, em centavos: cada uma leva `pago × parcela ÷ total` (para baixo) e a
+ * última fica com o que sobrar, então a soma é exatamente o valor pago. Juros e desconto andam junto.
+ */
+function splitPaidCents(paidCents: number, amountsInCents: number[], totalCents: number): number[] {
+  let remaining = paidCents;
+  return amountsInCents.map((amountCents, index) => {
+    const share = index === amountsInCents.length - 1
+      ? remaining
+      : Number((BigInt(paidCents) * BigInt(amountCents)) / BigInt(totalCents));
+    remaining -= share;
+    return share;
+  });
+}
+
+/**
+ * Despesa única que vira a parcela 1 de `count`, com as demais vencendo mês a mês a partir do vencimento dela.
+ * - `perInstallment` (em aberto): o valor informado é o de cada parcela; a compra passa a valer `count` vezes. Quem já
+ *   está paga não entra aqui: multiplicaria o que foi pago.
+ * - `total`: o valor informado é o total da compra e é dividido em centavos, com a diferença na última. O valor pago
+ *   (se houver) e o juros guardado se dividem na mesma proporção, e a soma de cada um não muda.
+ */
+export function planSingleConversion(input: {
+  dueDate: string;
+  count: number;
+  mode: InstallmentAmountMode;
+  /** O valor da despesa como ficou na edição: o da parcela (`perInstallment`) ou o total (`total`). */
+  amountCents: number;
+  /** Valor pago da despesa paga; nulo se está em aberto. */
+  paidCents: number | null;
+  /** Juros que a despesa já guarda (a linha de juros embutido); zero na despesa comum. */
+  interestCents: number;
+}): { plan: SingleConversionPlan } | { refusal: string } {
+  const { dueDate, count, mode, amountCents, paidCents, interestCents } = input;
   if (!Number.isInteger(count) || count < MIN_INSTALLMENTS || count > MAX_INSTALLMENTS) {
     return { refusal: countRangeRefusal() };
   }
-  const create = Array.from({ length: count - 1 }, (_, index): NewInstallment => ({
-    number: index + 2,
-    dueDate: addMonthsClamped(dueDate, index + 1),
-  }));
-  return { plan: { nextCount: count, deleteIds: [], create } };
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) return { refusal: 'Informe o valor da despesa' };
+  const dueDateOf = (number: number) => (number === 1 ? dueDate : addMonthsClamped(dueDate, number - 1));
+
+  if (mode === 'perInstallment') {
+    if (paidCents !== null) return { refusal: 'A despesa paga vira parcelada dividindo o valor total: informe o total da compra' };
+    return {
+      plan: {
+        nextCount: count,
+        installments: Array.from({ length: count }, (_, index): ConvertedInstallment => ({
+          number: index + 1,
+          dueDate: dueDateOf(index + 1),
+          amountCents,
+          paidCents: null,
+          interestCents: index === 0 ? interestCents : 0,
+        })),
+      },
+    };
+  }
+
+  if (amountCents < count) return { refusal: 'O total precisa permitir pelo menos R$ 0,01 por parcela' };
+  const amounts = splitCents(amountCents, count);
+  const paid = paidCents === null ? null : splitPaidCents(paidCents, amounts, amountCents);
+  const interests = splitInterestWithinInstallments(Math.min(interestCents, amountCents), amounts);
+  return {
+    plan: {
+      nextCount: count,
+      installments: amounts.map((amount, index): ConvertedInstallment => ({
+        number: index + 1,
+        dueDate: dueDateOf(index + 1),
+        amountCents: amount,
+        paidCents: paid === null ? null : paid[index]!,
+        interestCents: interests[index]!,
+      })),
+    },
+  };
 }

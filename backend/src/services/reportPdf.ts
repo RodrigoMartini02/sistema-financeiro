@@ -18,7 +18,7 @@ pdfmake.setLocalAccessPolicy((filePath) => path.normalize(filePath).startsWith(p
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   dinheiro: 'Dinheiro',
-  pix: 'PIX',
+  pix: 'Pix',
   debito: 'Débito',
   credito: 'Crédito',
   transferencia: 'Transferência',
