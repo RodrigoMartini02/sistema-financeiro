@@ -61,6 +61,19 @@ export interface FederalSettings {
 }
 
 /**
+ * Memória e disco que a coleta pode usar (plano .plans/coleta-licitacoes-no-pc.md). Só entra o que foi informado: `null`
+ * deixa valer o padrão de quem usa o valor (o gravador de contratos e o orçamento de disco), que ficam com um único
+ * lugar para o número. Fora de `contracts`, como `winners` e `federal`: o teste da configuração dos contratos compara o
+ * objeto inteiro.
+ */
+export interface ResourceSettings {
+  /** Memória do DuckDB do gravador de contratos, em MB. */
+  duckDbMemoryMb: number | null;
+  /** Limite de ocupação da pasta temporária, em bytes (a variável vem em MB decimais, como o padrão de 1,6 GB). */
+  diskLimitBytes: number | null;
+}
+
+/**
  * Cloudflare R2: o arquivo bruto (plano .plans/licitacoes-base-nacional.md,
  * parte 1) e o armazém de contratos (plano .plans/licitacoes-contratos-no-r2.md).
  */
@@ -81,6 +94,7 @@ export interface CollectorConfig {
   comprasGov: ComprasGovSettings;
   winners: WinnersSettings;
   federal: FederalSettings;
+  resources: ResourceSettings;
   /** Sem as variáveis do R2, o arquivo bruto e o armazém de contratos ficam desligados. */
   storage: StorageSettings | null;
   logLevel: LogLevel;
@@ -88,6 +102,9 @@ export interface CollectorConfig {
 
 /** Pasta da produção no bucket: nunca usada a partir do banco local. */
 export const PRODUCTION_STORAGE_PREFIX = 'producao';
+
+/** MB decimais: 1.600 MB são os 1.600.000.000 bytes do limite de disco padrão (resourceBudget.ts). */
+const BYTES_PER_MEGABYTE = 1_000_000;
 
 export class CollectorConfigError extends Error {
   constructor(message: string) {
@@ -156,6 +173,10 @@ const collectorEnvSchema = z.object({
     .transform((value) => value === '1'),
   TENDERS_FEDERAL_FROM: z.iso.date('deve ser uma data AAAA-MM-DD').default('2021-01-01'),
   TENDERS_FEDERAL_MINUTES: z.coerce.number().int().min(1).max(600).default(60),
+  // Máquina própria (plano .plans/coleta-licitacoes-no-pc.md). Sem a variável, valem os padrões do gravador de contratos
+  // (memória do DuckDB) e do orçamento de disco (1,6 GB, para o disco temporário de 2 GB do Render).
+  TENDERS_DUCKDB_MEMORY_MB: z.coerce.number().int().min(128).max(16_384).optional(),
+  TENDERS_DISK_LIMIT_MB: z.coerce.number().int().min(512).max(1_000_000).optional(),
   TENDERS_COLLECTOR_LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
 });
 
@@ -283,6 +304,10 @@ export function loadCollectorConfig(env: NodeJS.ProcessEnv): CollectorConfig {
       enabled: values.TENDERS_FEDERAL_ENABLED,
       from: values.TENDERS_FEDERAL_FROM,
       minutes: values.TENDERS_FEDERAL_MINUTES,
+    },
+    resources: {
+      duckDbMemoryMb: values.TENDERS_DUCKDB_MEMORY_MB ?? null,
+      diskLimitBytes: values.TENDERS_DISK_LIMIT_MB === undefined ? null : values.TENDERS_DISK_LIMIT_MB * BYTES_PER_MEGABYTE,
     },
     storage: loadStorageSettings(env, values.TENDERS_COLLECTOR_DATABASE_URL),
     logLevel: values.TENDERS_COLLECTOR_LOG_LEVEL,

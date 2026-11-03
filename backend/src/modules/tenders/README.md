@@ -98,6 +98,8 @@ backend/src/modules/tenders/
 | `TENDERS_FEDERAL_ENABLED` | `0` | `1` liga as duas etapas dos contratos federais na rotina diária (ciclo e carga). Só `0` ou `1`. Os comandos `federal-*` da CLI funcionam sempre. |
 | `TENDERS_FEDERAL_FROM` | `2021-01-01` | Primeiro ano de início de vigência que a carga dos contratos federais lê (só o ano conta); os vigentes de qualquer ano entram pelo ciclo. |
 | `TENDERS_FEDERAL_MINUTES` | `60` | Tempo de cada bloco da carga e do ciclo dos federais (1 a 600). A rotina ainda o limita ao tempo que sobra do prazo dela. |
+| `TENDERS_DUCKDB_MEMORY_MB` | — (vale o padrão do gravador: 1024) | Memória do DuckDB do gravador de contratos, de 128 a 16384 MB. O padrão antigo, de 160 MB, estourou na carga de produção (31/10 e 02/11/2026). Numa máquina própria, suba (ver [Rodar numa máquina própria](#rodar-numa-máquina-própria)). |
+| `TENDERS_DISK_LIMIT_MB` | — (vale o padrão do orçamento: 1600) | Limite de ocupação da pasta temporária, de 512 a 1000000 MB decimais. O padrão de 1,6 GB protege os 2 GB do disco temporário do Render; numa máquina própria, libere. O orçamento mede a pasta temporária **inteira**, então ela precisa ser só da coleta. |
 | `TENDERS_ARCHIVE_ENDPOINT` | — (sem as 5 do R2, o R2 fica desligado) | Endpoint S3 da conta no Cloudflare R2, `https://<conta>.r2.cloudflarestorage.com`. Só `https`. |
 | `TENDERS_ARCHIVE_BUCKET` | — | Bucket privado do R2 (minúsculas, números e hífen). |
 | `TENDERS_ARCHIVE_ACCESS_KEY_ID` | — | Chave do token do R2 ("Object Read & Write", restrito ao bucket). Só no ambiente, nunca no repositório. |
@@ -176,6 +178,43 @@ Uma etapa que falha não impede as seguintes, e a execução sai com código 1 s
 - **Sem coleta incremental:** os editais novos entram na varredura do dia seguinte. Os lembretes pegam tudo o que encerra nas próximas 72 h e 24 h, sem repetir aviso, então uma execução por dia basta.
 - **Custo:** Cron Job no Render é pago por uso (mínimo de US$ 1 por mês). A varredura leva uns 45 minutos, e os contratos de 25 a 30 minutos por dia. Durante a carga inicial, a rotina dura ~9,5 h (o limite do Render é 12 h), por uns 10 dias, e a conta continua no mínimo.
 - **Teste local:** `npm --prefix backend run daily-jobs` com `DOTENV_CONFIG_PATH=../.env.dev`, `TENDERS_COLLECTOR_DATABASE_URL` do banco local, `BACKEND_URL=http://localhost:3010` e o `BILLING_CRON_SECRET` do backend local. A varredura completa leva o mesmo tempo da produção.
+
+## Rodar numa máquina própria
+
+A coleta de editais e contratos também roda fora do Render, numa máquina ligada 24 h (plano `.plans/coleta-licitacoes-no-pc.md`). Ela grava nos mesmos lugares da produção (Postgres do Render e R2 `producao/`), então o sistema vê os dados novos como se viessem do Cron Job. Serve para quando o Cron Job fica suspenso (por exemplo, sem clientes, para não pagar a rotina diária nem a carga do histórico). Quem roda é `backend/scripts/run-collector-on-pc.ps1`, no Windows PowerShell 5.1 ou no PowerShell 7 (`pwsh`).
+
+**Preparação, uma vez**
+1. Node 22.17.0 e npm 10.9.2, git, o repositório na `main` e `npm ci` em `backend`.
+2. Um arquivo de ambiente **só com 5 variáveis**, fora do repositório (padrão `C:\tmp\coletor\collector.env`; `~/coletor/collector.env` fora do Windows): `TENDERS_COLLECTOR_DATABASE_URL` (URL externa do Postgres de produção), `TENDERS_ARCHIVE_ENDPOINT`, `TENDERS_ARCHIVE_BUCKET`, `TENDERS_ARCHIVE_ACCESS_KEY_ID` e `TENDERS_ARCHIVE_SECRET_ACCESS_KEY`, uma por linha (`CHAVE=valor`). Não copie os `.env` inteiros: têm outros segredos, e o script ignora o que não for dessas 5. A pasta `producao` do R2 o script define sozinho.
+3. O Postgres do Render (Access Control) precisa aceitar conexões da rede da máquina.
+4. Sem suspensão do sistema, com as atualizações automáticas pausadas durante a carga e ao menos 5 GB livres.
+
+**Modos** (`-Mode`)
+- `backfill`: a carga do histórico. Repete blocos de `contracts-backfill --from 2021-01-01 --max-minutes 600` (`-From`, `-MaxMinutes`) e termina sozinho ao ver "Carga de contratos sem dia pendente". Espera 10 min depois de um bloco curto (menos de 5 min sem concluir: trava presa ou PNCP fora) ou com erro, e para depois de 6 blocos curtos ou 3 com erro seguidos.
+- `daily`: a rotina diária (`npm run daily-jobs`). A etapa de planos falha sempre fora do Render (falta o `BILLING_CRON_SECRET`), então o script ignora essa etapa e só acusa as outras.
+
+**Como o script se protege**
+- Recusa banco local e define `TENDERS_STORAGE_PREFIX=producao` sempre (o código só recusa `producao` com banco local, não o contrário). Sem `-Yes`, pede para digitar `SIM`, mostrando o host do banco. Nunca imprime segredos: só host, porta e nome do banco.
+- Usa uma pasta temporária **própria** (`<WorkDir>\tmp`, por `TEMP`, `TMP` e `TMPDIR`): o orçamento de disco mede a pasta temporária inteira, e a do sistema já tem outros arquivos.
+- Define para o processo `TENDERS_DUCKDB_MEMORY_MB` (`-DuckDbMemoryMb`, padrão 3072; use até ~40% da RAM), `TENDERS_DISK_LIMIT_MB` (`-DiskLimitMb`, padrão 20000), `TENDERS_FEDERAL_ENABLED=1`, `TENDERS_FEDERAL_MINUTES=30` e o log em `debug` (cada página lida aparece no log, em `<WorkDir>\logs`). Não edita nenhum `.env`.
+
+**Passo a passo**
+```powershell
+# 1. Conferência: confere tudo e mostra o que rodaria, sem gravar nada.
+powershell -NoProfile -ExecutionPolicy Bypass -File backend\scripts\run-collector-on-pc.ps1 -Mode backfill -DryRun
+
+# 2. Teste de 30 minutos: tem de publicar uma revisão ("Armazém de contratos publicado" no log) e marcar dias
+#    carregados (Configurações › Coleta).
+powershell -NoProfile -ExecutionPolicy Bypass -File backend\scripts\run-collector-on-pc.ps1 -Mode backfill -MaxMinutes 30
+
+# 3. A carga inteira (uns 3,5 a 4 dias seguidos, estimativa).
+powershell -NoProfile -ExecutionPolicy Bypass -File backend\scripts\run-collector-on-pc.ps1 -Mode backfill
+```
+Depois da carga, o Agendador de Tarefas do Windows chama o modo `daily` (por exemplo, às 19:00; a rotina leva ~11,5 h): programa `powershell.exe`, argumentos `-NoProfile -ExecutionPolicy Bypass -File "<repositório>\backend\scripts\run-collector-on-pc.ps1" -Mode daily -Yes`. Não crie a tarefa antes de a carga acabar: a trava dos contratos impede os dois ao mesmo tempo, e o segundo só espera ou sai.
+
+**Cuidados**
+- Queda de energia ou de internet com a conexão do Postgres aberta pode deixar a trava presa até o banco notar. O próximo bloco sai sem coletar até lá, e o script espera e tenta de novo. Interromper com Ctrl+C é seguro: perde só o que ainda não foi publicado.
+- Para religar o Cron Job do Render: desative a tarefa da máquina, volte `TENDERS_CONTRACTS_BACKFILL_FROM` a `2021-01-01` (a carga só sai como concluída com todos os dias marcados) e confira o disco antes. A cópia de trabalho baixa a base inteira, e o limite de 1,6 GB pode ser pequeno para a base completa (~1,0 a 1,3 GB): o pico de uma publicação soma a base, os arquivos novos e o banco de trabalho.
 
 ## Usuário de banco restrito
 
@@ -294,7 +333,7 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
   - `vigentes`: vencimento de hoje em diante, por faixa de vencimento (semana no 1º ano, mês no 2º, ano até 10 anos e `depois`; a pasta é o dia em que a faixa começa), em partes de até 30 mil linhas, por vencimento e UF. É refeito a cada publicação. A faixa da semana de 31/12 (fim do ano fiscal) pode ter centenas de milhares de contratos, por isso também é dividida;
   - `contratos`: todos, por ano do contrato, em partes de até 30 mil linhas por faixa de UF e número de controle. No piloto, a ordem por UF deixou a busca de palavra com UF de 3 a 9 vezes mais rápida, sem piorar órgão nem detalhe;
   - `fornecedor`: todos, só as colunas da lista, por ano, em partes de até 60 mil linhas por faixa do CNPJ do fornecedor.
-  - **Por que partes desse tamanho:** cada parte é ordenada sozinha na gravação. Na importação dos 351 mil contratos locais, uma parte de 50 mil linhas não coube em 128 MB do DuckDB; com até 30 mil, a gravação cabe em 160 MB (e também em 128 MB, mais devagar).
+  - **Por que partes desse tamanho:** cada parte é ordenada sozinha na gravação. Na importação dos 351 mil contratos locais, uma parte de 50 mil linhas não coube em 128 MB do DuckDB; com até 30 mil, a gravação coube em 160 MB (e também em 128 MB, mais devagar). Com ~2,2 milhões de contratos em produção, a primeira publicação da carga estourou 160 MB (31/10 e 02/11/2026), e o gravador passou a usar 1 GB por padrão (`TENDERS_DUCKDB_MEMORY_MB`).
 - **Colunas:** as da antiga `licitacoes.contrato` (as datas e horas do PNCP como vieram, os termos em JSON), as datas da coleta, `radicais` e os grupos de dígitos de número, processo, controle e compra.
 - **Busca de texto** (`textSearch.ts`): os radicais vêm do Postgres (`licitacoes.pt_unaccent`, o mesmo dicionário dos editais), e os grupos de dígitos de `licitacoes.fn_grupos_digitos`. Cada termo da busca vira a sequência dos seus radicais e bate quando ela aparece no texto do contrato. Palavras curtas no meio da frase (como "de") não exigem a posição exata.
 - **Critérios** (`criteria.ts`): a regra única de termos (E/OU), exclusões, UF, município, órgão, categoria, fornecedor e faixa de valor, e de "vigente", usada pela tela, pela prévia e pelo total das buscas salvas e pelos avisos. O que vem da pessoa entra sempre como parâmetro. A relevância é simplificada: mais termos batendo primeiro e, no empate, o termo mais perto do começo do texto.
@@ -303,7 +342,7 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
 - **Manifesto** (`contratos/manifesto.json`, `manifest.ts`): a versão, o dia dos vigentes, os totais e os arquivos de cada conjunto, com linhas, tamanho e início da faixa.
 - **Gravação** (`writer.ts`, Cron Job, com a trava dos contratos):
   1. baixa o manifesto e os arquivos para a cópia de trabalho;
-  2. guarda as mudanças da execução numa tabela do DuckDB, no banco de trabalho em disco (160 MB, 1 linha de execução). Contrato igual (mesmo hash, vencimento e conferência dos termos) não muda;
+  2. guarda as mudanças da execução numa tabela do DuckDB, no banco de trabalho em disco (1 GB de memória por padrão, `TENDERS_DUCKDB_MEMORY_MB`; 1 linha de execução). Contrato igual (mesmo hash, vencimento e conferência dos termos) não muda;
   3. publica: regrava só as partes com contrato novo ou mudado (onde ele está e onde estava), divide a parte que passa do limite, refaz os vigentes (numa tabela do banco de trabalho, não na memória), envia os arquivos e, por último, o manifesto;
   4. apaga do bucket o que nenhum dos dois últimos manifestos usa.
 

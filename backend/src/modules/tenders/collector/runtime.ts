@@ -56,7 +56,14 @@ export function createCollectorRuntime(env: NodeJS.ProcessEnv): CollectorRuntime
   const storage = config.storage ? createR2Storage(config.storage) : null;
   // A quota pertence ao contêiner, não apenas à pasta de contratos. Outros
   // temporários da mesma execução também consomem a folga de publicação.
-  const resourceBudget = new CollectorResourceBudget({ directory: tmpdir(), logger });
+  // Sem TENDERS_DISK_LIMIT_MB, vale o limite padrão do orçamento (1,6 GB, para os 2 GB do Render); numa máquina
+  // própria, a variável libera o espaço (e a pasta temporária precisa ser só da coleta).
+  const { diskLimitBytes } = config.resources;
+  const resourceBudget = new CollectorResourceBudget({
+    directory: tmpdir(),
+    logger,
+    ...(diskLimitBytes !== null ? { limitBytes: diskLimitBytes } : {}),
+  });
   if (!storage) {
     logger.warn('R2 desligado: as variáveis TENDERS_ARCHIVE_* e TENDERS_STORAGE_PREFIX não estão definidas');
   }

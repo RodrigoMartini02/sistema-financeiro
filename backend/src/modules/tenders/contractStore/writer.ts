@@ -44,10 +44,17 @@ import type { ContractSearchFieldsProvider } from './textSearch';
 // não muda, e os arquivos que sobraram são apagados na publicação seguinte.
 
 const WORK_DATABASE = 'trabalho.duckdb';
-// Medido na importação dos 351 mil contratos locais: com partes de até 30 mil
-// linhas, a gravação cabe em 160 MB, e o Cron Job (512 MB) fica com folga para o Node.
-const DEFAULT_MEMORY_LIMIT_MB = 160;
+// Na importação dos 351 mil contratos locais (19/10/2026), com partes de até 30 mil linhas, a gravação cabia em 160 MB,
+// com o Cron Job ainda de 512 MB. Com ~2,2 milhões de contratos, a primeira publicação da carga estourou esse teto no
+// Render (31/10 e 02/11/2026, "Out of Memory Error ... 152.5 MiB"), e o padrão passou a 1 GB, para a máquina de 2 GB do
+// Cron Job. Numa máquina própria, TENDERS_DUCKDB_MEMORY_MB sobe isso (collector/config.ts).
+const DEFAULT_MEMORY_LIMIT_MB = 1024;
 const DEFAULT_THREADS = 1;
+
+/** A memória do DuckDB que o gravador vai usar: a informada ou o padrão. */
+function memoryLimitMbOf(options: ContractStoreWriterOptions): number {
+  return options.memoryLimitMb ?? DEFAULT_MEMORY_LIMIT_MB;
+}
 
 export interface ContractStoreWriterOptions {
   storage: ObjectStorage;
@@ -232,7 +239,7 @@ export class ContractStoreWriter {
   private static async openWorkDatabase(options: ContractStoreWriterOptions) {
     const opened = await openDuckDb({
       path: join(options.directory, WORK_DATABASE),
-      memoryLimitMb: options.memoryLimitMb ?? DEFAULT_MEMORY_LIMIT_MB,
+      memoryLimitMb: memoryLimitMbOf(options),
       threads: options.threads ?? DEFAULT_THREADS,
       tempDirectory: join(options.directory, 'tmp'),
       maxTempDirectoryBytes: await options.resourceBudget?.availableTempBytes(),
@@ -261,6 +268,7 @@ export class ContractStoreWriter {
       revision: manifest?.revision ?? null,
       files: manifestFiles(manifest, CONTRACT_DATASETS).length,
       downloaded,
+      memoryLimitMb: memoryLimitMbOf(options),
     });
 
     const { instance, connection } = await ContractStoreWriter.openWorkDatabase(options);

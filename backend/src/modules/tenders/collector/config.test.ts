@@ -212,6 +212,47 @@ test('federais: a configuração dos contratos e dos vencedores não muda', () =
   assert.deepEqual(config.winners, { enabled: false, backfillFrom: '2021-08-01', backfillMinutes: 120 });
 });
 
+test('recursos: sem as variáveis, nada é imposto (valem os padrões do gravador de contratos e do orçamento de disco)', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl });
+  assert.deepEqual(config.resources, { duckDbMemoryMb: null, diskLimitBytes: null });
+});
+
+test('recursos: os valores informados são lidos, com o disco em MB decimais; vazio vale como não informado', () => {
+  const config = loadCollectorConfig({
+    TENDERS_COLLECTOR_DATABASE_URL: databaseUrl,
+    TENDERS_DUCKDB_MEMORY_MB: '3072',
+    TENDERS_DISK_LIMIT_MB: '20000',
+  });
+  assert.deepEqual(config.resources, { duckDbMemoryMb: 3072, diskLimitBytes: 20_000_000_000 });
+  assert.equal(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_DISK_LIMIT_MB: '1600' }).resources.diskLimitBytes, 1_600_000_000);
+
+  const blank = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_DUCKDB_MEMORY_MB: ' ', TENDERS_DISK_LIMIT_MB: ' ' });
+  assert.deepEqual(blank.resources, { duckDbMemoryMb: null, diskLimitBytes: null });
+});
+
+test('recursos: valores fora da faixa, não inteiros ou que não são número são recusados', () => {
+  const invalid: Array<[string, string]> = [
+    ['TENDERS_DUCKDB_MEMORY_MB', '127'],
+    ['TENDERS_DUCKDB_MEMORY_MB', '16385'],
+    ['TENDERS_DUCKDB_MEMORY_MB', '1024.5'],
+    ['TENDERS_DUCKDB_MEMORY_MB', 'muita'],
+    ['TENDERS_DISK_LIMIT_MB', '511'],
+    ['TENDERS_DISK_LIMIT_MB', '1000001'],
+    ['TENDERS_DISK_LIMIT_MB', '-1'],
+    ['TENDERS_DISK_LIMIT_MB', 'livre'],
+  ];
+  for (const [key, value] of invalid) {
+    assert.throws(() => loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, [key]: value }), CollectorConfigError, `${key}=${value}`);
+  }
+});
+
+test('recursos: a configuração dos contratos, dos vencedores e dos federais não muda', () => {
+  const config = loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl, TENDERS_DUCKDB_MEMORY_MB: '3072', TENDERS_DISK_LIMIT_MB: '20000' });
+  assert.deepEqual(config.contracts, { pageSize: 500, termsIntervalMs: 500, backfillFrom: '2021-01-01', backfillMinutes: 480 });
+  assert.deepEqual(config.winners, { enabled: false, backfillFrom: '2021-08-01', backfillMinutes: 120 });
+  assert.deepEqual(config.federal, { enabled: false, from: '2021-01-01', minutes: 60 });
+});
+
 test('Compras.gov.br: 1,5 s entre pedidos por padrão, no coletor e sem nenhuma variável (a sondagem não tem banco)', () => {
   assert.deepEqual(loadComprasGovSettings({}), { requestIntervalMs: 1500 });
   assert.deepEqual(loadCollectorConfig({ TENDERS_COLLECTOR_DATABASE_URL: databaseUrl }).comprasGov, { requestIntervalMs: 1500 });

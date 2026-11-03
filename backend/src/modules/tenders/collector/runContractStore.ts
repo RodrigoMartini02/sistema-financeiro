@@ -36,6 +36,8 @@ export class RunContractStore {
   ) {}
 
   static async open(context: CollectorContext, tally: RunTally, runId: number, today: string): Promise<RunContractStore> {
+    // Sem TENDERS_DUCKDB_MEMORY_MB, vale a memória padrão do gravador.
+    const { duckDbMemoryMb } = context.config.resources;
     const writer = await ContractStoreWriter.open({
       storage: requireStorage(context),
       searchFields: postgresSearchFields(context.db),
@@ -45,6 +47,7 @@ export class RunContractStore {
       now: context.now,
       logger: context.logger,
       resourceBudget: context.resourceBudget,
+      ...(duckDbMemoryMb !== null ? { memoryLimitMb: duckDbMemoryMb } : {}),
     });
     return new RunContractStore(writer, context, tally);
   }
