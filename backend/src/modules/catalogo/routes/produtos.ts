@@ -10,10 +10,11 @@ import { requireCatalogAccess, requireScreenAccess } from '../../../middleware/p
 import { catalogoProdutos, catalogoProdutoImagens, catalogoMovimentacoesEstoque, type CatalogoProduto } from '../db/schema';
 import { isUuid, isValidProdutoImagemMimeType } from '../../../services/catalogo';
 import { readProductAccountId, readProductInput, readStockMovementInput, type ProductInput } from '../../../services/productInput';
+import { findAccessibleProduct } from '../../../services/productAccess';
 import { buildProductPricing } from '../../../services/productPricing';
 import { listImagesByProduct } from '../../../services/productImages';
 import { STOCK_REASONS, recordStockMovement, type StockExecutor } from '../../../services/stock';
-import { canWriteToAccount, resolveCompanyAccount } from '../../../utils/accountAccess';
+import { resolveCompanyAccount } from '../../../utils/accountAccess';
 import { RequestInputError, readRequiredId, sendRequestError } from '../../../utils/requestInput';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
@@ -27,7 +28,6 @@ const MAX_OUTPUT_DIMENSION = 1600;
 const MOVEMENT_HISTORY_LIMIT = 100;
 
 const PERSONAL_ACCOUNT_MESSAGE = 'Produtos só existem em conta de empresa';
-const PRODUCT_NOT_FOUND_MESSAGE = 'Produto não encontrado';
 const IMAGE_NOT_FOUND_MESSAGE = 'Imagem não encontrada';
 
 const upload = multer({
@@ -64,22 +64,6 @@ function productColumns(input: ProductInput) {
     controlaEstoque: input.tracksStock,
     estoqueMinimo: toQuantity(input.minimumStock),
   };
-}
-
-/**
- * Produto pelo id, desde que a conta PJ dele seja do solicitante (dono ou
- * colaborador dela). Só o id não basta: com duas PJs do mesmo dono, o
- * colaborador de uma não mexe nos produtos da outra. Produto sem conta, de
- * conta alheia ou inexistente dão a mesma resposta.
- */
-async function loadAccessibleProduct(productId: string | undefined, requesterId: number): Promise<CatalogoProduto> {
-  const [product] = productId && isUuid(productId)
-    ? await db.select().from(catalogoProdutos).where(eq(catalogoProdutos.id, productId)).limit(1)
-    : [];
-  if (!product || product.contaId === null || !(await canWriteToAccount(product.contaId, requesterId))) {
-    throw new RequestInputError(PRODUCT_NOT_FOUND_MESSAGE, 404);
-  }
-  return product;
 }
 
 async function hasStockMovements(executor: StockExecutor, productId: string): Promise<boolean> {
@@ -168,7 +152,7 @@ router.post('/', authenticate, requireScreenAccess('accessProductCatalog'), asyn
 // produto sem movimentação aceita a quantidade inicial.
 router.put('/:id', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    const product = await findAccessibleProduct(req.params['id'], req.user!.id);
     const input = readProductInput(req.body);
 
     await db.transaction(async (transaction) => {
@@ -215,7 +199,7 @@ router.post(
       if (!file) {
         throw new RequestInputError('Envie uma imagem');
       }
-      const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+      const product = await findAccessibleProduct(req.params['id'], req.user!.id);
 
       const [last] = await db
         .select({ ordem: max(catalogoProdutoImagens.ordem) })
@@ -253,7 +237,7 @@ router.get('/imagens/:nomeArquivo', authenticate, requireScreenAccess('accessPro
     if (!image) {
       throw new RequestInputError(IMAGE_NOT_FOUND_MESSAGE, 404);
     }
-    await loadAccessibleProduct(image.produtoId, req.user!.id);
+    await findAccessibleProduct(image.produtoId, req.user!.id);
 
     const filePath = path.join(UPLOAD_DIR, nomeArquivo);
     if (!fs.existsSync(filePath)) {
@@ -276,7 +260,7 @@ router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessPro
     if (!image) {
       throw new RequestInputError(IMAGE_NOT_FOUND_MESSAGE, 404);
     }
-    await loadAccessibleProduct(image.produtoId, req.user!.id);
+    await findAccessibleProduct(image.produtoId, req.user!.id);
 
     await db.delete(catalogoProdutoImagens).where(eq(catalogoProdutoImagens.id, image.id));
     const filePath = path.join(UPLOAD_DIR, path.basename(image.nomeArquivo));
@@ -292,7 +276,7 @@ router.delete('/imagens/:imagemId', authenticate, requireScreenAccess('accessPro
 // POST /api/catalogo/produtos/:id/estoque — entrada ou saída manual, só com o controle ligado
 router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    const product = await findAccessibleProduct(req.params['id'], req.user!.id);
     if (!product.controlaEstoque) {
       throw new RequestInputError('Ligue o controle de estoque deste produto');
     }
@@ -319,7 +303,7 @@ router.post('/:id/estoque', authenticate, requireScreenAccess('accessProductCata
 // GET /api/catalogo/produtos/:id/estoque/movimentacoes — historico do produto
 router.get('/:id/estoque/movimentacoes', authenticate, requireScreenAccess('accessProductCatalog'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const product = await loadAccessibleProduct(req.params['id'], req.user!.id);
+    const product = await findAccessibleProduct(req.params['id'], req.user!.id);
     const movements = await db
       .select()
       .from(catalogoMovimentacoesEstoque)

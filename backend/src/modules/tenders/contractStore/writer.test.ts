@@ -307,9 +307,12 @@ test('limpeza: apaga do bucket o que nenhum dos dois últimos manifestos usa, in
   await withTempDirectory(async (directory) => {
     const { storage, objects } = createMemoryStorage();
     const orphan = `${FILES_FOLDER}/contratos/2026/v99.1-0001.parquet`;
+    // Anexos de despesas, contratos e produtos moram na mesma pasta do ambiente, fora da pasta do armazém.
+    const attachment = 'anexos/3f1b9e1c-8d52-4b8e-9d0e-0a1b2c3d4e5f';
     await publishWith(storage, directory, 1, async (writer) => void (await writer.upsert([at(1)])));
     const first = manifestFiles(manifestOf(objects)).map((file) => file.path);
     objects.set(orphan, new Uint8Array([1]));
+    objects.set(attachment, new Uint8Array([2]));
 
     await publishWith(storage, directory, 2, async (writer) => void (await writer.upsert([at(1, { payloadHash: 'v2' })])));
     assert.ok(first.every((path) => objects.has(path)), 'a versão anterior continua: quem lê pode estar nela');
@@ -320,6 +323,7 @@ test('limpeza: apaga do bucket o que nenhum dos dois últimos manifestos usa, in
     const used = new Set(manifestFiles(manifestOf(objects)).map((file) => file.path));
     const stored = [...objects.keys()].filter((key) => key.startsWith(`${FILES_FOLDER}/`));
     assert.ok(stored.every((key) => used.has(key) || key.includes('/v2.1-')), JSON.stringify(stored));
+    assert.ok(objects.has(attachment), 'a limpeza só mexe na pasta de arquivos do armazém: os anexos ficam');
   });
 });
 

@@ -107,6 +107,59 @@ test('R2: o envio é um PUT assinado na pasta do ambiente, com o corpo e o tipo,
   });
 });
 
+test('R2: o envio leva Content-Disposition e Cache-Control só quando informados', async () => {
+  await withFakeS3(async (endpoint, requests) => {
+    const storage = createR2Storage({ endpoint, ...fakeSettings });
+    try {
+      await storage.putObject('anexos/a', Buffer.from('%PDF-1.7'), 'application/pdf', {
+        contentDisposition: `inline; filename="nota.pdf"; filename*=UTF-8''nota.pdf`,
+        cacheControl: 'private, no-store',
+      });
+      await storage.putObject('anexos/b', Buffer.from('b'), 'text/plain');
+    } finally {
+      storage.close();
+    }
+
+    const [withHeaders, withoutHeaders] = requests;
+    assert.equal(withHeaders?.headers['content-type'], 'application/pdf');
+    assert.equal(withHeaders?.headers['content-disposition'], `inline; filename="nota.pdf"; filename*=UTF-8''nota.pdf`);
+    assert.equal(withHeaders?.headers['cache-control'], 'private, no-store');
+    assert.equal(withoutHeaders?.headers['content-disposition'], undefined);
+    assert.equal(withoutHeaders?.headers['cache-control'], undefined);
+  });
+});
+
+test('R2: o link assinado é calculado sem chamar o R2, vale o tempo pedido e baixa sem credencial', async () => {
+  await withFakeS3(async (endpoint, requests) => {
+    const storage = createR2Storage({ endpoint, ...fakeSettings });
+    try {
+      await storage.putObject('anexos/abc', Buffer.from('conteúdo do anexo'), 'text/plain');
+      requests.length = 0;
+
+      const link = await storage.signedGetUrl?.('anexos/abc', 120);
+      assert.ok(link, 'o cliente real assina links');
+      assert.equal(requests.length, 0, 'assinar não chama o R2');
+
+      const url = new URL(link);
+      assert.equal(url.origin, endpoint);
+      assert.equal(url.pathname, '/licitacoes-dados/local/anexos/abc');
+      assert.equal(url.searchParams.get('X-Amz-Algorithm'), 'AWS4-HMAC-SHA256');
+      assert.equal(url.searchParams.get('X-Amz-Expires'), '120');
+      assert.match(url.searchParams.get('X-Amz-Credential') ?? '', /^chave-de-teste\/\d{8}\/auto\/s3\/aws4_request$/);
+      assert.match(url.searchParams.get('X-Amz-Signature') ?? '', /^[0-9a-f]{64}$/);
+      assert.doesNotMatch(link, /segredo-de-teste/, 'o segredo nunca vai no link');
+
+      const response = await fetch(link);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), 'conteúdo do anexo');
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0]?.headers.authorization, undefined, 'quem abre o link não manda credencial: a assinatura está na URL');
+    } finally {
+      storage.close();
+    }
+  });
+});
+
 test('R2: lê, baixa para arquivo, lista (todas as páginas) e apaga, só dentro da pasta do ambiente', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'r2-teste-'));
   try {
