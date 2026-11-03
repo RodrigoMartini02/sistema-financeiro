@@ -17,7 +17,8 @@ import type { ContractTermSummary, TenderContractRow } from '../collector/contra
 // Cada pasta (faixa ou ano) fica em partes de tamanho limitado, divididas pela
 // chave das partes (PART_KEY), para o Cron Job regravar uma parte de cada vez
 // com pouca memória: na importação dos contratos locais, uma parte de 50 mil
-// linhas não coube em 128 MB do DuckDB, e as de até 30 mil cabem em 160 MB.
+// linhas não coube em 128 MB do DuckDB, e as de até 30 mil cabiam em 160 MB. Com a
+// base de produção (~2,2 milhões), o gravador passou a usar 1 GB (writer.ts).
 
 /**
  * Número de controle da compra no PNCP: CNPJ do órgão, sequencial e ano ("03353358000196-1-000216/2026"). Uma

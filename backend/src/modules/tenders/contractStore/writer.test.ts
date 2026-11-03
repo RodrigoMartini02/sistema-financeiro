@@ -3,6 +3,7 @@ import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { TenderContractRow } from '../collector/contractMapping';
+import { createCollectorLogger } from '../collector/logger';
 import { CollectorResourceBudget, CollectorResourceLimitError } from '../collector/resourceBudget';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
@@ -606,6 +607,31 @@ test('página larga é recusada antes de criar JSON sem espaço para aplicar e p
     } finally {
       await writer.close();
     }
+  });
+});
+
+test('memória do DuckDB: o gravador usa 1 GB por padrão e respeita o valor informado, e o log da abertura diz qual', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage } = createMemoryStorage();
+    const memoryLimitLoggedBy = async (options: { memoryLimitMb?: number }): Promise<unknown> => {
+      const lines: string[] = [];
+      const writer = await ContractStoreWriter.open({
+        storage,
+        searchFields: simpleSearchFields,
+        directory,
+        version: 1,
+        today: '2026-10-19',
+        now: () => new Date('2026-10-19T12:00:00Z'),
+        logger: createCollectorLogger('info', (line) => void lines.push(line)),
+        ...options,
+      });
+      await writer.close();
+      const opened = lines.map((line) => JSON.parse(line) as Record<string, unknown>).find((entry) => entry['msg'] === 'Cópia de trabalho do armazém de contratos pronta');
+      return opened?.['memoryLimitMb'];
+    };
+
+    assert.equal(await memoryLimitLoggedBy({}), 1024);
+    assert.equal(await memoryLimitLoggedBy({ memoryLimitMb: 256 }), 256);
   });
 });
 
