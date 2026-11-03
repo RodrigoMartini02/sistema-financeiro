@@ -90,6 +90,7 @@ import internalJobsRoutes from './routes/internal-jobs';
 import notificationRoutes from './routes/notifications';
 import pushRoutes from './routes/push';
 import assistantRoutes from './routes/assistant';
+import attachmentRoutes from './routes/attachments';
 import budgetRoutes from './routes/budget';
 import aiIntegrationRoutes from './routes/ai-integrations';
 import catalogoRoutes from './modules/catalogo/routes';
@@ -152,6 +153,8 @@ app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess(
 // usuário autenticado deve ver com os próprios dados. Ver budget.ts.
 app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
 app.use('/api/ai-integracoes', aiIntegrationRoutes);
+// Anexos de lançamentos, contratos e produtos: as travas de plano e de tela de cada tipo de dono ficam dentro do roteador.
+app.use('/api/attachments', authenticate, attachmentRoutes);
 app.use('/api/catalogo', catalogoRoutes);
 // Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro. Só no Premium.
 app.use('/api/clients', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('clients'), clientRoutes);
