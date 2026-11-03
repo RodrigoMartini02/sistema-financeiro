@@ -6,13 +6,14 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { incomes, representatives } from '../db/schema';
 import {
-  catalogServices, clients, contractAttachments, contractCharges, contractCommitments, contractHourTypes,
+  catalogServices, clients, contractCharges, contractCommitments, contractHourTypes,
   contractServices, contracts, type Client, type Contract, type ContractCharge,
 } from '../modules/contracts/db/schema';
 import { resolveCompanyAccount } from '../utils/accountAccess';
 import { RequestInputError } from '../utils/requestInput';
+import { collectAttachmentKeys } from './attachmentService';
+import { removeAttachmentObjects } from './attachmentStorage';
 import { CLIENTS_PERSONAL_ACCOUNT_MESSAGE } from './clients';
-import { removeAttachmentFiles } from './contractAttachments';
 import { commitmentWarning, commitmentYear } from './contractCommitments';
 import { formatHours, hourTypesWithUsage, usedHoursByType } from './contractHours';
 import {
@@ -477,7 +478,7 @@ export async function closeContract(contractId: number, today: string): Promise<
 
 /** Excluir: só sem receita faturada ou recebida. As previstas e canceladas do contrato saem junto. */
 export async function deleteContract(contractId: number): Promise<void> {
-  const fileNames = await db.transaction(async (transaction) => {
+  const attachmentKeys = await db.transaction(async (transaction) => {
     const contract = await lockContract(transaction, contractId);
     const [billed] = await transaction
       .select({ id: incomes.id })
@@ -490,14 +491,12 @@ export async function deleteContract(contractId: number): Promise<void> {
     // Cancelar antes de apagar desfaz a comissão que uma receita de horas tenha gerado, como na exclusão da receita.
     await cancelPlannedIncomesFrom(transaction, contract.id, '0001-01-01');
     await transaction.delete(incomes).where(eq(incomes.contractId, contract.id));
-    const attachments = await transaction
-      .select({ fileName: contractAttachments.fileName })
-      .from(contractAttachments)
-      .where(eq(contractAttachments.contractId, contract.id));
+    // As linhas dos anexos saem com o contrato (cascata no banco); os arquivos no R2 saem depois, pelas chaves colhidas aqui.
+    const keys = await collectAttachmentKeys({ type: 'contract', ids: [contract.id] }, transaction);
     await transaction.delete(contracts).where(eq(contracts.id, contract.id));
-    return attachments.map((attachment) => attachment.fileName);
+    return keys;
   });
-  removeAttachmentFiles(fileNames);
+  await removeAttachmentObjects(attachmentKeys);
 }
 
 // ── Aditivo e reajuste ────────────────────────────────────────────────────

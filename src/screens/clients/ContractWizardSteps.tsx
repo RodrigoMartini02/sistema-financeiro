@@ -12,7 +12,7 @@ import {
 import { DateField } from '../../ui/DateField';
 import { MoneyCell } from '../finance/entry-dialog/MoneyCell';
 import { checkboxStyle } from '../finance/entry-dialog/fieldStyles';
-import { PendingAttachments } from './ContractAttachments';
+import { PendingFilesField } from '../../ui/AttachmentsField';
 import { errorBoxStyle, fieldErrorStyle, inputStyle, secondaryButtonStyle, sectionTitleStyle } from './clientStyles';
 
 const FIELD_HEIGHT = 32;
@@ -507,7 +507,13 @@ export function OptionsStep({ draft, onChange, data, files, onFilesChange, showA
       {showAttachments && (
         <>
           <p style={sectionTitleStyle}>Anexos</p>
-          <PendingAttachments files={files} onChange={onFilesChange} />
+          <PendingFilesField
+            ownerType="contract"
+            files={files}
+            onChange={onFilesChange}
+            emptyHint="PDF, JPG ou PNG, até 20 MB. Enviados ao salvar o contrato."
+            inputLabel="Anexar arquivo ao contrato"
+          />
         </>
       )}
     </div>

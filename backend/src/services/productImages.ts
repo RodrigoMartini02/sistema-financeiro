@@ -1,36 +1,16 @@
-import { asc, inArray } from 'drizzle-orm';
-import { db } from '../db/client';
-import { catalogoProdutoImagens } from '../modules/catalogo/db/schema';
+import { listAttachmentsByOwners } from './attachmentService';
 
+/** A imagem de um produto como as telas recebem: o id é o do anexo e também o endereço da imagem na vitrine. */
 export interface ProductImageView {
   id: string;
-  produtoId: string;
-  nomeArquivo: string;
-  ordem: number;
 }
 
-/** Imagens de vários produtos numa consulta só, agrupadas por produto e na ordem de exibição. */
+/** Imagens de vários produtos numa consulta só, agrupadas por produto e na ordem de exibição (a primeira é a capa). */
 export async function listImagesByProduct(productIds: string[]): Promise<Map<string, ProductImageView[]>> {
+  const attachmentsByProduct = await listAttachmentsByOwners({ type: 'product', ids: productIds });
   const imagesByProduct = new Map<string, ProductImageView[]>();
-  if (productIds.length === 0) {
-    return imagesByProduct;
-  }
-
-  const images = await db
-    .select({
-      id: catalogoProdutoImagens.id,
-      produtoId: catalogoProdutoImagens.produtoId,
-      nomeArquivo: catalogoProdutoImagens.nomeArquivo,
-      ordem: catalogoProdutoImagens.ordem,
-    })
-    .from(catalogoProdutoImagens)
-    .where(inArray(catalogoProdutoImagens.produtoId, productIds))
-    .orderBy(asc(catalogoProdutoImagens.ordem), asc(catalogoProdutoImagens.createdAt));
-
-  for (const image of images) {
-    const list = imagesByProduct.get(image.produtoId) ?? [];
-    list.push(image);
-    imagesByProduct.set(image.produtoId, list);
+  for (const [productId, images] of attachmentsByProduct) {
+    imagesByProduct.set(String(productId), images.map((image) => ({ id: image.id })));
   }
   return imagesByProduct;
 }

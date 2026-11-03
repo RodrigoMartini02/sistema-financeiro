@@ -11,7 +11,6 @@ import {
 import { resolveCompanyAccount } from '../../../utils/accountAccess';
 import { getTodayIsoInTimezone } from '../../../utils/date';
 import { RequestInputError, readQueryId, readRecord, readRequiredId, sendRequestError } from '../../../utils/requestInput';
-import attachmentRoutes from './attachments';
 
 // Montada em /api/contracts com authenticate, requireActivePlan e
 // requireCatalogAccess('contracts'): "/with-hours" também abre para quem lança receita.
@@ -133,8 +132,6 @@ router.post('/incomes/:incomeId/invoice', async (req: Request, res: Response): P
     sendRequestError(res, error, 'Invoice contract income error:', req.user?.id, 'Não foi possível faturar a receita agora.');
   }
 });
-
-router.use(attachmentRoutes);
 
 // GET /api/contracts/:id — ficha
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {

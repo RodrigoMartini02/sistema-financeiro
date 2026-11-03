@@ -1,7 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { uploadAttachment } from '../../services/attachmentsService';
 import {
-  createAmendment, createContract, previewContract, updateContract, uploadContractAttachment,
+  createAmendment, createContract, previewContract, updateContract,
   type ContractDetail, type ContractPreviewTarget,
 } from '../../services/contractsService';
 import { fetchClassificacoesReceita } from '../../services/incomeClassificationsService';
@@ -198,7 +199,7 @@ export function ContractWizard({ mode, accountId, client, contract, onClose, onS
       const failed: string[] = [];
       for (const file of files) {
         try {
-          await uploadContractAttachment(saved.id, file);
+          await uploadAttachment('contract', file, saved.id);
         } catch {
           failed.push(file.name);
         }

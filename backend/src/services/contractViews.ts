@@ -10,7 +10,8 @@ import {
   contractServices, contracts, type Contract,
 } from '../modules/contracts/db/schema';
 import { addMonthsClamped } from '../utils/date';
-import { listContractAttachments, type ContractAttachmentView } from './contractAttachments';
+import { listAttachmentsByOwners } from './attachmentService';
+import type { AttachmentView } from './attachmentModel';
 import { commitmentBalances, type CommitmentBalance } from './contractCommitments';
 import { hourTypeBalance, usedHoursByType } from './contractHours';
 import { loadContractIndicators } from './contractIndicators';
@@ -85,7 +86,8 @@ export interface ContractDetail {
   readjustment: { baseDate: string; handledUntil: string | null; available: boolean; anniversary: string };
   expiringSoon: boolean;
   incomes: ContractIncomeView[];
-  attachments: ContractAttachmentView[];
+  /** Do mais novo para o mais antigo. */
+  attachments: AttachmentView[];
   /** Sem receita faturada ou recebida: pode ser excluído. */
   canDelete: boolean;
 }
@@ -287,7 +289,7 @@ export async function getContractDetail(contract: Contract, today: string): Prom
       withholdings: row.withholdings,
       hours: row.hourTypeName !== null && row.hours !== null ? { hourTypeName: row.hourTypeName, hours: Number(row.hours) } : null,
     })),
-    attachments: await listContractAttachments(contract.id),
+    attachments: [...((await listAttachmentsByOwners({ type: 'contract', ids: [contract.id] })).get(contract.id) ?? [])].reverse(),
     canDelete: !incomeRows.some((row) => BILLED_INCOME_STATUSES.includes(row.status)),
   };
 }

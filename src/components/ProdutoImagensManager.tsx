@@ -1,32 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import {
-  fetchProdutoImagemBlob, uploadProdutoImagem, deleteProdutoImagem,
-  type ProdutoImagem,
-} from '../services/catalogoService';
+import { ImageOff, Plus, X } from 'lucide-react';
+import { deleteAttachment, fetchAttachmentLink, uploadAttachment } from '../services/attachmentsService';
+import type { ProdutoImagem } from '../services/catalogoService';
+import { ATTACHMENT_RULES, attachmentProblem } from '../utils/attachmentRules';
 
-const MAX_UPLOAD_SIZE = 8 * 1024 * 1024;
-
+/** A miniatura abre pelo link de vida curta do R2: o navegador baixa a imagem direto de lá. */
 function ImagemThumb({ imagem, onRemove }: { imagem: ProdutoImagem; onRemove: () => void }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    let objectUrl: string | null = null;
     let cancelled = false;
-    fetchProdutoImagemBlob(imagem.nomeArquivo).then((blob) => {
-      if (cancelled) return;
-      objectUrl = URL.createObjectURL(blob);
-      setSrc(objectUrl);
-    }).catch(() => {});
+    setFailed(false);
+    fetchAttachmentLink(imagem.id)
+      .then((link) => {
+        if (!cancelled) setSrc(link.url);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [imagem.nomeArquivo]);
+  }, [imagem.id]);
 
   return (
-    <div className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-[10px] border border-[#e9eef3] bg-[#f8fafc]">
-      {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+    <div className="group relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-[#e9eef3] bg-[#f8fafc]">
+      {src && <img src={src} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />}
+      {failed && <ImageOff size={18} className="text-[#94a3b8]" aria-label="Não foi possível carregar a imagem" />}
       <button
         type="button"
         onClick={onRemove}
@@ -55,20 +56,17 @@ export function ProdutoImagensManager({ produtoId, imagens, onChange }: ProdutoI
     e.target.value = '';
     if (!file) return;
 
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Envie uma imagem JPG, PNG ou WebP.');
-      return;
-    }
-    if (file.size > MAX_UPLOAD_SIZE) {
-      setError('A imagem deve ter no máximo 8MB.');
+    const problem = attachmentProblem('product', file);
+    if (problem) {
+      setError(problem);
       return;
     }
 
     setError('');
     setIsUploading(true);
     try {
-      const imagem = await uploadProdutoImagem(produtoId, file);
-      onChange([...imagens, imagem]);
+      const uploaded = await uploadAttachment('product', file, produtoId);
+      onChange([...imagens, { id: uploaded.id }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao enviar imagem');
     } finally {
@@ -80,7 +78,7 @@ export function ProdutoImagensManager({ produtoId, imagens, onChange }: ProdutoI
     const previous = imagens;
     onChange(imagens.filter((imagem) => imagem.id !== imagemId));
     try {
-      await deleteProdutoImagem(imagemId);
+      await deleteAttachment(imagemId);
     } catch (err) {
       onChange(previous);
       setError(err instanceof Error ? err.message : 'Falha ao remover imagem');
@@ -96,7 +94,7 @@ export function ProdutoImagensManager({ produtoId, imagens, onChange }: ProdutoI
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept={ATTACHMENT_RULES.product.accept}
           className="hidden"
           onChange={handleFileChange}
         />

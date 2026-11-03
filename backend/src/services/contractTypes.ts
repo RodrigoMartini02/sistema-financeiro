@@ -20,10 +20,6 @@ export const CHARGE_LABELS: Record<ChargeKind, string> = {
   projeto: 'Projeto',
 };
 
-export const ATTACHMENT_KINDS = ['pdf', 'jpg', 'png'] as const;
-export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
-export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
-
 /** Tributos retidos por órgão público, na ordem em que aparecem. */
 export const WITHHOLDING_TAXES = ['ir', 'pisCofinsCsll', 'iss', 'inss'] as const;
 export type WithholdingTax = (typeof WITHHOLDING_TAXES)[number];

@@ -134,26 +134,10 @@ export const catalogoMovimentacoesEstoque = catalogoSchema.table(
   }),
 );
 
-export const catalogoProdutoImagens = catalogoSchema.table(
-  'produto_imagens',
-  {
-    id: uuid('id').defaultRandom().primaryKey(),
-    produtoId: uuid('produto_id').notNull().references(() => catalogoProdutos.id, { onDelete: 'cascade' }),
-    nomeArquivo: varchar('nome_arquivo', { length: 255 }).notNull(),
-    ordem: integer('ordem').default(0).notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    produtoIdx: index('idx_catalogo_produto_imagens_produto').on(table.produtoId),
-  }),
-);
-
 export type CatalogoConta = typeof catalogoContas.$inferSelect;
 export type NewCatalogoConta = typeof catalogoContas.$inferInsert;
 export type CatalogoProduto = typeof catalogoProdutos.$inferSelect;
 export type NewCatalogoProduto = typeof catalogoProdutos.$inferInsert;
-export type CatalogoProdutoImagem = typeof catalogoProdutoImagens.$inferSelect;
-export type NewCatalogoProdutoImagem = typeof catalogoProdutoImagens.$inferInsert;
 export type CatalogoMovimentacaoEstoque = typeof catalogoMovimentacoesEstoque.$inferSelect;
 export type NewCatalogoMovimentacaoEstoque = typeof catalogoMovimentacoesEstoque.$inferInsert;
 

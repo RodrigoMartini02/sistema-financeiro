@@ -221,8 +221,8 @@ export async function fetchPublicOrder(storefront: string, orderId: string): Pro
   );
 }
 
-export function getPublicProductImageUrl(storefront: string, fileName: string): string {
-  return `${getApiUrl()}/catalogo/public/${encodeURIComponent(storefront)}/imagens/${encodeURIComponent(fileName)}`;
+export function getPublicProductImageUrl(storefront: string, imageId: string): string {
+  return `${getApiUrl()}/catalogo/public/${encodeURIComponent(storefront)}/imagens/${encodeURIComponent(imageId)}`;
 }
 
 /** Endereço público da vitrine, no domínio de onde o app foi aberto. */
