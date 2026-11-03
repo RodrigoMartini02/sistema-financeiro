@@ -1,11 +1,9 @@
-import { apiRequest, getApiUrl } from './apiClient';
+import { apiRequest } from './apiClient';
 import type { ProductDiscountType } from '../utils/productPricing';
 
+/** Imagem do produto, na ordem de exibição (a primeira é a capa). O id é o do anexo e o endereço dela na vitrine. */
 export interface ProdutoImagem {
   id: string;
-  produtoId: string;
-  nomeArquivo: string;
-  ordem: number;
 }
 
 export interface Produto {
@@ -88,34 +86,3 @@ export async function fetchMovimentacoesEstoque(produtoId: string): Promise<Movi
   return apiRequest<MovimentacaoEstoque[]>(`/catalogo/produtos/${produtoId}/estoque/movimentacoes`);
 }
 
-export async function uploadProdutoImagem(produtoId: string, file: File): Promise<ProdutoImagem> {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
-  const form = new FormData();
-  form.append('imagem', file);
-
-  const response = await fetch(`${getApiUrl()}/catalogo/produtos/${produtoId}/imagens`, {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
-  const payload = await response.json() as { success: boolean; message?: string; data?: ProdutoImagem };
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.message ?? 'Falha ao enviar imagem');
-  }
-  return payload.data!;
-}
-
-export async function deleteProdutoImagem(imagemId: string): Promise<void> {
-  return apiRequest<void>(`/catalogo/produtos/imagens/${imagemId}`, { method: 'DELETE' });
-}
-
-export async function fetchProdutoImagemBlob(nomeArquivo: string): Promise<Blob> {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
-  const response = await fetch(`${getApiUrl()}/catalogo/produtos/imagens/${nomeArquivo}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) {
-    throw new Error('Falha ao carregar imagem');
-  }
-  return response.blob();
-}

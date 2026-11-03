@@ -78,6 +78,27 @@ export async function removeStoredObjects(storage: ObjectStorage, keys: readonly
   return failed;
 }
 
+/**
+ * Apaga do R2 os arquivos de anexos que o banco já deixou de apontar porque o dono foi excluído. Sem chaves,
+ * nem abre o R2. Sem R2 configurado, registra e segue: a exclusão do dono já foi confirmada e não falha por isso.
+ */
+export async function removeAttachmentObjects(
+  keys: readonly string[],
+  getStorage: () => ObjectStorage = getAttachmentStorage,
+): Promise<void> {
+  if (keys.length === 0) {
+    return;
+  }
+  let storage: ObjectStorage;
+  try {
+    storage = getStorage();
+  } catch (error) {
+    console.error('Attachment files left in storage, storage unavailable:', { keys, error });
+    return;
+  }
+  await removeStoredObjects(storage, keys);
+}
+
 export interface AttachmentLink {
   url: string;
   expiresAt: string;

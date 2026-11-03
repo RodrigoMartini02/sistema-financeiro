@@ -49,7 +49,7 @@ export function StorefrontPage() {
   const storeUrl = store?.link ? storefrontPublicUrl(store.link) : window.location.href.split('?')[0]!;
   const imageUrlOf = (product: PublicProduct | undefined) => {
     const cover = product?.imagens[0];
-    return store && cover ? getPublicProductImageUrl(store.id, cover.nomeArquivo) : null;
+    return store && cover ? getPublicProductImageUrl(store.id, cover.id) : null;
   };
 
   const openProductId = searchParams.get(PRODUCT_PARAM);
@@ -214,7 +214,7 @@ export function StorefrontPage() {
         <StorefrontProductSheet
           key={openProduct.id}
           product={openProduct}
-          imageUrls={openProduct.imagens.map((image) => getPublicProductImageUrl(store.id, image.nomeArquivo))}
+          imageUrls={openProduct.imagens.map((image) => getPublicProductImageUrl(store.id, image.id))}
           canBuy={canBuy}
           shareUrl={`${storeUrl}?${PRODUCT_PARAM}=${openProduct.id}`}
           onClose={closeProductSheet}

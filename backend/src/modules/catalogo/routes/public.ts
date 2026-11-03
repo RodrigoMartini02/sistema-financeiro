@@ -1,22 +1,19 @@
-import path from 'path';
-import fs from 'fs';
 import { Router, Request, Response } from 'express';
 import { ipRateLimiter } from '../../../middleware/validation';
+import { getAttachmentStorage } from '../../../services/attachmentStorage';
 import { getStorePublicKey } from '../../../services/mercadoPagoAccounts';
 import { readOrderInput } from '../../../services/orderInput';
 import { createOrder, getPublicOrder, syncOrderPayment } from '../../../services/orders';
 import { getPlanStatusForUser } from '../../../services/plan-lifecycle';
 import {
-  findPublicStorefront, isPublicProductImage, listPublicProducts, type PublicStorefront,
+  findPublicProductImage, findPublicStorefront, listPublicProducts, type PublicStorefront,
 } from '../../../services/storefront';
 import { sendRequestError } from '../../../utils/requestInput';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'catalogo');
 
 const STORE_NOT_FOUND_MESSAGE = 'Loja não encontrada';
 const STORE_UNAVAILABLE_MESSAGE = 'Loja indisponível';
 const IMAGE_NOT_FOUND_MESSAGE = 'Imagem não encontrada';
-/** O nome do arquivo da imagem é único e nunca é reaproveitado: o navegador pode guardá-la de vez. */
+/** O id da imagem é único e nunca é reaproveitado: o navegador pode guardá-la de vez. */
 const IMMUTABLE_IMAGE_CACHE = 'public, max-age=31536000, immutable';
 
 const ORDER_NOT_FOUND_MESSAGE = 'Pedido não encontrado';
@@ -96,28 +93,28 @@ router.get('/:storefront', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// GET /api/catalogo/public/:vitrine/imagens/:nomeArquivo — imagem de produto ativo da vitrine
-router.get('/:storefront/imagens/:nomeArquivo', async (req: Request, res: Response): Promise<void> => {
+// GET /api/catalogo/public/:vitrine/imagens/:imagemId — imagem de produto ativo da vitrine, lida do R2
+router.get('/:storefront/imagens/:imagemId', async (req: Request, res: Response): Promise<void> => {
   try {
     const storefront = await findPublicStorefront(req.params['storefront'] ?? '');
-    const fileName = path.basename(req.params['nomeArquivo'] ?? '');
-    if (!storefront || !(await isPublicProductImage(storefront, fileName))) {
+    const image = storefront ? await findPublicProductImage(storefront, req.params['imagemId'] ?? '') : null;
+    if (!image) {
       res.status(404).json({ success: false, message: IMAGE_NOT_FOUND_MESSAGE });
       return;
     }
 
-    const filePath = path.join(UPLOAD_DIR, fileName);
-    if (!fs.existsSync(filePath)) {
+    const content = await getAttachmentStorage().getObject(image.storageKey);
+    if (!content) {
+      console.error('Public storefront image is missing in storage:', { storefront: req.params['storefront'], imageId: req.params['imagemId'] });
       res.status(404).json({ success: false, message: IMAGE_NOT_FOUND_MESSAGE });
       return;
     }
 
-    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Content-Type', image.contentType);
     res.setHeader('Cache-Control', IMMUTABLE_IMAGE_CACHE);
-    fs.createReadStream(filePath).pipe(res);
+    res.end(Buffer.from(content));
   } catch (error) {
-    console.error('Public storefront image error:', { storefront: req.params['storefront'], error });
-    res.status(500).json({ success: false, message: 'Não foi possível carregar a imagem agora.' });
+    sendRequestError(res, error, 'Public storefront image error:', undefined, 'Não foi possível carregar a imagem agora.');
   }
 });
 

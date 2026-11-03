@@ -6,7 +6,7 @@ import { RequestInputError } from '../utils/requestInput';
 import { ATTACHMENT_LINK_TTL_SECONDS } from './attachmentRules';
 import {
   ATTACHMENT_STORAGE_UNAVAILABLE_MESSAGE, attachmentStorageKey, createAttachmentLink, createAttachmentStorage, putAttachmentObject,
-  removeStoredObjects,
+  removeAttachmentObjects, removeStoredObjects,
 } from './attachmentStorage';
 
 const ID = '3f1b9e1c-8d52-4b8e-9d0e-0a1b2c3d4e5f';
@@ -73,6 +73,32 @@ test('apaga os arquivos do R2 e conta os que falharam, deixando a falha no log',
   }
   assert.deepEqual([...objects.keys()], ['anexos/b'], 'os outros dois foram apagados mesmo com a falha no meio');
   assert.equal(await removeStoredObjects(storage, []), 0);
+});
+
+test('apagar os arquivos de um dono excluído: sem chaves não abre o R2, e sem R2 só registra', async () => {
+  const { storage, objects } = createMemoryStorage();
+  objects.set('anexos/a', Buffer.from('a'));
+  objects.set('anexos/b', Buffer.from('b'));
+
+  await removeAttachmentObjects([], () => {
+    throw new Error('não devia abrir o R2');
+  });
+  assert.equal(objects.size, 2);
+
+  await removeAttachmentObjects(['anexos/a'], () => storage);
+  assert.deepEqual([...objects.keys()], ['anexos/b']);
+
+  const logged = mock.method(console, 'error', () => {});
+  try {
+    await removeAttachmentObjects(['anexos/b'], () => {
+      throw new Error('R2 sem configuração');
+    });
+    assert.equal(logged.mock.callCount(), 1);
+    assert.equal(logged.mock.calls[0]?.arguments[0], 'Attachment files left in storage, storage unavailable:');
+  } finally {
+    logged.mock.restore();
+  }
+  assert.deepEqual([...objects.keys()], ['anexos/b'], 'a exclusão do dono não falha por causa do R2; o arquivo sobra');
 });
 
 test('o link de leitura vale 2 minutos e informa quando expira', async () => {

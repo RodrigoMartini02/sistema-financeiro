@@ -210,7 +210,7 @@ export function StorefrontCartPage() {
 
   const imageUrlOf = (productId: string) => {
     const cover = productsById.get(productId)?.imagens[0];
-    return store && cover ? getPublicProductImageUrl(store.id, cover.nomeArquivo) : null;
+    return store && cover ? getPublicProductImageUrl(store.id, cover.id) : null;
   };
 
   return (

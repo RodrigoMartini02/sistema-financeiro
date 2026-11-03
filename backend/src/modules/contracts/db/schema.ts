@@ -21,7 +21,7 @@ import { accounts } from '../../../db/schema/accounts';
 import { incomes } from '../../../db/schema/incomes';
 import { incomeClassifications } from '../../../db/schema/incomeClassifications';
 import { representatives } from '../../../db/schema/representatives';
-import type { AttachmentKind, ChargeKind, ClientKind, ContractStatus, GovernmentSphere } from '../../../services/contractTypes';
+import type { ChargeKind, ClientKind, ContractStatus, GovernmentSphere } from '../../../services/contractTypes';
 
 /** Clientes, contratos e serviços das contas PJ (migration 0070). */
 export const comercialSchema = pgSchema('comercial');
@@ -187,28 +187,9 @@ export const contractServices = comercialSchema.table(
   }),
 );
 
-export const contractAttachments = comercialSchema.table(
-  'anexos',
-  {
-    id: serial('id').primaryKey(),
-    contractId: integer('contrato_id').notNull().references(() => contracts.id, { onDelete: 'cascade' }),
-    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
-    uploadedBy: integer('usuario_id').references(() => users.id, { onDelete: 'set null' }),
-    originalName: varchar('nome_original', { length: 255 }).notNull(),
-    fileName: varchar('nome_arquivo', { length: 255 }).notNull().unique(),
-    kind: varchar('tipo', { length: 4 }).$type<AttachmentKind>().notNull(),
-    size: integer('tamanho').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    contractIdx: index('idx_anexos_contrato').on(table.contractId),
-  }),
-);
-
 export type Client = typeof clients.$inferSelect;
 export type Contract = typeof contracts.$inferSelect;
 export type ContractCharge = typeof contractCharges.$inferSelect;
 export type ContractHourType = typeof contractHourTypes.$inferSelect;
 export type ContractCommitment = typeof contractCommitments.$inferSelect;
 export type CatalogService = typeof catalogServices.$inferSelect;
-export type ContractAttachment = typeof contractAttachments.$inferSelect;

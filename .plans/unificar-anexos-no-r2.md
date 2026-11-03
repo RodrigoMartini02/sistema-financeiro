@@ -184,7 +184,7 @@ Atenção: migrations não devem ser executadas sem confirmação explícita do 
 
 Cada etapa tem branch própria (nomes sugeridos), passa por `/implementar` e `/finalizar`, e só começa depois que a anterior estiver verificada, mergeada e sem o método antigo.
 
-Sequência segura para as etapas que copiam dados (B e C):
+Sequência segura para a etapa que copia dados (C; a B não copia, ver abaixo):
 
 1. Medir o volume em produção (somente leitura) e confirmar a situação do backup do Postgres. Ambos dependem do "sim" do usuário.
 2. Aplicar a migration que só cria estruturas (compatível com o código antigo), com confirmação.
@@ -209,8 +209,8 @@ Nesta etapa não há método antigo a apagar.
 
 1. Backend: contratos e catálogo passam a usar o serviço. O upload com dono existente já vincula direto. Ajustar `contractViews.ts`, a exclusão de contrato e de produto, e a rota pública de imagem, que passa a usar o id.
 2. Frontend: `AttachmentsField` e o serviço novo, usados primeiro em contratos (wizard e detalhe) e na galeria do catálogo. URLs da vitrine pelo id.
-3. Dados: scripts de cópia e de verificação, seguindo a sequência segura acima. Em produção a cópia roda pelo Shell do Render, onde o disco está montado.
-4. Apagar o antigo: migration 0094, `contractAttachments.ts`, a rota de anexos de contratos, as constantes `uploads/*` e os componentes e funções de serviço antigos. Os arquivos do disco ficam como cópia de segurança até a etapa D.
+3. Dados: **sem script de cópia** (ajuste de 03/11/2026). A medição em produção (somente leitura) mostrou 0 anexos de contrato (e 0 contratos) e só 6 imagens de produto, em 3 produtos. As 6 imagens são reenviadas pela tela nova depois do deploy, e os arquivos antigos ficam no disco do Render até a Etapa D. Isso dispensa o Shell do Render nesta etapa.
+4. Apagar o antigo: migration 0094 (com trava que recusa apagar enquanto houver anexo de contrato antigo), `contractAttachments.ts`, a rota de anexos de contratos, as constantes `uploads/*` e os componentes e funções de serviço antigos. Os arquivos do disco ficam como cópia de segurança até a etapa D.
 5. Testes e build.
 
 ### Etapa C: Despesas, receitas e assistente (`feat/R/anexos-lancamentos`)
@@ -392,4 +392,21 @@ Decisões e achados que valem para as próximas etapas:
 5. **Proteções novas:** teto de 64 milhões de pixels na imagem de entrada (sharp) e teto de 100 envios pendentes por pessoa (429). A rota antiga do catálogo não tinha nenhum dos dois.
 6. **Reaproveitamento:** `findAccessibleProduct` saiu de `routes/produtos.ts` para `services/productAccess.ts`, e as duas rotas usam a mesma função.
 7. **Limpeza das Licitações:** as duas que listam e apagam no R2 só olham a pasta `contratos/arquivos/` do armazém; um teste do gravador agora garante que `anexos/` sobrevive a uma publicação.
-8. **Ordem em produção:** aplicar a 0093 (com o "sim" do usuário) antes do deploy do código da Etapa A. Nada chama as rotas novas até a Etapa B, mas sem a tabela elas responderiam 500.
+8. **Ordem em produção:** aplicar a 0093 (com o "sim" do usuário) antes do deploy do código da Etapa A. Nada chama as rotas novas até a Etapa B, mas sem a tabela elas responderiam 500. (Feito em 03/11/2026: a 0093 está aplicada em produção.)
+
+### Etapa B: implementada em 03/11/2026 (branch `feat/R/anexos-contratos-catalogo`)
+
+Entregue:
+
+- **Contratos:** a ficha traz os anexos da tabela `anexos` (do mais novo para o mais antigo); excluir o contrato colhe as chaves antes e apaga os arquivos do R2 depois do commit (`removeAttachmentObjects`, que só registra se o R2 estiver fora). Saíram `contractAttachments.ts`, `contractAttachmentType.ts` (e o teste), a rota `/api/contracts/:id/attachments` e as constantes de tipo e tamanho de `contractTypes.ts`.
+- **Catálogo:** a lista de imagens do produto e a vitrine leem de `anexos`; a imagem pública sai de `GET /api/catalogo/public/:vitrine/imagens/:imagemId` (agora pelo id), lida do R2, com cache imutável, só para produto ativo da conta da vitrine (`findPublicProductImage`). Saíram as três rotas de imagem de `produtos.ts` (envio, leitura e exclusão), o multer, o sharp e o `uploads/catalogo`. A imagem do produto passou a ser `{ id }` (sem `nomeArquivo`, `produtoId` e `ordem`).
+- **Frontend:** `attachmentsService.ts` (enviar, pedir link, apagar, abrir), `useAttachmentActions`, `AttachmentsField` e `PendingFilesField` (com o tema das Configurações e cores de reserva fora dele, prontos para os modais de lançamento da Etapa C) e `utils/attachmentRules.ts` (as mesmas regras do servidor, com testes). A ficha do contrato, o assistente de contrato, a galeria do produto (miniatura pelo link do R2) e as quatro páginas da vitrine passaram a usar o sistema novo. Saíram as funções antigas de `contractsService.ts` e `catalogoService.ts`.
+- **Migration `0094_drop_legacy_attachments.sql`** (não aplicada): apaga `comercial.anexos` e `catalogo.produto_imagens`, depois do deploy, com trava para anexo de contrato antigo.
+
+Verificado: build do backend e do frontend, 1046 testes do backend (1045 passam; o 1 pulado é a suíte de banco), 504 do frontend e 12 testes de banco no schema temporário (10 da Etapa A e 2 novos: imagens do produto e regra da vitrine). Não houve teste visual no navegador (a extensão do Chrome estava desconectada): conferir depois do deploy a miniatura do produto, a imagem na vitrine e abrir um anexo de contrato.
+
+Decisões e achados desta etapa:
+
+1. **Sem cópia de dados.** O plano previa scripts de cópia e verificação; a medição mostrou que só há 6 imagens de produto para refazer, então o dono as reenvia. Os arquivos antigos seguem no disco até a Etapa D.
+2. **Miniaturas pelo link do R2:** a galeria pede um link por imagem (poucas por produto). Se o frontend tiver política de segurança de conteúdo bloqueando `img` de outro domínio, as miniaturas não aparecem; não achei nenhuma no repositório.
+3. **Ordem em produção:** deploy do código, depois reenviar as 6 imagens, depois (com o "sim") aplicar a 0094. Entre o deploy e o reenvio a vitrine fica sem foto nos 3 produtos.

@@ -1,14 +1,15 @@
 // Contratos da conta PJ (/api/contracts): ficha, prévia das receitas, criar,
 // alterar, encerrar, excluir, aditivo, reajuste, "Faturar", carteira do
-// painel, contratos com banco de horas e anexos.
-import { apiRequest, getApiUrl } from './apiClient';
+// painel e contratos com banco de horas. Os anexos vêm na ficha e se enviam
+// pelo attachmentsService.
+import { apiRequest } from './apiClient';
+import type { AttachmentSummary } from './attachmentsService';
 import type {
   ChargeKind, ClientType, ContractStatus, WithholdingTax,
 } from '../utils/contractDisplay';
 
 export type WithholdingRates = Partial<Record<WithholdingTax, number>>;
 export type WithholdingAmounts = Record<WithholdingTax, number>;
-export type AttachmentKind = 'pdf' | 'jpg' | 'png';
 
 export interface InstallmentCharge {
   amount: number;
@@ -46,15 +47,6 @@ export interface ContractIncome {
   hours: { hourTypeName: string; hours: number } | null;
 }
 
-export interface ContractAttachment {
-  id: number;
-  contractId: number;
-  originalName: string;
-  kind: AttachmentKind;
-  size: number;
-  createdAt: string;
-}
-
 export interface ContractDetail {
   id: number;
   accountId: number;
@@ -89,7 +81,8 @@ export interface ContractDetail {
   readjustment: { baseDate: string; handledUntil: string | null; available: boolean; anniversary: string };
   expiringSoon: boolean;
   incomes: ContractIncome[];
-  attachments: ContractAttachment[];
+  /** Do mais novo para o mais antigo. */
+  attachments: AttachmentSummary[];
   canDelete: boolean;
 }
 
@@ -258,36 +251,3 @@ export function fetchContractsWithHours(accountId: number): Promise<ContractWith
   return apiRequest<ContractWithHours[]>(`/contracts/with-hours?accountId=${accountId}`);
 }
 
-function authHeaders(): HeadersInit {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-/** Envio em multipart (campo "file"): o apiRequest só manda JSON. */
-export async function uploadContractAttachment(contractId: number, file: File): Promise<ContractAttachment> {
-  const form = new FormData();
-  form.append('file', file);
-  const response = await fetch(`${getApiUrl()}/contracts/${contractId}/attachments`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: form,
-  });
-  const payload = await response.json().catch(() => ({})) as { success?: boolean; message?: string; data?: ContractAttachment };
-  if (!response.ok || !payload.success || !payload.data) {
-    throw new Error(payload.message ?? 'Não foi possível enviar o anexo agora.');
-  }
-  return payload.data;
-}
-
-/** Conteúdo do anexo, para abrir na tela com o tipo conferido. */
-export async function fetchContractAttachmentFile(attachmentId: number): Promise<Blob> {
-  const response = await fetch(`${getApiUrl()}/contracts/attachments/${attachmentId}/file`, { headers: authHeaders() });
-  if (!response.ok) {
-    throw new Error('Não foi possível abrir o anexo agora.');
-  }
-  return response.blob();
-}
-
-export function deleteContractAttachment(attachmentId: number): Promise<void> {
-  return apiRequest<void>(`/contracts/attachments/${attachmentId}`, { method: 'DELETE' });
-}

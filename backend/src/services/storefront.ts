@@ -1,10 +1,11 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db/client';
-import { accounts, users } from '../db/schema';
-import { catalogoContas, catalogoProdutoImagens, catalogoProdutos, type CatalogoConta } from '../modules/catalogo/db/schema';
+import { accounts, attachments, users } from '../db/schema';
+import { catalogoContas, catalogoProdutos, type CatalogoConta } from '../modules/catalogo/db/schema';
 import { isUniqueViolation } from '../utils/dbErrors';
 import { RequestInputError } from '../utils/requestInput';
+import { isUuid } from './catalogo';
 import { reservedQuantities } from './orders';
 import { availableQuantity } from './orderPricing';
 import { buildProductPricing } from './productPricing';
@@ -333,18 +334,27 @@ export async function listPublicProducts(storefront: PublicStorefront): Promise<
   }));
 }
 
-/** A imagem só sai pela vitrine quando é de um produto ativo da conta dela. */
-export async function isPublicProductImage(storefront: PublicStorefront, fileName: string): Promise<boolean> {
+/** Onde a imagem está guardada e o tipo dela, para servir pela vitrine. */
+export interface PublicProductImage {
+  storageKey: string;
+  contentType: string;
+}
+
+/** A imagem só sai pela vitrine quando é de um produto ativo da conta dela; senão, null. */
+export async function findPublicProductImage(storefront: PublicStorefront, imageId: string): Promise<PublicProductImage | null> {
+  if (!isUuid(imageId)) {
+    return null;
+  }
   const [image] = await db
-    .select({ id: catalogoProdutoImagens.id })
-    .from(catalogoProdutoImagens)
-    .innerJoin(catalogoProdutos, eq(catalogoProdutos.id, catalogoProdutoImagens.produtoId))
+    .select({ storageKey: attachments.storageKey, contentType: attachments.contentType })
+    .from(attachments)
+    .innerJoin(catalogoProdutos, eq(catalogoProdutos.id, attachments.productId))
     .where(and(
-      eq(catalogoProdutoImagens.nomeArquivo, fileName),
+      eq(attachments.id, imageId),
       eq(catalogoProdutos.contaId, storefront.contaId),
       eq(catalogoProdutos.usuarioId, storefront.ownerId),
       eq(catalogoProdutos.ativo, true),
     ))
     .limit(1);
-  return image !== undefined;
+  return image ?? null;
 }

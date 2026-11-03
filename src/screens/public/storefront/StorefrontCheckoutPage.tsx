@@ -201,7 +201,7 @@ export function StorefrontCheckoutPage() {
 
   const imageUrlOf = (productId: string) => {
     const cover = productsById.get(productId)?.imagens[0];
-    return cover ? getPublicProductImageUrl(store.id, cover.nomeArquivo) : null;
+    return cover ? getPublicProductImageUrl(store.id, cover.id) : null;
   };
 
   const continueFromIdentification = () => {
