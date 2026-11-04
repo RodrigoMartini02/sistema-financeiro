@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import {
   accounts, attachments, catalogoProdutos, categories, expenses, incomeClassifications, incomes, users,
 } from '../db/schema';
-import { createMemoryStorage, type MemoryStorage } from '../modules/tenders/objectStorageTestSupport';
+import { createMemoryStorage, type MemoryStorage } from './objectStorageTestSupport';
 import { RequestInputError } from '../utils/requestInput';
 import type { AttachmentOwner } from './attachmentModel';
 import { MAX_PENDING_ATTACHMENTS_PER_USER } from './attachmentRules';

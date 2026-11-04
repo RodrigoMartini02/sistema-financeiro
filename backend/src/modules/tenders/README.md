@@ -149,7 +149,7 @@ npm --prefix backend run tenders:dev -- sweep
 
 ## Agendamento (Render Cron Job, horário em UTC)
 
-Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um Command longo, por isso as etapas ficam num comando do backend: `npm run daily-jobs` (`backend/scripts/dailyJobs.ts`, lógica em `src/services/dailyJobs.ts`).
+Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um Command longo, por isso as etapas ficam num comando do backend: `npm run daily-jobs` (`collector/dailyRoutineCli.ts`, lógica em `collector/dailyRoutine.ts` e lista de etapas em `collector/dailyRoutineSteps.ts`). A rotina de vencimento de planos de Finanças não faz parte dela: é outro comando (`npm run finance:daily-jobs`, `backend/scripts/financeDailyJobs.ts`), sem agendador por enquanto.
 
 | Cron (UTC) | Command | Horário de Brasília |
 |---|---|---|
@@ -158,26 +158,25 @@ Em produção roda **um Cron Job só**, uma vez por dia. O Render não aceita um
 **Configuração do Cron Job** (`rotinas-diarias-planos-licitações`): Root Directory `backend`, Build `npm install`, região Oregon (a mesma do banco).
 
 **Etapas, em sequência:**
-1. rotina de vencimento de planos (`POST /api/internal-jobs/plan-lifecycle`);
-2. varredura (`sweep`);
-3. lembretes de prazo (`deadline-reminders`);
-4. coleta diária de contratos (`contracts-daily`);
-5. avisos de vencimento dos contratos (`contract-reminders`);
-6. coleta diária dos vencedores (`winners-daily`), só com `TENDERS_WINNERS_ENABLED=1`: é curta e diária, por isso vem antes das cargas;
-7. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
-8. carga inicial de contratos (`contracts-backfill`): só roda com o R2 configurado, com dia pendente e com tempo (ver [Contratos a vencer](#contratos-a-vencer-dados)); desde os contratos federais ela também respeita o prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada;
-9. ciclo dos contratos federais (`federal-cycle`), só com `TENDERS_FEDERAL_ENABLED=1` (ver [Contratos federais](#contratos-federais));
-10. carga dos contratos federais (`federal-load`), só com `TENDERS_FEDERAL_ENABLED=1`: usa só o tempo que sobra do prazo da rotina e, sem tempo, sai pulada, não falha;
-11. carga dos vencedores (`winners-backfill`), por último e só com `TENDERS_WINNERS_ENABLED=1`: usa só o tempo que sobra do prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada, não falha.
+1. varredura (`sweep`);
+2. lembretes de prazo (`deadline-reminders`);
+3. coleta diária de contratos (`contracts-daily`);
+4. avisos de vencimento dos contratos (`contract-reminders`);
+5. coleta diária dos vencedores (`winners-daily`), só com `TENDERS_WINNERS_ENABLED=1`: é curta e diária, por isso vem antes das cargas;
+6. limpeza dos editais (`cleanup`), só aos domingos pelo calendário de Brasília;
+7. carga inicial de contratos (`contracts-backfill`): só roda com o R2 configurado, com dia pendente e com tempo (ver [Contratos a vencer](#contratos-a-vencer-dados)); desde os contratos federais ela também respeita o prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada;
+8. ciclo dos contratos federais (`federal-cycle`), só com `TENDERS_FEDERAL_ENABLED=1` (ver [Contratos federais](#contratos-federais));
+9. carga dos contratos federais (`federal-load`), só com `TENDERS_FEDERAL_ENABLED=1`: usa só o tempo que sobra do prazo da rotina e, sem tempo, sai pulada, não falha;
+10. carga dos vencedores (`winners-backfill`), por último e só com `TENDERS_WINNERS_ENABLED=1`: usa só o tempo que sobra do prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada, não falha.
 
 Os contratos não têm mais limpeza (parte 2 do plano `.plans/licitacoes-base-nacional.md`): os encerrados ficam na base. O tipo `CONTRATOS_LIMPEZA` fica só no histórico.
 
 Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração e a memória residente do processo (`rssMb`): as etapas rodam no mesmo processo, e é assim que se vê em produção se a memória volta ao nível de antes entre elas.
 
-- **Variáveis:** `BILLING_CRON_SECRET` (rotina de planos), `TENDERS_COLLECTOR_DATABASE_URL` e, se fugirem do padrão, `BACKEND_URL` (padrão: o backend de produção) e as `PNCP_*`.
+- **Variáveis:** `TENDERS_COLLECTOR_DATABASE_URL`, as do R2 e, se fugirem do padrão, as `PNCP_*`.
 - **Sem coleta incremental:** os editais novos entram na varredura do dia seguinte. Os lembretes pegam tudo o que encerra nas próximas 72 h e 24 h, sem repetir aviso, então uma execução por dia basta.
 - **Custo:** Cron Job no Render é pago por uso (mínimo de US$ 1 por mês). A varredura leva uns 45 minutos, e os contratos de 25 a 30 minutos por dia. Durante a carga inicial, a rotina dura ~9,5 h (o limite do Render é 12 h), por uns 10 dias, e a conta continua no mínimo.
-- **Teste local:** `npm --prefix backend run daily-jobs` com `DOTENV_CONFIG_PATH=../.env.dev`, `TENDERS_COLLECTOR_DATABASE_URL` do banco local, `BACKEND_URL=http://localhost:3010` e o `BILLING_CRON_SECRET` do backend local. A varredura completa leva o mesmo tempo da produção.
+- **Teste local:** `npm --prefix backend run daily-jobs` com `DOTENV_CONFIG_PATH=../.env.dev` e `TENDERS_COLLECTOR_DATABASE_URL` do banco local. A varredura completa leva o mesmo tempo da produção.
 
 ## Rodar numa máquina própria
 
@@ -191,7 +190,7 @@ A coleta de editais e contratos também roda fora do Render, numa máquina ligad
 
 **Modos** (`-Mode`)
 - `backfill`: a carga do histórico. Repete blocos de `contracts-backfill --from 2021-01-01 --max-minutes 600` (`-From`, `-MaxMinutes`) e termina sozinho ao ver "Carga de contratos sem dia pendente". Espera 10 min depois de um bloco curto (menos de 5 min sem concluir: trava presa ou PNCP fora) ou com erro, e para depois de 6 blocos curtos ou 3 com erro seguidos.
-- `daily`: a rotina diária (`npm run daily-jobs`). A etapa de planos falha sempre fora do Render (falta o `BILLING_CRON_SECRET`), então o script ignora essa etapa e só acusa as outras.
+- `daily`: a rotina diária (`npm run daily-jobs`). O script acusa qualquer etapa que falhar, pelo nome que ela registra no log.
 
 **Como o script se protege**
 - Recusa banco local e define `TENDERS_STORAGE_PREFIX=producao` sempre (o código só recusa `producao` com banco local, não o contrário). Sem `-Yes`, pede para digitar `SIM`, mostrando o host do banco. Nunca imprime segredos: só host, porta e nome do banco.
@@ -241,7 +240,7 @@ npm --prefix backend run test:tenders-db
 
 Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `objectStorage.test.ts`) usam o R2 simulado e um S3 local: formato, chave do contrato e ida e volta da linha, critérios, consultas da API e dos avisos (`queries.test.ts`: paginação e total, ordens, filtros, número, chaves, detalhe, contagem e janelas de vencimento), gravação (estado anterior, partes regravadas só onde mudou, divisão, mudança de UF, limpeza das versões, falha no envio, várias publicações na mesma execução e os termos pendentes e a reconsulta) e leitura (sem cópia, armazém vazio, troca de versão, arquivos da versão anterior, limite de tempo, fila e R2 fora do ar), e o armazém do Web Service sem o R2 (`service.test.ts`).
 
-Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`, com a propriedade de mil permutações do lote), o mapeamento da fonte com a página real da sondagem (`resultMapping.test.ts`), o gravador com o DuckDB de verdade (`winnerWriter.test.ts`: ano inteiro regravado só onde mudou, lápide, falha no envio, convivência com o escritor de contratos e o leitor), as consultas (`winnerQueries.test.ts`), o cliente da fonte (`comprasGovClient.test.ts`), a sondagem e a conferência por fornecedor (`resultProbe.test.ts` e `supplierCheck.test.ts`), a janela e os dias pendentes (`resultRuns.test.ts`), o `winners-lookup` (`winnersLookup.test.ts`) e a rotina (`services/dailyJobSteps.test.ts` e `services/dailyJobs.test.ts`: ordem das etapas e vencedores desligados).
+Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`, com a propriedade de mil permutações do lote), o mapeamento da fonte com a página real da sondagem (`resultMapping.test.ts`), o gravador com o DuckDB de verdade (`winnerWriter.test.ts`: ano inteiro regravado só onde mudou, lápide, falha no envio, convivência com o escritor de contratos e o leitor), as consultas (`winnerQueries.test.ts`), o cliente da fonte (`comprasGovClient.test.ts`), a sondagem e a conferência por fornecedor (`resultProbe.test.ts` e `supplierCheck.test.ts`), a janela e os dias pendentes (`resultRuns.test.ts`), o `winners-lookup` (`winnersLookup.test.ts`) e a rotina (`collector/dailyRoutineSteps.test.ts` e `collector/dailyRoutine.test.ts`: nomes e ordem das etapas e vencedores desligados).
 
 `test:tenders-db` roda os testes de banco do módulo:
 - **Um arquivo por vez** (`--test-concurrency=1`): vários arquivos disputam a mesma trava dos contratos e dos vencedores (a mesma, de propósito: os dois gravadores publicam no mesmo manifesto). Em paralelo, uma execução de um arquivo sai "coleta já em execução" por causa da de outro.

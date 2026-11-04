@@ -214,19 +214,14 @@ function Invoke-Daily {
     Write-Host ('[{0}] Rotina diaria...' -f (Get-Date).ToString('yyyy-MM-dd HH:mm'))
     $result = Invoke-CollectorCommand -NpmArguments @('--prefix', 'backend', 'run', 'daily-jobs') -LogFile $LogFile
 
-    # A etapa de planos precisa de BILLING_CRON_SECRET, que so existe no Render: aqui ela falha sempre, e o codigo de saida 1
-    # nao diz nada. O que vale e a lista das outras etapas que falharam.
-    $unexpected = @($result.FailedSteps | Where-Object { $_ -ne 'plan-lifecycle' } | Select-Object -Unique)
-    if ($unexpected.Count -gt 0) {
-        Write-Host ('Etapas que falharam: ' + ($unexpected -join ', ') + ". Veja o log: $LogFile") -ForegroundColor Red
+    $failed = @($result.FailedSteps | Select-Object -Unique)
+    if ($failed.Count -gt 0) {
+        Write-Host ('Etapas que falharam: ' + ($failed -join ', ') + ". Veja o log: $LogFile") -ForegroundColor Red
         return 1
     }
-    if ($result.ExitCode -ne 0 -and $result.FailedSteps.Count -eq 0) {
+    if ($result.ExitCode -ne 0) {
         Write-Host "A rotina saiu com erro (codigo $($result.ExitCode)) antes de registrar as etapas. Veja o log: $LogFile" -ForegroundColor Red
         return $result.ExitCode
-    }
-    if ($result.FailedSteps -contains 'plan-lifecycle') {
-        Write-Host 'Nota: a etapa plan-lifecycle falha nesta maquina por falta do segredo da rotina de planos (esperado).'
     }
     Write-Host 'Rotina diaria concluida.'
     return 0

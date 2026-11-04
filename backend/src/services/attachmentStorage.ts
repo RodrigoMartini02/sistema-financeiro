@@ -1,11 +1,12 @@
 // O R2 dos anexos: o mesmo bucket e as mesmas variáveis do armazém de contratos das Licitações
 // (TENDERS_ARCHIVE_* e TENDERS_STORAGE_PREFIX), na subpasta `anexos/` da pasta do ambiente. As
 // varreduras das Licitações só mexem nas pastas delas, então `anexos/` nunca é tocada por elas.
-import { CollectorConfigError, loadStorageSettings } from '../modules/tenders/collector/config';
-import { createR2Storage, type ObjectStorage } from '../modules/tenders/objectStorage';
+// O cliente e a configuração são próprios de Finanças (objectStorage.ts e objectStorageSettings.ts).
 import { RequestInputError } from '../utils/requestInput';
 import { buildContentDisposition, type PreparedAttachment } from './attachmentFile';
 import { ATTACHMENT_LINK_TTL_SECONDS } from './attachmentRules';
+import { createR2Storage, type ObjectStorage } from './objectStorage';
+import { ObjectStorageConfigError, loadObjectStorageSettings } from './objectStorageSettings';
 
 export const ATTACHMENT_STORAGE_UNAVAILABLE_MESSAGE = 'Não foi possível guardar ou abrir arquivos agora. Tente de novo em instantes.';
 
@@ -23,14 +24,14 @@ export function attachmentStorageKey(attachmentId: string): string {
  */
 export function createAttachmentStorage(env: NodeJS.ProcessEnv): ObjectStorage {
   try {
-    const settings = loadStorageSettings(env, env['DATABASE_URL'] ?? '');
+    const settings = loadObjectStorageSettings(env, env['DATABASE_URL'] ?? '');
     if (!settings) {
       console.error('Attachment storage is off: TENDERS_ARCHIVE_* and TENDERS_STORAGE_PREFIX are not set');
       throw new RequestInputError(ATTACHMENT_STORAGE_UNAVAILABLE_MESSAGE, 503);
     }
     return createR2Storage(settings);
   } catch (error) {
-    if (error instanceof CollectorConfigError) {
+    if (error instanceof ObjectStorageConfigError) {
       console.error('Attachment storage configuration rejected:', error.message);
       throw new RequestInputError(ATTACHMENT_STORAGE_UNAVAILABLE_MESSAGE, 503);
     }

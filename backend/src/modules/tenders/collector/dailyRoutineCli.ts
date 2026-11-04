@@ -1,14 +1,14 @@
-// Rotina diária do Cron Job do Render: rotina de vencimento de planos,
-// varredura de Licitações, lembretes de prazo e, aos domingos, limpeza.
+// Rotina diária de Licitações, no Cron Job do Render ou na máquina própria: varredura
+// de editais, lembretes de prazo, contratos e, aos domingos, limpeza.
 // Um comando só, porque o Render não aceita um Command longo.
 //   npm --prefix backend run daily-jobs
-// Variáveis: BILLING_CRON_SECRET, TENDERS_COLLECTOR_DATABASE_URL e, se fugir
-// do padrão, BACKEND_URL. Só lê arquivo de ambiente quando DOTENV_CONFIG_PATH
-// está definido, como o coletor: nunca cai no .env de produção por padrão.
-// A lógica fica em src/services/dailyJobs.ts.
+// Variáveis: TENDERS_COLLECTOR_DATABASE_URL e as do R2. Só lê arquivo de ambiente
+// quando DOTENV_CONFIG_PATH está definido, como o coletor: nunca cai no .env de
+// produção por padrão. A lógica fica em dailyRoutine.ts. A rotina de planos de
+// Finanças é outro comando: `npm run finance:daily-jobs`.
 import * as dotenv from 'dotenv';
-import { errorMessage } from '../src/modules/tenders/collector/logger';
-import { runDailyJobs } from '../src/services/dailyJobs';
+import { runDailyJobs } from './dailyRoutine';
+import { errorMessage } from './logger';
 
 if (process.env['DOTENV_CONFIG_PATH']) {
   dotenv.config({ path: process.env['DOTENV_CONFIG_PATH'] });

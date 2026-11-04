@@ -4,7 +4,7 @@ import { after, before, describe, test } from 'node:test';
 import { eq, inArray } from 'drizzle-orm';
 import sharp from 'sharp';
 import { accounts, attachments, catalogoProdutos, users } from '../db/schema';
-import { createMemoryStorage } from '../modules/tenders/objectStorageTestSupport';
+import { createMemoryStorage } from './objectStorageTestSupport';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 import type { PublicStorefront } from './storefront';
 

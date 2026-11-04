@@ -1,10 +1,10 @@
-import { brasiliaDate } from '../modules/tenders/collector/dates';
+import { brasiliaDate } from './dates';
 
-// Etapas da rotina diária (o Cron Job do Render roda `npm run daily-jobs` uma
-// vez por dia). Parte pura: a execução fica em dailyJobs.ts.
+// Etapas da rotina diária de Licitações (`npm run daily-jobs`, uma vez por dia: no
+// Cron Job do Render ou na máquina própria). Parte pura: a execução fica em
+// dailyRoutine.ts. A rotina de planos de Finanças não faz parte dela.
 
 export const DAILY_JOB_STEPS = [
-  'plan-lifecycle',
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
@@ -17,9 +17,6 @@ export const DAILY_JOB_STEPS = [
   'tenders-winners-backfill',
 ] as const;
 export type DailyJobStep = (typeof DAILY_JOB_STEPS)[number];
-
-const DEFAULT_BACKEND_URL = 'https://sistema-financeiro-backend-o199.onrender.com';
-const PLAN_LIFECYCLE_PATH = '/api/internal-jobs/plan-lifecycle';
 
 /** Domingo no calendário de Brasília: a limpeza do coletor é semanal. */
 function isSundayInBrasilia(instant: Date): boolean {
@@ -34,9 +31,8 @@ export const WINNERS_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-winner
 export const FEDERAL_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-federal-cycle', 'tenders-federal-backfill']);
 
 /**
- * Etapas do dia, na ordem: a rotina de planos (rápida) primeiro, depois a
- * varredura de Licitações, os lembretes de prazo, as atualizações PNCP e federal
- * dos contratos, os avisos de vencimento e a coleta diária dos vencedores (curta e
+ * Etapas do dia, na ordem: a varredura de Licitações, os lembretes de prazo, as
+ * atualizações PNCP e federal dos contratos, os avisos de vencimento e a coleta diária dos vencedores (curta e
  * diária: vai antes das cargas, que passam de 9 h), aos domingos a limpeza dos
  * editais, a carga inicial de contratos (a mais longa: só roda com dias
  * pendentes e com o R2 configurado) e, por último, as cargas dos
@@ -47,7 +43,6 @@ export const FEDERAL_STEPS: ReadonlySet<DailyJobStep> = new Set(['tenders-federa
  */
 export function dailyJobSteps(now: Date): DailyJobStep[] {
   const steps: DailyJobStep[] = [
-    'plan-lifecycle',
     'tenders-sweep',
     'tenders-deadline-reminders',
     'tenders-contracts-daily',
@@ -60,14 +55,4 @@ export function dailyJobSteps(now: Date): DailyJobStep[] {
   }
   steps.push('tenders-contracts-backfill', 'tenders-federal-backfill', 'tenders-winners-backfill');
   return steps;
-}
-
-/** Endereço da rotina de planos no backend. `BACKEND_URL` vazia vale o padrão; inválida dá erro. */
-export function planLifecycleUrl(backendUrl: string | undefined): string {
-  const base = backendUrl?.trim() || DEFAULT_BACKEND_URL;
-  const url = `${base.replace(/\/+$/, '')}${PLAN_LIFECYCLE_PATH}`;
-  if (!URL.canParse(url) || !/^https?:$/.test(new URL(url).protocol)) {
-    throw new Error('BACKEND_URL inválida: use o endereço do backend, como https://exemplo.onrender.com');
-  }
-  return url;
 }
