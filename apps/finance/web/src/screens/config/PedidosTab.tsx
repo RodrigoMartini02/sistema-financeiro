@@ -7,14 +7,14 @@ import {
 } from '../../services/storefrontService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, fieldInputStyle, saveButtonDisabledStyle, saveButtonStyle, successOutlineButtonStyle } from '../../ui/dialogFormTokens';
-import { ConfigListRow } from '../../ui/ConfigListRow';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { CFG, cfgBadgeStyle, cfgDividerStyle } from '../../ui/configTokens';
-import { InfoBanner } from '../../ui/InfoBanner';
-import { EmptyState } from '../../ui/EmptyState';
-import { formatCurrency } from '../finance/formatters';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, fieldInputStyle, saveButtonDisabledStyle, saveButtonStyle, successOutlineButtonStyle } from '@ui/components/dialogFormTokens';
+import { ConfigListRow } from '@ui/components/ConfigListRow';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { CFG, cfgBadgeStyle, cfgDividerStyle } from '@ui/components/configTokens';
+import { InfoBanner } from '@ui/components/InfoBanner';
+import { EmptyState } from '@ui/components/EmptyState';
+import { formatCurrency } from '@ui/utils/formatters';
 import { formatCpf, formatPhone } from '../../utils/storefrontCheckout';
 
 const STATUS_FILTERS: OrderStatus[] = [

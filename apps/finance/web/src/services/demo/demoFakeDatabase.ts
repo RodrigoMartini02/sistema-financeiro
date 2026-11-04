@@ -1,4 +1,4 @@
-import { daysAgoLocalIso } from '../../utils/date';
+import { daysAgoLocalIso } from '@ui/utils/date';
 import type { AttachmentSummary } from '../../types/attachment';
 
 export interface RawIncomeDemo {

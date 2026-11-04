@@ -1,0 +1,21 @@
+{
+  "name": "@fingerence/tenders-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "FINGERENCE Licitações (front).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-virtual": "^3.14.23",
+    "lucide-react": "^1.23.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.80.0",
+    "react-router-dom": "^7.18.1",
+    "zod": "^4.4.3"
+  }
+}

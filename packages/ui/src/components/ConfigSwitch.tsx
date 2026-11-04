@@ -15,7 +15,7 @@ interface ConfigSwitchProps {
 /**
  * Switch inline para a barra de ações das telas de Configurações.
  *
- * Diferente de `ToggleRow` (src/ui/form.tsx), que é uma linha de 52px com card
+ * Diferente de `ToggleRow` (components/form.tsx), que é uma linha de 52px com card
  * própria — usada em listas de permissões. Este é compacto para conviver com o
  * contador e o botão de ação na mesma linha.
  */

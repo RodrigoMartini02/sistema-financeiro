@@ -7,7 +7,7 @@ import { fetchRepresentantes } from '../services/representantesService';
 import { queryKeys } from '../services/queryKeys';
 import type { ConfigItemId } from '../layout/ConfigPanel';
 import { getFirstAccessGuideUserScope } from '../services/userScope';
-import { useFirstAccessGuideCoordinator } from '../context/FirstAccessGuideContext';
+import { useFirstAccessGuideCoordinator } from '@ui/context/FirstAccessGuideContext';
 import { usePlanFeatures } from './usePlanFeatures';
 
 export type OnboardingTarget = { kind: 'config'; item: ConfigItemId } | { kind: 'clientes' };

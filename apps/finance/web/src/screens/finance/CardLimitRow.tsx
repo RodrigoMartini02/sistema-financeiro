@@ -1,4 +1,4 @@
-import { formatCurrency } from './formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 interface CardLimitRowProps {
   nome: string;

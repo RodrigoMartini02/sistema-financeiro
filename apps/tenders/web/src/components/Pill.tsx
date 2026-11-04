@@ -3,7 +3,7 @@ import type { TrackingStatus } from '../types';
 import { TRACKING_STATUS_LABELS } from '../utils/labels';
 
 // Selo pequeno do módulo, com as cores do tema claro e do escuro (o Badge de
-// src/ui só tem o claro).
+// packages/ui só tem o claro).
 
 export type PillTone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'muted';
 

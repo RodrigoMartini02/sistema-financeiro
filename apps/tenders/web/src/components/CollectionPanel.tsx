@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
-import { EmptyState } from '../../ui/EmptyState';
-import { getLocalTodayIso } from '../../utils/date';
+import { EmptyState } from '@ui/components/EmptyState';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchCollectionRuns, fetchCollectionStatus } from '../services/settingsService';
 import { tendersQueryKeys } from '../services/queryKeys';

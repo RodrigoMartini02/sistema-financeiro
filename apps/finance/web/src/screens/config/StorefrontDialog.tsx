@@ -6,13 +6,13 @@ import {
   type StorefrontConfig, type StorefrontConfigInput,
 } from '../../services/storefrontService';
 import { queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, MoneyField, chipGroupLabelStyle, dialogFooterStyle, fieldInputStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle,
-} from '../../ui/dialogFormTokens';
-import { CFG, cfgDividerStyle } from '../../ui/configTokens';
-import { ToggleRow } from '../../ui/form';
-import { useConfirm } from '../../context/ConfirmContext';
+} from '@ui/components/dialogFormTokens';
+import { CFG, cfgDividerStyle } from '@ui/components/configTokens';
+import { ToggleRow } from '@ui/components/form';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
 import {
   STOREFRONT_SLUG_MAX_LENGTH, STOREFRONT_SLUG_MIN_LENGTH, SUGGESTED_EXCHANGE_POLICY,

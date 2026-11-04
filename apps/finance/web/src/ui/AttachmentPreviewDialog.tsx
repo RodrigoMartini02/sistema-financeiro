@@ -1,7 +1,7 @@
 import { useOpenAttachment } from '../hooks/useOpenAttachment';
 import type { AttachmentSummary } from '../types/attachment';
 import { AttachmentList } from './AttachmentsField';
-import { Dialog } from './dialog';
+import { Dialog } from '@ui/components/dialog';
 
 interface Props {
   open: boolean;

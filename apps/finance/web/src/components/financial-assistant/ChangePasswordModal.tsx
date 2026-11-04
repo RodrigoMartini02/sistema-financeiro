@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { KeyRound, Save } from 'lucide-react';
 import { updatePassword } from '../../services/usuariosService';
-import { Dialog } from '../../ui/dialog';
-import { Button } from '../../ui/button';
-import { Field, Input } from '../../ui/form';
+import { Dialog } from '@ui/components/dialog';
+import { Button } from '@ui/components/button';
+import { Field, Input } from '@ui/components/form';
 
 interface ChangePasswordModalProps {
   open: boolean;

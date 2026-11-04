@@ -1,6 +1,6 @@
 import { Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 
 /** Endereço que não existe dentro do app do módulo. */
 export function NotFoundScreen() {

@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { AppProvider } from '../context/AppContext';
-import { ConfirmProvider } from '../context/ConfirmContext';
-import { FirstAccessGuideProvider } from '../context/FirstAccessGuideContext';
+import { AppProvider } from '@ui/context/AppContext';
+import { ConfirmProvider } from '@ui/context/ConfirmContext';
+import { FirstAccessGuideProvider } from '@ui/context/FirstAccessGuideContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {

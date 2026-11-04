@@ -8,7 +8,7 @@ import {
 } from '../../../services/storefrontService';
 import { queryKeys } from '../../../services/queryKeys';
 import { formatCountdown } from '../../../utils/storefrontCheckout';
-import { formatCurrency } from '../../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CartButton, StorefrontFooter, StorefrontMessage, StorefrontTopBar, usePublicStorefront } from './StorefrontLayout';
 import { PriceSummary } from './StorefrontSummary';
 import { useStorefrontCart } from './useStorefrontCart';

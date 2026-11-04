@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useWindowVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { useLocation } from 'react-router-dom';
-import { Button } from '../../ui/button';
+import { Button } from '@ui/components/button';
 
 // Lista de cartões com rolagem infinita e virtualizada (plano .plans/licitacoes-lista-infinita.md): só os cartões
 // perto da tela ficam desenhados, e a próxima página é pedida quando a pessoa chega perto do fim. A página rola pela

@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiIntegrationSetting, AiProviderName } from '../../types/aiIntegration';
 import { AI_PROVIDER_LABELS, fetchAiIntegrationSettings, saveAiIntegration, testAiIntegration } from '../../services/aiIntegrationsService';
 import { queryKeys } from '../../services/queryKeys';
-import { InfoBanner } from '../../ui/InfoBanner';
-import { CFG, cfgInputStyle, cfgLabelStyle, cfgPrimaryButtonStyle } from '../../ui/configTokens';
+import { InfoBanner } from '@ui/components/InfoBanner';
+import { CFG, cfgInputStyle, cfgLabelStyle, cfgPrimaryButtonStyle } from '@ui/components/configTokens';
 
 const PROVIDERS: Array<{ provider: AiProviderName; defaultModel: string }> = [
   { provider: 'openai', defaultModel: 'gpt-5-mini' },

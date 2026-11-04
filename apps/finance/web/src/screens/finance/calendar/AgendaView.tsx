@@ -1,7 +1,7 @@
-import { getLocalTodayIso } from '../../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 import type { CalendarItem } from './types';
 import { kindColors, statusColors } from './calendarStatus';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 function formatDayLabel(date: string): { weekday: string; day: string } {
   const d = new Date(`${date}T00:00:00`);

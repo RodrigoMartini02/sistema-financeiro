@@ -2,7 +2,7 @@
 // tela calcula o resumo filtrado com esta mesma regra, sem a tabela precisar
 // avisar a tela a cada render.
 import type { Expense } from '../types/finance';
-import { daysAgoLocalIso, getLocalTodayIso } from './date';
+import { daysAgoLocalIso, getLocalTodayIso } from '@ui/utils/date';
 import { isCreditWithCard } from './cardInvoice';
 
 export type EntryType = 'receita' | 'despesa';

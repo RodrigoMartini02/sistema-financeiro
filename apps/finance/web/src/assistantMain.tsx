@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { AppProviders } from './bootstrap/AppProviders';
 import { AssistantPwaScreen } from './screens/assistant/AssistantPwaScreen';
 import './services/paymentApi';
-import './styles/globals.css';
+import '@ui/styles/globals.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');

@@ -1,4 +1,4 @@
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 import { MoneyCell } from '../entry-dialog/MoneyCell';
 import { SEPARATOR } from '../entry-dialog/fieldStyles';
 import type { DraftPatch, ExpenseDraft } from './draftState';

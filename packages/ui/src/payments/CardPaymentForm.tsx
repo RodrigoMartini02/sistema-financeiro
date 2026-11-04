@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CreditCard, Loader2, RotateCcw, Shield } from 'lucide-react';
-import { C, fieldInputStyle, labelStyle } from '../../ui/dialogFormTokens';
-import type { MercadoPagoInstance } from '../../utils/mercadoPagoSdk';
+import { C, fieldInputStyle, labelStyle } from '../components/dialogFormTokens';
+import type { MercadoPagoInstance } from './mercadoPagoSdk';
 import { loadPlatformMercadoPago, postPayment, type PaymentRequestBody } from './paymentRequests';
 
 interface CardFormData {

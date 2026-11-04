@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { CreditCard, ExternalLink, Loader2 } from 'lucide-react';
-import { C, chipStyle } from '../../ui/dialogFormTokens';
+import { C, chipStyle } from '../components/dialogFormTokens';
 import { postPayment, type CheckoutData, type PaymentRequestBody } from './paymentRequests';
 
 interface CheckoutRedirectPanelProps {

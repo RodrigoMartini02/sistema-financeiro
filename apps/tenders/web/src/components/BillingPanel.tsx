@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, XCircle } from 'lucide-react';
-import { PaymentDialog } from '../../components/payments/PaymentDialog';
-import { useConfirm } from '../../context/ConfirmContext';
-import { Button } from '../../ui/button';
+import { PaymentDialog } from '@ui/payments/PaymentDialog';
+import { useConfirm } from '@ui/context/ConfirmContext';
+import { Button } from '@ui/components/button';
 import { cancelRecurringSubscription, fetchBilling, TENDERS_PAYMENT_ENDPOINTS } from '../services/billingService';
 import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';

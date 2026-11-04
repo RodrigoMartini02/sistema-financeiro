@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type RefObject } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
-import { formatCurrency } from '../formatters';
+import { C } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
+import { formatCurrency } from '@ui/utils/formatters';
 import { ellipsisStyle, fieldStyle } from './fieldStyles';
 
 /** Uma sugestão do histórico: descrição, um detalhe (forma de pagamento, cliente) e o valor. */

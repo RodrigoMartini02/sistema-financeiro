@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useQuery } from '@tanstack/react-query';
 import { BookmarkPlus, CircleCheck, Clock, Loader2, Search, SearchX, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '../../ui/button';
-import { Drawer } from '../../ui/drawer';
-import { EmptyState } from '../../ui/EmptyState';
-import { Select, ToggleGroup } from '../../ui/form';
-import { getLocalTodayIso } from '../../utils/date';
+import { Button } from '@ui/components/button';
+import { Drawer } from '@ui/components/drawer';
+import { EmptyState } from '@ui/components/EmptyState';
+import { Select, ToggleGroup } from '@ui/components/form';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { FilterChips } from '../components/FilterChips';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
 import { NoticeCard } from '../components/NoticeCard';

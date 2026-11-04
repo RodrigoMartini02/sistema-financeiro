@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Menu, Moon, Search, Sun } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '@ui/context/AppContext';
 import { quickSearchPath } from '../utils/navigation';
 import { NotificationsBell } from './NotificationsBell';
 import { TendersUserMenu } from './TendersUserMenu';

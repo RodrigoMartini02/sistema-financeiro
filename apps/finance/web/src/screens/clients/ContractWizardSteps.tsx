@@ -3,13 +3,13 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { ClassificacaoReceita } from '../../types/config';
 import type { Representante } from '../../services/representantesService';
 import type { CatalogService } from '../../services/serviceCatalogService';
-import { C, fieldInputStyle, labelStyle } from '../../ui/dialogFormTokens';
+import { C, fieldInputStyle, labelStyle } from '@ui/components/dialogFormTokens';
 import { opcoesDeClassificacao } from '../../utils/classificacaoOpcoes';
 import { CHARGE_LABELS, WITHHOLDING_LABELS, WITHHOLDING_TAXES, type ChargeKind } from '../../utils/contractDisplay';
 import {
   MAX_DUE_DAY, emptyCommitment, emptyHourType, type ContractDraft, type DraftErrors, type InstallmentDraft,
 } from '../../utils/contractForm';
-import { DateField } from '../../ui/DateField';
+import { DateField } from '@ui/components/DateField';
 import { MoneyCell } from '../finance/entry-dialog/MoneyCell';
 import { checkboxStyle } from '../finance/entry-dialog/fieldStyles';
 import { PendingFilesField } from '../../ui/AttachmentsField';

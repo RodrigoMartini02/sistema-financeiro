@@ -8,7 +8,7 @@ import {
   MAX_CUSTOMER_NAME_LENGTH, MAX_ITEM_QUANTITY, MAX_ORDER_NOTE_LENGTH,
   buildOrderMessage, buildWhatsappUrl, type CartLine,
 } from '../../../utils/storefrontCart';
-import { formatCurrency } from '../../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { StorefrontFooter, StorefrontMessage, StorefrontTopBar, usePublicStorefront } from './StorefrontLayout';
 import { PriceSummary, ProductThumb } from './StorefrontSummary';
 import { useStorefrontCart } from './useStorefrontCart';

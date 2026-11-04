@@ -1,7 +1,7 @@
 import type { PainelData } from '../../../types/finance';
 import { CardPainel, Legenda, Secao, Vazio } from './base';
-import { useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
 import { formatarComSinal, rotuloDoTrecho, trechoFuturo } from './painelFormat';
 
 /**

@@ -1,8 +1,8 @@
 import { Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { corDaPaleta, useCoresGrafico } from '../../screens/finance/painel/coresGrafico';
-import { Barras, type PontoBarras, type SerieBarras } from '../../screens/finance/painel/graficos/Barras';
-import { EmptyState } from '../../ui/EmptyState';
+import { corDaPaleta, useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras, type PontoBarras, type SerieBarras } from '@ui/charts/Barras';
+import { EmptyState } from '@ui/components/EmptyState';
 import type { DashboardView, ModalityCard } from '../types';
 import { modalityColorIndex, modalityLink, modalitySparkline } from '../utils/dashboard';
 

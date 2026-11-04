@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type KeyboardEvent } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 
 const stepperButtonStyle: CSSProperties = {
   width: 28, height: '100%', border: 'none', background: '#f1f5f9', color: C.textSoft, fontSize: 14, cursor: 'pointer',

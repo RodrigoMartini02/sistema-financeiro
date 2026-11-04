@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck } from 'lucide-react';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, dialogFooterStyle, MoneyField } from '../../ui/dialogFormTokens';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
+import { C, labelStyle, fieldInputStyle, cardStyle, dialogFooterStyle, MoneyField } from '@ui/components/dialogFormTokens';
 import type { Expense } from '../../types/finance';
-import { getLocalTodayIso } from '../../utils/date';
-import { formatCurrency } from './formatters';
+import { getLocalTodayIso } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
 
 interface PaymentModalProps {
   open: boolean;

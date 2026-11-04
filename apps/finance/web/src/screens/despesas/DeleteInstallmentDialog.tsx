@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Dialog } from '../../ui/dialog';
-import { C, dangerButtonStyle } from '../../ui/dialogFormTokens';
-import { EmptyState } from '../../ui/EmptyState';
-import { useConfirm } from '../../context/ConfirmContext';
+import { Dialog } from '@ui/components/dialog';
+import { C, dangerButtonStyle } from '@ui/components/dialogFormTokens';
+import { EmptyState } from '@ui/components/EmptyState';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { fetchExpenseGroup } from '../../services/financeService';
 import { queryKeys } from '../../services/queryKeys';
-import { formatCurrency, formatDate } from '../finance/formatters';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 import type { Expense } from '../../types/finance';
 import { INVOICE_MESSAGES, isInvoiceProtected } from '../../utils/cardInvoice';
 import { StatusBadge } from './expenseStatus';

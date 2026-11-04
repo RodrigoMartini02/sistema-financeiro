@@ -4,8 +4,8 @@ import {
   Bot, Briefcase, CreditCard, HandCoins, Layers, Network,
   Tag, UserCheck, Activity, Crown, ShieldCheck, ShoppingBag, ReceiptText,
 } from 'lucide-react';
-import { Drawer } from '../ui/drawer';
-import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '../ui/configTokens';
+import { Drawer } from '@ui/components/drawer';
+import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '@ui/components/configTokens';
 import { fetchMe } from '../services/usuariosService';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import { usePlanFeatures } from '../hooks/usePlanFeatures';

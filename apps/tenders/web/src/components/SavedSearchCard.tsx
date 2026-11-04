@@ -1,7 +1,7 @@
 import { Copy, Pencil, Search, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { KebabMenu } from '../../ui/KebabMenu';
-import { ToggleRow } from '../../ui/form';
+import { KebabMenu } from '@ui/components/KebabMenu';
+import { ToggleRow } from '@ui/components/form';
 import type { DomainLookups } from '../hooks/useDomainLists';
 import { usePatchSavedSearch } from '../hooks/useSavedSearchMutations';
 import type { SavedSearch } from '../types';

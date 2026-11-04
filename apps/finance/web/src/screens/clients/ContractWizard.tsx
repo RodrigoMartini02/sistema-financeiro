@@ -9,15 +9,15 @@ import { fetchClassificacoesReceita } from '../../services/incomeClassifications
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchCatalogServices } from '../../services/serviceCatalogService';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, saveButtonDisabledStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
 import type { ClientType } from '../../utils/contractDisplay';
 import {
   WIZARD_STEP_LABELS, contractRequestBody, draftFromContract, emptyContractDraft, firstInvalidStep, validateStep, wizardSteps,
   type ContractDraft, type DraftErrors, type WizardStep,
 } from '../../utils/contractForm';
-import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
-import { formatCurrency } from '../finance/formatters';
+import { getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
 import { ChargesStep, OptionsStep, PublicEntityStep, TermStep } from './ContractWizardSteps';
 import { errorBoxStyle, secondaryButtonStyle } from './clientStyles';
 

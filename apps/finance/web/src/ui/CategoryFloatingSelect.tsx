@@ -3,8 +3,8 @@ import type { OpcaoCatalogo } from '../types/config';
 import {
   compararNomesCatalogo, groupSelectableCategories, normalizeCategoryText, type NewCategoryRequest,
 } from '../utils/categorySuggestions';
-import { C } from './dialogFormTokens';
-import { FloatingPanel } from './FloatingPanel';
+import { C } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
 
 const SEPARATOR = '#eef2f6';
 const INVALID_BORDER = '#fca5a5';

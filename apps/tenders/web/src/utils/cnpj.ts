@@ -1,4 +1,4 @@
-import { isValidCnpj, onlyDigits } from '../../utils/brazilDocuments';
+import { isValidCnpj, onlyDigits } from '@ui/utils/brazilDocuments';
 
 // CNPJ no app de Licitações (plano .plans/licitacoes-pagina-cnpj.md): os filtros das buscas aceitam o que a fonte traz
 // (14 dígitos, mesmo com dígito verificador errado: isCnpjFormat), e só o CNPJ com os dígitos verificadores certos

@@ -395,7 +395,7 @@ Parte 5 do plano `.plans/licitacoes-contratos-federais.md`: os contratos dos ór
   - **o módulo está parado desde o começo de setembro de 2026** (a última inclusão da UFMG é de 21/08 e a dos outros órgãos, de até 03/09): a coleta não supõe dado novo, e o painel mostra até quando a fonte tem dado;
   - volume: cerca de 131 mil linhas por ano, 82% empenhos; só 24% dos órgãos têm alguma.
 - **O que entra** (`federalMapping.ts`): só a linha **sem** número do contrato no PNCP (com ele, vale o PNCP, que traz os termos), não excluída na origem e incluída há mais de **45 dias** (ela pode ganhar o número logo). Todos os tipos, empenhos inclusive. Ficam de fora, contadas por motivo: `withPncpNumber`, `excluded`, `recent`, `agencyWithoutCnpj` (órgão sem CNPJ válido) e `termEndsBeforeStart` (fim antes do início, cadastro errado da fonte: contado à parte porque o ciclo releria a linha toda semana). Linha fora do formato é erro contado, e mais de 5% numa janela (com 100 linhas ou mais) derruba a execução.
-  - **Chave:** `comprasgov-<unidade>-<tipo>-<número>` (até 60 caracteres; o número só com letras, dígitos e `/ _ . -`, o resto vira `_`). O padrão está em `contractStore/layout.ts` e `src/tenders/utils/contractKey.ts`, com os mesmos testes. O ano é o do número (`/2023` ou `2024NE...`), senão o do início da vigência; `contractSequence` é 0 (só servia ao link do PNCP).
+  - **Chave:** `comprasgov-<unidade>-<tipo>-<número>` (até 60 caracteres; o número só com letras, dígitos e `/ _ . -`, o resto vira `_`). O padrão está em `contractStore/layout.ts` e `apps/tenders/web/src/utils/contractKey.ts`, com os mesmos testes. O ano é o do número (`/2023` ou `2024NE...`), senão o do início da vigência; `contractSequence` é 0 (só servia ao link do PNCP).
   - **CNPJ do órgão:** o que o PNCP usa para o órgão, aprendido dos números de controle das próprias linhas (o mais frequente da janela) ou, sem eles, o do cadastro na **forma da matriz** (raiz, 0001 e dígitos verificadores). O cadastro da fonte perde o zero à esquerda (a ANP vem com 13 dígitos): completa e confere os dígitos. Medido: a matriz bate em 175 de 175 contratos de 7 órgãos, mas o Ministério dos Povos Indígenas usa o CNPJ de outro órgão, e o Exército publica o mesmo órgão (e até a mesma unidade) com 3 CNPJs (85% na matriz); por isso vale o aprendido.
   - **Tipo:** 50→1, 52→2, 53→3, 54→4, 56→5, 57→6, 97→9, 99→7, 98→8, 96→10, 95→11, 94→12; credenciamento (51) e os desconhecidos caem em "Outros" com o nome da origem. **Categoria** pelo nome, sem acento nem maiúsculas.
   - **Fornecedor:** 14 dígitos é PJ; 11 é PF com o CPF mascarado (`***.456.789-**`); outro formato fica sem tipo. O nome do MEI traz o CPF no cadastro público e segue como está.
@@ -413,7 +413,7 @@ Parte 5 do plano `.plans/licitacoes-contratos-federais.md`: os contratos dos ór
 
 Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados, como fornecedor (contratos e licitações vencidas) e como órgão (contratos e editais abertos). Os dados são públicos e iguais para todas as contas; a trava do módulo (acesso valendo) vale como nas outras rotas.
 
-- **CNPJ** (`cnpj.ts`, uma regra só no backend; no front, `src/tenders/utils/cnpj.ts` e o `isValidCnpj` de `src/utils/brazilDocuments.ts`):
+- **CNPJ** (`cnpj.ts`, uma regra só no backend; no front, `apps/tenders/web/src/utils/cnpj.ts` e o `isValidCnpj` de `packages/ui/src/utils/brazilDocuments.ts`):
   - `isCnpjFormat` confere só os 14 dígitos e vale nos filtros das buscas (a fonte traz CNPJs com dígito verificador errado: 5 de 92.281 fornecedores nos contratos reais);
   - `isValidCnpj` confere também os dígitos verificadores e vale para abrir a página (`400` com "CNPJ inválido"), para reconhecer um CNPJ nas caixas de busca e para os nomes virarem link;
   - `requireCnpjFormat` e `InvalidCnpjError`: as consultas do armazém só aceitam CNPJ no formato, e ele entra como literal SQL.
@@ -428,7 +428,7 @@ Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados,
   - `60` pedidos por minuto por usuário (`429`); armazém sem cópia pronta, `503` `CONTRACT_STORE_UPDATING`; consulta longa demais, `504`;
   - as listas de contratos e de editais da página usam as rotas que já existem (`GET /contracts` e `GET /notices`).
 - **Nomes:** o nome de pessoa jurídica sai como está no cadastro público do CNPJ (MEI traz o CPF no nome, "NOME 12345678901"); o documento de pessoa física segue mascarado, e não existe busca por CPF nem página de pessoa física.
-- **Tela** `/cnpj/:cnpj` (`src/tenders/screens/CnpjScreen.tsx`): cabeçalho com o nome, o CNPJ e a nota de cobertura (sem citar a fonte); abas "Como fornecedor" e "Como órgão" (`aba=fornecedor|orgao`, a que tem dado primeiro); indicadores, licitações vencidas por ano, ranking de parceiros (com link para o CNPJ de cada um), os 10 contratos mais recentes e "Ver todos" (a tela Contratos a vencer já filtrada, com os encerrados), os editais abertos do órgão e as licitações vencidas, com rolagem infinita.
+- **Tela** `/cnpj/:cnpj` (`apps/tenders/web/src/screens/CnpjScreen.tsx`): cabeçalho com o nome, o CNPJ e a nota de cobertura (sem citar a fonte); abas "Como fornecedor" e "Como órgão" (`aba=fornecedor|orgao`, a que tem dado primeiro); indicadores, licitações vencidas por ano, ranking de parceiros (com link para o CNPJ de cada um), os 10 contratos mais recentes e "Ver todos" (a tela Contratos a vencer já filtrada, com os encerrados), os editais abertos do órgão e as licitações vencidas, com rolagem infinita.
 - **Entradas:** as três caixas de busca (barra superior, Editais e Contratos a vencer) abrem a página quando o texto é um CNPJ válido, com ou sem pontuação; os nomes de órgão e fornecedor viram link quando o CNPJ é válido (cards, tabelas, detalhes, vencedores e rankings); as etiquetas dos filtros "Órgão (CNPJ)" e "Fornecedor (CNPJ)" têm o atalho "Abrir a página do CNPJ".
 
 ## Contratos a vencer (dados)
@@ -627,7 +627,7 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 
 O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
 
-- **Entrada:** `tenders.html` e `src/tenders/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
+- **Entrada:** `tenders.html` e `apps/tenders/web/src/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
 - **Endereço:** o sistema abre só em `/licitacoes/app`. O `/licitacoes/` é a página de Licitações no site (plano `.plans/site-menu-textos-cards.md`, adendo 1).
 - **Login:** é o `LoginPage` de sempre, com `context="tenders"`. "Criar nova conta" cadastra com `modulo: 'licitacoes'` (15 dias grátis, sem cartão). Depois do login, a pessoa volta para `/licitacoes/app` (`auth_origin = tenders`, inclusive pelo Google).
 - **Entrada no módulo**, conforme `GET /api/tenders/access`:
@@ -708,8 +708,8 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - nenhum texto de tela cita o PNCP: "Número de controle", "Abrir edital original", "Ver documento original", "Buscando os itens…", "Edital" nas ações rápidas e avisos neutros;
   - os links ao documento original continuam, para o site oficial;
   - a API também não cita a fonte no que chega à tela: a situação 1 vira "Divulgada", a falha nos itens e arquivos diz "Não foi possível buscar os dados da compra agora", o aviso de edital alterado é "Edital acompanhado foi alterado", e os erros das consultas na Coleta dizem "A consulta falhou…". O que já estava gravado com o texto antigo (avisos e erros) aparece com o texto novo na leitura;
-  - a fonte fica nos Termos de Uso e na Política de Privacidade (`src/screens/public/legalContent.ts`), como pede a política de dados abertos (Decreto 8.777/2016, art. 1º, III: livre uso, "limitando-se a creditar a autoria ou a fonte");
-  - `src/tenders/screenTexts.test.ts` confere que nenhum texto das telas do módulo cita o PNCP (nomes de código, comentários e endereços não contam).
+  - a fonte fica nos Termos de Uso e na Política de Privacidade (`apps/site/src/screens/public/legalContent.ts`), como pede a política de dados abertos (Decreto 8.777/2016, art. 1º, III: livre uso, "limitando-se a creditar a autoria ou a fonte");
+  - `apps/tenders/web/src/screenTexts.test.ts` confere que nenhum texto das telas do módulo cita o PNCP (nomes de código, comentários e endereços não contam).
 - **Favoritos (`/favoritos`):** abas Editais e Contratos (`aba=contratos`). Editais: todos os favoritos da pessoa, inclusive os encerrados e os descartados, pela data de encerramento. Contratos: inclusive os vencidos, pelo vencimento. Com rolagem infinita, um card por linha. O coração fica no card e no detalhe.
 - **Buscas salvas (`/buscas`):**
   - abas Editais e Contratos (`aba=contratos`), cada uma com o seu limite de 50;

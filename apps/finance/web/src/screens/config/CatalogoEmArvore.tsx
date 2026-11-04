@@ -2,19 +2,19 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, ChevronDown, Tag, FolderTree } from 'lucide-react';
 import type { CategoriaFormValues, OpcaoCatalogo } from '../../types/config';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle,
   dangerButtonStyle, dialogFooterStyle,
-} from '../../ui/dialogFormTokens';
-import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgRowIndexStyle } from '../../ui/configTokens';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { EmptyState } from '../../ui/EmptyState';
+} from '@ui/components/dialogFormTokens';
+import { CFG, CFG_MONO_CLASS, cfgBadgeStyle, cfgRowIndexStyle } from '@ui/components/configTokens';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { EmptyState } from '@ui/components/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { useConfirm } from '../../context/ConfirmContext';
+import { GUIDE_LAYER_MODAL } from '@ui/context/FirstAccessGuideContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { compararNomesCatalogo } from '../../utils/categorySuggestions';
 
 // Catálogo em árvore das configurações (raiz + um nível de subcategoria,

@@ -7,7 +7,7 @@ import { useActiveAccount } from '../hooks/useActiveAccount';
 import { FINANCE_LOGIN_ADDRESS } from '../utils/authOrigin';
 import { companyDisplayName } from '../utils/companyAccount';
 import { formatDocumento } from '../utils/document';
-import { Z_DROPDOWN } from '../ui/zIndex';
+import { Z_DROPDOWN } from '@ui/components/zIndex';
 import type { ConfigItemId } from './ConfigPanel';
 
 function getInitials(nome: string): string {

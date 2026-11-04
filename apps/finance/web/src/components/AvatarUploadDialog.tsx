@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dialog } from '../ui/dialog';
-import { Button } from '../ui/button';
+import { Dialog } from '@ui/components/dialog';
+import { Button } from '@ui/components/button';
 
 const OUTPUT_SIZE = 256;
 

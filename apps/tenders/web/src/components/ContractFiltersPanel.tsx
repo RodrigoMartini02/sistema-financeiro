@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Select, ToggleRow, inputBase } from '../../ui/form';
+import { Select, ToggleRow, inputBase } from '@ui/components/form';
 import type { DomainLookups } from '../hooks/useDomainLists';
 import type { DomainLists } from '../types';
 import {

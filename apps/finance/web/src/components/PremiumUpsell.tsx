@@ -1,5 +1,5 @@
 import { Crown } from 'lucide-react';
-import { EmptyState } from '../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 
 interface PremiumUpsellProps {
   description: string;

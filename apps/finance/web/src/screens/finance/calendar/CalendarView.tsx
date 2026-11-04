@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFinanceDashboard } from '../../../hooks/useFinanceDashboard';
 import { fetchAppointments, saveAppointment } from '../../../services/appointmentsService';
 import { queryKeys } from '../../../services/queryKeys';
-import { ErrorState, LoadingState } from '../../../ui/states';
+import { ErrorState, LoadingState } from '@ui/components/states';
 import { ExpenseDialog } from '../expense-dialog/ExpenseDialog';
 import { IncomeDialog } from '../income-dialog/IncomeDialog';
 import { AppointmentDialog } from '../AppointmentDialog';

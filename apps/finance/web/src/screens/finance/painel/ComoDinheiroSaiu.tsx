@@ -1,15 +1,15 @@
 import type { PainelData, RenegotiatedInvoice } from '../../../types/finance';
 import { installmentsLabel, invoiceMonthLabel, installmentAmountsOf } from '../../../utils/cardInvoice';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
-import { corDaPaleta, useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
-import { Pizza } from './graficos/Pizza';
+import { corDaPaleta, useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
+import { Pizza } from '@ui/charts/Pizza';
 import {
   TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, observacoesPorOutros, paraFatias, rotuloDoTrecho, rotuloForma, trechoFuturo, unidadeDaSerie,
 } from './painelFormat';
-import { formatarPercentual } from './percent';
+import { formatarPercentual } from '@ui/charts/percent';
 
 const compras = (quantidade: number) => `${quantidade} compra${quantidade === 1 ? '' : 's'}`;
 

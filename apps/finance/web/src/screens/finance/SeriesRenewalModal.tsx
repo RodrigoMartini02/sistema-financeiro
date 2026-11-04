@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, cardStyle, dialogFooterStyle, labelStyle, neutralOutlineButtonOffStyle, saveButtonDisabledStyle, saveButtonStyle,
-} from '../../ui/dialogFormTokens';
+} from '@ui/components/dialogFormTokens';
 import { getActiveAccountId } from '../../services/apiClient';
 import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import { decideSeriesRenewals, fetchSeriesRenewals } from '../../services/seriesRenewalsService';
 import type { SeriesRenewal, SeriesRenewalDecision } from '../../types/finance';
 import { getPaymentMethodLabel } from './entryTable';
-import { formatCurrency, formatDate } from './formatters';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 interface SeriesRenewalModalProps {
   /** Seção das despesas recorrentes: com a permissão de despesas. */

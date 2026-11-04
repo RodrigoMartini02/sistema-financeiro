@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
-import { useConfirm } from '../../context/ConfirmContext';
-import { Button } from '../../ui/button';
-import { Textarea } from '../../ui/form';
+import { useConfirm } from '@ui/context/ConfirmContext';
+import { Button } from '@ui/components/button';
+import { Textarea } from '@ui/components/form';
 import { useRemoveTracking, useSaveTracking } from '../hooks/useNoticeTracking';
 import { fetchTrackingHistory } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';

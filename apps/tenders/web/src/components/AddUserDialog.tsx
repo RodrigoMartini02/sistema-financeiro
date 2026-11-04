@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Dialog } from '../../ui/dialog';
-import { Button } from '../../ui/button';
-import { Field, Input, PasswordInput } from '../../ui/form';
+import { Dialog } from '@ui/components/dialog';
+import { Button } from '@ui/components/button';
+import { Field, Input, PasswordInput } from '@ui/components/form';
 import { tendersQueryKeys } from '../services/queryKeys';
 import { createTeamUser } from '../services/settingsService';
 import type { TendersApiError } from '../services/tendersApiError';

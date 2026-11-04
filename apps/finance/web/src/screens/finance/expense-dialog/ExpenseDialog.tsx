@@ -2,14 +2,14 @@ import { useEffect, useMemo, useReducer, useRef, useState, type Dispatch } from 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
 import type { Expense, ExpenseUpdateScope, FinanceDashboardData } from '../../../types/finance';
-import { useConfirm } from '../../../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchCardLimits } from '../../../services/cardLimitsService';
 import { fetchCartoes, fetchCategorias, saveCategoria } from '../../../services/configService';
 import { createExpense, fetchExpenseGroup, updateExpense } from '../../../services/financeService';
 import { invalidateExpenseQueries, queryKeys } from '../../../services/queryKeys';
-import { C, chipStyle } from '../../../ui/dialogFormTokens';
+import { C, chipStyle } from '@ui/components/dialogFormTokens';
 import { confirmFixedExpense, deferFixedExpenses, fetchPendingFixedExpenses } from '../../../services/fixedExpensesService';
 import { INVOICE_MESSAGES, invoiceEditLock, payInvoiceShortcut } from '../../../utils/cardInvoice';
 import {
@@ -25,7 +25,7 @@ import {
 import {
   createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
-import { brDateInputToIso, getLocalTodayIso, isoToBrDate } from '../../../utils/date';
+import { brDateInputToIso, getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
 import { canManageCatalog } from '../../../utils/screenAccess';
 import { collectBatchErrors, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';

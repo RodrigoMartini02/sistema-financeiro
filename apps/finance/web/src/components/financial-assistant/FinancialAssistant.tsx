@@ -37,7 +37,7 @@ import { groupSelectableCategories } from '../../utils/categorySuggestions';
 import { fetchRepresentantes } from '../../services/representantesService';
 import { fetchProdutos } from '../../services/catalogoService';
 import { invalidateExpenseQueries, invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
-import { formatCurrency } from '../../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { formatCents } from '../../screens/finance/entry-dialog/cents';
 import type { StatusTone } from '../../screens/finance/entry-dialog/SummaryLine';
 import { MIN_INSTALLMENTS, type ExpenseDraft } from '../../screens/finance/expense-dialog/draftState';
@@ -45,11 +45,11 @@ import {
   SUMMARY_TONE, effectiveDueDate, installmentAmounts, overdueOpenCount, paidInstallmentCount, summarizeDraft,
   type RuleContext,
 } from '../../screens/finance/expense-dialog/draftRules';
-import { MONTH_NAMES } from '../../utils/calendarGrid';
-import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
-import { Card } from '../../ui/card';
-import { IsoDateField } from '../../ui/DateField';
-import { Badge } from '../../ui/badge';
+import { MONTH_NAMES } from '@ui/utils/calendarGrid';
+import { getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
+import { Card } from '@ui/components/card';
+import { IsoDateField } from '@ui/components/DateField';
+import { Badge } from '@ui/components/badge';
 import { AssistantHeaderMenu } from './AssistantHeaderMenu';
 import {
   fontSizeToScale, readStoredFontSize, storeFontSize, type AssistantFontSize,

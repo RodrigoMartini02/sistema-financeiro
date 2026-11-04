@@ -6,7 +6,7 @@ import {
   type SearchTermsMode,
   type TrackingFilter,
 } from '../types';
-import { onlyDigits } from '../../utils/brazilDocuments';
+import { onlyDigits } from '@ui/utils/brazilDocuments';
 import { isCnpjFormat } from './cnpj';
 import { addDaysToIsoDate, isValidIsoDate } from './dates';
 import {

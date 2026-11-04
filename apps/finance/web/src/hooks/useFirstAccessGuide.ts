@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { GUIDE_LAYER_PAGE, useFirstAccessGuideCoordinator, type FirstAccessGuideLayer } from '../context/FirstAccessGuideContext';
+import { GUIDE_LAYER_PAGE, useFirstAccessGuideCoordinator, type FirstAccessGuideLayer } from '@ui/context/FirstAccessGuideContext';
 import { getFirstAccessGuideUserScope } from '../services/userScope';
 
 const STORAGE_PREFIX = 'fingerence:first-access-guide';

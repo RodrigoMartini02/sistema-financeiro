@@ -2,12 +2,12 @@ import { useEffect } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { Appointment, AppointmentFormValues } from '../../types/appointments';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
 import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle
-} from '../../ui/dialogFormTokens';
+} from '@ui/components/dialogFormTokens';
 import { appointmentFormSchema, type AppointmentFormData } from '../../utils/appointmentForm';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 
 const todayIso = getLocalTodayIso;
 

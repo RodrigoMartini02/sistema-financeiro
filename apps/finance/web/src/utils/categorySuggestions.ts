@@ -1,5 +1,5 @@
 import type { Categoria, CategoriaFormValues, OpcaoCatalogo } from '../types/config';
-import { groupHeaderState } from './filterGroupSelection';
+import { groupHeaderState } from '@ui/utils/filterGroupSelection';
 
 export interface CategorySuggestionResult {
   id: number;

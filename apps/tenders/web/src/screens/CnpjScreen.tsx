@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Building2, SearchX } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
-import { isValidCnpj, onlyDigits } from '../../utils/brazilDocuments';
+import { EmptyState } from '@ui/components/EmptyState';
+import { isValidCnpj, onlyDigits } from '@ui/utils/brazilDocuments';
 import { CnpjContractList, CnpjNoticeList, CnpjWinnersList } from '../components/CnpjLists';
 import { CnpjSection, PartnerRanking, StatTiles, WinnersByYear, type StatTile } from '../components/CnpjSections';
 import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';

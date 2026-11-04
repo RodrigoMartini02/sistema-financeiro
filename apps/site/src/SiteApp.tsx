@@ -1,24 +1,24 @@
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
-import { ConfirmProvider } from './context/ConfirmContext';
-import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
+import { AppProvider } from '@ui/context/AppContext';
+import { ConfirmProvider } from '@ui/context/ConfirmContext';
+import { FirstAccessGuideProvider } from '@ui/context/FirstAccessGuideContext';
 import { AboutPage } from './screens/public/AboutPage';
 import { ContactPage } from './screens/public/ContactPage';
 import { FinancePage } from './screens/public/FinancePage';
 import { HomePage } from './screens/public/HomePage';
 import { LegalPage } from './screens/public/LegalPage';
 import { TendersPage } from './screens/public/TendersPage';
-import { StorefrontPage } from './screens/public/storefront/StorefrontPage';
-import { StorefrontCartPage } from './screens/public/storefront/StorefrontCartPage';
-import { StorefrontCheckoutPage } from './screens/public/storefront/StorefrontCheckoutPage';
-import { StorefrontOrderPage } from './screens/public/storefront/StorefrontOrderPage';
+import { StorefrontPage } from '@finance/screens/public/storefront/StorefrontPage';
+import { StorefrontCartPage } from '@finance/screens/public/storefront/StorefrontCartPage';
+import { StorefrontCheckoutPage } from '@finance/screens/public/storefront/StorefrontCheckoutPage';
+import { StorefrontOrderPage } from '@finance/screens/public/storefront/StorefrontOrderPage';
 import { PublicLayout } from './screens/public/components/PublicLayout';
 import { PublicSeo } from './screens/public/components/PublicSeo';
 import { CookieBanner } from './components/CookieBanner';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
-import { UpdatePwaBanner } from './components/UpdatePwaBanner';
-import { trackPageView } from './services/analyticsService';
+import { UpdatePwaBanner } from '@ui/pwa/UpdatePwaBanner';
+import { trackPageView } from '@finance/services/analyticsService';
 
 /** Vitrine de uma loja (link novo ou antigo) e as páginas dela: são da empresa, não do FINGERENCE. */
 function isStorefrontPath(pathname: string): boolean {

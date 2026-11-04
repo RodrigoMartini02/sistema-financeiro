@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
-import { C, fieldInputStyle, labelStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
+import { C, fieldInputStyle, labelStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
 import { defaultReceiptDate } from '../../utils/cashDate';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 
 interface ReceiptDateDialogProps {
   open: boolean;

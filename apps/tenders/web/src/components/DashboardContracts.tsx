@@ -1,7 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { FileClock } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 import { isContractStoreUpdating, type TendersApiError } from '../services/tendersApiError';
 import type { ExpiringContractsView } from '../types';
 import { expiringCategoryItems, expiringWindowItems } from '../utils/dashboard';

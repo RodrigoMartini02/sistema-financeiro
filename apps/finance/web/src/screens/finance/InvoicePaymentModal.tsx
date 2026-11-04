@@ -1,13 +1,13 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { AlertCircle, CircleCheck, RotateCcw } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useConfirm } from '../../context/ConfirmContext';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
+import { useConfirm } from '@ui/context/ConfirmContext';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, MoneyField, cardStyle, chipStyle, dangerButtonStyle, dialogFooterStyle, fieldInputStyle, labelStyle,
   neutralOutlineButtonOffStyle, saveButtonDisabledStyle, saveButtonStyle,
-} from '../../ui/dialogFormTokens';
+} from '@ui/components/dialogFormTokens';
 import { fetchCardInvoices, payCardInvoice, undoInvoicePayment } from '../../services/cardInvoicesService';
 import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import type { CardInvoice, InvoicePaymentEntry, InvoicePaymentInput, InvoicePaymentMethod } from '../../types/finance';
@@ -15,8 +15,8 @@ import {
   MAX_INVOICE_INSTALLMENTS, MIN_INVOICE_INSTALLMENTS, formatPercent, installmentsLabel, invoiceMonthLabel,
   shiftInvoiceMonth, summarizeInvoicePayment,
 } from '../../utils/cardInvoice';
-import { getLocalTodayIso } from '../../utils/date';
-import { formatCurrency, formatDate } from './formatters';
+import { getLocalTodayIso } from '@ui/utils/date';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 interface InvoicePaymentModalProps {
   open: boolean;

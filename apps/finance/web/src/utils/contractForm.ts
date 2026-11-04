@@ -4,7 +4,7 @@
 // servidor (backend/src/services/contractInput.ts), para corrigir antes de enviar.
 import type { ContractDetail, ContractRequest, WithholdingRates } from '../services/contractsService';
 import { WITHHOLDING_LABELS, WITHHOLDING_TAXES, type WithholdingTax } from './contractDisplay';
-import { brDateToIso, isoToBrDate } from './date';
+import { brDateToIso, isoToBrDate } from '@ui/utils/date';
 
 export const MAX_DUE_DAY = 28;
 export const MAX_INSTALLMENTS = 120;

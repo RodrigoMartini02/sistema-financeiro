@@ -7,16 +7,16 @@ import {
   fetchClients, fetchClientsSummary, type ClientFilters, type ClientListItem,
 } from '../../services/clientsService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
-import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '../../ui/configTokens';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { EmptyState } from '../../ui/EmptyState';
-import { ListToolbar } from '../../ui/ListToolbar';
-import { formatDocument, onlyDigits } from '../../utils/brazilDocuments';
+import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '@ui/components/configTokens';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { EmptyState } from '@ui/components/EmptyState';
+import { ListToolbar } from '@ui/components/ListToolbar';
+import { formatDocument, onlyDigits } from '@ui/utils/brazilDocuments';
 import {
   CLIENT_TYPES, CLIENT_TYPE_LABELS, clientsSummaryCards, type ClientType,
 } from '../../utils/contractDisplay';
 import { canManageCatalog, type PermissionSet } from '../../utils/screenAccess';
-import { formatCurrency } from '../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { ClientFormDialog } from './ClientFormDialog';
 import { ClientPage } from './ClientPage';
 import { ServiceCatalog } from './ServiceCatalog';

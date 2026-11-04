@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 // Valores em reais. A API recebe decimal em texto com ponto ("150000.50") nos
 // filtros e na busca salva, e devolve número. Nos campos R$ (useMoneyInput),

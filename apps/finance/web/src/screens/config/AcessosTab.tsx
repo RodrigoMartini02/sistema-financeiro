@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, LogIn, RefreshCw, UserPlus, Users } from 'lucide-react';
 import { fetchAnalyticsOverview } from '../../services/analyticsService';
-import { Button } from '../../ui/button';
-import { ErrorState } from '../../ui/states';
-import { ToggleGroup } from '../../ui/form';
-import { InfoBanner } from '../../ui/InfoBanner';
-import { CFG } from '../../ui/configTokens';
+import { Button } from '@ui/components/button';
+import { ErrorState } from '@ui/components/states';
+import { ToggleGroup } from '@ui/components/form';
+import { InfoBanner } from '@ui/components/InfoBanner';
+import { CFG } from '@ui/components/configTokens';
 
 const PERIOD_OPTIONS = [
   { value: 7, label: '7 dias' },

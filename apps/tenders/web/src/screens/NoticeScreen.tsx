@@ -1,6 +1,6 @@
 import { ArrowLeft, FileSearch } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 import { NoticeDetailView } from '../components/NoticeDetailView';
 
 /** Edital em página própria (/editais/:id), aberta também pelos links das notificações. */

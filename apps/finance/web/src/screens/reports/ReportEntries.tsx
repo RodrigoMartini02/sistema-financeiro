@@ -1,8 +1,8 @@
 import { ArrowUpDown, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Report, ReportExpense, ReportIncome } from '../../types/reports';
-import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
+import { NomeComDetalhe } from '@ui/components/NomeComDetalhe';
 import { DASH, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from '../finance/entryTable';
-import { formatCurrency, formatDate } from '../finance/formatters';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 import { firstName } from '../finance/memberColors';
 
 export type ReportSortKey = 'description' | 'date' | 'amount';

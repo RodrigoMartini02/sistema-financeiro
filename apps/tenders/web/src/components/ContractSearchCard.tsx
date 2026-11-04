@@ -1,7 +1,7 @@
 import { CalendarClock, Copy, Pencil, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { KebabMenu } from '../../ui/KebabMenu';
-import { ToggleRow } from '../../ui/form';
+import { KebabMenu } from '@ui/components/KebabMenu';
+import { ToggleRow } from '@ui/components/form';
 import type { DomainLookups } from '../hooks/useDomainLists';
 import { usePatchContractSavedSearch } from '../hooks/useContractSearchMutations';
 import type { ContractSavedSearch } from '../types';

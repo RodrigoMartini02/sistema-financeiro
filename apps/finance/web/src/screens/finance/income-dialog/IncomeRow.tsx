@@ -2,13 +2,13 @@ import type { ReactNode, RefObject } from 'react';
 import type { IncomeSuggestionMatch } from '../../../services/incomeSuggestionsService';
 import type { ClassificacaoReceita } from '../../../types/config';
 import { CategoryFloatingSelect } from '../../../ui/CategoryFloatingSelect';
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 import type { CategoryHistoryEntry, NewCategoryRequest } from '../../../utils/categorySuggestions';
-import { isoToBrDate } from '../../../utils/date';
+import { isoToBrDate } from '@ui/utils/date';
 import { suggestIncomeClassificationForDescription } from '../../../utils/incomeClassificationSuggestions';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
-import { DateField } from '../../../ui/DateField';
+import { DateField } from '@ui/components/DateField';
 import { DescriptionField } from '../entry-dialog/DescriptionField';
 import { ellipsisStyle, fieldStyle } from '../entry-dialog/fieldStyles';
 import {

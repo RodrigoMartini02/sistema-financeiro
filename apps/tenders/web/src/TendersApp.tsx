@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { LoadingState } from '../ui/states';
+import { LoadingState } from '@ui/components/states';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { AdminAccountsScreen } from './screens/AdminAccountsScreen';

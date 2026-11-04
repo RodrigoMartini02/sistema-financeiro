@@ -3,17 +3,17 @@ import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import {
   login, register, registerCompany, forgotPassword, verifyRecoveryCode, resetPassword,
   googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
-} from '../../services/authService';
-import { consumeAuthOrigin } from '../../services/session';
-import { destinationForAuthOrigin } from '../../utils/authOrigin';
-import type { Enquadramento } from '../../types/config';
-import { Button } from '../../ui/button';
-import { IsoDateField } from '../../ui/DateField';
-import { Field, Input, PasswordInput, Select, ToggleGroup, inputBase } from '../../ui/form';
+} from '@finance/services/authService';
+import { consumeAuthOrigin } from '@finance/services/session';
+import { destinationForAuthOrigin } from '@finance/utils/authOrigin';
+import type { Enquadramento } from '@finance/types/config';
+import { Button } from '@ui/components/button';
+import { IsoDateField } from '@ui/components/DateField';
+import { Field, Input, PasswordInput, Select, ToggleGroup, inputBase } from '@ui/components/form';
 import { TermosModal } from './TermosModal';
-import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
-import { isValidCnpj } from '../../utils/brazilDocuments';
-import { formatDocumento } from '../../utils/document';
+import { ENQUADRAMENTO_OPTIONS } from '@finance/utils/companyAccount';
+import { isValidCnpj } from '@ui/utils/brazilDocuments';
+import { formatDocumento } from '@finance/utils/document';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
 

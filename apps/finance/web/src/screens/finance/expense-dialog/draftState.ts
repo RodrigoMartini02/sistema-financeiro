@@ -1,6 +1,6 @@
 import type { AttachmentSummary } from '../../../types/attachment';
 import { isPaymentMethod, type Expense, type ExpenseBillingType, type PaymentMethod } from '../../../types/finance';
-import { isoToBrDate } from '../../../utils/date';
+import { isoToBrDate } from '@ui/utils/date';
 import {
   batchReducer, findDraft, initialBatchState, nextDraftKey, updateDraft, withoutKey,
   type BatchAction, type BatchState, type DraftPatch as BatchDraftPatch,

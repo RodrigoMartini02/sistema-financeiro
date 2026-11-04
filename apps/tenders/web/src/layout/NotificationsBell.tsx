@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
-import { Z_SYSTEM_OVERLAY } from '../../ui/zIndex';
+import { Z_SYSTEM_OVERLAY } from '@ui/components/zIndex';
 import { LoadError } from '../components/LoadStates';
 import { useMarkAllNotificationsRead, useOpenNotification } from '../hooks/useNotificationActions';
 import { fetchNotifications } from '../services/notificationsService';

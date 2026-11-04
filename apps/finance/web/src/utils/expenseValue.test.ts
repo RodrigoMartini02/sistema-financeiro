@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Expense } from '../types/finance';
-import { formatCurrency } from '../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import {
   effectiveExpenseValue, embeddedInstallmentInterest, embeddedInterestText, paymentDifference,
 } from './expenseValue';

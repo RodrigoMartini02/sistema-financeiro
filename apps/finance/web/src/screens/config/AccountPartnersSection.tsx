@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { C, labelStyle, fieldInputStyle, MoneyField, formatMoney } from '../../ui/dialogFormTokens';
+import { C, labelStyle, fieldInputStyle, MoneyField, formatMoney } from '@ui/components/dialogFormTokens';
 import {
   FULL_PARTICIPATION_HUNDREDTHS, MAX_PARTNERS_PER_ACCOUNT, formatIsoDateBR, newPartnerRow, partnersTotals,
   type PartnerRow,

@@ -1,8 +1,8 @@
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CabecalhoCard, CardPainel, Legenda, Secao, Totais, Vazio } from './base';
-import { useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
 import { rotuloDoMes } from './painelFormat';
 
 /** Lançadas e previsões que vencem nos próximos 6 meses, a partir de hoje. */

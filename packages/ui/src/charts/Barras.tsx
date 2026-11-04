@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { formatCurrency } from '../../formatters';
-import { useCoresGrafico } from '../coresGrafico';
-import { useTransicao } from '../graficoBase';
-import { formatarPercentual } from '../percent';
+import { formatCurrency } from '../utils/formatters';
+import { useCoresGrafico } from './coresGrafico';
+import { useTransicao } from './graficoBase';
+import { formatarPercentual } from './percent';
 import { ConteudoDetalhe, useDetalhe } from './Detalhe';
 
 export interface PontoBarras {

@@ -8,13 +8,13 @@ import {
 } from '../../../services/storefrontService';
 import { fetchAddressByCep } from '../../../services/cepService';
 import { queryKeys } from '../../../services/queryKeys';
-import { createMercadoPago, loadMercadoPagoScript } from '../../../utils/mercadoPagoSdk';
+import { createMercadoPago, loadMercadoPagoScript } from '@ui/payments/mercadoPagoSdk';
 import type { CartLine } from '../../../utils/storefrontCart';
 import {
   checkoutTotals, hasErrors, onlyDigits, parseCardExpiry, validateAddress, validateCard, validateIdentification,
   type CheckoutAddress, type CheckoutCard, type CheckoutErrors, type CheckoutIdentification, type CheckoutTotals,
 } from '../../../utils/storefrontCheckout';
-import { formatCurrency } from '../../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import {
   AddressFields, CardFields, Field, IdentificationFields, OptionCard, inputClassName, type CepLookupStatus,
 } from './CheckoutFields';

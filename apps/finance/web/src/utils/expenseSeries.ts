@@ -6,7 +6,7 @@
 //   não muda o vencimento, a forma nem o cartão delas (paidInstallmentsNote).
 // Canceladas e ligadas a pagamento de fatura nunca mudam.
 import type { Expense, ExpenseUpdateScope } from '../types/finance';
-import { formatCurrency } from '../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 type SeriesRow = Pick<
   Expense,

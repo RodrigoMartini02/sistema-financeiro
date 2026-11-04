@@ -1,6 +1,6 @@
 import { Building2, CalendarClock, Filter, Landmark, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 import type { DashboardView } from '../types';
 import { agencyItems, deadlineWeekItems, funnelItems, sphereItems, stateItems } from '../utils/dashboard';
 import { CountBars } from './CountBars';

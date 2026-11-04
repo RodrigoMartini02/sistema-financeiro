@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
 import { OptionRow } from '../entry-dialog/OptionRow';
 import { RepeatEndField } from '../entry-dialog/RepeatEndField';
 import { chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';

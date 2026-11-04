@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Cartao } from '../../../types/config';
 import type { Expense } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import {
   createDraft, dialogReducer, draftFromExpense, initialDialogState, withRecurringOnCredit, type ExpenseDraft,
 } from './draftState';

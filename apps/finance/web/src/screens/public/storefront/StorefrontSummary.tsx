@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { formatCurrency } from '../../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 function SummaryRow({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (

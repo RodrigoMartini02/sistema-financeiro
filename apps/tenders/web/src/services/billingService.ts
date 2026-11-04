@@ -1,11 +1,11 @@
-import type { PaymentEndpoints } from '../../components/payments/paymentRequests';
+import type { PaymentEndpoints } from '@ui/payments/paymentRequests';
 import type { TenderActivation, TenderBilling, TenderSubscription } from '../types';
 import { tendersRequest } from './tendersApi';
 
 // Assinatura e ativação do módulo (titular). Ficam fora da trava do módulo: a
 // conta pode estar vencida ou ainda sem o módulo.
 
-/** Pagamentos pelo diálogo comum de assinatura (src/components/payments). */
+/** Pagamentos pelo diálogo comum de assinatura (packages/ui, pasta payments). */
 export const TENDERS_PAYMENT_ENDPOINTS: PaymentEndpoints = {
   pix: '/tenders/billing/pix',
   card: '/tenders/billing/card',

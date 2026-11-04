@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Star } from 'lucide-react';
-import { queryKeys } from '../../../services/queryKeys';
+import { queryKeys } from '@finance/services/queryKeys';
 import { fetchPublicReviews } from '../../../services/reviewsService';
 import { ScrollReveal } from './ScrollReveal';
 import { SECTION_LABEL, SECTION_TITLE, SITE_CONTAINER, SITE_SECTION } from './siteStyles';

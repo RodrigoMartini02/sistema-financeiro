@@ -1,4 +1,4 @@
-import { createMercadoPago, type MercadoPagoInstance } from '../../utils/mercadoPagoSdk';
+import { createMercadoPago, type MercadoPagoInstance } from './mercadoPagoSdk';
 import { paymentRequest } from './paymentApi';
 
 // Pagamento das assinaturas da plataforma (FINGERENCE e Licitações), pelo

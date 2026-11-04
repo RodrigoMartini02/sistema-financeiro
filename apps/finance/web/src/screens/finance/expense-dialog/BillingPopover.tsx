@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
+import { C } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
 import { OptionRow } from '../entry-dialog/OptionRow';
 import { RepeatEndField } from '../entry-dialog/RepeatEndField';
 import { SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';

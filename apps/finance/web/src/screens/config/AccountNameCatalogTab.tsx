@@ -7,18 +7,18 @@ import {
 } from '../../services/accountNameCatalogService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
-import { ConfigListRow } from '../../ui/ConfigListRow';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { CFG } from '../../ui/configTokens';
-import { EmptyState } from '../../ui/EmptyState';
-import { InfoBanner } from '../../ui/InfoBanner';
+import { Dialog } from '@ui/components/dialog';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle } from '@ui/components/dialogFormTokens';
+import { ConfigListRow } from '@ui/components/ConfigListRow';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { CFG } from '@ui/components/configTokens';
+import { EmptyState } from '@ui/components/EmptyState';
+import { InfoBanner } from '@ui/components/InfoBanner';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { useConfirm } from '../../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 
 interface CatalogTexts {
   singular: string;

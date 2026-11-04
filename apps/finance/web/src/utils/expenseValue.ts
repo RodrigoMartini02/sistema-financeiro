@@ -3,7 +3,7 @@
 // não o total da compra. Mesma regra do servidor (saldo do mês, painel,
 // relatórios, orçamento e assistente).
 import type { Expense } from '../types/finance';
-import { formatCurrency } from '../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { isRenegotiated } from './cardInvoice';
 
 type ExpenseValueFields = Pick<Expense, 'pago' | 'valorPago' | 'valorFinal'>;

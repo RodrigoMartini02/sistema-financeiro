@@ -1,8 +1,8 @@
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CardPainel, Legenda, Secao } from './base';
-import { useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
 import { contas, rotuloDoTrecho, trechoFuturo, unidadeDaSerie } from './painelFormat';
 
 const TOM_NEUTRO = 'text-slate-900 dark:text-white';

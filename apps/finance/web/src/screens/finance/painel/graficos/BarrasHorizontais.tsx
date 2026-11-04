@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
-import { formatCurrency } from '../../formatters';
-import { useCoresGrafico } from '../coresGrafico';
-import { formatarPercentual } from '../percent';
-import { ConteudoDetalhe, useDetalhe } from './Detalhe';
+import { formatCurrency } from '@ui/utils/formatters';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { formatarPercentual } from '@ui/charts/percent';
+import { ConteudoDetalhe, useDetalhe } from '@ui/charts/Detalhe';
 
 export interface LinhaHorizontal {
   id: string;

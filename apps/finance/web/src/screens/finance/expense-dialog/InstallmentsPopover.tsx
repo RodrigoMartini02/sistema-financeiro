@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
-import { C, formatMoney } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
-import { isoToBrDate } from '../../../utils/date';
-import { formatCurrency } from '../formatters';
-import { DateField } from '../../../ui/DateField';
+import { C, formatMoney } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
+import { isoToBrDate } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
+import { DateField } from '@ui/components/DateField';
 import {
   defaultInstallmentAmount, installmentGrid, installmentMismatch, isCreditWithCard, markOverdueAsPaid,
   overdueOpenCount, paidInstallmentCount, selectedCard, type RuleContext,

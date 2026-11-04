@@ -1,6 +1,6 @@
 // Os modais de lançamento guardam valores em centavos (sem erro de arredondamento
 // na divisão e nos ajustes) e só convertem para reais na borda: exibição e envio.
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 export function toCents(reais: number): number {
   return Math.round(reais * 100);

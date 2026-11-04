@@ -2,7 +2,7 @@ import { Banknote, Calendar, TrendingDown } from 'lucide-react';
 import type { CalendarItem } from './types';
 import type { CalendarItemKind } from './calendarStatus';
 import { kindColors, statusColors } from './calendarStatus';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 const START_HOUR = 7;
 const END_HOUR = 20;

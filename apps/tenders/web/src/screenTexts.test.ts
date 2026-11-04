@@ -5,7 +5,7 @@ import test from 'node:test';
 
 // Telas do módulo sem a marca da fonte dos dados (plano
 // .plans/licitacoes-base-nacional.md, parte 7): nenhum texto visível cita o
-// PNCP. A fonte fica nos Termos e na Privacidade (src/screens/public). Nomes de
+// PNCP. A fonte fica nos Termos e na Privacidade (apps/site/src/screens/public). Nomes de
 // código (pncpLink, NotOnPncp, PNCP_DAY) e comentários não contam, e os
 // endereços (pncp.gov.br) ficam nos links ao documento original.
 

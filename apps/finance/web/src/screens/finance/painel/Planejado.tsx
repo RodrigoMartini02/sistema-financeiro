@@ -1,6 +1,6 @@
 import type { PainelData } from '../../../types/finance';
 import { CardPainel, Legenda, Secao, Vazio } from './base';
-import { useCoresGrafico } from './coresGrafico';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
 import { BarrasHorizontais, type LinhaHorizontal } from './graficos/BarrasHorizontais';
 
 type ItemPlanejado = NonNullable<PainelData['planejado']>[number];

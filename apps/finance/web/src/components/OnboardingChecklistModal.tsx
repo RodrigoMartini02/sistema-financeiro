@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Check, Compass, X } from 'lucide-react';
 import type { OnboardingChecklistItem, OnboardingTarget } from '../hooks/useOnboardingChecklist';
-import { Z_MODAL } from '../ui/zIndex';
+import { Z_MODAL } from '@ui/components/zIndex';
 
 interface OnboardingChecklistModalProps {
   open: boolean;

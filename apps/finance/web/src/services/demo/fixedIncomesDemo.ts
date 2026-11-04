@@ -1,7 +1,7 @@
 import type { AttachmentSummary } from '../../types/attachment';
 import type { ClassificacaoReceita } from '../../types/config';
 import type { IncomeCreateInput, IncomeOccurrenceDto, IncomeUpdateInput } from '../../types/finance';
-import { brDateToIso, isoToBrDate } from '../../utils/date';
+import { brDateToIso, isoToBrDate } from '@ui/utils/date';
 import { addMonthsClamped } from '../../utils/expenseSchedule';
 import { demoAttachmentsByIds } from './demoAttachments';
 import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawIncomeDemo } from './demoFakeDatabase';

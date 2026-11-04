@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
  * Tokens visuais da tela de Configurações.
  *
  * São referências a CSS custom properties declaradas em `.config-scope`
- * (src/styles/globals.css), e não valores literais, por dois motivos:
+ * (styles/globals.css), e não valores literais, por dois motivos:
  *
  * 1. Modo escuro funciona via CSS (`.dark .config-scope`), sem duplicar
  *    objetos de token nem depender do estado de tema em JS.

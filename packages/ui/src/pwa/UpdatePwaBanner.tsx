@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { usePwaUpdate } from '../pwa/usePwaUpdate';
+import { usePwaUpdate } from './usePwaUpdate';
 
 const AUTO_UPDATE_TIMEOUT_MS = 10 * 60 * 1000;
 

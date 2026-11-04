@@ -1,20 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { useConfirm } from '../../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import {
   DUPLICATE_DOCUMENT_MESSAGE, createClient, deleteClient, setClientActive, updateClient,
   type Client, type ClientFormValues,
 } from '../../services/clientsService';
 import { fetchAddressByCep } from '../../services/cepService';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, chipStyle, dangerButtonStyle, dialogFooterStyle, fieldInputStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle,
   successOutlineButtonStyle,
-} from '../../ui/dialogFormTokens';
-import { CFG_MONO_CLASS } from '../../ui/configTokens';
+} from '@ui/components/dialogFormTokens';
+import { CFG_MONO_CLASS } from '@ui/components/configTokens';
 import {
   BRAZIL_STATES, formatCep, formatCnpj, formatCpf, formatPhone, isValidCnpj, isValidCpf, onlyDigits,
-} from '../../utils/brazilDocuments';
+} from '@ui/utils/brazilDocuments';
 import { CLIENT_TYPES, CLIENT_TYPE_LABELS, GOVERNMENT_SPHERES, SPHERE_LABELS, type ClientType } from '../../utils/contractDisplay';
 import { errorBoxStyle, fieldErrorStyle, inputStyle, sectionTitleStyle } from './clientStyles';
 

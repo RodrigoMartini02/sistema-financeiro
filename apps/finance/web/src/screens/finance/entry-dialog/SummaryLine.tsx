@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
-import { isoToShortBrDate } from '../../../utils/date';
+import { C } from '@ui/components/dialogFormTokens';
+import { isoToShortBrDate } from '@ui/utils/date';
 import { linkButtonStyle } from './fieldStyles';
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';

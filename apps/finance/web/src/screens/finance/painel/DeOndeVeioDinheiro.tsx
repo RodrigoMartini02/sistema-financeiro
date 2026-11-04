@@ -1,10 +1,10 @@
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CabecalhoCard, CardPainel, Secao } from './base';
-import { corDaSituacao, useCoresGrafico } from './coresGrafico';
-import { Pizza } from './graficos/Pizza';
+import { corDaSituacao, useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Pizza } from '@ui/charts/Pizza';
 import { TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, paraFatias, situacaoComprometimento } from './painelFormat';
-import { formatarPercentual } from './percent';
+import { formatarPercentual } from '@ui/charts/percent';
 
 /**
  * De onde veio o dinheiro: receitas por classificação em destaque e, ao lado, o

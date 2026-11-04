@@ -1,5 +1,5 @@
 import type { Expense, Income } from '../../../types/finance';
-import { getLocalTodayIso } from '../../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 
 export type CalendarItemKind = 'despesa' | 'receita' | 'compromisso';
 export type CalendarItemStatus = 'pago' | 'atrasado' | 'em_dia' | 'previsto';

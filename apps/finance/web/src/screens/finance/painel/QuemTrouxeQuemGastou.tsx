@@ -1,10 +1,10 @@
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Secao } from './base';
-import { useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
-import { Pizza } from './graficos/Pizza';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
+import { Pizza } from '@ui/charts/Pizza';
 import { TAMANHO_PIZZA_MENOR, formatarComSinal } from './painelFormat';
 
 interface QuemTrouxeQuemGastouProps {

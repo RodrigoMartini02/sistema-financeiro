@@ -1,8 +1,8 @@
 import { ArrowRight, Ban, CircleCheck, Paperclip, Pencil, Trash2 } from 'lucide-react';
 import type { Expense } from '../../types/finance';
-import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
-import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
-import { formatCurrency, formatDate } from '../finance/formatters';
+import { KebabMenu, type KebabMenuAction } from '@ui/components/KebabMenu';
+import { NomeComDetalhe } from '@ui/components/NomeComDetalhe';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 import {
   formatDiferenca, getFirstName, getStatusColor, StatusBadge,
 } from './expenseStatus';

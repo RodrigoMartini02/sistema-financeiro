@@ -1,4 +1,4 @@
-import { useAppContext } from '../../../context/AppContext';
+import { useAppContext } from '../context/AppContext';
 
 /**
  * Cores dos gráficos do Painel, por tema. As 4 primeiras de `categorias` foram

@@ -5,8 +5,8 @@ import { useAuthSession } from '../../hooks/useAuthSession';
 import { fetchPlanStatus } from '../../services/planosService';
 import { queryKeys } from '../../services/queryKeys';
 import { setAuthOrigin } from '../../services/session';
-import { ErrorState, LoadingState } from '../../ui/states';
-import { LoginPage } from '../../screens/public/LoginPage';
+import { ErrorState, LoadingState } from '@ui/components/states';
+import { LoginPage } from '@site/screens/public/LoginPage';
 import { planGateReason } from '../../utils/planFeatures';
 import { PlanExpiredGate } from './PlanExpiredGate';
 

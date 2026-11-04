@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Check, Copy, Loader2, QrCode } from 'lucide-react';
-import { C } from '../../ui/dialogFormTokens';
+import { C } from '../components/dialogFormTokens';
 import { postPayment, type PixData, type PaymentRequestBody } from './paymentRequests';
 
 interface PixPanelProps {

@@ -3,11 +3,11 @@ import path from 'node:path';
 
 // Depois do vite build: uma cópia do index.html por página pública, com título,
 // descrição, endereço canônico, prévia do link e um conteúdo de reserva para
-// quem lê sem JavaScript. As páginas vêm de src/screens/public/publicPages.json,
+// quem lê sem JavaScript. As páginas vêm de apps/site/src/screens/public/publicPages.json,
 // o mesmo arquivo do SEO das telas (PublicSeo).
 
 const distDir = path.resolve('dist');
-const pagesFile = path.resolve('src/screens/public/publicPages.json');
+const pagesFile = path.resolve('apps/site/src/screens/public/publicPages.json');
 
 const { siteUrl, shareImagePath, pages } = JSON.parse(await readFile(pagesFile, 'utf8'));
 const imageUrl = `${siteUrl}${shareImagePath}`;

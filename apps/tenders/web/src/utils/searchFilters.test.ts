@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatCurrency } from '../../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import {
   DEFAULT_SEARCH_STATE,
   activeClosingShortcut,

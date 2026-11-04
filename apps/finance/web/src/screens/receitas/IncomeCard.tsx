@@ -1,8 +1,8 @@
 import { AlertCircle, Ban, CheckCircle, Clock, Paperclip, Pencil, Tag, Trash2 } from 'lucide-react';
 import type { Income } from '../../types/finance';
-import { KebabMenu, type KebabMenuAction } from '../../ui/KebabMenu';
-import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
-import { formatCurrency, formatDate } from '../finance/formatters';
+import { KebabMenu, type KebabMenuAction } from '@ui/components/KebabMenu';
+import { NomeComDetalhe } from '@ui/components/NomeComDetalhe';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 /**
  * Categoria da receita no mesmo formato da despesa: "Grupo › Sub", com o grupo

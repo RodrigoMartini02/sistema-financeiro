@@ -1,7 +1,7 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { FileImage, FileText, Paperclip, Trash2 } from 'lucide-react';
 import { ATTACHMENT_RULES, attachmentProblem, formatFileSize, type AttachmentOwnerType } from '../utils/attachmentRules';
-import { CFG } from './configTokens';
+import { CFG } from '@ui/components/configTokens';
 
 /** Token do tema das Configurações, com a cor clara de reserva fora de `.config-scope` (ex.: modais de lançamento). */
 function themed(token: string, fallback: string): string {

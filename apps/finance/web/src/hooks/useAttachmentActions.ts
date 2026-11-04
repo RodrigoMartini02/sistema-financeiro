@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { useConfirm } from '../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { deleteAttachment, openAttachment, uploadAttachment } from '../services/attachmentsService';
 import type { AttachmentOwnerType } from '../utils/attachmentRules';
 

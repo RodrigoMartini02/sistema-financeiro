@@ -4,18 +4,18 @@ import { apiRequest } from '../../services/apiClient';
 import { fetchPlanStatus } from '../../services/planosService';
 import { queryKeys } from '../../services/queryKeys';
 import { activePlanLabel, PLAN_TIER, planTierOf, type PlanTier } from '../../utils/planFeatures';
-import { Card } from '../../ui/card';
-import { Dialog } from '../../ui/dialog';
-import { C, cardStyle, dangerButtonStyle } from '../../ui/dialogFormTokens';
+import { Card } from '@ui/components/card';
+import { Dialog } from '@ui/components/dialog';
+import { C, cardStyle, dangerButtonStyle } from '@ui/components/dialogFormTokens';
 import {
   CheckCircle2, Crown, Loader2, CreditCard, AlertTriangle, RefreshCw, XCircle,
 } from 'lucide-react';
-import { ErrorState } from '../../ui/states';
+import { ErrorState } from '@ui/components/states';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { PaymentDialog } from '../../components/payments/PaymentDialog';
-import { loadPlatformMercadoPago, type PaymentEndpoints } from '../../components/payments/paymentRequests';
+import { PaymentDialog } from '@ui/payments/PaymentDialog';
+import { loadPlatformMercadoPago, type PaymentEndpoints } from '@ui/payments/paymentRequests';
 
 // ─── planos config ────────────────────────────────────────────
 

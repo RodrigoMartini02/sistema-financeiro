@@ -1,7 +1,7 @@
 import type { PainelData, PainelFatia, PainelGranularidade } from '../../../types/finance';
-import { MONTH_NAMES } from '../../../utils/calendarGrid';
-import type { FatiaPizza } from './graficos/Pizza';
-import { formatCurrency } from '../formatters';
+import { MONTH_NAMES } from '@ui/utils/calendarGrid';
+import type { FatiaPizza } from '@ui/charts/Pizza';
+import { formatCurrency } from '@ui/utils/formatters';
 import { firstName } from '../memberColors';
 
 const ROTULO_FORMA: Record<string, string> = {

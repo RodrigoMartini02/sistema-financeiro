@@ -1,5 +1,5 @@
 import { Banknote, Calendar, TrendingDown } from 'lucide-react';
-import { getLocalTodayIso } from '../../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 import type { CalendarItem } from './types';
 import type { CalendarItemKind } from './calendarStatus';
 import { kindColors, statusColors } from './calendarStatus';

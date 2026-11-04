@@ -11,9 +11,9 @@ import { fetchNotifications, markNotificationAsRead, type NotificationItem } fro
 import { invalidateIncomeQueries, queryKeys } from '../services/queryKeys';
 import { useOwnPermissions } from '../hooks/useOwnPermissions';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import { useTelaDesktop } from '../hooks/useTelaDesktop';
-import { useAppContext } from '../context/AppContext';
-import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '../ui/zIndex';
+import { useTelaDesktop } from '@ui/hooks/useTelaDesktop';
+import { useAppContext } from '@ui/context/AppContext';
+import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '@ui/components/zIndex';
 import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
 import { SeriesRenewalModal } from '../screens/finance/SeriesRenewalModal';
 import { AccountMenu } from './AccountMenu';

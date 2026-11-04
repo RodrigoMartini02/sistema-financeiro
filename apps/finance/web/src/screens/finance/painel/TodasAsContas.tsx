@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { ErrorState } from '../../../ui/states';
+import { ErrorState } from '@ui/components/states';
 import { queryKeys } from '../../../services/queryKeys';
 import { fetchAccountsOverview, type AccountsOverviewConta } from '../../../services/membrosService';
 import type { PainelPeriodo } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
-import { useCoresGrafico } from './coresGrafico';
+import { formatCurrency } from '@ui/utils/formatters';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
 import { CabecalhoCard, CardPainel, Legenda, Secao, Vazio } from './base';
 import { formatarComSinal } from './painelFormat';
 

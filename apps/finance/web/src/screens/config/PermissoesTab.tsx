@@ -9,10 +9,10 @@ import type { PermissionFlag } from '../../types/permissions';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
 import { TERMOS } from './ContasTab';
-import { C } from '../../ui/dialogFormTokens';
-import { CFG } from '../../ui/configTokens';
-import { ToggleRow } from '../../ui/form';
-import { EmptyState } from '../../ui/EmptyState';
+import { C } from '@ui/components/dialogFormTokens';
+import { CFG } from '@ui/components/configTokens';
+import { ToggleRow } from '@ui/components/form';
+import { EmptyState } from '@ui/components/EmptyState';
 
 /**
  * Libera telas do sistema para cada membro da conta.

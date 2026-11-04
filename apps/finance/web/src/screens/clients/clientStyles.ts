@@ -2,8 +2,8 @@
 // `.config-scope`) e dos modais (C). Um só desenho de botão: a pílula primária
 // das Configurações e a pílula de contorno para as ações secundárias.
 import type { CSSProperties } from 'react';
-import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
-import { C, fieldInputStyle } from '../../ui/dialogFormTokens';
+import { CFG, cfgBadgeStyle } from '@ui/components/configTokens';
+import { C, fieldInputStyle } from '@ui/components/dialogFormTokens';
 import { INVALID_BORDER } from '../finance/entry-dialog/fieldStyles';
 import type { BadgeTone } from '../../utils/contractDisplay';
 

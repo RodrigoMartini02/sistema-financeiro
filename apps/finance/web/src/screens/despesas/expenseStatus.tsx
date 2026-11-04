@@ -1,8 +1,8 @@
 import type { Expense } from '../../types/finance';
 import { isRenegotiated } from '../../utils/cardInvoice';
-import { getLocalTodayIso, isoToShortBrDate } from '../../utils/date';
+import { getLocalTodayIso, isoToShortBrDate } from '@ui/utils/date';
 import { countsFromDate, isCountedExpense } from '../../utils/expenseCounting';
-import { formatCurrency } from '../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 type ExpenseStatusKey = 'pago' | 'atrasada' | 'em_dia' | 'cancelada' | 'renegociada' | 'agendada' | 'prevista';
 

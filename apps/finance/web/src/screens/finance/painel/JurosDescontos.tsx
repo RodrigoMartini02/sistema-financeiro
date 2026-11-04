@@ -1,8 +1,8 @@
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CabecalhoCard, CardPainel, Legenda, Secao, Totais, Vazio } from './base';
-import { useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
 import { formatarComSinal, rotuloDoTrecho } from './painelFormat';
 
 const TOM_JUROS = 'text-rose-600 dark:text-rose-400';

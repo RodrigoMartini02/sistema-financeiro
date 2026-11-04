@@ -1,8 +1,8 @@
 import { useId, type ReactNode } from 'react';
 import { Heart } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
-import { getLocalTodayIso } from '../../utils/date';
+import { EmptyState } from '@ui/components/EmptyState';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { ContractCard } from '../components/ContractCard';
 import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
 import { NoticeCard } from '../components/NoticeCard';

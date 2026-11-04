@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { Select, ToggleRow, inputBase } from '../../ui/form';
+import { Select, ToggleRow, inputBase } from '@ui/components/form';
 import type { DomainLookups } from '../hooks/useDomainLists';
 import { TRACKING_FILTERS, type DomainLists } from '../types';
 import { TRACKING_FILTER_LABELS, formatCnpj } from '../utils/labels';

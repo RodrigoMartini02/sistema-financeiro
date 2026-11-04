@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { DateField } from '../../ui/DateField';
-import { inputBase } from '../../ui/form';
-import { brDateToIso, getLocalTodayIso, isoToBrDate } from '../../utils/date';
+import { DateField } from '@ui/components/DateField';
+import { inputBase } from '@ui/components/form';
+import { brDateToIso, getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
 
 interface FilterDateFieldProps {
   label: string;

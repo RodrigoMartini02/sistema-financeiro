@@ -1,6 +1,6 @@
 import type { ExpenseUpdateInput, FixedExpenseCreateInput, FixedExpenseOccurrenceDto, PaymentMethod } from '../../types/finance';
 import { addMonthsClamped, invoiceDueDate } from '../../utils/expenseSchedule';
-import { brDateToIso, isoToBrDate } from '../../utils/date';
+import { brDateToIso, isoToBrDate } from '@ui/utils/date';
 import { demoAttachmentsByIds } from './demoAttachments';
 import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawExpenseDemo } from './demoFakeDatabase';
 

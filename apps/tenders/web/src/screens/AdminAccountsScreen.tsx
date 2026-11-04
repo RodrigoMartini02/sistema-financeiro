@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Search } from 'lucide-react';
-import { useConfirm } from '../../context/ConfirmContext';
-import { EmptyState } from '../../ui/EmptyState';
-import { Input, ToggleRow } from '../../ui/form';
+import { useConfirm } from '@ui/context/ConfirmContext';
+import { EmptyState } from '@ui/components/EmptyState';
+import { Input, ToggleRow } from '@ui/components/form';
 import { LoadError, LoadingBlock } from '../components/LoadStates';
 import { useTenderAccess } from '../hooks/useTenderAccess';
 import { fetchAdminAccounts, setAccountCourtesy } from '../services/adminAccountsService';

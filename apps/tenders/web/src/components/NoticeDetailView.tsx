@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bookmark, Circle, CircleCheck, ExternalLink, FileSearch, Maximize2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 import { useNow } from '../hooks/useNow';
 import { fetchNotice } from '../services/noticesService';
 import { tendersQueryKeys } from '../services/queryKeys';

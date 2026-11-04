@@ -34,7 +34,7 @@ export default defineConfig({
     react(),
     VitePWA({
       strategies: 'injectManifest',
-      srcDir: 'src',
+      srcDir: 'apps/finance/web/src',
       filename: 'sw.ts',
       injectRegister: false,
       manifest: false,
@@ -80,8 +80,12 @@ export default defineConfig({
     },
   },
   resolve: {
+    // Um build só para os projetos do front. Cada projeto declara em tsconfig.json os apelidos que pode usar;
+    // o teste de fronteira (scripts/frontBoundaries.test.ts) confere quem importa de quem.
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@ui': resolve(__dirname, 'packages/ui/src'),
+      '@site': resolve(__dirname, 'apps/site/src'),
+      '@finance': resolve(__dirname, 'apps/finance/web/src'),
     },
   },
 });

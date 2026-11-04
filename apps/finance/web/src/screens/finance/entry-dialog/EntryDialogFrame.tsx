@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactNode } from 'react';
-import { Dialog } from '../../../ui/dialog';
-import { C, dialogFooterStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../../ui/dialogFormTokens';
-import { formatCurrency } from '../formatters';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, saveButtonDisabledStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
+import { formatCurrency } from '@ui/utils/formatters';
 import type { SavingProgress } from './batchState';
 import { SEPARATOR } from './fieldStyles';
 

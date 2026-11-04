@@ -1,6 +1,6 @@
 import { AuthenticatedAppGate } from '../../components/auth/AuthenticatedAppGate';
 import { FinancialAssistant } from '../../components/financial-assistant/FinancialAssistant';
-import { UpdatePwaBanner } from '../../components/UpdatePwaBanner';
+import { UpdatePwaBanner } from '@ui/pwa/UpdatePwaBanner';
 
 function AssistantWorkspace() {
   return (

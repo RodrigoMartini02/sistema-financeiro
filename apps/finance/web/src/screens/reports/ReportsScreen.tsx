@@ -11,10 +11,10 @@ import { downloadReportPdf, fetchReport } from '../../services/reportsService';
 import type {
   Report, ReportEntryType, ReportExpenseStatus, ReportPaymentDateWindow, ReportQuery,
 } from '../../types/reports';
-import { DateRangeField } from '../../ui/DateRangeField';
-import { MultiFilterPanel } from '../../ui/MultiFilterPanel';
-import { ErrorState } from '../../ui/states';
-import { formatCurrency } from '../finance/formatters';
+import { DateRangeField } from '@ui/components/DateRangeField';
+import { MultiFilterPanel } from '@ui/components/MultiFilterPanel';
+import { ErrorState } from '@ui/components/states';
+import { formatCurrency } from '@ui/utils/formatters';
 import type { EntryType, ExpenseStatus, PaymentDateWindow } from '../../utils/expenseFilters';
 import { ENTRADA_PAINEL, Indicador } from '../finance/painel/base';
 import { useEntryFilters } from '../finance/useEntryFilters';

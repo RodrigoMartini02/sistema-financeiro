@@ -1,4 +1,4 @@
-// Query keys do app de Licitações, centralizadas como as do app (src/services/queryKeys.ts).
+// Query keys do app de Licitações, centralizadas como as do app de Finanças (apps/finance/web/src/services/queryKeys.ts).
 // Itens e arquivos do PNCP ficam fora de `notices`: mudar o acompanhamento
 // invalida a busca, o edital e o histórico, mas não busca o PNCP de novo.
 //

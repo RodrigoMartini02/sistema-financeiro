@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Check, ChevronLeft, ChevronRight, History, KeyRound, LayoutDashboard, MoreVertical, Plus, UserRound,
 } from 'lucide-react';
-import { Z_DROPDOWN } from '../../ui/zIndex';
+import { Z_DROPDOWN } from '@ui/components/zIndex';
 import { useActiveAccount } from '../../hooks/useActiveAccount';
 import { formatDocumento } from '../../utils/document';
 import { ChangePasswordModal } from './ChangePasswordModal';

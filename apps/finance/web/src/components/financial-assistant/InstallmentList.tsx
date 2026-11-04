@@ -9,8 +9,8 @@ import {
   installmentGrid, isCreditWithCard, markOverdueAsPaid, overdueOpenCount, paidInstallmentCount, selectedCard,
   type RuleContext,
 } from '../../screens/finance/expense-dialog/draftRules';
-import { isoToBrDate, isoToShortBrDate } from '../../utils/date';
-import { DateField } from '../../ui/DateField';
+import { isoToBrDate, isoToShortBrDate } from '@ui/utils/date';
+import { DateField } from '@ui/components/DateField';
 
 export interface InstallmentListPatch {
   installmentPayments?: Record<number, InstallmentPaymentDraft>;

@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { PackageSearch } from 'lucide-react';
-import { Badge } from '../../../ui/badge';
-import { Card } from '../../../ui/card';
+import { Badge } from '@ui/components/badge';
+import { Card } from '@ui/components/card';
 import { useOwnPermissions } from '../../../hooks/useOwnPermissions';
 import { usePlanFeatures } from '../../../hooks/usePlanFeatures';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchContractPortfolio } from '../../../services/contractsService';
 import { queryKeys } from '../../../services/queryKeys';
 import type { PainelData, PainelPeriodo } from '../../../types/finance';
-import { MONTH_NAMES } from '../../../utils/calendarGrid';
+import { MONTH_NAMES } from '@ui/utils/calendarGrid';
 import { canManageCatalog } from '../../../utils/screenAccess';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CabecalhoCard, CardPainel } from './base';
 
 interface ExtrasContaEmpresaProps {

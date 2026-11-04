@@ -1,12 +1,12 @@
 import { AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, labelStyle, neutralOutlineButtonStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, labelStyle, neutralOutlineButtonStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
 import { getActiveAccountId } from '../../services/apiClient';
 import { fetchCardUsage } from '../../services/cardLimitsService';
 import { queryKeys } from '../../services/queryKeys';
 import { USAGE_TYPE_LABELS, usageMonthText, usageTypesText } from '../../utils/cardUsage';
-import { formatCurrency, formatDate } from './formatters';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 interface CardUsageDialogProps {
   /** Cartão aberto; sem ele o diálogo fica fechado. */

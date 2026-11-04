@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CalendarClock } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, neutralOutlineButtonStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, neutralOutlineButtonStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
 import { fetchOverdueExpenses, moveOverdueExpenses, type OverdueExpense } from '../../services/financeService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
-import { getLocalTodayIso } from '../../utils/date';
-import { formatCurrency, formatDate } from './formatters';
+import { getLocalTodayIso } from '@ui/utils/date';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 const SEEN_KEY = 'despesasVencidasAvisoEm';
 

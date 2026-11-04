@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 
 interface OptionRowProps {
   label: string;

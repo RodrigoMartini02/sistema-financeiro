@@ -4,7 +4,7 @@
 // Salvar na ponta esquerda, Descartar na direita.
 import type { CSSProperties } from 'react';
 import { LoaderCircle } from 'lucide-react';
-import { C, successOutlineButtonStyle } from '../../ui/dialogFormTokens';
+import { C, successOutlineButtonStyle } from '@ui/components/dialogFormTokens';
 
 /** Cabe o spinner com "Salvando…" sem o chip mudar de largura. */
 const ACTION_WIDTH = 120;

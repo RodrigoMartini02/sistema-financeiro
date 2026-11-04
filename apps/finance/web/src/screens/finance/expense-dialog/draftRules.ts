@@ -5,10 +5,10 @@ import type {
   Expense, ExpenseCreateInput, ExpenseInstallmentInput, ExpenseUpdateInput, PaymentMethod,
 } from '../../../types/finance';
 import type { ExpenseDuplicateQuery } from '../../../services/expenseSuggestionsService';
-import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '../../../utils/date';
+import { brDateInputToIso, isoToBrDate, isoToShortBrDate } from '@ui/utils/date';
 import { addMonthsClamped, invoiceDueDate, splitAmountInCents } from '../../../utils/expenseSchedule';
 import { embeddedInterestText } from '../../../utils/expenseValue';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { formatCents, toReais } from '../entry-dialog/cents';
 import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
 import type { StatusTone, SummaryBadge } from '../entry-dialog/SummaryLine';

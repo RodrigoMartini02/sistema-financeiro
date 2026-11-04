@@ -1,4 +1,4 @@
-import { apiRequest } from './apiClient';
+import { apiRequest } from '@finance/services/apiClient';
 
 /** Avaliação aprovada, como vem de GET /api/avaliacoes. */
 export interface PublicReview {

@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { formatCurrency } from '../../formatters';
-import { corDaPaleta, useCoresGrafico } from '../coresGrafico';
-import { useTransicao, Vazio } from '../graficoBase';
+import { formatCurrency } from '../utils/formatters';
+import { corDaPaleta, useCoresGrafico } from './coresGrafico';
+import { useTransicao, Vazio } from './graficoBase';
 import { ConteudoDetalhe, useDetalhe } from './Detalhe';
 
 export interface FatiaPizza {

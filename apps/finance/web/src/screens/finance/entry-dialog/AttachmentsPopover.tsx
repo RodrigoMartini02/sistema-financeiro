@@ -4,8 +4,8 @@ import { useOpenAttachment } from '../../../hooks/useOpenAttachment';
 import { uploadAttachment } from '../../../services/attachmentsService';
 import type { AttachmentSummary } from '../../../types/attachment';
 import { AttachmentsField } from '../../../ui/AttachmentsField';
-import { C } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
+import { C } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
 import { INVALID_BORDER } from './fieldStyles';
 
 interface AttachmentsPopoverProps {

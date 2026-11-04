@@ -1,7 +1,7 @@
 import type { PainelPeriodo } from '../../types/finance';
-import { DateRangeField } from '../../ui/DateRangeField';
-import { MONTH_NAMES } from '../../utils/calendarGrid';
-import { isoToBrDate } from '../../utils/date';
+import { DateRangeField } from '@ui/components/DateRangeField';
+import { MONTH_NAMES } from '@ui/utils/calendarGrid';
+import { isoToBrDate } from '@ui/utils/date';
 
 interface Props {
   value: PainelPeriodo;

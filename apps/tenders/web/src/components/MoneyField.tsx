@@ -1,5 +1,5 @@
-import { inputBase } from '../../ui/form';
-import { useMoneyInput } from '../../ui/dialogFormTokens';
+import { inputBase } from '@ui/components/form';
+import { useMoneyInput } from '@ui/components/dialogFormTokens';
 
 interface MoneyFieldProps {
   id?: string;

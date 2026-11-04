@@ -7,9 +7,9 @@ import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateExpenseQueries, invalidateFinanceQueries, invalidateIncomeQueries } from '../../services/queryKeys';
 import type { AttachmentSummary } from '../../types/attachment';
 import type { Expense, Income } from '../../types/finance';
-import { Card } from '../../ui/card';
-import { EmptyState } from '../../ui/EmptyState';
-import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
+import { Card } from '@ui/components/card';
+import { EmptyState } from '@ui/components/EmptyState';
+import { NomeComDetalhe } from '@ui/components/NomeComDetalhe';
 import { DASH, EntryTypeBadge, SECONDARY_CLASS, TD_CLASS, TH_CLASS, getPaymentMethodLabel } from './entryTable';
 import { ExpenseDialog } from './expense-dialog/ExpenseDialog';
 import { IncomeDialog } from './income-dialog/IncomeDialog';
@@ -18,13 +18,13 @@ import { PaymentModal } from './PaymentModal';
 import { BatchPaymentModal } from './BatchPaymentModal';
 import { ReceiptDateDialog } from './ReceiptDateDialog';
 import { InvoicePaymentModal } from './InvoicePaymentModal';
-import { formatCurrency, formatDate } from './formatters';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { useConfirm } from '../../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { expenseCashDate } from '../../utils/cashDate';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 import {
   expenseFiltersKey, filterExpenses, getExpenseStatus, isBatchSelectable,
   type EntryType, type ExpenseFilters, type ExpenseStatus, type PaymentDateWindow,

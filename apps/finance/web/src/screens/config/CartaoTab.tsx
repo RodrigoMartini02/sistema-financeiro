@@ -6,26 +6,26 @@ import { fetchMembros } from '../../services/membrosService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import type { Cartao, CartaoFormValues, CartaoTipo } from '../../types/config';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, labelStyle, fieldInputStyle, saveButtonStyle, saveButtonDisabledStyle,
   dangerButtonStyle, dialogFooterStyle,
-} from '../../ui/dialogFormTokens';
-import { CFG, CFG_MONO_CLASS } from '../../ui/configTokens';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { EmptyState } from '../../ui/EmptyState';
+} from '@ui/components/dialogFormTokens';
+import { CFG, CFG_MONO_CLASS } from '@ui/components/configTokens';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { EmptyState } from '@ui/components/EmptyState';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { useConfirm } from '../../context/ConfirmContext';
+import { GUIDE_LAYER_MODAL } from '@ui/context/FirstAccessGuideContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { MonthYearPicker } from '../finance/MonthYearPicker';
-import { useTelaDesktop } from '../../hooks/useTelaDesktop';
-import { ColorPicker } from '../../ui/ColorPicker';
-import { DARK_INK, normalizeHex, readableTextColor } from '../../utils/color';
-import { MONTH_NAMES } from '../../utils/calendarGrid';
-import { getLocalTodayIso } from '../../utils/date';
+import { useTelaDesktop } from '@ui/hooks/useTelaDesktop';
+import { ColorPicker } from '@ui/components/ColorPicker';
+import { DARK_INK, normalizeHex, readableTextColor } from '@ui/utils/color';
+import { MONTH_NAMES } from '@ui/utils/calendarGrid';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { effectiveMonthParam, nextOpenInvoiceMonth, type MonthOfYear } from '../../utils/cardSchedule';
 
 const TIPO_OPCOES: { value: CartaoTipo; label: string }[] = [

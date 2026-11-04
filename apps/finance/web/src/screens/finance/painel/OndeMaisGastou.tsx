@@ -1,9 +1,9 @@
 import type { PainelCategoria, PainelData } from '../../../types/finance';
 import { agruparCategoriasPorRaiz, type CategoriaConsolidada } from '../../../utils/painelCategorias';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { firstName } from '../memberColors';
 import { CabecalhoCard, CardPainel, Legenda, Secao } from './base';
-import { useCoresGrafico } from './coresGrafico';
+import { useCoresGrafico } from '@ui/charts/coresGrafico';
 import { BarrasHorizontais, type LinhaHorizontal } from './graficos/BarrasHorizontais';
 import { observacoesPorOutros } from './painelFormat';
 

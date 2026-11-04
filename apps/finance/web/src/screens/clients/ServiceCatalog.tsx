@@ -5,16 +5,16 @@ import {
   createCatalogService, fetchCatalogServices, renameCatalogService, setCatalogServiceActive, type CatalogService,
 } from '../../services/serviceCatalogService';
 import { queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, dangerButtonStyle, dialogFooterStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle, successOutlineButtonStyle,
-} from '../../ui/dialogFormTokens';
-import { ConfigListRow } from '../../ui/ConfigListRow';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { CFG, cfgBadgeStyle } from '../../ui/configTokens';
-import { EmptyState } from '../../ui/EmptyState';
-import { InfoBanner } from '../../ui/InfoBanner';
+} from '@ui/components/dialogFormTokens';
+import { ConfigListRow } from '@ui/components/ConfigListRow';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { CFG, cfgBadgeStyle } from '@ui/components/configTokens';
+import { EmptyState } from '@ui/components/EmptyState';
+import { InfoBanner } from '@ui/components/InfoBanner';
 import { errorBoxStyle, fieldErrorStyle, inputStyle } from './clientStyles';
 
 function ServiceDialog({ open, accountId, service, onClose, onSaved }: {

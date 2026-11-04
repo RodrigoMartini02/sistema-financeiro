@@ -1,6 +1,6 @@
 import type { AttachmentSummary } from '../../../types/attachment';
 import type { Income } from '../../../types/finance';
-import { isoToBrDate } from '../../../utils/date';
+import { isoToBrDate } from '@ui/utils/date';
 import {
   batchReducer, nextDraftKey, type BatchAction, type BatchState, type DraftPatch,
 } from '../entry-dialog/batchState';

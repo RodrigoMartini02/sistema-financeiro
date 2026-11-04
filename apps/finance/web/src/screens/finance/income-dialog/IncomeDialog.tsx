@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, Repeat, Users } from 'lucide-react';
 import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../../components/firstAccessGuideMessages';
-import { GUIDE_LAYER_MODAL } from '../../../context/FirstAccessGuideContext';
+import { GUIDE_LAYER_MODAL } from '@ui/context/FirstAccessGuideContext';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import { getActiveAccountId } from '../../../services/apiClient';
 import { fetchProdutos } from '../../../services/catalogoService';
@@ -22,9 +22,9 @@ import {
   createdCategoryId, getRecentCategoryIds, newCategoryFormValues, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
 import { canManageCatalog, canReadCatalogList } from '../../../utils/screenAccess';
-import { getLocalTodayIso, isoToBrDate } from '../../../utils/date';
-import { CONFIG_SCOPE_CLASS } from '../../../ui/configTokens';
-import { C } from '../../../ui/dialogFormTokens';
+import { getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
+import { CONFIG_SCOPE_CLASS } from '@ui/components/configTokens';
+import { C } from '@ui/components/dialogFormTokens';
 import { ClientFormDialog } from '../../clients/ClientFormDialog';
 import { collectBatchErrors, initialBatchState, saveInOrder } from '../entry-dialog/batchState';
 import { EntryDialogFrame, type FooterTone } from '../entry-dialog/EntryDialogFrame';

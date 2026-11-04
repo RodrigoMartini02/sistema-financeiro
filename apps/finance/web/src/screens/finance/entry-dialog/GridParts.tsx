@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Trash2 } from 'lucide-react';
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 import { ROW_GRID_CLASS } from './fieldStyles';
 
 export type RowVariant = 'entry' | 'batch' | 'edit';

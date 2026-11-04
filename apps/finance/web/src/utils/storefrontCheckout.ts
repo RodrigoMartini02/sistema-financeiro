@@ -2,7 +2,7 @@
 // entrega e cartão), o total com a taxa de entrega e a contagem regressiva do
 // Pix. A validação final é do servidor (backend/src/services/orderInput.ts);
 // aqui é para o cliente corrigir antes.
-import { BRAZIL_STATES, formatCep, formatCpf, formatPhone, isValidCpf, onlyDigits } from './brazilDocuments';
+import { BRAZIL_STATES, formatCep, formatCpf, formatPhone, isValidCpf, onlyDigits } from '@ui/utils/brazilDocuments';
 import { cartSavings, cartTotal, type CartLine } from './storefrontCart';
 
 // As telas da vitrine continuam importando daqui as máscaras, as UFs e o CPF, que são de brazilDocuments.

@@ -3,11 +3,11 @@
 // despesa, o previsto e o vencimento; pede o valor pago e a data do pagamento.
 // Quem grava é o assistente, pela mesma rota do desktop (pagarDespesa).
 import type { OpenExpense } from '../../types/finance';
-import { formatCurrency } from '../../screens/finance/formatters';
-import { isoToBrDate } from '../../utils/date';
-import { Card } from '../../ui/card';
-import { IsoDateField } from '../../ui/DateField';
-import { Badge } from '../../ui/badge';
+import { formatCurrency } from '@ui/utils/formatters';
+import { isoToBrDate } from '@ui/utils/date';
+import { Card } from '@ui/components/card';
+import { IsoDateField } from '@ui/components/DateField';
+import { Badge } from '@ui/components/badge';
 import { CardActions } from './CardActions';
 
 export interface PaymentDraft {

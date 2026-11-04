@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { useTransicao } from './graficoBase';
+import { useTransicao } from '@ui/charts/graficoBase';
 
 // Os gráficos usam useTransicao, Legenda e Vazio sem passar por aqui (graficoBase.tsx não importa o framer-motion);
 // os três continuam saindo deste módulo para as telas do Painel.
-export { Legenda, useTransicao, Vazio } from './graficoBase';
+export { Legenda, useTransicao, Vazio } from '@ui/charts/graficoBase';
 
 // ---------------------------------------------------------------------------
 // Animação

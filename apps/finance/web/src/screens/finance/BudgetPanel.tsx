@@ -6,16 +6,16 @@ import { deleteBudgetTarget, fetchBudgetOverview, saveBudgetTarget } from '../..
 import { fetchMembros } from '../../services/membrosService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
-import { Card } from '../../ui/card';
-import { Dialog } from '../../ui/dialog';
+import { Card } from '@ui/components/card';
+import { Dialog } from '@ui/components/dialog';
 import {
   C, labelStyle, fieldInputStyle, dialogFooterStyle,
   saveButtonStyle, saveButtonDisabledStyle,
-} from '../../ui/dialogFormTokens';
+} from '@ui/components/dialogFormTokens';
 import {
   CFG, CFG_MONO_CLASS, CONFIG_SCOPE_CLASS, cfgBadgeStyle, cfgRowIndexStyle,
-} from '../../ui/configTokens';
-import { budgetPercentage, formatCurrency } from './formatters';
+} from '@ui/components/configTokens';
+import { budgetPercentage, formatCurrency } from '@ui/utils/formatters';
 
 interface BudgetPanelProps {
   month: number;

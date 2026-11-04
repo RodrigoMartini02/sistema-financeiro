@@ -1,6 +1,6 @@
 // Nomes da empresa e das soluções e o contato, num lugar só. São provisórios
 // até a Parte 4 (marca e domínio, .plans/proposta-empresa-produtos-site.md):
-// a troca passa por aqui e pelos títulos de src/screens/public/publicPages.json.
+// a troca passa por aqui e pelos títulos de apps/site/src/screens/public/publicPages.json.
 
 export const COMPANY_NAME = 'FINGERENCE';
 

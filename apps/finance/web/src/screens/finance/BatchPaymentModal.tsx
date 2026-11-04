@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { CircleCheck, AlertCircle } from 'lucide-react';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dialogFooterStyle } from '../../ui/dialogFormTokens';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
+import { C, labelStyle, fieldInputStyle, cardStyle, chipStyle, dialogFooterStyle } from '@ui/components/dialogFormTokens';
 import { pagarDespesa } from '../../services/financeService';
 import type { Expense } from '../../types/finance';
-import { formatCurrency } from './formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { FirstAccessGuideCard } from '../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
-import { GUIDE_LAYER_MODAL } from '../../context/FirstAccessGuideContext';
-import { getLocalTodayIso } from '../../utils/date';
+import { GUIDE_LAYER_MODAL } from '@ui/context/FirstAccessGuideContext';
+import { getLocalTodayIso } from '@ui/utils/date';
 
 interface BatchPaymentModalProps {
   open: boolean;

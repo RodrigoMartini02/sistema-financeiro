@@ -1,4 +1,4 @@
-// Leitura dos textos legais (src/screens/public/legalContent.ts) em blocos:
+// Leitura dos textos legais (apps/site/src/screens/public/legalContent.ts) em blocos:
 // "**título**" vira título, "• item" vira item e o resto vira parágrafo.
 // Linhas vazias só separam blocos.
 

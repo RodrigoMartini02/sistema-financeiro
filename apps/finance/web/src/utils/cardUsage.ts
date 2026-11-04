@@ -1,6 +1,6 @@
 // Textos e contas do "Usado" do cartão e da quitação em lote das faturas vencidas (plano
 // .plans/financas-pendencias.md, E3). Só leitura do que o servidor devolveu: as regras são do servidor.
-import { formatCurrency } from '../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import type { CardUsageByType, CardUsageType } from '../services/cardLimitsService';
 import type { OverdueInvoice } from '../services/cardInvoicesService';
 

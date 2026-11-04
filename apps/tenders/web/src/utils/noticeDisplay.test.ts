@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatCurrency } from '../../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CLOSED_LABEL, NO_DEADLINE_LABEL, countdownFor } from './countdown';
 import { addDaysToIsoDate, formatIsoDate, formatIsoDateTime, isValidIsoDate } from './dates';
 import { highlightSegments } from './highlight';

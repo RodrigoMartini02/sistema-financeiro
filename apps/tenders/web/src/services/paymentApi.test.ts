@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { afterEach } from 'node:test';
-import { paymentRequest } from '../../components/payments/paymentApi';
+import { paymentRequest } from '@ui/payments/paymentApi';
 // Importar o módulo de registro é o que liga os pagamentos ao cliente de API de Licitações.
 import './paymentApi';
 

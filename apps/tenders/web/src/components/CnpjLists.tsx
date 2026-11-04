@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { useInfiniteList } from '../hooks/useInfiniteList';
 import { fetchCnpjWinners } from '../services/cnpjService';
 import { fetchContracts } from '../services/contractsService';

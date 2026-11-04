@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { CONFIG_SCOPE_CLASS } from '../../ui/configTokens';
-import { Z_MOBILE_NAV_OVERLAY } from '../../ui/zIndex';
+import { CONFIG_SCOPE_CLASS } from '@ui/components/configTokens';
+import { Z_MOBILE_NAV_OVERLAY } from '@ui/components/zIndex';
 import type { TenderAccess } from '../hooks/useTenderAccess';
 import { useUnreadNotificationsCount } from '../hooks/useUnreadNotificationsCount';
 import { readLoggedUserName } from '../utils/loggedUser';

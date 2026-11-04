@@ -4,14 +4,14 @@ import { ArrowLeft, FileSignature, Pencil, Plus, Receipt } from 'lucide-react';
 import { fetchClient, fetchClientIncomes, type Client } from '../../services/clientsService';
 import { fetchClientContracts, type ContractListItem } from '../../services/contractsService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
-import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '../../ui/configTokens';
-import { EmptyState } from '../../ui/EmptyState';
-import { formatCep, formatDocument, formatPhone } from '../../utils/brazilDocuments';
+import { CFG, CFG_MONO_CLASS, cfgPrimaryButtonStyle } from '@ui/components/configTokens';
+import { EmptyState } from '@ui/components/EmptyState';
+import { formatCep, formatDocument, formatPhone } from '@ui/utils/brazilDocuments';
 import {
   CLIENT_TYPE_LABELS, CONTRACT_STATUS_LABELS, SPHERE_LABELS, expiryLabel, incomeStatusView, termLabel,
 } from '../../utils/contractDisplay';
-import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
-import { formatCurrency } from '../finance/formatters';
+import { getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
 import { ClientFormDialog } from './ClientFormDialog';
 import { ContractDetail } from './ContractDetail';
 import { ContractWizard } from './ContractWizard';

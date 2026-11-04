@@ -1,6 +1,6 @@
 // Busca e categorias da vitrine pública. Sem React: testável isoladamente.
 
-import { normalizeSearchText } from './text';
+import { normalizeSearchText } from '@ui/utils/text';
 
 export interface StorefrontCategory {
   /** Chave sem acento e minúscula: "Acessórios" e "acessorios" são a mesma categoria. */

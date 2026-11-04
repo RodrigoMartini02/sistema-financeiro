@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Clock, Lock, RefreshCw, Sparkles } from 'lucide-react';
-import { Field, Select } from '../../ui/form';
+import { Field, Select } from '@ui/components/form';
 import { BillingPanel } from '../components/BillingPanel';
 import { activateTenders, fetchActivation } from '../services/billingService';
 import { tendersQueryKeys } from '../services/queryKeys';

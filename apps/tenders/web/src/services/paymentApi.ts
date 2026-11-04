@@ -1,4 +1,4 @@
-import { registerPaymentApi } from '../../components/payments/paymentApi';
+import { registerPaymentApi } from '@ui/payments/paymentApi';
 import { apiJson } from './tendersApi';
 
 // Os pagamentos do diálogo comum pedem ao servidor pelo cliente de API de Licitações

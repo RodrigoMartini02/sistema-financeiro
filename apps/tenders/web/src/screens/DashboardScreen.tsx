@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { TriangleAlert } from 'lucide-react';
-import { getLocalTodayIso } from '../../utils/date';
+import { getLocalTodayIso } from '@ui/utils/date';
 import { AgenciesCard, DeadlineLoadCard, FunnelCard, SphereCard, StatesCard } from '../components/DashboardBarCards';
 import { DashboardCards, type ContractsIndicator } from '../components/DashboardCards';
 import { ExpiringContractsCard } from '../components/DashboardContracts';

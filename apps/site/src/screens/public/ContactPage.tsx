@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { EnvelopeIcon, WhatsappLogoIcon } from '@phosphor-icons/react';
 import { SOLUTION_NAMES, SUPPORT_CONTACT } from '../../brand';
-import { formatPhone } from '../../utils/brazilDocuments';
+import { formatPhone } from '@ui/utils/brazilDocuments';
 import { PageIntro } from './components/PageIntro';
 import { ScrollReveal } from './components/ScrollReveal';
 import { ICON_TILE, PRIMARY_BUTTON, SITE_CONTAINER, SITE_SECTION } from './components/siteStyles';

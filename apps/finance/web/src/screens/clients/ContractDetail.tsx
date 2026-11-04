@@ -1,23 +1,23 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CalendarClock, FileSignature, Pencil, TrendingUp } from 'lucide-react';
-import { useConfirm } from '../../context/ConfirmContext';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import {
   applyReadjustment, closeContract, deleteContract, dismissReadjustment, fetchContract, invoiceContractIncome,
   type ContractDetail as Contract, type ContractIncome,
 } from '../../services/contractsService';
 import { invalidateIncomeQueries, queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
-import { InfoBanner } from '../../ui/InfoBanner';
-import { CFG } from '../../ui/configTokens';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, labelStyle, saveButtonDisabledStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
+import { InfoBanner } from '@ui/components/InfoBanner';
+import { CFG } from '@ui/components/configTokens';
 import {
   CHARGE_LABELS, CONTRACT_STATUS_LABELS, WITHHOLDING_LABELS, WITHHOLDING_TAXES, expiryLabel, formatHours, formatPercent,
   incomeStatusView, installmentsLabel, termLabel,
 } from '../../utils/contractDisplay';
 import { parseDecimal } from '../../utils/contractForm';
-import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
-import { formatCurrency } from '../finance/formatters';
+import { getLocalTodayIso, isoToBrDate } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
 import { ContractAttachments } from './ContractAttachments';
 import { ContractWizard, type ContractWizardMode } from './ContractWizard';
 import {

@@ -6,7 +6,7 @@
 // - Reduzir apaga a cauda de parcelas abertas; o mínimo é a parcela mais alta que está paga, na fatura ou em edição.
 // - A despesa única vira a parcela 1: em aberto, o valor se repete em cada parcela; paga, o valor é o total da compra e
 //   o pagamento se divide entre as parcelas (todas pagas na data original, sem mexer no caixa).
-import { formatCurrency } from '../screens/finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import type { Expense } from '../types/finance';
 import { isCreditWithCard } from './cardInvoice';
 import { addMonthsClamped, splitAmountInCents } from './expenseSchedule';

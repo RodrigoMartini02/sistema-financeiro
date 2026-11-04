@@ -1,4 +1,4 @@
-import { C, useMoneyInput } from '../../../ui/dialogFormTokens';
+import { C, useMoneyInput } from '@ui/components/dialogFormTokens';
 import { FOCUS_WITHIN_CLASS, fieldStyle } from './fieldStyles';
 
 interface MoneyCellProps {

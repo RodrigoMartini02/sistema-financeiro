@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavigationType, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import type { SiteSolution } from '../../../brand';
-import { setAuthOrigin, type AuthOrigin } from '../../../services/session';
-import { LOGIN_REQUEST_PARAM } from '../../../utils/authOrigin';
+import { setAuthOrigin, type AuthOrigin } from '@finance/services/session';
+import { LOGIN_REQUEST_PARAM } from '@finance/utils/authOrigin';
 import { publicPageFor } from '../../../utils/publicPages';
 import { LoginModal } from './LoginModal';
 import { PublicSiteContext, type PublicSiteActions } from './publicSiteContext';

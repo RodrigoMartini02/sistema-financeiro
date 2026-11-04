@@ -1,4 +1,4 @@
-import { formatCnpj, formatCpf, formatDocument } from './brazilDocuments';
+import { formatCnpj, formatCpf, formatDocument } from '@ui/utils/brazilDocuments';
 
 // Nomes usados pelas telas de conta e de login; as máscaras são as de brazilDocuments.
 export const formatCNPJ = formatCnpj;

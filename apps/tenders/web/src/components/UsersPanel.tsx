@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { UserPlus, Users } from 'lucide-react';
-import { Button } from '../../ui/button';
-import { EmptyState } from '../../ui/EmptyState';
-import { ToggleRow } from '../../ui/form';
+import { Button } from '@ui/components/button';
+import { EmptyState } from '@ui/components/EmptyState';
+import { ToggleRow } from '@ui/components/form';
 import { useTeamAccess } from '../hooks/useTeamAccess';
 import { fetchBilling } from '../services/billingService';
 import { tendersQueryKeys } from '../services/queryKeys';

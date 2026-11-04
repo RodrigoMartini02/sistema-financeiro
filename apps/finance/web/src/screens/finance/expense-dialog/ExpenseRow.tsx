@@ -4,14 +4,14 @@ import { isPaymentMethod } from '../../../types/finance';
 import type { CardLimit } from '../../../services/cardLimitsService';
 import type { ExpenseSuggestionMatch } from '../../../services/expenseSuggestionsService';
 import { CategoryFloatingSelect } from '../../../ui/CategoryFloatingSelect';
-import { C, formatMoney } from '../../../ui/dialogFormTokens';
+import { C, formatMoney } from '@ui/components/dialogFormTokens';
 import {
   suggestCategoryForDescription, type CategoryHistoryEntry, type NewCategoryRequest,
 } from '../../../utils/categorySuggestions';
-import { isoToBrDate } from '../../../utils/date';
+import { isoToBrDate } from '@ui/utils/date';
 import { AttachmentsPopover } from '../entry-dialog/AttachmentsPopover';
 import { toCents } from '../entry-dialog/cents';
-import { DateField } from '../../../ui/DateField';
+import { DateField } from '@ui/components/DateField';
 import { DescriptionField } from '../entry-dialog/DescriptionField';
 import { SEPARATOR, checkboxStyle, ellipsisStyle, fieldStyle, linkButtonStyle } from '../entry-dialog/fieldStyles';
 import {

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { corDaPaleta, useCoresGrafico } from '../../screens/finance/painel/coresGrafico';
-import { Legenda, Vazio } from '../../screens/finance/painel/graficoBase';
-import { Barras, type PontoBarras, type SerieBarras } from '../../screens/finance/painel/graficos/Barras';
-import { ToggleGroup } from '../../ui/form';
+import { corDaPaleta, useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Legenda, Vazio } from '@ui/charts/graficoBase';
+import { Barras, type PontoBarras, type SerieBarras } from '@ui/charts/Barras';
+import { ToggleGroup } from '@ui/components/form';
 import type { DashboardView } from '../types';
 import { buildPublicationChart, type PublicationPeriod } from '../utils/dashboard';
 import { DashboardCard } from './DashboardCard';

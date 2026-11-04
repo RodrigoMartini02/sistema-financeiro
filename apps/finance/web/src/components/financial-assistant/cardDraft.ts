@@ -5,7 +5,7 @@
 // Sem React, para o teste rodar direto.
 import type { ExpenseCreateInput } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
-import { isoToBrDate } from '../../utils/date';
+import { isoToBrDate } from '@ui/utils/date';
 import { toCents, toReais } from '../../screens/finance/entry-dialog/cents';
 import { MIN_INSTALLMENTS, type ExpenseDraft } from '../../screens/finance/expense-dialog/draftState';
 import {

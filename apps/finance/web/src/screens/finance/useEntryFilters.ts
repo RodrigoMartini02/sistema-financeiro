@@ -7,7 +7,7 @@ import { queryKeys } from '../../services/queryKeys';
 import { getActiveAccountId } from '../../services/apiClient';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
 import { canReadCatalogList } from '../../utils/screenAccess';
-import type { FilterGroup } from '../../ui/MultiFilterPanel';
+import type { FilterGroup } from '@ui/components/MultiFilterPanel';
 import { categoryFilterOptions } from '../../utils/categorySuggestions';
 import { TERMOS } from '../config/ContasTab';
 import { getPaymentMethodLabel } from './entryTable';

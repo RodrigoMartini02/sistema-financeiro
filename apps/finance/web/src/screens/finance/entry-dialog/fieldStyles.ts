@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
+import { C } from '@ui/components/dialogFormTokens';
 
 export const INVALID_BORDER = '#fca5a5';
 export const SEPARATOR = '#eef2f6';

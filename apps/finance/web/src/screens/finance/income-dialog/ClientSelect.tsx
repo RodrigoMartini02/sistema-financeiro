@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
-import { C } from '../../../ui/dialogFormTokens';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
+import { C } from '@ui/components/dialogFormTokens';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
 import { normalizeCategoryText } from '../../../utils/categorySuggestions';
 import { SEPARATOR, chevronStyle, ellipsisStyle, selectStyle } from '../entry-dialog/fieldStyles';
 import type { ClientOption } from './draftRules';

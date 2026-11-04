@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { Produto } from '../../../services/catalogoService';
 import type { ContractWithHours } from '../../../services/contractsService';
 import type { Representante } from '../../../services/representantesService';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import type { Income } from '../../../types/finance';
 import { createIncomeDraft, incomeDialogReducer, incomeDraftFromIncome, type IncomeDraft, type IncomeDraftErrors } from './draftState';
 import { initialBatchState } from '../entry-dialog/batchState';

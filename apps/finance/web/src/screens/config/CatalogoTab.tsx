@@ -8,17 +8,17 @@ import {
 import { fetchStorefrontConfig, storefrontPublicUrl } from '../../services/storefrontService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
-import { Dialog } from '../../ui/dialog';
-import { C, labelStyle, fieldInputStyle, dialogFooterStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, chipStyle } from '../../ui/dialogFormTokens';
-import { ConfigListRow } from '../../ui/ConfigListRow';
-import { ConfigTabHeader } from '../../ui/ConfigTabHeader';
-import { ConfigSwitch } from '../../ui/ConfigSwitch';
-import { ToggleRow } from '../../ui/form';
-import { CFG, cfgBadgeStyle, cfgDividerStyle } from '../../ui/configTokens';
-import { InfoBanner } from '../../ui/InfoBanner';
-import { EmptyState } from '../../ui/EmptyState';
-import { formatCurrency } from '../finance/formatters';
-import { useConfirm } from '../../context/ConfirmContext';
+import { Dialog } from '@ui/components/dialog';
+import { C, labelStyle, fieldInputStyle, dialogFooterStyle, MoneyField, saveButtonStyle, saveButtonDisabledStyle, dangerButtonStyle, chipStyle } from '@ui/components/dialogFormTokens';
+import { ConfigListRow } from '@ui/components/ConfigListRow';
+import { ConfigTabHeader } from '@ui/components/ConfigTabHeader';
+import { ConfigSwitch } from '@ui/components/ConfigSwitch';
+import { ToggleRow } from '@ui/components/form';
+import { CFG, cfgBadgeStyle, cfgDividerStyle } from '@ui/components/configTokens';
+import { InfoBanner } from '@ui/components/InfoBanner';
+import { EmptyState } from '@ui/components/EmptyState';
+import { formatCurrency } from '@ui/utils/formatters';
+import { useConfirm } from '@ui/context/ConfirmContext';
 import { ProdutoImagensManager } from '../../components/ProdutoImagensManager';
 import { StorefrontDialog } from './StorefrontDialog';
 import {

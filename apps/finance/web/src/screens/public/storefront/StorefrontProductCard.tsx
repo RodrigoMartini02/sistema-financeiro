@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Plus, ShoppingBag } from 'lucide-react';
 import type { PublicProduct } from '../../../services/storefrontService';
-import { formatCurrency } from '../../finance/formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 
 const ADDED_FEEDBACK_MS = 1200;
 

@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { formatCurrency } from '../../formatters';
-import { formatarPercentual } from '../percent';
+import { formatCurrency } from '../utils/formatters';
+import { formatarPercentual } from './percent';
 
 interface Ponteiro {
   clientX: number;

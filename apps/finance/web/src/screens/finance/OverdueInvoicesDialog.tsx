@@ -1,17 +1,17 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AlertCircle, CircleCheck } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { IsoDateField } from '../../ui/DateField';
-import { Dialog } from '../../ui/dialog';
-import { C, dialogFooterStyle, fieldInputStyle, neutralOutlineButtonStyle, saveButtonStyle } from '../../ui/dialogFormTokens';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
+import { C, dialogFooterStyle, fieldInputStyle, neutralOutlineButtonStyle, saveButtonStyle } from '@ui/components/dialogFormTokens';
 import { getActiveAccountId } from '../../services/apiClient';
 import {
   fetchOverdueInvoices, payInvoicesInFull, type InvoiceBatchResult, type OverdueInvoice,
 } from '../../services/cardInvoicesService';
 import { invalidateExpenseQueries, queryKeys } from '../../services/queryKeys';
 import { isValidPaymentDate, overdueInvoiceKey, overdueSelectionTotals, usageMonthText } from '../../utils/cardUsage';
-import { getLocalTodayIso } from '../../utils/date';
-import { formatCurrency, formatDate } from './formatters';
+import { getLocalTodayIso } from '@ui/utils/date';
+import { formatCurrency, formatDate } from '@ui/utils/formatters';
 
 interface OverdueInvoicesDialogProps {
   open: boolean;

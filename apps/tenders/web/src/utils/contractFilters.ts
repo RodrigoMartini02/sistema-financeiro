@@ -1,5 +1,5 @@
 import { CONTRACT_SORTS, type ContractSort, type SearchTermsMode } from '../types';
-import { onlyDigits } from '../../utils/brazilDocuments';
+import { onlyDigits } from '@ui/utils/brazilDocuments';
 import { isCnpjFormat } from './cnpj';
 import { addDaysToIsoDate } from './dates';
 import { TERMS_MODE_LABELS, dateRangeLabel, formatCnpj, valueRangeLabel } from './labels';

@@ -1,7 +1,7 @@
 import { useId, useMemo, useState, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import { inputBase } from '../../ui/form';
-import { normalizeSearchText } from '../../utils/text';
+import { inputBase } from '@ui/components/form';
+import { normalizeSearchText } from '@ui/utils/text';
 import type { Municipality } from '../types';
 
 const MAX_OPTIONS = 50;

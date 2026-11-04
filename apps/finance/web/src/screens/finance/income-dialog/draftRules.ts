@@ -9,8 +9,8 @@ import {
   type IncomeCreateInput, type IncomeUpdateInput,
 } from '../../../types/finance';
 import { WITHHOLDING_TAXES } from '../../../utils/contractDisplay';
-import { brDateInputToIso, isoToShortBrDate } from '../../../utils/date';
-import { formatCurrency } from '../formatters';
+import { brDateInputToIso, isoToShortBrDate } from '@ui/utils/date';
+import { formatCurrency } from '@ui/utils/formatters';
 import { formatCents, toCents, toReais } from '../entry-dialog/cents';
 import { joinWithAnd, toSentence } from '../entry-dialog/sentence';
 import type { SummaryBadge, SummaryContent } from '../entry-dialog/SummaryLine';

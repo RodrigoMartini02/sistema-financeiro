@@ -3,13 +3,13 @@ import { FirstAccessGuideCard } from '../../../components/FirstAccessGuideCard';
 import { firstAccessGuideMessages } from '../../../components/firstAccessGuideMessages';
 import { useFirstAccessGuide } from '../../../hooks/useFirstAccessGuide';
 import type { PainelData } from '../../../types/finance';
-import { formatCurrency } from '../formatters';
+import { formatCurrency } from '@ui/utils/formatters';
 import { CardPainel, Indicador, NumeroAnimado, Rotulo } from './base';
-import { corDaSituacao, useCoresGrafico } from './coresGrafico';
-import { Barras } from './graficos/Barras';
+import { corDaSituacao, useCoresGrafico } from '@ui/charts/coresGrafico';
+import { Barras } from '@ui/charts/Barras';
 import { Medidor } from './graficos/Medidor';
 import { formatarComSinal, rotuloDoTrecho, situacaoComprometimento, trechoFuturo } from './painelFormat';
-import { formatarPercentual } from './percent';
+import { formatarPercentual } from '@ui/charts/percent';
 
 function variacao(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;

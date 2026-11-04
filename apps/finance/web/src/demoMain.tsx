@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppProvider, useAppContext } from './context/AppContext';
-import { ConfirmProvider } from './context/ConfirmContext';
-import { FirstAccessGuideProvider } from './context/FirstAccessGuideContext';
+import { AppProvider, useAppContext } from '@ui/context/AppContext';
+import { ConfirmProvider } from '@ui/context/ConfirmContext';
+import { FirstAccessGuideProvider } from '@ui/context/FirstAccessGuideContext';
 import { AppShell, type AppSection } from './layout/AppShell';
 import { FinanceDashboard } from './screens/finance/FinanceDashboard';
 import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
@@ -11,7 +11,7 @@ import { ReportsScreen } from './screens/reports/ReportsScreen';
 import { IncomeDialog } from './screens/finance/income-dialog/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
 import './services/paymentApi';
-import './styles/globals.css';
+import '@ui/styles/globals.css';
 
 const demoQueryClient = new QueryClient({
   defaultOptions: {

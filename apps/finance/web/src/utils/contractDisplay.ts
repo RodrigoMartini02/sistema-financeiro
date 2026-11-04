@@ -2,8 +2,8 @@
 // situação, "vence em N dias", receita atrasada e os indicadores do topo. As
 // regras de alerta são as do servidor (backend/src/services/contractAlerts.ts),
 // repetidas aqui para a tela que já tem os dados.
-import { formatCurrency } from '../screens/finance/formatters';
-import { isoToBrDate } from './date';
+import { formatCurrency } from '@ui/utils/formatters';
+import { isoToBrDate } from '@ui/utils/date';
 
 export type ClientType = 'pessoa_fisica' | 'empresa' | 'orgao_publico';
 export type GovernmentSphere = 'municipal' | 'estadual' | 'federal';

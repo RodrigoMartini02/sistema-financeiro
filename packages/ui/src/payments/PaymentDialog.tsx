@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { Dialog } from '../../ui/dialog';
-import { C, cardStyle, chipStyle } from '../../ui/dialogFormTokens';
+import { Dialog } from '../components/dialog';
+import { C, cardStyle, chipStyle } from '../components/dialogFormTokens';
 import { CardPaymentForm } from './CardPaymentForm';
 import { CheckoutRedirectPanel } from './CheckoutRedirectPanel';
 import { PixPanel } from './PixPanel';

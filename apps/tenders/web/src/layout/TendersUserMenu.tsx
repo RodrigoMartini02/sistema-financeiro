@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
-import { Z_DROPDOWN } from '../../ui/zIndex';
+import { Z_DROPDOWN } from '@ui/components/zIndex';
 import { logout } from '../services/session';
 import { TENDERS_LOGIN_ADDRESS } from '../utils/loginAddress';
 

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { canonicalUrlFor, publicPageFor, SHARE_IMAGE_URL } from '../../../utils/publicPages';
 
 // Título, descrição e prévia do link de cada página, do mesmo arquivo que o
-// gerador do build usa (src/screens/public/publicPages.json).
+// gerador do build usa (apps/site/src/screens/public/publicPages.json).
 
 function upsertMeta(selector: string, createAttributes: Record<string, string>, content: string) {
   let element = document.head.querySelector<HTMLMetaElement>(selector);

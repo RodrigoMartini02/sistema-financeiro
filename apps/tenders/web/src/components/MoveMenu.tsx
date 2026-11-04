@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, ChevronDown } from 'lucide-react';
-import { Z_DROPDOWN } from '../../ui/zIndex';
+import { Z_DROPDOWN } from '@ui/components/zIndex';
 import { TRACKING_STATUSES, type TrackingStatus } from '../types';
 import { TRACKING_STATUS_LABELS } from '../utils/labels';
 

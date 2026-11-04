@@ -1,9 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
-import { C, chipStyle } from '../../../ui/dialogFormTokens';
+import { C, chipStyle } from '@ui/components/dialogFormTokens';
 import { formatHours } from '../../../utils/contractDisplay';
-import { FloatingPanel } from '../../../ui/FloatingPanel';
-import { formatCurrency } from '../formatters';
+import { FloatingPanel } from '@ui/components/FloatingPanel';
+import { formatCurrency } from '@ui/utils/formatters';
 import { formatCents } from '../entry-dialog/cents';
 import { INVALID_BORDER, SEPARATOR, fieldStyle } from '../entry-dialog/fieldStyles';
 import {

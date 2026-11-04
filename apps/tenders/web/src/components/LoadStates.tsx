@@ -1,7 +1,7 @@
 import { AlertCircle, DatabaseZap, Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '../../ui/button';
+import { Button } from '@ui/components/button';
 
-// Carregando e erro dentro das telas do módulo. O LoadingState de src/ui/states
+// Carregando e erro dentro das telas do módulo. O LoadingState de packages/ui (components/states)
 // ocupa a tela inteira e o ErrorState não tem o tema escuro nem "tentar de novo".
 
 export function LoadingBlock({ label = 'Carregando…' }: { label?: string }) {

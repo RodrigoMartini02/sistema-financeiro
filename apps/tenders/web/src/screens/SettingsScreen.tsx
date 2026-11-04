@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { Lock } from 'lucide-react';
-import { EmptyState } from '../../ui/EmptyState';
+import { EmptyState } from '@ui/components/EmptyState';
 import { BillingPanel } from '../components/BillingPanel';
 import { CollectionPanel } from '../components/CollectionPanel';
 import { TabPanel, Tabs, type TabItem } from '../components/Tabs';
