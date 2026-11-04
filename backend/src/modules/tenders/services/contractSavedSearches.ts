@@ -1,5 +1,5 @@
 import { and, asc, count, eq, sql } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import { brasiliaDate } from '../collector/dates';
 import type { TendersDb } from '../collector/database';
 import { phraseContractCriteria } from '../contractStore/criteria';

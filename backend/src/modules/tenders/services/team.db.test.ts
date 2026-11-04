@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 import { eq } from 'drizzle-orm';
-import { accounts } from '../../../db/schema/accounts';
-import { memberPermissions } from '../../../db/schema/memberPermissions';
-import { RequestInputError } from '../../../utils/requestInput';
+import { accountMembers, accounts, users } from '../db/identity';
+import { RequestInputError } from '../utils/requestInput';
 import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, withRollback } from '../collector/dbTestSupport';
 import { resolveTenderAccess } from './access';
 import { addAccountMember } from './apiTestSupport';
@@ -25,9 +24,6 @@ function newMemberInput(label: string) {
     document: null,
     telefone: null,
     dataNascimento: null,
-    sectorId: null,
-    jobTitleId: null,
-    admissionDate: null,
   };
 }
 
@@ -67,7 +63,7 @@ describe('usuários e cortesia (banco local)', { skip: databaseTestsSkipReason }
     });
   });
 
-  test('usuário cadastrado pelo módulo já entra com acesso e sem nenhuma tela do FINGERENCE', async () => {
+  test('usuário cadastrado pelo módulo já entra com acesso ao módulo, como membro ativo da conta', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'equipe-cadastro');
       const input = newMemberInput('equipe-cadastro-usuario');
@@ -78,9 +74,9 @@ describe('usuários e cortesia (banco local)', { skip: databaseTestsSkipReason }
       assert.equal(await countModuleUsers(tx, account.accountId), 2);
       assert.equal((await resolveTenderAccess(tx, { id: created.userId, type: 'membro' }, null)).allowed, true);
 
-      const [permissions] = await tx.select().from(memberPermissions).where(eq(memberPermissions.userId, created.userId));
-      assert.equal(permissions?.accessExpenses, false);
-      assert.equal(permissions?.accessDashboard, false);
+      const [member] = await tx.select({ status: accountMembers.status, type: users.type }).from(accountMembers)
+        .innerJoin(users, eq(users.id, accountMembers.userId)).where(eq(accountMembers.userId, created.userId));
+      assert.deepEqual(member, { status: 'ativo', type: 'membro' });
 
       await assert.rejects(createTeamMember(tx, account.accountId, account.ownerId, input), isBadRequest, 'e-mail já cadastrado');
     });

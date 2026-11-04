@@ -1,4 +1,4 @@
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { ContractSort, NoticeSort, SearchTermsMode, TrackingFilter } from '../domains';
 import type { ContractSavedSearchInput } from '../services/contractSavedSearches';
 import type { ContractCriteria, ContractSearchFilters } from '../services/contractSearch';

@@ -1,9 +1,8 @@
 import { Router, type Request, type RequestHandler } from 'express';
 import { body, query } from 'express-validator';
 import { and, eq, sql } from 'drizzle-orm';
-import { accounts } from '../../../db/schema/accounts';
-import { users } from '../../../db/schema/users';
-import { validate } from '../../../middleware/validation';
+import { accounts, users } from '../db/identity';
+import { validate } from '../middleware/validation';
 import {
   cancelRecurring,
   chargeCard,
@@ -12,8 +11,8 @@ import {
   createRecurring,
   getPayment,
   getRecurring,
-} from '../../../services/mercadoPagoCharges';
-import { RequestInputError } from '../../../utils/requestInput';
+} from '../services/mercadoPagoCharges';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import type { TenderAccount, TenderRequester } from '../services/access';
 import { activateModule, isAccountMember, listActivatableAccounts } from '../services/activation';
@@ -135,6 +134,12 @@ export function activationRoutes(deps: TendersApiDeps): Router {
 /** /api/tenders/billing: situação da assinatura e os pagamentos do titular. */
 export function billingRoutes(deps: TendersApiDeps): Router {
   const router = Router();
+
+  // GET /api/tenders/billing/config: chave pública do Mercado Pago da plataforma, para o formulário de cartão.
+  // Só com login (o servidor monta o roteador depois do authenticate); sem chave, o cartão fica indisponível.
+  router.get('/config', (_req, res) => {
+    res.json({ success: true, public_key: process.env['MP_PUBLIC_KEY'] ?? null });
+  });
 
   router.get(
     '/',

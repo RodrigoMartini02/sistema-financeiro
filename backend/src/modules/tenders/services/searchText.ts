@@ -1,4 +1,4 @@
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 
 // Texto da busca da tela (`q`) convertido nos termos da busca salva, para as
 // duas usarem a mesma regra (escopo, seção 7.3):

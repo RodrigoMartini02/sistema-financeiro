@@ -1,7 +1,7 @@
 import { and, count, eq } from 'drizzle-orm';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
-import { accountMembers } from '../../../db/schema/accountMembers';
+import { accountMembers } from '../db/identity';
 import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
 import type { TenderAccessType } from '../domains';

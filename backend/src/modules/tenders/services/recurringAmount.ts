@@ -1,4 +1,4 @@
-import { updateRecurringAmount } from '../../../services/mercadoPagoCharges';
+import { updateRecurringAmount } from './mercadoPagoCharges';
 import type { TendersDb } from '../collector/database';
 import { centsToAmount, monthlyAmountCents } from './billing';
 import { countModuleUsers, readModuleRow, setBilledUsers } from './subscription';

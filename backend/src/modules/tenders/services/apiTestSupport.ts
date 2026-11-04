@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { accountMembers } from '../../../db/schema/accountMembers';
-import { accounts } from '../../../db/schema/accounts';
+import { accountMembers, accounts } from '../db/identity';
 import type { TendersDb } from '../collector/database';
 import { createTestUser } from '../collector/dbTestSupport';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { validate } from '../../../middleware/validation';
+import { validate } from '../middleware/validation';
 import { tenderAccessOf } from '../middleware/tenderAccess';
 import {
   countUnreadNotifications,

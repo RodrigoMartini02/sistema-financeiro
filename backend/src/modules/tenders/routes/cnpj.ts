@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { validate } from '../../../middleware/validation';
+import { validate } from '../middleware/validation';
 import { userRateLimiter } from '../middleware/userRateLimiter';
 import { getCnpjSummary, listCnpjWinners } from '../services/cnpjPage';
 import type { TendersApiDeps } from './deps';

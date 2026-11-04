@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { eq, sql } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import { closeLocalTestDatabase, databaseTestsSkipReason, insertTestNotice, withRollback } from '../collector/dbTestSupport';
 import { PncpRequestError, type PncpDetailList } from '../collector/pncpClient';
 import { tenderDetailCache } from '../db/schema';
