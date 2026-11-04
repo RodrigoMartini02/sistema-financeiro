@@ -1,10 +1,5 @@
 import type { AttachmentSummary } from './attachment';
 
-export const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-
 export interface MonthBalance {
   saldoAnterior: number;
   receitas: number;

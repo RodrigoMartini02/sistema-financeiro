@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, LogOut } from 'lucide-react';
-import { logout } from '../../services/session';
 import { Z_DROPDOWN } from '../../ui/zIndex';
-import { TENDERS_LOGIN_ADDRESS } from '../../utils/authOrigin';
+import { logout } from '../services/session';
+import { TENDERS_LOGIN_ADDRESS } from '../utils/loginAddress';
 
 // Menu do usuário: nome, conta e sair. Licitações não leva ao FINGERENCE: são
 // soluções separadas (plano .plans/site-novo.md).

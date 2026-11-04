@@ -24,7 +24,7 @@ import { MonthYearPicker } from '../finance/MonthYearPicker';
 import { useTelaDesktop } from '../../hooks/useTelaDesktop';
 import { ColorPicker } from '../../ui/ColorPicker';
 import { DARK_INK, normalizeHex, readableTextColor } from '../../utils/color';
-import { MONTH_NAMES } from '../../types/finance';
+import { MONTH_NAMES } from '../../utils/calendarGrid';
 import { getLocalTodayIso } from '../../utils/date';
 import { effectiveMonthParam, nextOpenInvoiceMonth, type MonthOfYear } from '../../utils/cardSchedule';
 

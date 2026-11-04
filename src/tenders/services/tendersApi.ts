@@ -1,5 +1,5 @@
-import { getApiUrl } from '../../services/apiClient';
-import { getToken, logout } from '../../services/session';
+import { getApiUrl } from './apiUrl';
+import { getToken, logout } from './session';
 import { NETWORK_ERROR_MESSAGE, TendersApiError, tendersErrorFrom } from './tendersApiError';
 
 // Cliente da API usado pelo app de Licitações. Igual ao do app de finanças

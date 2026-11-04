@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { categoryKey, matchesStorefrontFilter, normalizeSearchText, storefrontCategories } from './storefrontCatalog';
+import { categoryKey, matchesStorefrontFilter, storefrontCategories } from './storefrontCatalog';
 
 const produtos = [
   { nome: 'Camiseta Básica', descricao: 'Algodão orgânico', categoria: 'Roupas' },
@@ -9,8 +9,7 @@ const produtos = [
   { nome: 'Adesivo', descricao: null, categoria: null },
 ];
 
-test('texto de busca sem acento e minúsculo', () => {
-  assert.equal(normalizeSearchText('  Pão de Açúcar '), 'pao de acucar');
+test('chave da categoria sem acento e minúscula; vazia vira nula', () => {
   assert.equal(categoryKey('  '), null);
   assert.equal(categoryKey('Acessórios'), 'acessorios');
 });

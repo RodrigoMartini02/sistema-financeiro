@@ -6,6 +6,7 @@ import { AppProvider } from '../context/AppContext';
 import { ConfirmProvider } from '../context/ConfirmContext';
 import { TendersApp } from './TendersApp';
 import { TENDERS_APP_BASE } from './utils/modulePaths';
+import './services/paymentApi';
 import '../styles/globals.css';
 
 // Entrada do app de Licitações (tenders.html), servida só em /licitacoes/app/*.

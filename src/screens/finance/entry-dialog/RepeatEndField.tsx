@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MONTH_NAMES } from '../../../types/finance';
 import { C } from '../../../ui/dialogFormTokens';
+import { MONTH_NAMES } from '../../../utils/calendarGrid';
 import { fieldStyle } from './fieldStyles';
 
 interface RepeatEndFieldProps {

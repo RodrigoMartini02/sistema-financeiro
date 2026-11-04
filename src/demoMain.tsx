@@ -10,6 +10,7 @@ import { MovimentacoesScreen } from './screens/finance/MovimentacoesScreen';
 import { ReportsScreen } from './screens/reports/ReportsScreen';
 import { IncomeDialog } from './screens/finance/income-dialog/IncomeDialog';
 import { ExpenseDialog } from './screens/finance/expense-dialog/ExpenseDialog';
+import './services/paymentApi';
 import './styles/globals.css';
 
 const demoQueryClient = new QueryClient({

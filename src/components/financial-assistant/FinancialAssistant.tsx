@@ -4,7 +4,7 @@ import {
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MONTH_NAMES, type Expense, type Income, type OpenExpense } from '../../types/finance';
+import type { Expense, Income, OpenExpense } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import type {
   AssistantFile,
@@ -45,6 +45,7 @@ import {
   SUMMARY_TONE, effectiveDueDate, installmentAmounts, overdueOpenCount, paidInstallmentCount, summarizeDraft,
   type RuleContext,
 } from '../../screens/finance/expense-dialog/draftRules';
+import { MONTH_NAMES } from '../../utils/calendarGrid';
 import { getLocalTodayIso, isoToBrDate } from '../../utils/date';
 import { Card } from '../../ui/card';
 import { IsoDateField } from '../../ui/DateField';

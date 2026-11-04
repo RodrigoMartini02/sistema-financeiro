@@ -1,7 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { getToken } from '../services/session';
 import { LoadingState } from '../ui/states';
-import { TENDERS_LOGIN_ADDRESS } from '../utils/authOrigin';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
@@ -17,8 +15,10 @@ import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TrackingScreen } from './screens/TrackingScreen';
+import { getToken } from './services/session';
 import { NETWORK_ERROR_MESSAGE } from './services/tendersApiError';
 import { expiredInfoFrom, resolveGateState } from './utils/gateState';
+import { TENDERS_LOGIN_ADDRESS } from './utils/loginAddress';
 
 /** App de Licitações: entrada no módulo (sessão e acesso) e rotas dentro da moldura. */
 export function TendersApp() {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { MONTH_NAMES } from '../../types/finance';
+import { MONTH_NAMES } from '../../utils/calendarGrid';
 
 interface Props {
   month: number;

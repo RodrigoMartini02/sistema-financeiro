@@ -1,5 +1,5 @@
-import { apiRequest } from '../../services/apiClient';
 import { createMercadoPago, type MercadoPagoInstance } from '../../utils/mercadoPagoSdk';
+import { paymentRequest } from './paymentApi';
 
 // Pagamento das assinaturas da plataforma (FINGERENCE e Licitações), pelo
 // Mercado Pago da plataforma. Cada assinatura informa os próprios endereços e o
@@ -28,7 +28,7 @@ export interface CheckoutData {
 
 /** POST de pagamento. Recusa e erro chegam como exceção, com a mensagem do servidor. */
 export function postPayment<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
-  return apiRequest<T>(endpoint, { method: 'POST', body: JSON.stringify(body) });
+  return paymentRequest<T>(endpoint, { method: 'POST', body: JSON.stringify(body) });
 }
 
 let mercadoPagoPromise: Promise<MercadoPagoInstance | null> | null = null;
@@ -37,7 +37,7 @@ let mercadoPagoPromise: Promise<MercadoPagoInstance | null> | null = null;
 export function loadPlatformMercadoPago(): Promise<MercadoPagoInstance | null> {
   mercadoPagoPromise ??= (async () => {
     try {
-      const config = await apiRequest<{ public_key?: string | null }>('/planos/config');
+      const config = await paymentRequest<{ public_key?: string | null }>('/planos/config');
       const publicKey = config.public_key ?? null;
       if (!publicKey) {
         return null;

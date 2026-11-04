@@ -8,7 +8,8 @@ import { CardPainel, Indicador, NumeroAnimado, Rotulo } from './base';
 import { corDaSituacao, useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
 import { Medidor } from './graficos/Medidor';
-import { formatarComSinal, formatarPercentual, rotuloDoTrecho, situacaoComprometimento, trechoFuturo } from './painelFormat';
+import { formatarComSinal, rotuloDoTrecho, situacaoComprometimento, trechoFuturo } from './painelFormat';
+import { formatarPercentual } from './percent';
 
 function variacao(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;

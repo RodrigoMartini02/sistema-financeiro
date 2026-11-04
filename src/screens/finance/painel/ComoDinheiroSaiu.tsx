@@ -7,8 +7,9 @@ import { corDaPaleta, useCoresGrafico } from './coresGrafico';
 import { Barras } from './graficos/Barras';
 import { Pizza } from './graficos/Pizza';
 import {
-  TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, observacoesPorOutros, paraFatias, rotuloDoTrecho, rotuloForma, trechoFuturo, unidadeDaSerie,
+  TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, observacoesPorOutros, paraFatias, rotuloDoTrecho, rotuloForma, trechoFuturo, unidadeDaSerie,
 } from './painelFormat';
+import { formatarPercentual } from './percent';
 
 const compras = (quantidade: number) => `${quantidade} compra${quantidade === 1 ? '' : 's'}`;
 

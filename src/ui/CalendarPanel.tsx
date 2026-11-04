@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { MONTH_NAMES } from '../types/finance';
 import {
-  WEEKDAY_INITIALS, WEEKDAY_NAMES, addDays, addMonths, calendarYears, isInRange, monthGrid, monthOfIso, shiftMonth,
+  MONTH_NAMES, WEEKDAY_INITIALS, WEEKDAY_NAMES, addDays, addMonths, calendarYears, isInRange, monthGrid, monthOfIso, shiftMonth,
   type CalendarMonth, type DateRange,
 } from '../utils/calendarGrid';
 import { C } from './dialogFormTokens';

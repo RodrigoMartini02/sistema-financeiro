@@ -3,7 +3,8 @@ import { formatCurrency } from '../formatters';
 import { CabecalhoCard, CardPainel, Secao } from './base';
 import { corDaSituacao, useCoresGrafico } from './coresGrafico';
 import { Pizza } from './graficos/Pizza';
-import { TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, formatarPercentual, paraFatias, situacaoComprometimento } from './painelFormat';
+import { TAMANHO_PIZZA_GRANDE, TAMANHO_PIZZA_MENOR, paraFatias, situacaoComprometimento } from './painelFormat';
+import { formatarPercentual } from './percent';
 
 /**
  * De onde veio o dinheiro: receitas por classificação em destaque e, ao lado, o

@@ -1,4 +1,5 @@
-import { MONTH_NAMES, type PainelData, type PainelFatia, type PainelGranularidade } from '../../../types/finance';
+import type { PainelData, PainelFatia, PainelGranularidade } from '../../../types/finance';
+import { MONTH_NAMES } from '../../../utils/calendarGrid';
 import type { FatiaPizza } from './graficos/Pizza';
 import { formatCurrency } from '../formatters';
 import { firstName } from '../memberColors';
@@ -38,10 +39,6 @@ export function unidadeDaSerie(granularidade: PainelGranularidade): { singular: 
   if (granularidade === 'semana') return { singular: 'semana', plural: 'semanas' };
   if (granularidade === 'mes') return { singular: 'mês', plural: 'meses' };
   return { singular: 'ano', plural: 'anos' };
-}
-
-export function formatarPercentual(valor: number): string {
-  return `${valor.toFixed(0)}%`;
 }
 
 export function contas(quantidade: number): string {

@@ -25,6 +25,11 @@ export const CALENDAR_DAYS = 42;
 export const FIRST_CALENDAR_YEAR = 1900;
 export const CALENDAR_YEARS_AHEAD = 20;
 /** Semana começando no domingo, como no calendário brasileiro. */
+export const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
 export const WEEKDAY_INITIALS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'] as const;
 export const WEEKDAY_NAMES = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'] as const;
 

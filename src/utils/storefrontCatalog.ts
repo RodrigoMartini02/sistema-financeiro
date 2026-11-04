@@ -1,5 +1,7 @@
 // Busca e categorias da vitrine pública. Sem React: testável isoladamente.
 
+import { normalizeSearchText } from './text';
+
 export interface StorefrontCategory {
   /** Chave sem acento e minúscula: "Acessórios" e "acessorios" são a mesma categoria. */
   key: string;
@@ -11,11 +13,6 @@ interface SearchableProduct {
   nome: string;
   descricao: string | null;
   categoria: string | null;
-}
-
-/** Texto para comparar: sem acento, minúsculo e sem espaços nas pontas. */
-export function normalizeSearchText(text: string): string {
-  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 }
 
 export function categoryKey(category: string | null): string | null {
