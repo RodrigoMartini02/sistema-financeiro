@@ -4,17 +4,9 @@
 //              cabeçalhos, o prazo do link e a exclusão, e apaga tudo. Recusa a pasta `producao`.
 //   sweep      apaga os envios pendentes com mais de 24 horas (linha e arquivo), em lotes. Em banco que
 //              não é local, só com --confirmo, e só com a pasta `producao` do R2.
-//
-// Anexos de despesas e receitas que ainda estão na coluna antiga `anexos` (base64 dentro da linha), etapa C:
-//   migrate-entries  [--aplicar] [--usuario=ID,ID] [--confirmo]
-//              copia para a tabela `anexos` e o R2. Sem --aplicar só mede e lista o que não dá para copiar, sem
-//              gravar nada. Com --aplicar guarda antes o JSON original em backups/anexos-jsonb/ e copia; rodar de
-//              novo copia só o que falta. Em banco que não é local, --aplicar exige --confirmo.
-//   verify-entries   [--usuario=ID,ID]
-//              só leitura: confere item a item a linha, o dono, o tamanho e o conteúdo no R2. Falha se algo não bater.
-//   orphans          [--apagar] [--confirmo]
-//              só leitura: arquivos em anexos/ sem linha no banco e linhas sem arquivo. Com --apagar remove os
-//              arquivos sem linha (confere duas vezes, com uma pausa, para não apagar um envio em andamento).
+//   orphans    arquivos em anexos/ sem linha no banco e linhas sem arquivo (só leitura). Com --apagar remove os
+//              arquivos sem linha, depois de conferir duas vezes, com uma pausa, para não apagar um envio em
+//              andamento. Em banco que não é local, --apagar exige --confirmo.
 //
 // Só lê arquivo de ambiente quando DOTENV_CONFIG_PATH está definido: o script nunca cai no .env de
 // produção por padrão. A partir de backend/ (as 5 variáveis do R2 estão no .env.dev):
@@ -23,17 +15,13 @@
 import { randomUUID } from 'node:crypto';
 import * as dotenv from 'dotenv';
 import { PRODUCTION_STORAGE_PREFIX } from '../src/modules/tenders/collector/config';
-import type { ObjectStorage } from '../src/modules/tenders/objectStorage';
-import {
-  findAttachmentOrphans, migrateLegacyEntries, verifyLegacyEntries,
-  type AttachmentOrphanReport, type LegacyDatabase, type LegacyItemIssue, type LegacyMigrationReport, type LegacyVerifyReport,
-} from '../src/services/attachmentLegacyMigration';
+import type { AttachmentOrphanReport } from '../src/services/attachmentOrphans';
 import { createAttachmentStorage, createAttachmentLink, putAttachmentObject, attachmentStorageKey, removeStoredObjects } from '../src/services/attachmentStorage';
 
 const USAGE =
-  'Uso: check-r2 | sweep [--confirmo] | migrate-entries [--aplicar] [--usuario=ID] [--confirmo] | verify-entries [--usuario=ID] | '
-  + 'orphans [--apagar] [--confirmo], com DOTENV_CONFIG_PATH apontando para o arquivo de ambiente (ex.: ../.env.dev).';
-const COMMANDS = ['check-r2', 'sweep', 'migrate-entries', 'verify-entries', 'orphans'] as const;
+  'Uso: check-r2 | sweep [--confirmo] | orphans [--apagar] [--confirmo], '
+  + 'com DOTENV_CONFIG_PATH apontando para o arquivo de ambiente (ex.: ../.env.dev).';
+const COMMANDS = ['check-r2', 'sweep', 'orphans'] as const;
 type Command = (typeof COMMANDS)[number];
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const SWEEP_MAX_BATCHES = 100;
@@ -42,7 +30,6 @@ const EXPIRED_LINK_WAIT_MS = 3000;
 // Mais que o tempo máximo de um envio ao R2 (120 s): um arquivo sem linha que continua sem linha depois disso não é envio em andamento.
 const ORPHAN_RECHECK_WAIT_MS = 150_000;
 const ISSUES_SHOWN = 40;
-const ENTRY_LABELS = { expense: 'despesa', income: 'receita' } as const;
 
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -147,18 +134,6 @@ function assertKnownFlags(flags: readonly string[], allowed: readonly string[]):
   }
 }
 
-function readUserIds(flags: readonly string[]): number[] | undefined {
-  const flag = flags.find((value) => value.startsWith('--usuario='));
-  if (flag === undefined) {
-    return undefined;
-  }
-  const ids = flag.slice('--usuario='.length).split(',').map(Number);
-  if (ids.some((id) => !Number.isInteger(id) || id <= 0)) {
-    throw new Error('--usuario precisa de ids inteiros separados por vírgula (ex.: --usuario=1,2).');
-  }
-  return ids;
-}
-
 /** Apaga, em lotes, os envios pendentes vencidos. */
 async function sweep(confirmed: boolean): Promise<boolean> {
   requireConfirmationOutsideLocal(readEnvironment(), confirmed);
@@ -188,57 +163,6 @@ async function sweep(confirmed: boolean): Promise<boolean> {
   return failedObjects === 0;
 }
 
-function formatBytes(bytes: number): string {
-  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`;
-}
-
-function printIssues(title: string, issues: readonly LegacyItemIssue[]): void {
-  if (issues.length === 0) {
-    return;
-  }
-  console.log(`${title} (${issues.length}):`);
-  for (const issue of issues.slice(0, ISSUES_SHOWN)) {
-    // O nome vem de quem enviou o arquivo: JSON.stringify impede que caractere de controle chegue ao terminal.
-    const name = issue.name === null ? 'sem nome' : JSON.stringify(issue.name);
-    console.log(`  ${ENTRY_LABELS[issue.type]} ${issue.entryId} · item ${issue.position} · ${name}: ${issue.reason}`);
-  }
-  if (issues.length > ISSUES_SHOWN) {
-    console.log(`  ... e mais ${issues.length - ISSUES_SHOWN}`);
-  }
-}
-
-function printMigrationReport(report: LegacyMigrationReport, apply: boolean): void {
-  console.log(apply ? 'CÓPIA FEITA' : 'SIMULAÇÃO: nada foi gravado');
-  console.log(`Lançamentos com anexos na lista antiga: ${report.entries}`);
-  console.log(`Itens: ${report.items} · copiáveis: ${formatBytes(report.bytes)} no total, o maior com ${formatBytes(report.largestBytes)}`);
-  for (const [contentType, total] of Object.entries(report.contentTypes).sort()) {
-    console.log(`  ${contentType}: ${total}`);
-  }
-  console.log(`Já copiados antes: ${report.alreadyCopied}`);
-  console.log(`${apply ? 'Copiados agora' : 'A copiar'}: ${report.copied}`);
-  if (report.entriesGone > 0) {
-    console.log(`Lançamentos excluídos no meio da cópia (itens não copiados): ${report.entriesGone}`);
-  }
-  if (report.notAList > 0) {
-    console.log(`ATENÇÃO: ${report.notAList} linha(s) com a coluna anexos em formato que não é lista; a cópia não as entende.`);
-  }
-  printIssues('Copiados só para baixar (conteúdo fora dos tipos aceitos hoje)', report.unchecked);
-  printIssues('NÃO DÁ PARA COPIAR (ficam só no backup do JSON original)', report.invalid);
-  if (apply) {
-    console.log(`Arquivos de backup gravados: ${report.backupParts.length}`);
-  }
-}
-
-function printVerifyReport(report: LegacyVerifyReport): void {
-  console.log(`Lançamentos: ${report.entries} · itens: ${report.items} · conferidos e iguais ao original: ${report.verified}`);
-  printIssues('PROBLEMAS (a migration 0095 não deve rodar)', report.problems);
-  printIssues('Itens que não dá para copiar (depois da 0095 só existem no backup)', report.notCopyable);
-  console.log(`Arquivos de backup do JSON original no R2: ${report.backupParts}`);
-  if (report.items > 0 && report.backupParts === 0) {
-    console.log('PROBLEMA: há anexos na lista antiga e nenhum backup do JSON original no R2.');
-  }
-}
-
 function printOrphans(report: AttachmentOrphanReport): void {
   console.log(`Arquivos no R2 sem linha no banco: ${report.objectsWithoutRow.length}`);
   for (const key of report.objectsWithoutRow.slice(0, ISSUES_SHOWN)) {
@@ -250,44 +174,6 @@ function printOrphans(report: AttachmentOrphanReport): void {
   }
 }
 
-/** Abre o banco e o R2 (o serviço só é importado agora: importar o cliente do banco abre a conexão) e fecha os dois no fim. */
-async function withDatabaseAndStorage(work: (db: LegacyDatabase, storage: ObjectStorage) => Promise<boolean>): Promise<boolean> {
-  const { pool } = await import('../src/db/client.js');
-  const storage = createAttachmentStorage(process.env);
-  try {
-    return await work(pool, storage);
-  } finally {
-    storage.close();
-    await pool.end();
-  }
-}
-
-async function migrateEntries(flags: readonly string[]): Promise<boolean> {
-  assertKnownFlags(flags, ['--aplicar', '--confirmo', '--usuario=']);
-  const apply = flags.includes('--aplicar');
-  const userIds = readUserIds(flags);
-  const environment = readEnvironment();
-  if (apply) {
-    requireConfirmationOutsideLocal(environment, flags.includes('--confirmo'));
-  }
-  return withDatabaseAndStorage(async (db, storage) => {
-    const report = await migrateLegacyEntries({ db, storage, apply, ...(userIds ? { userIds } : {}) });
-    printMigrationReport(report, apply);
-    return report.invalid.length === 0 && report.notAList === 0;
-  });
-}
-
-async function verifyEntries(flags: readonly string[]): Promise<boolean> {
-  assertKnownFlags(flags, ['--usuario=']);
-  const userIds = readUserIds(flags);
-  readEnvironment();
-  return withDatabaseAndStorage(async (db, storage) => {
-    const report = await verifyLegacyEntries({ db, storage, ...(userIds ? { userIds } : {}) });
-    printVerifyReport(report);
-    return report.problems.length === 0 && (report.items === 0 || report.backupParts > 0);
-  });
-}
-
 async function orphans(flags: readonly string[]): Promise<boolean> {
   assertKnownFlags(flags, ['--apagar', '--confirmo']);
   const remove = flags.includes('--apagar');
@@ -295,8 +181,15 @@ async function orphans(flags: readonly string[]): Promise<boolean> {
   if (remove) {
     requireConfirmationOutsideLocal(environment, flags.includes('--confirmo'));
   }
-  return withDatabaseAndStorage(async (db, storage) => {
-    const first = await findAttachmentOrphans(db, storage);
+
+  // Só agora: importar o serviço abre a conexão com o banco.
+  const [{ findAttachmentOrphans }, { pool }] = await Promise.all([
+    import('../src/services/attachmentOrphans.js'),
+    import('../src/db/client.js'),
+  ]);
+  const storage = createAttachmentStorage(process.env);
+  try {
+    const first = await findAttachmentOrphans(storage);
     printOrphans(first);
     if (!remove || first.objectsWithoutRow.length === 0) {
       return first.objectsWithoutRow.length === 0 && first.rowsWithoutObject.length === 0;
@@ -304,13 +197,16 @@ async function orphans(flags: readonly string[]): Promise<boolean> {
     // Um envio em andamento grava o arquivo antes da linha: só vale apagar o que continua sem linha depois da pausa.
     console.log(`Conferindo de novo em ${ORPHAN_RECHECK_WAIT_MS / 1000} s, para não apagar um envio em andamento...`);
     await sleep(ORPHAN_RECHECK_WAIT_MS);
-    const second = await findAttachmentOrphans(db, storage);
+    const second = await findAttachmentOrphans(storage);
     const firstKeys = new Set(first.objectsWithoutRow);
     const toRemove = second.objectsWithoutRow.filter((key) => firstKeys.has(key));
     const failed = await removeStoredObjects(storage, toRemove);
     console.log(`Arquivos sem linha apagados: ${toRemove.length - failed}${failed > 0 ? ` · não apagados: ${failed}` : ''}`);
     return failed === 0 && second.rowsWithoutObject.length === 0;
-  });
+  } finally {
+    storage.close();
+    await pool.end();
+  }
 }
 
 function isCommand(value: string | undefined): value is Command {
@@ -334,10 +230,6 @@ async function main(): Promise<boolean> {
     case 'sweep':
       assertKnownFlags(flags, ['--confirmo']);
       return sweep(flags.includes('--confirmo'));
-    case 'migrate-entries':
-      return migrateEntries(flags);
-    case 'verify-entries':
-      return verifyEntries(flags);
     case 'orphans':
       return orphans(flags);
   }

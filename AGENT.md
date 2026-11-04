@@ -46,6 +46,15 @@ Ao implementar, alterar ou revisar código neste projeto, siga estas prioridades
 - Se o pacote mais recente exigir Node maior que `22.17.0`, escolher uma versão compatível ou parar e reportar o bloqueio.
 - Não usar warnings de engine como ruído ignorável: eles indicam incompatibilidade que deve ser resolvida antes de concluir a tarefa.
 
+## Arquivos Persistentes
+
+O backend roda sem disco persistente: o disco do servidor some a cada deploy, reinício ou hibernação. Todo arquivo que precisa durar vai para o R2, pelo serviço de arquivos (`backend/src/services/attachment*.ts`, tabela `anexos`, rotas `/api/attachments`).
+
+- Não grave arquivo duradouro no disco local (`fs.writeFile`, `multer` com `diskStorage`, pastas como `uploads/`) nem dentro de coluna do banco (base64 em `jsonb` ou `text`).
+- Arquivo temporário e recriável (OCR, conversão, cache de leitura) usa `os.tmpdir()`.
+- Apagar o dono apaga o arquivo: colete as chaves antes de apagar as linhas e remova os objetos do R2 depois do commit.
+- Arquivo privado abre por link assinado curto; a chave do R2 nunca sai na API.
+
 ## Regras Obrigatórias de Banco de Dados
 
 ### 1. Toda query nova deve usar o padrão do Drizzle

@@ -255,18 +255,14 @@ export async function collectAttachmentKeys(owners: AttachmentOwnerSet, executor
 
 /**
  * Acrescenta `attachments` (só os metadados, nunca o arquivo) a cada linha de uma lista de despesas ou receitas, numa
- * consulta só para a lista inteira. Linhas lidas com `SELECT d.*` podem trazer a coluna antiga `anexos` (o
- * base64 de antes da migração): ela sai da resposta.
+ * consulta só para a lista inteira.
  */
 export async function withEntryAttachments<Row extends { id: number }>(
   type: 'expense' | 'income',
   rows: readonly Row[],
-): Promise<Array<Omit<Row, 'anexos'> & { attachments: AttachmentView[] }>> {
+): Promise<Array<Row & { attachments: AttachmentView[] }>> {
   const byEntry = await listAttachmentsByOwners({ type, ids: rows.map((row) => row.id) });
-  return rows.map((row) => {
-    const { anexos: _legacyAttachments, ...rest } = row as Row & { anexos?: unknown };
-    return { ...rest, attachments: byEntry.get(row.id) ?? [] } as Omit<Row, 'anexos'> & { attachments: AttachmentView[] };
-  });
+  return rows.map((row) => ({ ...row, attachments: byEntry.get(row.id) ?? [] }));
 }
 
 /** Chaves dos anexos de todas as despesas e receitas de uma pessoa: o reset dos dados financeiros apaga as linhas. */

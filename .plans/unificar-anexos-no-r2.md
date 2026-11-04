@@ -234,6 +234,8 @@ Nesta etapa não há método antigo a apagar.
 
 ### Etapa D: Render sem disco (`chore/R/render-sem-disco`)
 
+> Detalhada e atualizada em 04/11/2026 em `.plans/render-sem-disco-e-limpeza-anexos.md` (inclui a limpeza do que a Etapa C deixou sem uso). Em caso de diferença, vale aquele plano.
+
 Pré-requisito: etapas A e B verificadas. A C não depende do disco, então a D pode vir antes dela se o usuário quiser economizar mais cedo.
 
 1. Código: nenhuma referência restante a `uploads/`. Atualizar a documentação e acrescentar ao `AGENT.md` a regra "arquivo persistente vai para o R2 pelo serviço de arquivos", com a aprovação do usuário.
@@ -428,3 +430,12 @@ Decisões e achados desta etapa:
 3. **Ordem dos anexos copiados:** cada item ganha 1 ms a mais que o anterior no `created_at` (a lista sai ordenada por data), então a ordem original se mantém e um anexo novo fica sempre por último.
 4. **Ordem em produção:** (a) o usuário confirma o backup do Postgres no Render; (b) `migrate-entries --aplicar --confirmo` logo antes do merge; (c) merge e deploy; (d) rodar `migrate-entries --aplicar --confirmo` de novo (copia o que entrou no intervalo) e `verify-entries` sem problemas; (e) só então, com o "sim" do usuário, a 0095. Não mexer em anexos de lançamentos entre a primeira cópia e o deploy. A 0094 continua pendente: só depois de as 6 imagens de produto serem reenviadas.
 5. **Espaço:** apagar a coluna não devolve de imediato o espaço do base64 que já está nas linhas (a 0095 explica; `VACUUM FULL` é opcional e trava as tabelas).
+
+#### Atualização da Etapa C em produção (04/11/2026, depois do merge `4fac64d5`)
+
+- **Conferência dele:** o deploy está no ar e ele conferiu no navegador ("tudo ok"). A conferência do backup do Postgres foi dispensada por ele; ficaram o backup do JSON no R2, a trava da 0095 e o `verify-entries`.
+- **Cópia dos dados (com o "sim" dele):** 26 de 26 itens (25 de despesas e 1 de receita, 3,6 MB) para o R2 `producao/anexos` e a tabela `anexos`, com o JSON original em 4 arquivos em `producao/backups/anexos-jsonb`. A segunda passada, depois do deploy, não achou nada novo. `verify-entries`: 26 de 26 iguais ao original; `orphans`: 0 arquivos sem linha e 0 linhas sem arquivo.
+- **Migrations 0094 e 0095 aplicadas na produção**, uma por vez e em ordem, com o "sim" dele. As 6 imagens de produto eram de teste, então não houve reenvio. Saíram as colunas `despesas.anexos` e `receitas.anexos` e as tabelas `comercial.anexos` e `catalogo.produto_imagens`. Estado final conferido só em leitura: sem coluna antiga, 25 anexos de despesa e 1 de receita, nenhum pendente, 100 migrations registradas e nenhuma pendente.
+- **Sobras a decidir (mudança de código, passa pelo /planejar):** com a coluna apagada, os comandos `migrate-entries` e `verify-entries` do script, `attachmentLegacy.ts`, `attachmentLegacyMigration.ts` (e os testes deles) ficaram sem uso e quebrariam se rodados. `findAttachmentOrphans` (usado por `orphans`) e os comandos `orphans`, `check-r2` e `sweep` ficam. O filtro do `anexos` antigo em `withEntryAttachments` também virou código morto. O cabeçalho da 0095 cita os comandos antigos e não deve ser editado (a migration já foi aplicada).
+- **Para a Etapa D:** nenhum arquivo do código referencia `uploads/`, o multer só usa memória e toda escrita local do servidor (cache do armazém de contratos, leitura do assistente, coletor) vai para `tmpdir()`. Falta a regra "arquivo persistente vai para o R2 pelo serviço de arquivos" no `AGENT.md` (com a aprovação dele) e as ações dele no painel do Render.
+- **Limpeza das sobras e regra do `AGENT.md` (04/11/2026):** implementadas na branch `refactor/R/render-sem-disco`, conforme `.plans/render-sem-disco-e-limpeza-anexos.md` (ver o registro de andamento dele). Com isso, o grep dos caminhos e métodos antigos do critério de aceite deste plano fica zerado no código.

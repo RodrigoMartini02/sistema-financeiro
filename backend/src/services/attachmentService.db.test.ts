@@ -14,10 +14,10 @@ import { removeStoredObjects } from './attachmentStorage';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 
 async function loadServices() {
-  const [client, service, access] = await Promise.all([
-    import('../db/client.js'), import('./attachmentService.js'), import('./attachmentAccess.js'),
+  const [client, service, access, orphans] = await Promise.all([
+    import('../db/client.js'), import('./attachmentService.js'), import('./attachmentAccess.js'), import('./attachmentOrphans.js'),
   ]);
-  return { client, service, access };
+  return { client, service, access, orphans };
 }
 let services: Awaited<ReturnType<typeof loadServices>>;
 
@@ -281,6 +281,24 @@ describe('anexos no banco local e no R2 simulado', { skip: databaseTestsSkipReas
         logged.mock.restore();
       }
       assert.equal(await rowOf(stuck.id), undefined, 'a linha sai mesmo se o R2 falhar: nunca sobra linha sem arquivo');
+    });
+  });
+
+  test('a conferência de órfãos acha o arquivo sem linha e a linha sem arquivo, e deixa em paz o que está em ordem', async () => {
+    await withScenario(async ({ owner, expenseId, memory }) => {
+      const kept = await sendPdf(memory, owner.userId, 'expense', 'em-ordem.pdf');
+      await link(owner.userId, expenseOwner(expenseId), [kept.id]);
+      const lost = await sendPdf(memory, owner.userId, 'expense', 'perdido.pdf');
+      memory.objects.delete(`anexos/${lost.id}`);
+      const stray = `anexos/${randomUUID()}`;
+      memory.objects.set(stray, PDF);
+
+      // O banco de teste é compartilhado com outras suítes: só se confere o que esta criou.
+      const report = await services.orphans.findAttachmentOrphans(memory.storage);
+      assert.ok(report.objectsWithoutRow.includes(stray), 'o arquivo sem linha aparece');
+      assert.ok(report.rowsWithoutObject.some((row) => row.id === lost.id && row.key === `anexos/${lost.id}`), 'a linha sem arquivo aparece');
+      assert.ok(!report.objectsWithoutRow.includes(`anexos/${kept.id}`), 'o arquivo que tem linha não é órfão');
+      assert.ok(!report.rowsWithoutObject.some((row) => row.id === kept.id), 'a linha que tem arquivo não é órfã');
     });
   });
 
