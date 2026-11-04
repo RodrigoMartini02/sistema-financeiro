@@ -1,45 +1,45 @@
-// Controle das migrations de backend/drizzle pela tabela schema_migrations.
+// Controle das migrations pela tabela schema_migrations de cada banco. Dois projetos, cada um com a sua pasta e o
+// seu banco: finance (backend/drizzle, o padrão) e tenders (backend/src/modules/tenders/migrations).
 //
 //   status                          só lê: pendentes, editadas depois de aplicadas e registros sem arquivo
 //   aplicar ID                      executa UMA migration (ex.: 0058) e grava o registro na mesma transação
 //   registrar-existentes --ate ID   registra, sem executar, as que já estavam aplicadas antes do controle
 //
-// Sempre com --banco local (.env.dev) ou --banco producao (.env). Escrever na
-// produção exige --confirmo e o ok do usuário; migration que depende do deploy
-// só depois do deploy. O script não decide quando aplicar.
+// Sempre com --banco local (.env.dev) ou --banco producao (.env); --projeto finance|tenders (padrão finance).
+// Escrever na produção exige --confirmo e o ok do usuário; migration que depende do deploy só depois do deploy.
+// O script não decide quando aplicar.
 //   npm --prefix backend run migrations:status -- --banco local
+//   npm --prefix backend run migrations:status -- --banco local --projeto tenders
 //   npm --prefix backend run migrations:aplicar -- 0058 --banco producao --confirmo
+//   npm --prefix backend run migrations:aplicar -- 0001 --banco producao --projeto tenders --confirmo
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { Client } from 'pg';
+import {
+  DATABASE_NAMES, MIGRATION_PROJECTS, PROJECT_NAMES, resolveDatabase, type DatabaseName, type ProjectName,
+} from '../src/utils/migrationProjects';
 import {
   MIGRATION_ID_PATTERN, MigrationRefusal, migrationStatus, migrationToApply, migrationsToRegister, orderMigrations,
   type AppliedMigration, type MigrationFile,
 } from '../src/utils/migrationStatus';
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
-const MIGRATIONS_DIR = path.resolve(__dirname, '..', 'drizzle');
+const BACKEND_DIR = path.resolve(__dirname, '..');
 
 const COMMANDS = ['status', 'aplicar', 'registrar-existentes'] as const;
 type Command = (typeof COMMANDS)[number];
 
-/** Cada banco só aceita a URL esperada: o .env aponta para a produção, o .env.dev para o banco local. */
-const DATABASES = {
-  local: { envFile: '.env.dev', urlPattern: /@localhost:5433\/sistema_financas_dev$/, ssl: false },
-  producao: { envFile: '.env', urlPattern: /\.render\.com\//, ssl: true },
-} as const;
-type DatabaseName = keyof typeof DATABASES;
-
 interface Args {
   command: Command;
   database: DatabaseName;
+  project: ProjectName;
   id?: string;
   upTo?: string;
   confirmed: boolean;
 }
 
-const USAGE = 'Uso: status | aplicar ID | registrar-existentes --ate ID, sempre com --banco local|producao (produção grava só com --confirmo).';
+const USAGE = 'Uso: status | aplicar ID | registrar-existentes --ate ID, sempre com --banco local|producao e, se não for Finanças, --projeto tenders (produção grava só com --confirmo).';
 
 function readArgs(argv: string[]): Args {
   const [command, ...rest] = argv;
@@ -49,13 +49,19 @@ function readArgs(argv: string[]): Args {
     const index = rest.indexOf(flag);
     return index >= 0 ? rest[index + 1] : undefined;
   };
-  const flagValues = new Set([valueOf('--banco'), valueOf('--ate')]);
+  const flagValues = new Set([valueOf('--banco'), valueOf('--ate'), valueOf('--projeto')]);
   const positional = rest.filter((arg) => !arg.startsWith('--') && !flagValues.has(arg));
 
   const database = valueOf('--banco');
-  if (database !== 'local' && database !== 'producao') throw new MigrationRefusal(`Informe --banco local ou --banco producao. ${USAGE}`);
+  if (!DATABASE_NAMES.includes(database as DatabaseName)) {
+    throw new MigrationRefusal(`Informe --banco local ou --banco producao. ${USAGE}`);
+  }
+  const project = valueOf('--projeto') ?? 'finance';
+  if (!PROJECT_NAMES.includes(project as ProjectName)) {
+    throw new MigrationRefusal(`Projeto inválido: use --projeto ${PROJECT_NAMES.join(' ou --projeto ')}. ${USAGE}`);
+  }
 
-  const args: Args = { command: command as Command, database, confirmed: rest.includes('--confirmo') };
+  const args: Args = { command: command as Command, database: database as DatabaseName, project: project as ProjectName, confirmed: rest.includes('--confirmo') };
   if (args.command === 'aplicar') args.id = positional[0];
   if (args.command === 'registrar-existentes') args.upTo = valueOf('--ate');
 
@@ -66,22 +72,24 @@ function readArgs(argv: string[]): Args {
   return args;
 }
 
-function readMigrationFiles(): MigrationFile[] {
-  const files = fs.readdirSync(MIGRATIONS_DIR)
+function migrationsDirectory(project: ProjectName): string {
+  return path.resolve(BACKEND_DIR, MIGRATION_PROJECTS[project].migrationsFolder);
+}
+
+function readMigrationFiles(project: ProjectName): MigrationFile[] {
+  const directory = migrationsDirectory(project);
+  const files = fs.readdirSync(directory)
     .filter((filename) => filename.endsWith('.sql'))
-    .map((filename) => ({ filename, content: fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf8') }));
+    .map((filename) => ({ filename, content: fs.readFileSync(path.join(directory, filename), 'utf8') }));
   return orderMigrations(files);
 }
 
-function connect(database: DatabaseName): { client: Client; schema: string } {
-  const config = DATABASES[database];
-  const env = dotenv.parse(fs.readFileSync(path.join(ROOT_DIR, config.envFile)));
-  const url = env['DATABASE_URL'] ?? '';
-  if (!config.urlPattern.test(url)) throw new MigrationRefusal(`O ${config.envFile} não aponta para o banco "${database}" esperado.`);
-  const schema = env['DB_SCHEMA'] ?? 'public';
-  if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new MigrationRefusal(`DB_SCHEMA inválido no ${config.envFile}.`);
-  const client = new Client({ connectionString: url, ...(config.ssl ? { ssl: { rejectUnauthorized: false } } : {}) });
-  return { client, schema };
+function connect(project: ProjectName, database: DatabaseName): { client: Client; schema: string } {
+  const { envFile } = MIGRATION_PROJECTS[project].databases[database];
+  const env = dotenv.parse(fs.readFileSync(path.join(ROOT_DIR, envFile)));
+  const resolved = resolveDatabase(project, database, env);
+  const client = new Client({ connectionString: resolved.url, ...(resolved.ssl ? { ssl: { rejectUnauthorized: false } } : {}) });
+  return { client, schema: resolved.schema };
 }
 
 async function readRegistry(client: Client): Promise<{ exists: boolean; applied: AppliedMigration[] }> {
@@ -91,10 +99,10 @@ async function readRegistry(client: Client): Promise<{ exists: boolean; applied:
   return { exists: true, applied: applied.rows };
 }
 
-async function showStatus(client: Client, files: MigrationFile[], database: DatabaseName): Promise<void> {
+async function showStatus(client: Client, files: MigrationFile[], args: Args): Promise<void> {
   const { exists, applied } = await readRegistry(client);
   const status = migrationStatus(files, applied);
-  console.log(`Banco ${database}: ${exists ? `schema_migrations com ${applied.length} registro(s)` : 'schema_migrations ainda não existe'} · ${files.length} migration(s) no repositório`);
+  console.log(`Banco ${args.database} (${args.project}): ${exists ? `schema_migrations com ${applied.length} registro(s)` : 'schema_migrations ainda não existe'} · ${files.length} migration(s) no repositório`);
   console.log(status.pending.length === 0
     ? 'Pendentes: nenhuma'
     : `Pendentes (${status.pending.length}): ${status.pending.map((file) => file.id).join(', ')}`);
@@ -106,18 +114,20 @@ async function showStatus(client: Client, files: MigrationFile[], database: Data
   }
 }
 
-async function apply(client: Client, files: MigrationFile[], id: string, database: DatabaseName): Promise<void> {
+async function apply(client: Client, files: MigrationFile[], args: Args): Promise<void> {
   const { exists, applied } = await readRegistry(client);
-  const target = migrationToApply(files, applied, id, exists);
-  await client.query(fs.readFileSync(path.join(MIGRATIONS_DIR, target.filename), 'utf8'));
+  const target = migrationToApply(files, applied, args.id!, exists, MIGRATION_PROJECTS[args.project].registryMigration);
+  await client.query(fs.readFileSync(path.join(migrationsDirectory(args.project), target.filename), 'utf8'));
   await client.query('INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)', [target.filename, target.checksum]);
-  console.log(`Aplicada no banco ${database}: ${target.filename}`);
+  console.log(`Aplicada no banco ${args.database} (${args.project}): ${target.filename}`);
 }
 
-async function registerExisting(client: Client, files: MigrationFile[], upTo: string, database: DatabaseName): Promise<void> {
+async function registerExisting(client: Client, files: MigrationFile[], args: Args): Promise<void> {
   const { exists, applied } = await readRegistry(client);
-  if (!exists) throw new MigrationRefusal('Este banco ainda não tem a schema_migrations: aplique primeiro a 0057.');
-  const toRegister = migrationsToRegister(files, applied, upTo);
+  if (!exists) {
+    throw new MigrationRefusal(`Este banco ainda não tem a schema_migrations: aplique primeiro a ${MIGRATION_PROJECTS[args.project].registryMigration}.`);
+  }
+  const toRegister = migrationsToRegister(files, applied, args.upTo!);
   for (const file of toRegister) {
     await client.query(
       'INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2) ON CONFLICT (filename) DO NOTHING',
@@ -125,7 +135,7 @@ async function registerExisting(client: Client, files: MigrationFile[], upTo: st
     );
   }
   const range = toRegister.length > 0 ? ` (${toRegister[0]!.id} a ${toRegister[toRegister.length - 1]!.id})` : '';
-  console.log(`Registradas sem executar no banco ${database}: ${toRegister.length}${range}`);
+  console.log(`Registradas sem executar no banco ${args.database} (${args.project}): ${toRegister.length}${range}`);
 }
 
 async function main(): Promise<void> {
@@ -135,15 +145,15 @@ async function main(): Promise<void> {
     throw new MigrationRefusal('Escrever na produção exige --confirmo, com o ok do usuário.');
   }
 
-  const files = readMigrationFiles();
-  const { client, schema } = connect(args.database);
+  const files = readMigrationFiles(args.project);
+  const { client, schema } = connect(args.project, args.database);
   await client.connect();
   try {
     await client.query(writes ? 'BEGIN' : 'BEGIN TRANSACTION READ ONLY');
     await client.query(`SET LOCAL search_path TO ${schema}, public`);
-    if (args.command === 'status') await showStatus(client, files, args.database);
-    if (args.command === 'aplicar') await apply(client, files, args.id!, args.database);
-    if (args.command === 'registrar-existentes') await registerExisting(client, files, args.upTo!, args.database);
+    if (args.command === 'status') await showStatus(client, files, args);
+    if (args.command === 'aplicar') await apply(client, files, args);
+    if (args.command === 'registrar-existentes') await registerExisting(client, files, args);
     await client.query(writes ? 'COMMIT' : 'ROLLBACK');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => undefined);
