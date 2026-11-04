@@ -1,5 +1,5 @@
 import { createMercadoPago, type MercadoPagoInstance } from './mercadoPagoSdk';
-import { paymentRequest } from './paymentApi';
+import { paymentPublicKeyEndpoint, paymentRequest } from './paymentApi';
 
 // Pagamento das assinaturas da plataforma (FINGERENCE e Licitações), pelo
 // Mercado Pago da plataforma. Cada assinatura informa os próprios endereços e o
@@ -37,7 +37,7 @@ let mercadoPagoPromise: Promise<MercadoPagoInstance | null> | null = null;
 export function loadPlatformMercadoPago(): Promise<MercadoPagoInstance | null> {
   mercadoPagoPromise ??= (async () => {
     try {
-      const config = await paymentRequest<{ public_key?: string | null }>('/planos/config');
+      const config = await paymentRequest<{ public_key?: string | null }>(paymentPublicKeyEndpoint());
       const publicKey = config.public_key ?? null;
       if (!publicKey) {
         return null;

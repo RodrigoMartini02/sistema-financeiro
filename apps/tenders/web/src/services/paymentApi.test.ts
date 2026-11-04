@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { afterEach } from 'node:test';
-import { paymentRequest } from '@ui/payments/paymentApi';
+import { paymentPublicKeyEndpoint, paymentRequest } from '@ui/payments/paymentApi';
 // Importar o módulo de registro é o que liga os pagamentos ao cliente de API de Licitações.
 import './paymentApi';
 
@@ -45,4 +45,8 @@ test('pagamentos de Licitações: o pedido sai pelo cliente de API de Licitaçõ
   const headers = requests[0]!.init.headers as Headers;
   assert.equal(headers.get('Authorization'), 'Bearer token-de-teste');
   assert.equal(headers.get('Content-Type'), 'application/json');
+});
+
+test('pagamentos de Licitações: a chave pública do Mercado Pago vem da rota do próprio módulo, e não da de Finanças', () => {
+  assert.equal(paymentPublicKeyEndpoint(), '/tenders/billing/config');
 });
