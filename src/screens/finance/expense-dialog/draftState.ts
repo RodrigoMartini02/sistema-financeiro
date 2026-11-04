@@ -1,4 +1,5 @@
-import { isPaymentMethod, type Attachment, type Expense, type ExpenseBillingType, type PaymentMethod } from '../../../types/finance';
+import type { AttachmentSummary } from '../../../types/attachment';
+import { isPaymentMethod, type Expense, type ExpenseBillingType, type PaymentMethod } from '../../../types/finance';
 import { isoToBrDate } from '../../../utils/date';
 import {
   batchReducer, findDraft, initialBatchState, nextDraftKey, updateDraft, withoutKey,
@@ -63,7 +64,8 @@ export interface ExpenseDraft {
   cardId: number | null;
   /** Enquanto for false, a forma segue a sugestão do histórico. */
   paymentMethodTouched: boolean;
-  attachments: Attachment[];
+  /** Os comprovantes já enviados ao servidor: os que a despesa tinha e os que subiram nesta edição (a lista final). */
+  attachments: AttachmentSummary[];
   invoiceNumber: string;
   invoiceDate: string;
 }
@@ -130,7 +132,7 @@ export function draftFromExpense(expense: Expense): ExpenseDraft {
     // reenviado. Se ficasse vazio, o servidor o completaria com o valor novo, e corrigir o valor reescreveria
     // em silêncio o que foi pago (e o realizado do mês). O campo "Valor pago" continua editável para corrigir.
     amountPaidCents: expense.pago ? (expense.valorPago != null ? toCents(expense.valorPago) : amountCents) : null,
-    attachments: expense.anexos ?? [],
+    attachments: expense.attachments ?? [],
     invoiceNumber: expense.numeroNf ?? '',
     invoiceDate: isoToBrDate(expense.dataEmissaoNf),
   };

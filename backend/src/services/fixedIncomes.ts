@@ -5,6 +5,7 @@ import { expenses, incomeClassificationFixes as sources, incomeClassifications, 
 import { clients } from '../modules/contracts/db/schema';
 import { addMonthsClamped, getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError } from '../utils/requestInput';
+import { listAttachmentsByOwners } from './attachmentService';
 import { cancelLinkedCommissions } from './commissionService';
 import { INCOME_STATUS, OPEN_INCOME_STATUSES } from './contractTypes';
 import { CANCELLED_STATUS } from './entryQueries';
@@ -88,6 +89,7 @@ async function removeFutureForecasts(transaction: IncomeTransaction, scope: SQL 
     throw new RequestInputError('Há comissão já paga em uma receita que sairia da série. Ajuste a comissão antes de reduzir o limite.', 409);
   }
   await cancelLinkedCommissions(transaction, ids);
+  // As linhas dos anexos de uma prevista (raros) saem com ela; os arquivos no R2 sobram até a conferência de órfãos.
   await transaction.delete(incomes).where(and(scope, inArray(incomes.id, ids)));
 }
 
@@ -132,7 +134,7 @@ export async function listPendingIncomes(requesterId: number, requestedAccountId
     status: incomes.status, categoryId: incomes.classificationId, categoryName: incomeClassifications.name, parentCategoryName: parent.name,
     clientId: incomes.clientId, clientName: clients.name, representativeId: incomes.representativeId, representativeName: representatives.name,
     commissionAmount: incomes.commissionAmount, contractId: incomes.contractId, withholdings: incomes.withholdings,
-    attachments: incomes.attachments, createdAt: incomes.createdAt, fixedIncomeId: incomes.fixedClassificationId,
+    createdAt: incomes.createdAt, fixedIncomeId: incomes.fixedClassificationId,
     fixedCompetence: incomes.fixedCompetence, deferred: incomes.deferred,
     sourceEndMonth: sources.endMonth, sourceRegisteredYear: sources.registeredYear, sourceReferenceDate: sources.referenceDate, sourceCreatedAt: sources.createdAt,
   }).from(incomes)
@@ -144,7 +146,9 @@ export async function listPendingIncomes(requesterId: number, requestedAccountId
     .where(and(eq(incomes.userId, requesterId), eq(incomes.accountId, accountId), inArray(incomes.status, [...OPEN_INCOME_STATUSES]),
       gte(incomes.receiptDate, `${month}-01`), lt(incomes.receiptDate, addMonthsClamped(`${month}-01`, 1)), lte(incomes.receiptDate, today)))
     .orderBy(asc(incomes.receiptDate), asc(incomes.id));
+  const attachmentsById = await listAttachmentsByOwners({ type: 'income', ids: rows.map(row => row.id) });
   return rows.map(({ sourceEndMonth, sourceRegisteredYear, sourceReferenceDate, sourceCreatedAt, ...row }) => ({ ...row,
+    attachments: attachmentsById.get(row.id) ?? [],
     grossAmount: Number(row.grossAmount), netAmount: Number(row.netAmount), commissionAmount: row.commissionAmount === null ? null : Number(row.commissionAmount),
     endMonth: row.fixedIncomeId === null ? null : sourceEndMonth?.slice(0, 7)
       ?? (sourceCreatedAt ? fixedIncomeEndMonth({ endMonth: sourceEndMonth, registeredYear: sourceRegisteredYear, referenceDate: sourceReferenceDate, createdAt: sourceCreatedAt }) : null),

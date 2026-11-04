@@ -46,6 +46,11 @@ export function getAttachmentStorage(): ObjectStorage {
   return sharedStorage;
 }
 
+/** Só para testes: troca o R2 dos anexos (por exemplo, pelo simulado na memória); `null` volta ao real. */
+export function overrideAttachmentStorageForTests(storage: ObjectStorage | null): void {
+  sharedStorage = storage;
+}
+
 /** Grava o arquivo no R2, com o tipo e o cabeçalho de download que o link assinado vai devolver. Devolve a chave. */
 export async function putAttachmentObject(
   storage: ObjectStorage,

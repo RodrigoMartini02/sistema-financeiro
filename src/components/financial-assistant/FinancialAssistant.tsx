@@ -4,9 +4,10 @@ import {
   Mic, Plus, Send, Square, Trash2, X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { MONTH_NAMES, type Attachment, type Expense, type Income, type OpenExpense } from '../../types/finance';
+import { MONTH_NAMES, type Expense, type Income, type OpenExpense } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import type {
+  AssistantFile,
   FinancialCopilotCard,
   FinancialCopilotIntentHint,
   FinancialCopilotQuickReply,
@@ -19,6 +20,7 @@ import {
   sendFinancialCopilotMessage,
   type UltimosLancamentos,
 } from '../../services/assistantService';
+import { uploadAttachment } from '../../services/attachmentsService';
 import { createExpense, createIncome, fetchDespesasEmAberto, pagarDespesa } from '../../services/financeService';
 import { useDashboardQuery } from '../../hooks/useFinanceDashboard';
 import { useOwnPermissions } from '../../hooks/useOwnPermissions';
@@ -57,6 +59,7 @@ import { ABERTURA } from './abertura';
 import {
   buildExpenseSave, duplicateCheckKey, fillDraftDefaults, normalizeComparable, toExpenseDraft,
 } from './cardDraft';
+import { uploadDraftFiles } from './draftFiles';
 import { InstallmentList } from './InstallmentList';
 import { PaymentCard, openExpenseLabel, paymentDifferenceText, type PaymentDraft } from './PaymentCard';
 import { CardActions } from './CardActions';
@@ -298,7 +301,7 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
   return browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition ?? null;
 }
 
-function fileToAttachment(file: File): Promise<Attachment> {
+function fileToAssistantFile(file: File): Promise<AssistantFile> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Não foi possível ler o arquivo.'));
@@ -314,7 +317,7 @@ function fileToAttachment(file: File): Promise<Attachment> {
         tipo: file.type,
         tamanho: file.size,
         dados: data,
-        dataUpload: new Date().toISOString(),
+        file,
       });
     };
     reader.readAsDataURL(file);
@@ -417,8 +420,10 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     storeFontSize(nextFontSize);
   };
   const [composer, setComposer] = useState('');
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<AssistantFile[]>([]);
+  const [draftAttachments, setDraftAttachments] = useState<AssistantFile[]>([]);
+  // Id do comprovante de cada arquivo da conversa que já subiu: salvar de novo não envia o mesmo arquivo outra vez.
+  const uploadedFilesRef = useRef(new Map<string, string>());
   const [draft, setDraft] = useState<FinancialAssistantDraft | null>(null);
   // Lista de parcelas do card aberta (o resumo "10x de ... · N pagas" a abre).
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
@@ -604,7 +609,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   // mesma montagem. Mesmos cartões do modal (queryKeys.cartoes 'familia').
   const todayIso = getLocalTodayIso();
   const ruleContext: RuleContext = { todayIso, cards: (cardsQuery.data ?? []).filter((card) => card.ativo) };
-  const expenseDraft = draft?.kind === 'expense' ? toExpenseDraft(draft, categories, todayIso, draftAttachments) : null;
+  const expenseDraft = draft?.kind === 'expense' ? toExpenseDraft(draft, categories, todayIso) : null;
   const expenseSummary = expenseDraft ? summarizeDraft(expenseDraft, ruleContext) : null;
   const installmentsSummary = expenseDraft?.billingType === 'installments'
     ? installmentsButtonLabel(expenseDraft, ruleContext)
@@ -890,7 +895,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     });
 
     try {
-      const converted = await Promise.all(allowed.map(fileToAttachment));
+      const converted = await Promise.all(allowed.map(fileToAssistantFile));
       setAttachments((current) => [...current, ...converted]);
     } catch (fileError) {
       setError(fileError instanceof Error ? fileError.message : 'Não foi possível preparar o arquivo.');
@@ -1098,20 +1103,28 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
     // A despesa valida e monta o que é gravado pelas regras do modal do
     // desktop (cardDraft → draftRules); a receita segue com a checagem do card.
     let save: () => Promise<void>;
+    // Os arquivos da conversa que não subiram como comprovante: o lançamento sai mesmo assim, e o aviso diz quais.
+    let failedFiles: string[] = [];
+    const uploadFiles = async (ownerType: 'expense' | 'income') => {
+      const result = await uploadDraftFiles(ownerType, draftAttachments, uploadedFilesRef.current, uploadAttachment);
+      failedFiles = result.failed;
+      return result.ids;
+    };
     if (draft.kind === 'expense') {
       const expenseSave = buildExpenseSave(draft, {
         categories,
         context: ruleContext,
         // Sem conta escolhida no card, a despesa entra na conta ativa.
         accountId: draft.contaId ?? getActiveAccountId(),
-        attachments: draftAttachments,
       });
       if (!expenseSave.ok) {
         setError(expenseSave.error);
         return;
       }
       save = async () => {
-        await createExpense(expenseSave.input);
+        // Só depois de validado: um card com erro não deixa arquivo pendente no servidor.
+        const attachmentIds = await uploadFiles('expense');
+        await createExpense({ ...expenseSave.input, attachmentIds });
         invalidateExpenseQueries(queryClient);
       };
     } else {
@@ -1140,6 +1153,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
         const [receiptYear, receiptMonth] = date.split('-').map(Number);
         // Limite no próprio mês da receita não gera série: ela fica única.
         const repeats = until !== null && until.ano * 12 + until.mes > receiptYear! * 12 + receiptMonth! - 1;
+        const attachmentIds = await uploadFiles('income');
         await createIncome({
           // Sem conta escolhida no card, a receita entra na conta ativa.
           accountId: draft.contaId ?? getActiveAccountId(),
@@ -1153,7 +1167,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
           // aparecem, entao permanecem vazios aqui. A comissao sai do servidor.
           clientId: draft.clienteId ?? null,
           representativeId: draft.representanteId ?? null,
-          attachments: draftAttachments.length > 0 ? draftAttachments : null,
+          attachmentIds,
           billingType: repeats ? 'fixed' : 'single',
           ...(repeats ? { endMonth: `${until.ano}-${String(until.mes + 1).padStart(2, '0')}`, received: true } : {}),
           productSale: draft.produtoId && draft.quantidadeVendida
@@ -1177,9 +1191,12 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
       setMessages((current) => [...current, {
         id: newMessageId(),
         role: 'assistant',
-        content: draft.kind === 'income'
+        content: (draft.kind === 'income'
           ? 'Prontinho, receita lançada! Quer registrar outra?'
-          : 'Prontinho, despesa lançada! Quer registrar outra?',
+          : 'Prontinho, despesa lançada! Quer registrar outra?')
+          + (failedFiles.length > 0
+            ? ` Só não consegui anexar ${failedFiles.join(', ')} como comprovante (confira o tipo e o tamanho): anexe pela tela de lançamentos.`
+            : ''),
         createdAt: new Date().toISOString(),
         showWelcomeActions: true,
         // Copia do draft no instante do salvamento: a mensagem guarda o que

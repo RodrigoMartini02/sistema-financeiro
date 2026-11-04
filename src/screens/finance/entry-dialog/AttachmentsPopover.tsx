@@ -1,13 +1,18 @@
 import { useRef, useState, type ReactNode } from 'react';
-import type { Attachment } from '../../../types/finance';
-import { AttachmentSection } from '../../../ui/AttachmentSection';
+import { useMutation } from '@tanstack/react-query';
+import { useOpenAttachment } from '../../../hooks/useOpenAttachment';
+import { uploadAttachment } from '../../../services/attachmentsService';
+import type { AttachmentSummary } from '../../../types/attachment';
+import { AttachmentsField } from '../../../ui/AttachmentsField';
 import { C } from '../../../ui/dialogFormTokens';
 import { FloatingPanel } from '../../../ui/FloatingPanel';
 import { INVALID_BORDER } from './fieldStyles';
 
 interface AttachmentsPopoverProps {
-  attachments: Attachment[];
-  onChange: (attachments: Attachment[]) => void;
+  ownerType: 'expense' | 'income';
+  /** Os comprovantes do lançamento: os que ele já tinha e os que acabaram de subir (a lista que será salva). */
+  attachments: AttachmentSummary[];
+  onChange: (attachments: AttachmentSummary[]) => void;
   /** Nome do botão e do painel ("Comprovantes", "Comprovantes e nota fiscal"). */
   label: string;
   /** Acende o botão além dos anexos (a despesa acende com a nota fiscal preenchida). */
@@ -17,12 +22,29 @@ interface AttachmentsPopoverProps {
   children?: ReactNode;
 }
 
-/** Clipe da linha: lista de comprovantes e, quando houver, o conteúdo extra. */
-export function AttachmentsPopover({ attachments, onChange, label, highlighted = false, invalid = false, children }: AttachmentsPopoverProps) {
+/**
+ * Clipe da linha: lista de comprovantes e, quando houver, o conteúdo extra. O arquivo sobe ao ser escolhido e fica
+ * pendente no servidor até o lançamento ser salvo; tirar da lista não apaga nada até lá.
+ */
+export function AttachmentsPopover({ ownerType, attachments, onChange, label, highlighted = false, invalid = false, children }: AttachmentsPopoverProps) {
   const [open, setOpen] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const { open: openFile, error: openError } = useOpenAttachment();
   const count = attachments.length;
   const filled = count > 0 || highlighted;
+
+  const upload = useMutation({
+    mutationFn: async (files: File[]) => {
+      // Cada arquivo entra na lista assim que sobe; se um falhar, os anteriores ficam.
+      let current = attachments;
+      for (const file of files) {
+        current = [...current, await uploadAttachment(ownerType, file)];
+        onChange(current);
+      }
+    },
+    onError: (failure: Error) => setUploadError(failure.message),
+  });
 
   return (
     <>
@@ -48,7 +70,23 @@ export function AttachmentsPopover({ attachments, onChange, label, highlighted =
       </button>
 
       <FloatingPanel open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} label={label} width={320} align="end">
-        <AttachmentSection title="Comprovantes" value={attachments} onChange={onChange} />
+        <AttachmentsField
+          ownerType={ownerType}
+          title="Comprovantes"
+          items={attachments}
+          inputLabel="Anexar comprovante"
+          isUploading={upload.isPending}
+          error={uploadError || openError}
+          onAddFiles={(files) => {
+            setUploadError('');
+            upload.mutate(files);
+          }}
+          // Durante o envio a lista está sendo montada: remover agora desfaria o envio que está chegando.
+          onRemove={(item) => {
+            if (!upload.isPending) onChange(attachments.filter((attachment) => attachment.id !== item.id));
+          }}
+          onOpen={openFile}
+        />
         {children}
       </FloatingPanel>
     </>

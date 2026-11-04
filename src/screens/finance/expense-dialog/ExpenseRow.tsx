@@ -340,6 +340,7 @@ export function ExpenseRow({
 
         <div className="flex items-center lg:block">
           <AttachmentsPopover
+            ownerType="expense"
             attachments={draft.attachments}
             onChange={(attachments) => onUpdate({ attachments })}
             label={resources.isCompany ? 'Comprovantes e nota fiscal' : 'Comprovantes'}

@@ -1,5 +1,5 @@
 import { daysAgoLocalIso } from '../../utils/date';
-import type { Attachment } from '../../types/finance';
+import type { AttachmentSummary } from '../../types/attachment';
 
 export interface RawIncomeDemo {
   id: number;
@@ -19,7 +19,7 @@ export interface RawIncomeDemo {
   representante_id: number | null;
   representante_nome: string | null;
   valor_comissao: number | null;
-  anexos: Attachment[] | null;
+  attachments: AttachmentSummary[];
   usuario_id?: number;
   conta_id?: number | null;
   classificacao_fixa_id?: number | null;
@@ -52,7 +52,7 @@ export interface RawExpenseDemo {
   valor_original: number | null;
   numero_nf: string | null;
   data_emissao_nf: string | null;
-  anexos: Attachment[] | null;
+  attachments: AttachmentSummary[];
   despesa_fixa_id?: number | null;
   fixa_competencia?: string | null;
   valor_previsto?: number | null;
@@ -164,7 +164,7 @@ function createSeed() {
   const income = (descricao: string, valor: number, dataRecebimento: string): RawIncomeDemo => ({
     id: generateId(), descricao, valor_liquido: valor, valor_bruto: valor, data_recebimento: dataRecebimento, mes, ano,
     status: 'ativa', contrato_id: null, observacoes: null, cliente_id: null, cliente_nome: null, classificacao_id: null, classificacao_nome: null,
-    representante_id: null, representante_nome: null, valor_comissao: null, anexos: null,
+    representante_id: null, representante_nome: null, valor_comissao: null, attachments: [],
   });
 
   const receitas: RawIncomeDemo[] = [
@@ -183,7 +183,7 @@ function createSeed() {
       parcelado: Boolean(input.parcelas), recorrente: input.recorrente ?? false,
       numero_parcelas: input.parcelas?.total ?? null, parcela_atual: input.parcelas?.atual ?? null, observacoes: null,
       valor_original: input.valor, numero_nf: null, data_emissao_nf: null,
-      anexos: null,
+      attachments: [],
     };
   };
 

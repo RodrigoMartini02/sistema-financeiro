@@ -15,6 +15,8 @@ import {
   readUpdateExpenseInput,
   type PaymentMethod,
 } from '../services/expenseInput';
+import { withEntryAttachments } from '../services/attachmentService';
+import { removeAttachmentObjects } from '../services/attachmentStorage';
 import { isExpenseCategoryAllowed } from '../services/expenseCategoryCatalog';
 import {
   createExpense,
@@ -134,7 +136,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     // O mês da lista é o de caixa: a despesa paga fica no mês do pagamento, a em aberto no do vencimento.
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, 'd', visiveis, 'ct.usuario_id', expenseCashDateSql('d'));
 
-    const result = await pool.query<{ usuario_id: number; conta_id: number | null; despesa_fixa_id: number | null }>(
+    const result = await pool.query<{ id: number; usuario_id: number; conta_id: number | null; despesa_fixa_id: number | null }>(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       `SELECT d.*, c.nome AS categoria_nome, p.nome AS categoria_pai_nome,
@@ -168,7 +170,9 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       inArray(fixedExpenses.accountId, fixedRows.map(row => row.conta_id!)),
     )) : [];
     const sourceById = new Map(sources.map(source => [source.id, source]));
-    res.json({ success: true, data: result.rows.map(row => {
+    // Só os metadados dos anexos, numa consulta para a lista toda: o arquivo se abre pelo link de cada anexo.
+    const rows = await withEntryAttachments('expense', result.rows);
+    res.json({ success: true, data: rows.map(row => {
       const source = row.despesa_fixa_id === null ? undefined : sourceById.get(row.despesa_fixa_id);
       return { ...row, fixa_mes_final: source?.userId === row.usuario_id && source.accountId === row.conta_id ? fixedEndMonth(source) : null };
     }) });
@@ -410,7 +414,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
     }
     // Numa série, a edição alcança as outras linhas: no mensal, as próximas em
     // aberto; no parcelado, o alcance escolhido no modal (applyTo).
-    const result = await updateExpense(ownerId, expenseId, { ...input, cardId }, current, getTodayIsoInTimezone());
+    const result = await updateExpense(ownerId, expenseId, { ...input, cardId }, current, getTodayIsoInTimezone(), req.user!.id);
     if (!result) {
       throw new RequestInputError('Despesa não encontrada', 404);
     }
@@ -442,14 +446,14 @@ router.get('/group/:grupoId', authenticate, async (req: Request, res: Response):
       return;
     }
 
-    const result = await pool.query(
+    const result = await pool.query<{ id: number }>(
       `SELECT * FROM despesas
        WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2
        ORDER BY parcela_atual ASC NULLS LAST, data_vencimento ASC`,
       [grupoId, donoGrupo],
     );
 
-    res.json({ success: true, data: result.rows });
+    res.json({ success: true, data: await withEntryAttachments('expense', result.rows) });
   } catch (error) {
     console.error('List expense group error:', error);
     res.status(500).json({ success: false, message: 'Failed to list expense group' });
@@ -543,6 +547,35 @@ router.put('/:id/cancelar', authenticate, async (req: Request, res: Response): P
   }
 });
 
+/**
+ * Apaga as despesas da condição (escrita com o apelido `d`, só com valores em $n) e devolve quantas saíram. As linhas
+ * dos anexos saem junto, pela cascata do banco; por isso as chaves dos arquivos são colhidas na mesma transação, antes
+ * do DELETE e com a mesma condição, e os arquivos saem do R2 depois do commit.
+ */
+async function deleteExpensesWithAttachments(where: string, params: unknown[]): Promise<number> {
+  const client = await pool.connect();
+  let keys: string[];
+  let deleted: number;
+  try {
+    await client.query('BEGIN');
+    const attachmentRows = await client.query<{ chave: string }>(
+      `SELECT a.chave FROM anexos a JOIN despesas d ON d.id = a.despesa_id WHERE ${where}`,
+      params,
+    );
+    keys = attachmentRows.rows.map((row) => row.chave);
+    const result = await client.query(`DELETE FROM despesas d WHERE ${where} RETURNING d.id`, params);
+    deleted = result.rows.length;
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  await removeAttachmentObjects(keys);
+  return deleted;
+}
+
 // DELETE /api/expenses/:id
 //
 // Tres modos, todos convivendo pela mesma rota:
@@ -603,17 +636,14 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         return;
       }
 
-      await pool.query(
-        `DELETE FROM despesas WHERE id = ANY($1) AND usuario_id = $2 AND despesa_fixa_id IS NULL`,
-        [selectedIds, donoDelete],
-      );
+      await deleteExpensesWithAttachments('d.id = ANY($1) AND d.usuario_id = $2 AND d.despesa_fixa_id IS NULL', [selectedIds, donoDelete]);
     } else if (delete_group === 'true') {
       if (await hasInvoiceProtectedRows(donoDelete, { groupAnchorId: expenseId })) {
         res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
         return;
       }
-      await pool.query(
-        `DELETE FROM despesas WHERE (id = $1 OR grupo_parcelamento_id = $1) AND usuario_id = $2 AND despesa_fixa_id IS NULL`,
+      await deleteExpensesWithAttachments(
+        '(d.id = $1 OR d.grupo_parcelamento_id = $1) AND d.usuario_id = $2 AND d.despesa_fixa_id IS NULL',
         [expenseId, donoDelete],
       );
     } else {
@@ -621,11 +651,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response): Promise
         res.status(400).json({ success: false, message: INVOICE_MESSAGES.lockedRow });
         return;
       }
-      const result = await pool.query(
-        'DELETE FROM despesas WHERE id = $1 AND usuario_id = $2 AND despesa_fixa_id IS NULL RETURNING id',
-        [expenseId, donoDelete],
-      );
-      if (result.rows.length === 0) {
+      const deleted = await deleteExpensesWithAttachments('d.id = $1 AND d.usuario_id = $2 AND d.despesa_fixa_id IS NULL', [expenseId, donoDelete]);
+      if (deleted === 0) {
         res.status(404).json({ success: false, message: 'Expense not found' });
         return;
       }

@@ -21,7 +21,6 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     receiptDate: '2026-09-29',
     clientId: 31,
     representativeId: null,
-    attachments: null,
     productSale: null,
     billableHours: null,
     ...overrides,

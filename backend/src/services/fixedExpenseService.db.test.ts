@@ -2,17 +2,18 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { and, asc, eq } from 'drizzle-orm';
-import { accounts, cards, categories, expenses, fixedExpenses, invoicePayments, users, years } from '../db/schema';
+import { accounts, attachments, cards, categories, expenses, fixedExpenses, invoicePayments, users, years } from '../db/schema';
+import { createMemoryStorage } from '../modules/tenders/objectStorageTestSupport';
 import type { FixedExpenseInput } from './fixedExpenseInput';
 import type { UpdateExpenseInput } from './expenseInput';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';
 
 async function loadServices() {
-  const [client, fixed, panel, limits, invoices, year] = await Promise.all([
+  const [client, fixed, panel, limits, invoices, year, attached] = await Promise.all([
     import('../db/client.js'), import('./fixedExpenseService.js'), import('./painelService.js'),
-    import('./cardLimitService.js'), import('./cardInvoiceService.js'), import('./yearService.js'),
+    import('./cardLimitService.js'), import('./cardInvoiceService.js'), import('./yearService.js'), import('./attachmentService.js'),
   ]);
-  return { client, fixed, panel, limits, invoices, year };
+  return { client, fixed, panel, limits, invoices, year, attached };
 }
 let services: Awaited<ReturnType<typeof loadServices>>;
 const TODAY = '2026-10-30';
@@ -31,6 +32,7 @@ async function withScenario(work: (scenario: Scenario) => Promise<void>) {
       limit: '3000.00', closingDay: 2, dueDay: 9, active: true }).returning();
     await work({ userId, accountId: account!.id, categoryId: category!.id, cardId: card!.id });
   } finally {
+    await db.delete(attachments).where(eq(attachments.uploadedBy, userId));
     await db.delete(expenses).where(eq(expenses.userId, userId));
     await db.delete(fixedExpenses).where(eq(fixedExpenses.userId, userId));
     await db.delete(invoicePayments).where(eq(invoicePayments.userId, userId));
@@ -45,14 +47,14 @@ async function withScenario(work: (scenario: Scenario) => Promise<void>) {
 function sourceInput(scenario: Scenario, patch: Partial<FixedExpenseInput> = {}): FixedExpenseInput {
   return { accountId: scenario.accountId, description: 'Energia', categoryId: scenario.categoryId, amount: 100,
     paymentMethod: 'pix', cardId: null, purchaseDate: '2026-10-30', dueDate: '2026-11-10', endMonth: '2027-03',
-    paid: false, paymentDate: null, amountPaid: null, attachments: null, invoiceNumber: null, invoiceDate: null,
+    paid: false, paymentDate: null, amountPaid: null, invoiceNumber: null, invoiceDate: null,
     sourceExpenseId: null, ...patch };
 }
 
 function confirmation(scenario: Scenario, patch: Partial<UpdateExpenseInput> = {}): UpdateExpenseInput {
   return { description: 'Energia', categoryId: scenario.categoryId, amount: 120, paymentMethod: 'pix', cardId: null,
     purchaseDate: '2026-11-30', dueDate: '2026-12-10', paid: false, paymentDate: null, amountPaid: null,
-    invoiceNumber: null, invoiceDate: null, attachments: null, applyTo: 'this', cashPrice: null, installmentCount: null, ...patch };
+    invoiceNumber: null, invoiceDate: null, applyTo: 'this', cashPrice: null, installmentCount: null, ...patch };
 }
 
 async function rows(scenario: Scenario) {
@@ -78,16 +80,23 @@ describe('despesas fixas no lote (banco local)', { skip: databaseTestsSkipReason
 
   test('pagamento e comprovantes explícitos ficam apenas na primeira, sem inferir por vencimento', async () => {
     await withScenario(async scenario => {
+      const receipt = await services.attached.saveAttachment(createMemoryStorage().storage, {
+        uploadedBy: scenario.userId, ownerType: 'expense', file: { originalName: 'boleto.pdf', content: Buffer.from('%PDF-1.7\n') },
+      });
       await services.fixed.createFixedExpense(scenario.userId, sourceInput(scenario, {
         dueDate: '2026-10-05', endMonth: '2026-12', paid: true, paymentDate: TODAY, amountPaid: 95,
-        invoiceNumber: '123', invoiceDate: TODAY, attachments: [{ name: 'boleto.pdf', url: 'https://example.test/boleto.pdf' }],
+        invoiceNumber: '123', invoiceDate: TODAY, attachmentIds: [receipt.id],
       }), TODAY);
       const list = await rows(scenario);
       assert.equal(list[0]!.paid, true);
       assert.equal(list[0]!.amountPaid, '95.00');
       assert.equal(list[0]!.numeroNf, '123');
       assert.ok(list.slice(1).every(row => !row.paid && row.paymentDate === null && row.amountPaid === null
-        && row.attachments === null && row.numeroNf === null && row.dataEmissaoNf === null));
+        && row.numeroNf === null && row.dataEmissaoNf === null));
+      // O comprovante enviado antes vai só para a primeira ocorrência.
+      const receipts = await services.attached.listAttachmentsByOwners({ type: 'expense', ids: list.map(row => row.id) });
+      assert.deepEqual([...receipts.keys()], [list[0]!.id]);
+      assert.deepEqual(receipts.get(list[0]!.id)?.map(item => item.name), ['boleto.pdf']);
     });
     await withScenario(async scenario => {
       await services.fixed.createFixedExpense(scenario.userId, sourceInput(scenario, { dueDate: '2026-10-05', endMonth: '2026-10' }), TODAY);

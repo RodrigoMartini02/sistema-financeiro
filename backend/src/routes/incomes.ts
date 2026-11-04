@@ -4,7 +4,9 @@ import { authenticate } from '../middleware/auth';
 import { buildOwnerAndAccountWhere } from '../utils/ownerAndAccountWhere';
 import { resolveAccountOwnerId, resolveVisibleUserIds, resolveOwnerForWrite } from '../utils/familyVisibility';
 import { canWriteToAccount, ACCOUNT_ACCESS_DENIED } from '../utils/accountAccess';
+import { getTodayIsoInTimezone } from '../utils/date';
 import { RequestInputError, sendRequestError } from '../utils/requestInput';
+import { withEntryAttachments } from '../services/attachmentService';
 import { isClassificationAllowed } from '../services/incomeClassificationCatalog';
 import { topUpOpenEndedContracts } from '../services/contractIncomes';
 import { deferIncomes, listPendingIncomes } from '../services/fixedIncomes';
@@ -54,7 +56,7 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
     const visiveis = await resolveVisibleUserIds(req.user!.id, conta_id ? parseInt(conta_id) : null, escopo === 'familia');
     const { where, params } = await buildWhereClause(req.user!.id, req.user!.type, usuario_id, mes, ano, conta_id, visiveis);
 
-    const result = await pool.query(
+    const result = await pool.query<{ id: number }>(
       // COALESCE com a conta padrao do autor: dono pode ter corrigido o nome
       // na conta sem isso refletir no cadastro de login (usuarios.nome).
       // O cliente vem do cadastro da conta da receita: o nome é sempre o atual.
@@ -72,7 +74,8 @@ router.get('/', authenticate, async (req: Request, res: Response): Promise<void>
       params,
     );
 
-    res.json({ success: true, data: result.rows });
+    // Só os metadados dos anexos, numa consulta para a lista toda: o arquivo se abre pelo link de cada anexo.
+    res.json({ success: true, data: await withEntryAttachments('income', result.rows) });
   } catch (error) {
     console.error('List incomes error:', error);
     res.status(500).json({ success: false, message: 'Failed to list incomes' });
@@ -157,7 +160,7 @@ router.put('/:id', authenticate, async (req: Request, res: Response): Promise<vo
       && !(await isClassificationAllowed(req.user!.id, current.accountId, input.categoryId))) {
       throw new RequestInputError(CATEGORY_NOT_AVAILABLE);
     }
-    const updated = await updateIncome(ownerId, incomeId, current, input);
+    const updated = await updateIncome(ownerId, incomeId, current, input, getTodayIsoInTimezone(), req.user!.id);
     if (!updated) {
       throw new RequestInputError('Receita não encontrada', 404);
     }

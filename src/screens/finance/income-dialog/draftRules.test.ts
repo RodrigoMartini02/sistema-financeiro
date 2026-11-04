@@ -140,7 +140,7 @@ test('envio da receita nova: intenção de cobrança, produto e horas', () => {
   }), context, 17);
   assert.deepEqual(input, {
     description: 'Consultoria', categoryId: 4, grossAmount: 1500, netAmount: 1500, receiptDate: '2026-09-29', clientId: 31,
-    representativeId: 7, attachments: null, accountId: 17,
+    representativeId: 7, attachmentIds: [], accountId: 17,
     billingType: 'single',
     productSale: { productId: 'p-1', quantity: 2 },
     billableHours: { hourTypeId: 21, hours: 3 },
@@ -295,4 +295,21 @@ test('refetch preserva previsão editada e exclui confirmadas e a previsão rec�
   assert.equal(state.batch[0]!.deferred, true);
   state = incomeDialogReducer(state, { type: 'mergeForecasts', incomes: [income, { ...income, id: 4 }], excludedIds: [3, 4] });
   assert.deepEqual(state.batch, []);
+});
+
+const RECEIPT_PDF = { id: 'a1', name: 'recibo.pdf', contentType: 'application/pdf', size: 1000, createdAt: '2026-09-01T10:00:00.000Z' };
+const RECEIPT_PNG = { id: 'b2', name: 'foto.png', contentType: 'image/png', size: 2000, createdAt: '2026-09-02T10:00:00.000Z' };
+
+test('os comprovantes vão como a lista final de ids, na ordem, na criação e na edição', () => {
+  const withReceipts = draft({ attachments: [RECEIPT_PDF, RECEIPT_PNG] });
+  assert.deepEqual(buildIncomeCreateInput(withReceipts, context, 17).attachmentIds, ['a1', 'b2']);
+  assert.deepEqual(buildIncomeUpdateInput(withReceipts, context).attachmentIds, ['a1', 'b2']);
+  // Sem comprovante a lista vai vazia: na edição quer dizer "tirar todos", e é o que a pessoa vê na tela.
+  assert.deepEqual(buildIncomeUpdateInput(draft(), context).attachmentIds, []);
+});
+
+test('editar a receita traz os comprovantes que ela já tinha', () => {
+  const income = { id: 5, descricao: 'Venda', valorLiquido: 100, valorBruto: 100, data: '2026-09-01', mes: 8, ano: 2026 } as Income;
+  assert.deepEqual(incomeDraftFromIncome({ ...income, attachments: [RECEIPT_PDF] }).attachments, [RECEIPT_PDF]);
+  assert.deepEqual(incomeDraftFromIncome(income).attachments, []);
 });

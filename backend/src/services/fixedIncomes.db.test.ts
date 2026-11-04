@@ -43,13 +43,13 @@ async function withScenario(work: (scenario: Scenario) => Promise<void>) {
 
 function newFixed(scenario: Scenario, patch: Partial<CreateIncomeInput> = {}): CreateIncomeInput {
   return { accountId: scenario.accountId, description: 'Salário', categoryId: scenario.classificationId, grossAmount: 1000, netAmount: 1000,
-    receiptDate: '2026-11-10', clientId: null, representativeId: null, attachments: null, productSale: null,
+    receiptDate: '2026-11-10', clientId: null, representativeId: null, productSale: null,
     billableHours: null, billingType: 'fixed', endMonth: '2027-02', received: false, ...patch };
 }
 
 function edited(scenario: Scenario, patch: Partial<UpdateIncomeInput> = {}): UpdateIncomeInput {
   return { description: 'Salário', categoryId: scenario.classificationId, grossAmount: 1000, netAmount: 1000, receiptDate: '2026-11-10',
-    clientId: null, representativeId: null, attachments: null, ...patch };
+    clientId: null, representativeId: null, ...patch };
 }
 
 async function create(scenario: Scenario, patch: Partial<CreateIncomeInput> = {}) {

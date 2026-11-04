@@ -8,7 +8,7 @@ const input = () => ({ accountId: 3, description: ' Energia ', categoryId: 7, am
 
 test('fixa aceita dados explícitos da primeira ocorrência e limite entre anos', () => {
   const read = readFixedExpenseInput({ ...input(), paid: true, paymentDate: '2026-10-30', amountPaid: 95,
-    invoiceNumber: '001', invoiceDate: '2026-10-30', attachments: [] });
+    invoiceNumber: '001', invoiceDate: '2026-10-30', attachmentIds: [] });
   assert.equal(read.description, 'Energia');
   assert.equal(read.amount, 100.5);
   assert.equal(read.endMonth, '2027-03');
@@ -34,7 +34,7 @@ test('mês e ano financeiro válidos, sem aceitar dia no seletor', () => {
 
 test('fixa reutiliza validação normal de valor, categoria, forma, datas e comprovantes', () => {
   for (const patch of [{ amount: 0 }, { amount: -1 }, { amount: NaN }, { amount: 100_000_000 }, { categoryId: null },
-    { paymentMethod: 'boleto' }, { purchaseDate: '2026-02-30' }, { dueDate: 'amanhã' }, { attachments: 'arquivo' }]) {
+    { paymentMethod: 'boleto' }, { purchaseDate: '2026-02-30' }, { dueDate: 'amanhã' }, { attachmentIds: 'arquivo' }]) {
     assert.throws(() => readFixedExpenseInput({ ...input(), ...patch }));
   }
 });

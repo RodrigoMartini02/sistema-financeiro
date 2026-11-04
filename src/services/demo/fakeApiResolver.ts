@@ -11,6 +11,7 @@ import {
   installmentAmountsOf, invoiceDueDate, invoiceMonthLabel, isCreditWithCard, summarizeInvoicePayment,
 } from '../../utils/cardInvoice';
 import { addMonthsClamped, invoiceDueDate as purchaseInvoiceDueDate, splitAmountInCents } from '../../utils/expenseSchedule';
+import { demoAttachmentsByIds } from './demoAttachments';
 import { resolveFixedExpensesDemo, updateDemoExpense } from './fixedExpensesDemo';
 import { resolveFixedIncomesDemo } from './fixedIncomesDemo';
 import { buildDemoPanel, countedDemoExpense, demoExpenseDate } from './panelDemo';
@@ -255,11 +256,13 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
       data_vencimento: dueDate, data_compra: input.purchaseDate, data_pagamento: paid ? paymentDate ?? dueDate : null,
       mes: month! - 1, ano: year!, status: 'ativa', pago: paid, parcelado: false, recorrente: false,
       numero_parcelas: null, parcela_atual: null, observacoes: null, valor_original: amount,
-      numero_nf: null, data_emissao_nf: null, anexos: null,
+      numero_nf: null, data_emissao_nf: null, attachments: [],
       ...extra,
     };
   };
 
+  // Os comprovantes ficam só na primeira linha (parcela 1 ou ocorrência atual), como no backend.
+  const attachments = demoAttachmentsByIds(input.attachmentIds);
   if (input.billingType === 'installments') {
     // Juros embutido: o que a soma das parcelas passa do valor à vista, por igual entre elas.
     const totalCents = input.installments.reduce((sum, item) => sum + Math.round(item.amount * 100), 0);
@@ -268,11 +271,12 @@ function buildDemoExpenseRows(db: DemoFakeDatabase, input: ExpenseCreateInput): 
     return input.installments.map((item, index) => row(item.dueDate, item.amount, item.paid, item.paymentDate, {
       parcelado: true, numero_parcelas: input.installments.length, parcela_atual: index + 1,
       valor_juros: interests[index]! > 0 ? interests[index]! / 100 : null,
+      ...(index === 0 ? { attachments } : {}),
     }));
   }
   // Fora do crédito, vencida até hoje já nasce paga, como no backend.
   const paid = input.paid || (input.paymentMethod !== 'credito' && (input.paymentDate ?? input.dueDate) <= todayIso());
-  const first = row(input.dueDate, input.amount, paid, input.paymentDate, { recorrente: input.billingType === 'monthly' });
+  const first = row(input.dueDate, input.amount, paid, input.paymentDate, { recorrente: input.billingType === 'monthly', attachments });
   if (input.billingType === 'single') return [first];
   // A recorrente é do cartão de crédito, como no backend: vai até dezembro do ano
   // da 1ª, e cada ocorrência tem a data de compra e o vencimento da fatura dela.
@@ -418,7 +422,7 @@ function demoPayInvoice(db: DemoFakeDatabase, input: InvoicePaymentInput): void 
       categoria_nome: 'Renegociação de fatura', forma_pagamento: 'credito', cartao_id: card.id, cartao_nome: card.nome,
       data_vencimento: dueDate, data_compra: input.paymentDate, data_pagamento: null, mes: rowMonth - 1, ano: rowYear,
       status: 'ativa', pago: false, parcelado: false, recorrente: false, numero_parcelas: null, parcela_atual: null,
-      observacoes: null, valor_original: amount, numero_nf: null, data_emissao_nf: null, anexos: null,
+      observacoes: null, valor_original: amount, numero_nf: null, data_emissao_nf: null, attachments: [],
       origem_pagamento_fatura_id: paymentId, valor_juros: interestShare,
       ...extra,
     };

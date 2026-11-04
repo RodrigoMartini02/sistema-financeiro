@@ -2,10 +2,12 @@ import { and, asc, eq, inArray, ne, or } from 'drizzle-orm';
 import { db } from '../db/client';
 import { cards, categories, expenses, fixedExpenses, incomeClassificationFixes, incomes, users } from '../db/schema';
 import { RequestInputError } from '../utils/requestInput';
+import { collectUserEntryAttachmentKeys } from './attachmentService';
+import { removeAttachmentObjects } from './attachmentStorage';
 
 /** O reset individual nunca apaga lançamentos ou configurações de outra pessoa. */
 export async function clearUserFinancialData(userId: number): Promise<void> {
-  await db.transaction(async transaction => {
+  const removedKeys = await db.transaction(async transaction => {
     // A fatura trava cartão antes de despesa. As fontes precedem suas
     // ocorrências, como na edição/desativação da fixa. Travar o catálogo
     // também impede que uma nova referência passe entre a checagem e o DELETE.
@@ -32,6 +34,8 @@ export async function clearUserFinancialData(userId: number): Promise<void> {
       throw new RequestInputError('Não é possível limpar os dados: suas categorias ou cartões são usados por outra pessoa.', 409);
     }
 
+    // As linhas dos anexos saem com os lançamentos (cascata); os arquivos no R2 saem depois, pelas chaves colhidas aqui.
+    const attachmentKeys = await collectUserEntryAttachmentKeys(userId, transaction);
     // O vínculo da ocorrência impede excluir a fonte antes das despesas.
     // Uma falha posterior desfaz também as exclusões que já ocorreram.
     await transaction.delete(expenses).where(eq(expenses.userId, userId));
@@ -43,5 +47,7 @@ export async function clearUserFinancialData(userId: number): Promise<void> {
     await transaction.update(users)
       .set({ financialData: null, categories: null, cards: null, updatedAt: new Date() })
       .where(eq(users.id, userId));
+    return attachmentKeys;
   });
+  await removeAttachmentObjects(removedKeys);
 }

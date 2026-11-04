@@ -4,6 +4,8 @@ import { cards, expenses, type Expense, type NewExpense } from '../db/schema';
 import { accountCondition } from '../utils/accountFilter';
 import { getMonthYearFromIsoDate } from '../utils/date';
 import { RequestInputError, escapeLikePattern } from '../utils/requestInput';
+import { collectAttachmentKeys, linkPendingAttachments, replaceOwnerAttachments } from './attachmentService';
+import { removeAttachmentObjects } from './attachmentStorage';
 import { INVOICE_EXPENSE_METHOD, invoiceEditLockOf, isCreditWithCard, type InvoiceEditLock, type LockableExpenseFields } from './cardInvoiceRules';
 import { ACTIVE_STATUS } from './entryQueries';
 import {
@@ -50,7 +52,7 @@ function scheduleColumns(dueDate: string): Pick<NewExpense, 'dueDate' | 'month' 
 }
 
 /**
- * Linhas a gravar. Anexos e nota fiscal ficam só na primeira, como sempre foi.
+ * Linhas a gravar. Nota fiscal fica só na primeira, como sempre foi (os anexos também: createExpense os vincula a ela).
  * Parcelas levam a data da compra em todas e, com o valor à vista informado, a sua
  * parte do juros embutido (o que a soma das parcelas passa do à vista, dividido
  * por igual entre elas). A despesa mensal é sempre do
@@ -67,8 +69,7 @@ function buildRows(userId: number, input: CreateExpenseInput, today: string, car
     description: input.description,
     paymentMethod: input.paymentMethod,
   };
-  const firstRowExtras: Pick<NewExpense, 'attachments' | 'numeroNf' | 'dataEmissaoNf'> = {
-    attachments: input.attachments,
+  const firstRowExtras: Pick<NewExpense, 'numeroNf' | 'dataEmissaoNf'> = {
     numeroNf: input.invoiceNumber,
     dataEmissaoNf: input.invoiceDate,
   };
@@ -129,6 +130,12 @@ export async function createExpense(userId: number, input: CreateExpenseInput, t
   const [firstRow, ...otherRows] = buildRows(userId, input, today, card);
   return db.transaction(async (transaction) => {
     const [first] = await transaction.insert(expenses).values(firstRow!).returning();
+    // Os anexos enviados antes vão para a primeira linha (parcela 1 ou ocorrência atual), a mesma que leva a nota fiscal.
+    await linkPendingAttachments(transaction, {
+      requesterId: userId,
+      owner: { type: 'expense', id: first!.id },
+      attachmentIds: input.attachmentIds ?? [],
+    });
     if (otherRows.length === 0) {
       return first!;
     }
@@ -234,6 +241,13 @@ export interface ExpenseUpdateResult {
   installmentsDeleted: number;
 }
 
+/** O que a mudança do nº de parcelas fez, e os arquivos de anexo das parcelas apagadas, para sair do R2 depois do commit. */
+interface InstallmentCountChange {
+  created: number;
+  deleted: number;
+  removedAttachmentKeys: string[];
+}
+
 /** Primeiro argumento do `pg_advisory_xact_lock(int, int)` que serializa a mudança do nº de parcelas de uma mesma compra. */
 const INSTALLMENT_COUNT_LOCK_NAMESPACE = 4301;
 
@@ -252,10 +266,12 @@ export async function updateExpense(
   input: UpdateExpenseInput,
   current: ExpenseForUpdate,
   today: string,
+  /** Quem está editando: os anexos novos foram enviados por ele, que pode não ser o dono da despesa. */
+  actorId: number = ownerId,
 ): Promise<ExpenseUpdateResult | null> {
   const keepsValueAndMethod = current.invoiceEditLock !== null;
   const keepsScheduleAndPayment = current.invoiceEditLock === 'invoice-item';
-  return db.transaction(async (transaction) => {
+  const outcome = await db.transaction(async (transaction) => {
     // A mudança do nº de parcelas lê e grava a compra inteira: duas edições da mesma compra rodam uma de cada vez, e
     // cada uma já enxerga o que a outra gravou (a trava é a primeira coisa da transação).
     if (input.installmentCount !== null) {
@@ -277,23 +293,37 @@ export async function updateExpense(
         ...(keepsValueAndMethod
           ? {}
           : { cardId: input.cardId, paymentMethod: input.paymentMethod, originalAmount: toDecimal(input.amount) }),
-        attachments: input.attachments,
         numeroNf: input.invoiceNumber,
         dataEmissaoNf: input.invoiceDate,
       })
       .where(and(eq(expenses.id, expenseId), eq(expenses.userId, ownerId)))
       .returning();
     if (!updated) return null;
+    // A lista final de anexos vale só para a linha editada; sem `attachmentIds`, o pedido não mexe nos anexos.
+    const removedKeys = input.attachmentIds === undefined
+      ? []
+      : await replaceOwnerAttachments(transaction, {
+        requesterId: actorId,
+        owner: { type: 'expense', id: expenseId },
+        attachmentIds: input.attachmentIds,
+      });
     const seriesUpdated = await updateSeriesRows(transaction, ownerId, expenseId, input, current);
     // Antes do juros: o "À vista" informado na mesma edição vale para a compra já com o novo nº de parcelas.
     const count = input.installmentCount === null
-      ? { created: 0, deleted: 0 }
+      ? { created: 0, deleted: 0, removedAttachmentKeys: [] }
       : await changeInstallmentCount(transaction, ownerId, updated, input, input.installmentCount, current.lockableFields.paid);
     const interestUpdated = input.cashPrice === null
       ? 0
       : await refreshEmbeddedInterest(transaction, ownerId, current, toCents(input.cashPrice));
-    return { updated, seriesUpdated, interestUpdated, installmentsCreated: count.created, installmentsDeleted: count.deleted };
+    return {
+      result: { updated, seriesUpdated, interestUpdated, installmentsCreated: count.created, installmentsDeleted: count.deleted },
+      removedKeys: [...removedKeys, ...count.removedAttachmentKeys],
+    };
   });
+  if (!outcome) return null;
+  // Os arquivos saem do R2 só depois de a edição confirmar: se ela desfizesse, o anexo continuaria na despesa.
+  await removeAttachmentObjects(outcome.removedKeys);
+  return outcome.result;
 }
 
 /**
@@ -344,7 +374,7 @@ async function changeInstallmentCount(
   input: UpdateExpenseInput,
   nextCount: number,
   wasPaid: boolean,
-): Promise<{ created: number; deleted: number }> {
+): Promise<InstallmentCountChange> {
   const subject: CountChangeSubject = {
     isInstallment: edited.installment === true,
     recurring: edited.recurring === true,
@@ -360,7 +390,7 @@ async function changeInstallmentCount(
   });
   if (refusal) throw new RequestInputError(refusal);
   if (!subject.isInstallment) return convertSingleToInstallments(transaction, ownerId, edited, input, nextCount);
-  if (nextCount === subject.currentCount) return { created: 0, deleted: 0 };
+  if (nextCount === subject.currentCount) return { created: 0, deleted: 0, removedAttachmentKeys: [] };
 
   const groupId = subject.groupId!;
   const purchaseRows = and(
@@ -396,6 +426,10 @@ async function changeInstallmentCount(
   if ('refusal' in result) throw new RequestInputError(result.refusal);
   const { plan } = result;
 
+  // A parcela editada pode ter anexo: as linhas dele saem com a parcela (cascata), e os arquivos saem do R2 depois.
+  const removedAttachmentKeys = plan.deleteIds.length > 0
+    ? await collectAttachmentKeys({ type: 'expense', ids: plan.deleteIds }, transaction)
+    : [];
   if (plan.deleteIds.length > 0) {
     await transaction.delete(expenses).where(and(eq(expenses.userId, ownerId), inArray(expenses.id, plan.deleteIds)));
   }
@@ -422,7 +456,7 @@ async function changeInstallmentCount(
       recurring: false,
     })));
   }
-  return { created: plan.create.length, deleted: plan.deleteIds.length };
+  return { created: plan.create.length, deleted: plan.deleteIds.length, removedAttachmentKeys };
 }
 
 /**
@@ -438,7 +472,7 @@ async function convertSingleToInstallments(
   edited: Expense,
   input: UpdateExpenseInput,
   nextCount: number,
-): Promise<{ created: number; deleted: number }> {
+): Promise<InstallmentCountChange> {
   const mode = input.installmentAmountMode ?? 'perInstallment';
   const paidCents = edited.paid === true ? toCents(Number(edited.amountPaid ?? edited.originalAmount ?? 0)) : null;
   const result = planSingleConversion({
@@ -489,7 +523,7 @@ async function convertSingleToInstallments(
       recurring: false,
     })));
   }
-  return { created: others.length, deleted: 0 };
+  return { created: others.length, deleted: 0, removedAttachmentKeys: [] };
 }
 
 /**

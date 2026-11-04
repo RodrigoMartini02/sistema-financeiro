@@ -66,7 +66,6 @@ async function createPurchase(scenario: Scenario, count: number, paid: number[] 
     purchaseDate: '2026-09-10',
     invoiceNumber: null,
     invoiceDate: null,
-    attachments: null,
     billingType: 'installments',
     cashPrice,
     installments: Array.from({ length: count }, (_, index) => {
@@ -109,7 +108,6 @@ function editInput(scenario: Scenario, overrides: Partial<UpdateExpenseInput> = 
     purchaseDate: '2026-09-10',
     invoiceNumber: null,
     invoiceDate: null,
-    attachments: null,
     amount: 35,
     dueDate: '2026-10-10',
     paid: false,

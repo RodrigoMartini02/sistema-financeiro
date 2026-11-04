@@ -1,16 +1,10 @@
-// Anexos de contratos, produtos e (depois) lançamentos, em /api/attachments. O arquivo passa pelo servidor só no
-// envio; para abrir, o app pede um link de vida curta e o navegador baixa direto do R2.
+// Anexos de lançamentos, contratos e produtos, em /api/attachments. O arquivo passa pelo servidor só no envio; para
+// abrir, o app pede um link de vida curta e o navegador baixa direto do R2. Na demonstração (demo.html) não há
+// servidor: os arquivos ficam na memória da página (services/demo/demoAttachments.ts).
+import type { AttachmentSummary } from '../types/attachment';
 import type { AttachmentOwnerType } from '../utils/attachmentRules';
-import { apiRequest, getApiUrl } from './apiClient';
-
-/** O anexo como o servidor devolve: sem a chave do arquivo nem o dono. */
-export interface AttachmentSummary {
-  id: string;
-  name: string;
-  contentType: string;
-  size: number;
-  createdAt: string;
-}
+import { apiRequest, getApiUrl, isDemoDocument } from './apiClient';
+import { openDemoAttachment, registerDemoAttachment } from './demo/demoAttachments';
 
 export interface AttachmentLink {
   url: string;
@@ -27,6 +21,9 @@ function authHeaders(): HeadersInit {
  * `ownerId`; despesa e receita não levam, e o arquivo fica pendente até o lançamento ser salvo.
  */
 export async function uploadAttachment(ownerType: AttachmentOwnerType, file: File, ownerId?: number | string): Promise<AttachmentSummary> {
+  if (isDemoDocument()) {
+    return registerDemoAttachment(file);
+  }
   const query = new URLSearchParams({ ownerType });
   if (ownerId !== undefined) {
     query.set('ownerId', String(ownerId));
@@ -59,6 +56,10 @@ export function deleteAttachment(attachmentId: string): Promise<void> {
  * segue para o link do R2 assim que ele chega. PDF e imagem abrem na aba; o resto baixa.
  */
 export async function openAttachment(attachmentId: string): Promise<void> {
+  if (isDemoDocument()) {
+    openDemoAttachment(attachmentId);
+    return;
+  }
   const tab = window.open('', '_blank');
   try {
     const link = await fetchAttachmentLink(attachmentId);

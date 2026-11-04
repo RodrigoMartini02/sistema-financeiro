@@ -3,9 +3,10 @@
 // antes de chamar o serviço, e por isso pode ser testado isoladamente.
 import { countMonthsUntil } from '../utils/date';
 import {
-  RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId, readQueryId, readQueryText,
+  RequestInputError, readAmount, readDescription, readIsoDate, readOptionalId, readQueryId, readQueryText,
   readRecord, readRequiredId,
 } from '../utils/requestInput';
+import { readOptionalAttachmentIds, rejectLegacyAttachments } from './attachmentModel';
 
 /** A receita fixa gera no máximo 3 anos de ocorrências. */
 export const MAX_REPLICAS = 36;
@@ -40,7 +41,11 @@ export interface IncomeFieldsInput {
   /** Cliente do cadastro da conta PJ; nulo sem cliente. */
   clientId: number | null;
   representativeId: number | null;
-  attachments: unknown[] | null;
+  /**
+   * Anexos já enviados (POST /attachments), pelos ids. Ausente: o pedido não fala de anexos e a edição não mexe neles;
+   * lista vazia tira todos.
+   */
+  attachmentIds?: string[];
 }
 
 export interface CreateIncomeInput extends IncomeFieldsInput {
@@ -99,6 +104,8 @@ function readFields(record: Record<string, unknown>): IncomeFieldsInput {
   if (netAmount > grossAmount) {
     throw new RequestInputError('O valor líquido não pode passar do bruto');
   }
+  rejectLegacyAttachments(record);
+  const attachmentIds = readOptionalAttachmentIds(record['attachmentIds']);
   return {
     description: readDescription(record['description']),
     categoryId: readRequiredId(record['categoryId'], 'Escolha a categoria'),
@@ -107,7 +114,7 @@ function readFields(record: Record<string, unknown>): IncomeFieldsInput {
     receiptDate: readIsoDate(record['receiptDate'], 'Data do recebimento inválida'),
     clientId: readOptionalId(record['clientId'], 'Cliente inválido'),
     representativeId: readOptionalId(record['representativeId'], 'Representante inválido'),
-    attachments: readAttachments(record['attachments']),
+    ...(attachmentIds === undefined ? {} : { attachmentIds }),
   };
 }
 

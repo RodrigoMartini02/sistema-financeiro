@@ -2,9 +2,10 @@
 // consultas de sugestões e duplicata. Sem acesso ao banco — é o que a rota confere
 // antes de chamar o serviço, e por isso pode ser testado isoladamente.
 import {
-  MAX_AMOUNT, RequestInputError, readAmount, readAttachments, readDescription, readIsoDate, readOptionalId,
+  MAX_AMOUNT, RequestInputError, readAmount, readDescription, readIsoDate, readOptionalId,
   readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, readRequiredId, roundCents,
 } from '../utils/requestInput';
+import { readOptionalAttachmentIds, rejectLegacyAttachments } from './attachmentModel';
 import { isCreditWithCard } from './cardInvoiceRules';
 import { parseEffectiveMonth } from './cardDueDate';
 
@@ -54,7 +55,11 @@ export interface ExpenseFieldsInput {
   purchaseDate: string;
   invoiceNumber: string | null;
   invoiceDate: string | null;
-  attachments: unknown[] | null;
+  /**
+   * Anexos já enviados (POST /attachments), pelos ids. Ausente: o pedido não fala de anexos e a edição não mexe neles;
+   * lista vazia tira todos.
+   */
+  attachmentIds?: string[];
 }
 
 export type ExpenseScheduleInput =
@@ -170,6 +175,8 @@ function readFields(record: Record<string, unknown>): ExpenseFieldsInput {
     throw new RequestInputError('O cartão só vale para débito ou crédito');
   }
 
+  rejectLegacyAttachments(record);
+  const attachmentIds = readOptionalAttachmentIds(record['attachmentIds']);
   return {
     description,
     categoryId: readRequiredId(record['categoryId'], 'Escolha a categoria'),
@@ -178,7 +185,7 @@ function readFields(record: Record<string, unknown>): ExpenseFieldsInput {
     purchaseDate: readIsoDate(record['purchaseDate'], 'Data da compra inválida'),
     invoiceNumber: readOptionalText(record['invoiceNumber'], 'Número da nota fiscal', MAX_INVOICE_NUMBER_LENGTH),
     invoiceDate: readOptionalIsoDate(record['invoiceDate'], 'Data de emissão da nota fiscal inválida'),
-    attachments: readAttachments(record['attachments']),
+    ...(attachmentIds === undefined ? {} : { attachmentIds }),
   };
 }
 

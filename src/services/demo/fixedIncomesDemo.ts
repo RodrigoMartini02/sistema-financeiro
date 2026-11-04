@@ -1,7 +1,9 @@
+import type { AttachmentSummary } from '../../types/attachment';
 import type { ClassificacaoReceita } from '../../types/config';
 import type { IncomeCreateInput, IncomeOccurrenceDto, IncomeUpdateInput } from '../../types/finance';
 import { brDateToIso, isoToBrDate } from '../../utils/date';
 import { addMonthsClamped } from '../../utils/expenseSchedule';
+import { demoAttachmentsByIds } from './demoAttachments';
 import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawIncomeDemo } from './demoFakeDatabase';
 
 interface DemoIncomeSource {
@@ -68,7 +70,7 @@ function requireEndMonth(value: string | null | undefined, firstMonth: string): 
   return value;
 }
 
-function rowFor(source: DemoIncomeSource, offset: number, received: boolean, attachments: IncomeCreateInput['attachments']): RawIncomeDemo {
+function rowFor(source: DemoIncomeSource, offset: number, received: boolean, attachments: AttachmentSummary[]): RawIncomeDemo {
   const date = addMonthsClamped(source.receiptDate, offset);
   return {
     id: generateId(), descricao: source.description, valor_bruto: source.grossAmount, valor_liquido: source.netAmount,
@@ -76,7 +78,7 @@ function rowFor(source: DemoIncomeSource, offset: number, received: boolean, att
     status: received ? 'ativa' : 'prevista', contrato_id: null, observacoes: null,
     cliente_id: source.clientId, cliente_nome: null, classificacao_id: source.categoryId, classificacao_nome: null,
     representante_id: source.representativeId, representante_nome: null, valor_comissao: null,
-    usuario_id: 0, conta_id: source.accountId, anexos: attachments,
+    usuario_id: 0, conta_id: source.accountId, attachments,
     classificacao_fixa_id: source.id || null,
     fixa_competencia: source.id ? `${date.slice(0, 7)}-01` : null,
     fixa_mes_final: source.id ? `${source.endMonth}-01` : null,
@@ -87,7 +89,7 @@ function rowFor(source: DemoIncomeSource, offset: number, received: boolean, att
 function sourceRows(source: DemoIncomeSource): RawIncomeDemo[] {
   const count = (Number(source.endMonth.slice(0, 4)) - Number(source.receiptDate.slice(0, 4))) * 12
     + Number(source.endMonth.slice(5, 7)) - Number(source.receiptDate.slice(5, 7));
-  return Array.from({ length: count + 1 }, (_, offset) => rowFor(source, offset, false, null));
+  return Array.from({ length: count + 1 }, (_, offset) => rowFor(source, offset, false, []));
 }
 
 function belongsToAccount(row: RawIncomeDemo, accountId: number): boolean {
@@ -104,7 +106,7 @@ function pendingDto(db: DemoFakeDatabase, row: RawIncomeDemo): IncomeOccurrenceD
     parentCategoryName: demoIncomeCategories(db).find(item => item.id === category?.parent_id)?.nome ?? null,
     clientId: row.cliente_id, clientName: row.cliente_nome, representativeId: row.representante_id,
     representativeName: row.representante_nome, commissionAmount: row.valor_comissao, contractId: row.contrato_id,
-    attachments: row.anexos, createdAt: row.data_criacao ?? null,
+    attachments: row.attachments, createdAt: row.data_criacao ?? null,
     fixedIncomeId: row.classificacao_fixa_id ?? null, fixedCompetence: row.fixa_competencia ?? null,
     endMonth: row.fixa_mes_final?.slice(0, 7) ?? null, deferred: row.adiada === true,
   };
@@ -125,7 +127,7 @@ function updateRow(db: DemoFakeDatabase, current: RawIncomeDemo, input: IncomeUp
     ...current, descricao: input.description.trim(), valor_bruto: input.grossAmount, valor_liquido: input.netAmount,
     data_recebimento: input.receiptDate, mes: Number(input.receiptDate.slice(5, 7)) - 1, ano: Number(input.receiptDate.slice(0, 4)),
     cliente_id: current.contrato_id ? current.cliente_id : input.clientId, classificacao_id: input.categoryId,
-    representante_id: input.representativeId, anexos: input.attachments,
+    representante_id: input.representativeId, attachments: demoAttachmentsByIds(input.attachmentIds, current.attachments),
     ...(receive ? { status: 'ativa', adiada: false } : {}),
   };
   let rows = db.receitas.map(row => row.id === updated.id ? updated : row);
@@ -179,11 +181,12 @@ export function resolveFixedIncomesDemo(db: DemoFakeDatabase, endpoint: string, 
       endMonth: fixed ? requireEndMonth(fields.endMonth, fields.receiptDate.slice(0, 7)) : fields.receiptDate.slice(0, 7),
       clientId: fields.clientId, representativeId: fields.representativeId,
     };
-    const created = fixed ? sourceRows(source) : [rowFor(source, 0, true, fields.attachments)];
+    const attachments = demoAttachmentsByIds(fields.attachmentIds);
+    const created = fixed ? sourceRows(source) : [rowFor(source, 0, true, attachments)];
     if (fixed) {
       const first = created[0]!;
       first.status = fields.received === true ? 'ativa' : 'prevista';
-      first.anexos = fields.attachments;
+      first.attachments = attachments;
       sourcesOf(db).push(source);
     }
     db.receitas = [...created, ...db.receitas];
@@ -213,7 +216,8 @@ export function resolveFixedIncomesDemo(db: DemoFakeDatabase, endpoint: string, 
     const fields: IncomeUpdateInput = received ? input.changes ?? {
       description: current.descricao, categoryId: current.classificacao_id, grossAmount: Math.max(current.valor_bruto, input.valor_recebido ?? current.valor_liquido),
       netAmount: input.valor_recebido ?? current.valor_liquido, receiptDate: input.data_recebimento ?? current.data_recebimento,
-      clientId: current.cliente_id, representativeId: current.representante_id, attachments: current.anexos,
+      clientId: current.cliente_id, representativeId: current.representante_id,
+      attachmentIds: current.attachments.map((attachment) => attachment.id),
     } : input as IncomeUpdateInput;
     return { handled: true, data: updateRow(db, current, fields, !!received) };
   }

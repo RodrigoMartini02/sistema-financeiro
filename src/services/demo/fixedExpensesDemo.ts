@@ -1,6 +1,7 @@
 import type { ExpenseUpdateInput, FixedExpenseCreateInput, FixedExpenseOccurrenceDto, PaymentMethod } from '../../types/finance';
 import { addMonthsClamped, invoiceDueDate } from '../../utils/expenseSchedule';
 import { brDateToIso, isoToBrDate } from '../../utils/date';
+import { demoAttachmentsByIds } from './demoAttachments';
 import { generateId, getOrCreateList, todayIso, type DemoFakeDatabase, type RawExpenseDemo } from './demoFakeDatabase';
 
 interface DemoFixedSource {
@@ -78,7 +79,7 @@ function generateRows(db: DemoFakeDatabase, source: DemoFixedSource): RawExpense
       data_compra: purchaseDate, data_vencimento: dueDate, data_pagamento: null,
       mes: dueMonth! - 1, ano: dueYear!, status: 'prevista', pago: false, parcelado: false, recorrente: false,
       numero_parcelas: null, parcela_atual: null, observacoes: null, valor_original: source.amount,
-      valor_pago: null, numero_nf: null, data_emissao_nf: null, anexos: null,
+      valor_pago: null, numero_nf: null, data_emissao_nf: null, attachments: [],
       despesa_fixa_id: source.id, fixa_competencia: competence, valor_previsto: source.amount,
       fixa_mes_final: source.endMonth, adiada: false,
     });
@@ -98,7 +99,7 @@ function toPending(db: DemoFakeDatabase, row: RawExpenseDemo): FixedExpenseOccur
     purchaseDate: row.data_compra, dueDate: row.data_vencimento, month: row.mes, year: row.ano,
     status: 'prevista', fixedExpenseId: source.id, fixedCompetence: row.fixa_competencia!,
     endMonth: source.endMonth, deferred: row.adiada === true,
-    attachments: row.anexos, invoiceNumber: row.numero_nf, invoiceDate: row.data_emissao_nf,
+    attachments: row.attachments, invoiceNumber: row.numero_nf, invoiceDate: row.data_emissao_nf,
   };
 }
 
@@ -142,7 +143,8 @@ export function updateDemoExpense(db: DemoFakeDatabase, id: number, input: Expen
     ...(confirm ? { adiada: false } : {}),
     pago: paid, data_pagamento: paid ? input.paymentDate ?? input.dueDate : null,
     valor_pago: paid ? input.amountPaid ?? input.amount : null,
-    numero_nf: input.invoiceNumber, data_emissao_nf: input.invoiceDate, anexos: input.attachments,
+    numero_nf: input.invoiceNumber, data_emissao_nf: input.invoiceDate,
+    attachments: demoAttachmentsByIds(input.attachmentIds, row.attachments),
   });
   if (source && nextSource) {
     source.endMonth = nextSource.endMonth;
@@ -206,7 +208,7 @@ export function resolveFixedExpensesDemo(
       status: 'ativa', pago: fields.paid === true,
       data_pagamento: fields.paid ? fields.paymentDate ?? fields.dueDate : null,
       valor_pago: fields.paid ? fields.amountPaid ?? fields.amount : null,
-      anexos: fields.attachments ?? null, numero_nf: fields.invoiceNumber ?? null, data_emissao_nf: fields.invoiceDate ?? null,
+      attachments: demoAttachmentsByIds(fields.attachmentIds), numero_nf: fields.invoiceNumber ?? null, data_emissao_nf: fields.invoiceDate ?? null,
     });
     sourcesOf(db).push(source);
     db.despesas.push(...rows.filter((row) => !existing || row !== first));

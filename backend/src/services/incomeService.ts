@@ -10,6 +10,8 @@ import { defaultReceiptDate } from './cashDate';
 import { escapeLikePattern, roundCents } from '../utils/requestInput';
 import { clients, contracts } from '../modules/contracts/db/schema';
 import { RequestInputError } from '../utils/requestInput';
+import { collectAttachmentKeys, linkPendingAttachments, replaceOwnerAttachments } from './attachmentService';
+import { removeAttachmentObjects } from './attachmentStorage';
 import { findAccountClient } from './clients';
 import { cancelLinkedCommission, createCommissionExpense } from './commissionService';
 import { consumeContractHours, findHourTypeContract, type HourTypeContract } from './contractHours';
@@ -149,7 +151,6 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
         contractId: hours?.contractId ?? null,
         productId: isOriginal ? input.productSale?.productId ?? null : null,
         soldQuantity: isOriginal && input.productSale ? String(input.productSale.quantity) : null,
-        attachments: isOriginal ? input.attachments : null,
         status: isOriginal && received ? INCOME_STATUS.received : INCOME_STATUS.planned,
         fixedClassificationId: source?.id ?? null,
         fixedCompetence: source ? `${receiptDate.slice(0, 7)}-01` : null,
@@ -157,6 +158,12 @@ export async function createIncome(authorId: number, catalogOwnerId: number, inp
     };
 
     const [original] = await transaction.insert(incomes).values(buildRow(input.receiptDate, true)).returning();
+    // Os anexos enviados antes ficam só na receita atual, nunca nas réplicas da fixa.
+    await linkPendingAttachments(transaction, {
+      requesterId: authorId,
+      owner: { type: 'income', id: original!.id },
+      attachmentIds: input.attachmentIds ?? [],
+    });
     const replicas = replicaDates.length > 0
       ? await transaction.insert(incomes).values(replicaDates.map((date) => buildRow(date, false))).returning()
       : [];
@@ -253,10 +260,10 @@ export async function cancelIncomeInTransaction(executor: StockExecutor, ownerId
 
 /** Apaga a receita de vez. Falso quando não é do dono. */
 export async function deleteIncome(ownerId: number, incomeId: number): Promise<boolean> {
-  return db.transaction(async (transaction) => {
+  const outcome = await db.transaction(async (transaction) => {
     const income = await lockIncome(transaction, ownerId, incomeId);
     if (!income) {
-      return false;
+      return null;
     }
     if (income.status !== CANCELLED_STATUS) {
       await undoIncomeEffects(transaction, income.id, STOCK_REASONS.incomeDeleted);
@@ -264,11 +271,18 @@ export async function deleteIncome(ownerId: number, incomeId: number): Promise<b
     // Uma competência retirada não pode ser recriada por ampliar a série.
     if (income.fixedClassificationId !== null) {
       await transaction.update(incomes).set({ status: CANCELLED_STATUS }).where(and(eq(incomes.id, income.id), eq(incomes.userId, ownerId)));
-    } else {
-      await transaction.delete(incomes).where(and(eq(incomes.id, income.id), eq(incomes.userId, ownerId)));
+      return { removedKeys: [] };
     }
-    return true;
+    // As linhas dos anexos saem com a receita (cascata); os arquivos no R2 saem depois, pelas chaves colhidas aqui.
+    const removedKeys = await collectAttachmentKeys({ type: 'income', ids: [income.id] }, transaction);
+    await transaction.delete(incomes).where(and(eq(incomes.id, income.id), eq(incomes.userId, ownerId)));
+    return { removedKeys };
   });
+  if (!outcome) {
+    return false;
+  }
+  await removeAttachmentObjects(outcome.removedKeys);
+  return true;
 }
 
 /**
@@ -332,6 +346,8 @@ export async function updateIncome(
   current: IncomeForUpdate,
   input: UpdateIncomeInput,
   today: string = getTodayIsoInTimezone(),
+  /** Quem está editando: os anexos novos foram enviados por ele, que pode não ser o dono da receita. */
+  actorId: number = ownerId,
 ): Promise<Income | null> {
   const client = await pool.connect();
   try {
@@ -344,9 +360,17 @@ export async function updateIncome(
     // O snapshot da rota serve só à autorização inicial; os valores são relidos sob lock.
     if (locked.income.accountId !== current.accountId) throw new RequestInputError('A receita mudou. Atualize a tela.', 409);
     const updated = await writeIncomeFields(transaction, ownerId, locked.income, input);
+    // A lista final de anexos; sem `attachmentIds`, o pedido não mexe nos anexos.
+    const removedKeys = input.attachmentIds === undefined
+      ? []
+      : await replaceOwnerAttachments(transaction, {
+        requesterId: actorId, owner: { type: 'income', id: updated.id }, attachmentIds: input.attachmentIds,
+      });
     const created = await changeFixedIncomeEndMonth(transaction, locked.source, updated, input, today);
     await createExtendedCommissions(client, transaction, ownerId, created);
     await client.query('COMMIT');
+    // Os arquivos saem do R2 só depois de a edição confirmar.
+    await removeAttachmentObjects(removedKeys);
     return updated;
   } catch (error) { await client.query('ROLLBACK'); throw error; }
   finally { client.release(); }
@@ -369,7 +393,7 @@ async function writeIncomeFields(transaction: IncomeTransaction, ownerId: number
   const { mes, ano } = getMonthYearFromIsoDate(input.receiptDate);
   const [updated] = await transaction.update(incomes).set({ description: input.description, ...incomeValueColumns(amounts),
     receiptDate: input.receiptDate, month: mes, year: ano, clientId, classificationId: input.categoryId,
-    representativeId: input.representativeId, attachments: input.attachments,
+    representativeId: input.representativeId,
   }).where(and(eq(incomes.id, current.id), eq(incomes.userId, ownerId))).returning();
   if (!updated) throw new RequestInputError('Receita não encontrada', 404);
   return updated;

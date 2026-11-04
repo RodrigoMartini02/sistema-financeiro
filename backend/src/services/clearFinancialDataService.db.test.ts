@@ -44,7 +44,7 @@ async function withPeople(work: (owner: Scenario, other: Scenario) => Promise<vo
     await services.fixed.createFixedExpense(userId, { accountId: scenario.accountId, description: 'Aluguel', categoryId: scenario.categoryId,
       paymentMethod: 'credito', cardId: scenario.cardId, amount: 100, purchaseDate: '2026-11-01', dueDate: '2026-11-09',
       endMonth: '2026-12', sourceExpenseId: null, paid: false, paymentDate: null, amountPaid: null,
-      attachments: null, invoiceNumber: null, invoiceDate: null });
+      invoiceNumber: null, invoiceDate: null });
     await db.insert(incomes).values({ userId, accountId: scenario.accountId, description: 'Salário', netAmount: '500.00', grossAmount: '500.00',
       receiptDate: '2026-11-01', month: 10, year: 2026, classificationId: scenario.classificationId });
     const [incomeSource] = await db.insert(incomeClassificationFixes).values({ userId, accountId: scenario.accountId,
