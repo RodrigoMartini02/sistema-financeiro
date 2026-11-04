@@ -4,7 +4,7 @@
 import { asc } from 'drizzle-orm';
 import { db } from '../db/client';
 import { attachments } from '../db/schema';
-import type { ObjectStorage } from '../modules/tenders/objectStorage';
+import type { ObjectStorage } from './objectStorage';
 import type { AttachmentExecutor } from './attachmentService';
 import { attachmentStorageKey } from './attachmentStorage';
 

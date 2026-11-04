@@ -13,7 +13,7 @@ import type { CollectorContext } from './runs';
 // Ambiente de uma execução do coletor: configuração (variáveis de ambiente),
 // log, conexão própria com o banco, clientes do PNCP e do Compras.gov.br e o R2 (arquivo bruto e
 // armazém de contratos).
-// Usado pelo CLI do coletor e pela rotina diária (src/services/dailyJobs.ts).
+// Usado pelo CLI do coletor e pela rotina diária (dailyRoutine.ts).
 
 export interface CollectorRuntime {
   context: CollectorContext;

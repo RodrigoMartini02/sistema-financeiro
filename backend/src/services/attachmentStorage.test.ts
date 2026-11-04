@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
-import { createMemoryStorage } from '../modules/tenders/objectStorageTestSupport';
-import type { ObjectStorage } from '../modules/tenders/objectStorage';
+import { createMemoryStorage } from './objectStorageTestSupport';
+import type { ObjectStorage } from './objectStorage';
 import { RequestInputError } from '../utils/requestInput';
 import { ATTACHMENT_LINK_TTL_SECONDS } from './attachmentRules';
 import {

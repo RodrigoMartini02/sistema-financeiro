@@ -14,7 +14,8 @@
     "test:finance-db": "set FINANCE_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/services/*.db.test.ts",
     "tenders": "tsx src/modules/tenders/collector/cli.ts",
     "tenders:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/collector/cli.ts",
-    "daily-jobs": "tsx scripts/dailyJobs.ts",
+    "daily-jobs": "tsx src/modules/tenders/collector/dailyRoutineCli.ts",
+    "finance:daily-jobs": "tsx scripts/financeDailyJobs.ts",
     "migrations:status": "tsx scripts/migrations.ts status",
     "migrations:aplicar": "tsx scripts/migrations.ts aplicar",
     "migrations:registrar-existentes": "tsx scripts/migrations.ts registrar-existentes"

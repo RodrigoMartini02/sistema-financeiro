@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { and, asc, count, eq, inArray, isNull, lt, max, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
 import { attachments, expenses, incomes, type Attachment, type NewAttachment } from '../db/schema';
-import type { ObjectStorage } from '../modules/tenders/objectStorage';
+import type { ObjectStorage } from './objectStorage';
 import { RequestInputError } from '../utils/requestInput';
 import { prepareAttachment, type AttachmentUpload } from './attachmentFile';
 import {

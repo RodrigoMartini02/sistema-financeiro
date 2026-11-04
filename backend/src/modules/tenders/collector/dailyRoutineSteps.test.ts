@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DAILY_JOB_STEPS, FEDERAL_STEPS, WINNERS_STEPS, dailyJobSteps, planLifecycleUrl } from './dailyJobSteps';
+import { DAILY_JOB_STEPS, FEDERAL_STEPS, WINNERS_STEPS, dailyJobSteps } from './dailyRoutineSteps';
 
 const WEEKDAY_STEPS = [
-  'plan-lifecycle',
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
@@ -15,7 +14,6 @@ const WEEKDAY_STEPS = [
   'tenders-winners-backfill',
 ];
 const SUNDAY_STEPS = [
-  'plan-lifecycle',
   'tenders-sweep',
   'tenders-deadline-reminders',
   'tenders-contracts-daily',
@@ -28,7 +26,23 @@ const SUNDAY_STEPS = [
   'tenders-winners-backfill',
 ];
 
-test('rotina diária: dia útil roda planos, varredura, lembretes, contratos, vencedores e, por último, as cargas', () => {
+test('rotina diária: os nomes das etapas não mudam (o script do PC lê o log pelo nome) e a rotina de planos de Finanças não faz parte dela', () => {
+  assert.deepEqual([...DAILY_JOB_STEPS], [
+    'tenders-sweep',
+    'tenders-deadline-reminders',
+    'tenders-contracts-daily',
+    'tenders-federal-cycle',
+    'tenders-contract-reminders',
+    'tenders-winners-daily',
+    'tenders-cleanup',
+    'tenders-contracts-backfill',
+    'tenders-federal-backfill',
+    'tenders-winners-backfill',
+  ]);
+  assert.ok(!(DAILY_JOB_STEPS as readonly string[]).includes('plan-lifecycle'));
+});
+
+test('rotina diária: dia útil roda varredura, lembretes, contratos, vencedores e, por último, as cargas', () => {
   // Quarta-feira, 06:00 em Brasília (09:00 UTC, o horário do Cron Job).
   assert.deepEqual(dailyJobSteps(new Date('2026-10-07T09:00:00Z')), WEEKDAY_STEPS);
 });
@@ -84,20 +98,4 @@ test('rotina diária: vale o dia de Brasília, não o de UTC', () => {
   assert.deepEqual(dailyJobSteps(new Date('2026-10-11T02:00:00Z')), WEEKDAY_STEPS);
   // Domingo 22:00 em Brasília já é segunda em UTC: com limpeza.
   assert.deepEqual(dailyJobSteps(new Date('2026-10-12T01:00:00Z')), SUNDAY_STEPS);
-});
-
-test('rotina de planos: sem BACKEND_URL usa o backend de produção', () => {
-  const expected = 'https://sistema-financeiro-backend-o199.onrender.com/api/internal-jobs/plan-lifecycle';
-  assert.equal(planLifecycleUrl(undefined), expected);
-  assert.equal(planLifecycleUrl('  '), expected);
-});
-
-test('rotina de planos: BACKEND_URL com ou sem barra no fim', () => {
-  assert.equal(planLifecycleUrl('http://localhost:3010'), 'http://localhost:3010/api/internal-jobs/plan-lifecycle');
-  assert.equal(planLifecycleUrl('http://localhost:3010/'), 'http://localhost:3010/api/internal-jobs/plan-lifecycle');
-});
-
-test('rotina de planos: BACKEND_URL inválida dá erro claro', () => {
-  assert.throws(() => planLifecycleUrl('localhost:3010'), /BACKEND_URL inválida/);
-  assert.throws(() => planLifecycleUrl('ftp://exemplo.com'), /BACKEND_URL inválida/);
 });

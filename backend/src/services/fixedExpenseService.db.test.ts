@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { and, asc, eq } from 'drizzle-orm';
 import { accounts, attachments, cards, categories, expenses, fixedExpenses, invoicePayments, users, years } from '../db/schema';
-import { createMemoryStorage } from '../modules/tenders/objectStorageTestSupport';
+import { createMemoryStorage } from './objectStorageTestSupport';
 import type { FixedExpenseInput } from './fixedExpenseInput';
 import type { UpdateExpenseInput } from './expenseInput';
 import { assertLocalDatabase, databaseTestsSkipReason } from './financeDbTestSupport';

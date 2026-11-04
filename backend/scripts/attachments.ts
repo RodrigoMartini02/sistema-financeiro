@@ -14,9 +14,9 @@
 //   Bash:       DOTENV_CONFIG_PATH=../.env.dev npx tsx scripts/attachments.ts check-r2
 import { randomUUID } from 'node:crypto';
 import * as dotenv from 'dotenv';
-import { PRODUCTION_STORAGE_PREFIX } from '../src/modules/tenders/collector/config';
 import type { AttachmentOrphanReport } from '../src/services/attachmentOrphans';
 import { createAttachmentStorage, createAttachmentLink, putAttachmentObject, attachmentStorageKey, removeStoredObjects } from '../src/services/attachmentStorage';
+import { PRODUCTION_STORAGE_PREFIX } from '../src/services/objectStorageSettings';
 
 const USAGE =
   'Uso: check-r2 | sweep [--confirmo] | orphans [--apagar] [--confirmo], '

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { CollectorContext } from '../modules/tenders/collector/runs';
-import { collectorResourceMetrics, runTendersStep, type StepLimits } from './dailyJobs';
-import { CollectorResourceBudget } from '../modules/tenders/collector/resourceBudget';
-import { FEDERAL_STEPS, WINNERS_STEPS } from './dailyJobSteps';
+import { collectorResourceMetrics, runTendersStep, type StepLimits } from './dailyRoutine';
+import { FEDERAL_STEPS, WINNERS_STEPS } from './dailyRoutineSteps';
+import { CollectorResourceBudget } from './resourceBudget';
+import type { CollectorContext } from './runs';
 
 // As etapas dos vencedores só rodam com TENDERS_WINNERS_ENABLED=1 (plano .plans/licitacoes-vencedores.md) e as dos
 // contratos federais, com TENDERS_FEDERAL_ENABLED=1 (plano .plans/licitacoes-contratos-federais.md). Desligadas, são
@@ -26,7 +26,7 @@ function contextWith(enabled: boolean, log: Array<{ message: string; fields: unk
 test('vencedores desligados: as duas etapas são puladas, com o motivo no log, sem tocar em nada', async () => {
   for (const step of WINNERS_STEPS) {
     const log: Array<{ message: string; fields: unknown }> = [];
-    assert.equal(await runTendersStep(step as Parameters<typeof runTendersStep>[0], contextWith(false, log), LIMITS), 'skipped', step);
+    assert.equal(await runTendersStep(step, contextWith(false, log), LIMITS), 'skipped', step);
     assert.deepEqual(log, [{ message: 'Vencedores desligados: etapa pulada', fields: { step } }]);
   }
 });
@@ -34,7 +34,7 @@ test('vencedores desligados: as duas etapas são puladas, com o motivo no log, s
 test('federais desligados: o ciclo e a carga são pulados, com o motivo no log, sem tocar em nada', async () => {
   for (const step of FEDERAL_STEPS) {
     const log: Array<{ message: string; fields: unknown }> = [];
-    assert.equal(await runTendersStep(step as Parameters<typeof runTendersStep>[0], contextWith(true, log, false), LIMITS), 'skipped', step);
+    assert.equal(await runTendersStep(step, contextWith(true, log, false), LIMITS), 'skipped', step);
     assert.deepEqual(log, [{ message: 'Contratos federais desligados: etapa pulada', fields: { step } }]);
   }
 });
