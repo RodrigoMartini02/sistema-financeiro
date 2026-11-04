@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@ui/*": ["../../packages/ui/src/*"],
+      "@site/*": ["./src/*"],
+      "@finance/*": ["../finance/web/src/*"]
+    }
+  },
+  "include": ["src", "../../env.d.ts"]
+}

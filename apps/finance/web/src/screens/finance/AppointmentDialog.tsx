@@ -1,0 +1,157 @@
+import { useEffect } from 'react';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { Appointment, AppointmentFormValues } from '../../types/appointments';
+import { IsoDateField } from '@ui/components/DateField';
+import { Dialog } from '@ui/components/dialog';
+import { C, labelStyle, fieldInputStyle, smallInputStyle, cardStyle, saveButtonStyle, saveButtonDisabledStyle
+} from '@ui/components/dialogFormTokens';
+import { appointmentFormSchema, type AppointmentFormData } from '../../utils/appointmentForm';
+import { getLocalTodayIso } from '@ui/utils/date';
+
+const todayIso = getLocalTodayIso;
+
+/** Motivo embaixo do campo recusado: o botão nunca fica sem resposta. */
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <div style={{ fontSize: 12, color: C.danger }}>{message}</div>;
+}
+
+interface Props {
+  open: boolean;
+  appointment?: Appointment;
+  presetDate?: string;
+  isSaving: boolean;
+  error?: string;
+  onClose: () => void;
+  onSave: (values: AppointmentFormValues) => Promise<void>;
+}
+
+export function AppointmentDialog({ open, appointment, presetDate, isSaving, error, onClose, onSave }: Props) {
+  const isEditing = !!appointment;
+
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(appointmentFormSchema) as Resolver<AppointmentFormData>,
+    defaultValues: {
+      titulo: '', data: presetDate ?? todayIso(), hora: undefined,
+      duracao_minutos: undefined, local: undefined, descricao: undefined,
+    },
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    form.reset({
+      titulo:           appointment?.titulo ?? '',
+      data:             appointment?.data ?? presetDate ?? todayIso(),
+      hora:             appointment?.hora ?? undefined,
+      duracao_minutos:  appointment?.duracao_minutos ?? undefined,
+      local:            appointment?.local ?? undefined,
+      descricao:        appointment?.descricao ?? undefined,
+    });
+  }, [appointment, open, presetDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSubmit = async (data: AppointmentFormData) => {
+    await onSave({
+      titulo: data.titulo,
+      data: data.data,
+      hora: data.hora || undefined,
+      duracao_minutos: data.duracao_minutos || undefined,
+      local: data.local || undefined,
+      descricao: data.descricao || undefined,
+    });
+  };
+
+  const submitForm = form.handleSubmit(handleSubmit);
+
+  return (
+    <Dialog
+      open={open}
+      title={isEditing ? 'Editar compromisso' : 'Novo compromisso'}
+      description="Registre um evento sem valor financeiro"
+      onClose={onClose}
+      size="md"
+    >
+      {/* Sem a validação do navegador: o balão dele (min=1) barrava o envio antes das mensagens do formulário. */}
+      <form onSubmit={submitForm} noValidate>
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label style={labelStyle}>
+              <span>TÍTULO</span><span style={{ color: C.primary }}>*</span>
+            </label>
+            <input {...form.register('titulo')} placeholder="Ex: Reunião com cliente" autoFocus style={fieldInputStyle} />
+            <FieldError message={form.formState.errors.titulo?.message} />
+          </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>
+                <span>DATA</span><span style={{ color: C.primary }}>*</span>
+              </label>
+              <Controller
+                control={form.control}
+                name="data"
+                render={({ field, fieldState }) => (
+                  <IsoDateField
+                    value={field.value}
+                    onChange={field.onChange}
+                    label="Data"
+                    required
+                    invalid={!!fieldState.error}
+                    inputStyle={smallInputStyle}
+                  />
+                )}
+              />
+              <FieldError message={form.formState.errors.data?.message} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>HORÁRIO</label>
+              <input {...form.register('hora')} type="time" style={{ ...smallInputStyle, width: 120 }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label style={labelStyle}>DURAÇÃO (MIN)</label>
+              <input {...form.register('duracao_minutos')} type="number" min={1} placeholder="60" style={{ ...smallInputStyle, width: 110 }} />
+              <FieldError message={form.formState.errors.duracao_minutos?.message} />
+            </div>
+          </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label style={labelStyle}>LOCAL</label>
+            <input {...form.register('local')} placeholder="Ex: Google Meet, Sala 2" style={fieldInputStyle} />
+          </div>
+        </div>
+
+        <div style={{ ...cardStyle, marginBottom: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label style={labelStyle}>OBSERVAÇÕES</label>
+            <textarea
+              {...form.register('descricao')}
+              placeholder="Detalhes adicionais (opcional)"
+              rows={3}
+              style={{ ...fieldInputStyle, height: 'auto', padding: '12px 14px', fontSize: 14, resize: 'vertical' }}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ margin: '0 var(--dialog-px) 14px', borderRadius: 10, border: `1px solid ${C.dangerBorder}`, background: C.dangerBg, padding: '10px 14px', fontSize: 13, color: C.danger }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 16, margin: '0 var(--dialog-px)' }}>
+          <button
+            type="submit"
+            disabled={isSaving}
+            style={(!isSaving) ? saveButtonStyle : saveButtonDisabledStyle}
+          >
+            {isSaving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Criar compromisso'}
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}

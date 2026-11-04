@@ -1,0 +1,120 @@
+// Rascunho do card de despesa do assistente → rascunho do modal de despesa do
+// desktop. O card valida e monta o que é gravado pelas mesmas regras do modal
+// (draftRules): total dividido nas parcelas, vencimento calculado (fatura do
+// cartão ou data da compra), "Pago em" e parcelas pagas uma a uma.
+// Sem React, para o teste rodar direto.
+import type { ExpenseCreateInput } from '../../types/finance';
+import type { FinancialAssistantDraft } from '../../types/financialAssistant';
+import { isoToBrDate } from '@ui/utils/date';
+import { toCents, toReais } from '../../screens/finance/entry-dialog/cents';
+import { MIN_INSTALLMENTS, type ExpenseDraft } from '../../screens/finance/expense-dialog/draftState';
+import {
+  buildCreateInput, effectiveDueDate, errorMessage, hasErrors, installmentAmounts, validateDraft, type RuleContext,
+} from '../../screens/finance/expense-dialog/draftRules';
+
+export interface CardCategory {
+  id: number;
+  nome: string;
+}
+
+const BILLING_TYPES = {
+  nao: 'single',
+  parcelas: 'installments',
+  mensal: 'monthly',
+} as const satisfies Record<NonNullable<FinancialAssistantDraft['billingType']>, ExpenseDraft['billingType']>;
+
+export function normalizeComparable(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/** O card guarda a categoria pelo nome (é o que a frase diz); o modal, pelo id. */
+export function categoryIdByName(categories: CardCategory[], name: string | null): number | null {
+  if (!name) return null;
+  const target = normalizeComparable(name);
+  return categories.find((category) => normalizeComparable(category.nome) === target)?.id ?? null;
+}
+
+/**
+ * Datas que os modais do desktop preenchem sozinhos: sem data na frase, a
+ * receita é de hoje e a compra da despesa também; despesa paga (fora do
+ * parcelado) ganha "Pago em" com o dia da frase ou hoje. O que veio da frase
+ * nunca é sobrescrito.
+ */
+export function fillDraftDefaults(draft: FinancialAssistantDraft, todayIso: string): FinancialAssistantDraft {
+  const date = draft.date ?? todayIso;
+  if (draft.kind === 'income') return { ...draft, date };
+  const paidOutsideInstallments = draft.paid && draft.billingType !== 'parcelas';
+  return {
+    ...draft,
+    date,
+    paymentDate: draft.paymentDate ?? (paidOutsideInstallments ? date : null),
+  };
+}
+
+/**
+ * O rascunho do card no formato do modal: centavos e datas dd/mm/aaaa, como o
+ * modal guarda. Vencimento vazio continua vazio — no modal isso quer dizer
+ * "calculado".
+ */
+export function toExpenseDraft(
+  draft: FinancialAssistantDraft,
+  categories: CardCategory[],
+  todayIso: string,
+): ExpenseDraft {
+  const purchaseIso = draft.date ?? todayIso;
+  return {
+    key: 0,
+    description: draft.description ?? '',
+    categoryId: categoryIdByName(categories, draft.category),
+    amountCents: draft.amount ? toCents(draft.amount) : null,
+    // No parcelado, o valor da frase é o total ("3000 em 10x"), ao contrário do modal.
+    amountIsTotal: true,
+    billingType: BILLING_TYPES[draft.billingType ?? 'nao'],
+    installmentCount: draft.installments ?? MIN_INSTALLMENTS,
+    installmentAdjustments: {},
+    installmentPayments: draft.installmentPayments ?? {},
+    overdueDismissed: draft.overdueDismissed ?? false,
+    cashPriceCents: null,
+    purchaseDate: isoToBrDate(purchaseIso),
+    dueDate: isoToBrDate(draft.dueDate),
+    paid: draft.paid,
+    paymentDate: isoToBrDate(draft.paymentDate),
+    amountPaidCents: draft.amountPaid != null ? toCents(draft.amountPaid) : null,
+    paymentMethod: draft.paymentMethod,
+    cardId: draft.cardId ?? null,
+    paymentMethodTouched: true,
+    // Os arquivos da conversa sobem como comprovantes só ao salvar (FinancialAssistant): o rascunho não tem nenhum.
+    attachments: [],
+    invoiceNumber: draft.invoiceNumber ?? '',
+    invoiceDate: isoToBrDate(draft.invoiceDate),
+  };
+}
+
+export type ExpenseSave = { ok: true; input: ExpenseCreateInput } | { ok: false; error: string };
+
+/** Valida como o modal e devolve o que vai para a API (sem comprovantes: quem salva acrescenta os ids), ou a mensagem do modal. */
+export function buildExpenseSave(
+  draft: FinancialAssistantDraft,
+  options: { categories: CardCategory[]; context: RuleContext; accountId: number | null },
+): ExpenseSave {
+  const expenseDraft = toExpenseDraft(draft, options.categories, options.context.todayIso);
+  const errors = validateDraft(expenseDraft, options.context);
+  if (hasErrors(errors)) return { ok: false, error: errorMessage(errors) };
+  return { ok: true, input: buildCreateInput(expenseDraft, options.context, options.accountId) };
+}
+
+/**
+ * Valor e vencimento que o aviso de duplicata compara com o que já foi
+ * lançado: no parcelado, a primeira parcela (a linha gravada é a parcela).
+ */
+export function duplicateCheckKey(expenseDraft: ExpenseDraft, context: RuleContext): { amount: number; dueDate: string } | null {
+  if (!expenseDraft.amountCents) return null;
+  const amountCents = expenseDraft.billingType === 'installments'
+    ? installmentAmounts(expenseDraft)[0]!
+    : expenseDraft.amountCents;
+  return { amount: toReais(amountCents), dueDate: effectiveDueDate(expenseDraft, context).date };
+}

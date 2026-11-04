@@ -1,0 +1,483 @@
+import { type ReactNode, useEffect, useState } from 'react';
+import {
+  AlertTriangle, BarChart3, Bell, Building2, LayoutDashboard,
+  Moon, Settings, Sun, Wallet, X,
+} from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AuthUser } from '../types/auth';
+import { getActiveAccountId } from '../services/apiClient';
+import { topUpContractIncomes } from '../services/financeService';
+import { fetchNotifications, markNotificationAsRead, type NotificationItem } from '../services/notificationsService';
+import { invalidateIncomeQueries, queryKeys } from '../services/queryKeys';
+import { useOwnPermissions } from '../hooks/useOwnPermissions';
+import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useTelaDesktop } from '@ui/hooks/useTelaDesktop';
+import { useAppContext } from '@ui/context/AppContext';
+import { Z_MOBILE_NAV_OVERLAY, Z_SYSTEM_OVERLAY } from '@ui/components/zIndex';
+import { FinancialAssistant } from '../components/financial-assistant/FinancialAssistant';
+import { SeriesRenewalModal } from '../screens/finance/SeriesRenewalModal';
+import { AccountMenu } from './AccountMenu';
+import { visibleSections, type AccountType } from '../utils/screenAccess';
+import { ConfigPanel, configItemContext, hasVisibleConfigItems, type ConfigItemId } from './ConfigPanel';
+
+export type AppSection =
+  | 'painel' | 'movimentacoes'
+  | 'reports' | 'clientes';
+
+interface AppShellProps {
+  user?: AuthUser;
+  children: ReactNode;
+  activeSection?: AppSection;
+  onNavigate?: (section: AppSection) => void;
+  // Pulso externo para abrir o drawer de Configurações num item específico (ex.: a partir
+  // do checklist de onboarding). Incrementar `token` a cada disparo reabre mesmo se `item`
+  // não mudar entre um clique e outro.
+  openConfigRequest?: { token: number; item: ConfigItemId };
+  // Faz o <main> ocupar exatamente a altura restante da viewport (sem scroll
+  // de página), com o próprio conteúdo controlando seu scroll interno.
+  // Usado por telas que precisam caber inteiras na tela, como o calendário.
+  fillViewport?: boolean;
+  // Renderizado dentro da seção de demonstração pública: desabilita logout real,
+  // notificações reais, troca de conta e o assistente financeiro (fora do escopo
+  // da demonstração), mantendo a mesma moldura visual do app real.
+  isDemoMode?: boolean;
+}
+
+const NAV_GROUPS: { label: string; items: { label: string; icon: React.ElementType; section: AppSection }[] }[] = [
+  {
+    label: 'Finanças',
+    items: [
+      { label: 'Painel',    icon: LayoutDashboard, section: 'painel' },
+      { label: 'Movimenta\u00e7\u00f5es', icon: Wallet, section: 'movimentacoes' },
+      { label: 'Relat\u00f3rios', icon: BarChart3, section: 'reports' },
+    ],
+  },
+  {
+    label: 'Consultoria',
+    items: [
+      { label: 'Clientes', icon: Building2, section: 'clientes' },
+    ],
+  },
+];
+
+const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items);
+
+// "venceu ha N dias" / "vence hoje" a partir do snapshot de data_vencimento
+// gravado no alerta \u2014 nao recalcula contra a despesa atual, que pode ja ter
+// sido editada ou paga depois do alerta ser gerado.
+function alertaRotulo(item: NotificationItem): string {
+  if (item.alertType === 'vencendo_hoje') return 'Vence hoje';
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const vencimento = new Date(`${item.dueDate}T00:00:00`);
+  const dias = Math.round((hoje.getTime() - vencimento.getTime()) / 86_400_000);
+  return dias <= 0 ? 'Venceu' : `Venceu h\u00e1 ${dias} dia${dias === 1 ? '' : 's'}`;
+}
+
+function PushToggleBanner() {
+  const { status, supported, loading, enable, disable } = usePushNotifications();
+
+  if (!supported || status === 'denied') return null;
+
+  if (status === 'granted') {
+    return (
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-cyan-50/60 px-5 py-3 text-xs dark:border-slate-800 dark:bg-cyan-950/20">
+        <span className="text-cyan-700 dark:text-cyan-200">{'Notifica\u00e7\u00f5es push ativadas'}</span>
+        <button
+          type="button"
+          onClick={() => void disable()}
+          disabled={loading}
+          className="font-semibold text-slate-500 underline-offset-2 hover:underline disabled:opacity-50 dark:text-slate-400"
+        >
+          {'Desativar'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs dark:border-slate-800 dark:bg-slate-900">
+      <span className="text-slate-600 dark:text-slate-300">{'Receba avisos de vencimento no celular'}</span>
+      <button
+        type="button"
+        onClick={() => void enable()}
+        disabled={loading}
+        className="rounded-full bg-cyan-600 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-cyan-700 disabled:opacity-50"
+      >
+        {loading ? 'Ativando...' : 'Ativar'}
+      </button>
+    </div>
+  );
+}
+
+function NotificationPanel({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const accountId = getActiveAccountId();
+
+  const { data = [], isLoading } = useQuery({
+    queryKey: queryKeys.notificacoes(accountId),
+    queryFn: () => fetchNotifications(accountId),
+    staleTime: 60_000,
+  });
+
+  const readMut = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.notificacoes(accountId) }),
+  });
+
+  const vencidas = data.filter((item) => item.alertType === 'vencida');
+
+  return (
+    <>
+      <div className={['fixed inset-0 bg-slate-950/15 backdrop-blur-[1px]', Z_SYSTEM_OVERLAY].join(' ')} onClick={onClose} />
+      <aside
+        className={['fixed inset-y-0 right-0 flex w-[min(100vw,410px)] flex-col border-l border-slate-200 bg-white shadow-2xl shadow-slate-900/25 dark:border-slate-800 dark:bg-slate-950', Z_SYSTEM_OVERLAY].join(' ')}
+        role="dialog"
+        aria-label={'Notifica\u00e7\u00f5es'}
+        aria-modal="true"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800">
+          <div>
+            <p className="text-base font-bold text-slate-950 dark:text-white">{'Notifica\u00e7\u00f5es'}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{'Contas vencendo ou vencidas'}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-900 dark:hover:text-white"
+            aria-label={'Fechar notifica\u00e7\u00f5es'}
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <PushToggleBanner />
+
+        <div className="flex-1 overflow-y-auto px-5 py-5">
+          {isLoading ? (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 py-10 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              {'Carregando notifica\u00e7\u00f5es...'}
+            </div>
+          ) : data.length === 0 ? (
+            <div className="rounded-2xl border border-cyan-100 bg-cyan-50 py-10 text-center text-sm text-slate-600 dark:border-cyan-900 dark:bg-cyan-950 dark:text-cyan-100">
+              <Bell size={30} className="mx-auto mb-3 text-cyan-500" />
+              {'Nenhuma conta vencendo ou vencida'}
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {vencidas.length > 0 && (
+                <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 dark:border-rose-900/70 dark:bg-rose-950/40">
+                  <p className="text-sm font-semibold text-rose-700 dark:text-rose-200">
+                    {vencidas.length} conta{vencidas.length !== 1 ? 's' : ''} vencida{vencidas.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-2">
+                {data.map((item) => {
+                  const naoLida = item.status === 'pending';
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => naoLida && readMut.mutate(item.id)}
+                      className={[
+                        'flex items-start gap-3 rounded-2xl border px-4 py-3 text-left shadow-sm transition',
+                        naoLida
+                          ? 'border-cyan-200 bg-cyan-50/60 hover:bg-cyan-50 dark:border-cyan-900 dark:bg-cyan-950/20 dark:hover:bg-cyan-950/30'
+                          : 'border-slate-100 bg-white opacity-70 hover:border-cyan-200 hover:opacity-100 dark:border-slate-800 dark:bg-slate-900',
+                      ].join(' ')}
+                    >
+                      <div className={[
+                        'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1',
+                        item.alertType === 'vencida'
+                          ? 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-900'
+                          : 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-900',
+                      ].join(' ')}
+                      >
+                        <AlertTriangle size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{item.description}</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          {alertaRotulo(item)} {'\u00b7'} R$ {Number(item.amount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      {naoLida && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-cyan-500" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+const CONFIG_ITEM_IDS: ConfigItemId[] = [
+  'contas', 'assinatura', 'categorias', 'cartoes', 'catalogo', 'pedidos',
+  'representantes', 'setores', 'cargos', 'usuarios', 'acessos', 'integracoes-ia',
+];
+
+function readConfigParam(): ConfigItemId | undefined {
+  const value = new URLSearchParams(window.location.search).get('config');
+  return CONFIG_ITEM_IDS.includes(value as ConfigItemId) ? (value as ConfigItemId) : undefined;
+}
+
+export function AppShell({
+  user, children, activeSection = 'painel', onNavigate,
+  openConfigRequest, fillViewport = false, isDemoMode = false,
+}: AppShellProps) {
+  const { theme, toggleTheme } = useAppContext();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const qc = useQueryClient();
+  // O assistente só é usado no celular: no desktop ele nem monta.
+  const telaDesktop = useTelaDesktop();
+
+  // Menu, sininho, Configurações e assistente seguem as permissões de quem
+  // está logado (utils/screenAccess.ts); enquanto carregam, nada aparece.
+  const ownPermissions = useOwnPermissions();
+  const contaTipo = localStorage.getItem('contaAtivaTipo') as AccountType | null;
+  const sections = ownPermissions ? visibleSections(ownPermissions, contaTipo) : [];
+  const canViewNotifications = ownPermissions?.accessNotifications === true;
+  const canUseAssistant = ownPermissions?.accessAssistant === true;
+  const canLaunchIncomes = ownPermissions?.accessIncomes === true;
+  const canLaunchExpenses = ownPermissions?.accessExpenses === true;
+  const hasConfigItems = !!ownPermissions && hasVisibleConfigItems(ownPermissions, configItemContext(user, contaTipo));
+
+  // Mantém a reposição das previsões dos contratos sem prazo ao abrir o app.
+  // As fixas manuais já têm intervalo explícito e não são renovadas aqui.
+  const contractTopUp = useMutation({
+    mutationFn: topUpContractIncomes,
+    onSuccess: ({ contractIncomes }) => {
+      if (contractIncomes > 0) invalidateIncomeQueries(qc);
+    },
+  });
+  useEffect(() => {
+    if (!isDemoMode && canLaunchIncomes) contractTopUp.mutate();
+  }, [isDemoMode, canLaunchIncomes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const notifAccountId = getActiveAccountId();
+  const { data: notifications = [] } = useQuery({
+    queryKey: queryKeys.notificacoes(notifAccountId),
+    queryFn: () => fetchNotifications(notifAccountId),
+    enabled: !isDemoMode && canViewNotifications,
+    staleTime: 60_000,
+  });
+  const naoLidasCount = notifications.filter((item) => item.status === 'pending').length;
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [configPanel, setConfigPanel] = useState<{ open: boolean; item?: ConfigItemId }>(() => {
+    const item = isDemoMode ? undefined : readConfigParam();
+    return { open: !!item, item };
+  });
+
+  const openConfig = (item?: ConfigItemId) => {
+    setConfigPanel({ open: true, item });
+    setMobileOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('config', item ?? 'contas');
+    window.history.pushState({ fingerenceConfig: true }, '', url);
+  };
+
+  const closeConfig = () => {
+    setConfigPanel({ open: false });
+    if (new URLSearchParams(window.location.search).has('config')) {
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    if (openConfigRequest) openConfig(openConfigRequest.item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openConfigRequest?.token]);
+
+  useEffect(() => {
+    if (isDemoMode) return;
+    const handlePopState = () => {
+      const item = readConfigParam();
+      setConfigPanel({ open: !!item, item });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isDemoMode]);
+
+  const currentNav = ALL_NAV.find((n) => n.section === activeSection);
+  const sectionLabel = currentNav?.label;
+
+  const navGroups = NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((item) => sections.includes(item.section)) }))
+    .filter((g) => g.items.length > 0);
+
+  const sidebar = (
+    <div className="flex h-full flex-col bg-[#0D2E3C]">
+      {/* Logo */}
+      <div className="border-b border-[rgba(14,196,216,0.15)] bg-[#0A2530] px-5 py-5">
+        <div className="flex items-center gap-3">
+          <img src="/icons/fingerence-logo.webp" alt="FINGERENCE" className="h-12 w-12 shrink-0 object-contain" />
+          <div>
+            <p className="leading-none tracking-[0.22em] text-[#E8F4F5]" style={{ fontFamily: "'Cinzel', serif", fontSize: '11px', fontWeight: 600, fontStyle: 'italic' }}>FINGERENCE</p>
+            <p className="mt-1 text-[10px] font-medium text-[rgba(14,196,216,0.55)]">Sistema financeiro</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="sidebar-config-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2">
+        <div className="shrink-0 space-y-4">
+          {navGroups.map((group) => {
+            return (
+            <div key={group.label}>
+              <p className="mb-1 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.section;
+                  return (
+                    <button
+                      key={item.section}
+                      onClick={() => { onNavigate?.(item.section); setMobileOpen(false); }}
+                      className={[
+                        'relative flex h-10 w-full items-center gap-3 rounded-lg text-sm font-medium transition',
+                        isActive
+                          ? 'bg-[rgba(14,196,216,0.10)] text-[#0EC4D8] font-semibold'
+                          : 'text-[#E8F4F5] hover:bg-[rgba(14,196,216,0.06)]',
+                      ].join(' ')}
+                      style={{ paddingLeft: isActive ? '10px' : '12px', paddingRight: '12px' }}
+                    >
+                      {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-[#0EC4D8]" />}
+                      <Icon size={17} className={isActive ? 'text-[#0EC4D8]' : ''} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            );
+          })}
+        </div>
+
+        {!isDemoMode && hasConfigItems && (
+        <div className="mt-4 flex flex-col">
+          <p className="mb-1 shrink-0 px-3 text-[10px] font-bold uppercase tracking-widest text-[rgba(14,196,216,0.38)]">Sistema</p>
+          <button
+            onClick={() => openConfig()}
+            className="relative flex h-10 w-full shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)]"
+          >
+            <Settings size={17} />
+            <span className="flex-1 text-left">{'Configura\u00e7\u00f5es'}</span>
+          </button>
+        </div>
+        )}
+      </nav>
+
+      {/* App version */}
+      <div className="border-t border-[rgba(14,196,216,0.12)] px-4 py-3">
+        <p className="text-[10.5px] text-[rgba(14,196,216,0.3)]">FINGERENCE</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={isDemoMode
+      ? 'relative h-screen overflow-hidden bg-slate-50 dark:bg-slate-900'
+      : 'min-h-screen bg-slate-50 dark:bg-slate-900'}>
+      {!isDemoMode && notifOpen && canViewNotifications && <NotificationPanel onClose={() => setNotifOpen(false)} />}
+      <aside className={['left-0 hidden w-64 border-r border-[rgba(14,196,216,0.18)] lg:flex lg:flex-col shadow-sm', isDemoMode ? 'absolute inset-y-0' : 'fixed inset-y-0'].join(' ')}>
+        {sidebar}
+      </aside>
+
+      {mobileOpen && (
+        <div className={[isDemoMode ? 'absolute inset-0' : 'fixed inset-0', 'lg:hidden', Z_MOBILE_NAV_OVERLAY].join(' ')}>
+          <div className="absolute inset-0 bg-[#040E12]/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-64 flex flex-col shadow-2xl">{sidebar}</aside>
+        </div>
+      )}
+
+      <div className={isDemoMode ? 'h-full overflow-y-auto lg:pl-64' : 'lg:pl-64'}>
+        <header className="sticky top-0 z-30 border-b border-[rgba(14,196,216,0.18)] bg-[#0D2E3C]/95 backdrop-blur">
+          <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+            <button
+              className="lg:hidden flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] transition"
+              onClick={() => setMobileOpen(true)}
+            >
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            {sectionLabel && (
+              <div className="hidden lg:flex items-center gap-2 border-r border-[rgba(14,196,216,0.15)] pr-4">
+                {currentNav && <currentNav.icon size={16} className="text-[#0EC4D8]" />}
+                <span className="text-sm font-semibold text-[#E8F4F5]">{sectionLabel}</span>
+              </div>
+            )}
+
+            <div className="flex-1" />
+
+            {isDemoMode && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F6A623]/40 bg-[#F6A623]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#F6A623]">
+                Demonstração
+              </span>
+            )}
+
+            <button
+              onClick={toggleTheme}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
+            >
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+
+            {!isDemoMode && canViewNotifications && (
+              <button
+                onClick={() => setNotifOpen((o) => !o)}
+                aria-label={naoLidasCount > 0 ? `Notificações (${naoLidasCount} não lidas)` : 'Notificações'}
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-[rgba(14,196,216,0.55)] hover:bg-[rgba(14,196,216,0.08)] hover:text-[#0EC4D8] transition lg:h-8 lg:w-8"
+              >
+                {/* Contador preso ao canto do sino, e não ao botão: no desktop o
+                    botão é pequeno e o contador cobria o ícone inteiro. */}
+                <span className="relative inline-flex">
+                  <Bell size={16} />
+                  {naoLidasCount > 0 && (
+                    <span className="pointer-events-none absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-[#0D2E3C]">
+                      {naoLidasCount > 9 ? '9+' : naoLidasCount}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )}
+
+            <span className="h-6 w-px shrink-0 bg-[rgba(14,196,216,0.15)]" style={{ margin: '0 6px' }} />
+
+            <AccountMenu user={user} isDemoMode={isDemoMode} onOpenConfig={isDemoMode || !hasConfigItems ? undefined : openConfig} />
+          </div>
+        </header>
+
+        <main
+          className={fillViewport
+            ? ['flex flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-8', isDemoMode ? 'h-[calc(100%-64px)]' : 'h-[calc(100vh-64px)]'].join(' ')
+            : 'px-4 py-6 sm:px-6 lg:px-8'}
+        >
+          {children}
+        </main>
+      </div>
+      {!isDemoMode && !telaDesktop && canUseAssistant && <FinancialAssistant />}
+      {/* A partir de 1º de dezembro, pergunta se as despesas recorrentes continuam (na demo, nunca há). */}
+      {canLaunchExpenses && <SeriesRenewalModal showExpenses={canLaunchExpenses} />}
+      {!isDemoMode && (
+        <ConfigPanel
+          open={configPanel.open && hasConfigItems}
+          initialItem={configPanel.item}
+          onClose={closeConfig}
+          onItemChange={(item) => {
+            const url = new URL(window.location.href);
+            url.searchParams.set('config', item);
+            window.history.replaceState(window.history.state, '', url);
+          }}
+        />
+      )}
+    </div>
+  );
+}
