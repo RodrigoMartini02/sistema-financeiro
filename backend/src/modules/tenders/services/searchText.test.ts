@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import { parseSearchText } from './searchText';
 
 test('palavras soltas viram termos; aspas viram frase; -palavra e -"frase" viram exclusão', () => {

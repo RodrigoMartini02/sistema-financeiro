@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { body } from 'express-validator';
-import { validate } from '../../../middleware/validation';
+import { validate } from '../middleware/validation';
 import { createRequireTenderAccess } from '../middleware/tenderAccess';
 import { listAccountsForTenders, setAccountCourtesy } from '../services/team';
 import { activationRoutes, billingRoutes, createBillingWebhook } from './billing';

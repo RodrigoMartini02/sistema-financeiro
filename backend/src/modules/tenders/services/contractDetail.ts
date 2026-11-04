@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import type { ContractTermSummary } from '../collector/contractMapping';
 import { PURCHASE_CONTROL_NUMBER, contractOriginOf, isContractKey, type ContractOrigin } from '../contractStore/layout';

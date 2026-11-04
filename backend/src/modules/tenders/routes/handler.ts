@@ -1,5 +1,5 @@
 import type { Request, RequestHandler, Response } from 'express';
-import { sendRequestError } from '../../../utils/requestInput';
+import { sendRequestError } from '../utils/requestInput';
 import { ContractStoreTimeoutError, ContractStoreUnavailableError } from '../contractStore/reader';
 
 /** Códigos da resposta quando o armazém de contratos não pode responder (a tela mostra o estado "atualizando"). */

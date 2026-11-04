@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, describe, test } from 'node:test';
 import { and, count, eq } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TenderContractRow } from '../collector/contractMapping';
 import {
   closeLocalTestDatabase,

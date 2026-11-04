@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { validate } from '../../../middleware/validation';
-import { RequestInputError } from '../../../utils/requestInput';
+import { validate } from '../middleware/validation';
+import { RequestInputError } from '../utils/requestInput';
 import { tenderAccessOf } from '../middleware/tenderAccess';
 import { addContractFavorite, getContractDetail, parseContractKey, removeContractFavorite } from '../services/contractDetail';
 import { contractSavedSearchCriteria, findOwnContractSavedSearch } from '../services/contractSavedSearches';

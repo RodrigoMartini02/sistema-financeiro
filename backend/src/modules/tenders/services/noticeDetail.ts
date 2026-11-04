@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { users } from '../../../db/schema/users';
-import { RequestInputError } from '../../../utils/requestInput';
+import { users } from '../db/identity';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderFavorites, tenderNotices, tenderSavedSearches, tenderTrackingHistory, tenderTrackings } from '../db/schema';
 import { TRACKING_REMOVED, type TrackingHistoryStatus, type TrackingStatus } from '../domains';

@@ -16,6 +16,8 @@ Referências:
 ```
 backend/src/modules/tenders/
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
+├── db/identity.ts          usuários, contas e vínculos de membro que o módulo usa (mesmos nomes de tabela de Finanças, só as colunas dele)
+├── db/pool.ts              pool próprio do módulo no servidor (`TENDERS_DATABASE_URL`; sem ela, `DATABASE_URL`)
 ├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
 ├── cnpj.ts                 CNPJ: formato (14 dígitos), dígitos verificadores e o erro das consultas do armazém
@@ -69,16 +71,20 @@ backend/src/modules/tenders/
 │   ├── blockTime.ts                 o tempo dos blocos das cargas dentro do prazo da rotina e o envio do bruto antes de publicar
 │   ├── runtime.ts                   config, log, banco, PNCP, Compras.gov.br e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
-├── middleware/             trava do módulo (conta e acesso) e limite por usuário
-├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...)
+├── middleware/             trava do módulo (conta e acesso), limite por usuário e `validation.ts` (cópia enxuta da de Finanças)
+├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...) e as cópias enxutas de `memberInput`, `documentConflicts`, `accountMemberCreation` e `mercadoPagoCharges`
+├── utils/                  `requestInput.ts`: erro de pedido e leitura do corpo (cópia enxuta da de Finanças)
 └── routes/                 rotas Express e validações (express-validator)
 ```
+
+Nada do módulo importa código de Finanças, nem nos testes: `backend/src/utils/moduleBoundaries.test.ts` falha se algum import aparecer. O que o módulo precisa de Finanças vive aqui como cópia, e os dois backends evoluem separados.
 
 ## Variáveis de ambiente
 
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `TENDERS_COLLECTOR_DATABASE_URL` | — (obrigatória) | Conexão do coletor. Em produção, o usuário restrito `licitacoes_coletor` (abaixo). |
+| `TENDERS_DATABASE_URL` | `DATABASE_URL` | Banco da API de Licitações no servidor (pool próprio, até 10 conexões). Sem ela, a API usa o banco de Finanças; o banco próprio chega na entrega 3B da Etapa 3 (`.plans/separar-etapa-3-identidade-e-banco.md`). |
 | `PNCP_BASE_URL` | `https://pncp.gov.br/api/consulta` | |
 | `PNCP_MODALITIES` | `6,8,4,7` | Modalidades coletadas (1 a 13). |
 | `PNCP_STATES` | vazio (todas) | Restringe as UFs (ex.: `MA,PI`), se o volume for alto. |
@@ -617,6 +623,7 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 
 **Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
 - `GET /billing?accountId=`: situação (`cortesia`, `teste`, `paga`, `recorrente`, `vencida` ou `desligada`), usuários, valor do mês e preço;
+- `GET /billing/config`: a chave pública do Mercado Pago da plataforma (`public_key`, nula sem a variável `MP_PUBLIC_KEY`) para o formulário de cartão do app. Só com login, e é a rota que o app de Licitações usa em vez da de Finanças;
 - `POST /billing/pix`, `/card`, `/checkout` e `/recurring`, com `{ accountId }`, nos mesmos moldes do FINGERENCE (`services/mercadoPagoCharges.ts`). A referência é `lic:<conta>`;
 - pagamento avulso aprovado: mais 30 dias, contados do maior entre hoje, o fim do teste e o fim do período pago;
 - `POST /billing/cancel`: para o recorrente. O acesso continua até o fim do teste ou do período já pago (no FINGERENCE é diferente). Vale também em cortesia, porque a cortesia não cancela o recorrente no Mercado Pago.

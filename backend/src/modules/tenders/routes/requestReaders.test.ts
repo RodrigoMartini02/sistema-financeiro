@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import {
   readContractSavedSearchCriteria,
   readContractSavedSearchInput,

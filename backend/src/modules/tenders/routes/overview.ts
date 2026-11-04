@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { validate } from '../../../middleware/validation';
-import { readNewMemberInput } from '../../../services/memberInput';
+import { validate } from '../middleware/validation';
+import { readNewMemberInput } from '../services/memberInput';
 import { requireTenderTitular, requireTenderTitularOrAdmin, tenderAccessOf } from '../middleware/tenderAccess';
 import { listCollectionRuns, readCollectionOverview } from '../services/collectionOverview';
 import { readDashboard } from '../services/dashboard';
@@ -96,14 +96,13 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
     }),
   );
 
-  // POST /api/tenders/team: usuário novo, já com acesso ao módulo (sem setor nem cargo: isso é do FINGERENCE).
+  // POST /api/tenders/team: usuário novo, já com acesso ao módulo (setor, cargo e admissão voltam no item 1A).
   router.post(
     '/team',
     requireTenderTitular,
     tenderRoute('Tender team create failed:', 'Não foi possível cadastrar o usuário agora.', async (req, res) => {
       const access = tenderAccessOf(req);
-      const input = { ...readNewMemberInput(req.body), sectorId: null, jobTitleId: null, admissionDate: null };
-      const member = await createTeamMember(deps.db, access.account.id, access.userId, input);
+      const member = await createTeamMember(deps.db, access.account.id, access.userId, readNewMemberInput(req.body));
       const warning = await syncRecurringAmount(deps.db, access.account.id, deps.now());
       res.status(201).json({ success: true, data: { member, warning } });
     }),

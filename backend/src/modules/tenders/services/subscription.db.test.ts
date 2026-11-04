@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 import { eq } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, withRollback } from '../collector/dbTestSupport';
 import { tenderEnabledAccounts } from '../db/schema';

@@ -18,8 +18,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from '../../../db/schema/users';
-import { accounts } from '../../../db/schema/accounts';
+import { accounts, users } from './identity';
 import type {
   CollectionRunStatus,
   CollectionRunType,

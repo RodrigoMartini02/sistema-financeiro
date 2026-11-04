@@ -1,5 +1,5 @@
 import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderNotifications } from '../db/schema';
 import type { TenderNotificationType } from '../domains';

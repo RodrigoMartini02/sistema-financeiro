@@ -1,6 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod/v4';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { PncpClient, PncpRequestError, type PncpDetailList } from '../collector/pncpClient';
 import { tenderDetailCache, tenderNotices } from '../db/schema';

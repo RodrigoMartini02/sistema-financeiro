@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { validate } from '../../../middleware/validation';
-import { RequestInputError } from '../../../utils/requestInput';
+import { validate } from '../middleware/validation';
+import { RequestInputError } from '../utils/requestInput';
 import { TRACKING_STATUSES } from '../domains';
 import { tenderAccessOf } from '../middleware/tenderAccess';
 import {

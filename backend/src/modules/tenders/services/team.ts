@@ -1,10 +1,8 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import { accountMembers } from '../../../db/schema/accountMembers';
-import { accounts } from '../../../db/schema/accounts';
-import { users } from '../../../db/schema/users';
-import { createAccountMember } from '../../../services/accountMemberCreation';
-import type { NewMemberInput } from '../../../services/memberInput';
-import { RequestInputError } from '../../../utils/requestInput';
+import { accountMembers, accounts, users } from '../db/identity';
+import { createAccountMember } from './accountMemberCreation';
+import type { NewMemberInput } from './memberInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
 import type { TenderAccessType } from '../domains';

@@ -1,5 +1,5 @@
 import { and, asc, count, eq, sql } from 'drizzle-orm';
-import { RequestInputError } from '../../../utils/requestInput';
+import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { tenderSavedSearches } from '../db/schema';
 import type { SearchTermsMode } from '../domains';

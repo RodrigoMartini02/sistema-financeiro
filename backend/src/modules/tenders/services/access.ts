@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, sql, type SQL } from 'drizzle-orm';
-import { accountMembers } from '../../../db/schema/accountMembers';
-import { accounts } from '../../../db/schema/accounts';
+import { accountMembers, accounts } from '../db/identity';
 import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
 import type { TenderRole } from '../domains';

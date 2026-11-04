@@ -4,8 +4,7 @@ import { join } from 'node:path';
 import * as dotenv from 'dotenv';
 import type { Pool } from 'pg';
 import { TransactionRollbackError } from 'drizzle-orm';
-import { accounts } from '../../../db/schema/accounts';
-import { users } from '../../../db/schema/users';
+import { accounts, users } from '../db/identity';
 import {
   tenderEnabledAccounts,
   tenderNotices,

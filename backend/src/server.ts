@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import path from 'path';
-import { pool, testConnection } from './db/client';
+import { testConnection } from './db/client';
 
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || path.resolve(process.cwd(), '../.env') });
 
@@ -97,6 +97,7 @@ import catalogoRoutes from './modules/catalogo/routes';
 import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
 import { createCollectorLogger } from './modules/tenders/collector/logger';
 import { startContractStoreFromEnv } from './modules/tenders/contractStore/service';
+import { createTendersPool } from './modules/tenders/db/pool';
 import { createTendersRoutes, tendersApiDepsFromPool } from './modules/tenders/routes';
 import { authenticate, requireActivePlan, requireAdmin, requirePremiumPlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
@@ -165,7 +166,7 @@ app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumP
 // Os contratos moram em arquivos no R2: a cópia local começa aqui, em segundo plano, sem atrasar o servidor
 // (até ficar pronta, a busca de contratos responde "atualizando").
 const contractStore = startContractStoreFromEnv(process.env, createCollectorLogger('info'));
-const tendersApi = createTendersRoutes(tendersApiDepsFromPool(pool, contractStore));
+const tendersApi = createTendersRoutes(tendersApiDepsFromPool(createTendersPool(), contractStore));
 app.post('/api/tenders/billing/webhook', tendersApi.billingWebhook);
 app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);
 app.use('/api/tenders', authenticate, tendersApi.routes);
