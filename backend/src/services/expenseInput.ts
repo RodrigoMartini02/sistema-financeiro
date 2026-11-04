@@ -5,7 +5,7 @@ import {
   MAX_AMOUNT, RequestInputError, readAmount, readDescription, readIsoDate, readOptionalId,
   readOptionalIsoDate, readOptionalText, readQueryId, readQueryText, readRecord, readRequiredId, roundCents,
 } from '../utils/requestInput';
-import { readOptionalAttachmentIds, rejectLegacyAttachments } from './attachmentModel';
+import { readOptionalAttachmentIds } from './attachmentModel';
 import { isCreditWithCard } from './cardInvoiceRules';
 import { parseEffectiveMonth } from './cardDueDate';
 
@@ -175,7 +175,6 @@ function readFields(record: Record<string, unknown>): ExpenseFieldsInput {
     throw new RequestInputError('O cartão só vale para débito ou crédito');
   }
 
-  rejectLegacyAttachments(record);
   const attachmentIds = readOptionalAttachmentIds(record['attachmentIds']);
   return {
     description,

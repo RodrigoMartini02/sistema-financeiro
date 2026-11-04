@@ -6,7 +6,7 @@ import {
   RequestInputError, readAmount, readDescription, readIsoDate, readOptionalId, readQueryId, readQueryText,
   readRecord, readRequiredId,
 } from '../utils/requestInput';
-import { readOptionalAttachmentIds, rejectLegacyAttachments } from './attachmentModel';
+import { readOptionalAttachmentIds } from './attachmentModel';
 
 /** A receita fixa gera no máximo 3 anos de ocorrências. */
 export const MAX_REPLICAS = 36;
@@ -104,7 +104,6 @@ function readFields(record: Record<string, unknown>): IncomeFieldsInput {
   if (netAmount > grossAmount) {
     throw new RequestInputError('O valor líquido não pode passar do bruto');
   }
-  rejectLegacyAttachments(record);
   const attachmentIds = readOptionalAttachmentIds(record['attachmentIds']);
   return {
     description: readDescription(record['description']),

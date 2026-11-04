@@ -3,7 +3,7 @@ import test from 'node:test';
 import type { Attachment } from '../db/schema/attachments';
 import { RequestInputError } from '../utils/requestInput';
 import {
-  diffAttachmentIds, ownerOfAttachment, readAttachmentIds, readOptionalAttachmentIds, rejectLegacyAttachments, toAttachmentView,
+  diffAttachmentIds, ownerOfAttachment, readAttachmentIds, readOptionalAttachmentIds, toAttachmentView,
 } from './attachmentModel';
 import { MAX_ATTACHMENTS_PER_REQUEST } from './attachmentRules';
 
@@ -64,17 +64,6 @@ test('ids de anexos opcionais: ausente é "não mexer", lista vazia é "tirar to
   assert.deepEqual(readOptionalAttachmentIds([FIRST.toUpperCase()]), [FIRST]);
   assert.throws(() => readOptionalAttachmentIds('não é lista', 'Anexos inválidos'), RequestInputError);
   assert.throws(() => readOptionalAttachmentIds([FIRST, FIRST]), RequestInputError);
-});
-
-test('o pedido de uma aba antiga, com o arquivo dentro do lançamento, é recusado em vez de perder o anexo', () => {
-  assert.throws(
-    () => rejectLegacyAttachments({ attachments: [{ id: 'anexo_1', nome: 'nota.pdf', dados: 'JVBERi0=' }] }),
-    (error: unknown) => error instanceof RequestInputError && /Atualize a página/.test(error.message),
-  );
-  rejectLegacyAttachments({});
-  rejectLegacyAttachments({ attachments: null });
-  rejectLegacyAttachments({ attachments: [] });
-  rejectLegacyAttachments({ attachmentIds: [FIRST] });
 });
 
 test('a lista final de anexos de um dono: quem entra e quem sai', () => {
