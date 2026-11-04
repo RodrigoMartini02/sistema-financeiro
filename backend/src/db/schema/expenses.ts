@@ -7,7 +7,6 @@ import {
   date,
   text,
   boolean,
-  jsonb,
   timestamp,
   index,
   uniqueIndex,
@@ -56,7 +55,6 @@ export const expenses = pgTable(
     // 'ativa' | 'cancelada' | 'prevista'. Toda leitura financeira filtra por ela: sem o
     // filtro, lancamento cancelado volta a somar nos totais.
     status: varchar('status', { length: 20 }).notNull().default('ativa'),
-    attachments: jsonb('anexos'),
     // Receita que gerou a despesa de comissão: cancelar ou excluir a receita
     // cancela a comissão ligada, se ainda não foi paga (commissionService).
     sourceIncomeId: integer('receita_origem_id').references(() => incomes.id, { onDelete: 'set null' }),

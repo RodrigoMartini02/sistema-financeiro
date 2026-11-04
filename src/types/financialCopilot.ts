@@ -1,5 +1,18 @@
-import type { Attachment, OpenExpense } from './finance';
+import type { OpenExpense } from './finance';
 import type { FinancialAssistantDraft } from './financialAssistant';
+
+/**
+ * Arquivo anexado à conversa do assistente. O conteúdo em base64 (`dados`) vai para a leitura do assistente (texto e
+ * Pix); o arquivo original (`file`) vira comprovante do lançamento se o card for salvo.
+ */
+export interface AssistantFile {
+  id: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+  dados: string;
+  file: File;
+}
 
 export type FinancialCopilotCardType = 'summary' | 'categories' | 'transactions' | 'upcoming' | 'budget';
 export type FinancialCopilotIntentHint = 'register_expense' | 'register_income' | 'ask' | 'pay_expense';
@@ -47,7 +60,7 @@ export interface FinancialCopilotRequest {
   message: string;
   month: number;
   year: number;
-  attachments?: Attachment[];
+  attachments?: AssistantFile[];
   context?: Partial<FinancialAssistantDraft>;
   conversationId?: number | null;
   intentHint?: FinancialCopilotIntentHint | null;

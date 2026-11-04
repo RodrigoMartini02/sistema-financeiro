@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useAttachmentActions } from '../../hooks/useAttachmentActions';
 import { invalidateIncomeQueries } from '../../services/queryKeys';
-import type { AttachmentSummary } from '../../services/attachmentsService';
+import type { AttachmentSummary } from '../../types/attachment';
 import { AttachmentsField } from '../../ui/AttachmentsField';
 
 /** Anexos da ficha do contrato: enviar, abrir e remover. */

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { IncomeCreateInput, IncomeOccurrenceDto, IncomeUpdateInput, PainelData } from '../types/finance';
+import { registerDemoAttachment } from '../services/demo/demoAttachments';
 import { createDemoFakeDatabase, todayIso, type DemoFakeDatabase, type RawIncomeDemo } from '../services/demo/demoFakeDatabase';
 import { resolveFakeApiRequest } from '../services/demo/fakeApiResolver';
 import { addMonthsClamped } from './expenseSchedule';
@@ -19,11 +20,11 @@ function request<T>(db: DemoFakeDatabase, endpoint: string, method = 'GET', body
 const input: IncomeCreateInput = {
   accountId: 1, description: 'Salário', categoryId: 2, grossAmount: 1500, netAmount: 1400,
   receiptDate: '2020-01-31', billingType: 'fixed', endMonth: '2020-03', received: false,
-  clientId: null, representativeId: null, attachments: null, productSale: null, billableHours: null,
+  clientId: null, representativeId: null, attachmentIds: [], productSale: null, billableHours: null,
 };
 const fields: IncomeUpdateInput = {
   description: 'Salário confirmado', categoryId: 2, grossAmount: 1600, netAmount: 1500,
-  receiptDate: '2020-02-01', clientId: null, representativeId: null, attachments: null,
+  receiptDate: '2020-02-01', clientId: null, representativeId: null, attachmentIds: [],
 };
 const create = (db: DemoFakeDatabase, patch: Partial<IncomeCreateInput> = {}) => request<RawIncomeDemo>(db, '/incomes', 'POST', { ...input, ...patch });
 const pending = (db: DemoFakeDatabase, month = '2020-01', accountId = 1) => request<IncomeOccurrenceDto[]>(db, `/incomes/pending?accountId=${accountId}&month=${month}`);
@@ -35,12 +36,12 @@ test('demo receitas: Recebida define só a atual; futuras são previstas, com da
   assert.equal(first.status, 'prevista');
   assert.deepEqual(db.receitas.map(row => row.data_recebimento), ['2020-01-31', '2020-02-29', '2020-03-31']);
   assert.ok(db.receitas.every(row => row.status === 'prevista'));
-  const attachment = { id: 'comprovante-1', nome: 'Comprovante', tipo: 'text/plain', tamanho: 1, dados: 'x', dataUpload: '2020-01-31' };
-  const received = create(db, { received: true, attachments: [attachment] });
+  const attachment = registerDemoAttachment(new File(['x'], 'Comprovante.txt', { type: 'text/plain' }));
+  const received = create(db, { received: true, attachmentIds: [attachment.id] });
   const series = db.receitas.filter(row => row.classificacao_fixa_id === received.classificacao_fixa_id);
   assert.equal(series[0]?.status, 'ativa');
-  assert.deepEqual(series[0]?.anexos, [attachment]);
-  assert.ok(series.slice(1).every(row => row.status === 'prevista' && row.anexos === null));
+  assert.deepEqual(series[0]?.attachments, [attachment]);
+  assert.ok(series.slice(1).every(row => row.status === 'prevista' && row.attachments.length === 0));
   assert.notEqual(first.classificacao_fixa_id, received.classificacao_fixa_id);
 });
 

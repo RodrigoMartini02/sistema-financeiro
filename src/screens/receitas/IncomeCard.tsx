@@ -30,7 +30,7 @@ export function IncomeCard({ item, hoje, isEmpresa, onConfirmRecebimento, onCanc
   const isPrevista = item.status === 'prevista';
   const isAtrasada = isPrevista && item.data < hoje;
   const isCancelada = item.status === 'cancelada';
-  const anexosCount = item.anexos?.length ?? 0;
+  const anexosCount = item.attachments?.length ?? 0;
 
   const actions: KebabMenuAction[] = [
     { key: 'editar', label: 'Editar', icon: <Pencil size={15} />, onClick: onEdit },

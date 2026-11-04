@@ -1,4 +1,5 @@
-import type { Attachment, Income } from '../../../types/finance';
+import type { AttachmentSummary } from '../../../types/attachment';
+import type { Income } from '../../../types/finance';
 import { isoToBrDate } from '../../../utils/date';
 import {
   batchReducer, nextDraftKey, type BatchAction, type BatchState, type DraftPatch,
@@ -44,7 +45,8 @@ export interface IncomeDraft {
   contractId: number | null;
   hourTypeId: number | null;
   hours: number | null;
-  attachments: Attachment[];
+  /** Os comprovantes já enviados ao servidor: os que a receita tinha e os que subiram nesta edição (a lista final). */
+  attachments: AttachmentSummary[];
 }
 
 export type IncomeDraftPatch = DraftPatch<IncomeDraft>;
@@ -83,7 +85,7 @@ export function incomeDraftFromIncome(income: Income): IncomeDraft {
     netCents: income.valorLiquido === income.valorBruto ? null : toCents(income.valorLiquido),
     clientId: income.clienteId ?? null,
     representativeId: income.representanteId ?? null,
-    attachments: income.anexos ?? [],
+    attachments: income.attachments ?? [],
     billingType: income.fixedIncomeId != null ? 'fixed' : 'single',
     endMonth: income.fixedEndMonth ?? '',
     initialEndMonth: income.fixedEndMonth ?? '',

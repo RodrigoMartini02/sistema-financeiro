@@ -226,7 +226,7 @@ export function IncomeRow({
             </div>
           )}
           <div className="lg:flex lg:items-center">
-            <AttachmentsPopover attachments={draft.attachments} onChange={(attachments) => onUpdate({ attachments })} label="Comprovantes" />
+            <AttachmentsPopover ownerType="income" attachments={draft.attachments} onChange={(attachments) => onUpdate({ attachments })} label="Comprovantes" />
           </div>
           <div className="lg:flex lg:items-center lg:justify-end">
             {isEntry && <AddToBatchButton filled={isIncomeDraftFilled(draft)} onClick={onAddToBatch} />}

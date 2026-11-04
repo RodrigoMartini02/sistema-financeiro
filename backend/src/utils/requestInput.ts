@@ -150,15 +150,6 @@ export function readOptionalText(value: unknown, label: string, maxLength: numbe
   return text;
 }
 
-/** Lista de anexos (objetos); lista vazia vira null. */
-export function readAttachments(value: unknown): unknown[] | null {
-  if (value === undefined || value === null) return null;
-  if (!Array.isArray(value) || !value.every((item) => typeof item === 'object' && item !== null)) {
-    throw new RequestInputError('Anexos inválidos');
-  }
-  return value.length > 0 ? value : null;
-}
-
 export function readQueryText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }

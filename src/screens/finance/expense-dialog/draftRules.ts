@@ -481,7 +481,7 @@ function commonFields(draft: ExpenseDraft, context: RuleContext) {
     purchaseDate: purchaseDateIso(draft, context.todayIso),
     invoiceNumber: invoiceNumber || null,
     invoiceDate: brDateInputToIso(draft.invoiceDate, context.todayIso) || null,
-    attachments: draft.attachments.length > 0 ? draft.attachments : null,
+    attachmentIds: draft.attachments.map((attachment) => attachment.id),
   };
 }
 

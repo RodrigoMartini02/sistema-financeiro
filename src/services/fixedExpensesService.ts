@@ -14,7 +14,7 @@ export async function fetchPendingFixedExpenses(month: string, accountId: number
     fixedExpenseId: row.fixedExpenseId, fixedCompetence: row.fixedCompetence,
     fixedEndMonth: row.endMonth, deferred: row.deferred,
     estimatedAmount: row.estimatedAmount == null ? null : Number(row.estimatedAmount),
-    anexos: row.attachments ?? null, numeroNf: row.invoiceNumber ?? null, dataEmissaoNf: row.invoiceDate ?? null,
+    attachments: row.attachments ?? [], numeroNf: row.invoiceNumber ?? null, dataEmissaoNf: row.invoiceDate ?? null,
   }));
 }
 

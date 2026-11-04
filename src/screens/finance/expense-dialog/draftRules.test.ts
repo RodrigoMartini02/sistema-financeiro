@@ -231,7 +231,7 @@ test('envio da despesa única: vencimento calculado e data real do pagamento', (
   const open = buildCreateInput(draft({ cardId: CAJU.id }), context, 17);
   assert.deepEqual(open, {
     description: 'Conta de luz', categoryId: 10, paymentMethod: 'pix', cardId: null, purchaseDate: '2026-09-29',
-    invoiceNumber: null, invoiceDate: null, attachments: null, accountId: 17,
+    invoiceNumber: null, invoiceDate: null, attachmentIds: [], accountId: 17,
     billingType: 'single', amount: 187.4, dueDate: '2026-09-29', paid: false, paymentDate: null, amountPaid: null,
   });
 
@@ -301,7 +301,7 @@ function savedExpense(overrides: Partial<Expense> = {}): Expense {
   return {
     id: 7, descricao: 'Conta de luz', valorFinal: 100, categoria: 'Casa', categoriaId: 10, formaPagamento: 'pix', cartaoId: null,
     dataVencimento: '2026-09-10', dataCompra: '2026-09-01', dataPagamento: '2026-09-10', mes: 8, ano: 2026, status: 'ativa',
-    pago: true, valorPago: 100, recorrente: false, parcelado: false, anexos: null, numeroNf: null, dataEmissaoNf: null,
+    pago: true, valorPago: 100, recorrente: false, parcelado: false, attachments: [], numeroNf: null, dataEmissaoNf: null,
     ...overrides,
   } as Expense;
 }
@@ -355,4 +355,20 @@ test('duplicata no parcelado compara o valor da 1ª parcela e o nº de parcelas'
   });
   assert.equal(duplicateQuery(draft({ amountCents: null }), null), null);
   assert.equal(duplicateQuery(draft(), 9)?.excludeId, 9);
+});
+
+const RECEIPT_PDF = { id: 'a1', name: 'nota.pdf', contentType: 'application/pdf', size: 1000, createdAt: '2026-09-01T10:00:00.000Z' };
+const RECEIPT_PNG = { id: 'b2', name: 'foto.png', contentType: 'image/png', size: 2000, createdAt: '2026-09-02T10:00:00.000Z' };
+
+test('os comprovantes vão como a lista final de ids, na ordem, na criação e na edição', () => {
+  const withReceipts = draft({ attachments: [RECEIPT_PDF, RECEIPT_PNG] });
+  assert.deepEqual(buildCreateInput(withReceipts, context, 17).attachmentIds, ['a1', 'b2']);
+  assert.deepEqual(buildUpdateInput(withReceipts, context).attachmentIds, ['a1', 'b2']);
+  // Sem comprovante a lista vai vazia: na edição quer dizer "tirar todos", e é o que a pessoa vê na tela.
+  assert.deepEqual(buildUpdateInput(draft(), context).attachmentIds, []);
+});
+
+test('editar a despesa traz os comprovantes que ela já tinha', () => {
+  assert.deepEqual(draftFromExpense(savedExpense({ attachments: [RECEIPT_PDF] })).attachments, [RECEIPT_PDF]);
+  assert.deepEqual(draftFromExpense(savedExpense()).attachments, []);
 });

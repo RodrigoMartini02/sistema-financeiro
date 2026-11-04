@@ -1,11 +1,4 @@
-export interface Attachment {
-  id: string;
-  nome: string;
-  tipo: string;
-  tamanho: number;
-  dados: string;
-  dataUpload: string;
-}
+import type { AttachmentSummary } from './attachment';
 
 export const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -52,7 +45,8 @@ export interface Income {
   valorComissao?: number | null;
   /** Produto do catálogo vendido nesta receita: cancelar ou excluir devolve o estoque. */
   produtoId?: string | null;
-  anexos?: Attachment[] | null;
+  /** Comprovantes (só os dados do arquivo; o arquivo se abre pelo link do anexo). */
+  attachments?: AttachmentSummary[];
 }
 
 /** Venda de um produto do catálogo: a quantidade baixa o estoque. */
@@ -77,7 +71,11 @@ interface IncomeFieldsInput {
   receiptDate: string;
   clientId: number | null;
   representativeId: number | null;
-  attachments: Attachment[] | null;
+  /**
+   * Ids dos comprovantes já enviados (POST /attachments): a lista final da receita. Na edição, o que não está nela é
+   * removido; o servidor só deixa de mexer nos anexos se o campo não for enviado.
+   */
+  attachmentIds: string[];
 }
 
 /** Corpo do POST /incomes. Datas em ISO e valores em reais. */
@@ -115,7 +113,7 @@ export interface IncomeOccurrenceDto {
   representativeName: string | null;
   commissionAmount: string | number | null;
   contractId: number | null;
-  attachments: Attachment[] | null;
+  attachments: AttachmentSummary[];
   createdAt: string | null;
   fixedIncomeId: number | null;
   fixedCompetence: string | null;
@@ -184,7 +182,8 @@ export interface Expense {
   observacoes?: string | null;
   numeroNf?: string | null;
   dataEmissaoNf?: string | null;
-  anexos?: Attachment[] | null;
+  /** Comprovantes (só os dados do arquivo; o arquivo se abre pelo link do anexo). */
+  attachments?: AttachmentSummary[];
   /** Pagamento da fatura do cartão que pagou ou renegociou esta compra. */
   invoicePaymentId?: number | null;
   /** Forma desse pagamento: a compra aparece como "Renegociada" no parcial e no parcelado. */
@@ -323,7 +322,11 @@ interface ExpenseFieldsInput {
   purchaseDate: string;
   invoiceNumber: string | null;
   invoiceDate: string | null;
-  attachments: Attachment[] | null;
+  /**
+   * Ids dos comprovantes já enviados (POST /attachments): a lista final da despesa. Na edição, o que não está nela é
+   * removido; o servidor só deixa de mexer nos anexos se o campo não for enviado.
+   */
+  attachmentIds: string[];
 }
 
 /** Corpo do POST /expenses. Datas em ISO e valores em reais. */
@@ -413,7 +416,7 @@ export interface FixedExpenseOccurrenceDto {
   endMonth: string;
   deferred: boolean;
   createdAt?: string | null;
-  attachments?: Attachment[] | null;
+  attachments?: AttachmentSummary[];
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
 }

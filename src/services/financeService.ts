@@ -1,7 +1,8 @@
 import { apiRequest, getActiveAccountId } from './apiClient';
 import { createFixedExpense } from './fixedExpensesService';
+import type { AttachmentSummary } from '../types/attachment';
 import type {
-  Attachment, Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
+  Expense, ExpenseCreateInput, ExpenseUpdateInput, FinanceDashboardData,
   Income, IncomeCreateInput, IncomeUpdateInput, InvoicePaymentMethod, MonthBalance, OpenExpense, PainelData, PainelFiltro,
 } from '../types/finance';
 
@@ -16,7 +17,7 @@ interface RawIncome {
   representante_id?: number | null; representante_nome?: string | null;
   valor_comissao?: string | number | null;
   produto_id?: string | null;
-  anexos?: Attachment[] | null;
+  attachments?: AttachmentSummary[];
   autor_nome?: string | null;
   usuario_id?: number;
   classificacao_fixa_id?: number | null;
@@ -43,7 +44,7 @@ interface RawExpense {
   numero_nf?: string | null; data_emissao_nf?: string | null;
   data_criacao?: string | null;
   autor_nome?: string | null;
-  anexos?: Attachment[] | null;
+  attachments?: AttachmentSummary[];
   pagamento_fatura_id?: number | null;
   origem_pagamento_fatura_id?: number | null;
   valor_juros?: string | null;
@@ -105,7 +106,7 @@ function incomeFromApi(r: RawIncome): Income {
     autorNome: r.autor_nome ?? null,
     valorComissao: r.valor_comissao != null ? asNumber(r.valor_comissao) : null,
     produtoId: r.produto_id ?? null,
-    anexos: Array.isArray(r.anexos) ? r.anexos : null,
+    attachments: Array.isArray(r.attachments) ? r.attachments : [],
   };
 }
 
@@ -148,7 +149,7 @@ function expenseFromApi(r: RawExpense): Expense {
     valorPago: r.valor_pago != null ? asNumber(r.valor_pago) : null,
     numeroNf: r.numero_nf ?? null,
     dataEmissaoNf: r.data_emissao_nf ?? null,
-    anexos: Array.isArray(r.anexos) ? r.anexos : null,
+    attachments: Array.isArray(r.attachments) ? r.attachments : [],
     invoicePaymentId: r.pagamento_fatura_id ?? null,
     invoicePaymentMethod: r.pagamento_fatura_forma ? INVOICE_METHOD_BY_COLUMN[r.pagamento_fatura_forma] ?? null : null,
     invoicePaymentInstallments: r.pagamento_fatura_parcelas ?? null,
@@ -236,7 +237,7 @@ export async function createExpense(input: ExpenseCreateInput): Promise<void> {
       amount: input.amount, paymentMethod: input.paymentMethod, cardId: input.cardId,
       purchaseDate: input.purchaseDate, dueDate: input.dueDate,
       endMonth: input.endMonth, paid: input.paid, paymentDate: input.paymentDate, amountPaid: input.amountPaid,
-      attachments: input.attachments, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+      attachmentIds: input.attachmentIds, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
       ...(input.sourceExpenseId === undefined ? {} : { sourceExpenseId: input.sourceExpenseId }),
     });
     return;

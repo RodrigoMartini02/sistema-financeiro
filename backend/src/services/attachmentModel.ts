@@ -67,6 +67,29 @@ export function readAttachmentIds(value: unknown, message = 'Anexos inválidos')
   return ids;
 }
 
+/**
+ * Recusa o pedido de uma aba antiga, que ainda manda o arquivo dentro do lançamento (campo `attachments`, em base64):
+ * ele não seria gravado, e a pessoa perderia o anexo sem saber. Aba aberta antes da troca (ou o app instalado com a
+ * versão antiga em cache) é quem chega aqui.
+ */
+export function rejectLegacyAttachments(record: Record<string, unknown>): void {
+  const legacy = record['attachments'];
+  if (Array.isArray(legacy) && legacy.length > 0) {
+    throw new RequestInputError('O envio de anexos mudou. Atualize a página e anexe os arquivos de novo.');
+  }
+}
+
+/**
+ * Como readAttachmentIds, mas ausente (undefined ou null) devolve undefined: "o pedido não fala de anexos", e quem
+ * edita um lançamento não mexe neles. Lista vazia é diferente: tira todos.
+ */
+export function readOptionalAttachmentIds(value: unknown, message?: string): string[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return readAttachmentIds(value, message);
+}
+
 /** O que muda quando a lista de anexos de um dono passa a ser `finalIds`: quem entra e quem sai. */
 export function diffAttachmentIds(
   currentIds: readonly string[],

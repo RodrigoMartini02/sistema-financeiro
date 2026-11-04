@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerDemoAttachment } from '../services/demo/demoAttachments';
 import { createDemoFakeDatabase, type DemoFakeDatabase } from '../services/demo/demoFakeDatabase';
 import { resolveFakeApiRequest } from '../services/demo/fakeApiResolver';
 import type { ExpenseUpdateInput, FixedExpense, FixedExpenseCreateInput, FixedExpenseOccurrenceDto, PainelData } from '../types/finance';
@@ -19,7 +20,7 @@ function create(db: DemoFakeDatabase, overrides: Partial<FixedExpenseCreateInput
   return request<FixedExpense>(db, '/expenses/fixed', 'POST', {
     accountId: 1, description: 'Energia', categoryId: 1, amount: 100,
     paymentMethod: 'pix', cardId: null, purchaseDate: '2020-01-01', dueDate: '2020-01-10', endMonth: '2020-03',
-    paid: false, paymentDate: null, amountPaid: null, attachments: null, invoiceNumber: null, invoiceDate: null,
+    paid: false, paymentDate: null, amountPaid: null, attachmentIds: [], invoiceNumber: null, invoiceDate: null,
     ...overrides,
   });
 }
@@ -30,7 +31,7 @@ const pending = (db: DemoFakeDatabase, month = '2020-02', accountId = 1) =>
 const confirmation: ExpenseUpdateInput = {
   description: 'Energia', categoryId: 1, amount: 120, paymentMethod: 'pix', cardId: null,
   purchaseDate: '2020-02-01', dueDate: '2020-02-10', paid: false, paymentDate: null,
-  amountPaid: null, invoiceNumber: null, invoiceDate: null, attachments: null,
+  amountPaid: null, invoiceNumber: null, invoiceDate: null, attachmentIds: [],
 };
 
 test('demo: atual lançada e próximas previstas até mês final, sem pagamento por data', () => {
@@ -108,11 +109,11 @@ test('demo: disponibilidade usa compra e mês do vencimento; mover conserva comp
 
 test('demo: pago e comprovantes ficam só na atual; crédito usa fatura após lançamento', () => {
   const db = database();
-  const attachment = { id: 'bill', nome: 'conta.pdf', tipo: 'application/pdf', tamanho: 1, dados: 'data:application/pdf;base64,AA==', dataUpload: '2020-01-10' };
-  create(db, { paid: true, paymentDate: '2020-01-10', amountPaid: 95, attachments: [attachment], invoiceNumber: '123', invoiceDate: '2020-01-01' });
+  const attachment = registerDemoAttachment(new File(['conta'], 'conta.pdf', { type: 'application/pdf' }));
+  create(db, { paid: true, paymentDate: '2020-01-10', amountPaid: 95, attachmentIds: [attachment.id], invoiceNumber: '123', invoiceDate: '2020-01-01' });
   assert.equal(db.despesas[0]?.valor_pago, 95);
-  assert.deepEqual(db.despesas[0]?.anexos, [attachment]);
-  assert.ok(db.despesas.slice(1).every((row) => !row.pago && row.anexos === null && row.numero_nf === null));
+  assert.deepEqual(db.despesas[0]?.attachments, [attachment]);
+  assert.ok(db.despesas.slice(1).every((row) => !row.pago && row.attachments.length === 0 && row.numero_nf === null));
   assert.throws(() => create(db, { paymentMethod: 'credito', cardId: 1, paid: true }), /fatura/);
   const second = database();
   create(second, { paymentMethod: 'credito', cardId: 1, purchaseDate: '2019-12-25', dueDate: '2020-01-28', endMonth: '2020-02' });
@@ -222,4 +223,26 @@ test('demo: edição histórica mantém vínculo inativo, mas confirmar ou ampli
   request(credit, `/expenses/${oldCard.id}`, 'PUT', creditEdit);
   assert.equal(oldCard.descricao, 'Cartão histórico');
   assert.throws(() => request(credit, `/expenses/${oldCard.id}`, 'PUT', { ...creditEdit, paymentMethod: 'debito' }), /Cartão indisponível/);
+});
+
+test('demo: comprovantes da despesa comum ficam na primeira parcela, e a edição troca a lista pelos ids enviados', () => {
+  const db = database();
+  const first = registerDemoAttachment(new File(['a'], 'a.pdf', { type: 'application/pdf' }));
+  const second = registerDemoAttachment(new File(['b'], 'b.png', { type: 'image/png' }));
+  request(db, '/expenses', 'POST', {
+    accountId: 1, description: 'Notebook', categoryId: 1, paymentMethod: 'pix', cardId: null, purchaseDate: '2020-01-01',
+    invoiceNumber: null, invoiceDate: null, attachmentIds: [first.id, 'id-que-a-demo-nao-conhece'],
+    billingType: 'installments', cashPrice: null,
+    installments: [
+      { amount: 50, dueDate: '2020-01-10', paid: false, paymentDate: null, amountPaid: null },
+      { amount: 50, dueDate: '2020-02-10', paid: false, paymentDate: null, amountPaid: null },
+    ],
+  });
+  assert.deepEqual(db.despesas.map((row) => row.attachments), [[first], []], 'só a primeira parcela leva o comprovante');
+
+  const row = db.despesas[0]!;
+  request(db, `/expenses/${row.id}`, 'PUT', { ...confirmation, amount: 50, purchaseDate: '2020-01-01', dueDate: '2020-01-10', attachmentIds: [second.id] });
+  assert.deepEqual(row.attachments, [second], 'a lista final troca a anterior');
+  request(db, `/expenses/${row.id}`, 'PUT', { ...confirmation, amount: 50, purchaseDate: '2020-01-01', dueDate: '2020-01-10', attachmentIds: [] });
+  assert.deepEqual(row.attachments, [], 'lista vazia tira todos');
 });

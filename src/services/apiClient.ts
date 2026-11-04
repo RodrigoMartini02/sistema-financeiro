@@ -23,6 +23,11 @@ interface ApiEnvelope<T> {
 // como uma chamada da Home real "vazar" para o banco fake, nem vice-versa.
 const IS_DEMO_DOCUMENT = typeof window !== 'undefined' && window.location.pathname.endsWith('/demo.html');
 
+/** Está no documento da demonstração: nada vai para a rede, e quem fala com o servidor por fora do apiRequest (envio de arquivo) precisa tratar isso. */
+export function isDemoDocument(): boolean {
+  return IS_DEMO_DOCUMENT;
+}
+
 export function getApiUrl() {
   const { hostname, port } = window.location;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';

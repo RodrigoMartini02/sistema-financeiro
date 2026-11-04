@@ -24,7 +24,6 @@ function singleBody(overrides: Record<string, unknown> = {}): Record<string, unk
     amountPaid: null,
     invoiceNumber: null,
     invoiceDate: null,
-    attachments: null,
     ...overrides,
   };
 }

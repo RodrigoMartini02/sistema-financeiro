@@ -34,7 +34,7 @@ export function ExpenseCard({
   const payButton = expensePayButton(item);
   const note = renegotiationNote(item);
   const embeddedInterest = embeddedInstallmentInterest(item);
-  const anexosCount = item.anexos?.length ?? 0;
+  const anexosCount = item.attachments?.length ?? 0;
 
   const actions: KebabMenuAction[] = [
     {

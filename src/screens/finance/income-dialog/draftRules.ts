@@ -300,7 +300,7 @@ function commonFields(draft: IncomeDraft, context: IncomeRuleContext): IncomeUpd
     receiptDate: receiptDateIso(draft, context.todayIso),
     clientId: draft.clientId,
     representativeId: draft.representativeId,
-    attachments: draft.attachments.length > 0 ? draft.attachments : null,
+    attachmentIds: draft.attachments.map((attachment) => attachment.id),
   };
 }
 

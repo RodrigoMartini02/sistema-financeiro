@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Attachment } from '../db/schema/attachments';
 import { RequestInputError } from '../utils/requestInput';
-import { diffAttachmentIds, ownerOfAttachment, readAttachmentIds, toAttachmentView } from './attachmentModel';
+import {
+  diffAttachmentIds, ownerOfAttachment, readAttachmentIds, readOptionalAttachmentIds, rejectLegacyAttachments, toAttachmentView,
+} from './attachmentModel';
 import { MAX_ATTACHMENTS_PER_REQUEST } from './attachmentRules';
 
 const FIRST = '3f1b9e1c-8d52-4b8e-9d0e-0a1b2c3d4e5f';
@@ -53,6 +55,26 @@ test('ids de anexos do pedido: recusa o que não é lista de UUID única e de ta
     readAttachmentIds(Array.from({ length: MAX_ATTACHMENTS_PER_REQUEST }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)).length,
     MAX_ATTACHMENTS_PER_REQUEST,
   );
+});
+
+test('ids de anexos opcionais: ausente é "não mexer", lista vazia é "tirar todos"', () => {
+  assert.equal(readOptionalAttachmentIds(undefined), undefined);
+  assert.equal(readOptionalAttachmentIds(null), undefined);
+  assert.deepEqual(readOptionalAttachmentIds([]), []);
+  assert.deepEqual(readOptionalAttachmentIds([FIRST.toUpperCase()]), [FIRST]);
+  assert.throws(() => readOptionalAttachmentIds('não é lista', 'Anexos inválidos'), RequestInputError);
+  assert.throws(() => readOptionalAttachmentIds([FIRST, FIRST]), RequestInputError);
+});
+
+test('o pedido de uma aba antiga, com o arquivo dentro do lançamento, é recusado em vez de perder o anexo', () => {
+  assert.throws(
+    () => rejectLegacyAttachments({ attachments: [{ id: 'anexo_1', nome: 'nota.pdf', dados: 'JVBERi0=' }] }),
+    (error: unknown) => error instanceof RequestInputError && /Atualize a página/.test(error.message),
+  );
+  rejectLegacyAttachments({});
+  rejectLegacyAttachments({ attachments: null });
+  rejectLegacyAttachments({ attachments: [] });
+  rejectLegacyAttachments({ attachmentIds: [FIRST] });
 });
 
 test('a lista final de anexos de um dono: quem entra e quem sai', () => {

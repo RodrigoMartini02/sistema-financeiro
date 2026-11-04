@@ -31,7 +31,7 @@ function draft(overrides: Partial<FinancialAssistantDraft> = {}): FinancialAssis
 }
 
 function save(value: FinancialAssistantDraft): ExpenseCreateInput {
-  const result = buildExpenseSave(value, { categories, context, accountId: 7, attachments: [] });
+  const result = buildExpenseSave(value, { categories, context, accountId: 7 });
   assert.ok(result.ok, result.ok ? '' : result.error);
   return result.input;
 }
@@ -64,7 +64,7 @@ test('crédito sem vencimento digitado vence na fatura do cartão', () => {
 });
 
 test('crédito com cartão de crédito cadastrado exige o cartão, como no modal', () => {
-  const result = buildExpenseSave(draft({ paymentMethod: 'credito', cardId: null }), { categories, context, accountId: 7, attachments: [] });
+  const result = buildExpenseSave(draft({ paymentMethod: 'credito', cardId: null }), { categories, context, accountId: 7 });
 
   assert.equal(result.ok, false);
   assert.match(result.ok ? '' : result.error, /cartão/);
@@ -109,7 +109,7 @@ test('recorrente no crédito: vence pela fatura do cartão; com vencimento digit
   assert.equal(typed.billingType === 'monthly' && typed.dueDate, '2026-10-15');
 
   // Fora do crédito, a recorrente não é salva.
-  const pix = buildExpenseSave(draft({ billingType: 'mensal' }), { categories, context, accountId: 7, attachments: [] });
+  const pix = buildExpenseSave(draft({ billingType: 'mensal' }), { categories, context, accountId: 7 });
   assert.deepEqual(pix, { ok: false, error: 'A recorrente é só no cartão de crédito.' });
 });
 
@@ -149,7 +149,7 @@ test('categoria vai pelo nome, sem acento nem caixa; sem categoria o salvar acus
   assert.equal(categoryIdByName(categories, 'eletronicos'), 11);
   assert.equal(categoryIdByName(categories, null), null);
 
-  const result = buildExpenseSave(draft({ category: null }), { categories, context, accountId: 7, attachments: [] });
+  const result = buildExpenseSave(draft({ category: null }), { categories, context, accountId: 7 });
   assert.equal(result.ok, false);
   assert.match(result.ok ? '' : result.error, /categoria/);
 });

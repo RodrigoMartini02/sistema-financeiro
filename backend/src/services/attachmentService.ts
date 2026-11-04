@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, count, eq, inArray, isNull, lt, max, type SQL } from 'drizzle-orm';
 import { db } from '../db/client';
-import { attachments, type Attachment, type NewAttachment } from '../db/schema';
+import { attachments, expenses, incomes, type Attachment, type NewAttachment } from '../db/schema';
 import type { ObjectStorage } from '../modules/tenders/objectStorage';
 import { RequestInputError } from '../utils/requestInput';
 import { prepareAttachment, type AttachmentUpload } from './attachmentFile';
@@ -251,6 +251,55 @@ export async function collectAttachmentKeys(owners: AttachmentOwnerSet, executor
   }
   const rows = await executor.select({ storageKey: attachments.storageKey }).from(attachments).where(ownersCondition(owners));
   return rows.map((row) => row.storageKey);
+}
+
+/**
+ * Acrescenta `attachments` (só os metadados, nunca o arquivo) a cada linha de uma lista de despesas ou receitas, numa
+ * consulta só para a lista inteira. Linhas lidas com `SELECT d.*` podem trazer a coluna antiga `anexos` (o
+ * base64 de antes da migração): ela sai da resposta.
+ */
+export async function withEntryAttachments<Row extends { id: number }>(
+  type: 'expense' | 'income',
+  rows: readonly Row[],
+): Promise<Array<Omit<Row, 'anexos'> & { attachments: AttachmentView[] }>> {
+  const byEntry = await listAttachmentsByOwners({ type, ids: rows.map((row) => row.id) });
+  return rows.map((row) => {
+    const { anexos: _legacyAttachments, ...rest } = row as Row & { anexos?: unknown };
+    return { ...rest, attachments: byEntry.get(row.id) ?? [] } as Omit<Row, 'anexos'> & { attachments: AttachmentView[] };
+  });
+}
+
+/** Chaves dos anexos de todas as despesas e receitas de uma pessoa: o reset dos dados financeiros apaga as linhas. */
+export async function collectUserEntryAttachmentKeys(userId: number, executor: AttachmentExecutor = db): Promise<string[]> {
+  const ofExpenses = await executor
+    .select({ storageKey: attachments.storageKey })
+    .from(attachments)
+    .innerJoin(expenses, eq(expenses.id, attachments.expenseId))
+    .where(eq(expenses.userId, userId));
+  const ofIncomes = await executor
+    .select({ storageKey: attachments.storageKey })
+    .from(attachments)
+    .innerJoin(incomes, eq(incomes.id, attachments.incomeId))
+    .where(eq(incomes.userId, userId));
+  return [...ofExpenses, ...ofIncomes].map((row) => row.storageKey);
+}
+
+/**
+ * Chaves dos anexos que "Excluir o ano" apaga: despesas e receitas do ano que não vieram de uma fixa (as da fixa
+ * ficam canceladas, com a competência ocupada, e os anexos delas continuam).
+ */
+export async function collectYearEntryAttachmentKeys(userId: number, year: number, executor: AttachmentExecutor = db): Promise<string[]> {
+  const ofExpenses = await executor
+    .select({ storageKey: attachments.storageKey })
+    .from(attachments)
+    .innerJoin(expenses, eq(expenses.id, attachments.expenseId))
+    .where(and(eq(expenses.userId, userId), eq(expenses.year, year), isNull(expenses.fixedExpenseId)));
+  const ofIncomes = await executor
+    .select({ storageKey: attachments.storageKey })
+    .from(attachments)
+    .innerJoin(incomes, eq(incomes.id, attachments.incomeId))
+    .where(and(eq(incomes.userId, userId), eq(incomes.year, year), isNull(incomes.fixedClassificationId)));
+  return [...ofExpenses, ...ofIncomes].map((row) => row.storageKey);
 }
 
 export async function findAttachment(attachmentId: string): Promise<Attachment | null> {

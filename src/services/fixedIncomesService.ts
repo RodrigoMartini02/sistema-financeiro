@@ -12,7 +12,7 @@ export async function fetchPendingIncomes(month: string, accountId: number | nul
     classificacaoId: row.categoryId, classificacaoNome: row.categoryName, classificacaoPai: row.parentCategoryName,
     clienteId: row.clientId, clienteNome: row.clientName, representanteId: row.representativeId,
     representanteNome: row.representativeName, valorComissao: row.commissionAmount === null ? null : Number(row.commissionAmount),
-    contratoId: row.contractId, anexos: row.attachments,
+    contratoId: row.contractId, attachments: row.attachments,
     fixedIncomeId: row.fixedIncomeId, fixedCompetence: row.fixedCompetence,
     fixedEndMonth: row.endMonth?.slice(0, 7) ?? null, deferred: row.deferred,
   }));

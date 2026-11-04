@@ -6,6 +6,8 @@ import { accountCondition } from '../utils/accountFilter';
 import { addMonthsClamped, getMonthYearFromIsoDate, getTodayIsoInTimezone } from '../utils/date';
 import { resolveOwnerForWrite, resolveVisibleCardOwnerIds } from '../utils/familyVisibility';
 import { RequestInputError } from '../utils/requestInput';
+import { listAttachmentsByOwners, linkPendingAttachments, replaceOwnerAttachments } from './attachmentService';
+import { removeAttachmentObjects } from './attachmentStorage';
 import { BudgetInputError, resolveFinancialAccount } from './budgetService';
 import { isExpenseCategoryAllowed } from './expenseCategoryCatalog';
 import { resolveEditedPayment } from './expensePayment';
@@ -121,7 +123,7 @@ export async function listPendingFixedExpenses(requesterId: number, requestedAcc
     status: expenses.status, fixedExpenseId: expenses.fixedExpenseId, fixedCompetence: expenses.fixedCompetence,
     deferred: expenses.deferred, sourceEndMonth: fixedExpenses.endMonth, registeredYear: fixedExpenses.registeredYear,
     sourceDueDate: fixedExpenses.dueDate,
-    createdAt: expenses.createdAt, attachments: expenses.attachments, invoiceNumber: expenses.numeroNf, invoiceDate: expenses.dataEmissaoNf,
+    createdAt: expenses.createdAt, invoiceNumber: expenses.numeroNf, invoiceDate: expenses.dataEmissaoNf,
   }).from(expenses)
     .innerJoin(fixedExpenses, and(eq(fixedExpenses.id, expenses.fixedExpenseId), eq(fixedExpenses.userId, expenses.userId)))
     .leftJoin(categories, eq(categories.id, expenses.categoryId)).leftJoin(parent, eq(parent.id, categories.parentId))
@@ -129,9 +131,11 @@ export async function listPendingFixedExpenses(requesterId: number, requestedAcc
     .where(and(eq(expenses.accountId, accountId), eq(fixedExpenses.accountId, accountId), eq(expenses.userId, requesterId),
       gte(expenses.dueDate, start), lt(expenses.dueDate, end), lte(expenses.purchaseDate, today), eq(expenses.status, 'prevista')))
     .orderBy(asc(expenses.dueDate), asc(expenses.id));
+  const attachmentsById = await listAttachmentsByOwners({ type: 'expense', ids: rows.map((row) => row.id) });
   return rows.map(({ sourceEndMonth, registeredYear, sourceDueDate, ...row }) => ({
     ...row, amount: Number(row.amount), estimatedAmount: row.estimatedAmount === null ? null : Number(row.estimatedAmount),
     endMonth: sourceEndMonth?.slice(0, 7) ?? [`${registeredYear}-12`, sourceDueDate.slice(0, 7)].sort().at(-1)!,
+    attachments: attachmentsById.get(row.id) ?? [],
   }));
 }
 
@@ -177,7 +181,7 @@ export async function createFixedExpense(requesterId: number, input: FixedExpens
   const [sourceIdentity] = input.sourceExpenseId === null ? [] : await db.select({ cardId: expenses.cardId }).from(expenses).where(and(
     eq(expenses.id, input.sourceExpenseId), eq(expenses.userId, ownerId), accountCondition(expenses.accountId, expenses.userId, accountId),
   ));
-  return db.transaction(async transaction => {
+  const created = await db.transaction(async transaction => {
     const cardIds = [...new Set([input.cardId, sourceIdentity?.cardId ?? null].filter((id): id is number => id !== null))].sort((a, b) => a - b);
     if (cardIds.length) {
       const lockedCards = await transaction.select().from(cards)
@@ -211,25 +215,37 @@ export async function createFixedExpense(requesterId: number, input: FixedExpens
     }).returning();
     if (!source) throw new Error('Fixed expense insert returned no source');
     const { mes, ano } = getMonthYearFromIsoDate(dueDate);
+    let removedKeys: string[] = [];
     if (original) {
       await transaction.update(expenses).set({
         accountId, description: input.description, categoryId: input.categoryId,
         originalAmount: input.amount.toFixed(2), paymentMethod: input.paymentMethod, cardId: input.cardId,
         purchaseDate: input.purchaseDate, dueDate, month: mes, year: ano,
-        ...resolveEditedPayment(input, today), attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+        ...resolveEditedPayment(input, today), numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
         fixedExpenseId: source.id, fixedCompetence: source.firstMonth, estimatedAmount: input.amount.toFixed(2),
       }).where(and(eq(expenses.id, original.id), eq(expenses.userId, ownerId)));
+      // A despesa que virou fixa leva os anexos da lista final; sem `attachmentIds`, fica com os que já tinha.
+      if (input.attachmentIds !== undefined) {
+        removedKeys = await replaceOwnerAttachments(transaction, {
+          requesterId, owner: { type: 'expense', id: original.id }, attachmentIds: input.attachmentIds,
+        });
+      }
     } else {
       const first = scheduledRows(source, input.endMonth, card)[0];
       if (!first) throw new RequestInputError('Confira o mês final da despesa fixa');
-      await transaction.insert(expenses).values({
+      const [inserted] = await transaction.insert(expenses).values({
         ...first, status: 'ativa', ...resolveEditedPayment(input, today),
-        attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+        numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+      }).returning({ id: expenses.id });
+      await linkPendingAttachments(transaction, {
+        requesterId, owner: { type: 'expense', id: inserted!.id }, attachmentIds: input.attachmentIds ?? [],
       });
     }
     await extendRange(transaction, source, input.endMonth, card);
-    return fixedExpenseDto(source);
+    return { dto: fixedExpenseDto(source), removedKeys };
   });
+  await removeAttachmentObjects(created.removedKeys);
+  return created.dto;
 }
 
 export async function fixedOccurrenceIdentity(requesterId: number, id: number) {
@@ -277,7 +293,7 @@ export async function writeFixedOccurrence(requesterId: number, id: number, inpu
   const sourceCard = widening
     ? await validateFields(requesterId, source.accountId, source as FixedExpense & { paymentMethod: PaymentMethod })
     : null;
-  return db.transaction(async transaction => {
+  const written = await db.transaction(async transaction => {
     const cardIds = [...new Set([identity.cardId, input.cardId, widening ? source.cardId : null].filter((value): value is number => value !== null))].sort((a, b) => a - b);
     if (cardIds.length) {
       const lockedCards = await transaction.select().from(cards)
@@ -328,19 +344,25 @@ export async function writeFixedOccurrence(requesterId: number, id: number, inpu
     const [updated] = await transaction.update(expenses).set({
       description: input.description, categoryId: input.categoryId, paymentMethod: input.paymentMethod, cardId: input.cardId,
       purchaseDate: input.purchaseDate, dueDate: input.dueDate, month: mes, year: ano,
-      originalAmount: input.amount.toFixed(2), attachments: input.attachments, numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
+      originalAmount: input.amount.toFixed(2), numeroNf: input.invoiceNumber, dataEmissaoNf: input.invoiceDate,
       ...(confirm || current.status === 'ativa' ? resolveEditedPayment(input, today) : { paid: false, paymentDate: null, amountPaid: null }),
       status: confirm ? 'ativa' : current.status, ...(confirm ? { deferred: false } : {}),
     }).where(and(eq(expenses.id, id), eq(expenses.userId, identity.ownerId))).returning();
+    // Os anexos da ocorrência: a lista final do pedido; sem `attachmentIds`, ficam como estavam.
+    const removedKeys = input.attachmentIds === undefined
+      ? []
+      : await replaceOwnerAttachments(transaction, { requesterId, owner: { type: 'expense', id }, attachmentIds: input.attachmentIds });
     if (input.endMonth != null) {
       // A fonte permanece travada antes da ocorrência; intervalo e edição são uma operação só.
       if (input.endMonth > fixedEndMonth(lockedSource) && !widening) throw new RequestInputError('O limite da fixa mudou. Atualize a tela antes de salvar.', 409);
       await updateRange(transaction, lockedSource, input.endMonth, sourceCard, today);
       const [final] = await transaction.select().from(expenses).where(and(eq(expenses.id, id), eq(expenses.userId, identity.ownerId)));
-      return final!;
+      return { expense: final!, removedKeys };
     }
-    return updated!;
+    return { expense: updated!, removedKeys };
   });
+  await removeAttachmentObjects(written.removedKeys);
+  return written.expense;
 }
 
 /** Tombstone ocupa a competência inclusive após a ação Excluir. */

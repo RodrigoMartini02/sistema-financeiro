@@ -22,7 +22,8 @@ export async function sendFinancialCopilotMessage(
       mes: payload.month,
       ano: payload.year,
       conta_id: getActiveAccountId(),
-      attachments: payload.attachments ?? [],
+      // Só o que a leitura precisa: o arquivo original fica no aparelho até virar comprovante.
+      attachments: (payload.attachments ?? []).map(({ nome, tipo, tamanho, dados }) => ({ nome, tipo, tamanho, dados })),
       context: payload.context,
       conversa_id: payload.conversationId ?? null,
       intent_hint: payload.intentHint ?? null,

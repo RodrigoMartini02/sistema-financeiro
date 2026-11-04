@@ -54,6 +54,56 @@ function ItemIcon({ contentType }: { contentType: string }) {
     : <FileText size={15} style={{ flex: 'none', color: contentType === 'application/pdf' ? '#dc2626' : COLOR.muted }} />;
 }
 
+interface AttachmentListProps {
+  items: readonly AttachmentItem[];
+  /** Sem isto o nome não é um botão: o arquivo ainda não foi enviado (contrato em criação). */
+  onOpen?: (item: AttachmentItem) => void;
+  /** Sem isto não há botão de remover: a lista é só de leitura. */
+  onRemove?: (item: AttachmentItem) => void;
+  /** Aviso de quem usa a lista (envio, remoção ou abertura do arquivo), logo abaixo das linhas. */
+  error?: string;
+}
+
+/** As linhas dos anexos: tipo, nome (abre o arquivo quando há `onOpen`), tamanho e data, e remover quando há `onRemove`. */
+export function AttachmentList({ items, onOpen, onRemove, error = '' }: AttachmentListProps) {
+  return (
+    <>
+      {items.map((item) => (
+        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <ItemIcon contentType={item.contentType} />
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={() => onOpen(item)}
+              title="Abrir"
+              style={{
+                flex: 1, minWidth: 0, padding: 0, border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer',
+                fontSize: 12.5, fontWeight: 600, color: COLOR.primaryDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >
+              {item.name}
+            </button>
+          ) : (
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, color: COLOR.text }}>
+              {item.name}
+            </span>
+          )}
+          <span style={{ flex: 'none', fontSize: 11, color: COLOR.muted }}>
+            {formatFileSize(item.size)}
+            {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString('pt-BR')}` : ''}
+          </span>
+          {onRemove && (
+            <button type="button" aria-label={`Remover ${item.name}`} onClick={() => onRemove(item)} style={iconButtonStyle}>
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
+      ))}
+      {error && <div role="alert" style={errorStyle}>{error}</div>}
+    </>
+  );
+}
+
 interface AttachmentsFieldProps {
   ownerType: AttachmentOwnerType;
   items: readonly AttachmentItem[];
@@ -115,36 +165,7 @@ export function AttachmentsField({
         />
       </div>
       {items.length === 0 && <p style={mutedStyle}>{emptyHint ?? `Nenhum anexo. ${rule.hint}`}</p>}
-      {items.map((item) => (
-        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <ItemIcon contentType={item.contentType} />
-          {onOpen ? (
-            <button
-              type="button"
-              onClick={() => onOpen(item)}
-              title="Abrir"
-              style={{
-                flex: 1, minWidth: 0, padding: 0, border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer',
-                fontSize: 12.5, fontWeight: 600, color: COLOR.primaryDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}
-            >
-              {item.name}
-            </button>
-          ) : (
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, color: COLOR.text }}>
-              {item.name}
-            </span>
-          )}
-          <span style={{ flex: 'none', fontSize: 11, color: COLOR.muted }}>
-            {formatFileSize(item.size)}
-            {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString('pt-BR')}` : ''}
-          </span>
-          <button type="button" aria-label={`Remover ${item.name}`} onClick={() => onRemove(item)} style={iconButtonStyle}>
-            <Trash2 size={13} />
-          </button>
-        </div>
-      ))}
-      {shownError && <div role="alert" style={errorStyle}>{shownError}</div>}
+      <AttachmentList items={items} onRemove={onRemove} error={shownError} {...(onOpen ? { onOpen } : {})} />
     </div>
   );
 }

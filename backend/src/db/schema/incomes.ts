@@ -49,7 +49,6 @@ export const incomes = pgTable(
     fixedCompetence: date('fixa_competencia'),
     deferred: boolean('adiada').notNull().default(false),
     representativeId: integer('representante_id'),
-    attachments: jsonb('anexos'),
     createdAt: timestamp('data_criacao').defaultNow(),
     // Cliente do cadastro (comercial.clientes) e, na receita gerada por
     // contrato, a cobrança e o mês dela: o par (cobrança, competência) é único

@@ -5,7 +5,8 @@ import { useFinanceDashboard } from '../../hooks/useFinanceDashboard';
 import { pagarDespesa, moverDespesa, cancelarDespesa, receberReceita } from '../../services/financeService';
 import { apiRequest } from '../../services/apiClient';
 import { queryKeys, invalidateExpenseQueries, invalidateFinanceQueries, invalidateIncomeQueries } from '../../services/queryKeys';
-import type { Expense, Income, Attachment } from '../../types/finance';
+import type { AttachmentSummary } from '../../types/attachment';
+import type { Expense, Income } from '../../types/finance';
 import { Card } from '../../ui/card';
 import { EmptyState } from '../../ui/EmptyState';
 import { NomeComDetalhe } from '../../ui/NomeComDetalhe';
@@ -213,8 +214,8 @@ export function LancamentosTable({
 }: LancamentosTableProps) {
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [incomeDialog, setIncomeDialog] = useState<{ open: boolean; item?: Income }>({ open: false });
-  const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; anexos: Attachment[] }>({
-    open: false, title: '', anexos: [],
+  const [anexosDialog, setAnexosDialog] = useState<{ open: boolean; title: string; attachments: AttachmentSummary[] }>({
+    open: false, title: '', attachments: [],
   });
   const [paymentModal, setPaymentModal] = useState<{ open: boolean; item?: Expense }>({ open: false });
   const [installmentDialog, setInstallmentDialog] = useState<{ open: boolean; item?: Expense; mode: 'excluir' | 'cancelar' }>({ open: false, mode: 'excluir' });
@@ -575,7 +576,7 @@ export function LancamentosTable({
                     onPay={() => setPaymentModal({ open: true, item: item.data })}
                     onMoveToNextMonth={() => handleMoverProximoMes(item.data)}
                     onCancel={() => handleCancelarDespesa(item.data)}
-                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, anexos: item.data.anexos! })}
+                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, attachments: item.data.attachments! })}
                     onEdit={() => setExpenseDialog({ open: true, item: item.data })}
                     onDelete={() => handleExcluirDespesa(item.data)}
                   />
@@ -587,7 +588,7 @@ export function LancamentosTable({
                     isEmpresa={isEmpresa}
                     onConfirmRecebimento={() => handleConfirmarRecebimento(item.data)}
                     onCancel={() => handleCancelarReceita(item.data)}
-                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, anexos: item.data.anexos! })}
+                    onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, attachments: item.data.attachments! })}
                     onEdit={() => setIncomeDialog({ open: true, item: item.data })}
                     onDelete={() => handleExcluirReceita(item.data)}
                   />
@@ -655,7 +656,7 @@ export function LancamentosTable({
                         onMoveToNextMonth={() => handleMoverProximoMes(item.data)}
                         onCancel={() => handleCancelarDespesa(item.data)}
                         onDelete={() => handleExcluirDespesa(item.data)}
-                        onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, anexos: item.data.anexos! })}
+                        onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, attachments: item.data.attachments! })}
                         isCancelarPending={cancelarMut.isPending}
                       />
                     ) : (
@@ -668,7 +669,7 @@ export function LancamentosTable({
                         onConfirmRecebimento={() => handleConfirmarRecebimento(item.data)}
                         onCancel={() => handleCancelarReceita(item.data)}
                         onDelete={() => handleExcluirReceita(item.data)}
-                        onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, anexos: item.data.anexos! })}
+                        onOpenAttachments={() => setAnexosDialog({ open: true, title: item.data.descricao, attachments: item.data.attachments! })}
                         isReceberPending={receberReceitaMut.isPending}
                         isCancelarPending={cancelarReceitaMut.isPending}
                       />
@@ -699,8 +700,8 @@ export function LancamentosTable({
       <AttachmentPreviewDialog
         open={anexosDialog.open}
         title={anexosDialog.title}
-        anexos={anexosDialog.anexos}
-        onClose={() => setAnexosDialog({ open: false, title: '', anexos: [] })}
+        attachments={anexosDialog.attachments}
+        onClose={() => setAnexosDialog({ open: false, title: '', attachments: [] })}
       />
       <PaymentModal
         open={paymentModal.open}
@@ -859,14 +860,14 @@ function ExpenseRow({
         </td>
       )}
       <td className={TD_CLASS}>
-        {(item.anexos?.length ?? 0) > 0 ? (
+        {(item.attachments?.length ?? 0) > 0 ? (
           <button
             onClick={onOpenAttachments}
-            title={`${item.anexos!.length} anexo(s)`}
+            title={`${item.attachments!.length} anexo(s)`}
             className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0EC4D8] transition"
           >
             <Paperclip size={11} />
-            {item.anexos!.length}
+            {item.attachments!.length}
           </button>
         ) : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
       </td>
@@ -986,14 +987,14 @@ function IncomeRow({
       {/* NF — não se aplica a receita */}
       {isEmpresa && <td className={TD_CLASS}>{DASH}</td>}
       <td className={TD_CLASS}>
-        {(item.anexos?.length ?? 0) > 0 ? (
+        {(item.attachments?.length ?? 0) > 0 ? (
           <button
             onClick={onOpenAttachments}
-            title={`${item.anexos!.length} anexo(s)`}
+            title={`${item.attachments!.length} anexo(s)`}
             className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0EC4D8] transition"
           >
             <Paperclip size={11} />
-            {item.anexos!.length}
+            {item.attachments!.length}
           </button>
         ) : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}
       </td>

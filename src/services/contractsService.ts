@@ -3,7 +3,7 @@
 // painel e contratos com banco de horas. Os anexos vêm na ficha e se enviam
 // pelo attachmentsService.
 import { apiRequest } from './apiClient';
-import type { AttachmentSummary } from './attachmentsService';
+import type { AttachmentSummary } from '../types/attachment';
 import type {
   ChargeKind, ClientType, ContractStatus, WithholdingTax,
 } from '../utils/contractDisplay';

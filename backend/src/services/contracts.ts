@@ -490,11 +490,15 @@ export async function deleteContract(contractId: number): Promise<void> {
     }
     // Cancelar antes de apagar desfaz a comissão que uma receita de horas tenha gerado, como na exclusão da receita.
     await cancelPlannedIncomesFrom(transaction, contract.id, '0001-01-01');
+    // As linhas dos anexos saem com as receitas e com o contrato (cascata no banco); os arquivos no R2 saem depois,
+    // pelas chaves colhidas aqui, antes das exclusões.
+    const contractIncomeIds = (await transaction.select({ id: incomes.id }).from(incomes).where(eq(incomes.contractId, contract.id)))
+      .map((row) => row.id);
+    const incomeKeys = await collectAttachmentKeys({ type: 'income', ids: contractIncomeIds }, transaction);
     await transaction.delete(incomes).where(eq(incomes.contractId, contract.id));
-    // As linhas dos anexos saem com o contrato (cascata no banco); os arquivos no R2 saem depois, pelas chaves colhidas aqui.
-    const keys = await collectAttachmentKeys({ type: 'contract', ids: [contract.id] }, transaction);
+    const contractKeys = await collectAttachmentKeys({ type: 'contract', ids: [contract.id] }, transaction);
     await transaction.delete(contracts).where(eq(contracts.id, contract.id));
-    return keys;
+    return [...incomeKeys, ...contractKeys];
   });
   await removeAttachmentObjects(attachmentKeys);
 }

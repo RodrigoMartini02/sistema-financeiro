@@ -3,7 +3,7 @@
 // (draftRules): total dividido nas parcelas, vencimento calculado (fatura do
 // cartão ou data da compra), "Pago em" e parcelas pagas uma a uma.
 // Sem React, para o teste rodar direto.
-import type { Attachment, ExpenseCreateInput } from '../../types/finance';
+import type { ExpenseCreateInput } from '../../types/finance';
 import type { FinancialAssistantDraft } from '../../types/financialAssistant';
 import { isoToBrDate } from '../../utils/date';
 import { toCents, toReais } from '../../screens/finance/entry-dialog/cents';
@@ -64,7 +64,6 @@ export function toExpenseDraft(
   draft: FinancialAssistantDraft,
   categories: CardCategory[],
   todayIso: string,
-  attachments: Attachment[] = [],
 ): ExpenseDraft {
   const purchaseIso = draft.date ?? todayIso;
   return {
@@ -88,7 +87,8 @@ export function toExpenseDraft(
     paymentMethod: draft.paymentMethod,
     cardId: draft.cardId ?? null,
     paymentMethodTouched: true,
-    attachments,
+    // Os arquivos da conversa sobem como comprovantes só ao salvar (FinancialAssistant): o rascunho não tem nenhum.
+    attachments: [],
     invoiceNumber: draft.invoiceNumber ?? '',
     invoiceDate: isoToBrDate(draft.invoiceDate),
   };
@@ -96,12 +96,12 @@ export function toExpenseDraft(
 
 export type ExpenseSave = { ok: true; input: ExpenseCreateInput } | { ok: false; error: string };
 
-/** Valida como o modal e devolve o que vai para a API, ou a mensagem do modal. */
+/** Valida como o modal e devolve o que vai para a API (sem comprovantes: quem salva acrescenta os ids), ou a mensagem do modal. */
 export function buildExpenseSave(
   draft: FinancialAssistantDraft,
-  options: { categories: CardCategory[]; context: RuleContext; accountId: number | null; attachments: Attachment[] },
+  options: { categories: CardCategory[]; context: RuleContext; accountId: number | null },
 ): ExpenseSave {
-  const expenseDraft = toExpenseDraft(draft, options.categories, options.context.todayIso, options.attachments);
+  const expenseDraft = toExpenseDraft(draft, options.categories, options.context.todayIso);
   const errors = validateDraft(expenseDraft, options.context);
   if (hasErrors(errors)) return { ok: false, error: errorMessage(errors) };
   return { ok: true, input: buildCreateInput(expenseDraft, options.context, options.accountId) };
