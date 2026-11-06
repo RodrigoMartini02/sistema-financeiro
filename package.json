@@ -8,7 +8,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/generate-public-route-html.mjs",
+    "build:main": "vite build --config vite.main.config.ts && node scripts/generate-public-route-html.mjs dist/main",
+    "build:tenders": "vite build --config vite.tenders.config.ts",
+    "build:probe": "node scripts/build-hosting-probe.mjs",
     "preview": "vite preview",
+    "preview:main": "vite preview --config vite.main.config.ts",
+    "preview:tenders": "vite preview --config vite.tenders.config.ts",
+    "preview:probe": "vite preview --config vite.probe.config.ts",
+    "test:build": "tsx --test scripts/frontendBuild.test.ts",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present && tsx --test scripts/frontBoundaries.test.ts"
   },

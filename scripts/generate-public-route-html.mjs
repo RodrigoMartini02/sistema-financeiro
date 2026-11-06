@@ -6,7 +6,7 @@ import path from 'node:path';
 // quem lê sem JavaScript. As páginas vêm de apps/site/src/screens/public/publicPages.json,
 // o mesmo arquivo do SEO das telas (PublicSeo).
 
-const distDir = path.resolve('dist');
+const distDir = path.resolve(process.argv[2] ?? 'dist');
 const pagesFile = path.resolve('apps/site/src/screens/public/publicPages.json');
 
 const { siteUrl, shareImagePath, pages } = JSON.parse(await readFile(pagesFile, 'utf8'));

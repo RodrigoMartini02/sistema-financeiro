@@ -32,7 +32,7 @@ export function TendersSidebar({ routes, labels, onNavigate }: TendersSidebarPro
     <div className="flex h-full flex-col bg-[#0D2E3C]">
       <div className="border-b border-[rgba(14,196,216,0.15)] bg-[#0A2530] px-3 py-5 xl:px-5">
         <div className={`flex items-center gap-3 ${labels === 'always' ? 'justify-start px-2' : 'justify-center xl:justify-start'}`}>
-          <img src="/icons/fingerence-logo.webp" alt="" className="h-10 w-10 shrink-0 object-contain" />
+          <img src={`${import.meta.env.BASE_URL}icons/fingerence-logo.webp`} alt="" className="h-10 w-10 shrink-0 object-contain" />
           <div className={labels === 'always' ? '' : 'hidden xl:block'}>
             <p
               className="leading-none tracking-[0.22em] text-[#E8F4F5]"

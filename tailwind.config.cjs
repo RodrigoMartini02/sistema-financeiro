@@ -8,6 +8,9 @@ module.exports = {
     './packages/ui/src/**/*.{ts,tsx}',
     './app.html',
     './index.html',
+    './assistant.html',
+    './demo.html',
+    './tenders.html',
   ],
   theme: {
     extend: {
