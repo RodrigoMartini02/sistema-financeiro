@@ -30,7 +30,7 @@ export function tenderRoute(
         res.status(504).json({ success: false, code: CONTRACT_SEARCH_TIMEOUT_CODE, message: error.message });
         return;
       }
-      sendRequestError(res, error, context, req.user?.id, fallbackMessage);
+      sendRequestError(res, error, context, req.tendersUser?.id, fallbackMessage);
     }
   };
 }

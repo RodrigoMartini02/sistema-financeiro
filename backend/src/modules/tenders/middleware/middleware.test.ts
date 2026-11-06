@@ -39,7 +39,7 @@ test('limite por usuário: passa até o máximo, depois 429; cada usuário tem a
     const next: NextFunction = () => {
       passed = true;
     };
-    limiter({ user: { id: userId, document: '', type: 'titular' } } as unknown as Request, res, next);
+    limiter({ tendersUser: { id: userId, document: '', type: 'titular' } } as unknown as Request, res, next);
     return { passed, response };
   };
   assert.equal(run(1).passed, true);

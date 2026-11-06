@@ -242,16 +242,18 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
         const first = assertRan(await runContractsDaily(context));
         const publications = first.details['publications'] as Array<Record<string, unknown>>;
         assert.equal(publications.length, 1);
-        assert.equal(publications[0]?.['revision'], `${first.runId}.1`);
+        const revision = publications[0]?.['revision'];
+        assert.ok(typeof revision === 'string');
+        assert.match(revision, new RegExp(`^${first.runId}\\.1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`));
         assert.equal(publications[0]?.['changedContracts'], 3);
         assert.deepEqual(publications[0]?.['totals'], { contracts: 3, active: 1, withoutExpiry: 1 });
-        assert.equal(await storedRevision(env), `${first.runId}.1`);
+        assert.equal(await storedRevision(env), revision);
         assert.ok(storeObjectKeys(env.objects).some((key) => key.endsWith('manifesto.json')));
 
         const second = assertRan(await runContractsDaily(context));
         assert.equal(second.details['publications'], undefined, 'os mesmos contratos: nada mudou, nada a publicar');
         assert.equal(second.updatedCount, 0);
-        assert.equal(await storedRevision(env), `${first.runId}.1`, 'a versão em uso continua a mesma');
+        assert.equal(await storedRevision(env), revision, 'a versão em uso continua a mesma');
       });
     });
   });

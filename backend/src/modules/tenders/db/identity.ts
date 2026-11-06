@@ -1,8 +1,8 @@
-import { boolean, date, integer, pgTable, serial, varchar } from 'drizzle-orm/pg-core';
+import { boolean, date, integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
-// Identidade que Licitações usa: usuários, contas e vínculos de membro. Mesmos nomes de tabela e de coluna das de
-// Finanças (até a entrega 3B o banco é o mesmo), com só as colunas que o código de Licitações lê e grava; as outras
-// têm padrão ou aceitam nulo. Na 3B o banco de Licitações passa a ter estas tabelas só dele.
+// Identidade de Licitações: usuários, contas (só de empresa), vínculos de colaborador e o código de recuperação de
+// senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql), com só as colunas que o
+// código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
 // Fora do `db/schema.ts` de propósito: o schema de Finanças reexporta aquele, e estes nomes colidiriam.
 
 export const users = pgTable('usuarios', {
@@ -13,15 +13,19 @@ export const users = pgTable('usuarios', {
   document: varchar('documento', { length: 20 }),
   password: varchar('senha', { length: 255 }).notNull(),
   type: varchar('tipo', { length: 20 })
+    .notNull()
     .default('titular')
     .$type<'membro' | 'titular' | 'admin'>(),
   status: varchar('status', { length: 20 })
+    .notNull()
     .default('ativo')
     .$type<'ativo' | 'inativo' | 'bloqueado'>(),
+  googleId: varchar('google_id', { length: 255 }),
   telefone: varchar('telefone', { length: 20 }),
   dataNascimento: date('data_nascimento'),
 });
 
+/** Só conta de empresa (CNPJ): o banco recusa outro tipo. */
 export const accounts = pgTable('contas', {
   id: serial('id').primaryKey(),
   userId: integer('usuario_id')
@@ -29,14 +33,20 @@ export const accounts = pgTable('contas', {
     .references(() => users.id, { onDelete: 'cascade' }),
   type: varchar('tipo', { length: 10 })
     .notNull()
-    .default('pessoal')
-    .$type<'pessoal' | 'empresa'>(),
+    .default('empresa')
+    .$type<'empresa'>(),
   name: varchar('nome', { length: 100 }).notNull(),
+  document: varchar('documento', { length: 20 }),
   active: boolean('ativo').default(true),
   isDefault: boolean('eh_padrao').notNull().default(false),
+  legalName: varchar('razao_social', { length: 150 }),
+  tradeName: varchar('nome_fantasia', { length: 150 }),
+  enquadramento: varchar('enquadramento', { length: 10 })
+    .$type<'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA'>(),
+  openingDate: date('data_abertura'),
 });
 
-// Um usuário só pode ser membro de uma conta por vez (usuario_id único).
+// Um usuário só pode ser colaborador de uma conta por vez (usuario_id único).
 export const accountMembers = pgTable('conta_membros', {
   id: serial('id').primaryKey(),
   accountId: integer('conta_id')
@@ -50,4 +60,14 @@ export const accountMembers = pgTable('conta_membros', {
     .notNull()
     .default('ativo')
     .$type<'ativo' | 'inativo'>(),
+});
+
+// Código de recuperação de senha: um por usuário, com validade e tentativas (services/passwordRecovery.ts).
+export const passwordRecoveryCodes = pgTable('codigo_recuperacao', {
+  userId: integer('usuario_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  code: varchar('codigo', { length: 6 }).notNull(),
+  expiresAt: timestamp('expira_em', { withTimezone: true, mode: 'string' }).notNull(),
+  attempts: integer('tentativas').notNull().default(0),
 });

@@ -12,6 +12,23 @@ export function uniqueToken(prefix = 'zqx'): string {
   return `${prefix}${randomUUID().replaceAll('-', '').slice(0, 10)}`;
 }
 
+/** E-mail único para o teste de acesso (cada execução usa o seu, a base local pode ter outros). */
+export function uniqueEmail(label: string): string {
+  return `${label}-${randomUUID().slice(0, 8)}@exemplo.test`;
+}
+
+/** CNPJ com os dígitos verificadores certos, a partir de um número: o mesmo número dá sempre o mesmo CNPJ. */
+export function testCnpj(seed: number): string {
+  const base = `${String(seed).padStart(8, '0')}0001`;
+  const checkDigit = (digits: string): number => {
+    const weights = digits.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const sum = [...digits].reduce((total, char, index) => total + Number(char) * weights[index]!, 0);
+    return sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  };
+  const first = checkDigit(base);
+  return `${base}${first}${checkDigit(`${base}${first}`)}`;
+}
+
 export interface TestAccount {
   accountId: number;
   ownerId: number;

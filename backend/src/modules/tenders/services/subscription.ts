@@ -90,9 +90,8 @@ export async function readSubscription(db: TendersDb, accountId: number, now: Da
 }
 
 /**
- * Começa o teste de 15 dias na conta (cadastro por Licitações ou ativação pelo
- * titular). Um teste por conta: false quando a conta já tem o módulo. Aceita a
- * transação do cadastro, que é do banco do app.
+ * Começa o teste de 15 dias na conta (cadastro da empresa). Um teste por conta:
+ * false quando a conta já tem o módulo. Aceita a transação do cadastro.
  */
 export async function startTenderTrial<TFullSchema extends Record<string, unknown>>(
   executor: PgDatabase<NodePgQueryResultHKT, TFullSchema>,

@@ -88,6 +88,41 @@ const BETA = sampleSupplier('99887766000155', 'BETA LTDA');
 const winsOfPurchases = (count: number, year = 2026) =>
   Array.from({ length: count }, (_, index) => sampleResult(1, { purchaseControlNumber: samplePurchase(index + 1, year), valueCents: (index + 1) * 100 }));
 
+test('id de execução repetido: falha antes do manifesto preserva vencedores antigos e a retomada usa arquivos novos', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    await publishWinnersWith(storage, directory, 1, async (writer) => void (await writer.apply(winsOfPurchases(2))));
+    const before = manifestOf(objects);
+    const originalFiles = new Map(manifestFiles(before).map((file) => [file.path, objects.get(file.path)]));
+    const immutableStorage: ObjectStorage = {
+      ...storage,
+      async putObject(key, body, contentType) {
+        assert.ok(!originalFiles.has(key), `o arquivo publicado continua imutável: ${key}`);
+        await storage.putObject(key, body, contentType);
+      },
+    };
+    const state = { fail: true };
+    const changed = sampleResult(1, { purchaseControlNumber: samplePurchase(1), valueCents: 999, updatedAt: '2026-09-20T09:00:00' });
+    await assert.rejects(
+      publishWinnersWith(failingManifestStorage(immutableStorage, state), directory, 1, async (writer) => void (await writer.apply([changed]))),
+      /R2 fora do ar/,
+    );
+    assert.deepEqual(manifestOf(objects), before);
+    assert.equal((await winnersOf(objects)).find((row) => row.purchase === samplePurchase(1))?.total, '1.00');
+    for (const [path, body] of originalFiles) {
+      assert.deepEqual(objects.get(path), body);
+    }
+
+    state.fail = false;
+    const summary = await publishWinnersWith(immutableStorage, directory, 1, async (writer) => void (await writer.apply([changed])));
+    assert.notEqual(summary?.revision, before.revision);
+    const rows = await winnersOf(objects);
+    assert.equal(rows.find((row) => row.purchase === samplePurchase(1))?.total, '9.99');
+    assert.equal(rows.find((row) => row.purchase === samplePurchase(2))?.total, '2.00');
+    assert.equal(rows.length, 2);
+  });
+});
+
 test('primeira publicação: uma pasta por ano, partes ordenadas pela chave, manifesto vazio nos contratos e por último', async () => {
   await withTempDirectory(async (directory) => {
     const { storage, objects } = createMemoryStorage();
@@ -108,7 +143,7 @@ test('primeira publicação: uma pasta por ano, partes ordenadas pela chave, man
       { maxRowsPerFile: 2 },
     );
 
-    assert.equal(summary?.revision, '10.1');
+    assert.match(summary?.revision ?? '', /^10\.1-/);
     assert.equal(summary?.changedRows, 6);
     assert.equal(summary?.years, 2);
     assert.equal(summary?.rows, 6);
@@ -128,7 +163,7 @@ test('primeira publicação: uma pasta por ano, partes ordenadas pela chave, man
       'só a primeira parte de cada ano começa em ""',
     );
     for (const file of manifest.datasets.vencedores) {
-      assert.match(file.path, new RegExp(`^${FILES_FOLDER}/vencedores/(2025|2026)/v10\\.1-000\\d\\.parquet$`));
+      assert.match(file.path, new RegExp(`^${FILES_FOLDER}/vencedores/(2025|2026)/v10[.]1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-000[0-9][.]parquet$`));
       assert.ok(objects.has(file.path), `arquivo enviado: ${file.path}`);
       assert.ok(file.bytes > 0);
     }
@@ -163,7 +198,7 @@ test('só os anos tocados são regravados, e os outros mantêm os mesmos arquivo
     });
 
     assert.equal(summary?.years, 1);
-    assert.equal(summary?.revision, '2.1');
+    assert.match(summary?.revision ?? '', /^2\.1-/);
     const after = manifestOf(objects).datasets.vencedores;
     assert.deepEqual(after.filter((file) => file.partition === '2025'), files2025, 'o ano de 2025 segue com os mesmos arquivos');
     assert.ok(after.filter((file) => file.partition === '2026').every((file) => file.path.includes('/v2.1-')), 'o ano de 2026 foi regravado');
@@ -343,7 +378,7 @@ test('publicar vencedores preserva vigentes, contratos, fornecedor, o dia e os t
 
     await publishWinnersWith(storage, directory, 2, async (writer) => void (await writer.apply(winsOfPurchases(3))));
     const afterWinners = manifestOf(objects);
-    assert.equal(afterWinners.revision, '2.1');
+    assert.match(afterWinners.revision, /^2\.1-/);
     assert.deepEqual(afterWinners.datasets.vigentes, contractsManifest.datasets.vigentes);
     assert.deepEqual(afterWinners.datasets.contratos, contractsManifest.datasets.contratos);
     assert.deepEqual(afterWinners.datasets.fornecedor, contractsManifest.datasets.fornecedor);
@@ -357,7 +392,7 @@ test('publicar vencedores preserva vigentes, contratos, fornecedor, o dia e os t
     // Publicar contratos depois: a lista e os arquivos dos vencedores continuam (falha se o escritor de contratos não os carregar adiante).
     await publishWith(storage, directory, 3, async (writer) => void (await writer.upsert([sampleContract(3)])));
     const afterContracts = manifestOf(objects);
-    assert.equal(afterContracts.revision, '3.1');
+    assert.match(afterContracts.revision, /^3\.1-/);
     assert.deepEqual(afterContracts.datasets.vencedores, afterWinners.datasets.vencedores);
     for (const file of afterContracts.datasets.vencedores) {
       assert.ok(objects.has(file.path), `arquivo de vencedores intacto: ${file.path}`);

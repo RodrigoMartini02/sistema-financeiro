@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
@@ -184,6 +185,9 @@ const PENDING_TERMS_CONDITION = `data_atualizacao_global IS NOT NULL
   AND aditivos_referencia IS DISTINCT FROM left(data_atualizacao_global, 19)`;
 
 export class ContractStoreWriter {
+  // Database run ids can restart after a fresh database. Published object names
+  // must remain immutable even when that numeric id is reused.
+  private readonly publicationId = randomUUID();
   private publishCount = 0;
   private sequence = 0;
   private workReady = true;
@@ -529,7 +533,7 @@ export class ContractStoreWriter {
     await this.options.resourceBudget?.check('contract-publication');
     this.publishCount += 1;
     this.sequence = 0;
-    const revision = `${this.options.version}.${this.publishCount}`;
+    const revision = `${this.options.version}.${this.publishCount}-${this.publicationId}`;
     const written: WrittenFile[] = [];
 
     // Onde os contratos mudados estavam antes: a parte antiga também é regravada sem eles.

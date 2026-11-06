@@ -3,7 +3,7 @@ import { body } from 'express-validator';
 import { validate } from '../middleware/validation';
 import { createRequireTenderAccess } from '../middleware/tenderAccess';
 import { listAccountsForTenders, setAccountCourtesy } from '../services/team';
-import { activationRoutes, billingRoutes, createBillingWebhook } from './billing';
+import { billingRoutes, createBillingWebhook } from './billing';
 import { cnpjRoutes } from './cnpj';
 import { contractRoutes } from './contracts';
 import { contractSearchRoutes } from './contractSearches';
@@ -15,16 +15,19 @@ import { overviewRoutes } from './overview';
 import { savedSearchRoutes } from './savedSearches';
 import { idParam } from './validators';
 
-export { tendersApiDepsFromPool, type TendersApiDeps } from './deps';
+export { createTendersAuth } from './auth';
+export { tendersApiDepsFromPool, tendersAuthDepsFromEnv, type TendersApiDeps, type TendersAuthDeps } from './deps';
 
 /**
  * Rotas do módulo de Licitações. O server.ts monta:
  * - `billingWebhook` em POST /api/tenders/billing/webhook, público e antes dos
  *   demais (aviso do Mercado Pago);
  * - `adminRoutes` em /api/tenders/admin, com authenticate + requireAdmin;
- * - `routes` em /api/tenders, com authenticate. Ativação e cobrança vêm antes da
- *   trava do módulo (a conta pode ainda não ter o módulo ou estar vencida); o
- *   resto passa pela trava (acesso valendo + acesso por pessoa).
+ * - `routes` em /api/tenders, com authenticate. A cobrança vem antes da trava do
+ *   módulo (a conta pode estar vencida); o resto passa pela trava (acesso
+ *   valendo + acesso por pessoa).
+ * O login, o cadastro e a recuperação de senha são do `createTendersAuth`
+ * (./auth.ts), montado em /api/tenders/auth antes de tudo isso.
  * Nenhuma usa requireActivePlan: o módulo tem assinatura própria.
  */
 export function createTendersRoutes(deps: TendersApiDeps): {
@@ -33,7 +36,6 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   billingWebhook: RequestHandler;
 } {
   const routes = Router();
-  routes.use('/activation', activationRoutes(deps));
   routes.use('/billing', billingRoutes(deps));
   routes.use(createRequireTenderAccess(deps.db));
   routes.use('/notices', noticeRoutes(deps));
@@ -60,7 +62,7 @@ export function createTendersRoutes(deps: TendersApiDeps): {
     tenderRoute('Tender account courtesy failed:', 'Não foi possível alterar a cortesia agora.', async (req, res) => {
       const result = await setAccountCourtesy(
         deps.db,
-        req.user!.id,
+        req.tendersUser!.id,
         Number(req.params['accountId']),
         req.body.courtesy === true,
         deps.now(),

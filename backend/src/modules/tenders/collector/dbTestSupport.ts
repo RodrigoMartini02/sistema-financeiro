@@ -23,10 +23,11 @@ import { PncpClient } from './pncpClient';
 import type { CollectorContext } from './runs';
 
 // Apoio dos testes de banco (*.db.test.ts). Eles só rodam pelo script
-// test:tenders-db (TENDERS_DB_TESTS=1), só no banco local e cada teste numa
-// transação desfeita no fim: nada fica gravado.
+// test:tenders-db (TENDERS_DB_TESTS=1), só no banco local de Licitações
+// (TENDERS_DATABASE_URL do .env.dev) e cada teste numa transação desfeita no
+// fim: nada fica gravado.
 
-const LOCAL_DATABASE_URL = /@localhost:5433\/sistema_financas_dev$/;
+const LOCAL_DATABASE_URL = /@localhost:5433\/fingerence_licitacoes_dev$/;
 
 export const databaseTestsSkipReason =
   process.env['TENDERS_DB_TESTS'] === '1' ? false : 'teste de banco: rode npm --prefix backend run test:tenders-db';
@@ -40,9 +41,9 @@ function localConnection(): { pool: Pool; db: TendersDb } {
   if (process.env['DOTENV_CONFIG_PATH']) {
     dotenv.config({ path: process.env['DOTENV_CONFIG_PATH'] });
   }
-  const url = process.env['DATABASE_URL'] ?? '';
+  const url = process.env['TENDERS_DATABASE_URL'] ?? '';
   if (!LOCAL_DATABASE_URL.test(url)) {
-    throw new Error('Os testes de banco só rodam no banco local (localhost:5433/sistema_financas_dev).');
+    throw new Error('Os testes de banco só rodam no banco local de Licitações (localhost:5433/fingerence_licitacoes_dev).');
   }
   connection = createCollectorDatabase(url);
   return connection;
@@ -165,7 +166,7 @@ export function createTestCollectorContext(
   },
 ): CollectorContext {
   const config = loadCollectorConfig({
-    TENDERS_COLLECTOR_DATABASE_URL: 'postgres://teste@localhost:5433/sistema_financas_dev',
+    TENDERS_COLLECTOR_DATABASE_URL: 'postgres://teste@localhost:5433/fingerence_licitacoes_dev',
     PNCP_MAX_ATTEMPTS: '1',
   });
   const clientOptions = { ...config.pncp, requestIntervalMs: 0, sleep: async () => {} };

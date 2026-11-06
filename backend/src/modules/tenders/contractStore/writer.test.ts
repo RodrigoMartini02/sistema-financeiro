@@ -64,6 +64,35 @@ function recordingStorage(base: ObjectStorage, puts: string[]): ObjectStorage {
 
 const at = (sequence: number, overrides: Partial<TenderContractRow> = {}) => sampleContract(sequence, overrides);
 
+test('banco novo com id de execução repetido: publica sem sobrescrever os arquivos em uso nem perder contratos antigos', async () => {
+  await withTempDirectory(async (directory) => {
+    const { storage, objects } = createMemoryStorage();
+    await publishWith(storage, directory, 1, async (writer) => void (await writer.upsert([at(1), at(2)])));
+    const before = manifestOf(objects);
+    const originalFiles = new Map(manifestFiles(before).map((file) => [file.path, objects.get(file.path)]));
+    const immutableStorage: ObjectStorage = {
+      ...storage,
+      async putObject(key, body, contentType) {
+        assert.ok(!originalFiles.has(key), `o arquivo publicado continua imutável: ${key}`);
+        await storage.putObject(key, body, contentType);
+      },
+    };
+
+    const summary = await publishWith(immutableStorage, directory, 1, async (writer) => {
+      const result = await writer.upsert([at(1, { payloadHash: 'alterado' }), at(3)]);
+      assert.equal(result.updatedCount, 1);
+      assert.equal(result.insertedCount, 1);
+    });
+
+    assert.notEqual(summary?.revision, before.revision);
+    assert.equal(summary?.totals.contracts, 3);
+    assert.deepEqual(new Set(await controlNumbers(objects, 'contratos')), new Set([1, 2, 3].map((id) => at(id).pncpControlNumber)));
+    for (const [path, body] of originalFiles) {
+      assert.deepEqual(objects.get(path), body, 'o leitor da versão anterior mantém os mesmos bytes');
+    }
+  });
+});
+
 test('primeira publicação: os três conjuntos, por ano e faixa, com os totais, e o manifesto por último', async () => {
   await withTempDirectory(async (directory) => {
     const { storage, objects } = createMemoryStorage();
@@ -85,7 +114,7 @@ test('primeira publicação: os três conjuntos, por ano e faixa, com os totais,
     });
 
     assert.deepEqual(summary?.totals, { contracts: 5, active: 3, withoutExpiry: 1 });
-    assert.equal(summary?.revision, '10.1');
+    assert.match(summary?.revision ?? '', /^10\.1-/);
     assert.equal(puts.at(-1), MANIFEST_KEY, 'o manifesto vai por último');
     const manifest = manifestOf(objects);
     assert.deepEqual(manifest.datasets.contratos.map((file) => [file.partition, file.from, file.rows]), [['2025', '', 1], ['2026', '', 4]]);
@@ -233,7 +262,7 @@ test('publicação parcial: só a parte do contrato mudado é regravada; as outr
     assert.equal(after[0]?.path, before[0]?.path, 'a primeira parte é a mesma');
     assert.equal(after[2]?.path, before[2]?.path, 'a terceira parte é a mesma');
     assert.notEqual(after[1]?.path, before[1]?.path, 'a do meio foi regravada');
-    assert.match(after[1]?.path ?? '', /\/v2\.1-\d{4}\.parquet$/);
+    assert.match(after[1]?.path ?? '', /\/v2\.1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-\d{4}\.parquet$/);
     const middle = await rowsOf(objects, after[1]?.path ?? '', 'sequencial_contrato, hash_payload');
     assert.deepEqual(middle.map((row) => [row['sequencial_contrato'], row['hash_payload']]), [[4, 'hash-4'], [5, 'mudou'], [6, 'hash-6']]);
   });
@@ -359,20 +388,20 @@ test('carga: várias publicações na mesma execução, cada uma partindo da ant
     });
     try {
       await writer.upsert([at(1), at(2)]);
-      assert.equal((await writer.publish())?.revision, '7.1');
+      assert.match((await writer.publish())?.revision ?? '', /^7\.1-/);
       assert.equal(await writer.pendingChanges(), 0);
       assert.equal((await writer.readStates([at(1).pncpControlNumber])).size, 1, 'lê da versão recém-publicada');
 
       await writer.upsert([at(3), at(1)]);
       const second = await writer.publish();
-      assert.equal(second?.revision, '7.2');
+      assert.match(second?.revision ?? '', /^7\.2-/);
       assert.equal(second?.changedContracts, 1, 'o igual não conta');
       assert.equal(second?.totals.contracts, 3);
-      assert.equal(writer.currentManifest?.revision, '7.2');
+      assert.equal(writer.currentManifest?.revision, second?.revision);
     } finally {
       await writer.close();
     }
-    assert.equal(manifestOf(objects).revision, '7.2');
+    assert.match(manifestOf(objects).revision, /^7\.2-/);
   });
 });
 

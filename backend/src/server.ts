@@ -98,8 +98,8 @@ import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/co
 import { createCollectorLogger } from './modules/tenders/collector/logger';
 import { startContractStoreFromEnv } from './modules/tenders/contractStore/service';
 import { createTendersPool } from './modules/tenders/db/pool';
-import { createTendersRoutes, tendersApiDepsFromPool } from './modules/tenders/routes';
-import { authenticate, requireActivePlan, requireAdmin, requirePremiumPlan, requireTitular } from './middleware/auth';
+import { createTendersAuth, createTendersRoutes, tendersApiDepsFromPool, tendersAuthDepsFromEnv } from './modules/tenders/routes';
+import { authenticate, requireActivePlan, requirePremiumPlan, requireTitular } from './middleware/auth';
 import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
 
 app.use('/api/auth', authRoutes);
@@ -161,15 +161,19 @@ app.use('/api/catalogo', catalogoRoutes);
 app.use('/api/clients', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('clients'), clientRoutes);
 app.use('/api/contracts', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('contracts'), contractRoutes);
 app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('services'), serviceCatalogRoutes);
-// Licitações: assinatura e trava próprias (dentro do roteador), sem requireActivePlan.
-// O aviso do Mercado Pago sobre a assinatura do módulo é público e vem antes das rotas com login.
+// Licitações: banco, login e token próprios (nada de Finanças), assinatura e trava próprias (dentro do
+// roteador), sem requireActivePlan. O acesso (login, cadastro, recuperação de senha, Google) e o aviso do
+// Mercado Pago sobre a assinatura do módulo são públicos e vêm antes das rotas com login.
 // Os contratos moram em arquivos no R2: a cópia local começa aqui, em segundo plano, sem atrasar o servidor
 // (até ficar pronta, a busca de contratos responde "atualizando").
 const contractStore = startContractStoreFromEnv(process.env, createCollectorLogger('info'));
-const tendersApi = createTendersRoutes(tendersApiDepsFromPool(createTendersPool(), contractStore));
+const tendersDeps = tendersApiDepsFromPool(createTendersPool(), contractStore);
+const tendersApi = createTendersRoutes(tendersDeps);
+const tendersAuth = createTendersAuth(tendersAuthDepsFromEnv(tendersDeps.db, process.env));
+app.use('/api/tenders/auth', tendersAuth.authRoutes);
 app.post('/api/tenders/billing/webhook', tendersApi.billingWebhook);
-app.use('/api/tenders/admin', authenticate, requireAdmin, tendersApi.adminRoutes);
-app.use('/api/tenders', authenticate, tendersApi.routes);
+app.use('/api/tenders/admin', tendersAuth.authenticate, tendersAuth.requireAdmin, tendersApi.adminRoutes);
+app.use('/api/tenders', tendersAuth.authenticate, tendersApi.routes);
 
 // ── System endpoints ───────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-var-requires

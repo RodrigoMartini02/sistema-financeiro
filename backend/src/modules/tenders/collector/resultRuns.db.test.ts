@@ -297,9 +297,11 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
         assert.deepEqual(metrics['rows'], { inserted: 2, updated: 1, removed: 0, unchanged: 0 });
         const publications = outcome.details['publications'] as Array<Record<string, unknown>>;
         assert.equal(publications.length, 1);
-        assert.equal(publications[0]?.['revision'], `${outcome.runId}.1`);
+        const revision = publications[0]?.['revision'];
+        assert.ok(typeof revision === 'string');
+        assert.match(revision, new RegExp(`^${outcome.runId}\\.1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`));
         assert.equal(publications[0]?.['rows'], 2);
-        assert.deepEqual(outcome.details['store'], { revision: `${outcome.runId}.1`, rows: 2 });
+        assert.deepEqual(outcome.details['store'], { revision, rows: 2 });
 
         const winners = await publishedWinners(env);
         assert.deepEqual(
@@ -309,7 +311,7 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
             [`${AGENCY}-1-000002/2026`, 1, '100.50', 'BETA LTDA'],
           ],
         );
-        assert.equal((await readManifest(env.storage))?.revision, `${outcome.runId}.1`);
+        assert.equal((await readManifest(env.storage))?.revision, revision);
         // O arquivo bruto leva os 4 registros: todos de dias ainda não cobertos.
         assert.equal(archivedResults(env).length, 4);
         assert.equal((outcome.details['archive'] as Record<string, unknown>)['files'], 1);
@@ -325,6 +327,10 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
         const context = contextOf(tx, env, { resultsFetch: resultsServer(records) });
 
         const first = assertRan(await runResultsDaily(context));
+        const revision = (first.details['publications'] as Array<Record<string, unknown>>)[0]?.['revision'];
+        assert.ok(typeof revision === 'string');
+        assert.match(revision, new RegExp(`^${first.runId}\\.1-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`));
+        assert.equal((await readManifest(env.storage))?.revision, revision);
         const archivedBefore = archiveKeys(env).length;
         const second = assertRan(await runResultsDaily(context));
 
@@ -333,7 +339,7 @@ describe('execuções dos vencedores (banco local e armazém de exemplo)', { ski
         assert.equal(second.newCount, 0);
         assert.equal(second.updatedCount, 0);
         assert.equal(second.details['publications'], undefined, 'nada mudou: não publica');
-        assert.equal((await readManifest(env.storage))?.revision, `${first.runId}.1`, 'a versão em uso continua a mesma');
+        assert.equal((await readManifest(env.storage))?.revision, revision, 'a versão em uso continua a mesma');
         assert.equal(archiveKeys(env).length, archivedBefore, 'o arquivo bruto não recebe o que já tinha');
         assert.equal(queriesOf(second)[0]?.['completed'], true);
       });

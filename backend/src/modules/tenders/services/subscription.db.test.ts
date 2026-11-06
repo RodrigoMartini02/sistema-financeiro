@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 import { eq } from 'drizzle-orm';
-import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
 import { closeLocalTestDatabase, createTestAccount, databaseTestsSkipReason, withRollback } from '../collector/dbTestSupport';
 import { tenderEnabledAccounts } from '../db/schema';
-import { resolveTenderAccess } from './access';
-import { activateModule, listActivatableAccounts } from './activation';
+import { isAccountMember, resolveTenderAccess } from './access';
 import { addAccountMember, addOwnedAccount } from './apiTestSupport';
 import { addDays, PAID_PERIOD_DAYS, TRIAL_DAYS } from './billing';
 import {
@@ -19,10 +17,9 @@ import {
   startTenderTrial,
 } from './subscription';
 
-// Assinatura do módulo (migration 0080): a regra de acesso da função
-// licitacoes.fn_conta_com_acesso, o teste, os pagamentos e a ativação.
+// Assinatura do módulo: a regra de acesso da função licitacoes.fn_conta_com_acesso,
+// o teste e os pagamentos.
 
-const isStatus = (status: number) => (error: unknown) => error instanceof RequestInputError && error.status === status;
 const ONE_MINUTE_MS = 60_000;
 
 async function setModule(tx: TendersDb, accountId: number, values: Partial<typeof tenderEnabledAccounts.$inferInsert>): Promise<void> {
@@ -137,24 +134,15 @@ describe('assinatura de Licitações (banco local)', { skip: databaseTestsSkipRe
     });
   });
 
-  test('ativação: só o titular, só conta dele sem o módulo, uma vez', async () => {
+  test('colaborador: só o vínculo ativo conta; o titular e o colaborador inativo não', async () => {
     await withRollback(async (tx) => {
-      const now = new Date();
-      const account = await createTestAccount(tx, 'ativacao', { enabled: false });
-      const other = await createTestAccount(tx, 'ativacao-outra', { enabled: false });
-      const member = await addAccountMember(tx, other, 'ativacao-membro', { access: false });
-      const titular = { id: account.ownerId, type: 'titular' as const };
+      const account = await createTestAccount(tx, 'colaborador-ativo');
+      const active = await addAccountMember(tx, account, 'colaborador-ativo-membro', { access: false });
+      const inactive = await addAccountMember(tx, account, 'colaborador-inativo', { access: false, status: 'inativo' });
 
-      assert.deepEqual((await listActivatableAccounts(tx, titular)).map((owned) => owned.id), [account.accountId]);
-      assert.deepEqual(await listActivatableAccounts(tx, { id: member, type: 'membro' }), []);
-      await assert.rejects(activateModule(tx, { id: member, type: 'membro' }, other.accountId, now), isStatus(403));
-      await assert.rejects(activateModule(tx, titular, other.accountId, now), isStatus(404));
-
-      const activated = await activateModule(tx, titular, account.accountId, now);
-      assert.equal(activated.id, account.accountId);
-      assert.equal((await resolveTenderAccess(tx, titular, null)).allowed, true);
-      assert.deepEqual(await listActivatableAccounts(tx, titular), []);
-      await assert.rejects(activateModule(tx, titular, account.accountId, now), isStatus(409));
+      assert.equal(await isAccountMember(tx, active), true);
+      assert.equal(await isAccountMember(tx, inactive), false);
+      assert.equal(await isAccountMember(tx, account.ownerId), false);
     });
   });
 });

@@ -27,7 +27,7 @@ import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
 import type { SavedSearchView } from '../services/savedSearches';
-import type { SubscriptionView } from '../services/subscription';
+import { startTenderTrial, type SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
 import { CNPJ_RATE_LIMIT } from './cnpj';
 import { createTendersRoutes } from './index';
@@ -90,7 +90,7 @@ async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>, con
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     if (currentUser) {
-      req.user = { ...currentUser, document: '', role: null };
+      req.tendersUser = { ...currentUser, document: '' };
     }
     next();
   });
@@ -103,7 +103,7 @@ async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>, con
   app.use(
     '/api/tenders/admin',
     (req: Request, res: Response, next: NextFunction) => {
-      if (req.user?.type !== 'admin') {
+      if (req.tendersUser?.type !== 'admin') {
         res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
         return;
       }
@@ -341,23 +341,15 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
-  test('ativação e assinatura vencida: 402 para titular e colaborador; cobrança fica fora da trava', async () => {
+  test('teste e assinatura vencida: 402 para titular e colaborador; cobrança fica fora da trava', async () => {
     await withRollback(async (tx) => {
-      const account = await createTestAccount(tx, 'http-ativacao', { enabled: false });
-      const member = await addAccountMember(tx, account, 'http-ativacao-membro', { access: true });
+      const account = await createTestAccount(tx, 'http-teste', { enabled: false });
+      const member = await addAccountMember(tx, account, 'http-teste-membro', { access: true });
+      // O que o cadastro faz: a conta nasce com o teste de 15 dias.
+      await startTenderTrial(tx, account.accountId, account.ownerId, new Date());
       await withApi(tx, async (call) => {
         const titular = { id: account.ownerId, type: 'titular' as const };
         const asMember = { id: member, type: 'membro' as const };
-
-        const activatable = await call<{ canActivate: boolean; accounts: TenderAccount[] }>('GET', '/api/tenders/activation', { as: titular });
-        assert.deepEqual(
-          { canActivate: activatable.body.data.canActivate, ids: activatable.body.data.accounts.map((owned) => owned.id) },
-          { canActivate: true, ids: [account.accountId] },
-        );
-        assert.equal((await call<{ canActivate: boolean }>('GET', '/api/tenders/activation', { as: asMember })).body.data.canActivate, false);
-        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: {} })).status, 400);
-        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: { accountId: account.accountId } })).status, 201);
-        assert.equal((await call('POST', '/api/tenders/activation', { as: titular, body: { accountId: account.accountId } })).status, 409);
 
         const access = await call<AccessData>('GET', '/api/tenders/access', { as: titular });
         assert.equal(access.body.data.subscription?.situation, 'teste');
