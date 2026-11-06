@@ -643,6 +643,8 @@ O comando do admin mostra o destino e exige confirmação antes da senha, que é
 
 A troca em produção está descrita no [roteiro da 3B](../../../../docs/tenders-3b-cutover.md). A baseline `0001` só é aplicada com aprovação explícita, pelo runner com `--projeto tenders`; Finanças continua sendo o projeto padrão. Não editar migrations já aplicadas. O coletor deve apontar para o mesmo banco próprio, via `TENDERS_COLLECTOR_DATABASE_URL`, e começa a carga e seu progresso do zero.
 
+Na 3C, o schema de Licitações deixa de ser reexportado por Finanças e o cadastro de Finanças deixa de criar acesso ao outro produto. Apenas `server.ts` mantém a montagem transitória da API. A remoção do schema antigo é a migration `0096` de Finanças, com backup conferido e autorização por ambiente; os comandos estão na seção de limpeza do roteiro acima.
+
 **Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
 - `GET /billing?accountId=`: situação (`cortesia`, `teste`, `paga`, `recorrente`, `vencida` ou `desligada`), usuários, valor do mês e preço;
 - `GET /billing/config`: a chave pública do Mercado Pago da plataforma (`public_key`, nula sem a variável `MP_PUBLIC_KEY`) para o formulário de cartão do app. Só com login, e é a rota que o app de Licitações usa em vez da de Finanças;
