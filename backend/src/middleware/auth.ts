@@ -5,7 +5,6 @@ import { db } from '../db/client';
 import { users } from '../db/schema';
 import { blockedAccessMessage } from '../utils/authMessages';
 import { verifyFinanceToken } from '../utils/financeTokens';
-import { PLAN_STATUS } from '../services/plan-access';
 import {
   getRequesterPlanStatus,
   isHolderDefaultAccount,
@@ -15,9 +14,6 @@ import {
 
 /** Código da recusa de recurso do Premium: o app mostra o aviso de assinar. */
 const PLAN_UPGRADE_REQUIRED = 'PLAN_UPGRADE_REQUIRED';
-
-/** Cadastro feito por Licitações que ainda não começou o teste do FINGERENCE. */
-const PLAN_TRIAL_NOT_STARTED = 'PLAN_TRIAL_NOT_STARTED';
 
 const PREMIUM_FEATURE_MESSAGE = 'Recurso do plano Premium.';
 const TEAM_NOT_IN_PLAN_MESSAGE = 'O plano da conta não inclui equipe. Peça ao titular para assinar o Premium.';
@@ -157,15 +153,6 @@ export async function requireActivePlan(req: Request, res: Response, next: NextF
     const planStatus = await getRequesterPlanStatus(req.user.id);
     if (!planStatus) {
       res.status(401).json({ success: false, message: 'Access denied.' });
-      return;
-    }
-
-    if (planStatus.status === PLAN_STATUS.notStarted) {
-      res.status(403).json({
-        success: false,
-        code: PLAN_TRIAL_NOT_STARTED,
-        message: 'O teste grátis do FINGERENCE ainda não começou.',
-      });
       return;
     }
 

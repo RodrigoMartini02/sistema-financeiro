@@ -20,10 +20,6 @@ import { releaseRecoveryAttempt, reserveRecoveryAttempt } from '../services/pass
 import { blockedAccessMessage, wrongCodeMessage } from '../utils/authMessages';
 import { resolveMemberRole } from '../utils/familyVisibility';
 import { sendRequestError } from '../utils/requestInput';
-import { startTenderTrial } from '../modules/tenders/services/subscription';
-
-/** Módulo escolhido no cadastro: com Licitações, a conta já nasce com o teste do módulo. */
-const REGISTER_MODULES = ['licitacoes'] as const;
 
 const router = Router();
 
@@ -194,16 +190,14 @@ router.post(
       .custom(validateDocument)
       .withMessage('Invalid CPF/CNPJ'),
     body('senha').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-    body('modulo').optional().isIn([...REGISTER_MODULES]).withMessage('Módulo inválido'),
     validate,
   ],
   async (req: Request, res: Response): Promise<void> => {
     try {
       const {
         nome, sobrenome, email, documento, senha, google_id, pais, estado, cidade,
-        telefone, data_nascimento, modulo,
+        telefone, data_nascimento,
       } = req.body as Record<string, string | undefined>;
-      const startsTenders = modulo === 'licitacoes';
 
       const company = documentDigits(documento).length === CNPJ_LENGTH ? readCompanyAccountInput(req.body) : null;
       const cleanDoc = company ? company.document : documentDigits(documento);
@@ -242,9 +236,7 @@ router.post(
             // admin (POST /users); o tipo nunca vem do pedido.
             type: 'titular',
             status: 'ativo',
-            // Por Licitações, o FINGERENCE não começa o teste: ele começa quando
-            // a pessoa pedir, dentro do FINGERENCE (POST /api/planos/start-trial).
-            planStatus: startsTenders ? PLAN_STATUS.notStarted : PLAN_STATUS.trial,
+            planStatus: PLAN_STATUS.trial,
             googleId: google_id ?? null,
             country: pais ?? null,
             state: estado ?? null,
@@ -256,7 +248,6 @@ router.post(
         // registering with a CNPJ, 'pessoal' (CPF) otherwise. Esta é sempre a
         // Conta Padrão do usuário (nasceu no cadastro externo, vinculada à
         // cobrança do plano em `usuarios`).
-        let defaultAccountId: number;
         if (company) {
           await ensureDefaultCategories(createdUser!.id, 'empresa', transaction);
           await ensureDefaultIncomeClassifications(createdUser!.id, 'empresa', transaction);
@@ -268,21 +259,12 @@ router.post(
             isDefault: true,
           }).returning({ id: accounts.id });
           await ensureDefaultAccountNames(transaction, { ownerId: createdUser!.id, accountId: companyAccount!.id });
-          defaultAccountId = companyAccount!.id;
         } else {
           await ensureDefaultCategories(createdUser!.id, 'pessoal', transaction);
           await ensureDefaultIncomeClassifications(createdUser!.id, 'pessoal', transaction);
-          const [personalAccount] = await transaction
+          await transaction
             .insert(accounts)
-            .values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true, isDefault: true })
-            .returning({ id: accounts.id });
-          defaultAccountId = personalAccount!.id;
-        }
-
-        // Cadastro pelo login de Licitações: a conta já nasce com o teste do
-        // módulo. O teste do FINGERENCE continua como em todo cadastro.
-        if (startsTenders) {
-          await startTenderTrial(transaction, defaultAccountId, createdUser!.id, new Date());
+            .values({ userId: createdUser!.id, type: 'pessoal', name: 'Pessoal', active: true, isDefault: true });
         }
 
         return createdUser;
@@ -297,7 +279,7 @@ router.post(
 
       void recordAnalyticsEvent({
         eventType: 'login',
-        path: startsTenders ? '/licitacoes/app' : '/app.html',
+        path: '/app.html',
         userId: newUser!.id,
       });
 

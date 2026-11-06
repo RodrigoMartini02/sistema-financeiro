@@ -2,12 +2,6 @@ export const PLAN_STATUS = {
   trial: 'trial',
   active: 'ativo',
   expired: 'expirado',
-  /**
-   * Cadastro feito por Licitações: o FINGERENCE ainda não foi usado e o teste
-   * dele começa quando a pessoa pede (POST /api/planos/start-trial). Sem acesso
-   * e fora da rotina diária, então sem e-mail de "acesso suspenso".
-   */
-  notStarted: 'sem_teste',
 } as const;
 
 export type PlanStatus = (typeof PLAN_STATUS)[keyof typeof PLAN_STATUS];
@@ -59,17 +53,14 @@ export function parseBrasiliaTimestamp(value: Date | string | null): Date | null
 }
 
 function normalizePlanStatus(value: string | null): PlanStatus {
-  if (value === PLAN_STATUS.active || value === PLAN_STATUS.expired || value === PLAN_STATUS.notStarted) {
+  if (value === PLAN_STATUS.active || value === PLAN_STATUS.expired) {
     return value;
   }
 
   return PLAN_STATUS.trial;
 }
 
-/**
- * Início do teste: a data do cadastro ou, no teste que começou depois (de
- * `sem_teste` pelo start-trial), 15 dias antes do fim gravado em `plano_expiracao`.
- */
+/** Preserva o vencimento explícito dos testes já iniciados. */
 function trialStart(snapshot: PlanAccessSnapshot): Date | null {
   const trialEnd = parseBrasiliaTimestamp(snapshot.planExpiration);
   if (trialEnd) {
@@ -88,7 +79,7 @@ export function getEffectivePlanAccess(
 
   const storedStatus = normalizePlanStatus(snapshot.planStatus);
 
-  if (storedStatus === PLAN_STATUS.expired || storedStatus === PLAN_STATUS.notStarted) {
+  if (storedStatus === PLAN_STATUS.expired) {
     return { status: storedStatus, trialDaysLeft: null };
   }
 

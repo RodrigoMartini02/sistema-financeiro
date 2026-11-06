@@ -38,7 +38,7 @@ test('keeps a valid trial active and reports its remaining days', () => {
   assert.equal(result.trialDaysLeft, 1);
 });
 
-test('a trial started later (sem_teste → start-trial) ends at plano_expiracao, not 15 days after sign-up', () => {
+test('honors the explicit expiration of an existing trial', () => {
   const active = getEffectivePlanAccess({
     userType: 'titular',
     planStatus: PLAN_STATUS.trial,
@@ -55,19 +55,6 @@ test('a trial started later (sem_teste → start-trial) ends at plano_expiracao,
     createdAt: '2026-08-01 00:00:00',
   }, now);
   assert.equal(ended.status, PLAN_STATUS.expired);
-});
-
-test('sem_teste has no access and no trial days, whatever the dates', () => {
-  const result = getEffectivePlanAccess({
-    userType: 'titular',
-    planStatus: PLAN_STATUS.notStarted,
-    planExpiration: null,
-    createdAt: '2026-08-08 00:00:00',
-  }, now);
-
-  assert.equal(result.status, PLAN_STATUS.notStarted);
-  assert.equal(result.trialDaysLeft, null);
-  assert.equal(hasPremiumFeatures({ userType: 'titular', status: PLAN_STATUS.notStarted, planType: null }), false);
 });
 
 test('expires a one-time plan at its Brasilia timestamp', () => {
