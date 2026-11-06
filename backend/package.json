@@ -14,6 +14,8 @@
     "test:finance-db": "set FINANCE_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../.env.dev&& tsx --test src/services/*.db.test.ts",
     "tenders": "tsx src/modules/tenders/collector/cli.ts",
     "tenders:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/collector/cli.ts",
+    "tenders:create-admin": "tsx src/modules/tenders/cli/createAdmin.ts",
+    "tenders:create-admin:dev": "set DOTENV_CONFIG_PATH=../.env.dev&& tsx src/modules/tenders/cli/createAdmin.ts",
     "daily-jobs": "tsx src/modules/tenders/collector/dailyRoutineCli.ts",
     "finance:daily-jobs": "tsx scripts/financeDailyJobs.ts",
     "migrations:status": "tsx scripts/migrations.ts status",

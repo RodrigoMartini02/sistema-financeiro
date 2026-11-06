@@ -104,25 +104,25 @@ describe('usuários e cortesia (banco local)', { skip: databaseTestsSkipReason }
     });
   });
 
-  test('lista do admin: com o módulo primeiro, depois PJ, depois o nome; conta inativa fica de fora', async () => {
+  test('lista do admin: com o módulo primeiro, depois o nome; conta inativa fica de fora', async () => {
     await withRollback(async (tx) => {
       const admin = await createTestAccount(tx, 'lista-admin');
       const courtesyPj = await createTestAccount(tx, 'lista-habilitada');
       const plainPj = await createTestAccount(tx, 'lista-pj', { enabled: false });
       const payingPj = await createTestAccount(tx, 'lista-desabilitada');
       await setAccountCourtesy(tx, admin.ownerId, payingPj.accountId, false, now());
-      const [personal] = await tx
+      const [another] = await tx
         .insert(accounts)
-        .values({ userId: plainPj.ownerId, name: 'Conta lista-pessoal', type: 'pessoal' })
+        .values({ userId: plainPj.ownerId, name: 'Conta lista-outra', type: 'empresa' })
         .returning({ id: accounts.id });
       const [inactive] = await tx
         .insert(accounts)
         .values({ userId: plainPj.ownerId, name: 'Conta lista-inativa', type: 'empresa', active: false })
         .returning({ id: accounts.id });
-      assert.ok(personal && inactive);
+      assert.ok(another && inactive);
       await setAccountCourtesy(tx, admin.ownerId, inactive.id, true, now());
 
-      const testIds = new Set([courtesyPj.accountId, plainPj.accountId, payingPj.accountId, personal.id, inactive.id]);
+      const testIds = new Set([courtesyPj.accountId, plainPj.accountId, payingPj.accountId, another.id, inactive.id]);
       const listed = (await listAccountsForTenders(tx, now())).filter((row) => testIds.has(row.accountId));
 
       assert.deepEqual(
@@ -130,8 +130,8 @@ describe('usuários e cortesia (banco local)', { skip: databaseTestsSkipReason }
         [
           { accountId: payingPj.accountId, accountType: 'empresa', courtesy: false, situation: 'vencida' },
           { accountId: courtesyPj.accountId, accountType: 'empresa', courtesy: true, situation: 'cortesia' },
+          { accountId: another.id, accountType: 'empresa', courtesy: false, situation: null },
           { accountId: plainPj.accountId, accountType: 'empresa', courtesy: false, situation: null },
-          { accountId: personal.id, accountType: 'pessoal', courtesy: false, situation: null },
         ],
       );
       const [paying, first, plain] = listed;

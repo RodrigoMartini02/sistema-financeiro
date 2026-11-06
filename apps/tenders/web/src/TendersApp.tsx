@@ -37,9 +37,8 @@ export function TendersApp() {
       return <LoadingState title="Redirecionando" description="Abrindo a entrada de acesso." />;
     case 'loading':
       return <LoadingState title="Abrindo Licitações" description="Conferindo o seu acesso." />;
-    case 'noModule':
     case 'memberWithoutAccess':
-      return <NoAccessScreen reason={state} />;
+      return <NoAccessScreen />;
     case 'expired':
       return <ExpiredScreen info={expiredInfoFrom(access.error?.data)} message={access.error?.message ?? NETWORK_ERROR_MESSAGE} />;
     case 'error':

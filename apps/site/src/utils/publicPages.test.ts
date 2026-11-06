@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { FINANCE_LOGIN_ADDRESS, TENDERS_LOGIN_ADDRESS } from '@finance/utils/authOrigin';
+import { FINANCE_LOGIN_ADDRESS, TENDERS_LOGIN_ADDRESS } from './authNavigation';
 import { canonicalUrlFor, pageOfSolution, PUBLIC_PAGES, publicPageFor, SITE_URL } from './publicPages';
 
 // Palavras que não entram no texto do site (o PNCP aparece só no conteúdo dos Termos e da Privacidade).

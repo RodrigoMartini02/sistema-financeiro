@@ -1,4 +1,4 @@
-import { logout } from './session';
+import { logout, getToken, getActiveAccountId as getStoredActiveAccountId } from './session';
 import { resolveDemoRequest } from './demo/fakeApiResolver';
 import { getDemoDatabase } from './demo/demoDatabaseSingleton';
 
@@ -39,10 +39,7 @@ export function getApiUrl() {
 export function getActiveAccountId() {
   // A demonstração usa identidade própria, sem ler ou gravar a conta da sessão real.
   if (IS_DEMO_DOCUMENT) return 1;
-  const raw = localStorage.getItem('contaAtivaId');
-  if (!raw) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
+  return getStoredActiveAccountId();
 }
 
 export async function apiRequest<T>(
@@ -63,7 +60,7 @@ export async function apiRequest<T>(
     headers.set('Content-Type', 'application/json');
   }
   if (!anonymous) {
-    const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+    const token = getToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
 

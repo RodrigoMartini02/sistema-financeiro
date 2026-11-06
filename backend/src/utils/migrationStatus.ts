@@ -1,9 +1,10 @@
 // Controle das migrations aplicadas (tabela schema_migrations), sem acesso ao
-// banco: ordena os arquivos de backend/drizzle, calcula o que falta em cada
-// banco e valida o "aplicar" (uma migration por vez, nomeada, em ordem).
+// banco: ordena os arquivos da pasta de migrations de um projeto (Finanças:
+// backend/drizzle; Licitações: modules/tenders/migrations), calcula o que falta
+// em cada banco e valida o "aplicar" (uma migration por vez, nomeada, em ordem).
 import { createHash } from 'node:crypto';
 
-/** Migration que cria a schema_migrations: a única aceita enquanto a tabela não existe no banco. */
+/** Migration de Finanças que cria a schema_migrations: a única aceita enquanto a tabela não existe no banco. */
 export const REGISTRY_MIGRATION = '0057_registro_migrations.sql';
 
 /** NNNN_nome.sql, ou NNNNx_nome.sql para um passo extra (ex.: 0018b_...). */
@@ -76,25 +77,26 @@ export function migrationStatus(files: readonly MigrationFile[], applied: readon
 
 function findMigration(files: readonly MigrationFile[], id: string): MigrationFile {
   const target = files.find((file) => file.id === id);
-  if (!target) throw new MigrationRefusal(`Não existe migration ${id} em backend/drizzle.`);
+  if (!target) throw new MigrationRefusal(`Não existe migration ${id} na pasta de migrations deste projeto.`);
   return target;
 }
 
 /**
  * A migration que "aplicar ID" vai executar. Recusa identificador inexistente,
  * migration já aplicada e pendente anterior (a ordem vale). Sem a
- * schema_migrations no banco, só a REGISTRY_MIGRATION é aceita: é ela que cria a tabela.
+ * schema_migrations no banco, só a `registryMigration` do projeto é aceita: é ela que cria a tabela.
  */
 export function migrationToApply(
   files: readonly MigrationFile[],
   applied: readonly AppliedMigration[],
   id: string,
   registryExists: boolean,
+  registryMigration: string = REGISTRY_MIGRATION,
 ): MigrationFile {
   const target = findMigration(files, id);
   if (!registryExists) {
-    if (target.filename === REGISTRY_MIGRATION) return target;
-    throw new MigrationRefusal(`Este banco ainda não tem a schema_migrations: aplique primeiro a ${REGISTRY_MIGRATION}.`);
+    if (target.filename === registryMigration) return target;
+    throw new MigrationRefusal(`Este banco ainda não tem a schema_migrations: aplique primeiro a ${registryMigration}.`);
   }
 
   const appliedNames = new Set(applied.map((item) => item.filename));

@@ -487,7 +487,7 @@ export type SubscriptionSituation = 'cortesia' | 'teste' | 'paga' | 'recorrente'
 export interface AdminTenderAccount {
   accountId: number;
   accountName: string;
-  accountType: 'pessoal' | 'empresa';
+  accountType: 'empresa';
   ownerName: string;
   ownerEmail: string;
   /** Usa o módulo sem cobrança e sem limite de usuários. */
@@ -530,21 +530,15 @@ export interface TenderPrice {
 
 /** Resposta de GET /api/tenders/billing. */
 export interface TenderBilling {
-  account: { id: number; name: string; type: 'pessoal' | 'empresa' };
+  account: { id: number; name: string; type: 'empresa' };
   subscription: TenderSubscription;
   price: TenderPrice;
-}
-
-/** Resposta de GET /api/tenders/activation: contas do titular que ainda não têm o módulo. */
-export interface TenderActivation {
-  canActivate: boolean;
-  accounts: Array<{ id: number; name: string; type: 'pessoal' | 'empresa' }>;
 }
 
 /** `data` do 402 (assinatura vencida). */
 export interface ExpiredSubscriptionInfo {
   role: 'TITULAR' | 'COLABORADOR';
-  account: { id: number; name: string; type: 'pessoal' | 'empresa' };
+  account: { id: number; name: string; type: 'empresa' };
 }
 
 export const TENDER_NOTIFICATION_TYPES = [

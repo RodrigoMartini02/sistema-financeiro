@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../../services/session';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, Repeat, Users } from 'lucide-react';
@@ -83,7 +84,7 @@ function IncomeDialogContent({ income, presetDate, initialMonth, onClose }: Inco
   const qc = useQueryClient();
   const todayIso = useMemo(() => getLocalTodayIso(), []);
   const isEdit = income !== null;
-  const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
+  const isCompany = getActiveAccountType() === 'empresa';
   const [accountId] = useState(() => getActiveAccountId());
   const [pendingMonth] = useState(() => initialMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(initialMonth)
     ? initialMonth : (presetDate ?? todayIso).slice(0, 7));

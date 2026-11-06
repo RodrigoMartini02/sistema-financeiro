@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { users } from '../db/schema';
 import { blockedAccessMessage } from '../utils/authMessages';
+import { verifyFinanceToken } from '../utils/financeTokens';
 import { PLAN_STATUS } from '../services/plan-access';
 import {
   getRequesterPlanStatus,
@@ -63,7 +64,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const decoded = jwt.verify(token, getJwtSecret()) as TokenPayload;
+    const decoded = verifyFinanceToken(token, getJwtSecret()) as TokenPayload;
 
     // O status vem do banco a cada pedido (o token não sabe dele): quem foi
     // desativado ou bloqueado perde a sessão aberta no próximo pedido.

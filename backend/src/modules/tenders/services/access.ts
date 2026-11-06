@@ -15,7 +15,7 @@ import type { TenderRole } from '../domains';
 export interface TenderAccount {
   id: number;
   name: string;
-  type: 'pessoal' | 'empresa';
+  type: 'empresa';
 }
 
 export interface TenderAccess {
@@ -39,6 +39,16 @@ export type TenderAccessResult =
   | { allowed: false; reason: 'subscriptionExpired'; role: TenderRole; account: TenderAccount };
 
 const NOT_FOUND: TenderAccessResult = { allowed: false, reason: 'notFound' };
+
+/** Colaborador ativo de alguma conta: não cuida da assinatura (o plano é do titular). */
+export async function isAccountMember(db: TendersDb, userId: number): Promise<boolean> {
+  const [membership] = await db
+    .select({ accountId: accountMembers.accountId })
+    .from(accountMembers)
+    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.status, 'ativo')))
+    .limit(1);
+  return membership !== undefined;
+}
 
 // A função recebe a linha inteira da conta_habilitada, pelo nome da tabela no FROM.
 const hasModuleAccess = sql<boolean>`licitacoes.fn_conta_com_acesso(${sql.raw('conta_habilitada')})`;

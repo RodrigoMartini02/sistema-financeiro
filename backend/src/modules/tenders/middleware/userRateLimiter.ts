@@ -21,15 +21,15 @@ export function userRateLimiter({ max, windowMs, message }: { max: number; windo
   }, windowMs).unref();
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
+    if (!req.tendersUser) {
       res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
       return;
     }
     const now = Date.now();
-    const current = windows.get(req.user.id);
+    const current = windows.get(req.tendersUser.id);
     const data = current && now - current.windowStart <= windowMs ? current : { count: 0, windowStart: now };
     data.count += 1;
-    windows.set(req.user.id, data);
+    windows.set(req.tendersUser.id, data);
     if (data.count > max) {
       res.status(429).json({ success: false, message });
       return;

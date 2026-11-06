@@ -43,7 +43,7 @@ export function respondRouteNotFound(req: Request, res: Response): void {
 /** Conta sem o módulo, inativa ou alheia: 404. Colaborador sem acesso: 403. Assinatura vencida: 402. */
 export function createRequireTenderAccess(db: TendersDb) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (!req.user) {
+    if (!req.tendersUser) {
       res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
       return;
     }
@@ -58,7 +58,7 @@ export function createRequireTenderAccess(db: TendersDb) {
     }
 
     try {
-      const result = await resolveTenderAccess(db, req.user, requestedAccountId);
+      const result = await resolveTenderAccess(db, req.tendersUser, requestedAccountId);
       if (!result.allowed) {
         if (result.reason === 'memberWithoutAccess') {
           res.status(403).json({ success: false, message: MEMBER_WITHOUT_ACCESS });
@@ -79,7 +79,7 @@ export function createRequireTenderAccess(db: TendersDb) {
       req.tenderAccess = result.access;
       next();
     } catch (error) {
-      console.error('Tender access check failed:', { userId: req.user.id, error: (error as Error).message });
+      console.error('Tender access check failed:', { userId: req.tendersUser.id, error: (error as Error).message });
       res.status(500).json({ success: false, message: ACCESS_CHECK_FAILED });
     }
   };

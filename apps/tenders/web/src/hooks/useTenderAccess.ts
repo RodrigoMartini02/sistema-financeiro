@@ -8,7 +8,7 @@ import type { TendersPermissions } from '../utils/navigation';
 export interface TenderAccount {
   id: number;
   name: string;
-  type: 'pessoal' | 'empresa';
+  type: 'empresa';
 }
 
 /** Resposta de GET /api/tenders/access. */
@@ -22,7 +22,7 @@ export interface TenderAccess {
   subscription: TenderSubscription | null;
 }
 
-/** Conta, papel e permissões no módulo. 404 (sem o módulo), 403 (sem acesso) e 402 (vencida) não repetem. */
+/** Conta, papel e permissões no módulo. Erros de acesso não são repetidos automaticamente. */
 export function useTenderAccess(enabled: boolean) {
   return useQuery<TenderAccess, TendersApiError>({
     queryKey: tendersQueryKeys.access,

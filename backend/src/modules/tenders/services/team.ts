@@ -154,7 +154,7 @@ export async function setAccountCourtesy(
 export interface TenderAccountAdminView {
   accountId: number;
   accountName: string;
-  accountType: 'pessoal' | 'empresa';
+  accountType: 'empresa';
   ownerName: string;
   ownerEmail: string;
   /** Cortesia ligada (conta sem linha em conta_habilitada, ou desligada: false). */
@@ -169,7 +169,7 @@ export interface TenderAccountAdminView {
 
 /**
  * Contas ativas da plataforma e a situação de cada uma no módulo (tela do
- * admin). Ordem: com o módulo primeiro, depois PJ, depois o nome da conta.
+ * admin). Ordem: com o módulo primeiro, depois o nome da conta.
  */
 export async function listAccountsForTenders(db: TendersDb, now: Date): Promise<TenderAccountAdminView[]> {
   const hasModule = sql<boolean>`coalesce(${tenderEnabledAccounts.active}, false)`;
@@ -186,7 +186,7 @@ export async function listAccountsForTenders(db: TendersDb, now: Date): Promise<
     .innerJoin(users, eq(users.id, accounts.userId))
     .leftJoin(tenderEnabledAccounts, eq(tenderEnabledAccounts.accountId, accounts.id))
     .where(sql`coalesce(${accounts.active}, true)`)
-    .orderBy(desc(hasModule), desc(eq(accounts.type, 'empresa')), asc(accounts.name), asc(accounts.id));
+    .orderBy(desc(hasModule), asc(accounts.name), asc(accounts.id));
 
   return rows.map(({ module, ...row }) => ({
     ...row,

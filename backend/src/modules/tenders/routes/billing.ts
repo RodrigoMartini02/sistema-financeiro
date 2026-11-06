@@ -14,8 +14,7 @@ import {
 } from '../services/mercadoPagoCharges';
 import { RequestInputError } from '../utils/requestInput';
 import type { TendersDb } from '../collector/database';
-import type { TenderAccount, TenderRequester } from '../services/access';
-import { activateModule, isAccountMember, listActivatableAccounts } from '../services/activation';
+import { isAccountMember, type TenderAccount, type TenderRequester } from '../services/access';
 import {
   buildTendersPaymentReference,
   centsToAmount,
@@ -35,9 +34,8 @@ import {
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 
-// Ativação e cobrança do módulo (plano .plans/licitacoes-produto.md). Ficam
-// fora da trava do módulo: a conta pode ainda não ter o módulo (ativação) ou
-// estar vencida (pagar). Só o titular, e só em conta dele.
+// Cobrança do módulo (plano .plans/licitacoes-produto.md). Fica fora da trava
+// do módulo: a conta pode estar vencida (pagar). Só o titular, e só em conta dele.
 
 const BACKEND_URL = process.env['BACKEND_URL'] ?? 'https://sistema-financeiro-backend-o199.onrender.com';
 const FRONTEND_URL = process.env['FRONTEND_URL'] ?? 'https://fin-gerence.com.br';
@@ -50,7 +48,7 @@ const COURTESY_ACCOUNT = 'Esta conta usa Licitações como cortesia: não há co
 const ACCOUNT_ID_MESSAGE = 'Informe a conta';
 
 function requesterOf(req: Request): TenderRequester {
-  return req.user!;
+  return req.tendersUser!;
 }
 
 interface BillingAccount {
@@ -106,30 +104,6 @@ async function currentCharge(db: TendersDb, accountId: number): Promise<{ amount
 const accountIdQuery = [query('accountId').isInt({ min: 1 }).withMessage(ACCOUNT_ID_MESSAGE), validate];
 const accountIdBody = [body('accountId').isInt({ min: 1 }).withMessage(ACCOUNT_ID_MESSAGE)];
 const cardTokenBody = [body('card_token').isString().notEmpty().withMessage('Dados do cartão incompletos')];
-
-/** GET/POST /api/tenders/activation: contas que o titular pode ativar e a ativação (15 dias grátis). */
-export function activationRoutes(deps: TendersApiDeps): Router {
-  const router = Router();
-
-  router.get(
-    '/',
-    tenderRoute('Tender activation read failed:', 'Não foi possível carregar a ativação agora.', async (req, res) => {
-      const activatable = await listActivatableAccounts(deps.db, requesterOf(req));
-      res.json({ success: true, data: { canActivate: activatable.length > 0, accounts: activatable } });
-    }),
-  );
-
-  router.post(
-    '/',
-    [...accountIdBody, validate],
-    tenderRoute('Tender activation failed:', 'Não foi possível ativar Licitações agora.', async (req, res) => {
-      const account = await activateModule(deps.db, requesterOf(req), Number(req.body.accountId), deps.now());
-      res.status(201).json({ success: true, data: { account } });
-    }),
-  );
-
-  return router;
-}
 
 /** /api/tenders/billing: situação da assinatura e os pagamentos do titular. */
 export function billingRoutes(deps: TendersApiDeps): Router {

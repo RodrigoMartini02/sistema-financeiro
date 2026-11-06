@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api';
@@ -107,6 +108,8 @@ function normalizedSlices(files: ManifestFile[]): ManifestFile[] {
 }
 
 export class WinnerStoreWriter {
+  // A new identity database can reuse run ids while the R2 history remains.
+  private readonly publicationId = randomUUID();
   private publishCount = 0;
   private sequence = 0;
 
@@ -220,7 +223,7 @@ export class WinnerStoreWriter {
     }
     this.publishCount += 1;
     this.sequence = 0;
-    const revision = `${this.options.version}.${this.publishCount}`;
+    const revision = `${this.options.version}.${this.publishCount}-${this.publicationId}`;
     const written: WrittenFile[] = [];
     const previous = this.manifest;
 

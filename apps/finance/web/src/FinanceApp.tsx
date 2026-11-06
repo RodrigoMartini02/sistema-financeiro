@@ -1,3 +1,4 @@
+import { getActiveAccountType } from './services/session';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Lock } from 'lucide-react';
@@ -70,7 +71,7 @@ function AppContent() {
   // Tela mostrada: a escolhida, se a pessoa pode abri-la; senão a primeira
   // liberada (ver resolveSection). Enquanto as permissões carregam, nenhuma.
   const ownPermissions = useOwnPermissions({ enabled: !!session.user && hasPlanAccess });
-  const accountType = localStorage.getItem('contaAtivaTipo') as AccountType | null;
+  const accountType = getActiveAccountType() as AccountType | null;
   const shownSection = ownPermissions ? resolveSection(section, visibleSections(ownPermissions, accountType)) : undefined;
 
   // Sem sessão (ou com ela inválida), a entrada é a página de Finanças com o login aberto.

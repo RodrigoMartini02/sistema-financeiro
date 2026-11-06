@@ -1,3 +1,4 @@
+import { getToken } from './session';
 import { apiRequest, getActiveAccountId, getApiUrl } from './apiClient';
 import type { Report, ReportQuery } from '../types/reports';
 
@@ -24,7 +25,7 @@ export function fetchReport(query: ReportQuery): Promise<Report> {
 
 /** Baixa o PDF com os mesmos filtros da tela (o backend monta os dois pela mesma fonte). */
 export async function downloadReportPdf(query: ReportQuery): Promise<void> {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+  const token = getToken();
   const response = await fetch(`${getApiUrl()}/reports/pdf?${toSearchParams(query)}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });

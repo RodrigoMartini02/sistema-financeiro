@@ -1,14 +1,13 @@
 // Para onde o login leva: o app em que ele começou fica guardado em
-// `auth_origin` (sessionStorage) e decide o destino depois de entrar,
+// `finance.loginOrigin` (sessionStorage) e decide o destino depois de entrar,
 // inclusive na volta do Google, que passa pela página inicial.
 
-export const AUTH_ORIGINS = ['app', 'assistant', 'tenders'] as const;
+export const AUTH_ORIGINS = ['app', 'assistant'] as const;
 export type AuthOrigin = (typeof AUTH_ORIGINS)[number];
 
 const DESTINATION_BY_ORIGIN: Record<AuthOrigin, string> = {
   app: '/app.html',
   assistant: '/assistant.html',
-  tenders: '/licitacoes/app',
 };
 
 /** Origem guardada; ausente ou desconhecida vale como o app de finanças. */
@@ -25,6 +24,3 @@ export const LOGIN_REQUEST_PARAM = 'entrar';
 
 /** Entrada do FINGERENCE sem sessão ou ao sair: a página de Finanças com o login aberto. */
 export const FINANCE_LOGIN_ADDRESS = `/financas/?${LOGIN_REQUEST_PARAM}=1`;
-
-/** Entrada de Licitações sem sessão, com a sessão vencida ou ao sair: a página de Licitações com o login aberto. */
-export const TENDERS_LOGIN_ADDRESS = `/licitacoes/?${LOGIN_REQUEST_PARAM}=1`;

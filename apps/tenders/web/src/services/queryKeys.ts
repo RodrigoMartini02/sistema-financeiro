@@ -50,7 +50,6 @@ export const tendersQueryKeys = {
   billingAll: ['tenders', 'billing'] as const,
   /** Assinatura de uma conta (fora da trava: vale também para a conta vencida). */
   billing: (accountId: number) => ['tenders', 'billing', accountId] as const,
-  activation: ['tenders', 'activation'] as const,
   collectionStatus: ['tenders', 'collection', 'status'] as const,
   collectionRuns: ['tenders', 'collection', 'runs'] as const,
   // Tela "Contas habilitadas" (admin da plataforma).

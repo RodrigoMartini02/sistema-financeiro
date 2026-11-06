@@ -63,7 +63,7 @@ test('armazém sem nenhuma publicação: pronto, com as visões vazias', async (
   });
 });
 
-test('copia a versão publicada e troca para a seguinte; a mesma versão não é baixada de novo', async () => {
+test('copia a publicação seguinte mesmo com o id de execução reiniciado; a mesma versão não é baixada de novo', async () => {
   await withTempDirectory(async (root) => {
     const { storage } = createMemoryStorage();
     const writerDirectory = join(root, 'gravador');
@@ -72,16 +72,18 @@ test('copia a versão publicada e troca para a seguinte; a mesma versão não é
 
     await withReader(storage, readerDirectory, async (reader) => {
       assert.equal(await reader.refresh(), true);
-      assert.equal(reader.status().revision, '1.1');
+      const firstRevision = reader.status().revision;
+      assert.match(firstRevision ?? '', /^1\.1-/);
       assert.deepEqual(reader.status().totals, { contracts: 3, active: 2, withoutExpiry: 0 });
       assert.equal(await count(reader, 'contratos'), 3);
       assert.equal(await count(reader, 'vigentes'), 2);
       assert.equal(await count(reader, 'fornecedor'), 3);
       assert.equal(await reader.refresh(), false);
 
-      await publishWith(storage, writerDirectory, 2, async (writer) => void (await writer.upsert([sampleContract(4), sampleContract(5)])));
+      await publishWith(storage, writerDirectory, 1, async (writer) => void (await writer.upsert([sampleContract(4), sampleContract(5)])));
       assert.equal(await reader.refresh(), true);
-      assert.equal(reader.status().revision, '2.1');
+      assert.match(reader.status().revision ?? '', /^1\.1-/);
+      assert.notEqual(reader.status().revision, firstRevision);
       assert.equal(await count(reader, 'contratos'), 5);
       const storedObject = await reader.query(async (connection: DuckDBConnection) =>
         (await connection.runAndReadAll(`SELECT objeto FROM contratos WHERE sequencial_contrato = 5`)).getRows()[0]?.[0],
@@ -193,7 +195,7 @@ test('R2 fora do ar: sem cópia continua indisponível; com cópia, a versão em
       assert.equal(await reader.refresh(), true);
       down = true;
       assert.equal(await reader.refresh(), false);
-      assert.equal(reader.status().revision, '1.1');
+      assert.match(reader.status().revision ?? '', /^1\.1-/);
       assert.equal(await count(reader, 'contratos'), 1);
     });
   });
@@ -224,7 +226,7 @@ test('download ultrapassado por várias publicações tenta o manifesto atual se
       await publishVersion(2);
       advanceWhileDownloading = true;
       assert.equal(await reader.refresh(), true);
-      assert.equal(reader.status().revision, '4.1');
+      assert.match(reader.status().revision ?? '', /^4\.1-/);
       assert.equal(await count(reader, 'contratos'), 1);
       assert.equal(await reader.query(async (connection) => (await connection.runAndReadAll('SELECT objeto FROM contratos')).getRows()[0]?.[0]), 'Objeto v4');
     });

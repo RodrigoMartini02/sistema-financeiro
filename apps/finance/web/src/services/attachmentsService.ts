@@ -1,3 +1,4 @@
+import { getToken } from './session';
 // Anexos de lançamentos, contratos e produtos, em /api/attachments. O arquivo passa pelo servidor só no envio; para
 // abrir, o app pede um link de vida curta e o navegador baixa direto do R2. Na demonstração (demo.html) não há
 // servidor: os arquivos ficam na memória da página (services/demo/demoAttachments.ts).
@@ -12,7 +13,7 @@ export interface AttachmentLink {
 }
 
 function authHeaders(): HeadersInit {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+  const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

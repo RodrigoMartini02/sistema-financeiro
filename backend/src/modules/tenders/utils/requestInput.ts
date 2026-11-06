@@ -30,3 +30,36 @@ export function readRecord(value: unknown, message: string): Record<string, unkn
   }
   return value as Record<string, unknown>;
 }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, day!));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month! - 1 && date.getUTCDate() === day;
+}
+
+export function readIsoDate(value: unknown, message: string): string {
+  if (typeof value !== 'string' || !isValidIsoDate(value)) {
+    throw new RequestInputError(message);
+  }
+  return value;
+}
+
+export function readOptionalIsoDate(value: unknown, message: string): string | null {
+  if (value === undefined || value === null) return null;
+  return readIsoDate(value, message);
+}
+
+/** Texto opcional aparado: vazio vira null. `label` compõe as mensagens ("Nome fantasia inválido"). */
+export function readOptionalText(value: unknown, label: string, maxLength: number): string | null {
+  if (value !== undefined && value !== null && typeof value !== 'string') {
+    throw new RequestInputError(`${label} inválido`);
+  }
+  const text = typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+  if (text !== null && text.length > maxLength) {
+    throw new RequestInputError(`${label}: até ${maxLength} caracteres`);
+  }
+  return text;
+}

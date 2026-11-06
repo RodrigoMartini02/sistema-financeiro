@@ -63,7 +63,7 @@ export function LoginModal({ isOpen, onClose, solution, initialMode = 'login' }:
           </button>
         </div>
 
-        <LoginPage initialMode={initialMode} tone="light" context={solution === 'tenders' ? 'tenders' : undefined} />
+        <LoginPage key={solution} initialMode={initialMode} tone="light" context={solution === 'tenders' ? 'tenders' : undefined} />
       </div>
     </div>
   );

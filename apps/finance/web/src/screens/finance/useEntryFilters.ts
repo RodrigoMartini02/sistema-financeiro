@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCategorias } from '../../services/configService';
@@ -147,7 +148,7 @@ export function useEntryFilters({ paymentMethods, cards, includeForecasts = fals
     // Pessoas sempre visível: não depende do filtro de Tipo.
     ...((membersQ.data?.length ?? 0) > 0 && meQ.data ? [{
       id: 'membros',
-      label: TERMOS[(localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal')].plural,
+      label: TERMOS[(getActiveAccountType() === 'empresa' ? 'empresa' : 'pessoal')].plural,
       options: [
         { value: meId!, label: `${meQ.data.nomeExibicao ?? meQ.data.nome} (você)` },
         ...otherMembers.map((member) => ({ value: String(member.usuario_id), label: `${member.nome} ${member.sobrenome ?? ''}`.trim() })),

@@ -2,8 +2,8 @@ import { getApiUrl } from './apiUrl';
 import { getToken, logout } from './session';
 import { NETWORK_ERROR_MESSAGE, TendersApiError, tendersErrorFrom } from './tendersApiError';
 
-// Cliente da API usado pelo app de Licitações. Igual ao do app de finanças
-// (mesma URL, token e saída no 401), mas o erro guarda o status HTTP.
+// Cliente da API de Licitações, com sessão própria e o status HTTP no erro.
+// Um 401 encerra apenas a sessão deste produto.
 
 interface ApiEnvelope<T> {
   success?: boolean;
