@@ -26,6 +26,14 @@ npm --prefix backend run migrations:status -- --banco local --projeto tenders
 
 Os testes de Licitações usam `localhost:5433/fingerence_licitacoes_dev`, e Finanças usa `localhost:5433/sistema_financas_dev`. O primeiro banco já recebeu a baseline local com a autorização anterior. Não reaplicar nem editar `0001_baseline.sql`.
 
+## Preparação antecipada e momento da pausa
+
+Banco, papéis, extensões, baseline e primeiro administrador podem ser preparados enquanto o coletor antigo continua a carga, mediante a autorização específica de cada passo. O envio da branch também independe da conclusão da carga. O usuário pode deixar a carga atual continuar até a janela escolhida.
+
+A pausa é necessária na troca das conexões e antes de iniciar um novo escritor no mesmo armazém R2. API 3B lendo o R2 e coletor antigo publicando nele podem coexistir, mas os editais, o progresso e as notificações continuariam no banco antigo. A API nova não receberia essas atualizações. A troca coordenada evita esse intervalo; concluir a carga antiga não dispensa a recarga do progresso no banco novo, que começa do zero conforme a decisão aprovada.
+
+Preparar o `.env` local do runner não altera o serviço ativo na Render. A versão 3A já usa `TENDERS_DATABASE_URL` quando definida; portanto, não ativar essa variável antecipadamente no serviço. Ativar as variáveis da Render na janela da troca, com banco e admin prontos, junto da publicação da versão 3B. Se um Export foi feito durante a preparação e a carga continuou, fazer um Export atualizado após a pausa na janela da troca.
+
 ## Dia da troca
 
 Cada passo que grava exige o “sim” explícito do usuário. O painel e as variáveis da Render são alterados pelo usuário. Não fazer merge antes da preparação do banco e das variáveis.
@@ -33,7 +41,7 @@ Cada passo que grava exige o “sim” explícito do usuário. O painel e as var
 1. **Pausar os escritores antigos.** O usuário pausa o coletor da máquina de 24 h e qualquer rotina agendada que escreva no banco ou no manifesto do R2. Confirmar que a execução em andamento terminou. A trava de coleta é por banco: dois coletores em bancos diferentes não se bloqueiam.
 2. **Guardar os pontos de retorno.** Fazer Export manual do banco na Render; registrar o commit/deploy anterior, o nome do banco antigo e, sem credenciais, a revisão e os totais do manifesto atual do armazém. Não apagar nenhum dado antigo.
 3. **Criar o banco próprio.** O usuário cria `fingerence_licitacoes` e o papel `licitacoes_app`, com o banco a partir de `template0`, collation `en_US.UTF8` e extensões `pg_trgm` e `unaccent`. Conferir permissões de criação/owner antes da baseline. O papel do coletor precisa das permissões descritas no README de Licitações, agora no banco novo.
-4. **Preparar o ambiente.** O usuário cadastra `TENDERS_DATABASE_URL` e um `TENDERS_JWT_SECRET` próprio (ao menos 32 caracteres, diferente do segredo de Finanças) na Render. Configurar sem antecipar o deploy, quando o painel oferecer essa escolha. Cada edição de `.env`/`.env.dev` exige confirmação separada com os nomes que serão alterados; nunca imprimir valores. A configuração local existente não precisa ser alterada.
+4. **Preparar os valores do ambiente.** Preparar `TENDERS_DATABASE_URL` e um `TENDERS_JWT_SECRET` próprio (ao menos 32 caracteres, diferente do segredo de Finanças) para o runner local. Cada edição de `.env`/`.env.dev` exige confirmação separada com os nomes que serão alterados; nunca imprimir valores. A configuração de desenvolvimento existente não precisa ser alterada. O usuário ativa as variáveis do serviço Render somente na janela coordenada da etapa 7, pois a versão antiga já reconhece a URL nova.
 5. **Conferir e aplicar a baseline.** Só depois do “sim” para acesso à produção, executar o status. Após conferir o destino e receber o “sim” para gravar, aplicar somente `0001` e conferir novamente:
 
    ```powershell
@@ -49,7 +57,7 @@ Cada passo que grava exige o “sim” explícito do usuário. O painel e as var
    npm --prefix backend run tenders:create-admin:dev -- --email admin@empresa.example --cnpj 11222333000181 --razao-social "Empresa exemplo"
    ```
 
-7. **Finalizar a entrega e publicar.** Invocar `/finalizar`. Rever somente os arquivos da 3B; `.portal/`, `GLOSSARIO.md`, arquivos de ambiente e artefatos temporários ficam fora. O merge em `main` exige confirmação explícita e dispara o deploy do site e backend. Confirmar os dois serviços como concluídos na Render; durante a implantação, versões diferentes podem coexistir por alguns minutos.
+7. **Finalizar a entrega e publicar.** Invocar `/finalizar`. Rever somente os arquivos da 3B; `.portal/`, `GLOSSARIO.md`, arquivos de ambiente e artefatos temporários ficam fora. Com o banco/admin prontos e o coletor antigo pausado, o usuário ativa as variáveis na Render imediatamente antes da publicação, salvando sem antecipar o deploy quando o painel permitir. Se a alteração provocar reinício imediato da versão antiga, considerar esse período parte da janela de implantação. O merge em `main` exige confirmação explícita e dispara o deploy do site e backend. Confirmar os dois serviços como concluídos na Render; durante a implantação, versões diferentes podem coexistir por alguns minutos.
 8. **Atualizar e religar o coletor.** O usuário atualiza o código/script na máquina de 24 h para a versão da 3B e aponta `TENDERS_COLLECTOR_DATABASE_URL` para o banco novo. Preservar bucket e `TENDERS_STORAGE_PREFIX`. Garantir que nenhuma instância antiga está ativa antes de religar. O progresso recomeça do zero; contratos retomam desde 2021 conforme as configurações aprovadas. Não copiar tabelas de progresso.
 9. **Conferir os fluxos de fora.** Executar a lista abaixo. Registrar o commit, o deploy e o resultado. Só considerar a troca concluída após essa conferência.
 
