@@ -94,3 +94,25 @@ Com autorização explícita, reverter o deploy pelo painel ou o merge via commi
 - Validar o envio real e a marca no template EmailJS.
 - Conferência visual dos apps, assistente e pagamento no ambiente adequado.
 - Etapa 3C somente após a 3B conferida em uso, com dump e nova autorização para remover o schema antigo.
+
+## Limpeza do banco antigo (3C)
+
+A `0096_drop_legacy_tenders_schema.sql` remove somente o schema `licitacoes` de Finanças. As tabelas de identidade de Finanças, suas restrições de planos, o banco próprio de Licitações e o R2 são preservados. As migrations antigas ficam como histórico.
+
+Antes da aplicação, guardar um `pg_dump --format=custom --schema=licitacoes --no-owner --no-privileges` do banco alvo. Conferir a leitura completa com `pg_restore --file NUL` (Windows) ou `/dev/null` e as 15 entradas `TABLE DATA` com `pg_restore --list`. Registrar em um JSON ignorado pelo Git: `database`, `schema: "licitacoes"`, `backupPath` absoluto, `backupSha256`, `archiveFullyReadable: true` e `tableDataEntries: 15`.
+
+O runner exige esse registro por `--tenders-cleanup-proof`, confere o SHA-256 do arquivo disponível e acessa o banco próprio em modo somente leitura para conferir sua baseline. Em produção, exige também um registro de execução do coletor no banco novo. A migration recusa um coletor ativo no banco antigo, usuários em `sem_teste` ou chaves estrangeiras de outra área para as tabelas antigas. A aplicação e seu registro são uma transação só.
+
+Com autorização para o banco local:
+
+```powershell
+npm --prefix backend run migrations:aplicar -- 0096 --banco local --projeto finance --tenders-cleanup-proof .plans/separar-etapa-3c-local-backup.json
+```
+
+Validar Finanças e Licitações localmente. Publicar o código da 3C antes de remover o schema em produção. Após conferir o deploy e receber autorização específica:
+
+```powershell
+npm --prefix backend run migrations:aplicar -- 0096 --banco producao --projeto finance --confirmo --tenders-cleanup-proof .plans/separar-etapa-3c-production-backup.json
+```
+
+Conferir a ausência do schema apenas em Finanças, o status dos dois projetos e as consultas dos dois produtos. Guardar o dump e seu registro; eles não entram no commit. Depois da 0096, uma reversão do código antigo também exige restaurar o schema pelo backup, sempre com autorização.

@@ -1,7 +1,4 @@
-// Cadastro de membro/colaborador numa conta: usado pelo FINGERENCE
-// (POST /api/account-members) e por Licitações (POST /api/tenders/team). O
-// executor é o banco do app ou o do módulo, ou uma transação deles, para os
-// testes de banco desfazerem tudo no fim.
+// Cadastro de membro/colaborador de Finanças (POST /api/account-members).
 import bcrypt from 'bcryptjs';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
@@ -100,14 +97,12 @@ export interface CreatedAccountMember {
 /**
  * Cria o login do membro (sempre novo) e o vínculo ativo com a conta. Toda
  * permissão do FINGERENCE nasce fechada: o titular libera pela tela de
- * permissões. `withinTransaction` grava junto o que o módulo precisar (ex.: o
- * acesso a Licitações). Cadastro inválido: RequestInputError (400).
+ * permissões. Cadastro inválido: RequestInputError (400).
  */
 export async function createAccountMember<TFullSchema extends Record<string, unknown>>(
   executor: MemberDb<TFullSchema>,
   accountId: number,
   input: NewMemberInput,
-  withinTransaction?: (transaction: MemberDb<TFullSchema>, memberId: number) => Promise<void>,
 ): Promise<CreatedAccountMember> {
   const [emailInUse] = await executor.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
   if (emailInUse) {
@@ -166,14 +161,6 @@ export async function createAccountMember<TFullSchema extends Record<string, unk
     // Toda permissão nasce restritiva (false) — o gestor libera
     // explicitamente pela tela de permissões.
     await transaction.insert(memberPermissions).values({ userId: member.id });
-
-    // Categorias sao da conta, nao do usuario: o membro usa as mesmas do
-    // gestor (com a carteira compartilhada, uma copia geraria duas categorias
-    // de mesmo nome no mesmo relatorio).
-
-    if (withinTransaction) {
-      await withinTransaction(transaction, member.id);
-    }
 
     return member;
   });

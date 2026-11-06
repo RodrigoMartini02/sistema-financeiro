@@ -3,7 +3,7 @@ import { boolean, date, integer, pgTable, serial, timestamp, varchar } from 'dri
 // Identidade de Licitações: usuários, contas (só de empresa), vínculos de colaborador e o código de recuperação de
 // senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql), com só as colunas que o
 // código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
-// Fora do `db/schema.ts` de propósito: o schema de Finanças reexporta aquele, e estes nomes colidiriam.
+// Separado do schema de coleta para manter explícitas as tabelas de identidade.
 
 export const users = pgTable('usuarios', {
   id: serial('id').primaryKey(),

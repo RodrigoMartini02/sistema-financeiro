@@ -23,6 +23,7 @@ import {
   MIGRATION_ID_PATTERN, MigrationRefusal, migrationStatus, migrationToApply, migrationsToRegister, orderMigrations,
   type AppliedMigration, type MigrationFile,
 } from '../src/utils/migrationStatus';
+import { readTendersCleanupProof, TENDERS_CLEANUP_MIGRATION } from '../src/utils/tendersCleanup';
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const BACKEND_DIR = path.resolve(__dirname, '..');
@@ -37,6 +38,7 @@ interface Args {
   id?: string;
   upTo?: string;
   confirmed: boolean;
+  tendersCleanupProof?: string;
 }
 
 const USAGE = 'Uso: status | aplicar ID | registrar-existentes --ate ID, sempre com --banco local|producao e, se não for Finanças, --projeto tenders (produção grava só com --confirmo).';
@@ -49,7 +51,7 @@ function readArgs(argv: string[]): Args {
     const index = rest.indexOf(flag);
     return index >= 0 ? rest[index + 1] : undefined;
   };
-  const flagValues = new Set([valueOf('--banco'), valueOf('--ate'), valueOf('--projeto')]);
+  const flagValues = new Set([valueOf('--banco'), valueOf('--ate'), valueOf('--projeto'), valueOf('--tenders-cleanup-proof')]);
   const positional = rest.filter((arg) => !arg.startsWith('--') && !flagValues.has(arg));
 
   const database = valueOf('--banco');
@@ -64,12 +66,49 @@ function readArgs(argv: string[]): Args {
   const args: Args = { command: command as Command, database: database as DatabaseName, project: project as ProjectName, confirmed: rest.includes('--confirmo') };
   if (args.command === 'aplicar') args.id = positional[0];
   if (args.command === 'registrar-existentes') args.upTo = valueOf('--ate');
+  args.tendersCleanupProof = valueOf('--tenders-cleanup-proof');
 
   const id = args.id ?? args.upTo;
   if (args.command !== 'status' && (!id || !MIGRATION_ID_PATTERN.test(id))) {
     throw new MigrationRefusal(`Informe o identificador da migration, como 0058 ou 0018b. ${USAGE}`);
   }
   return args;
+}
+
+async function verifyTendersCleanup(client: Client, args: Args): Promise<void> {
+  const identity = await client.query<{ database: string }>('SELECT current_database() AS database');
+  const proofPath = args.tendersCleanupProof ? path.resolve(ROOT_DIR, args.tendersCleanupProof) : undefined;
+  const proof = await readTendersCleanupProof(proofPath, identity.rows[0]!.database);
+  const { client: tenders } = connect('tenders', args.database);
+  let tendersDatabase: string;
+  try {
+    await tenders.connect();
+    await tenders.query('BEGIN READ ONLY');
+    await tenders.query("SET LOCAL statement_timeout = '15s'");
+    const verified = await tenders.query<{ database: string; baseline: boolean }>(
+      `SELECT current_database() AS database,
+        EXISTS (SELECT 1 FROM public.schema_migrations WHERE filename = '0001_baseline.sql') AS baseline`,
+    );
+    const result = verified.rows[0]!;
+    if (!result.baseline || result.database === proof.database) {
+      throw new MigrationRefusal('O banco próprio de Licitações não está preparado ou coincide com Finanças.');
+    }
+    if (args.database === 'producao') {
+      const usage = await tenders.query<{ in_use: boolean }>(
+        'SELECT EXISTS (SELECT 1 FROM licitacoes.coleta_execucao) AS in_use',
+      );
+      if (!usage.rows[0]?.in_use) {
+        throw new MigrationRefusal('O banco próprio ainda não registra uso pelo coletor.');
+      }
+    }
+    tendersDatabase = result.database;
+    await tenders.query('ROLLBACK');
+  } finally {
+    await tenders.end();
+  }
+  const verification = { database: proof.database, tendersDatabase, backupSha256: proof.backupSha256 };
+  await client.query("SET LOCAL lock_timeout = '5s'");
+  await client.query("SELECT set_config('fingerence.tenders_cleanup', $1, true)", [JSON.stringify(verification)]);
 }
 
 function migrationsDirectory(project: ProjectName): string {
@@ -117,6 +156,9 @@ async function showStatus(client: Client, files: MigrationFile[], args: Args): P
 async function apply(client: Client, files: MigrationFile[], args: Args): Promise<void> {
   const { exists, applied } = await readRegistry(client);
   const target = migrationToApply(files, applied, args.id!, exists, MIGRATION_PROJECTS[args.project].registryMigration);
+  if (args.project === 'finance' && target.filename === TENDERS_CLEANUP_MIGRATION) {
+    await verifyTendersCleanup(client, args);
+  }
   await client.query(fs.readFileSync(path.join(migrationsDirectory(args.project), target.filename), 'utf8'));
   await client.query('INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)', [target.filename, target.checksum]);
   console.log(`Aplicada no banco ${args.database} (${args.project}): ${target.filename}`);

@@ -15,13 +15,9 @@ const SCANNED_DIRECTORIES = ['src', 'scripts'];
 const IGNORED_DIRECTORIES = new Set(['node_modules', 'dist']);
 
 /**
- * Ligações de Finanças para Licitações (código e testes) que ainda existem: o schema de Licitações dentro do schema
- * de Finanças e o início do período de teste no cadastro (saem na entrega 3C da etapa 3) e a montagem das rotas e
- * do pool no servidor (saem na etapa 4).
+ * Montagem transitória de Licitações no servidor, até a etapa 4.
  */
 const FINANCE_TO_TENDERS_ALLOWED: readonly string[] = [
-  'src/db/schema/index.ts -> src/modules/tenders/db/schema.ts',
-  'src/routes/auth.ts -> src/modules/tenders/services/subscription.ts',
   'src/server.ts -> src/modules/tenders/collector/logger.ts',
   'src/server.ts -> src/modules/tenders/contractStore/service.ts',
   'src/server.ts -> src/modules/tenders/db/pool.ts',
