@@ -1,6 +1,6 @@
 # Módulo de Licitações — coletor e API
 
-O coletor traz do **PNCP** (Portal Nacional de Contratações Públicas) as licitações com recebimento de propostas em aberto e grava tudo no schema `licitacoes` do banco do FINGERENCE. Ele também gera as notificações do módulo (novo edital, edital alterado e prazos).
+O coletor traz do **PNCP** (Portal Nacional de Contratações Públicas) as licitações com recebimento de propostas em aberto e grava tudo no schema `licitacoes` do banco próprio de Licitações. Ele também gera as notificações do produto (novo edital, edital alterado e prazos).
 
 Ele roda fora do serviço web, como CLI agendado (Render Cron Job). Se ele falhar ou o PNCP ficar fora do ar, o FINGERENCE continua funcionando.
 
@@ -16,8 +16,10 @@ Referências:
 ```
 backend/src/modules/tenders/
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
-├── db/identity.ts          usuários, contas e vínculos de membro que o módulo usa (mesmos nomes de tabela de Finanças, só as colunas dele)
-├── db/pool.ts              pool próprio do módulo no servidor (`TENDERS_DATABASE_URL`; sem ela, `DATABASE_URL`)
+├── db/identity.ts          usuários, contas PJ, membros e recuperação de senha no public do banco próprio
+├── db/pool.ts              pool próprio obrigatório (`TENDERS_DATABASE_URL`, diferente de Finanças)
+├── migrations/0001_baseline.sql  estrutura inicial do banco próprio; não copiar dados de Finanças
+├── cli/createAdmin.ts      cria o admin com conta PJ em cortesia e senha digitada sem eco
 ├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
 ├── cnpj.ts                 CNPJ: formato (14 dígitos), dígitos verificadores e o erro das consultas do armazém
@@ -84,7 +86,11 @@ Nada do módulo importa código de Finanças, nem nos testes: `backend/src/utils
 | Variável | Padrão | Descrição |
 |---|---|---|
 | `TENDERS_COLLECTOR_DATABASE_URL` | — (obrigatória) | Conexão do coletor. Em produção, o usuário restrito `licitacoes_coletor` (abaixo). |
-| `TENDERS_DATABASE_URL` | `DATABASE_URL` | Banco da API de Licitações no servidor (pool próprio, até 10 conexões). Sem ela, a API usa o banco de Finanças; o banco próprio chega na entrega 3B da Etapa 3 (`.plans/separar-etapa-3-identidade-e-banco.md`). |
+| `TENDERS_DATABASE_URL` | — (obrigatória) | Banco próprio da API de Licitações (pool de até 10 conexões), diferente do banco de Finanças. Sem ela, o servidor recusa iniciar. |
+| `TENDERS_JWT_SECRET` | — (obrigatória) | Segredo próprio, com pelo menos 32 caracteres. Os tokens usam o público `licitacoes`; tokens de outro produto são recusados. Nunca reutilizar `JWT_SECRET`. |
+| `JWT_EXPIRES_IN` | `7d` | Validade do token; o segredo e a sessão continuam separados por produto. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | — | Credenciais do Google já utilizadas no servidor. Google entra somente em usuário existente; o retorno identifica o produto no `state`. |
+| `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_USER_ID` | — | Serviço, template e chave pública já usados por Finanças para recuperação, com a marca do produto nos parâmetros do template. |
 | `PNCP_BASE_URL` | `https://pncp.gov.br/api/consulta` | |
 | `PNCP_MODALITIES` | `6,8,4,7` | Modalidades coletadas (1 a 13). |
 | `PNCP_STATES` | vazio (todas) | Restringe as UFs (ex.: `MA,PI`), se o volume for alto. |
@@ -250,7 +256,7 @@ Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`
 
 `test:tenders-db` roda os testes de banco do módulo:
 - **Um arquivo por vez** (`--test-concurrency=1`): vários arquivos disputam a mesma trava dos contratos e dos vencedores (a mesma, de propósito: os dois gravadores publicam no mesmo manifesto). Em paralelo, uma execução de um arquivo sai "coleta já em execução" por causa da de outro.
-- **Onde:** só no banco local, e se recusa a rodar se a URL não for `localhost:5433/sistema_financas_dev`.
+- **Onde:** só no banco local, pelo `TENDERS_DATABASE_URL` do `.env.dev`; recusa URL diferente de `localhost:5433/fingerence_licitacoes_dev`.
 - **Isolamento:** cada teste roda numa transação desfeita no fim, então nada fica gravado.
 - **O que cobre:**
   - upsert, trava e limpeza (encerrados há 12 meses e editais sem prazo; o favoritado fica);
@@ -261,7 +267,8 @@ Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`
   - exportação do JSON dos editais (`collector/noticePayloadExport.db.test.ts`): sem R2 não roda; lotes em partes, com o JSON e as datas de coleta; falha no envio para sem avançar, e a seguinte continua e confere (`verified`);
   - campos de busca do armazém de contratos (`contractStore/textSearch.db.test.ts`): radicais e grupos de dígitos pelo Postgres, e a frase batendo onde a busca de hoje bate;
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`), sobre um armazém de exemplo e o Postgres do banco local: cada filtro, singular e plural, só vigentes e "Só favoritos" com os vencidos, tipo de contrato e "Incluir encerrados" (com os sem vencimento), ordenações e relevância, paginação, paridade com a busca salva, total gravado com a data (e sem total com o armazém atualizando), limite de 50 à parte, prévia, isolamento, edital de origem, favoritos pela chave, as janelas dos avisos, CONTRATO_ALTERADO e o total das buscas salvas;
-  - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes, recorrente e ativação;
+  - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes e recorrente;
+  - identidade própria: cadastro PJ transacional com teste de 15 dias, login, usuário bloqueado, Google existente, recuperação com validade, limite de erros e consumo único, e criação do admin;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
     - isolamento entre contas e entre pessoas da mesma conta;
@@ -543,11 +550,12 @@ A configuração `licitacoes.pt_unaccent` (escopo 7.1) tira os acentos **antes**
 Coleção completa em `tenders.http`. Montagem no `server.ts`:
 
 - `POST /api/tenders/billing/webhook`, público: aviso do Mercado Pago (seção [Assinatura](#assinatura)). Fica antes das outras montagens.
-- `/api/tenders/admin`, com `authenticate` + `requireAdmin`:
-  - `GET /accounts`: contas ativas da plataforma (PF e PJ), com o dono, a cortesia e a situação de cada uma no módulo. Ordem: com o módulo primeiro, depois PJ, depois o nome;
+- `/api/tenders/auth`, público: `POST /login`, `/register`, `/forgot-password`, `/verify-recovery-code`, `/reset-password` e `/google`.
+- `/api/tenders/admin`, com `authenticate` + `requireAdmin` próprios de Licitações:
+  - `GET /accounts`: contas PJ ativas da plataforma, com o dono, a cortesia e a situação de cada uma no módulo. Ordem: com o módulo primeiro, depois o nome e o id;
   - `PUT /accounts/:accountId { courtesy }`: liga ou tira a cortesia. Ligada, a conta usa sem cobrança e sem limite de usuários; tirada, segue pela assinatura (sem teste nem período pago, fica vencida).
   - O `GET /api/tenders/access` devolve `permissions.manageEnabledAccounts` (admin da plataforma) para o app mostrar a tela.
-- `/api/tenders`, com `authenticate`. Ativação (`/activation`) e cobrança (`/billing`) vêm antes da trava do módulo, porque a conta pode ainda não ter o módulo ou estar vencida; o resto passa pela trava (`middleware/tenderAccess.ts`).
+- `/api/tenders`, com `authenticate` próprio. A cobrança (`/billing`) vem antes da trava do módulo, porque a assinatura pode estar vencida; o resto passa pela trava (`middleware/tenderAccess.ts`). A antiga rota `/activation` foi removida.
 - Nenhuma das montagens usa `requireActivePlan`: o módulo não depende do plano do app de finanças.
 
 **Conta da requisição:**
@@ -618,8 +626,22 @@ Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`
 **Preço** (`services/billing.ts`, em centavos): R$ 4,99 por mês com 2 usuários (o titular conta) e R$ 2,99 por usuário a mais. A mudança de usuários vale a partir da próxima cobrança, sem proporcional; com recorrente, o valor no Mercado Pago é atualizado na hora (`services/recurringAmount.ts`) e, se falhar, a resposta traz um aviso.
 
 **Como a conta entra:**
-- cadastro pelo login do módulo (`POST /api/auth/register` com `modulo: 'licitacoes'`): a conta padrão já nasce com 15 dias de teste. O FINGERENCE dessa pessoa fica `sem_teste` (sem acesso e sem e-mails de plano) até ela clicar em "Começar meu teste" dentro dele (`POST /api/planos/start-trial`, plano `.plans/site-novo.md`);
-- titular que já usa o FINGERENCE: `GET /activation` lista as contas dele sem o módulo e `POST /activation { accountId }` começa os 15 dias. Um teste por conta (de novo: 409); membro não ativa (403).
+- cadastro pelo login do produto (`POST /api/tenders/auth/register`): exige CNPJ válido, razão social, e-mail e senha de ao menos 8 caracteres; cria usuário titular, conta `empresa` padrão e teste de 15 dias na mesma transação. Nome fantasia, enquadramento e data de abertura são opcionais. Nenhuma conta ou pessoa de Finanças é copiada.
+- membros são criados pela equipe da própria conta. Google entra somente com e-mail já cadastrado; bloqueio e inatividade são conferidos no banco a cada requisição.
+- recuperação: código de 6 dígitos válido por 15 minutos, até 3 erros, na tabela `public.codigo_recuperacao`. O código só pode redefinir a senha uma vez.
+
+**Sessões no navegador:** `createSession` em `packages/ui` usa `finance.*` e `tenders.*`. Cada 401 e logout limpa somente seu produto; as chaves antigas são ignoradas e todos entram novamente uma vez. Google volta a `/index.html` com `state=google-oauth:finance` ou `google-oauth:tenders`.
+
+**Migrations e primeiro admin:**
+
+```bash
+npm --prefix backend run migrations:status -- --banco local --projeto tenders
+npm --prefix backend run tenders:create-admin:dev -- --email admin@empresa.example --cnpj 11222333000181 --razao-social "Empresa exemplo"
+```
+
+O comando do admin mostra o destino e exige confirmação antes da senha, que é digitada sem eco e nunca passada por argumento. Fora do script `:dev`, exportar `TENDERS_DATABASE_URL` no terminal; não carrega o `.env` de produção por padrão. O admin nasce com conta PJ em cortesia.
+
+A troca em produção está descrita no [roteiro da 3B](../../../../docs/tenders-3b-cutover.md). A baseline `0001` só é aplicada com aprovação explícita, pelo runner com `--projeto tenders`; Finanças continua sendo o projeto padrão. Não editar migrations já aplicadas. O coletor deve apontar para o mesmo banco próprio, via `TENDERS_COLLECTOR_DATABASE_URL`, e começa a carga e seu progresso do zero.
 
 **Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
 - `GET /billing?accountId=`: situação (`cortesia`, `teste`, `paga`, `recorrente`, `vencida` ou `desligada`), usuários, valor do mês e preço;
