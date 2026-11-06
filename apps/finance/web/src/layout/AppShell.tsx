@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../services/session';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
   AlertTriangle, BarChart3, Bell, Building2, LayoutDashboard,
@@ -238,7 +239,7 @@ export function AppShell({
   // Menu, sininho, Configurações e assistente seguem as permissões de quem
   // está logado (utils/screenAccess.ts); enquanto carregam, nada aparece.
   const ownPermissions = useOwnPermissions();
-  const contaTipo = localStorage.getItem('contaAtivaTipo') as AccountType | null;
+  const contaTipo = getActiveAccountType() as AccountType | null;
   const sections = ownPermissions ? visibleSections(ownPermissions, contaTipo) : [];
   const canViewNotifications = ownPermissions?.accessNotifications === true;
   const canUseAssistant = ownPermissions?.accessAssistant === true;

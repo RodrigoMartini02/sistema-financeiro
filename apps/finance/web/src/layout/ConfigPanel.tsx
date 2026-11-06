@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../services/session';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -102,7 +103,7 @@ function useResettableItem(open: boolean, initialItem: ConfigItemId) {
 
 export function ConfigPanel({ open, initialItem = 'contas', onClose, onItemChange }: ConfigPanelProps) {
   const { data: me } = useQuery({ queryKey: ['usuario-me'], queryFn: fetchMe, enabled: open });
-  const contaTipo = localStorage.getItem('contaAtivaTipo');
+  const contaTipo = getActiveAccountType();
   const permissions = useOwnPermissions() ?? {};
   const context = configItemContext(me, contaTipo as AccountType | null);
   const { isAdmin, isOwner: isGestor, canViewAnalytics } = context;

@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import { fetchCategorias, saveCategoria, toggleCategoria } from '../../services/configService';
 import { getActiveAccountId } from '../../services/apiClient';
 import { queryKeys } from '../../services/queryKeys';
@@ -35,7 +36,7 @@ export function CategoriasTab() {
       destaque={DESTAQUE_DESPESA}
       textos={TEXTOS}
       guias={GUIAS}
-      exigeSubcategoria={localStorage.getItem('contaAtivaTipo') !== 'empresa'}
+      exigeSubcategoria={getActiveAccountType() !== 'empresa'}
     />
   );
 }

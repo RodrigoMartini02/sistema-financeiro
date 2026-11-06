@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../../services/session';
 import { useEffect, useMemo, useReducer, useRef, useState, type Dispatch } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Cartao, Categoria } from '../../../types/config';
@@ -143,7 +144,7 @@ function ExpenseDialogContent({ expense, presetDate, initialMonth, onClose, onPa
   const deferBusyRef = useRef(false);
   const savedForecastIds = useRef<number[]>([]);
   const pendingMonth = initialFixedMonth(initialMonth, presetDate, todayIso);
-  const isCompany = localStorage.getItem('contaAtivaTipo') === 'empresa';
+  const isCompany = getActiveAccountType() === 'empresa';
   const descriptionRef = useRef<HTMLInputElement>(null);
 
   const [state, dispatch] = useReducer(dialogReducer, null, () => initialDialogState(expense

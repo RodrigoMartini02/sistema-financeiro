@@ -4,6 +4,7 @@ import type { Conta } from '../types/config';
 import { fetchContas } from '../services/configService';
 import { queryKeys } from '../services/queryKeys';
 import { usePlanFeatures } from './usePlanFeatures';
+import { getActiveAccountId, getActiveAccountType, setActiveAccount } from '../services/session';
 
 interface UseActiveAccountOptions {
   enabled?: boolean;
@@ -30,7 +31,8 @@ export function useActiveAccount({ enabled = true }: UseActiveAccountOptions = {
     enabled,
   });
   const data = accountsAllowedByPlan(contas.data ?? [], premium);
-  const activeId = localStorage.getItem('contaAtivaId');
+  const storedId = getActiveAccountId();
+  const activeId = storedId === null ? null : String(storedId);
   const activeAccount = data.find((c) => String(c.id) === activeId) ?? data[0];
 
   useEffect(() => {
@@ -38,23 +40,19 @@ export function useActiveAccount({ enabled = true }: UseActiveAccountOptions = {
     if (!activeAccount) return;
 
     if (String(activeAccount.id) !== activeId) {
-      localStorage.setItem('contaAtivaId', String(activeAccount.id));
-      localStorage.setItem('contaAtivaNome', activeAccount.nome);
-      localStorage.setItem('contaAtivaTipo', activeAccount.tipo);
+      setActiveAccount({ id: activeAccount.id, name: activeAccount.nome, type: activeAccount.tipo });
       window.location.reload();
       return;
     }
 
-    if (localStorage.getItem('contaAtivaTipo') !== activeAccount.tipo) {
-      localStorage.setItem('contaAtivaTipo', activeAccount.tipo);
+    if (getActiveAccountType() !== activeAccount.tipo) {
+      setActiveAccount({ id: activeAccount.id, name: activeAccount.nome, type: activeAccount.tipo });
     }
   }, [enabled, activeId, activeAccount]);
 
   const select = (c: Conta) => {
     if (String(c.id) === activeId) return;
-    localStorage.setItem('contaAtivaId', String(c.id));
-    localStorage.setItem('contaAtivaNome', c.nome);
-    localStorage.setItem('contaAtivaTipo', c.tipo);
+    setActiveAccount({ id: c.id, name: c.nome, type: c.tipo });
     window.location.reload();
   };
 

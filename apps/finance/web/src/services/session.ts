@@ -1,29 +1,20 @@
+import { createSession } from '@ui/auth/session';
 import { parseAuthOrigin, type AuthOrigin } from '../utils/authOrigin';
 
 export type { AuthOrigin };
 
-const AUTH_ORIGIN_KEY = 'auth_origin';
+const session = createSession('finance');
 
-export function getToken(): string | null {
-  return sessionStorage.getItem('token') ?? localStorage.getItem('token');
-}
+export const { getToken, getUser, setSession, getActiveAccountId, getActiveAccountName, getActiveAccountType, setActiveAccount } = session;
 
 export function setAuthOrigin(origin: AuthOrigin) {
-  sessionStorage.setItem(AUTH_ORIGIN_KEY, origin);
+  session.setLoginOrigin(origin);
 }
 
 export function consumeAuthOrigin(): AuthOrigin {
-  const origin = sessionStorage.getItem(AUTH_ORIGIN_KEY);
-  sessionStorage.removeItem(AUTH_ORIGIN_KEY);
-  return parseAuthOrigin(origin);
+  return parseAuthOrigin(session.consumeLoginOrigin());
 }
 
 export function logout() {
-  sessionStorage.removeItem('token');
-  localStorage.removeItem('token');
-  localStorage.removeItem('usuarioAtual');
-  localStorage.removeItem('dadosUsuarioLogado');
-  localStorage.removeItem('contaAtivaId');
-  localStorage.removeItem('contaAtivaNome');
-  localStorage.removeItem('contaAtivaTipo');
+  session.clear();
 }

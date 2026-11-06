@@ -1,30 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavigationType, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import type { SiteSolution } from '../../../brand';
-import { setAuthOrigin, type AuthOrigin } from '@finance/services/session';
-import { LOGIN_REQUEST_PARAM } from '@finance/utils/authOrigin';
+import { sessionForSolution } from '../../../services/session';
+import { LOGIN_REQUEST_PARAM, solutionFromGoogleState } from '../../../utils/authNavigation';
 import { publicPageFor } from '../../../utils/publicPages';
 import { LoginModal } from './LoginModal';
 import { PublicSiteContext, type PublicSiteActions } from './publicSiteContext';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
 
-/** Para onde a pessoa vai depois de entrar, conforme a solução do login. */
-const AUTH_ORIGIN_BY_SOLUTION: Record<SiteSolution, AuthOrigin> = {
-  finance: 'app',
-  tenders: 'tenders',
-};
-
-const GOOGLE_LOGIN_RETURN_STATE = 'google-oauth';
-
 interface LoginRequest {
   solution: SiteSolution;
   mode: 'login' | 'register';
 }
 
-/** O login com Google volta para /index.html com ?state=google-oauth. */
-function isGoogleLoginReturn(): boolean {
-  return new URLSearchParams(window.location.search).get('state') === GOOGLE_LOGIN_RETURN_STATE;
+/** O retorno do Google abre o formulário da solução indicada no state conhecido. */
+function googleLoginReturn(): LoginRequest | null {
+  const params = new URLSearchParams(window.location.search);
+  const solution = solutionFromGoogleState(params.get('state'));
+  return solution && (params.has('code') || params.has('error')) ? { solution, mode: 'login' } : null;
 }
 
 /**
@@ -64,14 +58,12 @@ export function PublicLayout() {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const pageSolution = publicPageFor(pathname).solution;
-  // Na volta do Google, o login abre para concluir a entrada sem gravar a
-  // origem: a gravada antes de ir ao Google diz para qual solução a pessoa vai.
-  const [login, setLogin] = useState<LoginRequest | null>(() =>
-    isGoogleLoginReturn() ? { solution: 'finance', mode: 'login' } : null,
-  );
+  const [login, setLogin] = useState<LoginRequest | null>(googleLoginReturn);
 
-  const openLogin = useCallback((request: LoginRequest) => {
-    setAuthOrigin(AUTH_ORIGIN_BY_SOLUTION[request.solution]);
+  const openLogin = useCallback((request: LoginRequest, preserveOrigin = false) => {
+    if (request.solution === 'finance' && !preserveOrigin) {
+      sessionForSolution('finance').setLoginOrigin('app');
+    }
     setLogin(request);
   }, []);
 
@@ -90,7 +82,8 @@ export function PublicLayout() {
     params.delete(LOGIN_REQUEST_PARAM);
     const remaining = params.toString();
     navigate({ pathname, search: remaining ? `?${remaining}` : '' }, { replace: true });
-    openLogin({ solution: pageSolution, mode: 'login' });
+    // O assistente de Finanças já marcou sua origem antes de vir ao site.
+    openLogin({ solution: pageSolution, mode: 'login' }, true);
   }, [navigate, openLogin, pageSolution, pathname, search]);
 
   const actions = useMemo<PublicSiteActions>(

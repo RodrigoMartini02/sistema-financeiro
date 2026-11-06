@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import {
   fetchClassificacoesReceita, saveClassificacaoReceita, toggleClassificacaoReceita,
 } from '../../services/incomeClassificationsService';
@@ -23,7 +24,7 @@ export function ClassificacoesReceitaTab() {
       alternar={id => toggleClassificacaoReceita(id, accountId)}
       destaque={DESTAQUE_RECEITA}
       textos={TEXTOS}
-      exigeSubcategoria={localStorage.getItem('contaAtivaTipo') !== 'empresa'}
+      exigeSubcategoria={getActiveAccountType() !== 'empresa'}
     />
   );
 }

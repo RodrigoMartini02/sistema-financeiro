@@ -6,7 +6,6 @@ import { situationLabel } from './billing';
 // maiúsculas nem acentos.
 
 export const ACCOUNT_TYPE_LABELS: Record<AdminTenderAccount['accountType'], string> = {
-  pessoal: 'PF',
   empresa: 'PJ',
 };
 

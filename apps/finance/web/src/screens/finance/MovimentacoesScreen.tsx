@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import { useEffect, useState } from 'react';
 import { Calendar, List, Plus, Target, TrendingDown, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -96,7 +97,7 @@ export function MovimentacoesScreen() {
   const isPlanning = activeTab === 'planejamento';
   const isCalendario = viewMode === 'calendario' && !isPlanning;
   const isLista = !isCalendario;
-  const isEmpresa = localStorage.getItem('contaAtivaTipo') === 'empresa';
+  const isEmpresa = getActiveAccountType() === 'empresa';
   // Cada botão e cada modo só aparece com a permissão correspondente; enquanto
   // as permissões carregam, nenhum aparece.
   const permissions = useOwnPermissions() ?? {};

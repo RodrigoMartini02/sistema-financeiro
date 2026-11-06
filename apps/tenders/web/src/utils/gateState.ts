@@ -3,7 +3,7 @@ import type { ExpiredSubscriptionInfo } from '../types';
 // Entrada no módulo: o que a tela mostra conforme a sessão e a resposta de
 // GET /api/tenders/access (escopo, seções 9.3 e 11; plano licitacoes-produto).
 
-export type TendersGateState = 'login' | 'loading' | 'noModule' | 'memberWithoutAccess' | 'expired' | 'error' | 'ready';
+export type TendersGateState = 'login' | 'loading' | 'memberWithoutAccess' | 'expired' | 'error' | 'ready';
 
 export interface TendersGateInput {
   hasToken: boolean;
@@ -15,11 +15,9 @@ export interface TendersGateInput {
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_PAYMENT_REQUIRED = 402;
 const HTTP_FORBIDDEN = 403;
-const HTTP_NOT_FOUND = 404;
 
 /**
  * - sem token ou sessão vencida (401): login embutido;
- * - conta sem o módulo (404): "sem acesso", com a ativação para o titular;
  * - assinatura vencida (402): a assinatura para o titular, o aviso para o colaborador;
  * - colaborador sem acesso liberado (403): "sem acesso", pedindo ao titular;
  * - qualquer outro erro: mensagem e "tentar de novo".
@@ -39,8 +37,6 @@ export function resolveGateState({ hasToken, accessStatus, errorStatus }: Tender
       return 'login';
     case HTTP_PAYMENT_REQUIRED:
       return 'expired';
-    case HTTP_NOT_FOUND:
-      return 'noModule';
     case HTTP_FORBIDDEN:
       return 'memberWithoutAccess';
     default:
@@ -58,7 +54,7 @@ export function expiredInfoFrom(data: unknown): ExpiredSubscriptionInfo | null {
     return null;
   }
   const { id, name, type } = account as Record<string, unknown>;
-  if (typeof id !== 'number' || typeof name !== 'string' || (type !== 'pessoal' && type !== 'empresa')) {
+  if (typeof id !== 'number' || !Number.isSafeInteger(id) || id <= 0 || typeof name !== 'string' || type !== 'empresa') {
     return null;
   }
   return { role, account: { id, name, type } };

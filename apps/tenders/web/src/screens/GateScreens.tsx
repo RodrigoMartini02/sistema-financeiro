@@ -1,18 +1,10 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Clock, Lock, RefreshCw, Sparkles } from 'lucide-react';
-import { Field, Select } from '@ui/components/form';
+import { AlertCircle, Clock, Lock, RefreshCw } from 'lucide-react';
 import { BillingPanel } from '../components/BillingPanel';
-import { activateTenders, fetchActivation } from '../services/billingService';
-import { tendersQueryKeys } from '../services/queryKeys';
 import { logout } from '../services/session';
-import type { TendersApiError } from '../services/tendersApiError';
-import type { ExpiredSubscriptionInfo, TenderActivation } from '../types';
+import type { ExpiredSubscriptionInfo } from '../types';
 import { TENDERS_LOGIN_ADDRESS } from '../utils/loginAddress';
 
-// Telas da entrada no módulo fora do sistema: sem acesso (com a ativação para
-// o titular), assinatura vencida e erro ao conferir o acesso. Licitações não
-// leva ao FINGERENCE: são soluções separadas (plano .plans/site-novo.md).
+// Telas de entrada: colaborador sem acesso, assinatura vencida e falha na conferência.
 
 function GateCard({ wide = false, children }: { wide?: boolean; children: React.ReactNode }) {
   return (
@@ -46,103 +38,14 @@ function GateActions() {
   );
 }
 
-/** Titular sem o módulo: escolhe a conta e começa os 15 dias grátis. */
-function ActivationOffer({ activation }: { activation: TenderActivation }) {
-  const queryClient = useQueryClient();
-  const [chosenId, setChosenId] = useState<number | null>(null);
-  const accountId = chosenId ?? activation.accounts[0]?.id ?? null;
-
-  const activate = useMutation<unknown, TendersApiError, number>({
-    mutationFn: activateTenders,
-    // A entrada confere o acesso de novo e abre o sistema na conta ativada;
-    // o botão segue em "Ativando…" até lá.
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: tendersQueryKeys.access });
-      queryClient.removeQueries({ queryKey: tendersQueryKeys.activation });
-    },
-  });
-
-  return (
-    <>
-      <Sparkles size={28} className="mx-auto text-brand-600" aria-hidden="true" />
-      <h1 className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-100">Comece a usar Licitações</h1>
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-        Editais de todo o país com as suas buscas salvas, avisos de novos editais e prazos. São 15 dias grátis, sem cartão de crédito.
-      </p>
-      {activation.accounts.length > 1 && (
-        <div className="mt-4 text-left">
-          <Field label="Conta">
-            <Select
-              aria-label="Conta que vai usar Licitações"
-              value={accountId ?? ''}
-              onChange={(event) => setChosenId(Number(event.target.value))}
-            >
-              {activation.accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-      )}
-      {activate.error && (
-        <p role="alert" className="mt-3 text-xs font-medium text-red-600 dark:text-red-400">
-          {activate.error.message}
-        </p>
-      )}
-      <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
-        <button
-          type="button"
-          disabled={accountId === null || activate.isPending}
-          onClick={() => accountId !== null && activate.mutate(accountId)}
-          className={`${primaryButton} disabled:opacity-60`}
-        >
-          {activate.isPending ? 'Ativando…' : 'Ativar Licitações — 15 dias grátis'}
-        </button>
-        <button type="button" onClick={signOut} className={secondaryButton}>
-          Sair
-        </button>
-      </div>
-    </>
-  );
-}
-
-/** Conta sem o módulo (404): a ativação para o titular. Colaborador sem acesso liberado (403): pedir ao titular. */
-export function NoAccessScreen({ reason }: { reason: 'noModule' | 'memberWithoutAccess' }) {
-  const activation = useQuery<TenderActivation, TendersApiError>({
-    queryKey: tendersQueryKeys.activation,
-    queryFn: fetchActivation,
-    enabled: reason === 'noModule',
-    retry: false,
-  });
-
-  if (reason === 'noModule' && activation.isPending) {
-    return (
-      <GateCard>
-        <p className="text-sm text-slate-600 dark:text-slate-300" role="status">Conferindo a sua conta…</p>
-      </GateCard>
-    );
-  }
-  if (reason === 'noModule' && activation.isError) {
-    return <GateErrorScreen message={activation.error.message} onRetry={() => void activation.refetch()} retrying={activation.isFetching} />;
-  }
-  if (reason === 'noModule' && activation.data?.canActivate) {
-    return (
-      <GateCard>
-        <ActivationOffer activation={activation.data} />
-      </GateCard>
-    );
-  }
-
+/** Colaborador sem acesso liberado (403): pedir ao titular da empresa. */
+export function NoAccessScreen() {
   return (
     <GateCard>
       <Lock size={28} className="mx-auto text-slate-400" aria-hidden="true" />
       <h1 className="mt-3 text-lg font-bold text-slate-900 dark:text-slate-100">Sua conta não tem acesso a Licitações</h1>
       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-        {reason === 'memberWithoutAccess'
-          ? 'O titular da conta ainda não liberou o seu acesso ao módulo. Peça a ele em Configurações → Usuários.'
-          : 'O módulo de Licitações não está habilitado para esta conta.'}
+        O titular da conta ainda não liberou o seu acesso ao módulo. Peça a ele em Configurações → Usuários.
       </p>
       <GateActions />
     </GateCard>

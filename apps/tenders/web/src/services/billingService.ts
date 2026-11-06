@@ -1,9 +1,9 @@
 import type { PaymentEndpoints } from '@ui/payments/paymentRequests';
-import type { TenderActivation, TenderBilling, TenderSubscription } from '../types';
+import type { TenderBilling, TenderSubscription } from '../types';
 import { tendersRequest } from './tendersApi';
 
-// Assinatura e ativação do módulo (titular). Ficam fora da trava do módulo: a
-// conta pode estar vencida ou ainda sem o módulo.
+// Assinatura da empresa (titular). Fica fora da trava para permitir a renovação
+// mesmo depois de vencer o teste ou o período pago.
 
 /** Pagamentos pelo diálogo comum de assinatura (packages/ui, pasta payments). */
 export const TENDERS_PAYMENT_ENDPOINTS: PaymentEndpoints = {
@@ -20,13 +20,4 @@ export function fetchBilling(accountId: number): Promise<TenderBilling> {
 /** Para a assinatura recorrente; o acesso vai até o fim do teste ou do período pago. */
 export function cancelRecurringSubscription(accountId: number): Promise<TenderSubscription> {
   return tendersRequest<TenderSubscription>('/billing/cancel', { method: 'POST', body: JSON.stringify({ accountId }) });
-}
-
-export function fetchActivation(): Promise<TenderActivation> {
-  return tendersRequest<TenderActivation>('/activation');
-}
-
-/** Começa o teste de 15 dias na conta escolhida. */
-export function activateTenders(accountId: number): Promise<unknown> {
-  return tendersRequest<unknown>('/activation', { method: 'POST', body: JSON.stringify({ accountId }) });
 }

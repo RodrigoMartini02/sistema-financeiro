@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import { useEffect, useMemo, useState } from 'react';
 import { MotionConfig, motion } from 'framer-motion';
 import { Settings } from 'lucide-react';
@@ -140,7 +141,7 @@ export function FinanceDashboard() {
     [pessoas, cores],
   );
 
-  const tipoConta = dados?.tipoConta ?? (localStorage.getItem('contaAtivaTipo') === 'empresa' ? 'empresa' : 'pessoal');
+  const tipoConta = dados?.tipoConta ?? (getActiveAccountType() === 'empresa' ? 'empresa' : 'pessoal');
   const termos = TERMOS[tipoConta];
 
   // Opções dos filtros de despesa: categorias do catálogo, as quatro formas e os

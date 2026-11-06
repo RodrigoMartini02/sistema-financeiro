@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../../services/session';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Camera, Check, ChevronDown, CircleCheck, FileText, MessageCircleMore,
@@ -500,7 +501,7 @@ export function FinancialAssistant({ mode = 'floating' }: FinancialAssistantProp
   const contaDoLancamento = contas.find((conta) => conta.id === draft?.contaId);
   const contaEhEmpresa = contaDoLancamento
     ? contaDoLancamento.tipo === 'empresa'
-    : localStorage.getItem('contaAtivaTipo') === 'empresa';
+    : getActiveAccountType() === 'empresa';
 
   // Campos de receita exclusivos de conta PJ: mesmas queries do modal de
   // receita do desktop, so habilitadas quando ha o que mostrar.

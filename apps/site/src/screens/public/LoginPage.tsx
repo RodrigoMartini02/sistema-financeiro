@@ -1,28 +1,17 @@
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useEffect, useMemo, useRef } from 'react';
 import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
-import {
-  login, register, registerCompany, forgotPassword, verifyRecoveryCode, resetPassword,
-  googleLogin, buildGoogleOAuthUrl, getGoogleRedirectUri,
-} from '@finance/services/authService';
-import { consumeAuthOrigin } from '@finance/services/session';
-import { destinationForAuthOrigin } from '@finance/utils/authOrigin';
-import type { Enquadramento } from '@finance/types/config';
+import { createAuthAdapter } from '../../services/authService';
+import { saveProductSession } from '../../services/session';
+import { googleOAuthUrl, solutionFromGoogleState } from '../../utils/authNavigation';
+import { COMPANY_CLASSIFICATION_OPTIONS, formatRegistrationDocument } from '../../utils/companyRegistration';
 import { Button } from '@ui/components/button';
 import { IsoDateField } from '@ui/components/DateField';
 import { Field, Input, PasswordInput, Select, ToggleGroup, inputBase } from '@ui/components/form';
 import { TermosModal } from './TermosModal';
-import { ENQUADRAMENTO_OPTIONS } from '@finance/utils/companyAccount';
 import { isValidCnpj } from '@ui/utils/brazilDocuments';
-import { formatDocumento } from '@finance/utils/document';
+import type { StoredSessionUser } from '@ui/auth/session';
 
 type Mode = 'login' | 'register' | 'forgot' | 'verify' | 'reset';
-
-function saveSession(token: string, usuario: { id?: unknown }) {
-  sessionStorage.setItem('token', token);
-  localStorage.setItem('token', token);
-  localStorage.setItem('dadosUsuarioLogado', JSON.stringify(usuario));
-  window.location.href = destinationForAuthOrigin(consumeAuthOrigin());
-}
 
 function GoogleButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
   return (
@@ -60,6 +49,9 @@ function Divider() {
 /** `context="tenders"`: login do módulo de Licitações, com título próprio; o cadastro já nasce com o teste do módulo. */
 export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { initialMode?: Mode; tone?: 'dark' | 'light'; context?: 'tenders' }) {
   const isTendersLogin = context === 'tenders';
+  const solution = isTendersLogin ? 'tenders' : 'finance';
+  const auth = useMemo(() => createAuthAdapter(solution), [solution]);
+  const googleStarted = useRef(false);
   const [mode, setMode] = useState<Mode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -70,15 +62,19 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
   const [verifiedCode, setVerifiedCode] = useState('');
   const [termosAceitos, setTermosAceitos] = useState(false);
   const [modalTermos, setModalTermos] = useState<'termos' | 'privacidade' | null>(null);
-  const [registerTipo, setRegisterTipo] = useState<'pessoal' | 'empresa'>('pessoal');
+  const [registerTipo, setRegisterTipo] = useState<'pessoal' | 'empresa'>(isTendersLogin ? 'empresa' : 'pessoal');
   const [registerDocumento, setRegisterDocumento] = useState('');
-  const isRegisterCnpj = registerTipo === 'empresa';
+  const isRegisterCnpj = isTendersLogin || registerTipo === 'empresa';
+
+  const saveSession = (token: string, user: StoredSessionUser) => {
+    window.location.href = saveProductSession(solution, token, user);
+  };
 
   // Trocar PF↔PJ reformata o que já foi digitado (CPF tem 11 dígitos, CNPJ
   // 14 — o excedente é descartado pelo próprio formatador).
   const handleRegisterTipoChange = (novoTipo: 'pessoal' | 'empresa') => {
     setRegisterTipo(novoTipo);
-    setRegisterDocumento((atual) => formatDocumento(atual, novoTipo));
+    setRegisterDocumento((atual) => formatRegistrationDocument(atual, novoTipo));
   };
 
   // Handle Google OAuth callback (code in URL)
@@ -86,7 +82,10 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     const state = params.get('state');
-    if (!code || state !== 'google-oauth') return;
+    if (solutionFromGoogleState(state) !== solution || googleStarted.current) return;
+    const googleError = params.get('error');
+    if (!code && !googleError) return;
+    googleStarted.current = true;
 
     // Clear the code from URL without reloading
     const url = new URL(window.location.href);
@@ -95,23 +94,31 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     url.searchParams.delete('scope');
     url.searchParams.delete('authuser');
     url.searchParams.delete('prompt');
+    url.searchParams.delete('error');
+    url.searchParams.delete('error_description');
     window.history.replaceState({}, '', url.toString());
+
+    if (googleError) {
+      setError('A entrada com Google foi cancelada. Tente de novo quando quiser.');
+      return;
+    }
+    if (!code) return;
 
     setGoogleLoading(true);
     setError('');
-    googleLogin(code, getGoogleRedirectUri())
-      .then(({ token, usuario }) => saveSession(token, usuario))
+    auth.googleLogin(code, `${window.location.origin}/index.html`)
+      .then(({ token, usuario }) => {
+        window.location.href = saveProductSession(solution, token, usuario);
+      })
       .catch((err) => {
         setGoogleLoading(false);
         setError(err instanceof Error ? err.message : 'Erro ao autenticar com Google');
       });
-  }, []);
+  }, [auth, solution]);
 
   const handleGoogleClick = () => {
-    const redirectUri = getGoogleRedirectUri();
-    const url = buildGoogleOAuthUrl(redirectUri);
-    // Add state param to identify Google callback
-    window.location.href = url + '&state=google-oauth';
+    const redirectUri = `${window.location.origin}/index.html`;
+    window.location.href = googleOAuthUrl(solution, redirectUri, import.meta.env.VITE_GOOGLE_CLIENT_ID as string);
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -119,7 +126,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     setError(''); setLoading(true);
     const fd = new FormData(e.currentTarget);
     try {
-      const { token, usuario } = await login(fd.get('documento') as string, fd.get('senha') as string);
+      const { token, usuario } = await auth.login(fd.get('documento') as string, fd.get('senha') as string);
       saveSession(token, usuario);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao entrar');
@@ -133,22 +140,19 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const documento = fd.get('documento') as string;
     if (isRegisterCnpj && !isValidCnpj(documento)) { setError('CNPJ inválido'); return; }
     setError(''); setLoading(true);
-    // Pelo login de Licitações, a conta já nasce com o teste do módulo.
-    const modulo = isTendersLogin ? 'licitacoes' : undefined;
     try {
       // Com CNPJ, o login é a própria empresa: só os dados dela, e-mail e senha.
       const { token, usuario } = isRegisterCnpj
-        ? await registerCompany({
+        ? await auth.registerCompany({
           documento,
           razaoSocial: (fd.get('razao_social') as string).trim(),
           nomeFantasia: (fd.get('nome_fantasia') as string).trim() || undefined,
-          enquadramento: (fd.get('enquadramento') as Enquadramento | '') || undefined,
+          enquadramento: (fd.get('enquadramento') as string) || undefined,
           dataAbertura: (fd.get('data_abertura') as string) || undefined,
           email: fd.get('email') as string,
           senha: fd.get('senha') as string,
-          modulo,
         })
-        : await register({
+        : await auth.registerPersonal({
           nome: fd.get('nome') as string,
           sobrenome: (fd.get('sobrenome') as string) || undefined,
           documento,
@@ -156,7 +160,6 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
           senha: fd.get('senha') as string,
           telefone: (fd.get('telefone') as string) || undefined,
           dataNascimento: (fd.get('data_nascimento') as string) || undefined,
-          modulo,
         });
       saveSession(token, usuario);
     } catch (err) {
@@ -170,7 +173,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const fd = new FormData(e.currentTarget);
     const email = fd.get('email') as string;
     try {
-      const r = await forgotPassword(email);
+      const r = await auth.forgotPassword(email);
       setRecoveryEmail(email);
       setSuccess(r.message);
       setMode('verify');
@@ -183,7 +186,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
   const handleResendCode = async () => {
     setError(''); setSuccess(''); setResendingCode(true);
     try {
-      await forgotPassword(recoveryEmail);
+      await auth.forgotPassword(recoveryEmail);
       setSuccess(`Código reenviado para ${recoveryEmail}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível reenviar o código');
@@ -198,7 +201,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const fd = new FormData(e.currentTarget);
     try {
       const codigo = fd.get('codigo') as string;
-      await verifyRecoveryCode(recoveryEmail, codigo);
+      await auth.verifyRecoveryCode(recoveryEmail, codigo);
       setVerifiedCode(codigo);
       setMode('reset');
     } catch (err) {
@@ -214,7 +217,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
     const confirma = fd.get('confirma_senha') as string;
     if (nova !== confirma) { setError('As senhas não coincidem'); setLoading(false); return; }
     try {
-      await resetPassword(recoveryEmail, verifiedCode, nova);
+      await auth.resetPassword(recoveryEmail, verifiedCode, nova);
       setSuccess('Senha redefinida com sucesso!');
       setMode('login');
     } catch (err) {
@@ -232,7 +235,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
         inputMode="numeric"
         maxLength={18}
         value={registerDocumento}
-        onChange={(e) => setRegisterDocumento(formatDocumento(e.target.value, registerTipo))}
+        onChange={(e) => setRegisterDocumento(formatRegistrationDocument(e.target.value, isRegisterCnpj ? 'empresa' : 'pessoal'))}
       />
     </Field>
   );
@@ -306,14 +309,14 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
       {mode === 'register' && (
         <div className="mt-4 grid gap-3">
           <form className="grid gap-3" onSubmit={handleRegister}>
-            <ToggleGroup
+            {!isTendersLogin && <ToggleGroup
               value={registerTipo}
               onChange={(v) => handleRegisterTipoChange(v as 'pessoal' | 'empresa')}
               options={[
                 { value: 'pessoal', label: 'Pessoa Física' },
                 { value: 'empresa', label: 'Pessoa Jurídica' },
               ]}
-            />
+            />}
             {/* Chave por tipo: ao trocar PF/PJ, um campo do outro tipo que caia
                 na mesma posição não herda o que foi digitado. */}
             {isRegisterCnpj ? (
@@ -328,7 +331,7 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
                 <Field label="Enquadramento">
                   <Select name="enquadramento" defaultValue="">
                     <option value="">Selecione...</option>
-                    {ENQUADRAMENTO_OPTIONS.map((option) => (
+                    {COMPANY_CLASSIFICATION_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
                     ))}
                   </Select>

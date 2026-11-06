@@ -1,3 +1,4 @@
+import { getActiveAccountType } from '../services/session';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCartoes, fetchCategorias } from '../services/configService';
@@ -22,7 +23,7 @@ function isEmpresaConta() {
   }
 
   try {
-    return window.localStorage.getItem('contaAtivaTipo') === 'empresa';
+    return getActiveAccountType() === 'empresa';
   } catch {
     return false;
   }

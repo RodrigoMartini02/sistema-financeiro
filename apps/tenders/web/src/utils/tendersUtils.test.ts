@@ -10,7 +10,7 @@ test('entrada no módulo: cada situação de sessão e de /access', () => {
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'pending', errorStatus: null }), 'loading');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'success', errorStatus: null }), 'ready');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 401 }), 'login');
-  assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 404 }), 'noModule');
+  assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 404 }), 'error');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 403 }), 'memberWithoutAccess');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 402 }), 'expired');
   assert.equal(resolveGateState({ hasToken: true, accessStatus: 'error', errorStatus: 500 }), 'error');
@@ -18,12 +18,14 @@ test('entrada no módulo: cada situação de sessão e de /access', () => {
 });
 
 test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta vira null', () => {
-  const account = { id: 7, name: 'Pessoal', type: 'pessoal' };
+  const account = { id: 7, name: 'Empresa', type: 'empresa' };
   assert.deepEqual(expiredInfoFrom({ role: 'TITULAR', account }), { role: 'TITULAR', account });
   assert.deepEqual(expiredInfoFrom({ role: 'COLABORADOR', account, extra: 1 }), { role: 'COLABORADOR', account });
   assert.equal(expiredInfoFrom(undefined), null);
   assert.equal(expiredInfoFrom({ role: 'ADMIN', account }), null);
   assert.equal(expiredInfoFrom({ role: 'TITULAR', account: { id: '7', name: 'Pessoal', type: 'pessoal' } }), null);
+  assert.equal(expiredInfoFrom({ role: 'TITULAR', account: { id: 7, name: 'Pessoal', type: 'pessoal' } }), null);
+  assert.equal(expiredInfoFrom({ role: 'TITULAR', account: { id: 0, name: 'Empresa', type: 'empresa' } }), null);
   assert.equal(expiredInfoFrom({ role: 'TITULAR' }), null);
 });
 
@@ -85,10 +87,11 @@ test('página do CNPJ: título da barra e fora do menu', () => {
 });
 
 test('nome de quem está logado, gravado pelo login; ausente ou ilegível vira "Usuário"', () => {
-  assert.equal(loggedUserName(JSON.stringify({ nome: 'Rodrigo', sobrenome: 'Martini' })), 'Rodrigo Martini');
-  assert.equal(loggedUserName(JSON.stringify({ nome: 'Ana' })), 'Ana');
+  assert.equal(loggedUserName({ nome: 'Rodrigo', sobrenome: 'Martini' }), 'Rodrigo Martini');
+  assert.equal(loggedUserName({ nome: 'Ana' }), 'Ana');
   assert.equal(loggedUserName(null), 'Usuário');
   assert.equal(loggedUserName('{quebrado'), 'Usuário');
+  assert.equal(loggedUserName({ nome: 42, sobrenome: null }), 'Usuário');
 });
 
 test('erro da API: mensagem da resposta ou a genérica, com o status', () => {

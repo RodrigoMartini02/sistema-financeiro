@@ -8,7 +8,7 @@ const originalFetch = globalThis.fetch;
 
 function stubBrowser(token: string | null) {
   const requests: { url: string; init: RequestInit }[] = [];
-  const storage = { getItem: (key: string) => (key === 'token' ? token : null), removeItem: () => undefined } as unknown as Storage;
+  const storage = { getItem: (key: string) => (key === 'tenders.token' ? token : null), removeItem: () => undefined } as unknown as Storage;
   Object.defineProperty(globalThis, 'window', { value: { location: { hostname: 'localhost', port: '5173' } }, configurable: true });
   Object.defineProperty(globalThis, 'sessionStorage', { value: storage, configurable: true });
   Object.defineProperty(globalThis, 'localStorage', { value: storage, configurable: true });

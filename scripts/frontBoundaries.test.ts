@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import ts from 'typescript';
 
 // Fronteira entre os projetos do front (plano .plans/separar-etapa-2-pastas-e-front.md).
 // Varre os imports escritos como texto em cada projeto (código e testes) e confere:
@@ -36,8 +37,8 @@ const PROJECTS: readonly Project[] = [
 
 /**
  * Ligações entre o site e Finanças que ainda existem (código e testes): a loja pública montada na página inicial do
- * site, o login de Finanças dentro do site, a sessão, as avaliações e a contagem de acessos. A Etapa 3 (login por
- * produto) e a Etapa 4 tiram as deles.
+ * site, o login do site embutido em Finanças, as avaliações e a contagem de acessos. O login por produto já usa
+ * serviços e sessões próprios; as ligações restantes são tratadas nas próximas etapas.
  */
 const SITE_FINANCE_ALLOWED: readonly string[] = [
   'apps/finance/web/src/components/auth/AuthenticatedAppGate.tsx -> apps/site/src/screens/public/LoginPage.tsx',
@@ -46,17 +47,8 @@ const SITE_FINANCE_ALLOWED: readonly string[] = [
   'apps/site/src/SiteApp.tsx -> apps/finance/web/src/screens/public/storefront/StorefrontOrderPage.tsx',
   'apps/site/src/SiteApp.tsx -> apps/finance/web/src/screens/public/storefront/StorefrontPage.tsx',
   'apps/site/src/SiteApp.tsx -> apps/finance/web/src/services/analyticsService.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/services/authService.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/services/session.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/types/config.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/utils/authOrigin.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/utils/companyAccount.ts',
-  'apps/site/src/screens/public/LoginPage.tsx -> apps/finance/web/src/utils/document.ts',
-  'apps/site/src/screens/public/components/PublicLayout.tsx -> apps/finance/web/src/services/session.ts',
-  'apps/site/src/screens/public/components/PublicLayout.tsx -> apps/finance/web/src/utils/authOrigin.ts',
   'apps/site/src/screens/public/components/ReviewsSection.tsx -> apps/finance/web/src/services/queryKeys.ts',
   'apps/site/src/services/reviewsService.ts -> apps/finance/web/src/services/apiClient.ts',
-  'apps/site/src/utils/publicPages.test.ts -> apps/finance/web/src/utils/authOrigin.ts',
 ];
 
 /**
@@ -202,6 +194,55 @@ function scanProjects(): ScanResult {
 
 const scan = scanProjects();
 const describeEdge = (edge: ImportEdge): string => `${edge.from} -> ${edge.to}`;
+
+const SESSION_KEY = /^(?:token|usuarioAtual|dadosUsuarioLogado|contaAtiva(?:Id|Nome|Tipo)|auth_origin|(?:finance|tenders)\.)/;
+
+/** Also checks named constants, so moving a key into a constant cannot bypass the session boundary. */
+function rawSessionAccesses(file: string): string[] {
+  const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+  const constants = new Map<string, ts.Expression>();
+  const found: string[] = [];
+  const collectConstants = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      constants.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, collectConstants);
+  };
+  collectConstants(source);
+
+  const keyOf = (node: ts.Expression, seen = new Set<string>()): string | null => {
+    if (ts.isStringLiteralLike(node)) return node.text;
+    if (ts.isTemplateExpression(node)) return node.head.text;
+    if (ts.isIdentifier(node) && !seen.has(node.text)) {
+      seen.add(node.text);
+      const initializer = constants.get(node.text);
+      return initializer ? keyOf(initializer, seen) : null;
+    }
+    return null;
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)
+      && /^(getItem|setItem|removeItem)$/.test(node.expression.name.text)
+      && /(?:localStorage|sessionStorage)/.test(node.expression.expression.getText(source))) {
+      const argument = node.arguments[0];
+      const key = argument ? keyOf(argument) : null;
+      if (key && SESSION_KEY.test(key)) {
+        const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+        found.push(`${toRepositoryPath(file)}:${line}: ${key}`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
+test('sessão: chaves de identidade só são acessadas pelo módulo compartilhado de sessão', () => {
+  const forbidden = PROJECTS.flatMap((project) => listSourceFiles(path.join(ROOT_DIRECTORY, project.directory)))
+    .filter((file) => !file.endsWith('.test.ts') && toRepositoryPath(file) !== 'packages/ui/src/auth/session.ts')
+    .flatMap(rawSessionAccesses);
+  assert.deepEqual(forbidden, [], 'use o serviço de sessão do produto para ler e gravar identidade e conta ativa');
+});
 
 test('fronteira: a varredura enxerga arquivos de todos os projetos', () => {
   for (const project of PROJECTS) {

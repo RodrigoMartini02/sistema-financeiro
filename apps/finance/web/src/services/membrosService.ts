@@ -1,3 +1,4 @@
+import { getToken } from './session';
 import { apiRequest, getApiUrl } from './apiClient';
 import type { PainelPeriodo } from '../types/finance';
 
@@ -129,7 +130,7 @@ export class PendingExpensesError extends Error {
 // erro "PENDING_EXPENSES" carrega a lista de pendências (data), que o
 // contrato de erro genérico de apiRequest não propaga — só a mensagem.
 export async function deactivateMembro(usuarioId: number, transferirPara?: number, contaId?: number): Promise<DeactivateMembroResult> {
-  const token = sessionStorage.getItem('token') ?? localStorage.getItem('token');
+  const token = getToken();
   const response = await fetch(`${getApiUrl()}/account-members/${usuarioId}/deactivate`, {
     method: 'PUT',
     headers: {
