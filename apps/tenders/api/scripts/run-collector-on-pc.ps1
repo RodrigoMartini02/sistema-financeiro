@@ -86,7 +86,7 @@ Set-StrictMode -Version 2.0
 $ShortBlockMinutes = 5
 $MaxShortBlocksInARow = 6
 $MaxFailedBlocksInARow = 3
-$WaitBetweenAttemptsSeconds = 600
+$WaitBetweenAttemptsSeconds = 60
 
 $RequiredKeys = @(
     'TENDERS_COLLECTOR_DATABASE_URL',
