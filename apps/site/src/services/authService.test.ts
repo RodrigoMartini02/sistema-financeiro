@@ -75,14 +75,17 @@ test('login público: APIs configuradas por produto preservam prefixos, callback
   assert.equal(sessionForSolution('tenders').getToken(), 'tenders-token');
 });
 
-test('bases de autenticação: Vite usa proxy, acesso local direto usa a porta do produto e produção mantém compatibilidade', () => {
+test('bases de autenticação: proxy local e produção usam a API do produto, mesmo sem configuração', () => {
   const vite = { hostname: 'localhost', port: '5173' };
   const local = { hostname: '127.0.0.1', port: '' };
   const deployed = { hostname: 'fingerence.com.br', port: '' };
   for (const solution of ['finance', 'tenders'] as const) {
+    const productionApi = solution === 'tenders'
+      ? 'https://fingerence-licitacoes-api.onrender.com/api'
+      : 'https://sistema-financeiro-backend-o199.onrender.com/api';
     assert.equal(resolveAuthApiBase(solution, vite), '/api');
-    assert.equal(resolveAuthApiBase(solution, deployed), 'https://sistema-financeiro-backend-o199.onrender.com/api');
-    assert.equal(resolveAuthApiBase(solution, deployed, '   '), 'https://sistema-financeiro-backend-o199.onrender.com/api');
+    assert.equal(resolveAuthApiBase(solution, deployed), productionApi);
+    assert.equal(resolveAuthApiBase(solution, deployed, '   '), productionApi);
   }
   assert.equal(resolveAuthApiBase('finance', local), 'http://localhost:3010/api');
   assert.equal(resolveAuthApiBase('tenders', local), 'http://localhost:3011/api');

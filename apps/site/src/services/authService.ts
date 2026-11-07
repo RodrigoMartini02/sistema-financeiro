@@ -36,7 +36,9 @@ export function resolveAuthApiBase(solution: SiteSolution, { hostname, port }: P
   const base = configuredBase?.trim().replace(/\/+$/, '');
   if (base) return base;
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-    return 'https://sistema-financeiro-backend-o199.onrender.com/api';
+    return solution === 'tenders'
+      ? 'https://fingerence-licitacoes-api.onrender.com/api'
+      : 'https://sistema-financeiro-backend-o199.onrender.com/api';
   }
   return port === '5173' ? '/api' : `http://localhost:${solution === 'tenders' ? 3011 : 3010}/api`;
 }

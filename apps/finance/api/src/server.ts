@@ -50,7 +50,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-app.use('/api/tenders', createTendersProxy(process.env.TENDERS_API_URL));
+app.post(/^\/api\/tenders\/billing\/webhook$/, createTendersProxy(process.env.TENDERS_API_URL));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

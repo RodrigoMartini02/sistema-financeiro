@@ -101,6 +101,10 @@ A API escuta em `3011` no desenvolvimento; Finanças continua em `3010`. O servi
 
 Na 4C, a API nova recebe `BACKEND_URL` com sua própria origem HTTP(S), sem `/api`, para os webhooks; `FRONTEND_URL` permanece `https://fin-gerence.com.br`, e `ALLOWED_ORIGINS` contém as origens públicas autorizadas. A ponte temporária em Finanças usa `TENDERS_API_URL`, também somente a origem da API nova. Os builds do site e de Licitações recebem as bases públicas `VITE_FINANCE_API_URL` e `VITE_TENDERS_API_URL`, incluindo `/api`; não são segredos. Banco, JWT e R2 nunca entram em variáveis `VITE_*`. Esses campos são preparados no código, sem alterar arquivos de ambiente ou serviços durante a 4B.
 
+A limpeza da compatibilidade limita a ponte em Finanças ao `POST /api/tenders/billing/webhook`, sem barra final ou sufixos. Site e app usam a API própria de Licitações, inclusive no fallback sem `VITE_TENDERS_API_URL`. Publicar os frontends e recarregar as abas conhecidas do site/app antes de aplicar a restrição no backend de Finanças.
+
+O webhook legado e `TENDERS_API_URL` permanecem até concluir a auditoria dos objetos e das notificações do Mercado Pago. A busca de preferências retornou `PA_UNAUTHORIZED_RESULT_FROM_POLICIES` (HTTP 403); essa cobertura incompleta não comprova ausência de links antigos. A restrição do proxy geral não altera o processamento de cobranças nem os webhooks próprios de Finanças.
+
 ## Variáveis de ambiente
 
 | Variável | Padrão | Descrição |

@@ -16,13 +16,14 @@ test('endereço da API: a base pública de Licitações tem prioridade e normali
   assert.equal(resolveApiUrl({ hostname: 'localhost', port: '5173' }, ' '), '/api');
 });
 
-test('endereço da API: fora do localhost, o backend de produção', () => {
+test('endereço da API: fora do localhost, a API própria de Licitações mesmo sem configuração', () => {
   assert.equal(
     resolveApiUrl({ hostname: 'fin-gerence.com.br', port: '' }),
-    'https://sistema-financeiro-backend-o199.onrender.com/api',
+    'https://fingerence-licitacoes-api.onrender.com/api',
   );
   assert.equal(
     resolveApiUrl({ hostname: 'licitacoes-rfxl.onrender.com', port: '' }),
-    'https://sistema-financeiro-backend-o199.onrender.com/api',
+    'https://fingerence-licitacoes-api.onrender.com/api',
   );
+  assert.equal(resolveApiUrl({ hostname: 'fin-gerence.com.br', port: '' }, '   '), 'https://fingerence-licitacoes-api.onrender.com/api');
 });
