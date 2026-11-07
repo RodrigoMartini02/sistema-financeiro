@@ -32,18 +32,25 @@ export interface CompanyRegistrationInput {
   senha: string;
 }
 
-function authApiBase(): string {
-  const { hostname, port } = window.location;
+export function resolveAuthApiBase(solution: SiteSolution, { hostname, port }: Pick<Location, 'hostname' | 'port'>, configuredBase?: string): string {
+  const base = configuredBase?.trim().replace(/\/+$/, '');
+  if (base) return base;
   if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
     return 'https://sistema-financeiro-backend-o199.onrender.com/api';
   }
-  return port === '5173' ? '/api' : 'http://localhost:3010/api';
+  return port === '5173' ? '/api' : `http://localhost:${solution === 'tenders' ? 3011 : 3010}/api`;
+}
+
+function authApiBase(solution: SiteSolution, configuredBase?: string): string {
+  return resolveAuthApiBase(solution, window.location, configuredBase ?? (solution === 'tenders'
+    ? import.meta.env?.VITE_TENDERS_API_URL
+    : import.meta.env?.VITE_FINANCE_API_URL));
 }
 
 /** Login e recuperação são públicos: não enviam token nem alteram outra sessão ao receber 401. */
-async function postAuth<T>(solution: SiteSolution, action: string, body: object): Promise<T> {
+async function postAuth<T>(solution: SiteSolution, action: string, body: object, configuredBase?: string): Promise<T> {
   const prefix = solution === 'tenders' ? '/tenders/auth' : '/auth';
-  const response = await fetch(`${authApiBase()}${prefix}/${action}`, {
+  const response = await fetch(`${authApiBase(solution, configuredBase)}${prefix}/${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -62,14 +69,15 @@ async function postAuth<T>(solution: SiteSolution, action: string, body: object)
 }
 
 /** Cada formulário usa o mesmo contrato visual com as rotas da sua solução. */
-export function createAuthAdapter(solution: SiteSolution) {
+export function createAuthAdapter(solution: SiteSolution, configuredBase?: string) {
+  const post = <T>(action: string, body: object) => postAuth<T>(solution, action, body, configuredBase);
   return {
-    login: (document: string, password: string) => postAuth<SessionPayload>(solution, 'login', { documento: document, senha: password }),
+    login: (document: string, password: string) => post<SessionPayload>('login', { documento: document, senha: password }),
     registerPersonal: (input: PersonalRegistrationInput) => {
       if (solution === 'tenders') {
         return Promise.reject<SessionPayload>(new Error('O cadastro de Licitações é feito com CNPJ.'));
       }
-      return postAuth<SessionPayload>(solution, 'register', {
+      return post<SessionPayload>('register', {
         nome: input.nome,
         sobrenome: input.sobrenome || undefined,
         documento: input.documento,
@@ -79,7 +87,7 @@ export function createAuthAdapter(solution: SiteSolution) {
         data_nascimento: input.dataNascimento || undefined,
       });
     },
-    registerCompany: (input: CompanyRegistrationInput) => postAuth<SessionPayload>(solution, 'register', {
+    registerCompany: (input: CompanyRegistrationInput) => post<SessionPayload>('register', {
       documento: input.documento,
       razao_social: input.razaoSocial,
       nome_fantasia: input.nomeFantasia || undefined,
@@ -88,10 +96,10 @@ export function createAuthAdapter(solution: SiteSolution) {
       email: input.email,
       senha: input.senha,
     }),
-    googleLogin: (code: string, redirectUri: string) => postAuth<SessionPayload>(solution, 'google', { code, redirect_uri: redirectUri }),
-    forgotPassword: (email: string) => postAuth<{ success: boolean; message: string }>(solution, 'forgot-password', { email }),
-    verifyRecoveryCode: (email: string, code: string) => postAuth<{ success: boolean }>(solution, 'verify-recovery-code', { email, codigo: code }),
-    resetPassword: (email: string, code: string, password: string) => postAuth<{ success: boolean }>(solution, 'reset-password', {
+    googleLogin: (code: string, redirectUri: string) => post<SessionPayload>('google', { code, redirect_uri: redirectUri }),
+    forgotPassword: (email: string) => post<{ success: boolean; message: string }>('forgot-password', { email }),
+    verifyRecoveryCode: (email: string, code: string) => post<{ success: boolean }>('verify-recovery-code', { email, codigo: code }),
+    resetPassword: (email: string, code: string, password: string) => post<{ success: boolean }>('reset-password', {
       email,
       codigo: code,
       nova_senha: password,

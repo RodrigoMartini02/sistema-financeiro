@@ -1,0 +1,47 @@
+{
+  "name": "fingerence-tenders-api",
+  "version": "1.1.0",
+  "releaseDate": "2026-03-21",
+  "private": true,
+  "description": "Independent tenders API",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "set DOTENV_CONFIG_PATH=../../../.env.dev&& tsx watch src/server.ts",
+    "build": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts src/**/*.test.ts",
+    "test:tenders-db": "set TENDERS_DB_TESTS=1&& set DOTENV_CONFIG_PATH=../../../.env.dev&& tsx --test --test-concurrency=1 src/**/*.db.test.ts",
+    "tenders": "tsx src/collector/cli.ts",
+    "tenders:dev": "set DOTENV_CONFIG_PATH=../../../.env.dev&& tsx src/collector/cli.ts",
+    "tenders:create-admin": "tsx src/cli/createAdmin.ts",
+    "tenders:create-admin:dev": "set DOTENV_CONFIG_PATH=../../../.env.dev&& tsx src/cli/createAdmin.ts",
+    "daily-jobs": "tsx src/collector/dailyRoutineCli.ts",
+    "migrations:status": "tsx scripts/migrations.ts status",
+    "migrations:aplicar": "tsx scripts/migrations.ts aplicar",
+    "migrations:registrar-existentes": "tsx scripts/migrations.ts registrar-existentes"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/s3-request-presigner": "^3.1146.0",
+    "@duckdb/node-api": "^1.5.6-r.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "drizzle-orm": "^0.45.2",
+    "express": "^4.22.3",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mercadopago": "^2.12.0",
+    "pg": "^8.11.3",
+    "tsx": "^4.22.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.25",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.1",
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.9.3"
+  }
+}

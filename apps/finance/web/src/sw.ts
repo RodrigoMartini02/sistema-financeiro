@@ -2,6 +2,7 @@ import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { isTendersAppPath } from './utils/workerRoutes';
 
 declare global {
   interface Window {
@@ -47,7 +48,9 @@ const appShell = new NetworkFirst({ cacheName: 'fingerence-app-shell-v1' });
 
 clientsClaim();
 cleanupOutdatedCaches();
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST.filter((entry) => !isTendersAppPath(
+  new URL(typeof entry === 'string' ? entry : entry.url, self.location.href).pathname,
+)));
 
 worker.addEventListener('message', (event) => {
   if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
@@ -84,13 +87,15 @@ registerRoute(
 );
 
 registerRoute(
-  ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate' && url.pathname !== ASSISTANT_PATH,
+  ({ sameOrigin, request, url }) => sameOrigin && request.mode === 'navigate'
+    && url.pathname !== ASSISTANT_PATH && !isTendersAppPath(url.pathname),
   appShell,
 );
 
 registerRoute(
   ({ sameOrigin, request, url }) => (
     sameOrigin
+    && !isTendersAppPath(url.pathname)
     && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))
     && !url.pathname.startsWith('/api/')
     && ['font', 'image', 'script', 'style'].includes(request.destination)

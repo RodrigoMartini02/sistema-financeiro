@@ -1,0 +1,228 @@
+import './config/loadEnvironment';
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import { testConnection } from './db/client';
+import { createTendersProxy } from './services/tendersProxy';
+
+const app = express();
+const PORT = process.env.PORT ?? 3010;
+
+const envOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : [
+      'https://fin-gerence.com.br',
+      'https://www.fin-gerence.com.br',
+    ];
+
+const devOrigins =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        'http://localhost:3000', 'http://127.0.0.1:3000',
+        'http://localhost:5173', 'http://127.0.0.1:5173',
+        'http://localhost:5500', 'http://127.0.0.1:5500',
+      ]
+    : [];
+
+const allowedOrigins = [...new Set([...envOrigins, ...devOrigins])];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin not allowed — ${origin}`));
+      }
+    },
+    credentials: true,
+  }),
+);
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(self), camera=()');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+app.use('/api/tenders', createTendersProxy(process.env.TENDERS_API_URL));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+    next();
+  });
+}
+
+// ── Routes ──────────────────────────────────────────────────────────────
+import authRoutes from './routes/auth';
+import userRoutes from './routes/users';
+import accountRoutes from './routes/accounts';
+import accountMemberRoutes from './routes/accountMembers';
+import categoryRoutes from './routes/categories';
+import cardRoutes from './routes/cards';
+import incomeRoutes from './routes/incomes';
+import expenseRoutes from './routes/expenses';
+import cardInvoiceRoutes from './routes/cardInvoices';
+import seriesRenewalRoutes from './routes/seriesRenewals';
+import monthRoutes from './routes/months';
+import yearRoutes from './routes/years';
+import appointmentRoutes from './routes/appointments';
+import financialRoutes from './routes/financial';
+import planRoutes from './routes/plans';
+import paypalRoutes from './routes/paypal';
+import ratingRoutes from './routes/ratings';
+import representativeRoutes from './routes/representatives';
+import partnerRoutes from './routes/partners';
+import { jobTitleRoutes, sectorRoutes } from './routes/accountNameCatalog';
+import incomeClassificationRoutes from './routes/income-classifications';
+import analyticsRoutes from './routes/analytics';
+import reportRoutes from './routes/reports';
+import internalJobsRoutes from './routes/internal-jobs';
+import notificationRoutes from './routes/notifications';
+import pushRoutes from './routes/push';
+import assistantRoutes from './routes/assistant';
+import attachmentRoutes from './routes/attachments';
+import budgetRoutes from './routes/budget';
+import aiIntegrationRoutes from './routes/ai-integrations';
+import catalogoRoutes from './modules/catalogo/routes';
+import { clientRoutes, contractRoutes, serviceCatalogRoutes } from './modules/contracts/routes';
+import { authenticate, requireActivePlan, requirePremiumPlan, requireTitular } from './middleware/auth';
+import { requireCatalogAccess, requireScreenAccess } from './middleware/permissions';
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/usuarios', userRoutes);           // PT alias
+// Cadastros compartilhados: a listagem também abre para quem depende dela ao
+// lançar ou em outra tela (utils/catalogAccess.ts); o resto exige a permissão do cadastro.
+app.use('/api/contas', authenticate, requireActivePlan, requireCatalogAccess('accounts'), accountRoutes);
+app.use('/api/account-members', authenticate, requireActivePlan, accountMemberRoutes);
+app.use('/api/categories', authenticate, requireActivePlan, requireCatalogAccess('expenseCategories'), categoryRoutes);
+app.use('/api/categorias', authenticate, requireActivePlan, requireCatalogAccess('expenseCategories'), categoryRoutes);     // PT alias
+app.use('/api/cards', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);
+app.use('/api/cartoes', authenticate, requireActivePlan, requireCatalogAccess('cards'), cardRoutes);            // PT alias
+// Antes de /api/incomes: o caminho começa igual e a renovação da fixa tem rota própria.
+app.use('/api/incomes', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);
+app.use('/api/receitas', authenticate, requireActivePlan, requireScreenAccess('accessIncomes'), incomeRoutes);         // PT alias
+// Antes de /api/expenses: o caminho começa igual e a renovação tem rota própria.
+app.use('/api/expenses/series-renewals', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), seriesRenewalRoutes);
+app.use('/api/expenses', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);
+app.use('/api/despesas', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), expenseRoutes);        // PT alias
+app.use('/api/card-invoices', authenticate, requireActivePlan, requireScreenAccess('accessExpenses'), cardInvoiceRoutes);
+app.use('/api/meses', authenticate, requireActivePlan, monthRoutes);
+app.use('/api/reports', authenticate, requireActivePlan, requireScreenAccess('accessReports'), reportRoutes);
+app.use('/api/years', authenticate, requireActivePlan, yearRoutes);
+app.use('/api/anos', authenticate, requireActivePlan, yearRoutes);               // PT alias
+app.use('/api/appointments', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes);
+app.use('/api/compromissos', authenticate, requireActivePlan, requireScreenAccess('accessCalendar'), appointmentRoutes); // PT alias
+app.use('/api/financial', financialRoutes);
+app.use('/api/financeiro', financialRoutes);    // PT alias
+app.use('/api/plans', planRoutes);
+app.use('/api/planos', planRoutes);             // PT alias
+app.use('/api/paypal', paypalRoutes);
+app.use('/api/ratings', ratingRoutes);
+app.use('/api/avaliacoes', ratingRoutes);       // PT alias
+app.use('/api/representatives', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes);
+app.use('/api/representantes', authenticate, requireActivePlan, requireCatalogAccess('representatives'), representativeRoutes); // PT alias
+// Sócios: só leitura, só do titular — a gravação vai junto com a conta (POST/PUT /api/contas).
+app.use('/api/partners', authenticate, requireActivePlan, requireTitular, partnerRoutes);
+// Setores e cargos da conta PJ (Configurações → Pessoas), cada tela com a sua permissão. Equipe: só no Premium.
+app.use('/api/sectors', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('sectors'), sectorRoutes);
+app.use('/api/job-titles', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('jobTitles'), jobTitleRoutes);
+app.use('/api/income-classifications', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes);
+app.use('/api/classificacoes-receita', authenticate, requireActivePlan, requireCatalogAccess('incomeCategories'), incomeClassificationRoutes); // PT alias
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/internal-jobs', internalJobsRoutes);
+app.use('/api/notificacoes', authenticate, requireActivePlan, requireScreenAccess('accessNotifications'), notificationRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/assistant', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
+app.use('/api/assistente', authenticate, requireActivePlan, requireScreenAccess('accessAssistant'), assistantRoutes);
+// accessBudget controla só a tela de Planejamento (editar/remover meta) — o
+// resumo de categorias também alimenta o gráfico do Dashboard, que qualquer
+// usuário autenticado deve ver com os próprios dados. Ver budget.ts.
+app.use('/api/orcamento', authenticate, requireActivePlan, budgetRoutes);
+app.use('/api/ai-integracoes', aiIntegrationRoutes);
+// Anexos de lançamentos, contratos e produtos: as travas de plano e de tela de cada tipo de dono ficam dentro do roteador.
+app.use('/api/attachments', authenticate, attachmentRoutes);
+app.use('/api/catalogo', catalogoRoutes);
+// Clientes, contratos e catálogo de serviços (conta PJ), cada um com a permissão do seu cadastro. Só no Premium.
+app.use('/api/clients', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('clients'), clientRoutes);
+app.use('/api/contracts', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('contracts'), contractRoutes);
+app.use('/api/service-catalog', authenticate, requireActivePlan, requirePremiumPlan, requireCatalogAccess('services'), serviceCatalogRoutes);
+// ── System endpoints ───────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pkg = require('../package.json') as { version: string; releaseDate: string };
+
+app.get('/', (_req: Request, res: Response) => {
+  res.json({ success: true, message: 'Financial System API is running', version: pkg.version });
+});
+
+app.get('/health', async (_req: Request, res: Response) => {
+  const dbOk = await testConnection();
+  res.json({
+    success: true,
+    status: dbOk ? 'OK' : 'ERROR',
+    database: dbOk ? 'Connected' : 'Disconnected',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/version', (_req: Request, res: Response) => {
+  res.json({ success: true, version: pkg.version, releaseDate: pkg.releaseDate });
+});
+
+// ── 404 ─────────────────────────────────────────────────────────────────
+app.use((req: Request, res: Response) => {
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+});
+
+// ── Error handler ──────────────────────────────────────────────────────
+app.use((err: Error & { status?: number }, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status ?? 500).json({
+    success: false,
+    message: err.message ?? 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
+
+// ── Bootstrap ───────────────────────────────────────────────────────────
+async function bootstrap(): Promise<void> {
+  console.log('Testing PostgreSQL connection...');
+  const dbOk = await testConnection();
+
+  if (!dbOk) {
+    console.error('Could not connect to PostgreSQL. Aborting.');
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log('================================================');
+    console.log('SERVER STARTED');
+    console.log(`Port: ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV ?? 'development'}`);
+    console.log('================================================');
+  });
+}
+
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+  process.exit(1);
+});
+
+bootstrap();
+
+export default app;

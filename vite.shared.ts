@@ -126,6 +126,10 @@ export function createFrontendConfig(target: FrontendTarget): UserConfig {
     server: {
       port: 5173,
       proxy: {
+        '/api/tenders': {
+          target: 'http://localhost:3011',
+          changeOrigin: true,
+        },
         '/api': {
           target: 'http://localhost:3010',
           changeOrigin: true,

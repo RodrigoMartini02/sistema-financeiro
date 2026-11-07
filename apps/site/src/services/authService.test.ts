@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
-import { createAuthAdapter } from './authService';
+import { createAuthAdapter, resolveAuthApiBase } from './authService';
 import { saveProductSession, sessionForSolution } from './session';
 
 function memoryStorage(): Storage {
@@ -52,6 +52,40 @@ test('login público: cada solução usa sua API sem enviar o token da outra', a
   }
   assert.equal(finance.getToken(), 'finance-token');
   assert.equal(tenders.getToken(), 'tenders-token');
+});
+
+test('login público: APIs configuradas por produto preservam prefixos, callback Google e sessões', async (context) => {
+  browserForTest(context);
+  sessionForSolution('finance').setSession('finance-token', { id: 1 });
+  sessionForSolution('tenders').setSession('tenders-token', { id: 2 });
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  context.mock.method(globalThis, 'fetch', async (url: string, options?: RequestInit) => {
+    requests.push({ url, body: JSON.parse(String(options?.body)) as Record<string, unknown> });
+    assert.equal(new Headers(options?.headers).has('Authorization'), false);
+    return Response.json({ success: true, data: { token: 'new-token', usuario: { id: 3 } } });
+  });
+
+  await createAuthAdapter('finance', ' https://finance.example.test/api/ ').login('finance@example.test', 'password');
+  await createAuthAdapter('tenders', 'https://tenders.example.test/api/').googleLogin('code', 'https://fingerence.com.br/index.html');
+  assert.deepEqual(requests, [
+    { url: 'https://finance.example.test/api/auth/login', body: { documento: 'finance@example.test', senha: 'password' } },
+    { url: 'https://tenders.example.test/api/tenders/auth/google', body: { code: 'code', redirect_uri: 'https://fingerence.com.br/index.html' } },
+  ]);
+  assert.equal(sessionForSolution('finance').getToken(), 'finance-token');
+  assert.equal(sessionForSolution('tenders').getToken(), 'tenders-token');
+});
+
+test('bases de autenticação: Vite usa proxy, acesso local direto usa a porta do produto e produção mantém compatibilidade', () => {
+  const vite = { hostname: 'localhost', port: '5173' };
+  const local = { hostname: '127.0.0.1', port: '' };
+  const deployed = { hostname: 'fingerence.com.br', port: '' };
+  for (const solution of ['finance', 'tenders'] as const) {
+    assert.equal(resolveAuthApiBase(solution, vite), '/api');
+    assert.equal(resolveAuthApiBase(solution, deployed), 'https://sistema-financeiro-backend-o199.onrender.com/api');
+    assert.equal(resolveAuthApiBase(solution, deployed, '   '), 'https://sistema-financeiro-backend-o199.onrender.com/api');
+  }
+  assert.equal(resolveAuthApiBase('finance', local), 'http://localhost:3010/api');
+  assert.equal(resolveAuthApiBase('tenders', local), 'http://localhost:3011/api');
 });
 
 test('cadastro de Licitações usa os dados da empresa, sem modulo; PF é recusada antes da rede', async (context) => {
