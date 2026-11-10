@@ -1,24 +1,26 @@
 # Licitações — API e coletor independentes
 
-Na etapa 4B, esta árvore passa a instalar e executar somente o backend de Licitações. É preparação local: a mudança de raízes, variáveis e clientes em produção acontece na janela coordenada da 4C. Não publicar a remoção de `backend/` enquanto os serviços antigos estiverem com autodeploy ligado e raiz antiga.
+Finanças e Licitações estão publicados com APIs, bancos, identidades e sessões próprios. Esta árvore instala e executa a API e os comandos do coletor de Licitações; Finanças fica em `apps/finance/api`. O tenant é a conta (`conta_id`), validada no backend pelo vínculo do usuário autenticado. O isolamento atual é aplicado na aplicação, sem RLS implementada.
 
 O coletor traz do **PNCP** (Portal Nacional de Contratações Públicas) as licitações com recebimento de propostas em aberto e grava tudo no schema `licitacoes` do banco próprio de Licitações. Ele também gera as notificações do produto (novo edital, edital alterado e prazos).
 
-Ele roda fora do serviço web, atualmente no PC de 24 h; o Cron existente permanece suspenso. Se a coleta falhar ou o PNCP ficar fora do ar, o FINGERENCE continua funcionando.
+O coletor roda fora do serviço web, no PC de 24 h. A atualização desse checkout e de seu agendamento foi adiada pelo usuário enquanto a carga continua; os aliases R2 permanecem aceitos. O Cron existente continua suspenso. Se a coleta falhar ou o PNCP ficar fora do ar, a API continua funcionando.
 
 A API (`/api/tenders`, seção [API](#api-apitenders)) roda no serviço web e serve o app do módulo.
 
-Referências:
-- escopo: `.plans/licitacoes-escopo.md`;
-- planos: `.plans/licitacoes-plano.md` (geral), `.plans/licitacoes-fase2-plano.md` (API), `.plans/licitacoes-produto.md` (assinatura própria), `.plans/licitacoes-contratos-a-vencer.md` (contratos), `.plans/licitacoes-base-nacional.md` (arquivo no R2 e base enxuta), `.plans/licitacoes-contratos-no-r2.md` (contratos em Parquet no R2) e `.plans/licitacoes-vencedores.md` (vencedores das licitações);
-- migrations `apps/finance/api/drizzle/0072` a `0080`, `0085` e `0086` (contratos), `0087` (contratos de todos os tipos), `0087a` (frases de cada termo da busca), `0087b` (os contratos saem do Postgres, para o R2), `0087c` (vencedores: tipos de execução e dias da carga) e `0088` (edital sem o JSON bruto).
+Referências locais vigentes: `.plans/separar-financas-e-licitacoes.md`, `.plans/separar-etapa-4-servico-proprio.md`, `.plans/separar-etapa-4c-auditoria-mercado-pago.md`, `.plans/licitacoes-ia/ESCOPO.md` e `.plans/coleta-licitacoes-no-pc.md`.
+
+As seções técnicas preservam o histórico da construção do módulo. As migrations `0072` a `0088` citadas abaixo pertencem a `apps/finance/api/drizzle/`; explicam essa origem e não devem ser aplicadas no banco atual de Licitações. Planos antigos não disponíveis neste checkout não são instruções operacionais vigentes.
 
 ## Estrutura
 
-A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/0001_baseline.sql` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a 4B não cria nem executa migrations. O código fica em:
+A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/0001_baseline.sql` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
 
 ```
 apps/tenders/api/src/
+├── server.ts               bootstrap HTTP: banco próprio e leitor R2, sem iniciar coleta
+├── app.ts                  CORS, health, autenticação e montagem das rotas
+├── config/                 ambiente explícito e URLs de cobrança
 ├── db/schema.ts            tabelas do schema licitacoes (Drizzle)
 ├── db/identity.ts          usuários, contas PJ, membros e recuperação de senha no public do banco próprio
 ├── db/pool.ts              pool próprio obrigatório (`TENDERS_DATABASE_URL`, diferente de Finanças)
@@ -37,7 +39,7 @@ apps/tenders/api/src/
 │   ├── criteria.ts                  a regra única dos critérios de contratos, em SQL do DuckDB, e a escolha do conjunto da lista
 │   ├── queries.ts                   consultas da API e dos avisos: lista, detalhe, contagem e janelas de vencimento
 │   ├── cnpjQueries.ts               página do CNPJ: contratos como fornecedor e como órgão, parceiros e cobertura
-│   ├── writer.ts                    gravação (Cron Job): mudanças, partes regravadas e publicação
+│   ├── writer.ts                    gravação (coletor): mudanças, partes regravadas e publicação
 │   ├── reader.ts                    leitura (Web Service): cópia local, troca de versão, fila e limite de tempo
 │   ├── service.ts                   o armazém do Web Service: começa com o servidor, sem atrasar o /health
 │   ├── winnerRows.ts                vencedores, núcleo puro: chave, mapa de itens, totais e agregação idempotente
@@ -86,24 +88,65 @@ Nada do módulo importa código de Finanças, nem nos testes: `apps/tenders/api/
 
 ## Instalação e ambiente
 
-Os comandos abaixo partem da raiz do repositório:
+Runtime de referência: Node `22.17.0` e npm `10.9.2`. Os comandos partem da raiz do repositório; executar as validações uma por vez.
 
-```bash
-npm --prefix apps/tenders/api ci
-npm --prefix apps/tenders/api run build
-npm --prefix apps/tenders/api test
-npm --prefix apps/tenders/api run dev
-```
+| Projeto | Instalação | Desenvolvimento | Tipos e testes |
+|---|---|---|---|
+| Site, Finanças web e Licitações web | `npm ci` | `npm run dev` | `npm run typecheck`; `npm test` |
+| API de Finanças | `npm --prefix apps/finance/api ci` | `npm --prefix apps/finance/api run dev` | `npm --prefix apps/finance/api run build`; `npm --prefix apps/finance/api test` |
+| API de Licitações | `npm --prefix apps/tenders/api ci` | `npm --prefix apps/tenders/api run dev` | `npm --prefix apps/tenders/api run build`; `npm --prefix apps/tenders/api test` |
 
-`dev`, `tenders:dev`, `tenders:create-admin:dev` e os testes de banco selecionam explicitamente `../../../.env.dev`, a partir desta API. Em outros CLIs, um `DOTENV_CONFIG_PATH` informado é relativo à pasta atual do processo; arquivo explícito ausente é erro. Sem essa variável, os CLIs usam somente o ambiente do processo. O servidor HTTP de produção usa as variáveis do serviço e não procura `.env`.
+As APIs têm lockfiles próprios e não fazem parte dos workspaces frontend. Os scripts que usam `set ...&&` são para o shell npm do Windows. `dev`, `tenders:dev`, `tenders:create-admin:dev` e os testes de banco selecionam explicitamente `../../../.env.dev`, a partir da API correspondente. `dev:prod-db` de Finanças seleciona o `.env` da raiz e não é o modo local padrão. Em outros CLIs, um `DOTENV_CONFIG_PATH` informado é relativo à pasta atual do processo; arquivo explícito ausente é erro. Sem essa variável, os CLIs usam somente o ambiente do processo. Os servidores HTTP de produção usam as variáveis dos serviços e não procuram `.env`. Os runners de migrations têm seleção própria, descrita em [Assinatura](#assinatura).
 
-A API escuta em `3011` no desenvolvimento; Finanças continua em `3010`. O servidor HTTP não executa coletas: o coletor e a rotina diária permanecem processos separados, com o banco `TENDERS_COLLECTOR_DATABASE_URL` e a trava de escrita existentes.
+A API escuta em `3011` no desenvolvimento; Finanças usa `3010`. O Vite usa `5173`, encaminhando `/api/tenders` para `3011` antes de `/api` para `3010`. O servidor HTTP não executa coletas: o coletor e a rotina diária são processos separados, com `TENDERS_COLLECTOR_DATABASE_URL` e a trava de escrita existentes.
 
-Na 4C, a API nova recebe `BACKEND_URL` com sua própria origem HTTP(S), sem `/api`, para os webhooks; `FRONTEND_URL` permanece `https://fin-gerence.com.br`, e `ALLOWED_ORIGINS` contém as origens públicas autorizadas. A ponte temporária em Finanças usa `TENDERS_API_URL`, também somente a origem da API nova. Os builds do site e de Licitações recebem as bases públicas `VITE_FINANCE_API_URL` e `VITE_TENDERS_API_URL`, incluindo `/api`; não são segredos. Banco, JWT e R2 nunca entram em variáveis `VITE_*`. Esses campos são preparados no código, sem alterar arquivos de ambiente ou serviços durante a 4B.
+A API de Licitações usa `BACKEND_URL` com sua própria origem HTTP(S), sem `/api`, para os webhooks; `FRONTEND_URL` permanece `https://fin-gerence.com.br`, e `ALLOWED_ORIGINS` contém as origens públicas autorizadas. A compatibilidade em Finanças usa `TENDERS_API_URL`, também somente a origem da API de Licitações. Os builds recebem as bases públicas `VITE_FINANCE_API_URL` e `VITE_TENDERS_API_URL`, incluindo `/api`; não são segredos. Banco, JWT e R2 nunca entram em variáveis `VITE_*`.
 
-A limpeza da compatibilidade limita a ponte em Finanças ao `POST /api/tenders/billing/webhook`, sem barra final ou sufixos. Site e app usam a API própria de Licitações, inclusive no fallback sem `VITE_TENDERS_API_URL`. Publicar os frontends e recarregar as abas conhecidas do site/app antes de aplicar a restrição no backend de Finanças.
+A publicação de 06/11/2026 limitou a ponte em Finanças ao `POST /api/tenders/billing/webhook`, sem barra final ou sufixos. As demais rotas legadas de Licitações retornam 404. Site e app usam a API própria de Licitações, inclusive no fallback sem `VITE_TENDERS_API_URL`; as abas conhecidas foram recarregadas antes dessa restrição. Um GET 404 no webhook não verifica a entrega do POST.
 
-O webhook legado e `TENDERS_API_URL` permanecem até concluir a auditoria dos objetos e das notificações do Mercado Pago. A busca de preferências retornou `PA_UNAUTHORIZED_RESULT_FROM_POLICIES` (HTTP 403); essa cobertura incompleta não comprova ausência de links antigos. A restrição do proxy geral não altera o processamento de cobranças nem os webhooks próprios de Finanças.
+O webhook legado e `TENDERS_API_URL` permanecem até concluir a auditoria dos objetos e das notificações do Mercado Pago. Preferências retornaram `PA_UNAUTHORIZED_RESULT_FROM_POLICIES` (HTTP 403), inclusive pelo SDK; pagamentos tiveram totais e paginação inconsistentes. A cobertura incompleta não comprova ausência de objetos antigos. Os webhooks próprios de Finanças (`/api/plans`, `/api/planos` e `/api/paypal`) foram preservados.
+
+## Publicação registrada na Render
+
+Fotografia local da publicação de 06/11/2026: `.plans/separar-etapa-4c-mp-release-final.json`; filtros e preparação em `.plans/separar-etapa-4c-render-actions.json`. Não é uma consulta atual ao provedor. Build comum: `npm ci --include=dev && npm run <alvo>`.
+
+| Serviço | Raiz | Alvo de build | Publicação ou início | Estado registrado |
+|---|---|---|---|---|
+| `sistema-financeiro` (site + Finanças web) | repositório | `build:main` | `dist/main` | Static Site |
+| `licitacoes` (Licitações web) | repositório | `build:tenders` | `dist/tenders` | Static Site |
+| `sistema-financeiro-backend` | `apps/finance/api` | `build` | `npm start`; health `/health` | Free, Frankfurt |
+| `fingerence-licitacoes-api` | `apps/tenders/api` | `build` | `npm start`; health `/health` | Free, Oregon |
+| `rotinas-diarias-planos-licitações` | `apps/tenders/api` | `build` | `npm run daily-jobs` | Oregon, **suspenso**, autodeploy desligado |
+
+Origens públicas: site `https://fin-gerence.com.br` (`https://sistema-financeiro-kxed.onrender.com`); app `https://licitacoes-rfxl.onrender.com`; API de Finanças `https://sistema-financeiro-backend-o199.onrender.com`; API de Licitações `https://fingerence-licitacoes-api.onrender.com`.
+
+Os dois Static Sites e Finanças estão registrados no commit `fa6d9b45`; a API de Licitações continua no runtime `302822a0`, compatível, pois a última mudança nessa árvore era documental. O Cron suspenso mantém seu deploy antigo; isso não autoriza ligá-lo. Os quatro serviços ativos têm autodeploy por commit registrado. Qualquer envio/deploy depende de autorização em `/finalizar`.
+
+Filtros dos Static Sites registrados na preparação da 4C em 06/11/2026 (`separar-etapa-4c-render-actions.json`):
+
+- Comuns: `packages/ui/**`, `package.json`, `package-lock.json`, `tsconfig.json`, `env.d.ts`, `tailwind.config.cjs`, `postcss.config.cjs` e `vite.shared.ts`.
+- Principal: também `apps/site/**`, `apps/finance/web/**`, `apps/tenders/web/package.json`, `public/**`, `index.html`, `app.html`, `assistant.html`, `demo.html`, `vite.main.config.ts` e `scripts/generate-public-route-html.mjs`.
+- Licitações: também `apps/tenders/web/**`, `apps/site/package.json`, `apps/finance/web/package.json`, `public/icons/favicon.svg`, `public/icons/apple-touch-icon.png`, `public/icons/fingerence-logo.webp`, `tenders.html` e `vite.tenders.config.ts`.
+
+Para as APIs, a preparação da 4C prevê filtros por `apps/finance/api/**` e `apps/tenders/api/**`. O snapshot final não expõe `buildFilter` desses dois serviços; conferir no painel antes de publicar, sem interpretar a ausência do campo como filtro desligado. O Cron tem filtro explícito `apps/tenders/api/**` e autodeploy desligado. Um filtro por árvore da API também abrange este README.
+
+Rewrites publicados, preservando `/licitacoes/app/configuracoes` como retorno de cobrança:
+
+| Serviço | Origem | Destino |
+|---|---|---|
+| Site principal | `/licitacoes/app` | `https://licitacoes-rfxl.onrender.com/licitacoes/app/tenders.html` |
+| Site principal | `/licitacoes/app/*` | `https://licitacoes-rfxl.onrender.com/licitacoes/app/*` |
+| Static Site de Licitações | `/licitacoes/app` e `/licitacoes/app/*` | `/licitacoes/app/tenders.html` |
+
+No principal, `/licitacoes` redireciona para `/licitacoes/`; os rewrites existentes de `/loja/*` e `/catalogo/*` continuam em `/index.html`. O build isolado de Licitações mantém `licitacoes/app` fisicamente dentro de `dist/tenders`; o build principal gera a página pública de Licitações em `dist/main/licitacoes/index.html`. `npm run build` ainda produz o combinado em `dist`, mas não é o alvo dos dois Static Sites publicados.
+
+Nomes de ambiente por processo, sem copiar valores entre produtos:
+
+- Site principal: `NODE_VERSION`, `VITE_FINANCE_API_URL`, `VITE_TENDERS_API_URL`, `VITE_GOOGLE_CLIENT_ID`. Static Site de Licitações: `NODE_VERSION`, `VITE_TENDERS_API_URL`.
+- APIs: `NODE_VERSION`, `NODE_ENV`, `ALLOWED_ORIGINS`, `JWT_EXPIRES_IN`; R2 pelas cinco `R2_*` abaixo. A Render fornece a porta do serviço.
+- Finanças: `DATABASE_URL`, `JWT_SECRET`, `TENDERS_API_URL`; provedores `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_TEMPLATE_COBRANCA_ID`, `EMAILJS_USER_ID`, `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_TOKENS_KEY`; rotinas `BILLING_CRON_SECRET`, `EXPENSE_ALERTS_CRON_SECRET`; push `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+- Licitações HTTP: `TENDERS_DATABASE_URL`, `TENDERS_JWT_SECRET`, `BACKEND_URL`, `FRONTEND_URL`; provedores `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID`, `EMAILJS_USER_ID`, `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY`. Não exige `DATABASE_URL`, `JWT_SECRET` ou conexão do coletor.
+- Coletor separado: `TENDERS_COLLECTOR_DATABASE_URL`, R2 e opções `PNCP_*`/`TENDERS_*` da tabela abaixo. Os aliases existentes continuam aceitos; não alterar o ambiente real do PC nesta etapa.
 
 ## Variáveis de ambiente
 
@@ -143,7 +186,7 @@ O webhook legado e `TENDERS_API_URL` permanecem até concluir a auditoria dos ob
 | `R2_STORAGE_PREFIX` | — | Pasta do ambiente no bucket: `producao` no Render, `local` no `.env.dev`. Minúsculas, números e hífen. Com o banco local, `producao` é recusada. As 5 do R2 vão juntas: parte delas é erro de configuração, e a mensagem só cita os nomes. |
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
-Durante a troca, `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` e `R2_STORAGE_PREFIX` aceitam, respectivamente, os aliases antigos `TENDERS_ARCHIVE_ENDPOINT`, `TENDERS_ARCHIVE_BUCKET`, `TENDERS_ARCHIVE_ACCESS_KEY_ID`, `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` e `TENDERS_STORAGE_PREFIX`. Um valor canônico não vazio prevalece por campo. Preservar bucket, prefixo e credenciais existentes; não mover objetos. Alterar o arquivo real de ambiente do PC ou variáveis da Render continua exigindo autorização específica.
+Os aliases antigos `TENDERS_ARCHIVE_ENDPOINT`, `TENDERS_ARCHIVE_BUCKET`, `TENDERS_ARCHIVE_ACCESS_KEY_ID`, `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` e `TENDERS_STORAGE_PREFIX` continuam aceitos, respectivamente, pelas cinco `R2_*`. Um valor canônico não vazio prevalece por campo. Sua retirada depende da atualização futura do PC e da conferência dos demais CLIs. Preservar bucket, prefixo e credenciais existentes; não mover objetos. Alterar o arquivo real de ambiente do PC ou variáveis da Render exige autorização específica.
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
 
@@ -187,13 +230,13 @@ npm --prefix apps/tenders/api run tenders:dev -- sweep
 
 ## Agendamento (Render Cron Job, horário em UTC)
 
-O Cron existente permanece **suspenso**. A rotina de Licitações continua em um comando próprio: `npm --prefix apps/tenders/api run daily-jobs` (`src/collector/dailyRoutineCli.ts`, lógica em `dailyRoutine.ts` e etapas em `dailyRoutineSteps.ts`). A rotina de planos é independente: `npm --prefix apps/finance/api run daily-jobs`. Seu agendamento será decidido antes de ativá-la; a 4B não liga Cron ou outro escritor.
+O Cron existente permanece **suspenso**. A rotina de Licitações tem comando próprio: `npm --prefix apps/tenders/api run daily-jobs` (`src/collector/dailyRoutineCli.ts`, lógica em `dailyRoutine.ts` e etapas em `dailyRoutineSteps.ts`). A rotina de planos é independente: `npm --prefix apps/finance/api run daily-jobs`; seu agendamento ainda depende de decisão antes da ativação. A coleta atual continua no PC, sem novo escritor.
 
 | Cron (UTC) | Command | Horário de Brasília |
 |---|---|---|
 | `0 9 * * *` | `npm run daily-jobs` | todo dia, 06:00 |
 
-**Configuração de destino do Cron existente** (`rotinas-diarias-planos-licitações`), somente na 4C: Root Directory `apps/tenders/api`, Build `npm ci`, comando `npm run daily-jobs`. Registrar a configuração anterior e manter o serviço suspenso até autorização expressa. A tabela acima documenta o horário histórico, não uma ativação nova.
+**Configuração registrada do Cron existente** (`rotinas-diarias-planos-licitações`): Root Directory `apps/tenders/api`, Build `npm ci --include=dev && npm run build`, comando `npm run daily-jobs`. O serviço continua suspenso e com autodeploy desligado. A tabela acima documenta seu horário cadastrado, sem autorizar uma ativação.
 
 **Etapas, em sequência:**
 1. varredura (`sweep`);
@@ -207,7 +250,7 @@ O Cron existente permanece **suspenso**. A rotina de Licitações continua em um
 9. carga dos contratos federais (`federal-load`), só com `TENDERS_FEDERAL_ENABLED=1`: usa só o tempo que sobra do prazo da rotina e, sem tempo, sai pulada, não falha;
 10. carga dos vencedores (`winners-backfill`), por último e só com `TENDERS_WINNERS_ENABLED=1`: usa só o tempo que sobra do prazo da rotina (690 min, menos 15 de folga) e, sem tempo, sai pulada, não falha.
 
-Os contratos não têm mais limpeza (parte 2 do plano `.plans/licitacoes-base-nacional.md`): os encerrados ficam na base. O tipo `CONTRATOS_LIMPEZA` fica só no histórico.
+Os contratos não têm mais limpeza: os encerrados ficam na base. O tipo `CONTRATOS_LIMPEZA` fica só no histórico.
 
 Uma etapa que falha não impede as seguintes, e a execução sai com código 1 se alguma falhou (o Render avisa a falha). Coleta pulada por trava ocupada só gera aviso no log. Cada etapa registra no log uma linha JSON de início e de fim, com a duração e a memória residente do processo (`rssMb`): as etapas rodam no mesmo processo, e é assim que se vê em produção se a memória volta ao nível de antes entre elas.
 
@@ -218,7 +261,7 @@ Uma etapa que falha não impede as seguintes, e a execução sai com código 1 s
 
 ## Rodar numa máquina própria
 
-A coleta de editais e contratos também roda fora do Render, numa máquina ligada 24 h (plano `.plans/coleta-licitacoes-no-pc.md`). Ela grava nos mesmos lugares da produção (Postgres do Render e R2 `producao/`), então o sistema vê os dados novos como se viessem do Cron Job. Serve para quando o Cron Job fica suspenso (por exemplo, sem clientes, para não pagar a rotina diária nem a carga do histórico). Quem roda é `apps/tenders/api/scripts/run-collector-on-pc.ps1`, no Windows PowerShell 5.1 ou no PowerShell 7 (`pwsh`).
+A coleta de editais e contratos roda fora do Render, numa máquina ligada 24 h (plano `.plans/coleta-licitacoes-no-pc.md`). Ela grava no banco próprio de Licitações e no R2 `producao/`, enquanto o Cron permanece suspenso. O caminho do script no código atual é `apps/tenders/api/scripts/run-collector-on-pc.ps1`, para Windows PowerShell 5.1 ou PowerShell 7 (`pwsh`); o checkout/agendamento em execução no outro PC ainda não foi atualizado. As instruções abaixo são referência para uma janela futura autorizada ou instalação nova, sem interromper a carga existente.
 
 **Preparação, uma vez**
 1. Node 22.17.0 e npm 10.9.2, git, o checkout autorizado e `npm --prefix apps/tenders/api ci`. Atualizar o checkout e as dependências somente entre blocos, na janela combinada.
@@ -238,7 +281,7 @@ A coleta de editais e contratos também roda fora do Render, numa máquina ligad
 
 **Passo a passo**
 
-Na atualização da 4C, preservar os parâmetros e o modo já usados no PC, incluindo `-EnvFile`, `-WorkDir`, `-From`, `-MaxMinutes`, memória e disco. Não reiniciar a carga do zero nem apagar progresso, temporários úteis ou logs. Os exemplos de carga abaixo também servem para instalações novas; a separação só muda o caminho do script e seu pacote npm.
+Na atualização futura do PC, preservar os parâmetros e o modo já usados, incluindo `-EnvFile`, `-WorkDir`, `-From`, `-MaxMinutes`, memória e disco. Não reiniciar a carga do zero nem apagar progresso, temporários úteis ou logs. A separação muda o caminho do script e seu pacote npm, sem autorizar essa atualização agora.
 ```powershell
 # 1. Conferência: confere tudo e mostra o que rodaria, sem gravar nada.
 powershell -NoProfile -ExecutionPolicy Bypass -File apps\tenders\api\scripts\run-collector-on-pc.ps1 -Mode backfill -DryRun
@@ -258,9 +301,9 @@ Depois da carga, o Agendador de Tarefas do Windows chama o modo `daily` (por exe
 
 ## Usuário de banco restrito
 
-O papel `licitacoes_coletor` e suas permissões já existem. A 4B os preserva, sem executar o exemplo histórico abaixo nem criar outro usuário.
+O papel `licitacoes_coletor` e suas permissões já existem no banco próprio de Licitações. Preservá-los, sem executar o exemplo histórico abaixo nem criar outro usuário.
 
-O coletor só lê e grava o schema `licitacoes`. Em produção ele usa um usuário próprio. No Render, crie-o via `psql` com o usuário dono do banco. Usuários criados por SQL não aparecem no painel.
+O coletor só lê e grava o schema `licitacoes`, sem acesso à identidade em `public`. O exemplo registra a criação original via SQL pelo dono do banco; não é uma instrução de execução na produção atual.
 
 ```sql
 CREATE ROLE licitacoes_coletor LOGIN PASSWORD '<senha forte, guardada só no Render>';
@@ -270,7 +313,7 @@ GRANT USAGE ON ALL SEQUENCES IN SCHEMA licitacoes TO licitacoes_coletor;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA licitacoes TO licitacoes_coletor;
 ```
 
-- Rodar depois das migrations 0072 a 0077. Os `GRANT ... ON ALL` valem para o que já existe; tabelas criadas depois exigem novo `GRANT`. As migrations 0080 e 0085 (contratos) já dão o acesso às tabelas que criam, quando o usuário existe.
+- Historicamente, esses grants acompanhavam as migrations 0072 a 0077; as 0080 e 0085 ampliaram as permissões. Hoje Licitações usa `migrations/0001_baseline.sql`, já aplicada. Não executar migrations históricas de Finanças nesse banco. `GRANT ... ON ALL` vale para os objetos existentes; mudanças futuras de privilégios exigem revisão e autorização próprias.
 - O usuário do backend é o dono das tabelas e já tem todas as permissões.
 - No banco local, o coletor pode usar o mesmo usuário do `.env.dev`.
 
@@ -345,7 +388,7 @@ SELECT count(*) AS editais,
 
 ## Arquivo bruto no R2
 
-Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): o que as coletas leem do PNCP fica guardado no Cloudflare R2, barato e completo, e o Postgres guarda só o que a busca usa.
+O arquivo bruto (`collector/archive.ts`): o que as coletas leem do PNCP fica guardado no Cloudflare R2, barato e completo, e o Postgres guarda só o que a busca usa.
 
 - **O que vai:**
   - contratos (coleta diária e carga): todos os registros lidos, inclusive os que não entram na base;
@@ -359,18 +402,18 @@ Parte 1 do plano `.plans/licitacoes-base-nacional.md` (`collector/archive.ts`): 
 - **Falha no envio:** o SDK repete o envio. Se ainda falhar, a parte é descartada e conta um erro (`kind: 'archive'`, com a chave). A coleta segue, e a execução fica "Parcial".
 - **Desligado:** sem as 5 variáveis do R2, a coleta segue sem arquivo, avisa no log e grava `enabled: false`.
 - **Cliente:** `objectStorage.ts`, com o `@aws-sdk/client-s3` (instalado só com versões de pelo menos 2 semanas), região `auto`, caminho `/<bucket>/<chave>` e checksums só quando a operação exige. Envia, baixa, lista e apaga (um por vez: o DeleteObjects exige checksum do corpo).
-- **Ligar:** criar o bucket privado e um token "Object Read & Write" restrito a ele, e definir as 5 variáveis no Cron Job, que roda as coletas, no Web Service, que lê o armazém de contratos, e no `.env.dev` (com `R2_STORAGE_PREFIX=local`), para testar no local. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
+- **Configuração existente:** o bucket privado e as credenciais são preservados. As cinco `R2_*` atendem o processo do coletor e o leitor da API; no ambiente local, o prefixo é `local`. O PC mantém seu arquivo próprio e seus aliases até a atualização autorizada. As chaves nunca vão para o repositório, o log ou os detalhes da execução.
 
 **Editais sem o JSON no banco** (parte 2 do mesmo plano): o coletor não grava mais `licitacoes.edital.payload`, só o hash dele. O que já estava gravado sai em três passos, banco por banco:
 1. **migration 0087:** a coluna passa a aceitar NULL;
 2. **`notices-payload-export`:** lê o JSON gravado em ordem de id, em lotes de 2.000 (um arquivo por lote), e envia para `pncp/editais-legado/<AAAA>/<MM>/<DD>/<execução>-<parte>.jsonl.gz`, com `controlNumber`, `firstCollectedAt` e `lastCollectedAt` em cada linha. É uma execução `MANUAL`, retomável (continua do maior `lastId` das anteriores). No fim, confere que não sobrou JSON depois do último id e grava `detalhes.verified`. Sem o R2, não roda;
 3. **migration 0088:** remove a coluna. Ela recusa rodar se ainda houver JSON sem uma exportação com `verified: true` no mesmo banco.
 
-A ordem na produção: deploy do código da parte 2, exportação, conferência e só então a 0088. A remoção não tem volta: o JSON fica só no R2.
+Ordem histórica já concluída: deploy do código da parte 2, exportação, conferência e só então a 0088. Não repetir essa operação na base atual. A remoção não tem volta: o JSON fica só no R2.
 
 ## Armazém de contratos no R2
 
-Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`): os contratos saem do Postgres e ficam em arquivos Parquet no R2, consultados pelo DuckDB (`@duckdb/node-api`). O coletor grava no armazém, e a API e as telas leem dele; `licitacoes.contrato` não existe mais (migration 0087b). No Postgres ficam só os dados de cada conta (favoritos, buscas salvas e avisos, que guardam o número de controle do contrato) e os dias da carga.
+O armazém (`contractStore/`): os contratos saem do Postgres e ficam em arquivos Parquet no R2, consultados pelo DuckDB (`@duckdb/node-api`). O coletor grava no armazém, e a API e as telas leem dele; `licitacoes.contrato` não existe mais (migration 0087b). No Postgres ficam só os dados de cada conta (favoritos, buscas salvas e avisos, que guardam o número de controle do contrato) e os dias da carga.
 
 - **Conjuntos** (`layout.ts`), em `contratos/arquivos/<conjunto>/<pasta>/v<versão>-<nº>.parquet`:
   - `vigentes`: vencimento de hoje em diante, por faixa de vencimento (semana no 1º ano, mês no 2º, ano até 10 anos e `depois`; a pasta é o dia em que a faixa começa), em partes de até 30 mil linhas, por vencimento e UF. É refeito a cada publicação. A faixa da semana de 31/12 (fim do ano fiscal) pode ter centenas de milhares de contratos, por isso também é dividida;
@@ -383,7 +426,7 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
 - **Chave do contrato** (`layout.ts`, `isContractKey`): o número de controle do PNCP (`03353358000196-2-000216/2026`) ou, nos federais, `comprasgov-<id>`. Só chave nesse formato vira consulta, favorito ou aviso; a das rotas é conferida antes e, fora do formato, dá 404. As chaves entram nas consultas como literais depois dessa conferência: com literais o DuckDB usa os mínimos e máximos dos arquivos para pular os que não têm o contrato.
 - **Consultas** (`queries.ts`): a lista da tela (`vigentes` ou, com "Incluir encerrados" e "Só favoritos", `contratos`), com o total tirado da própria página quando ela é a última e, senão, uma segunda consulta na mesma vaga da fila; o detalhe e a existência pela chave; a contagem dos vigentes de uma busca; e os vigentes que vencem numa janela de dias (por critérios ou por chaves), para os avisos.
 - **Manifesto** (`contratos/manifesto.json`, `manifest.ts`): a versão, o dia dos vigentes, os totais e os arquivos de cada conjunto, com linhas, tamanho e início da faixa.
-- **Gravação** (`writer.ts`, Cron Job, com a trava dos contratos):
+- **Gravação** (`writer.ts`, coletor, com a trava dos contratos):
   1. baixa o manifesto e os arquivos para a cópia de trabalho;
   2. guarda as mudanças da execução numa tabela do DuckDB, no banco de trabalho em disco (1 GB de memória por padrão, `TENDERS_DUCKDB_MEMORY_MB`; 1 linha de execução). Contrato igual (mesmo hash, vencimento e conferência dos termos) não muda;
   3. publica: regrava só as partes com contrato novo ou mudado (onde ele está e onde estava), divide a parte que passa do limite, refaz os vigentes (numa tabela do banco de trabalho, não na memória), envia os arquivos e, por último, o manifesto;
@@ -397,12 +440,12 @@ Partes R1 e R2 do plano `.plans/licitacoes-contratos-no-r2.md` (`contractStore/`
   - sem cópia pronta: `ContractStoreUnavailableError`, que a API responde como **503** com `code: "CONTRACT_STORE_UPDATING"` e a mensagem "Os contratos estão sendo atualizados. Tente de novo em instantes."; consulta que passa do limite de tempo responde **504** (`CONTRACT_SEARCH_TIMEOUT`);
   - armazém sem nenhuma publicação: visões vazias.
 - **No Web Service** (`service.ts`): o leitor começa junto com o servidor (`server.ts`), em segundo plano, na pasta temporária da máquina (`licitacoes-contratos`); o `/health` e o resto do sistema não esperam. Até a cópia ficar pronta (cerca de 1 minuto depois de um deploy ou reinício), as rotas de contratos respondem 503. Sem as variáveis do R2, ou com elas incompletas, o servidor sobe do mesmo jeito: o log registra o motivo (sem mostrar as chaves) e os contratos ficam indisponíveis.
-- **No Cron Job:** a coleta e os avisos da mesma rotina usam a mesma pasta de trabalho (`licitacoes-contratos-coletor`, no disco temporário): o que a coleta publicou já está lá quando os avisos começam, sem baixar de novo.
+- **No processo do coletor:** a coleta e os avisos da mesma rotina usam a mesma pasta de trabalho (`licitacoes-contratos-coletor`, no disco temporário): o que a coleta publicou já está lá quando os avisos começam, sem baixar de novo.
 - **Sem extensões baixadas:** o DuckDB lê só arquivos locais, com o que vem embutido (parquet, json, icu). Os arquivos chegam pelo cliente do R2.
 
 ## Vencedores das licitações
 
-Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação da Lei 14.133, lido do Compras.gov.br (dados abertos, sem autenticação) e guardado como o quarto conjunto do armazém Parquet do R2. Não há tabela de resultados no Postgres. O Web Service baixa e abre o conjunto `vencedores` (`WEB_STORE_DATASETS`, em `service.ts`) para a página do CNPJ (Parte 4, seção [Página do CNPJ](#página-do-cnpj)); sem arquivos de vencedores no manifesto a visão fica vazia e as consultas devolvem zeros. O aceite da Parte 3 é o comando `winners-lookup --cnpj`.
+Vencedores das licitações: quem ganhou cada licitação da Lei 14.133, lido do Compras.gov.br (dados abertos, sem autenticação) e guardado como o quarto conjunto do armazém Parquet do R2. Não há tabela de resultados no Postgres. O Web Service baixa e abre o conjunto `vencedores` (`WEB_STORE_DATASETS`, em `service.ts`) para a página do CNPJ (Parte 4, seção [Página do CNPJ](#página-do-cnpj)); sem arquivos de vencedores no manifesto a visão fica vazia e as consultas devolvem zeros. O aceite da Parte 3 é o comando `winners-lookup --cnpj`.
 
 - **A fonte** (`comprasGovClient.ts`, medida em 25/10/2026 pela `winners-probe`):
   - `GET https://dadosabertos.compras.gov.br/modulo-contratacoes/3_consultarResultadoItensContratacoes_PNCP_14133` com `pagina`, `tamanhoPagina` (máximo 500; 501 dá HTTP 400), `dataResultadoPncpInicial` e `dataResultadoPncpFinal`;
@@ -417,19 +460,19 @@ Parte 3 do plano `.plans/licitacoes-vencedores.md`: quem ganhou cada licitação
   - **Manifesto:** o mesmo dos contratos, com a chave nova `datasets.vencedores` (o formato continua 1: o Web Service antigo ignora a chave). O gravador de contratos carrega a lista adiante em toda publicação; sem isso, publicar contratos apagaria os vencedores do manifesto e a limpeza apagaria os arquivos. Há teste para isso.
 - **Agregação** (`winnerRows.ts`, função pura): cada resultado tira a chave `item/sequência` de todas as linhas da compra e, se for vencedor, põe o item na linha do fornecedor atual. Isso cobre sobrescrita, cancelamento, reativação, valor ou data corrigidos e a troca de fornecedor do mesmo item. Os totais são sempre recalculados a partir do mapa, e linha com hash igual não muda (reler não publica nada). Linha que perde o último item vira lápide e sai do arquivo; **nada é removido por ausência**. O nome, o porte e a unidade do fornecedor variam de um item para outro da mesma linha (medido: uma empresa vinha "ME" nos itens de um dia e "Demais" nos do dia seguinte), então eles vêm sempre do **primeiro item da linha** (menor número e sequência): assim o estado só depende dos itens, e não da ordem nem da divisão em lotes (a regra anterior, "o mais recente do lote", fazia de 15 a 20 linhas mudarem a cada releitura). Se o primeiro item é cancelado, a linha guarda os dados dele até o novo primeiro item ser lido de novo.
   - **Quem vence:** situação 1 (informado) sem data de cancelamento. Situação 2 ou data de cancelamento é cancelado. A 3 (cadastro de reserva) e qualquer outra não vencem. O campo `ordemClassificacaoSrp` (61% preenchido) pode separar vencedor de classificado depois dele: no piloto de 09/2026, 840 de 176.070 vencedores (0,48%) têm ordem acima de 1 (`winnersWithRankAboveOne`) e hoje contam como vencedores. Não apareceu nenhuma situação 3 (reserva) e 34 registros vieram na situação 4, que também não vence.
-- **Gravação** (`winnerWriter.ts`, Cron Job, com a trava dos contratos): baixa só os arquivos dos vencedores; o estado anterior vem por compra (as mudanças da execução valem mais que os arquivos); publica regravando o ano inteiro de cada ano tocado; envia os arquivos novos, o manifesto por último, e apaga do bucket o que nenhum dos dois últimos manifestos usa. DuckDB de 128 MB e 1 thread, partes de 25 mil linhas. É uma cópia consciente de trechos do gravador dos contratos, para não mexer no que está em produção.
+- **Gravação** (`winnerWriter.ts`, coletor, com a trava dos contratos): baixa só os arquivos dos vencedores; o estado anterior vem por compra (as mudanças da execução valem mais que os arquivos); publica regravando o ano inteiro de cada ano tocado; envia os arquivos novos, o manifesto por último, e apaga do bucket o que nenhum dos dois últimos manifestos usa. DuckDB de 128 MB e 1 thread, partes de 25 mil linhas. É uma cópia consciente de trechos do gravador dos contratos, para não mexer no que está em produção.
 - **Coleta diária** (`resultRuns.ts`, `winners-daily`): relê **7 dias antes do último dia lido** (a atualização de um resultado chega até 8 dias depois), até hoje, em etapas de até 7 dias depois de uma parada. O último dia lido é o último dia em que a fonte **tinha registro**, e nunca passa dele: com a fonte parada, a janela só se repete, sem publicar nada, e quando ela voltar nenhum dia fica para trás. Janela sem nenhum registro falha. Mais de 5% de registros recusados (com pelo menos 100 lidos) derruba a execução. Lote de 4.000 registros, que pode atravessar páginas.
   - **Cada dia é lido sozinho e só vale se vierem todas as linhas dele.** A identidade de uma linha é licitação, item e sequência (`sourceRowKey`); o dia confere as linhas distintas com o `totalRegistros`. Faltando, lê o dia de novo com outro tamanho de página (`RETRY_PAGE_SIZES`: 499, 437 e 389), aplicando só as linhas que ainda não vieram (a linha repetida não é aplicada nem arquivada outra vez). Depois de `MAX_READ_PASSES` (4) leituras sem completar, o dia não vale como lido: a execução sai PARCIAL com o erro `incomplete` (total informado, linhas distintas e leituras), a consulta fica não concluída e a janela é relida na próxima. Fonte fora do ar encerra a janela; um dia incompleto não impede os outros.
   - **Custo:** o dia que vem falho custa duas leituras. A carga completa (cerca de 13.500 páginas) passa a ~27 mil pedidos, uns 13 h de espera a 1,7 s por página; a coleta diária (9 dias, uns 7 úteis de cerca de 17 páginas) fica em ~240 pedidos, uns 7 min de leitura, antes de publicar. Medido numa janela fria de 12 dias: 408 pedidos e 12,7 min, com a publicação.
 - **Carga histórica** (`winners-backfill`): do dia mais recente ao mais antigo, **um dia por vez**, retomável pela tabela `resultado_carga_dia`. Publica a cada 20 dias concluídos e no fim do bloco, e só depois de publicar marca os dias. Dia vazio depois do último dia com dado da fonte não é carregado e não fica pendente (é da coleta diária). Dia que não completa (acima) fica pendente e conta como dia com falha. Três falhas seguidas encerram o bloco. `--from` ou `--to` fazem **reparo**: relêem a faixa inteira, mesmo os dias já marcados.
 - **Arquivo bruto** (`comprasgov/resultados`): o registro como veio, só quando é inédito (dia ainda não coberto), mudou o estado de uma linha ou foi recusado, **com o CPF de 11 dígitos mascarado antes de entrar**. O bruto é descarregado antes de cada publicação, e falha no envio dele cancela a publicação e deixa tudo como não lido.
 - **Detalhes da execução:** `queries` (a janela e até onde foi lida), `sourceLastDay`, `metrics` (páginas, linhas repetidas, leituras extras e dias incompletos, tempos de leitura, de aplicação e de publicação, registros por situação, linhas novas, alteradas, removidas e iguais, dias vazios, cancelamentos por atraso e o pico de memória do processo), `publications` e `store`. Configurações › Coleta tem o card "Vencedores".
-- **Ordem de deploy** (decisão do plano): aplicar a **0087c** na produção antes (fora das 06:00 de Brasília; ela não depende da 0088); o merge sobe o Cron Job e o Web Service com `TENDERS_WINNERS_ENABLED` desligada, ou seja, inertes; depois do piloto aprovado, a flag é ligada no Cron Job com `TENDERS_WINNERS_BACKFILL_MINUTES=30`, acompanhando 2 ou 3 rotinas (duração, `rssMb` entre as etapas, tempo de publicação e o card). Conferir antes, no Render, o limite de duração e a memória do Cron Job.
-- **Risco de rollback do Cron Job:** voltar só o Cron Job para uma versão sem a linha do gravador de contratos que carrega `vencedores` adiante faz a próxima publicação de contratos apagar os vencedores do manifesto e os arquivos do bucket (refazer a carga leva dias). A flag fica desligada até o Cron Job novo estar ativo.
+- **Histórico do deploy original**: aplicar a **0087c** na produção antes (fora das 06:00 de Brasília; ela não depende da 0088); o merge sobe o Cron Job e o Web Service com `TENDERS_WINNERS_ENABLED` desligada, ou seja, inertes; depois do piloto aprovado, a flag é ligada no Cron Job com `TENDERS_WINNERS_BACKFILL_MINUTES=30`, acompanhando 2 ou 3 rotinas (duração, `rssMb` entre as etapas, tempo de publicação e o card). Conferir antes, no Render, o limite de duração e a memória do Cron Job.
+- **Risco de rollback do coletor:** voltar o escritor para uma versão sem a linha do gravador de contratos que carrega `vencedores` adiante faz a próxima publicação de contratos apagar os vencedores do manifesto e os arquivos do bucket (refazer a carga leva dias). Esse risco histórico continua relevante ao escolher versões para o escritor.
 
 ## Contratos federais
 
-Parte 5 do plano `.plans/licitacoes-contratos-federais.md`: os contratos dos órgãos federais que o PNCP não tem (lei antiga, o que ele nunca recebeu e os empenhos), lidos do Compras.gov.br (dados abertos, sem chave) e gravados no mesmo armazém do R2. Entram em Contratos a vencer, na busca, nos favoritos, nas buscas salvas, nos avisos de vencimento e na página do CNPJ, sem tela nova. Na UFMG, 22% dos contratos vigentes não estavam no PNCP.
+Contratos federais: os contratos dos órgãos federais que o PNCP não tem (lei antiga, o que ele nunca recebeu e os empenhos), lidos do Compras.gov.br (dados abertos, sem chave) e gravados no mesmo armazém do R2. Entram em Contratos a vencer, na busca, nos favoritos, nas buscas salvas, nos avisos de vencimento e na página do CNPJ, sem tela nova. Na UFMG, 22% dos contratos vigentes não estavam no PNCP.
 
 - **A fonte** (`comprasGovClient.ts`, medida em 26/10/2026):
   - `modulo-contratos/1_consultarContratos` (por início da vigência) e `1.2_consultarContratos_FimVigencia` (por fim da vigência), com os mesmos campos nas duas; exigem `codigoOrgao` e uma janela em que o fim está a **no máximo 365 dias do início** (o ano de 2024 inteiro passa; de 01/01/2024 a 01/01/2025, não: HTTP 400); `tamanhoPagina` de 10 a 500;
@@ -450,12 +493,12 @@ Parte 5 do plano `.plans/licitacoes-contratos-federais.md`: os contratos dos ór
 - **Aviso de vencimento:** o contrato federal favoritado que muda de vencimento gera `CONTRATO_ALTERADO` depois de publicar, como os do PNCP.
 - **Arquivo bruto** (`comprasgov/contratos`): o registro como veio, só o que entrou, mudou ou foi recusado, com o CPF de 11 dígitos mascarado antes de entrar; descarregado antes de publicar (falha no envio cancela a publicação).
 - **Detalhes da execução:** `backfill` (carga: ano de início, órgãos concluídos, parada) ou `cycle` (elegíveis, lidos, parada), `metrics` (páginas, janelas, janelas incompletas e divididas, linhas repetidas, tempo de leitura, de aplicação e de publicação, e as linhas puladas por motivo), `agencies`, `units`, `sourceLastInclusion`, `publications`. Configurações › Coleta tem o card "Contratos federais".
-- **Rotina diária:** as etapas `tenders-federal-cycle` e `tenders-federal-backfill` só rodam com `TENDERS_FEDERAL_ENABLED=1` e usam só o tempo que sobra do prazo da rotina. Variáveis só no Cron Job.
-- **Ordem de deploy:** aplicar a **0087d** na produção antes (fora das 06:00 de Brasília; vem antes da 0088 e não depende dela); o merge sobe o Cron Job e o Web Service com a variável desligada, ou seja, inertes; depois do piloto aprovado, a variável é ligada no Cron Job com `TENDERS_FEDERAL_MINUTES=30` ou 60, acompanhando 2 ou 3 rotinas (duração, `rssMb`, tempo de publicação e o card). Antes de ligar, os Termos e a Privacidade precisam creditar o Compras.gov.br (texto aprovado pelo titular do projeto).
+- **Rotina diária:** as etapas `tenders-federal-cycle` e `tenders-federal-backfill` só rodam com `TENDERS_FEDERAL_ENABLED=1` e usam só o tempo que sobra do prazo da rotina. Essas variáveis pertencem ao processo do coletor, não ao servidor HTTP.
+- **Histórico do deploy original:** aplicar a **0087d** na produção antes (fora das 06:00 de Brasília; vem antes da 0088 e não depende dela); o merge sobe o Cron Job e o Web Service com a variável desligada, ou seja, inertes; depois do piloto aprovado, a variável é ligada no Cron Job com `TENDERS_FEDERAL_MINUTES=30` ou 60, acompanhando 2 ou 3 rotinas (duração, `rssMb`, tempo de publicação e o card). Antes de ligar, os Termos e a Privacidade precisam creditar o Compras.gov.br (texto aprovado pelo titular do projeto).
 
 ## Página do CNPJ
 
-Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados, como fornecedor (contratos e licitações vencidas) e como órgão (contratos e editais abertos). Os dados são públicos e iguais para todas as contas; a trava do módulo (acesso valendo) vale como nas outras rotas.
+A página do CNPJ: o que um CNPJ é nos dados, como fornecedor (contratos e licitações vencidas) e como órgão (contratos e editais abertos). Os dados são públicos e iguais para todas as contas; a trava do módulo (acesso valendo) vale como nas outras rotas.
 
 - **CNPJ** (`cnpj.ts`, uma regra só no backend; no front, `apps/tenders/web/src/utils/cnpj.ts` e o `isValidCnpj` de `packages/ui/src/utils/brazilDocuments.ts`):
   - `isCnpjFormat` confere só os 14 dígitos e vale nos filtros das buscas (a fonte traz CNPJs com dígito verificador errado: 5 de 92.281 fornecedores nos contratos reais);
@@ -477,9 +520,9 @@ Parte 4 do plano `.plans/licitacoes-pagina-cnpj.md`: o que um CNPJ é nos dados,
 
 ## Contratos a vencer (dados)
 
-Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria, com uma carga inicial e uma coleta diária. Desde a Parte R2 do plano `.plans/licitacoes-contratos-no-r2.md`, essa base é o [armazém no R2](#armazém-de-contratos-no-r2), e não mais a tabela `licitacoes.contrato` (migrations 0085 a 0087, removida pela 0087b).
+Contratos a vencer: os contratos do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria, com uma carga inicial e uma coleta diária. Desde a adoção do armazém Parquet, essa base é o [armazém no R2](#armazém-de-contratos-no-r2), e não mais a tabela `licitacoes.contrato` (migrations 0085 a 0087, removida pela 0087b).
 
-**O que entra** (`collector/contractMapping.ts`; desde a parte 2 do plano `.plans/licitacoes-base-nacional.md`, migration 0087):
+**O que entra** (`collector/contractMapping.ts`; origem histórica: migration 0087):
 - todos os tipos (contrato, empenho, carta contrato, termo de adesão, "Outros"...), de qualquer duração, vigentes e encerrados, com o tipo gravado (`tipo_contrato_id` e `tipo_contrato_nome`). Antes, só o "Contrato (termo inicial)" com 180 dias ou mais e ainda vigente;
 - **sem vencimento**, contados nos detalhes da execução, sem erro: sem data de fim (`withoutEndDate`) e vigência de mais de 35 anos (`implausibleTerm`: digitação como 2227, ou água e energia com 2100 e 3024). Entram com `vigencia_fim_original` e `vencimento` nulos; um aditivo de prazo ou uma rescisão dá o vencimento depois;
 - registro fora do formato (CNPJ, datas, fim antes do início) conta erro, como nos editais;
@@ -506,14 +549,14 @@ Parte A do plano `.plans/licitacoes-contratos-a-vencer.md`: os contratos do PNCP
 - **Andamento:** em Configurações › Coleta (bloco Contratos) ou no comando `status`.
 
 **Coleta diária:**
-- **Coleta** (plano `.plans/licitacoes-contratos-coleta-sem-perda.md`): os contratos publicados e os atualizados, cada consulta na sua janela:
+- **Coleta** (janelas de publicação e atualização): os contratos publicados e os atualizados, cada consulta na sua janela:
   - **início:** o último dia que aquela consulta leu sem falha do PNCP, que é o fim gravado em `detalhes.queries` da última `CONTRATOS_DIARIA` em que ela terminou. Sem nenhuma, ou se for depois de ontem, ontem. Num dia normal, de ontem a hoje;
   - **fim:** hoje, ou no máximo 7 dias depois do início (`DAILY_MAX_WINDOW_DAYS`). Uma parada longa é recuperada em etapas, sem dia perdido, e Configurações › Coleta mostra "Recuperando dias sem coleta";
   - erro de registro ou de termos não segura o início. Reler um dia já lido não duplica nada;
   - a coleta publica o armazém no fim da execução, e só então as consultas valem como lidas: se a publicação falhar (R2 fora do ar), as consultas ficam como não concluídas nos detalhes e a próxima execução lê as mesmas janelas. Sem mudança nenhuma, nada é publicado;
   - quem favoritou um contrato que mudou de vencimento recebe `CONTRATO_ALTERADO` também só depois da publicação.
 - **Reconsulta dos termos:** depois das consultas, até 200 contratos (`TERMS_RETRY_LIMIT`) com sinal de alteração e termos não conferidos para a atualização global atual, que sobram quando o PNCP falhou antes, na coleta ou na carga. Vão da atualização mais antiga para a mais nova, sem os que falharam na própria execução, e a reconsulta para depois de 3 falhas seguidas. A lista sai de uma consulta do DuckDB sobre a cópia de trabalho (as mudanças da execução valem mais que os arquivos), e a conferência é gravada nas mudanças, para a publicação levar ao armazém. O resumo fica em `detalhes.termsRetry`.
-- **Sem limpeza:** os encerrados ficam na base (parte 2 do plano `.plans/licitacoes-base-nacional.md`). Até a parte 2, a limpeza apagava todo dia os vencidos, menos os favoritados.
+- **Sem limpeza:** os encerrados ficam na base. Antes dessa mudança, a limpeza apagava todo dia os vencidos, menos os favoritados.
 
 **Medido no piloto** (13 e 14/10/2026, no Postgres, ainda só com o termo inicial; números completos no plano):
 - **Ritmo:** nenhum 429 com termos a 4 s, 1 s e 0,5 s (mais de 10 mil consultas a 0,5 s). A consulta de contratos, a 4 s entre páginas de 500, levou de 1 a 3 s por página.
@@ -533,7 +576,7 @@ Parte B do plano dos contratos a vencer (migration `0086_licitacoes_contratos_fa
 
 **Busca** (`services/contractSearch.ts`, consultas em `contractStore/queries.ts`):
 - mostra só os contratos vigentes (conjunto `vigentes`: vencimento de hoje em diante, em Brasília; sem vencimento, fica de fora). Com "Só favoritos", aparecem também os favoritos vencidos: as chaves da pessoa vão para a consulta do conjunto `contratos`;
-- **"Incluir encerrados"** (`includeClosed`, parte 2 do plano `.plans/licitacoes-base-nacional.md`): todos, inclusive os vencidos e os sem vencimento (conjunto `contratos`). A ordem padrão passa a ser a publicação mais recente. É a busca mais lenta (a palavra em todos os contratos, de 3 a 12 s);
+- **"Incluir encerrados"** (`includeClosed`): todos, inclusive os vencidos e os sem vencimento (conjunto `contratos`). A ordem padrão passa a ser a publicação mais recente. É a busca mais lenta (a palavra em todos os contratos, de 3 a 12 s);
 - **tipo de contrato** (`contractType`, repetível): os ids da lista `CONTRACT_TYPES` (`domains.ts`, a mesma do PNCP), com nomes curtos para a tela. O tipo e os encerrados são só da tela: a busca salva e os avisos continuam com os vigentes;
 - palavras como na busca de editais, no objeto e na informação complementar. As frases de cada termo (com singular e plural) vêm do Postgres (`licitacoes.fn_frases_termo`, migration 0087a), e os radicais já estão nos arquivos;
 - **número** (grupos de dígitos, como na 0079): número do contrato + ano, processo + ano, controle PNCP do contrato ou controle da compra; todos os grupos no mesmo campo;
@@ -646,7 +689,7 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
 
 ## Assinatura
 
-Plano `.plans/licitacoes-produto.md`, migration `0080_licitacoes_assinatura.sql`. Licitações é cobrado à parte do FINGERENCE, por conta.
+Origem histórica: migration `0080_licitacoes_assinatura.sql`. Licitações é cobrado à parte do FINGERENCE, por conta.
 
 **Dados** (colunas novas em `licitacoes.conta_habilitada`):
 - `tipo_acesso`: `cortesia` (sem cobrança e sem limite de usuários) ou `assinatura`. As contas que já tinham o módulo antes da 0080 ficaram como cortesia;
@@ -674,7 +717,7 @@ O comando do admin mostra o destino e exige confirmação antes da senha, que é
 
 A troca anterior está descrita no [roteiro da 3B](../../../docs/tenders-3b-cutover.md). Agora cada API tem seu runner: Licitações usa `apps/tenders/api/scripts/migrations.ts` e `migrations/`; Finanças usa `apps/finance/api/scripts/migrations.ts` e `drizzle/`. `--projeto` é opcional e aceita somente o projeto da própria API. O runner escolhe `DOTENV_CONFIG_PATH` quando explícito; senão, o arquivo `.env.dev`/`.env` da raiz do repositório se existir, ou as variáveis do processo. `--banco` continua obrigatório e a URL é validada antes da conexão. Produção só grava com `--confirmo` e aprovação do usuário.
 
-Não editar nem reaplicar a baseline ou as migrations históricas: a 4B não muda banco. O coletor mantém `TENDERS_COLLECTOR_DATABASE_URL`, com a identidade restrita e o progresso existentes. A migration `0096` e sua proteção histórica ficam apenas em Finanças; a conferência excepcional do banco próprio só é usada se essa migration histórica precisar ser aplicada em outro ambiente. Status normal e boot de Finanças não exigem conexão com Licitações. A montagem transitória é substituída pela compatibilidade HTTP preparada para a 4C.
+Não editar nem reaplicar a baseline ou as migrations históricas. O coletor mantém `TENDERS_COLLECTOR_DATABASE_URL`, com a identidade restrita e o progresso existentes. A migration `0096` e sua proteção histórica ficam apenas em Finanças; a conferência excepcional do banco próprio só é usada se essa migration histórica precisar ser aplicada em outro ambiente. Status normal e boot de Finanças não exigem conexão com Licitações. A montagem transitória foi removida; somente o POST exato do webhook legado permanece como compatibilidade HTTP.
 
 **Cobrança** (`/billing`, só o titular e só em conta dele; em cortesia, os pagamentos dão 409):
 - `GET /billing?accountId=`: situação (`cortesia`, `teste`, `paga`, `recorrente`, `vencida` ou `desligada`), usuários, valor do mês e preço;
@@ -687,10 +730,10 @@ Não editar nem reaplicar a baseline ou as migrations históricas: a 4B não mud
 
 ## App do módulo (front, Fases 3 e 4)
 
-O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de finanças não baixa esse código.
+O app tem workspace próprio em `apps/tenders/web` e build separado de site e Finanças. Quem usa só o app de Finanças não baixa esse código.
 
 - **Entrada:** `tenders.html` e `apps/tenders/web/src/`, com rotas sob `/licitacoes/app` (`BrowserRouter` com `basename`).
-- **Endereço:** o sistema abre só em `/licitacoes/app`. O `/licitacoes/` é a página de Licitações no site (plano `.plans/site-menu-textos-cards.md`, adendo 1).
+- **Endereço:** o sistema abre só em `/licitacoes/app`. O `/licitacoes/` é a página de Licitações no site.
 - **Login:** o formulário do site usa `/api/tenders/auth/*`, cadastro somente com CNPJ e teste de 15 dias. A sessão `tenders.*` e o `state=google-oauth:tenders` levam a `/licitacoes/app`; não há ativação por conta de Finanças nem envio de `modulo`.
 - **Entrada no módulo**, conforme `GET /api/tenders/access`:
   - sem sessão: login;
@@ -698,14 +741,11 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
   - 402: o titular vê a assinatura da conta vencida e paga ali mesmo; o colaborador, "peça ao titular para renovar";
   - 403: "peça ao titular";
   - outro erro: "tentar de novo".
-- **Servidor local:** o `vite.config.ts` reescreve `/licitacoes/app` e `/licitacoes/app/*` para `tenders.html`, tanto no `npm run dev` quanto no `vite preview`.
+- **Servidor local:** `npm run dev` usa a configuração combinada do Vite para as entradas dos dois produtos. `npm run preview:main` e `npm run preview:tenders` servem seus builds próprios; a configuração compartilhada preserva `/licitacoes/app` e suas rotas no alvo que contém Licitações.
 
-**Hospedagem em produção (regras do site estático no Render):**
-- `/licitacoes/app` e `/licitacoes/app/*` são reescritos (rewrite) para `/tenders.html`, como já acontece com `/loja/*`.
-- `/licitacoes` redireciona para `/licitacoes/`, a página do site, como as outras páginas.
-- O build gera `dist/tenders.html` e a página `dist/licitacoes/index.html`.
+**Hospedagem em produção:** o site principal encaminha `/licitacoes/app` e `/licitacoes/app/*` ao Static Site próprio de Licitações. Nele, as rotas abrem `/licitacoes/app/tenders.html`; o build principal mantém a página pública `/licitacoes/`. As origens, diretórios e regras estão na [matriz de publicação](#publicação-registrada-na-render).
 
-**Caminhos até o módulo** (plano `.plans/site-novo.md`, decisão 5: Licitações e FINGERENCE separados no site e nos sistemas):
+**Caminhos até o módulo**, separados do sistema de Finanças:
 - **Site:** a página `/licitacoes/` tem "Teste grátis por 15 dias" (abre o cadastro com `context="tenders"`) e "Entrar" (abre o login de Licitações, que leva a `/licitacoes/app`). As páginas da empresa não têm atalho de login.
 - **Sem atalhos entre os sistemas:** o FINGERENCE não mostra Licitações (menu lateral, bloqueio de plano), e Licitações não mostra o FINGERENCE (menu, menu do usuário, telas de bloqueio). Cadastro, banco e sessão já são próprios de cada produto.
 
@@ -716,11 +756,11 @@ O app fica no front do FINGERENCE, numa entrada própria. Quem usa só o app de 
 
 ### Telas (Fase 4)
 
-Plano: `.plans/licitacoes-fase4-plano.md`. A Parte 4A traz Dashboard, Editais, Detalhe e Buscas salvas; a Parte 4B traz Acompanhamento, o sino de notificações e Configurações.
+As fases originais do frontend entregaram Dashboard, Editais, Detalhe, Buscas salvas, Acompanhamento, sino de notificações e Configurações.
 
-As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Editais e no formulário de Busca salva (plano `.plans/licitacoes-usabilidade-favoritos.md`).
+As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "Todos" e "Limpar", em Editais e no formulário de Busca salva.
 
-**Listas com rolagem infinita** (plano `.plans/licitacoes-lista-infinita.md`): Editais, Contratos a vencer, Favoritos (as duas abas), as licitações vencidas da página do CNPJ e o histórico da Coleta não têm "Por página", Anterior e Próxima, nem alternância Cards/Tabela ou modo Compacta:
+**Listas com rolagem infinita**: Editais, Contratos a vencer, Favoritos (as duas abas), as licitações vencidas da página do CNPJ e o histórico da Coleta não têm "Por página", Anterior e Próxima, nem alternância Cards/Tabela ou modo Compacta:
 - a lista começa com 50 itens e pede os próximos 50 (`page` e `perPage=50` da API) quando a pessoa chega perto do fim; o rodapé mostra "Mostrando N de T", "Carregando…", "Fim da lista" ou o erro com "Tentar de novo" (a lista que já chegou fica);
 - é virtualizada (`@tanstack/react-virtual`, virtualizador de janela): só os cards perto da tela ficam desenhados, e o Ctrl+F do navegador só acha o que está desenhado;
 - a página não vai para a URL (`pagina` e `porPagina` de links antigos são ignorados, e o link abre do início); mudar filtro ou ordem recomeça do topo;
@@ -730,10 +770,10 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 
 **Cartão padrão** (`components/ListCard.tsx`): editais, contratos, licitações vencidas, buscas salvas e execuções da Coleta usam a mesma casca, e cada tela só preenche os encaixes (selos e ação no topo, título, linhas de contexto, métricas e rodapé de ações). O quadro de Acompanhamento, o sino, o Dashboard, a Equipe e Admin › contas têm formato próprio.
 
-**Contas habilitadas (`/admin/contas`)** (planos `.plans/licitacoes-acesso-rotina-diaria.md` e `.plans/licitacoes-produto.md`):
+**Contas habilitadas (`/admin/contas`)**:
 - tela só do admin da plataforma (`permissions.manageEnabledAccounts`), no fim do menu;
 - busca por conta, dono ou e-mail;
-- interruptor de cortesia por conta, PF ou PJ, com a situação de cada uma no módulo (sem o módulo, teste, pago, recorrente, vencida);
+- interruptor de cortesia por conta PJ, com a situação de cada uma no módulo (sem o módulo, teste, pago, recorrente, vencida);
 - tirar a cortesia pede confirmação, porque, sem teste nem período pago, a conta fica vencida (na conta em uso, o admin pode perder o acesso ao módulo);
 - dar cortesia a uma conta com recorrente avisa que a cobrança no cartão continua até o titular cancelar.
 
@@ -766,7 +806,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - **busca em todos os contratos:** com "Incluir encerrados", a tela mostra "Buscando em todos os contratos…" enquanto a consulta roda;
   - no rodapé, a última coleta diária de contratos.
 - **Página do CNPJ (`/cnpj/:cnpj`):** ver a seção [Página do CNPJ](#página-do-cnpj); abre pelas caixas de busca, pelos nomes de órgãos e fornecedores e pelo atalho dos filtros de CNPJ.
-- **Telas sem a marca da fonte** (parte 7 do plano `.plans/licitacoes-base-nacional.md`):
+- **Telas sem a marca da fonte** (crédito da fonte nos termos e na privacidade):
   - nenhum texto de tela cita o PNCP: "Número de controle", "Abrir edital original", "Ver documento original", "Buscando os itens…", "Edital" nas ações rápidas e avisos neutros;
   - os links ao documento original continuam, para o site oficial;
   - a API também não cita a fonte no que chega à tela: a situação 1 vira "Divulgada", a falha nos itens e arquivos diz "Não foi possível buscar os dados da compra agora", o aviso de edital alterado é "Edital acompanhado foi alterado", e os erros das consultas na Coleta dizem "A consulta falhou…". O que já estava gravado com o texto antigo (avisos e erros) aparece com o texto novo na leitura;

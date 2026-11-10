@@ -15,15 +15,24 @@ Leia o `CLAUDE.md` na raiz para as regras completas de workflow.
 
 ## Contexto do Projeto
 
-Este projeto é um backend para um sistema multi-prefeitura, com arquitetura multi-tenant + RLS. Cada prefeitura deve ter seus dados isolados logicamente, e qualquer funcionalidade nova precisa respeitar esse isolamento.
+O FinGerence reúne o site público e os produtos Finanças e Licitações. Cada produto tem API, banco, identidade e sessão próprios. O tenant é a conta (`conta_id`, exposta como `accountId` no código); o isolamento atual é validado pela aplicação, sem RLS implementada.
 
 A aplicação possui fluxos frequentes de emissão de relatórios e geração de PDFs, portanto qualidade, eficiência, previsibilidade e segurança são prioridades.
+
+### Estrutura atual
+
+- `apps/site`: páginas públicas e entrada de login por produto.
+- `apps/finance/web` e `apps/finance/api`: frontend e API de Finanças.
+- `apps/tenders/web` e `apps/tenders/api`: frontend, API e coletor de Licitações.
+- `packages/ui`: interface e utilidades comuns do frontend.
+- A raiz gerencia somente os workspaces do frontend. Cada API tem instalação, lockfile e comandos próprios; não importar código entre produtos.
+- Operação, comandos e configuração publicada: [README de Licitações](apps/tenders/api/README.md). Há compatibilidade temporária apenas para o POST legado de cobrança; coletor, R2 e Mercado Pago têm pendências registradas ali.
 
 ## Objetivos do Agente
 
 Ao implementar, alterar ou revisar código neste projeto, siga estas prioridades:
 
-1. Manter isolamento correto entre prefeituras/tenants.
+1. Manter isolamento correto entre contas e entre produtos.
 2. Escrever código legível, moderno, sustentável e testável.
 3. Evitar queries inseguras, ambíguas ou difíceis de auditar.
 4. Preservar performance em rotas críticas, especialmente relatórios e geração de PDFs.
@@ -48,7 +57,7 @@ Ao implementar, alterar ou revisar código neste projeto, siga estas prioridades
 
 ## Arquivos Persistentes
 
-O backend roda sem disco persistente: o disco do servidor some a cada deploy, reinício ou hibernação. Todo arquivo que precisa durar vai para o R2, pelo serviço de arquivos (`backend/src/services/attachment*.ts`, tabela `anexos`, rotas `/api/attachments`).
+As APIs rodam sem disco persistente: o disco do servidor some a cada deploy, reinício ou hibernação. Todo arquivo que precisa durar vai para o R2. Finanças usa `apps/finance/api/src/services/attachment*.ts`, tabela `anexos` e rotas `/api/attachments`; Licitações mantém seu armazenamento em `apps/tenders/api/src/objectStorage.ts` e `contractStore/`, sem acessar os anexos ou o banco de Finanças.
 
 - Não grave arquivo duradouro no disco local (`fs.writeFile`, `multer` com `diskStorage`, pastas como `uploads/`) nem dentro de coluna do banco (base64 em `jsonb` ou `text`).
 - Arquivo temporário e recriável (OCR, conversão, cache de leitura) usa `os.tmpdir()`.
@@ -76,34 +85,34 @@ SQL raw só deve ser usado quando:
 - O Drizzle não suportar bem a operação.
 - Houver ganho claro de performance ou simplicidade.
 - A query for parametrizada corretamente.
-- O motivo estiver claro no código ou no PR.
+- O motivo estiver claro no código ou na descrição da alteração.
 
-### 2. Toda query multi-tenant deve filtrar por prefeitura/tenant
+### 2. Toda query multi-tenant deve filtrar por conta
 
-Qualquer query que leia, altere, delete ou agregue dados tenant-specific precisa conter filtro explícito de tenant, normalmente por `tenantId`, `tenantId` ou campo equivalente usado no projeto.
+Qualquer query que leia, altere, delete ou agregue dados de uma conta precisa conter filtro explícito de `accountId` (`conta_id` no banco), derivado de um vínculo autorizado no produto.
 
 Bom exemplo:
 
 ```ts
-const users = await db
+const members = await db
   .select()
-  .from(usersTable)
-  .where(eq(usersTable.tenantId, tenantId));
+  .from(accountMembers)
+  .where(eq(accountMembers.accountId, accountId));
 ```
 
 Mau exemplo:
 
 ```ts
-const users = await db
+const members = await db
   .select()
-  .from(usersTable);
+  .from(accountMembers);
 ```
 
 Apenas tabelas realmente globais podem não ter filtro de tenant. Se uma tabela for global, isso deve estar claro pelo nome, schema ou uso.
 
 ### 3. Nunca confiar no tenant vindo livremente do client
 
-Não assuma que `tenantId`, `tenantId` ou valores semelhantes enviados pelo client são confiáveis.
+Não assuma que `accountId` ou valores semelhantes enviados pelo client são confiáveis. A escolha da conta deve ser validada contra o vínculo do usuário autenticado no banco do próprio produto.
 
 O tenant deve ser derivado de uma fonte confiável, como:
 
@@ -113,7 +122,7 @@ O tenant deve ser derivado de uma fonte confiável, como:
 - Middleware de tenant resolution.
 - Subdomínio/domínio validado, caso o projeto use esse padrão.
 
-### 4. Evitar queries que misturam dados entre prefeituras
+### 4. Evitar queries que misturam dados entre contas
 
 Tenha cuidado especial com:
 
@@ -157,8 +166,8 @@ Identificadores de código são em inglês: funções, variáveis, tipos, compon
 parâmetros/campos de request e response.
 
 - Textos exibidos ao usuário (telas, mensagens, PDFs) continuam em português.
-- Tabelas e colunas do banco mantêm os nomes atuais (`despesas`, `usuario_id`...): são compartilhadas pelo sistema
-  inteiro, e o schema do Drizzle já expõe nomes em inglês para o código.
+- Tabelas e colunas do banco mantêm os nomes atuais (`despesas`, `usuario_id`...); o schema do Drizzle já expõe
+  nomes em inglês para o código. Cada produto mantém suas próprias tabelas, sem identidade ou banco compartilhados.
 - Código legado em português é dívida técnica aceita: não é reescrito em massa, mas é renomeado para inglês quando o
   módulo é reconstruído ou alterado de forma ampla.
 
@@ -230,25 +239,25 @@ try {
 
 ## Multi-Tenant e Segurança
 
-### 1. Toda regra de negócio deve considerar prefeitura
+### 1. Toda regra de negócio deve considerar a conta e o produto
 
 Antes de implementar qualquer feature, verifique:
 
-- Essa informação pertence a uma prefeitura específica?
-- Essa rota pode acessar dados de outra prefeitura?
+- Essa informação pertence a uma conta específica?
+- Essa rota pode acessar dados de outra conta ou produto?
 - Existe usuário global/admin?
-- Existe diferença entre usuário interno da prefeitura e contribuinte?
+- Existe diferença de permissão entre titular e colaborador?
 - O tenant está sendo validado no backend, não apenas no frontend?
 - Essa alteração na tabela precisa de RLS?
 
 ### 2. Evitar vazamento por mensagens de erro
 
-Mensagens de erro não devem revelar dados de outra prefeitura.
+Mensagens de erro não devem revelar dados de outra conta.
 
 Exemplo ruim:
 
 ```ts
-throw new Error('User exists in Prefeitura X');
+throw new Error('User exists in account X');
 ```
 
 Exemplo melhor:
@@ -281,7 +290,7 @@ const reportRows = await db
     createdAt: documentsTable.createdAt,
   })
   .from(documentsTable)
-  .where(eq(documentsTable.tenantId, tenantId));
+  .where(eq(documentsTable.accountId, accountId));
 ```
 
 ### 2. Evitar processamento pesado dentro da request quando possível
@@ -330,8 +339,8 @@ Cuidado com loops que fazem queries internas.
 Mau exemplo:
 
 ```ts
-for (const prefeitura of prefeituras) {
-  const users = await getUsersByPrefeitura(prefeitura.id);
+for (const account of accounts) {
+  const users = await getUsersByAccount(account.id);
 }
 ```
 
@@ -343,12 +352,12 @@ Ao criar queries frequentes filtrando por tenant, status, datas ou chaves de bus
 
 Exemplos de filtros que geralmente precisam de atenção:
 
-- `tenantId`
+- `accountId`
 - `createdAt`
 - `status`
 - `documentType`
 - `userId`
-- Combinações como `tenantId + status` ou `tenantId + createdAt`
+- Combinações como `accountId + status` ou `accountId + createdAt`
 
 ### 3. Evitar trabalho desnecessário em rotas críticas
 
@@ -393,7 +402,7 @@ throw new Error('Error');
 
 Ao logar erros, inclua contexto útil:
 
-- `tenantId` quando seguro.
+- `accountId` quando seguro.
 - `userId` quando seguro.
 - Nome da operação.
 - ID do relatório/job, se existir.
@@ -440,13 +449,13 @@ Evite os seguintes padrões:
 ### Banco de dados
 
 - Alterar `.env` requer confirmação explícita do usuário a cada alteração (mesma régua das migrations) — nunca por padrão, nunca em lote sem revisão prévia do que será mudado/removido
-- Fazer query sem filtro de tenant/prefeitura em dados tenant-specific.
+- Fazer query sem filtro de conta em dados tenant-specific.
 - Caso altere alguma tabela ou adicione uma nova, verifique a necessidade de RLS
 - Usar SQL raw quando Drizzle resolver bem o caso.
 - Buscar todos os campos com `.select()` em relatórios pesados sem necessidade.
 - Fazer queries dentro de loops causando N+1.
 - Editar migrations antigas já aplicadas.
-- Confiar em `tenantId` ou `tenantId` vindo diretamente do client sem validação.
+- Confiar em `accountId` vindo diretamente do client sem validar o vínculo no produto.
 - NUNCA executar migrations sem confirmação explícita do usuário.
 - O ambiente atual pode estar apontando para produção.
 - Sempre pedir confirmação antes de:
@@ -456,13 +465,13 @@ Evite os seguintes padrões:
   - resetar bancos
   - truncar tabelas
   - executar seeds em ambientes desconhecidos
-- Nunca assumir que o banco atual é local ou staging.
+- Nunca assumir que o banco atual é local.
 - Sempre verificar o ambiente alvo antes de executar operações no banco.
 
 ### Multi-tenant
 
 - Assumir que o ID de um recurso é suficiente para autorizar acesso.
-- Misturar dados de múltiplas prefeituras em relatórios, exports ou PDFs.
+- Misturar dados de múltiplas contas em relatórios, exports ou PDFs.
 - Aplicar filtro de tenant apenas na tabela principal e esquecer joins.
 - Fazer validação de tenant apenas no frontend.
 
@@ -486,9 +495,9 @@ Evite os seguintes padrões:
 Antes de concluir qualquer implementação, revise:
 
 - [ ] Todas as queries novas usam Drizzle.
-- [ ] Queries tenant-specific filtram por prefeitura/tenant.
+- [ ] Queries tenant-specific filtram por conta.
 - [ ] O tenant não vem de fonte não confiável sem validação.
-- [ ] Não há risco de vazamento entre prefeituras.
+- [ ] Não há risco de vazamento entre contas ou produtos.
 - [ ] Não há `any` desnecessário.
 - [ ] Variáveis e funções possuem nomes claros.
 - [ ] Código usa ECMAScript moderno sem perder legibilidade.
