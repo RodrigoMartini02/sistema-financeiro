@@ -27,7 +27,7 @@ import { useFirstAccessGuide } from '../../hooks/useFirstAccessGuide';
 import { usePlanFeatures } from '../../hooks/usePlanFeatures';
 import { PremiumUpsell } from '../../components/PremiumUpsell';
 import { useConfirm } from '@ui/context/ConfirmContext';
-import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
+import { AvatarUploadDialog } from '@ui/components/AvatarUploadDialog';
 import { ENQUADRAMENTO_OPTIONS } from '../../utils/companyAccount';
 import { isValidCnpj } from '@ui/utils/brazilDocuments';
 import { buildPartnersPayload, partnerRowFromApi, validatePartnerRows, type PartnerRow } from '../../utils/accountPartners';

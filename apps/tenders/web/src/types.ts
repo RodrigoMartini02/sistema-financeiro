@@ -477,6 +477,9 @@ export interface DomainLists {
   contractCategories: Array<{ id: number; name: string }>;
   /** Tipos de contrato do PNCP, com nomes curtos (contrato, empenho, carta contrato...). */
   contractTypes: Array<{ id: number; name: string }>;
+  /** Setores e cargos padrão do colaborador; o `id` é o código gravado e o `name`, o texto da tela. */
+  memberSectors: Array<{ id: string; name: string }>;
+  memberJobTitles: Array<{ id: string; name: string }>;
   municipalities: Municipality[];
 }
 
@@ -692,9 +695,20 @@ export interface CollectionStatus {
 export interface TeamMember {
   userId: number;
   name: string;
+  lastName: string | null;
   email: string;
+  /** Só os dígitos do CPF. */
+  document: string | null;
+  phone: string | null;
+  /** Códigos das listas padrão (`DomainLists.memberSectors` e `memberJobTitles`). */
+  sector: string | null;
+  jobTitle: string | null;
+  /** AAAA-MM-DD. */
+  admissionDate: string | null;
   hasAccess: boolean;
   grantedAt: string | null;
+  /** Link assinado de vida curta da foto; nulo sem foto. */
+  photoUrl: string | null;
 }
 
 /** Resposta de POST /team e PUT /team/:userId: o usuário e o aviso, se o valor do recorrente não mudou. */
@@ -703,13 +717,60 @@ export interface TeamChange {
   warning: string | null;
 }
 
-/** Corpo de POST /api/tenders/team (mesmos campos do cadastro de membro do FINGERENCE). */
+/** Resposta de PATCH /team/:userId e das rotas da foto: só o usuário (nada muda na cobrança). */
+export interface TeamMemberChange {
+  member: TeamMember;
+}
+
+/** Corpo de POST /api/tenders/team. Campos opcionais ausentes ficam em branco. */
 export interface NewTeamUser {
-  nome: string;
-  sobrenome?: string;
+  name: string;
+  lastName?: string;
   email: string;
-  senha: string;
-  documento?: string;
+  password: string;
+  document?: string;
+  phone?: string;
+  sector?: string;
+  jobTitle?: string;
+  admissionDate?: string;
+}
+
+/**
+ * Corpo de PATCH /api/tenders/team/:userId. Campo ausente mantém o valor; texto vazio limpa o que pode ficar vazio
+ * (sobrenome, CPF, telefone, setor, cargo e admissão).
+ */
+export interface TeamUserUpdate {
+  name?: string;
+  lastName?: string;
+  email?: string;
+  document?: string;
+  phone?: string;
+  sector?: string;
+  jobTitle?: string;
+  admissionDate?: string;
+  newPassword?: string;
+}
+
+/** Perfil do titular (GET /api/tenders/profile): o que ele edita nas Configurações. */
+export interface OwnerProfile {
+  userId: number;
+  name: string;
+  lastName: string | null;
+  email: string;
+  phone: string | null;
+  photoUrl: string | null;
+}
+
+/** Resposta das rotas do perfil. */
+export interface OwnerProfileChange {
+  profile: OwnerProfile;
+}
+
+/** Corpo de PATCH /api/tenders/profile; texto vazio limpa o sobrenome e o telefone. */
+export interface OwnerProfileUpdate {
+  name?: string;
+  lastName?: string;
+  phone?: string;
 }
 
 // ---- Página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md) ----

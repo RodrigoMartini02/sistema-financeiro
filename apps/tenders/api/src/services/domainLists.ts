@@ -4,6 +4,8 @@ import {
   BRAZILIAN_STATES,
   CONTRACT_CATEGORIES,
   CONTRACT_TYPES,
+  MEMBER_JOB_TITLES,
+  MEMBER_SECTORS,
   TENDER_MODALITIES,
   TENDER_SITUATIONS,
   TRACKING_STATUSES,
@@ -29,6 +31,9 @@ export interface DomainLists {
   trackingStatuses: typeof TRACKING_STATUSES;
   contractCategories: typeof CONTRACT_CATEGORIES;
   contractTypes: typeof CONTRACT_TYPES;
+  /** Setores e cargos padrão do colaborador (formulário de usuários). */
+  memberSectors: typeof MEMBER_SECTORS;
+  memberJobTitles: typeof MEMBER_JOB_TITLES;
   municipalities: Municipality[];
 }
 
@@ -61,6 +66,8 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
       trackingStatuses: TRACKING_STATUSES,
       contractCategories: CONTRACT_CATEGORIES,
       contractTypes: CONTRACT_TYPES,
+      memberSectors: MEMBER_SECTORS,
+      memberJobTitles: MEMBER_JOB_TITLES,
       municipalities: cached.municipalities,
     };
   };

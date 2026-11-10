@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import type { TendersDb } from '../collector/database';
 import type { ContractStoreAccess } from '../contractStore/reader';
 import * as tendersTables from '../db/schema';
+import type { ObjectStorage } from '../objectStorage';
 import { readTendersAuthConfig, type TendersAuthConfig } from '../services/authTokens';
 import { createGoogleProfileReader, type GoogleProfileReader } from '../services/googleAuth';
 import { createPncpDetailSource, type PncpDetailSource } from '../services/pncpDetails';
@@ -17,15 +18,25 @@ export interface TendersApiDeps {
   pncpDetails: PncpDetailSource;
   /** Os contratos, no R2 (contractStore): consulta e se há cópia pronta. */
   contractStore: ContractStoreAccess;
+  /** O R2 dos arquivos dos usuários (foto de perfil); null sem as variáveis `R2_*`: o envio de foto fica indisponível. */
+  userFiles: ObjectStorage | null;
   now: () => Date;
 }
 
-/** No servidor: o pool do app (fuso de Brasília e datas como texto), o PNCP de verdade e o armazém do Web Service. */
-export function tendersApiDepsFromPool(pool: Pool, contractStore: ContractStoreAccess): TendersApiDeps {
+/**
+ * No servidor: o pool do app (fuso de Brasília e datas como texto), o PNCP de verdade, o armazém do Web Service e o
+ * R2 dos arquivos dos usuários.
+ */
+export function tendersApiDepsFromPool(
+  pool: Pool,
+  contractStore: ContractStoreAccess,
+  userFiles: ObjectStorage | null,
+): TendersApiDeps {
   return {
     db: drizzle(pool, { schema: tendersTables }),
     pncpDetails: createPncpDetailSource(),
     contractStore,
+    userFiles,
     now: () => new Date(),
   };
 }

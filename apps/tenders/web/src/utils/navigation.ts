@@ -22,24 +22,24 @@ export interface TendersRoute {
   title: string;
   /** Aparece no menu lateral (o edital e o contrato abrem pela lista, não pelo menu). */
   inMenu: boolean;
-  /** Só para quem administra o módulo na conta (titular ou admin). */
-  restricted: boolean;
   /** Só para o admin da plataforma (habilitação de contas). */
   platformAdminOnly: boolean;
 }
 
 export const TENDERS_ROUTES: readonly TendersRoute[] = [
-  { key: 'dashboard', path: '/', title: 'Dashboard', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'buscar', path: '/buscar', title: 'Editais', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, restricted: false, platformAdminOnly: false },
-  { key: 'cnpj', path: '/cnpj/:cnpj', title: 'CNPJ', inMenu: false, restricted: false, platformAdminOnly: false },
-  { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, restricted: false, platformAdminOnly: false },
-  { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, restricted: false, platformAdminOnly: false },
-  { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: true, restricted: true, platformAdminOnly: false },
-  { key: 'contas', path: '/admin/contas', title: 'Contas habilitadas', inMenu: true, restricted: false, platformAdminOnly: true },
+  { key: 'dashboard', path: '/', title: 'Dashboard', inMenu: true, platformAdminOnly: false },
+  { key: 'buscar', path: '/buscar', title: 'Editais', inMenu: true, platformAdminOnly: false },
+  { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, platformAdminOnly: false },
+  { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, platformAdminOnly: false },
+  { key: 'cnpj', path: '/cnpj/:cnpj', title: 'CNPJ', inMenu: false, platformAdminOnly: false },
+  { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, platformAdminOnly: false },
+  { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, platformAdminOnly: false },
+  { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, platformAdminOnly: false },
+  { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, platformAdminOnly: false },
+  // Configurações não é uma página: abre em modal (botão no menu lateral). A rota fica só para o retorno da cobrança do
+  // Mercado Pago, que redireciona para o modal (utils/settings.ts).
+  { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: false, platformAdminOnly: false },
+  { key: 'contas', path: '/admin/contas', title: 'Contas habilitadas', inMenu: true, platformAdminOnly: true },
 ];
 
 export const NOT_FOUND_TITLE = 'Página não encontrada';
@@ -54,18 +54,8 @@ export interface TendersPermissions {
   manageEnabledAccounts: boolean;
 }
 
-/** Configurações do módulo: usuários e assinatura (titular) e coleta (titular ou admin). */
-export function canOpenSettings(permissions: TendersPermissions): boolean {
-  return permissions.manageTeam || permissions.manageBilling || permissions.viewCollectionRuns;
-}
-
 export function menuRoutes(permissions: TendersPermissions): TendersRoute[] {
-  return TENDERS_ROUTES.filter(
-    (route) =>
-      route.inMenu &&
-      (!route.restricted || canOpenSettings(permissions)) &&
-      (!route.platformAdminOnly || permissions.manageEnabledAccounts),
-  );
+  return TENDERS_ROUTES.filter((route) => route.inMenu && (!route.platformAdminOnly || permissions.manageEnabledAccounts));
 }
 
 /** Rota do caminho (relativo à base), para o título da barra; desconhecido: null. */

@@ -274,11 +274,30 @@ GET {{baseUrl}}/team?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
 ### Adicionar usuário, já com acesso ao módulo (titular; o valor muda na próxima cobrança)
+# setor e cargo são códigos das listas padrão (GET /domains: memberSectors e memberJobTitles)
 POST {{baseUrl}}/team?accountId={{accountId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{ "nome": "Ana", "sobrenome": "Souza", "email": "ana@exemplo.com", "senha": "senha-com-8" }
+{ "name": "Ana", "lastName": "Souza", "email": "ana@exemplo.com", "password": "senha-com-8", "document": "529.982.247-25", "phone": "(11) 99999-0000", "sector": "financeiro", "jobTitle": "analista", "admissionDate": "2025-02-01" }
+
+### Editar um colaborador (titular; campo ausente mantém, vazio limpa; newPassword só se informada)
+PATCH {{baseUrl}}/team/2?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Ana Maria", "sector": "", "jobTitle": "gerente" }
+
+### Trocar a foto de um colaborador (titular; image é o data URL do recorte: JPEG, PNG ou WebP, até 1 MB)
+PUT {{baseUrl}}/team/2/photo?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "image": "data:image/jpeg;base64,/9j/4AAQ..." }
+
+### Tirar a foto de um colaborador (titular)
+DELETE {{baseUrl}}/team/2/photo?accountId={{accountId}}
+Authorization: Bearer {{token}}
 
 ### Conceder ou retirar o acesso de um colaborador (titular; data: { member, warning })
 PUT {{baseUrl}}/team/2?accountId={{accountId}}
@@ -286,6 +305,28 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 { "hasAccess": true }
+
+### Perfil do titular: nome, sobrenome, telefone e foto (só o titular; data: { profile })
+GET {{baseUrl}}/profile?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Alterar o perfil do titular
+PATCH {{baseUrl}}/profile?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Rita", "lastName": "Lima", "phone": "(11) 3333-4444" }
+
+### Trocar a foto do titular
+PUT {{baseUrl}}/profile/photo?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "image": "data:image/jpeg;base64,/9j/4AAQ..." }
+
+### Tirar a foto do titular
+DELETE {{baseUrl}}/profile/photo?accountId={{accountId}}
+Authorization: Bearer {{token}}
 
 ### Ativação: contas do titular sem o módulo (fora da trava)
 GET {{baseUrl}}/activation

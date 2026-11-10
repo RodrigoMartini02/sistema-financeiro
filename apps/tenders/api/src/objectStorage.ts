@@ -13,7 +13,8 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import type { StorageSettings } from './collector/config';
+import { CollectorConfigError, loadStorageSettings, type StorageSettings } from './collector/config';
+import type { CollectorLogger } from './collector/logger';
 
 // Cloudflare R2 do módulo de Licitações: o arquivo bruto das coletas (plano
 // .plans/licitacoes-base-nacional.md, parte 1) e o armazém de contratos (plano
@@ -217,4 +218,26 @@ export function createR2Storage(settings: StorageSettings): ObjectStorage {
     metrics: () => ({ ...metrics }),
     close: () => client.destroy(),
   };
+}
+
+/**
+ * O R2 dos arquivos dos usuários (foto de perfil) no Web Service, com as mesmas cinco variáveis `R2_*` do armazém
+ * de contratos. Sem elas, ou com configuração recusada, devolve null: o envio de foto responde "indisponível" e o
+ * resto do sistema segue. A recusa é registrada como erro, com os nomes das variáveis e nunca os valores.
+ */
+export function createUserFilesStorageFromEnv(env: NodeJS.ProcessEnv, logger: CollectorLogger): ObjectStorage | null {
+  try {
+    const settings = loadStorageSettings(env, env['TENDERS_DATABASE_URL'] ?? '');
+    if (!settings) {
+      logger.warn('R2 desligado: as variáveis R2_* não estão definidas; o envio de foto de perfil fica indisponível');
+      return null;
+    }
+    return createR2Storage(settings);
+  } catch (error) {
+    if (!(error instanceof CollectorConfigError)) {
+      throw error;
+    }
+    logger.error('Configuração do R2 recusada; o envio de foto de perfil fica indisponível', { error: error.message });
+    return null;
+  }
 }

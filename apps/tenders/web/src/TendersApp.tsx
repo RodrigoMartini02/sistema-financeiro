@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoadingState } from '@ui/components/states';
 import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
@@ -13,12 +13,12 @@ import { NoticeScreen } from './screens/NoticeScreen';
 import { NotFoundScreen } from './screens/NotFoundScreen';
 import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
 import { SearchScreen } from './screens/SearchScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
 import { TrackingScreen } from './screens/TrackingScreen';
 import { getToken } from './services/session';
 import { NETWORK_ERROR_MESSAGE } from './services/tendersApiError';
 import { expiredInfoFrom, resolveGateState } from './utils/gateState';
 import { TENDERS_LOGIN_ADDRESS } from './utils/loginAddress';
+import { settingsRouteTarget } from './utils/settings';
 
 /** App de Licitações: entrada no módulo (sessão e acesso) e rotas dentro da moldura. */
 export function TendersApp() {
@@ -68,7 +68,8 @@ export function TendersApp() {
         <Route path="buscas" element={<SavedSearchesScreen />} />
         <Route path="favoritos" element={<FavoritesScreen />} />
         <Route path="acompanhamento" element={<TrackingScreen />} />
-        <Route path="configuracoes" element={<SettingsScreen />} />
+        {/* O Mercado Pago volta por aqui depois da cobrança: abre a página inicial com as Configurações em modal. */}
+        <Route path="configuracoes" element={<Navigate to={settingsRouteTarget(access.data.permissions)} replace />} />
         <Route path="admin/contas" element={<AdminAccountsScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Route>

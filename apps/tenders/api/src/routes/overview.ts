@@ -1,21 +1,17 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
 import { validate } from '../middleware/validation';
-import { readNewMemberInput } from '../services/memberInput';
-import { requireTenderTitular, requireTenderTitularOrAdmin, tenderAccessOf } from '../middleware/tenderAccess';
+import { requireTenderTitularOrAdmin, tenderAccessOf } from '../middleware/tenderAccess';
 import { listCollectionRuns, readCollectionOverview } from '../services/collectionOverview';
 import { readDashboard } from '../services/dashboard';
 import { readExpiringContracts } from '../services/dashboardContracts';
 import { createDomainListsReader } from '../services/domainLists';
-import { syncRecurringAmount } from '../services/recurringAmount';
 import { readSubscription } from '../services/subscription';
-import { createTeamMember, listTeam, setTeamMemberAccess } from '../services/team';
 import type { TendersApiDeps } from './deps';
 import { tenderRoute } from './handler';
 import { readPagination } from './requestReaders';
-import { idParam, paginationQuery } from './validators';
+import { paginationQuery } from './validators';
 
-// Painel, listas de apoio, coleta, acesso e equipe (escopo, seção 8.4).
+// Painel, listas de apoio, coleta e acesso (escopo, seção 8.4). A equipe e o perfil do titular ficam em team.ts e profile.ts.
 
 export function overviewRoutes(deps: TendersApiDeps): Router {
   const router = Router();
@@ -85,45 +81,6 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
           subscription: await readSubscription(deps.db, access.account.id, deps.now()),
         },
       });
-    }),
-  );
-
-  router.get(
-    '/team',
-    requireTenderTitular,
-    tenderRoute('Tender team list failed:', 'Não foi possível carregar a equipe agora.', async (req, res) => {
-      res.json({ success: true, data: await listTeam(deps.db, tenderAccessOf(req).account.id) });
-    }),
-  );
-
-  // POST /api/tenders/team: usuário novo, já com acesso ao módulo (setor, cargo e admissão voltam no item 1A).
-  router.post(
-    '/team',
-    requireTenderTitular,
-    tenderRoute('Tender team create failed:', 'Não foi possível cadastrar o usuário agora.', async (req, res) => {
-      const access = tenderAccessOf(req);
-      const member = await createTeamMember(deps.db, access.account.id, access.userId, readNewMemberInput(req.body));
-      const warning = await syncRecurringAmount(deps.db, access.account.id, deps.now());
-      res.status(201).json({ success: true, data: { member, warning } });
-    }),
-  );
-
-  // PUT /api/tenders/team/:userId { hasAccess }: a mudança vale no valor da próxima cobrança.
-  router.put(
-    '/team/:userId',
-    requireTenderTitular,
-    [idParam('userId'), body('hasAccess').isBoolean({ strict: true }).withMessage('Use true ou false'), validate],
-    tenderRoute('Tender team access failed:', 'Não foi possível alterar o acesso agora.', async (req, res) => {
-      const access = tenderAccessOf(req);
-      const member = await setTeamMemberAccess(
-        deps.db,
-        access.account.id,
-        access.userId,
-        Number(req.params['userId']),
-        req.body.hasAccess === true,
-      );
-      const warning = await syncRecurringAmount(deps.db, access.account.id, deps.now());
-      res.json({ success: true, data: { member, warning } });
     }),
   );
 

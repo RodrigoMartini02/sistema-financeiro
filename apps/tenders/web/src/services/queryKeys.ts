@@ -46,6 +46,8 @@ export const tendersQueryKeys = {
   /** A lista curta do painel do sino. */
   notificationList: (apiQuery: string) => ['tenders', 'notifications', 'list', apiQuery] as const,
   team: ['tenders', 'team'] as const,
+  /** Perfil do titular (nome, telefone e foto): só ele o lê e o edita. */
+  ownerProfile: ['tenders', 'profile'] as const,
   /** Prefixo das assinaturas: mudar usuários ou pagar invalida todas. */
   billingAll: ['tenders', 'billing'] as const,
   /** Assinatura de uma conta (fora da trava: vale também para a conta vencida). */

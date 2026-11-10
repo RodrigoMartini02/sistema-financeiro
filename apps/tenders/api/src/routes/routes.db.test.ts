@@ -15,6 +15,8 @@ import { ContractStoreUnavailableError, type ContractStoreAccess } from '../cont
 import { openTestContractStore, sampleContract, sampleResult, sampleSupplier } from '../contractStore/storeTestSupport';
 import { postgresSearchFields } from '../contractStore/textSearch';
 import { tenderEnabledAccounts } from '../db/schema';
+import type { ObjectStorage } from '../objectStorage';
+import { createMemoryStorage } from '../objectStorageTestSupport';
 import type { TenderAccount } from '../services/access';
 import type { CnpjSummary, CnpjWinnerItem } from '../services/cnpjPage';
 import type { ContractDetail } from '../services/contractDetail';
@@ -26,6 +28,7 @@ import type { ExpiringContractsView } from '../services/dashboardContracts';
 import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
+import type { ProfileView } from '../services/profile';
 import type { SavedSearchView } from '../services/savedSearches';
 import { startTenderTrial, type SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
@@ -66,6 +69,17 @@ interface TeamChange {
   warning: string | null;
 }
 
+interface MemberData {
+  member: TeamMemberView;
+}
+
+interface ProfileData {
+  profile: ProfileView;
+}
+
+/** Um JPEG mínimo (só a assinatura e uns bytes): o servidor confere o tipo pelo conteúdo, não decodifica a imagem. */
+const JPEG_DATA_URL = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]).toString('base64')}`;
+
 interface BillingData {
   account: TenderAccount;
   subscription: SubscriptionView;
@@ -84,7 +98,12 @@ const UPDATING_STORE: ContractStoreAccess = {
   status: () => ({ ready: false, revision: null, publishedAt: null, today: null, totals: null }),
 };
 
-async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>, contractStore: ContractStoreAccess = UPDATING_STORE): Promise<void> {
+async function withApi(
+  tx: TendersDb,
+  run: (call: ApiCall) => Promise<void>,
+  contractStore: ContractStoreAccess = UPDATING_STORE,
+  userFiles: ObjectStorage | null = null,
+): Promise<void> {
   let currentUser: TestUser | undefined;
   const app = express();
   app.use(express.json());
@@ -98,6 +117,7 @@ async function withApi(tx: TendersDb, run: (call: ApiCall) => Promise<void>, con
     db: tx,
     pncpDetails: { fetchDetailList: async () => [] },
     contractStore,
+    userFiles,
     now: () => new Date(),
   });
   app.use(
@@ -271,6 +291,8 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const domains = await call<DomainLists>('GET', '/api/tenders/domains', { as });
         assert.equal(domains.status, 200);
         assert.equal(domains.body.data.modalities.length, 13);
+        assert.equal(domains.body.data.memberSectors.length, 8);
+        assert.equal(domains.body.data.memberJobTitles.length, 10);
         assert.ok(Array.isArray(domains.body.data.municipalities));
 
         assert.equal((await call('GET', '/api/tenders/collection/status', { as })).status, 200);
@@ -386,9 +408,9 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
       await withApi(tx, async (call) => {
         const titular = { id: account.ownerId, type: 'titular' as const };
         const newUser = (label: string) => ({
-          nome: `Usuário ${label}`,
+          name: `Usuário ${label}`,
           email: `licitacoes-http-${label}-${Date.now()}@exemplo.test`,
-          senha: 'senha-forte-1',
+          password: 'senha-forte-1',
         });
 
         const first = await call<TeamChange>('POST', '/api/tenders/team', { as: titular, body: newUser('um') });
@@ -397,7 +419,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const second = newUser('dois');
         assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: second })).status, 201);
         assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: second })).status, 400, 'e-mail repetido');
-        assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: { nome: 'Sem senha', email: 'x@exemplo.test' } })).status, 400);
+        assert.equal((await call('POST', '/api/tenders/team', { as: titular, body: { name: 'Sem senha', email: 'x@exemplo.test' } })).status, 400);
 
         const billing = await call<BillingData>('GET', `/api/tenders/billing?accountId=${account.accountId}`, { as: titular });
         assert.equal(billing.body.data.subscription.accessType, 'cortesia');
@@ -405,6 +427,140 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(billing.body.data.subscription.monthlyAmountCents, 798);
         assert.equal((await call('POST', '/api/tenders/billing/pix', { as: titular, body: { accountId: account.accountId } })).status, 409);
       });
+    });
+  });
+
+  test('equipe por HTTP: o titular cadastra com dados de trabalho, edita e troca a foto; colaborador e outra conta não', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-edicao');
+      const other = await createTestAccount(tx, 'http-edicao-outra');
+      const stranger = await addAccountMember(tx, other, 'http-edicao-alheio', { access: true });
+      const { storage, objects } = createMemoryStorage();
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const created = await call<TeamChange>('POST', '/api/tenders/team', {
+          as: titular,
+          body: {
+            name: 'Maria',
+            email: `licitacoes-http-edicao-${Date.now()}@exemplo.test`,
+            password: 'senha-forte-1',
+            document: '529.982.247-25',
+            phone: '11 99999-0000',
+            sector: 'financeiro',
+            jobTitle: 'gerente',
+            admissionDate: '2025-02-01',
+          },
+        });
+        assert.equal(created.status, 201);
+        const member = created.body.data.member;
+        assert.deepEqual(
+          [member.sector, member.jobTitle, member.admissionDate, member.document, member.phone, member.photoUrl],
+          ['financeiro', 'gerente', '2025-02-01', '52998224725', '11 99999-0000', null],
+        );
+        assert.equal('photoKey' in member, false, 'a chave do R2 não sai da API');
+        const path = `/api/tenders/team/${member.userId}`;
+
+        const edited = await call<MemberData>('PATCH', path, { as: titular, body: { name: 'Maria Souza', sector: '', newPassword: '' } });
+        assert.equal(edited.status, 200);
+        assert.deepEqual([edited.body.data.member.name, edited.body.data.member.sector, edited.body.data.member.jobTitle], ['Maria Souza', null, 'gerente']);
+        const unchanged = await call<TeamChange>('PUT', path, { as: titular, body: { hasAccess: true } });
+        assert.equal(unchanged.body.data.member.hasAccess, true, 'editar não tirou o acesso');
+
+        assert.equal((await call('PATCH', path, { as: titular, body: {} })).status, 400);
+        const badSector = await call('PATCH', path, { as: titular, body: { sector: 'nao-existe' } });
+        assert.equal(badSector.status, 400);
+        assert.equal(badSector.body.message, 'Setor inválido');
+        assert.equal((await call('PATCH', '/api/tenders/team/abc', { as: titular, body: { name: 'X' } })).status, 400);
+        assert.equal((await call('PATCH', `/api/tenders/team/${stranger}`, { as: titular, body: { name: 'Invasor' } })).status, 404);
+        assert.equal((await call('PATCH', `/api/tenders/team/${account.ownerId}`, { as: titular, body: { name: 'Titular' } })).status, 404);
+
+        // Foto: link assinado curto na lista, objeto no R2, e a chave nunca na resposta.
+        const photo = await call<MemberData>('PUT', `${path}/photo`, { as: titular, body: { image: JPEG_DATA_URL } });
+        assert.equal(photo.status, 200);
+        assert.match(photo.body.data.member.photoUrl ?? '', new RegExp(`^memory://usuarios/${member.userId}/[0-9a-f-]{36}\\.jpg\\?expires=3600$`));
+        assert.equal(objects.size, 1);
+        const listed = await call<TeamMemberView[]>('GET', '/api/tenders/team', { as: titular });
+        assert.equal(listed.body.data.find((item) => item.userId === member.userId)?.photoUrl, photo.body.data.member.photoUrl);
+        assert.equal(JSON.stringify(listed.body).includes('photoKey'), false);
+
+        const badImage = await call('PUT', `${path}/photo`, { as: titular, body: { image: 'data:image/png;base64,AAAA' } });
+        assert.equal(badImage.status, 400);
+        assert.equal(objects.size, 1, 'uma imagem recusada não mexe no R2');
+        assert.equal((await call('PUT', `/api/tenders/team/${stranger}/photo`, { as: titular, body: { image: JPEG_DATA_URL } })).status, 404);
+        assert.equal(objects.size, 1);
+
+        const removed = await call<MemberData>('DELETE', `${path}/photo`, { as: titular });
+        assert.equal(removed.body.data.member.photoUrl, null);
+        assert.equal(objects.size, 0);
+
+        // O colaborador (com acesso) não gerencia a equipe nem o perfil; o titular de outra conta não o alcança.
+        const asMember = { id: member.userId, type: 'membro' as const };
+        for (const [method, requestPath, body] of [
+          ['GET', '/api/tenders/team', undefined],
+          ['PATCH', path, { name: 'Eu mesmo' }],
+          ['PUT', `${path}/photo`, { image: JPEG_DATA_URL }],
+          ['DELETE', `${path}/photo`, undefined],
+          ['GET', '/api/tenders/profile', undefined],
+          ['PATCH', '/api/tenders/profile', { name: 'Eu mesmo' }],
+          ['PUT', '/api/tenders/profile/photo', { image: JPEG_DATA_URL }],
+        ] as const) {
+          assert.equal((await call(method, requestPath, { as: asMember, ...(body ? { body } : {}) })).status, 403, `${method} ${requestPath}`);
+        }
+        const otherTitular = { id: other.ownerId, type: 'titular' as const };
+        assert.equal((await call('PATCH', path, { as: otherTitular, body: { name: 'Invasor' } })).status, 404);
+        assert.equal((await call('PUT', `${path}/photo`, { as: otherTitular, body: { image: JPEG_DATA_URL } })).status, 404);
+        const otherList = await call<TeamMemberView[]>('GET', '/api/tenders/team', { as: otherTitular });
+        assert.deepEqual(otherList.body.data.map((item) => item.userId), [stranger], 'cada titular só vê a própria equipe');
+      }, UPDATING_STORE, storage);
+    });
+  });
+
+  test('foto por HTTP sem R2 configurado: 503 com mensagem clara, e a lista segue sem links', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-sem-r2');
+      const member = await addAccountMember(tx, account, 'http-sem-r2-membro', { access: true });
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const failed = await call('PUT', `/api/tenders/team/${member}/photo`, { as: titular, body: { image: JPEG_DATA_URL } });
+        assert.equal(failed.status, 503);
+        assert.match(String(failed.body.message), /não está disponível/);
+        assert.equal((await call('PUT', '/api/tenders/profile/photo', { as: titular, body: { image: JPEG_DATA_URL } })).status, 503);
+        const listed = await call<TeamMemberView[]>('GET', '/api/tenders/team', { as: titular });
+        assert.deepEqual(listed.body.data.map((item) => item.photoUrl), [null]);
+      });
+    });
+  });
+
+  test('perfil do titular por HTTP: lê, altera nome e telefone, troca e tira a foto', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-perfil');
+      const { storage, objects } = createMemoryStorage();
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const read = await call<ProfileData>('GET', '/api/tenders/profile', { as: titular });
+        assert.equal(read.status, 200);
+        assert.deepEqual([read.body.data.profile.phone, read.body.data.profile.photoUrl], [null, null]);
+
+        const updated = await call<ProfileData>('PATCH', '/api/tenders/profile', {
+          as: titular,
+          body: { name: 'Titular novo', lastName: 'Lima', phone: '11 3333-4444', email: 'ignorado@exemplo.test' },
+        });
+        assert.equal(updated.status, 200);
+        assert.deepEqual(
+          [updated.body.data.profile.name, updated.body.data.profile.lastName, updated.body.data.profile.phone],
+          ['Titular novo', 'Lima', '11 3333-4444'],
+        );
+        assert.equal(updated.body.data.profile.email, read.body.data.profile.email, 'o e-mail do titular não muda por aqui');
+        assert.equal((await call('PATCH', '/api/tenders/profile', { as: titular, body: {} })).status, 400);
+        assert.equal((await call('PATCH', '/api/tenders/profile', { as: titular, body: { name: '' } })).status, 400);
+
+        const photo = await call<ProfileData>('PUT', '/api/tenders/profile/photo', { as: titular, body: { image: JPEG_DATA_URL } });
+        assert.match(photo.body.data.profile.photoUrl ?? '', new RegExp(`^memory://usuarios/${account.ownerId}/`));
+        assert.equal(objects.size, 1);
+        const removed = await call<ProfileData>('DELETE', '/api/tenders/profile/photo', { as: titular });
+        assert.equal(removed.body.data.profile.photoUrl, null);
+        assert.equal(objects.size, 0);
+      }, UPDATING_STORE, storage);
     });
   });
 

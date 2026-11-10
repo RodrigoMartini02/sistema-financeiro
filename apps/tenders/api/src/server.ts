@@ -7,6 +7,7 @@ import { loadEnvironment } from './config/environment';
 import { startContractStoreFromEnv, type ContractStoreService } from './contractStore/service';
 import { createTendersPool } from './db/pool';
 import * as schema from './db/schema';
+import { createUserFilesStorageFromEnv, type ObjectStorage } from './objectStorage';
 import { tendersApiDepsFromPool, tendersAuthDepsFromEnv } from './routes';
 
 export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): Promise<{ server: Server; close: () => Promise<void> }> {
@@ -15,13 +16,16 @@ export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): 
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT must be an integer between 1 and 65535');
   const pool = createTendersPool(env);
   let contractStore: ContractStoreService | undefined;
+  let userFiles: ObjectStorage | null = null;
   try {
     const db = drizzle(pool, { schema });
     const auth = tendersAuthDepsFromEnv(db, env);
     const checkDatabase = async (): Promise<void> => { await db.execute(sql`select 1`); };
     await checkDatabase();
-    contractStore = startContractStoreFromEnv(env, createCollectorLogger('info'));
-    const api = tendersApiDepsFromPool(pool, contractStore);
+    const logger = createCollectorLogger('info');
+    contractStore = startContractStoreFromEnv(env, logger);
+    userFiles = createUserFilesStorageFromEnv(env, logger);
+    const api = tendersApiDepsFromPool(pool, contractStore, userFiles);
     const app = createTendersApp({ api, auth, checkDatabase, env });
     const server = await new Promise<Server>((resolve, reject) => {
       const listener = app.listen(port, () => resolve(listener));
@@ -34,6 +38,7 @@ export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): 
           await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
         } finally {
           await Promise.all([contractStore?.close(), pool.end()]);
+          userFiles?.close();
         }
       })();
       return closing;
@@ -41,6 +46,7 @@ export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): 
     return { server, close };
   } catch (error) {
     await Promise.all([contractStore?.close(), pool.end()]);
+    userFiles?.close();
     throw error;
   }
 }

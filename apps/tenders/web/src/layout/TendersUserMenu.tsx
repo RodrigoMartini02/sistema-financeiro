@@ -3,16 +3,10 @@ import { ChevronDown, LogOut } from 'lucide-react';
 import { Z_DROPDOWN } from '@ui/components/zIndex';
 import { logout } from '../services/session';
 import { TENDERS_LOGIN_ADDRESS } from '../utils/loginAddress';
+import { initials } from '../utils/teamMembers';
 
 // Menu do usuário: nome, conta e sair. Licitações não leva ao FINGERENCE: são
 // soluções separadas (plano .plans/site-novo.md).
-
-function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return 'U';
-  if (words.length === 1) return (words[0] ?? '').slice(0, 2).toUpperCase();
-  return `${words[0]?.[0] ?? ''}${words[1]?.[0] ?? ''}`.toUpperCase();
-}
 
 interface TendersUserMenuProps {
   userName: string;

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { NETWORK_ERROR_MESSAGE, tendersErrorFrom } from '../services/tendersApiError';
 import { expiredInfoFrom, resolveGateState } from './gateState';
 import { loggedUserName } from './loggedUser';
-import { NOT_FOUND_TITLE, canOpenSettings, menuRoutes, quickSearchPath, routeForPath } from './navigation';
+import { NOT_FOUND_TITLE, menuRoutes, quickSearchPath, routeForPath } from './navigation';
 
 test('entrada no módulo: cada situação de sessão e de /access', () => {
   assert.equal(resolveGateState({ hasToken: false, accessStatus: 'pending', errorStatus: null }), 'login');
@@ -29,21 +29,14 @@ test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta 
   assert.equal(expiredInfoFrom({ role: 'TITULAR' }), null);
 });
 
-test('menu: Configurações só para quem administra o módulo', () => {
+test('menu: as páginas do módulo; Configurações abre em modal e não é item de menu', () => {
   const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
-  const admin = { manageTeam: false, manageBilling: false, viewCollectionRuns: true, manageEnabledAccounts: true };
   const colaborador = { manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
-  assert.deepEqual(menuRoutes(titular).map((route) => route.key), [
-    'dashboard',
-    'buscar',
-    'contratos',
-    'buscas',
-    'favoritos',
-    'acompanhamento',
-    'configuracoes',
-  ]);
-  assert.equal(canOpenSettings(admin), true);
-  assert.equal(menuRoutes(colaborador).some((route) => route.key === 'configuracoes'), false);
+  const pages = ['dashboard', 'buscar', 'contratos', 'buscas', 'favoritos', 'acompanhamento'];
+  assert.deepEqual(menuRoutes(titular).map((route) => route.key), pages);
+  assert.deepEqual(menuRoutes(colaborador).map((route) => route.key), pages);
+  assert.equal(menuRoutes(titular).some((route) => route.key === 'configuracoes'), false);
+  assert.equal(routeForPath('/configuracoes')?.title, 'Configurações', 'a rota fica para o retorno da cobrança do Mercado Pago');
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'edital'), false, 'o edital abre pela lista');
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'contrato'), false, 'o contrato abre pela lista');
 });

@@ -1,8 +1,8 @@
 import { boolean, date, integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 // Identidade de Licitações: usuários, contas (só de empresa), vínculos de colaborador e o código de recuperação de
-// senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql), com só as colunas que o
-// código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
+// senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql e 0002_member_profile.sql),
+// com só as colunas que o código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
 // Separado do schema de coleta para manter explícitas as tabelas de identidade.
 
 export const users = pgTable('usuarios', {
@@ -21,8 +21,9 @@ export const users = pgTable('usuarios', {
     .default('ativo')
     .$type<'ativo' | 'inativo' | 'bloqueado'>(),
   googleId: varchar('google_id', { length: 255 }),
-  telefone: varchar('telefone', { length: 20 }),
-  dataNascimento: date('data_nascimento'),
+  phone: varchar('telefone', { length: 20 }),
+  /** Chave do objeto da foto no R2 (relativa à pasta do ambiente); nula sem foto. */
+  photoKey: varchar('foto_chave', { length: 255 }),
 });
 
 /** Só conta de empresa (CNPJ): o banco recusa outro tipo. */
@@ -60,6 +61,11 @@ export const accountMembers = pgTable('conta_membros', {
     .notNull()
     .default('ativo')
     .$type<'ativo' | 'inativo'>(),
+  // Dados de trabalho do colaborador, no vínculo com a empresa. Setor e cargo são códigos das listas padrão
+  // (domains.ts), validados no código.
+  sector: varchar('setor', { length: 40 }),
+  jobTitle: varchar('cargo', { length: 40 }),
+  admissionDate: date('data_admissao'),
 });
 
 // Código de recuperação de senha: um por usuário, com validade e tentativas (services/passwordRecovery.ts).

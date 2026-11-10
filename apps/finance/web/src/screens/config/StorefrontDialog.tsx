@@ -13,7 +13,7 @@ import {
 import { CFG, cfgDividerStyle } from '@ui/components/configTokens';
 import { ToggleRow } from '@ui/components/form';
 import { useConfirm } from '@ui/context/ConfirmContext';
-import { AvatarUploadDialog } from '../../components/AvatarUploadDialog';
+import { AvatarUploadDialog } from '@ui/components/AvatarUploadDialog';
 import {
   STOREFRONT_SLUG_MAX_LENGTH, STOREFRONT_SLUG_MIN_LENGTH, SUGGESTED_EXCHANGE_POLICY,
   finalizeSlug, formatWhatsappInput, isValidStorefrontSlug, sanitizeSlugInput,

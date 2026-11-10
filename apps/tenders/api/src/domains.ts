@@ -80,6 +80,38 @@ export const CONTRACT_CATEGORIES = [
 ] as const;
 export const CONTRACT_CATEGORY_IDS: readonly number[] = CONTRACT_CATEGORIES.map((category) => category.id);
 
+/**
+ * Setores e cargos que o titular escolhe para o colaborador (item 1A): listas padrão do módulo, sem edição pela
+ * conta. O `id` é o código gravado em `conta_membros` (migration 0002); o `name` é o texto da tela. Mesmos nomes
+ * com que as contas de Finanças começam. Cargos são de nível, sem área no nome: junto do setor formam o cargo
+ * completo ("Gerente · Financeiro").
+ */
+export const MEMBER_SECTORS = [
+  { id: 'administrativo', name: 'Administrativo' },
+  { id: 'financeiro', name: 'Financeiro' },
+  { id: 'comercial', name: 'Comercial' },
+  { id: 'marketing', name: 'Marketing' },
+  { id: 'recursos-humanos', name: 'Recursos Humanos' },
+  { id: 'operacional', name: 'Operacional' },
+  { id: 'atendimento', name: 'Atendimento' },
+  { id: 'ti', name: 'TI' },
+] as const;
+export const MEMBER_SECTOR_IDS: readonly string[] = MEMBER_SECTORS.map((sector) => sector.id);
+
+export const MEMBER_JOB_TITLES = [
+  { id: 'diretor', name: 'Diretor' },
+  { id: 'gerente', name: 'Gerente' },
+  { id: 'coordenador', name: 'Coordenador' },
+  { id: 'supervisor', name: 'Supervisor' },
+  { id: 'analista', name: 'Analista' },
+  { id: 'assistente', name: 'Assistente' },
+  { id: 'auxiliar', name: 'Auxiliar' },
+  { id: 'estagiario', name: 'Estagiário' },
+  { id: 'vendedor', name: 'Vendedor' },
+  { id: 'atendente', name: 'Atendente' },
+] as const;
+export const MEMBER_JOB_TITLE_IDS: readonly string[] = MEMBER_JOB_TITLES.map((title) => title.id);
+
 /** Papel da pessoa no módulo, dentro da conta da requisição. */
 export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
 export type TenderRole = (typeof TENDER_ROLES)[number];

@@ -22,17 +22,25 @@ export async function findOwnLoginWithDocument(executor: QueryExecutor, document
   return found !== undefined;
 }
 
-/** O documento já é do titular da conta ou de alguém com vínculo ativo nela. */
+/**
+ * O documento já é do titular da conta ou de alguém com vínculo ativo nela. Na edição, `ignoredUserId` é o usuário
+ * editado: o documento que ele já tem não conta como conflito.
+ */
 export async function findAccountAccessWithDocument(
   executor: QueryExecutor,
   accountId: number,
   document: string,
+  ignoredUserId?: number,
 ): Promise<boolean> {
   const [owner] = await executor
     .select({ id: users.id })
     .from(accounts)
     .innerJoin(users, eq(users.id, accounts.userId))
-    .where(and(eq(accounts.id, accountId), eq(users.document, document)))
+    .where(and(
+      eq(accounts.id, accountId),
+      eq(users.document, document),
+      ignoredUserId === undefined ? undefined : ne(users.id, ignoredUserId),
+    ))
     .limit(1);
   if (owner) {
     return true;
@@ -46,6 +54,7 @@ export async function findAccountAccessWithDocument(
       eq(accountMembers.accountId, accountId),
       eq(accountMembers.status, 'ativo'),
       eq(users.document, document),
+      ignoredUserId === undefined ? undefined : ne(users.id, ignoredUserId),
     ))
     .limit(1);
   return member !== undefined;

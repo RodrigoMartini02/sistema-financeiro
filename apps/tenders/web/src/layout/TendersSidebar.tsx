@@ -4,7 +4,8 @@ import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 
 // Menu lateral do módulo, no estilo do app de finanças (AppShell). No modo
 // `responsive`, os rótulos só aparecem a partir de 1280 px (menu recolhido em
-// ícones de 768 a 1279 px); na gaveta do celular, sempre.
+// ícones de 768 a 1279 px); na gaveta do celular, sempre. "Configurações" não é
+// uma página: é um botão no pé do menu que abre o modal (só para quem tem alguma seção).
 
 const ICONS: Record<TendersRouteKey, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -24,9 +25,11 @@ interface TendersSidebarProps {
   routes: TendersRoute[];
   labels: 'responsive' | 'always';
   onNavigate?: () => void;
+  /** Abre as Configurações em modal; sem ela (pessoa sem nenhuma seção), o botão não aparece. */
+  onOpenSettings?: () => void;
 }
 
-export function TendersSidebar({ routes, labels, onNavigate }: TendersSidebarProps) {
+export function TendersSidebar({ routes, labels, onNavigate, onOpenSettings }: TendersSidebarProps) {
   const labelClass = labels === 'always' ? '' : 'hidden xl:inline';
   return (
     <div className="flex h-full flex-col bg-[#0D2E3C]">
@@ -77,6 +80,28 @@ export function TendersSidebar({ routes, labels, onNavigate }: TendersSidebarPro
           );
         })}
       </nav>
+
+      {onOpenSettings && (
+        <div className="border-t border-[rgba(14,196,216,0.15)] px-2 py-3 xl:px-3">
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate?.();
+              onOpenSettings();
+            }}
+            title="Configurações"
+            aria-label={labels === 'always' ? undefined : 'Configurações'}
+            aria-haspopup="dialog"
+            className={[
+              'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-[#E8F4F5] transition hover:bg-[rgba(14,196,216,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0EC4D8]',
+              labels === 'always' ? '' : 'justify-center xl:justify-start',
+            ].join(' ')}
+          >
+            <Settings size={17} aria-hidden="true" />
+            <span className={labelClass}>Configurações</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

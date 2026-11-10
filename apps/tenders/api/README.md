@@ -14,7 +14,7 @@ As seções técnicas preservam o histórico da construção do módulo. As migr
 
 ## Estrutura
 
-A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/0001_baseline.sql` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
+A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
 
 ```
 apps/tenders/api/src/
@@ -28,7 +28,7 @@ apps/tenders/api/src/
 ├── db/matcher.db.test.ts   testes da regra de busca (banco local)
 ├── domains.ts              modalidades, situações, UFs e listas fechadas
 ├── cnpj.ts                 CNPJ: formato (14 dígitos), dígitos verificadores e o erro das consultas do armazém
-├── objectStorage.ts        cliente do Cloudflare R2, na pasta do ambiente (arquivo bruto e armazém)
+├── objectStorage.ts        cliente do Cloudflare R2, na pasta do ambiente (arquivo bruto, armazém e fotos de perfil)
 ├── tenders.http            coleção de requisições da API (REST Client)
 ├── contractStore/          armazém de contratos em Parquet no R2 (DuckDB)
 │   ├── layout.ts                    conjuntos, colunas, ordens, faixas e nomes dos arquivos
@@ -79,7 +79,7 @@ apps/tenders/api/src/
 │   ├── runtime.ts                   config, log, banco, PNCP, Compras.gov.br e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso), limite por usuário e `validation.ts` (cópia enxuta da de Finanças)
-├── services/               regras da API (busca, buscas salvas, acompanhamento, painel...) e as cópias enxutas de `memberInput`, `documentConflicts`, `accountMemberCreation` e `mercadoPagoCharges`
+├── services/               regras da API (busca, buscas salvas, acompanhamento, painel, equipe, perfil e foto...) e as cópias enxutas de `memberInput`, `documentConflicts`, `accountMemberCreation` e `mercadoPagoCharges`
 ├── utils/                  `requestInput.ts`: erro de pedido e leitura do corpo (cópia enxuta da de Finanças)
 └── routes/                 rotas Express e validações (express-validator)
 ```
@@ -187,6 +187,8 @@ Nomes de ambiente por processo, sem copiar valores entre produtos:
 | `TENDERS_COLLECTOR_LOG_LEVEL` | `info` | `debug`, `info`, `warn` ou `error`. |
 
 Os aliases antigos `TENDERS_ARCHIVE_ENDPOINT`, `TENDERS_ARCHIVE_BUCKET`, `TENDERS_ARCHIVE_ACCESS_KEY_ID`, `TENDERS_ARCHIVE_SECRET_ACCESS_KEY` e `TENDERS_STORAGE_PREFIX` continuam aceitos, respectivamente, pelas cinco `R2_*`. Um valor canônico não vazio prevalece por campo. Sua retirada depende da atualização futura do PC e da conferência dos demais CLIs. Preservar bucket, prefixo e credenciais existentes; não mover objetos. Alterar o arquivo real de ambiente do PC ou variáveis da Render exige autorização específica.
+
+A API também usa as cinco `R2_*` para as **fotos de perfil** dos usuários (item 1A): o objeto fica em `<pasta do ambiente>/usuarios/<id do usuário>/<uuid>.<jpg|png|webp>`, a coluna `usuarios.foto_chave` guarda só essa chave, e o app abre a foto por um link assinado de 1 hora, direto do R2 (a chave nunca sai na API). O token precisa de escrita ("Object Read & Write"). Sem as cinco variáveis, ou com configuração recusada, a API sobe mesmo assim: o envio de foto responde 503 ("não está disponível agora"), a lista de usuários vem sem fotos e o resto do módulo não muda.
 
 O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido, como no script `tenders:dev`. Ele nunca cai no `.env` de produção por padrão.
 
@@ -348,7 +350,7 @@ Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`
     - isolamento entre contas e entre pessoas da mesma conta;
     - busca: filtros, ordenações, paginação e paridade com a busca salva;
     - buscas salvas: validações, limite de 50 e prévia;
-    - acompanhamento e histórico, notificações, painel e equipe;
+    - acompanhamento e histórico, notificações, painel e equipe (cadastro com dados de trabalho, edição, conflito de e-mail e CPF, isolamento entre contas, foto no R2 simulado e perfil do titular);
     - favoritos: de cada pessoa, sem duplicar, na busca, no detalhe e no filtro `favoritesOnly`;
     - contratos por HTTP: a chave com a barra codificada na URL, chave fora do formato (404), armazém atualizando (503 com o código `CONTRACT_STORE_UPDATING`) e os totais da Coleta vindos do manifesto;
     - itens e arquivos do PNCP com cache;
@@ -668,6 +670,14 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
 - **Painel:**
   - "Novos hoje": coletados hoje que batem com alguma busca salva ativa do usuário;
   - "Encerrando em 7 dias": acompanhados da conta como ANALISAR ou PARTICIPAR.
+- **Equipe e perfil** (só o titular da conta; `routes/team.ts` e `routes/profile.ts`; a conta é sempre a da trava do módulo, e o alvo precisa ser colaborador ativo dela, senão 404; colaborador e quem não é titular recebem 403):
+  - `GET /team`: os colaboradores com `userId`, `name`, `lastName`, `email`, `document` (só os dígitos do CPF), `phone`, `sector`, `jobTitle` (códigos das listas padrão), `admissionDate` (AAAA-MM-DD), `hasAccess`, `grantedAt` e `photoUrl` (link assinado, nulo sem foto);
+  - `POST /team { name, lastName?, email, password, document?, phone?, sector?, jobTitle?, admissionDate? }`: usuário novo, só de Licitações (nada é criado em Finanças), já com acesso ao módulo. CPF só de colaborador (conta é sempre de empresa); o valor da assinatura acompanha (`warning` se o recorrente não pôde mudar);
+  - `PUT /team/:userId { hasAccess }`: libera ou retira o acesso (muda o valor da próxima cobrança);
+  - `PATCH /team/:userId`: edita o colaborador. Campo ausente mantém; vazio ou `null` limpa sobrenome, CPF, telefone, setor, cargo e admissão; `newPassword` só quando informada. E-mail e CPF não podem ser de outro acesso (o próprio não conta). Não mexe no acesso nem no valor da assinatura;
+  - `PUT /team/:userId/photo { image }` e `DELETE /team/:userId/photo`: troca e tira a foto. `image` é o data URL do recorte feito pelo app (`data:image/jpeg|png|webp;base64,...`); o tipo vale pelo conteúdo (assinatura do arquivo), até 1 MB. Grava o objeto novo, aponta a coluna e só então apaga o antigo;
+  - `GET /profile` e `PATCH /profile { name?, lastName?, phone? }`, `PUT` e `DELETE /profile/photo`: o perfil do próprio titular (o usuário é sempre o da sessão). E-mail, CPF e senha dele não mudam por aqui;
+  - `GET /domains` ganha `memberSectors` e `memberJobTitles`: as listas padrão (`domains.ts`: os mesmos 8 setores e 10 cargos com que as contas de Finanças começam), sem tela para editar. A API grava o código (`financeiro`, `gerente`), valida no código e não há CHECK no banco.
 - **Itens e arquivos:**
   - vêm da API principal do PNCP, com cache de 24 h em `cache_detalhe`;
   - na hora do pedido da tela: 10 s por tentativa, uma repetição curta e sem espera longa;
@@ -716,6 +726,8 @@ npm --prefix apps/tenders/api run tenders:create-admin:dev -- --email admin@empr
 O comando do admin mostra o destino e exige confirmação antes da senha, que é digitada sem eco e nunca passada por argumento. Fora do script `:dev`, exportar `TENDERS_DATABASE_URL` no terminal; não carrega o `.env` de produção por padrão. O admin nasce com conta PJ em cortesia.
 
 A troca anterior está descrita no [roteiro da 3B](../../../docs/tenders-3b-cutover.md). Agora cada API tem seu runner: Licitações usa `apps/tenders/api/scripts/migrations.ts` e `migrations/`; Finanças usa `apps/finance/api/scripts/migrations.ts` e `drizzle/`. `--projeto` é opcional e aceita somente o projeto da própria API. O runner escolhe `DOTENV_CONFIG_PATH` quando explícito; senão, o arquivo `.env.dev`/`.env` da raiz do repositório se existir, ou as variáveis do processo. `--banco` continua obrigatório e a URL é validada antes da conexão. Produção só grava com `--confirmo` e aprovação do usuário.
+
+A **`0002_member_profile.sql`** (item 1A, `.plans/licitacoes-1a-configuracoes-e-usuarios.md`) acrescenta só colunas opcionais: `usuarios.foto_chave` e, em `conta_membros`, `setor`, `cargo` e `data_admissao`. É aditiva (o código anterior continua funcionando sem ela), mas o código novo lê as colunas, inclusive o login, que lê `usuarios` inteira: **aplicar a 0002 em cada banco antes de publicar a API que a usa**, com autorização explícita, pelo runner (`migrations:aplicar -- 0002 --banco local|producao --projeto tenders`, produção com `--confirmo`).
 
 Não editar nem reaplicar a baseline ou as migrations históricas. O coletor mantém `TENDERS_COLLECTOR_DATABASE_URL`, com a identidade restrita e o progresso existentes. A migration `0096` e sua proteção histórica ficam apenas em Finanças; a conferência excepcional do banco próprio só é usada se essa migration histórica precisar ser aplicada em outro ambiente. Status normal e boot de Finanças não exigem conexão com Licitações. A montagem transitória foi removida; somente o POST exato do webhook legado permanece como compatibilidade HTTP.
 
@@ -825,8 +837,8 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 - **Notificações:**
   - o sino abre um painel lateral à direita, no visual do painel de notificações do app de finanças, com as 10 mais recentes e "Marcar todas como lidas"; não há página de notificações, o sino é o único lugar;
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).
-- **Configurações (`/configuracoes`):**
-  - **Usuários** (só o titular): "Você (titular)", o acesso de cada colaborador ativo da conta e "Adicionar usuário" (login próprio, já com acesso ao módulo), com o preço por usuário;
+- **Configurações (modal):** não é uma página. O botão "Configurações" no pé do menu lateral abre um modal sobre a página atual (`?config=usuarios`, `assinatura` ou `coleta`; o botão voltar do navegador fecha), no modelo do modal de Finanças, com casco próprio (`components/settings/SettingsModal.tsx`). A rota `/licitacoes/app/configuracoes` continua, por causa do retorno do Mercado Pago, e redireciona para a página inicial com o modal na Assinatura (`utils/settings.ts`):
+  - **Usuários** (só o titular): "você, titular" com "Meus dados" (nome, sobrenome, telefone e foto), e cada colaborador ativo com foto, cargo e setor, o interruptor de acesso e "Editar"; "Adicionar usuário" (login próprio, já com acesso ao módulo). O formulário (`MemberFormDialog`) tem foto (só ao editar), nome, sobrenome, e-mail, CPF, telefone, admissão, cargo, setor e senha (nova senha na edição, em branco mantém). O preço por usuário aparece no alto. O recorte da foto é o `AvatarUploadDialog` de `packages/ui`;
   - **Assinatura** (só o titular): situação, valor do mês, pagar (Pix, cartão ou recorrente) e cancelar o recorrente;
   - **Coleta** (titular ou admin): última varredura e últimos lembretes de prazo, com a próxima execução prevista pela rotina diária das 06:00, e o histórico em cards com rolagem infinita, com os erros de cada execução. A agenda fica em `COLLECTION_SCHEDULE` (`services/collectionOverview.ts`); a incremental não está agendada.
 

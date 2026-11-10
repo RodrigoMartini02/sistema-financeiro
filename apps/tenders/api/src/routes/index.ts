@@ -12,7 +12,9 @@ import { tenderRoute } from './handler';
 import { noticeRoutes } from './notices';
 import { notificationRoutes } from './notifications';
 import { overviewRoutes } from './overview';
+import { profileRoutes } from './profile';
 import { savedSearchRoutes } from './savedSearches';
+import { teamRoutes } from './team';
 import { idParam } from './validators';
 
 export { createTendersAuth } from './auth';
@@ -44,6 +46,8 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use('/contract-searches', contractSearchRoutes(deps));
   routes.use('/cnpj', cnpjRoutes(deps));
   routes.use('/notifications', notificationRoutes(deps));
+  routes.use('/team', teamRoutes(deps));
+  routes.use('/profile', profileRoutes(deps));
   routes.use(overviewRoutes(deps));
 
   const adminRoutes = Router();
