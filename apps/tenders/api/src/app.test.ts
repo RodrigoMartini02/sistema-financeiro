@@ -19,7 +19,7 @@ function dependencies(options: { env?: NodeJS.ProcessEnv; healthFails?: boolean 
     status: () => ({ ready: false, revision: null, publishedAt: null, today: null, totals: null }),
   };
   return {
-    api: { db, contractStore, userFiles: null, now: () => new Date(), pncpDetails:{ fetchDetailList: async () => { throw new Error('Unexpected PNCP request'); } } },
+    api: { db, contractStore, userFiles: null, companyLookup: { lookup: async () => { throw new Error('Unexpected company lookup'); } }, now: () => new Date(), pncpDetails:{ fetchDetailList: async () => { throw new Error('Unexpected PNCP request'); } } },
     auth: {
       db, config: AUTH_CONFIG, now: () => new Date(),
       sendRecoveryEmail: async () => { throw new Error('Unexpected email request'); },

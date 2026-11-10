@@ -1,6 +1,8 @@
 import type {
   CollectionRun,
   CollectionStatus,
+  CompanyChange,
+  CompanyUpdate,
   NewTeamUser,
   OwnerProfileChange,
   OwnerProfileUpdate,
@@ -12,7 +14,7 @@ import type {
 } from '../types';
 import { tendersRequest } from './tendersApi';
 
-// Configurações do módulo: usuários e perfil do titular (só o titular) e coleta (titular ou admin).
+// Configurações do módulo: usuários, perfil do titular e da empresa (só o titular) e coleta (titular ou admin).
 
 export function fetchTeam(): Promise<TeamMember[]> {
   return tendersRequest<TeamMember[]>('/team');
@@ -54,6 +56,19 @@ export function uploadOwnerPhoto(image: string): Promise<OwnerProfileChange> {
 
 export function removeOwnerPhoto(): Promise<OwnerProfileChange> {
   return tendersRequest<OwnerProfileChange>('/profile/photo', { method: 'DELETE' });
+}
+
+export function fetchCompany(): Promise<CompanyChange> {
+  return tendersRequest<CompanyChange>('/company');
+}
+
+export function updateCompany(changes: CompanyUpdate): Promise<CompanyChange> {
+  return tendersRequest<CompanyChange>('/company', { method: 'PATCH', body: JSON.stringify(changes) });
+}
+
+/** Consulta o CNPJ da conta (sempre o dela; não leva corpo) e grava o resultado. */
+export function lookupCompany(): Promise<CompanyChange> {
+  return tendersRequest<CompanyChange>('/company/lookup', { method: 'POST' });
 }
 
 export function fetchCollectionStatus(): Promise<CollectionStatus> {

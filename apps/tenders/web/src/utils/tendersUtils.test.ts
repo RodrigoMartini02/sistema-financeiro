@@ -30,8 +30,8 @@ test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta 
 });
 
 test('menu: as páginas do módulo; Configurações abre em modal e não é item de menu', () => {
-  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
-  const colaborador = { manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const colaborador = { manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
   const pages = ['dashboard', 'buscar', 'contratos', 'buscas', 'favoritos', 'acompanhamento'];
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), pages);
   assert.deepEqual(menuRoutes(colaborador).map((route) => route.key), pages);
@@ -42,8 +42,8 @@ test('menu: as páginas do módulo; Configurações abre em modal e não é item
 });
 
 test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', () => {
-  const titularAdmin = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: true };
-  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const titularAdmin = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   assert.equal(menuRoutes(titularAdmin).at(-1)?.key, 'contas');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'contas'), false);
   assert.equal(routeForPath('/admin/contas')?.title, 'Contas habilitadas');
@@ -74,7 +74,7 @@ test('busca rápida: um CNPJ válido (com ou sem pontuação) leva à página de
 });
 
 test('página do CNPJ: título da barra e fora do menu', () => {
-  const titular = { manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   assert.equal(routeForPath('/cnpj/22493902000140')?.title, 'CNPJ');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'cnpj'), false, 'a página abre pelas buscas e pelos nomes, não pelo menu');
 });

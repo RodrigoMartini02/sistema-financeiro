@@ -112,6 +112,37 @@ export const MEMBER_JOB_TITLES = [
 ] as const;
 export const MEMBER_JOB_TITLE_IDS: readonly string[] = MEMBER_JOB_TITLES.map((title) => title.id);
 
+/**
+ * Porte da empresa (item 1C): o `id` é o código gravado em `contas.porte` e o `name`, o texto da tela. Campo separado
+ * do tipo jurídico. MEI vem da opção da Receita; ME, EPP e Demais, do código de porte dela.
+ */
+export const COMPANY_SIZES = [
+  { id: 'MEI', name: 'MEI — Microempreendedor Individual' },
+  { id: 'ME', name: 'ME — Microempresa' },
+  { id: 'EPP', name: 'EPP — Empresa de Pequeno Porte' },
+  { id: 'DEMAIS', name: 'Demais empresas' },
+] as const;
+export type CompanySize = (typeof COMPANY_SIZES)[number]['id'];
+export const COMPANY_SIZE_IDS: readonly string[] = COMPANY_SIZES.map((size) => size.id);
+
+/**
+ * Tipo jurídico da empresa (item 1C), gravado em `contas.tipo_juridico`. A consulta do CNPJ só sabe distinguir LTDA,
+ * EIRELI e SA (a Receita não tem código próprio para SLU, que ela informa como limitada): SLU é ajuste manual.
+ */
+export const LEGAL_TYPES = [
+  { id: 'LTDA', name: 'LTDA — Sociedade Limitada' },
+  { id: 'SLU', name: 'SLU — Sociedade Limitada Unipessoal' },
+  { id: 'EIRELI', name: 'EIRELI — Empresa Individual de Responsabilidade Limitada' },
+  { id: 'SA', name: 'SA — Sociedade Anônima' },
+  { id: 'OUTROS', name: 'Outros' },
+] as const;
+export type LegalType = (typeof LEGAL_TYPES)[number]['id'];
+export const LEGAL_TYPE_IDS: readonly string[] = LEGAL_TYPES.map((type) => type.id);
+
+/** Situação cadastral do CNPJ na Receita, gravada em `contas.situacao_cadastral`. */
+export const REGISTRATION_STATUSES = ['ATIVA', 'SUSPENSA', 'INAPTA', 'BAIXADA', 'NULA'] as const;
+export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
+
 /** Papel da pessoa no módulo, dentro da conta da requisição. */
 export const TENDER_ROLES = ['TITULAR', 'COLABORADOR'] as const;
 export type TenderRole = (typeof TENDER_ROLES)[number];

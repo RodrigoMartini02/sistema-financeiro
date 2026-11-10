@@ -1,12 +1,12 @@
 import type { TendersPermissions } from './navigation';
 
-// Configurações do módulo como modal (item 1A): quais seções cada pessoa vê, e como o modal abre e fecha pela URL.
+// Configurações do módulo como modal (itens 1A e 1C): quais seções cada pessoa vê, e como o modal abre e fecha pela URL.
 // O modal vale por um parâmetro da URL (`?config=usuarios`), como o painel do edital em Editais: o botão voltar do
 // navegador fecha o modal, e o endereço pode ser compartilhado. A rota antiga `/configuracoes` é a que o Mercado Pago
 // usa na volta da cobrança: ela redireciona para a página inicial com o modal aberto na Assinatura.
 
-export type SettingsItemId = 'usuarios' | 'assinatura' | 'coleta';
-export type SettingsGroup = 'Pessoas' | 'Conta' | 'Avançado';
+export type SettingsItemId = 'perfil' | 'usuarios' | 'assinatura' | 'coleta';
+export type SettingsGroup = 'Empresa' | 'Conta' | 'Avançado';
 
 export interface SettingsItem {
   id: SettingsItemId;
@@ -16,13 +16,14 @@ export interface SettingsItem {
 
 /** Cada seção e a permissão de `GET /access` que a libera (a API confere de novo em cada rota). */
 const SETTINGS_ITEMS: ReadonlyArray<SettingsItem & { permission: keyof TendersPermissions }> = [
-  { id: 'usuarios', label: 'Usuários', group: 'Pessoas', permission: 'manageTeam' },
+  { id: 'perfil', label: 'Perfil', group: 'Empresa', permission: 'manageCompany' },
+  { id: 'usuarios', label: 'Usuários', group: 'Empresa', permission: 'manageTeam' },
   { id: 'assinatura', label: 'Assinatura', group: 'Conta', permission: 'manageBilling' },
   { id: 'coleta', label: 'Coleta', group: 'Avançado', permission: 'viewCollectionRuns' },
 ];
 
 /** Ordem dos grupos no menu lateral do modal. */
-const GROUP_ORDER: readonly SettingsGroup[] = ['Pessoas', 'Conta', 'Avançado'];
+const GROUP_ORDER: readonly SettingsGroup[] = ['Empresa', 'Conta', 'Avançado'];
 
 /** Parâmetro da URL que abre o modal. */
 export const SETTINGS_PARAM = 'config';

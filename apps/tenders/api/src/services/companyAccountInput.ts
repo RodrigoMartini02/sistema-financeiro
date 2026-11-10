@@ -1,12 +1,11 @@
-// Leitura do cadastro da empresa (POST /api/tenders/auth/register): razão social, nome fantasia, CNPJ,
-// enquadramento e data de abertura. Sem acesso ao banco: a unicidade do CNPJ e do e-mail é conferida na rota.
-// Cópia enxuta do `services/companyAccountInput.ts` de Finanças (os dois backends são independentes).
+// Leitura do cadastro da empresa (POST /api/tenders/auth/register): razão social, nome fantasia, CNPJ e data de
+// abertura. Sem acesso ao banco: a unicidade do CNPJ e do e-mail é conferida na rota. Cópia enxuta do
+// `services/companyAccountInput.ts` de Finanças (os dois backends são independentes), sem o enquadramento: em
+// Licitações porte e tipo jurídico são campos separados do perfil da empresa, preenchidos pela consulta do CNPJ. Um
+// `enquadramento` que um site antigo ainda mande é ignorado.
 import type { accounts } from '../db/identity';
 import { isValidCnpj } from '../middleware/validation';
 import { RequestInputError, readOptionalIsoDate, readOptionalText, readRecord } from '../utils/requestInput';
-
-export const ENQUADRAMENTOS = ['MEI', 'ME', 'EPP', 'SLU', 'EIRELI', 'LTDA', 'SA'] as const;
-export type Enquadramento = (typeof ENQUADRAMENTOS)[number];
 
 /** razao_social e nome_fantasia: varchar(150). */
 const MAX_COMPANY_NAME_LENGTH = 150;
@@ -18,7 +17,6 @@ export interface CompanyAccountInput {
   tradeName: string | null;
   /** CNPJ só com os dígitos. */
   document: string;
-  enquadramento: Enquadramento | null;
   openingDate: string | null;
   /** Nome da conta: nome fantasia ou, sem ele, razão social. */
   displayName: string;
@@ -26,7 +24,7 @@ export interface CompanyAccountInput {
 
 type CompanyAccountColumns = Pick<
   typeof accounts.$inferInsert,
-  'name' | 'document' | 'legalName' | 'tradeName' | 'enquadramento' | 'openingDate'
+  'name' | 'document' | 'legalName' | 'tradeName' | 'openingDate'
 >;
 
 function isBlank(value: unknown): boolean {
@@ -54,16 +52,6 @@ function readCnpj(value: unknown): string {
   return value.replace(/\D/g, '');
 }
 
-function readEnquadramento(value: unknown): Enquadramento | null {
-  if (isBlank(value)) {
-    return null;
-  }
-  if (!ENQUADRAMENTOS.includes(value as Enquadramento)) {
-    throw new RequestInputError('Enquadramento inválido');
-  }
-  return value as Enquadramento;
-}
-
 /** Corpo do cadastro da empresa (POST /auth/register). */
 export function readCompanyAccountInput(body: unknown): CompanyAccountInput {
   const record = readRecord(body, 'Pedido inválido');
@@ -74,7 +62,6 @@ export function readCompanyAccountInput(body: unknown): CompanyAccountInput {
     legalName,
     tradeName,
     document: readCnpj(record['documento']),
-    enquadramento: readEnquadramento(record['enquadramento']),
     openingDate: readOptionalIsoDate(openingDate === '' ? null : openingDate, 'Data de abertura inválida'),
     // contas.nome guarda até 100 caracteres; os nomes completos ficam em razao_social e nome_fantasia.
     displayName: (tradeName ?? legalName).slice(0, MAX_ACCOUNT_NAME_LENGTH),
@@ -88,7 +75,6 @@ export function companyAccountColumns(input: CompanyAccountInput): CompanyAccoun
     document: input.document,
     legalName: input.legalName,
     tradeName: input.tradeName,
-    enquadramento: input.enquadramento,
     openingDate: input.openingDate,
   };
 }

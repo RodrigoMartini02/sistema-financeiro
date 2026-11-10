@@ -5,6 +5,7 @@ import { createRequireTenderAccess } from '../middleware/tenderAccess';
 import { listAccountsForTenders, setAccountCourtesy } from '../services/team';
 import { billingRoutes, createBillingWebhook } from './billing';
 import { cnpjRoutes } from './cnpj';
+import { companyRoutes } from './company';
 import { contractRoutes } from './contracts';
 import { contractSearchRoutes } from './contractSearches';
 import type { TendersApiDeps } from './deps';
@@ -48,6 +49,7 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use('/notifications', notificationRoutes(deps));
   routes.use('/team', teamRoutes(deps));
   routes.use('/profile', profileRoutes(deps));
+  routes.use('/company', companyRoutes(deps));
   routes.use(overviewRoutes(deps));
 
   const adminRoutes = Router();

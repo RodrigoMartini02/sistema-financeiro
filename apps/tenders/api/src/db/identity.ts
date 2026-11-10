@@ -1,9 +1,15 @@
-import { boolean, date, integer, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { boolean, date, integer, jsonb, pgTable, serial, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 // Identidade de Licitações: usuários, contas (só de empresa), vínculos de colaborador e o código de recuperação de
-// senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql e 0002_member_profile.sql),
-// com só as colunas que o código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
+// senha. Mesmas tabelas e colunas do banco de Licitações (migrations/0001_baseline.sql, 0002_member_profile.sql e
+// 0003_company_profile.sql), com só as colunas que o código do módulo lê e grava; as outras têm padrão ou aceitam nulo.
 // Separado do schema de coleta para manter explícitas as tabelas de identidade.
+
+/** Um CNAE da empresa: código com 7 dígitos e a descrição da Receita. */
+export interface CnaeEntry {
+  code: string;
+  description: string;
+}
 
 export const users = pgTable('usuarios', {
   id: serial('id').primaryKey(),
@@ -42,9 +48,30 @@ export const accounts = pgTable('contas', {
   isDefault: boolean('eh_padrao').notNull().default(false),
   legalName: varchar('razao_social', { length: 150 }),
   tradeName: varchar('nome_fantasia', { length: 150 }),
-  enquadramento: varchar('enquadramento', { length: 10 })
-    .$type<'MEI' | 'ME' | 'EPP' | 'SLU' | 'EIRELI' | 'LTDA' | 'SA'>(),
   openingDate: date('data_abertura'),
+  // Perfil da empresa (item 1C). Porte e tipo jurídico são códigos das listas do módulo (domains.ts), validados no
+  // código. A coluna `enquadramento` do cadastro antigo continua no banco até a 0004, mas nada mais a lê ou grava.
+  size: varchar('porte', { length: 10 }),
+  legalType: varchar('tipo_juridico', { length: 10 }),
+  // Natureza jurídica, situação cadastral e CNAEs: só a consulta do CNPJ grava, porque são fatos da Receita.
+  legalNatureCode: varchar('natureza_juridica_codigo', { length: 4 }),
+  legalNature: varchar('natureza_juridica', { length: 150 }),
+  registrationStatus: varchar('situacao_cadastral', { length: 10 }),
+  registrationStatusDate: date('situacao_cadastral_data'),
+  mainCnaeCode: varchar('cnae_principal', { length: 7 }),
+  mainCnaeDescription: varchar('cnae_principal_descricao', { length: 255 }),
+  secondaryCnaes: jsonb('cnaes_secundarios').$type<CnaeEntry[]>(),
+  zipCode: varchar('cep', { length: 8 }),
+  street: varchar('logradouro', { length: 200 }),
+  streetNumber: varchar('numero', { length: 20 }),
+  complement: varchar('complemento', { length: 200 }),
+  district: varchar('bairro', { length: 100 }),
+  city: varchar('municipio', { length: 100 }),
+  state: varchar('uf', { length: 2 }),
+  phone: varchar('telefone', { length: 20 }),
+  contactEmail: varchar('email_contato', { length: 255 }),
+  /** Quando a consulta do CNPJ gravou os dados pela última vez; nula se nunca consultou. */
+  lookedUpAt: timestamp('consulta_cnpj_em', { withTimezone: true, mode: 'string' }),
 });
 
 // Um usuário só pode ser colaborador de uma conta por vez (usuario_id único).

@@ -93,7 +93,8 @@ export function createAuthAdapter(solution: SiteSolution, configuredBase?: strin
       documento: input.documento,
       razao_social: input.razaoSocial,
       nome_fantasia: input.nomeFantasia || undefined,
-      enquadramento: input.enquadramento || undefined,
+      // Licitações não recebe o enquadramento: porte e tipo jurídico vêm da consulta do CNPJ no Perfil da empresa.
+      enquadramento: solution === 'tenders' ? undefined : input.enquadramento || undefined,
       data_abertura: input.dataAbertura || undefined,
       email: input.email,
       senha: input.senha,

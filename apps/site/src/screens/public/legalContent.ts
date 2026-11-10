@@ -43,6 +43,7 @@ Ao utilizar a Plataforma, o Usuário compromete-se a:
 • As informações de licitações e contratos vêm de dados públicos do PNCP, do Compras.gov.br (dados abertos do Governo Federal, licença Creative Commons Atribuição) e dos sistemas de origem dos órgãos. A Plataforma não tem vínculo com o PNCP, com o Compras.gov.br nem com os órgãos públicos.
 • Não garantimos que os editais estejam completos, corretos ou atualizados, nem que todo edital publicado apareça na Plataforma ou nos avisos. Antes de decidir ou participar, o Usuário deve conferir o edital e os prazos na fonte oficial.
 • Os avisos e lembretes aparecem dentro da Plataforma e dependem da coleta dos dados públicos, que pode atrasar ou falhar.
+• Os dados cadastrais da empresa que a Plataforma preenche a partir do CNPJ (razão social, situação cadastral, atividades, endereço e contatos) vêm de dados públicos da Receita Federal, consultados pela BrasilAPI. A Plataforma não tem vínculo com a Receita Federal nem com a BrasilAPI e não garante que esses dados estejam completos ou atualizados; o Usuário deve conferi-los e corrigi-los quando necessário.
 • A Plataforma não presta assessoria jurídica, não elabora propostas e não participa de licitações em nome do Usuário.
 
 **7. PLANOS, PAGAMENTO E CANCELAMENTO**
@@ -120,6 +121,7 @@ Cada finalidade de tratamento está fundamentada em ao menos uma base legal:
 Não vendemos, alugamos, cedemos ou comercializamos seus dados pessoais. O compartilhamento ocorre apenas com:
 • Fornecedores de infraestrutura tecnológica (hospedagem, banco de dados), vinculados por cláusulas contratuais de proteção de dados.
 • Mercado Pago, para processar os pagamentos das assinaturas.
+• BrasilAPI, serviço de consulta de dados públicos de CNPJ, que recebe apenas o CNPJ da empresa quando o titular da conta pede, no FINGERENCE Licitações, para buscar os dados cadastrais da empresa. Nenhum outro dado do Usuário é enviado a ela.
 • Autoridades públicas e órgãos reguladores, exclusivamente quando exigido por lei ou ordem judicial.
 
 **6. TRANSFERÊNCIA INTERNACIONAL DE DADOS**

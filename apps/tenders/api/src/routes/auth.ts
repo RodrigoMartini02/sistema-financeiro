@@ -60,7 +60,7 @@ export function createTendersAuth(deps: TendersAuthDeps): {
     }),
   );
 
-  // POST /api/tenders/auth/register { razao_social, nome_fantasia?, documento (CNPJ), enquadramento?, data_abertura?, email, senha }
+  // POST /api/tenders/auth/register { razao_social, nome_fantasia?, documento (CNPJ), data_abertura?, email, senha }
   authRoutes.post(
     '/register',
     [

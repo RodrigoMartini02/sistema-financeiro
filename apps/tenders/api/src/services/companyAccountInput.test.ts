@@ -10,7 +10,6 @@ function body(overrides: Record<string, unknown> = {}): Record<string, unknown> 
     razao_social: '  Empresa ABC Ltda  ',
     nome_fantasia: '  ABC Stores ',
     documento: VALID_CNPJ,
-    enquadramento: 'LTDA',
     data_abertura: '2020-05-10',
     ...overrides,
   };
@@ -25,7 +24,6 @@ test('lê o bloco da empresa: apara os nomes e guarda o CNPJ só com dígitos', 
   assert.equal(input.legalName, 'Empresa ABC Ltda');
   assert.equal(input.tradeName, 'ABC Stores');
   assert.equal(input.document, '11222333000181');
-  assert.equal(input.enquadramento, 'LTDA');
   assert.equal(input.openingDate, '2020-05-10');
 });
 
@@ -53,12 +51,10 @@ test('CNPJ confere os dígitos verificadores; CPF não vale (Licitações é só
   assertRejects(() => readCompanyAccountInput(body({ documento: undefined })), 'Informe o CNPJ');
 });
 
-test('enquadramento é opcional e só aceita os da lista', () => {
-  assert.equal(readCompanyAccountInput(body({ enquadramento: undefined })).enquadramento, null);
-  assert.equal(readCompanyAccountInput(body({ enquadramento: '' })).enquadramento, null);
-  assert.equal(readCompanyAccountInput(body({ enquadramento: 'MEI' })).enquadramento, 'MEI');
-  assertRejects(() => readCompanyAccountInput(body({ enquadramento: 'XPTO' })), 'Enquadramento inválido');
-  assertRejects(() => readCompanyAccountInput(body({ enquadramento: 'ltda' })), 'Enquadramento inválido');
+test('enquadramento não faz mais parte do cadastro: um site antigo que o mande é ignorado, mesmo inválido', () => {
+  const input = readCompanyAccountInput(body({ enquadramento: 'XPTO' }));
+  assert.equal('enquadramento' in input, false);
+  assert.equal(input.legalName, 'Empresa ABC Ltda');
 });
 
 test('data de abertura é opcional e precisa ser uma data válida', () => {
@@ -75,13 +71,12 @@ test('nome da conta: nome fantasia ou, sem ele, razão social', () => {
 });
 
 test('colunas da conta saem do bloco lido', () => {
-  const columns = companyAccountColumns(readCompanyAccountInput(body({ enquadramento: '', data_abertura: '' })));
+  const columns = companyAccountColumns(readCompanyAccountInput(body({ data_abertura: '' })));
   assert.deepEqual(columns, {
     name: 'ABC Stores',
     document: '11222333000181',
     legalName: 'Empresa ABC Ltda',
     tradeName: 'ABC Stores',
-    enquadramento: null,
     openingDate: null,
   });
 });

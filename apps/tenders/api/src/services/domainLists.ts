@@ -2,8 +2,10 @@ import { asc, isNotNull, and } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
 import {
   BRAZILIAN_STATES,
+  COMPANY_SIZES,
   CONTRACT_CATEGORIES,
   CONTRACT_TYPES,
+  LEGAL_TYPES,
   MEMBER_JOB_TITLES,
   MEMBER_SECTORS,
   TENDER_MODALITIES,
@@ -34,6 +36,9 @@ export interface DomainLists {
   /** Setores e cargos padrão do colaborador (formulário de usuários). */
   memberSectors: typeof MEMBER_SECTORS;
   memberJobTitles: typeof MEMBER_JOB_TITLES;
+  /** Porte e tipo jurídico da empresa (perfil da empresa). */
+  companySizes: typeof COMPANY_SIZES;
+  legalTypes: typeof LEGAL_TYPES;
   municipalities: Municipality[];
 }
 
@@ -68,6 +73,8 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
       contractTypes: CONTRACT_TYPES,
       memberSectors: MEMBER_SECTORS,
       memberJobTitles: MEMBER_JOB_TITLES,
+      companySizes: COMPANY_SIZES,
+      legalTypes: LEGAL_TYPES,
       municipalities: cached.municipalities,
     };
   };

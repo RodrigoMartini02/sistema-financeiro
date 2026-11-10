@@ -1,4 +1,4 @@
-import { Activity, Crown, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Building2, Crown, Users, type LucideIcon } from 'lucide-react';
 import { Drawer } from '@ui/components/drawer';
 import { CFG, CONFIG_SCOPE_CLASS, cfgNavGroupLabelStyle } from '@ui/components/configTokens';
 import {
@@ -8,13 +8,15 @@ import {
 } from '../../utils/settings';
 import { BillingPanel } from '../BillingPanel';
 import { CollectionPanel } from '../CollectionPanel';
+import { CompanyProfileSection } from './CompanyProfileSection';
 import { UsersSection } from './UsersSection';
 
-// Configurações do módulo como modal (item 1A), no método do modal de Configurações de Finanças: Drawer centrado,
+// Configurações do módulo como modal (itens 1A e 1C), no método do modal de Configurações de Finanças: Drawer centrado,
 // menu lateral por grupo à esquerda e a seção à direita. Casco próprio de Licitações: não usa o de Finanças nem os
 // serviços dele.
 
 const ICONS: Record<SettingsItemId, LucideIcon> = {
+  perfil: Building2,
   usuarios: Users,
   assinatura: Crown,
   coleta: Activity,
@@ -83,6 +85,7 @@ export function SettingsModal({ open, items, activeItem, accountId, onSelect, on
         </nav>
 
         <div className="scrollbar-thin min-w-0 flex-1 overflow-y-auto">
+          {current?.id === 'perfil' && <CompanyProfileSection />}
           {current?.id === 'usuarios' && <UsersSection accountId={accountId} />}
           {current?.id === 'assinatura' && <BillingPanel accountId={accountId} />}
           {current?.id === 'coleta' && <CollectionPanel />}

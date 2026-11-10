@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { after, describe, test } from 'node:test';
+import { after, describe, mock, test } from 'node:test';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { eq } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
@@ -14,6 +14,7 @@ import {
 import { ContractStoreUnavailableError, type ContractStoreAccess } from '../contractStore/reader';
 import { openTestContractStore, sampleContract, sampleResult, sampleSupplier } from '../contractStore/storeTestSupport';
 import { postgresSearchFields } from '../contractStore/textSearch';
+import { accounts } from '../db/identity';
 import { tenderEnabledAccounts } from '../db/schema';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
@@ -22,17 +23,25 @@ import type { CnpjSummary, CnpjWinnerItem } from '../services/cnpjPage';
 import type { ContractDetail } from '../services/contractDetail';
 import type { ContractSavedSearchView } from '../services/contractSavedSearches';
 import type { ContractListItem } from '../services/contractSearch';
-import { addAccountMember, uniqueToken } from '../services/apiTestSupport';
+import { addAccountMember, testCnpj, uniqueToken } from '../services/apiTestSupport';
 import type { DashboardView } from '../services/dashboard';
 import type { ExpiringContractsView } from '../services/dashboardContracts';
 import type { DomainLists } from '../services/domainLists';
 import type { NoticeDetail, TrackingHistoryEntry } from '../services/noticeDetail';
 import type { NoticeListItem, NoticeTracking, Paginated } from '../services/noticeSearch';
+import {
+  CompanyLookupUnavailableError,
+  CompanyNotFoundError,
+  type CompanyLookup,
+  type CompanyLookupSource,
+} from '../services/companyLookup';
+import type { CompanyProfileView } from '../services/companyProfile';
 import type { ProfileView } from '../services/profile';
 import type { SavedSearchView } from '../services/savedSearches';
 import { startTenderTrial, type SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
 import { CNPJ_RATE_LIMIT } from './cnpj';
+import { COMPANY_LOOKUP_RATE_LIMIT } from './company';
 import { createTendersRoutes } from './index';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 
@@ -60,7 +69,7 @@ interface ApiResponse<T> {
 interface AccessData {
   account: TenderAccount;
   role: string;
-  permissions: { manageTeam: boolean; manageBilling: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
+  permissions: { manageTeam: boolean; manageCompany: boolean; manageBilling: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
   subscription: SubscriptionView | null;
 }
 
@@ -75,6 +84,10 @@ interface MemberData {
 
 interface ProfileData {
   profile: ProfileView;
+}
+
+interface CompanyData {
+  company: CompanyProfileView;
 }
 
 /** Um JPEG mínimo (só a assinatura e uns bytes): o servidor confere o tipo pelo conteúdo, não decodifica a imagem. */
@@ -92,6 +105,44 @@ type SearchData = Paginated<NoticeListItem> & {
 
 type ApiCall = <T = unknown>(method: string, path: string, options?: { as: TestUser; body?: unknown }) => Promise<ApiResponse<T>>;
 
+/** A consulta do CNPJ fora do ar: os testes que não a usam não devem depender da rede. */
+const UNAVAILABLE_COMPANY_LOOKUP: CompanyLookupSource = {
+  lookup: async () => {
+    throw new CompanyLookupUnavailableError('Company lookup not simulated in this test');
+  },
+};
+
+/** O que a consulta devolve nos testes: só alguns campos conhecidos, o resto "não veio". */
+function companyLookupResult(overrides: Partial<CompanyLookup> = {}): CompanyLookup {
+  return {
+    legalName: 'EMPRESA ALFA COMERCIO LTDA', tradeName: 'ALFA', openingDate: '2004-09-01', size: 'DEMAIS', legalType: 'LTDA',
+    legalNatureCode: '2062', legalNature: 'Sociedade Empresária Limitada', registrationStatus: 'ATIVA', registrationStatusDate: '2005-11-03',
+    mainCnae: { code: '6319400', description: 'Portais e provedores de conteúdo' }, secondaryCnaes: [{ code: '6204000', description: 'Consultoria em TI' }],
+    zipCode: '04538133', street: 'AVENIDA BRIG FARIA LIMA', number: '3477', complement: null, district: 'ITAIM BIBI', city: 'SAO PAULO',
+    state: 'SP', phone: '(11) 2395-8400', email: null,
+    ...overrides,
+  };
+}
+
+/** Fonte simulada da consulta: o resultado (ou o erro) vale até ser trocado; guarda os CNPJs pedidos. */
+function companySource(initial: CompanyLookup | Error): { source: CompanyLookupSource; requested: string[]; next: (outcome: CompanyLookup | Error) => void } {
+  let outcome = initial;
+  const requested: string[] = [];
+  return {
+    requested,
+    next: (value) => {
+      outcome = value;
+    },
+    source: {
+      lookup: async (cnpj) => {
+        requested.push(cnpj);
+        if (outcome instanceof Error) throw outcome;
+        return outcome;
+      },
+    },
+  };
+}
+
 /** O armazém de contratos ainda sem cópia pronta (o servidor acabou de subir): as buscas de contratos esperam. */
 const UPDATING_STORE: ContractStoreAccess = {
   query: () => Promise.reject(new ContractStoreUnavailableError()),
@@ -103,6 +154,7 @@ async function withApi(
   run: (call: ApiCall) => Promise<void>,
   contractStore: ContractStoreAccess = UPDATING_STORE,
   userFiles: ObjectStorage | null = null,
+  companyLookup: CompanyLookupSource = UNAVAILABLE_COMPANY_LOOKUP,
 ): Promise<void> {
   let currentUser: TestUser | undefined;
   const app = express();
@@ -116,6 +168,7 @@ async function withApi(
   const { routes, adminRoutes } = createTendersRoutes({
     db: tx,
     pncpDetails: { fetchDetailList: async () => [] },
+    companyLookup,
     contractStore,
     userFiles,
     now: () => new Date(),
@@ -236,7 +289,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(access.body.success, true);
         assert.equal(access.body.data.role, 'TITULAR');
         assert.deepEqual(access.body.data.permissions, {
-          manageTeam: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false,
+          manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false,
         });
         assert.equal(access.body.data.subscription?.situation, 'cortesia');
 
@@ -293,6 +346,8 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(domains.body.data.modalities.length, 13);
         assert.equal(domains.body.data.memberSectors.length, 8);
         assert.equal(domains.body.data.memberJobTitles.length, 10);
+        assert.equal(domains.body.data.companySizes.length, 4);
+        assert.equal(domains.body.data.legalTypes.length, 5);
         assert.ok(Array.isArray(domains.body.data.municipalities));
 
         assert.equal((await call('GET', '/api/tenders/collection/status', { as })).status, 200);
@@ -315,7 +370,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const access = await call<AccessData>('GET', '/api/tenders/access', { as });
         assert.equal(access.body.data.role, 'COLABORADOR');
         assert.deepEqual(access.body.data.permissions, {
-          manageTeam: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false,
+          manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false,
         });
         assert.equal((await call('GET', '/api/tenders/notices', { as })).status, 200);
         assert.equal((await call('GET', '/api/tenders/team', { as })).status, 403);
@@ -561,6 +616,167 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(removed.body.data.profile.photoUrl, null);
         assert.equal(objects.size, 0);
       }, UPDATING_STORE, storage);
+    });
+  });
+
+  test('empresa por HTTP: o titular lê, edita e consulta o CNPJ da conta; o nome da conta acompanha; pedido inválido, 400', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-empresa');
+      const cnpj = testCnpj(81);
+      await tx.update(accounts).set({ document: cnpj }).where(eq(accounts.id, account.accountId));
+      const { source, requested } = companySource(companyLookupResult());
+      await withApi(tx, async (call) => {
+        const as = { id: account.ownerId, type: 'titular' as const };
+
+        const read = await call<CompanyData>('GET', '/api/tenders/company', { as });
+        assert.equal(read.status, 200);
+        assert.equal(read.body.success, true);
+        const empty = read.body.data.company;
+        assert.deepEqual(
+          [empty.accountId, empty.document, empty.legalName, empty.size, empty.registrationStatus, empty.secondaryCnaes, empty.lookedUpAt],
+          [account.accountId, cnpj, null, null, null, [], null],
+        );
+
+        // O CNPJ e os fatos da Receita não se editam: o que vier no corpo para eles é ignorado.
+        const edited = await call<CompanyData>('PATCH', '/api/tenders/company', {
+          as,
+          body: {
+            tradeName: 'Alfa Licitações', size: 'ME', legalType: 'LTDA', phone: '(11) 3000-0000', state: 'sp',
+            document: AGENCY_CNPJ, registrationStatus: 'BAIXADA', mainCnae: { code: '1', description: 'x' },
+          },
+        });
+        assert.equal(edited.status, 200);
+        const company = edited.body.data.company;
+        assert.deepEqual(
+          [company.tradeName, company.size, company.legalType, company.phone, company.state, company.document, company.registrationStatus, company.mainCnae],
+          ['Alfa Licitações', 'ME', 'LTDA', '(11) 3000-0000', 'SP', cnpj, null, null],
+        );
+        const access = await call<AccessData>('GET', '/api/tenders/access', { as });
+        assert.equal(access.body.data.account.name, 'Alfa Licitações', 'o nome da conta, que o app mostra, acompanha o fantasia');
+
+        // A consulta usa o CNPJ da conta, nunca um que venha no pedido, e grava na hora.
+        const looked = await call<CompanyData>('POST', `/api/tenders/company/lookup?cnpj=${AGENCY_CNPJ}`, {
+          as,
+          body: { cnpj: AGENCY_CNPJ, document: AGENCY_CNPJ, accountId: 999 },
+        });
+        assert.equal(looked.status, 200);
+        assert.deepEqual(requested, [cnpj]);
+        const filled = looked.body.data.company;
+        assert.deepEqual(
+          [filled.legalName, filled.tradeName, filled.size, filled.legalType, filled.registrationStatus, filled.mainCnae?.code, filled.secondaryCnaes.length],
+          ['EMPRESA ALFA COMERCIO LTDA', 'ALFA', 'DEMAIS', 'LTDA', { code: 'ATIVA', since: '2005-11-03' }, '6319400', 1],
+        );
+        assert.match(filled.lookedUpAt ?? '', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00$/);
+        assert.equal(filled.phone, '(11) 2395-8400', 'o que a fonte informa vale sobre o digitado');
+        assert.deepEqual((await call<CompanyData>('GET', '/api/tenders/company', { as })).body.data.company, filled);
+        const afterLookup = await call<AccessData>('GET', '/api/tenders/access', { as });
+        assert.equal(afterLookup.body.data.account.name, 'ALFA');
+
+        // Pedidos inválidos: nada é gravado.
+        for (const [body, message] of [
+          [{}, 'Informe o que alterar'],
+          [{ document: AGENCY_CNPJ }, 'Informe o que alterar'],
+          [{ legalName: '' }, 'Informe a razão social'],
+          [{ size: 'GRANDE' }, 'Porte inválido'],
+          [{ legalType: 'MEI' }, 'Tipo jurídico inválido'],
+          [{ zipCode: '123' }, 'CEP inválido'],
+          [{ state: 'XX' }, 'UF inválida'],
+          [{ email: 'sem-arroba' }, 'Informe um e-mail válido'],
+          [{ openingDate: '2026-02-30' }, 'Data de abertura inválida'],
+        ] as const) {
+          const invalid = await call('PATCH', '/api/tenders/company', { as, body });
+          assert.equal(invalid.status, 400, JSON.stringify(body));
+          assert.equal(invalid.body.message, message, JSON.stringify(body));
+        }
+        assert.deepEqual((await call<CompanyData>('GET', '/api/tenders/company', { as })).body.data.company, filled);
+      }, UPDATING_STORE, null, source);
+    });
+  });
+
+  test('empresa por HTTP: colaborador e outra conta ficam de fora; consulta sem CNPJ, não achada ou fora do ar não grava; limite, 429', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-empresa-erros');
+      const other = await createTestAccount(tx, 'http-empresa-outra');
+      const member = await addAccountMember(tx, account, 'http-empresa-membro', { access: true });
+      const { source, requested, next } = companySource(new CompanyNotFoundError());
+
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        const otherTitular = { id: other.ownerId, type: 'titular' as const };
+
+        // O colaborador, mesmo com acesso ao módulo, não vê nem altera a empresa nem consulta o CNPJ.
+        const asMember = { id: member, type: 'membro' as const };
+        for (const [method, body] of [['GET', undefined], ['PATCH', { phone: '1' }], ['POST', undefined]] as const) {
+          const path = method === 'POST' ? '/api/tenders/company/lookup' : '/api/tenders/company';
+          assert.equal((await call(method, path, { as: asMember, ...(body ? { body } : {}) })).status, 403, `${method} ${path}`);
+        }
+        assert.deepEqual(requested, []);
+
+        // O titular de uma conta não alcança a empresa de outra.
+        for (const [method, path] of [
+          ['GET', `/api/tenders/company?accountId=${other.accountId}`],
+          ['PATCH', `/api/tenders/company?accountId=${other.accountId}`],
+          ['POST', `/api/tenders/company/lookup?accountId=${other.accountId}`],
+        ] as const) {
+          assert.equal((await call(method, path, { as: titular, ...(method === 'PATCH' ? { body: { phone: '1' } } : {}) })).status, 404, `${method} ${path}`);
+        }
+        const otherRead = await call<CompanyData>('GET', '/api/tenders/company', { as: otherTitular });
+        assert.equal(otherRead.body.data.company.accountId, other.accountId);
+        assert.deepEqual(requested, []);
+
+        // Sem CNPJ na conta: 400, e a fonte nem é chamada.
+        const noDocument = await call('POST', '/api/tenders/company/lookup', { as: titular });
+        assert.equal(noDocument.status, 400);
+        assert.equal(noDocument.body.message, 'Esta conta não tem CNPJ cadastrado.');
+        assert.deepEqual(requested, []);
+
+        // Com CNPJ: a fonte não acha (422), está fora do ar (503) ou falha de outro jeito (500 genérico); nada é gravado.
+        const cnpj = testCnpj(82);
+        await tx.update(accounts).set({ document: cnpj }).where(eq(accounts.id, account.accountId));
+        const before = (await call<CompanyData>('GET', '/api/tenders/company', { as: titular })).body.data.company;
+
+        const notFound = await call('POST', '/api/tenders/company/lookup', { as: titular });
+        assert.equal(notFound.status, 422);
+        assert.equal(notFound.body.message, 'Não encontramos esse CNPJ na consulta cadastral. Confira o CNPJ ou preencha os dados à mão.');
+
+        const logged = mock.method(console, 'error', () => undefined);
+        try {
+          next(new CompanyLookupUnavailableError('HTTP 503'));
+          const unavailable = await call('POST', '/api/tenders/company/lookup', { as: titular });
+          assert.equal(unavailable.status, 503);
+          assert.equal(unavailable.body.message, 'A consulta de CNPJ não está disponível agora. Tente de novo em instantes ou preencha os dados à mão.');
+
+          next(new TypeError('falha inesperada com detalhe interno'));
+          const broken = await call('POST', '/api/tenders/company/lookup', { as: titular });
+          assert.equal(broken.status, 500);
+          assert.equal(broken.body.message, 'Não foi possível consultar o CNPJ agora.');
+          assert.equal(JSON.stringify(broken.body).includes('detalhe interno'), false);
+        } finally {
+          logged.mock.restore();
+        }
+        assert.deepEqual(requested, [cnpj, cnpj, cnpj]);
+        assert.deepEqual((await call<CompanyData>('GET', '/api/tenders/company', { as: titular })).body.data.company, before);
+      }, UPDATING_STORE, null, source);
+
+      // O limite é por pessoa: 5 consultas a cada 10 minutos, contando as que falham; a seguinte volta 429 e não chega à fonte.
+      next(companyLookupResult());
+      requested.length = 0;
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        for (let index = 0; index < COMPANY_LOOKUP_RATE_LIMIT.max; index += 1) {
+          assert.equal((await call('POST', '/api/tenders/company/lookup', { as: titular })).status, 200, `consulta ${index + 1}`);
+        }
+        const limited = await call('POST', '/api/tenders/company/lookup', { as: titular });
+        assert.equal(limited.status, 429);
+        assert.deepEqual(limited.body, { success: false, message: 'Muitas consultas seguidas. Espere alguns minutos e tente de novo.' });
+        assert.equal(requested.length, COMPANY_LOOKUP_RATE_LIMIT.max);
+
+        // Ler e editar não gastam o limite; e o limite de uma pessoa não alcança a outra.
+        assert.equal((await call('GET', '/api/tenders/company', { as: titular })).status, 200);
+        assert.equal((await call('PATCH', '/api/tenders/company', { as: titular, body: { phone: '1' } })).status, 200);
+        const otherTitular = { id: other.ownerId, type: 'titular' as const };
+        assert.equal((await call('POST', '/api/tenders/company/lookup', { as: otherTitular })).status, 400, 'a outra pessoa não está limitada');
+      }, UPDATING_STORE, null, source);
     });
   });
 

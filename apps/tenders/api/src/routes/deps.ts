@@ -5,17 +5,20 @@ import type { ContractStoreAccess } from '../contractStore/reader';
 import * as tendersTables from '../db/schema';
 import type { ObjectStorage } from '../objectStorage';
 import { readTendersAuthConfig, type TendersAuthConfig } from '../services/authTokens';
+import { createBrasilApiCompanySource, type CompanyLookupSource } from '../services/companyLookup';
 import { createGoogleProfileReader, type GoogleProfileReader } from '../services/googleAuth';
 import { createPncpDetailSource, type PncpDetailSource } from '../services/pncpDetails';
 import { createRecoveryEmailSender, type RecoveryEmailSender } from '../services/recoveryEmail';
 
 /**
  * O que as rotas do módulo usam; os testes trocam o banco (transação desfeita),
- * o PNCP (simulado) e o armazém de contratos (um armazém de exemplo).
+ * o PNCP (simulado), a consulta do CNPJ (simulada) e o armazém de contratos (um armazém de exemplo).
  */
 export interface TendersApiDeps {
   db: TendersDb;
   pncpDetails: PncpDetailSource;
+  /** A consulta cadastral do CNPJ do perfil da empresa. */
+  companyLookup: CompanyLookupSource;
   /** Os contratos, no R2 (contractStore): consulta e se há cópia pronta. */
   contractStore: ContractStoreAccess;
   /** O R2 dos arquivos dos usuários (foto de perfil); null sem as variáveis `R2_*`: o envio de foto fica indisponível. */
@@ -24,8 +27,8 @@ export interface TendersApiDeps {
 }
 
 /**
- * No servidor: o pool do app (fuso de Brasília e datas como texto), o PNCP de verdade, o armazém do Web Service e o
- * R2 dos arquivos dos usuários.
+ * No servidor: o pool do app (fuso de Brasília e datas como texto), o PNCP e a consulta do CNPJ de verdade, o armazém
+ * do Web Service e o R2 dos arquivos dos usuários.
  */
 export function tendersApiDepsFromPool(
   pool: Pool,
@@ -35,6 +38,7 @@ export function tendersApiDepsFromPool(
   return {
     db: drizzle(pool, { schema: tendersTables }),
     pncpDetails: createPncpDetailSource(),
+    companyLookup: createBrasilApiCompanySource(),
     contractStore,
     userFiles,
     now: () => new Date(),

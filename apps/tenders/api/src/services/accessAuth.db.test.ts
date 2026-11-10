@@ -29,7 +29,6 @@ function company(seed: number, overrides: Record<string, unknown> = {}): Company
     razao_social: `Empresa ${seed} Ltda`,
     nome_fantasia: `Fantasia ${seed}`,
     documento: testCnpj(seed),
-    enquadramento: 'LTDA',
     data_abertura: '2020-05-10',
     ...overrides,
   });
@@ -72,8 +71,12 @@ describe('acesso de Licitações (banco local)', { skip: databaseTestsSkipReason
       assert.equal(account?.active, true);
       assert.equal(account?.document, testCnpj(101));
       assert.equal(account?.legalName, 'Empresa 101 Ltda');
-      assert.equal(account?.enquadramento, 'LTDA');
       assert.equal(account?.openingDate, '2020-05-10');
+      assert.deepEqual(
+        [account?.size, account?.legalType, account?.lookedUpAt],
+        [null, null, null],
+        'o perfil nasce vazio: porte e tipo vêm da consulta do CNPJ',
+      );
 
       const [module] = await tx.select().from(tenderEnabledAccounts).where(eq(tenderEnabledAccounts.accountId, created.accountId));
       assert.equal(module?.accessType, 'assinatura');
@@ -109,7 +112,8 @@ describe('acesso de Licitações (banco local)', { skip: databaseTestsSkipReason
   test('cadastro: se uma etapa falha, o usuário não fica gravado sem conta', async () => {
     await withRollback(async (tx) => {
       const email = uniqueEmail('Atomico');
-      const broken: CompanyAccountInput = { ...company(105), enquadramento: 'XX' as never };
+      // Razão social acima do tamanho da coluna (varchar 150): o banco recusa o insert da conta, depois do usuário.
+      const broken: CompanyAccountInput = { ...company(105), legalName: 'x'.repeat(151) };
       await assert.rejects(registerCompany(tx, { email, password: PASSWORD, company: broken }, NOW));
 
       assert.deepEqual(await tx.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase())), []);

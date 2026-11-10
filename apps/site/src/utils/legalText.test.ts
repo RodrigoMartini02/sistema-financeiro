@@ -16,10 +16,12 @@ test('termos e privacidade cobrem as duas soluções e as regras de cancelamento
   assert.match(terms, /FINGERENCE Finanças/);
   assert.match(terms, /FINGERENCE Licitações/);
   assert.match(terms, /PNCP/, 'a fonte dos editais fica nos termos (decisão 4)');
+  assert.match(terms, /Receita Federal, consultados pela BrasilAPI/, 'a fonte dos dados do CNPJ fica nos termos (item 1C)');
   assert.match(terms, /o acesso termina na hora/);
   assert.match(terms, /o acesso continua até o fim do teste ou do período já pago/);
   const privacy = parseLegalText(PRIVACY_CONTENT).map((block) => block.text).join('\n');
   assert.match(privacy, /Mercado Pago/);
+  assert.match(privacy, /BrasilAPI[^\n]*recebe apenas o CNPJ da empresa/, 'o repasse do CNPJ à consulta consta na privacidade (item 1C)');
   assert.match(privacy, /FINGERENCE Licitações/);
 });
 

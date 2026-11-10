@@ -71,6 +71,8 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
           isPlatformAdmin: access.isPlatformAdmin,
           permissions: {
             manageTeam: access.role === 'TITULAR',
+            // Perfil da empresa (ver, editar e consultar o CNPJ): só o titular (as rotas conferem de novo).
+            manageCompany: access.role === 'TITULAR',
             // Assinatura (pagar e cancelar): só o titular (as rotas de cobrança conferem de novo).
             manageBilling: access.role === 'TITULAR',
             viewCollectionRuns: access.role === 'TITULAR' || access.isPlatformAdmin,

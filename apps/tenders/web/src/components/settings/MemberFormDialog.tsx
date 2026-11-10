@@ -6,6 +6,7 @@ import { Field, Input, PasswordInput, Select, inputBase } from '@ui/components/f
 import { formatCpf, formatPhone } from '@ui/utils/brazilDocuments';
 import { useTeamUserMutations } from '../../hooks/useTeam';
 import type { DomainLists, TeamMember } from '../../types';
+import { optionsWithCurrent } from '../../utils/listOptions';
 import {
   EMPTY_TEAM_USER_FORM,
   MIN_PASSWORD_LENGTH,
@@ -52,14 +53,6 @@ export function MemberFormDialog({ target, lists, onClose, onWarning }: MemberFo
       )}
     </Dialog>
   );
-}
-
-type NamedList = ReadonlyArray<{ id: string; name: string }>;
-
-/** A lista padrão mais o valor atual, que fica visível mesmo se a lista ainda carrega ou o código saiu dela. */
-function optionsWithCurrent(list: NamedList | undefined, current: string): NamedList {
-  const items = list ?? [];
-  return current !== '' && !items.some((item) => item.id === current) ? [...items, { id: current, name: current }] : items;
 }
 
 interface MemberFormProps {

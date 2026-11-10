@@ -91,7 +91,7 @@ test('bases de autenticação: proxy local e produção usam a API do produto, m
   assert.equal(resolveAuthApiBase('tenders', local), 'http://localhost:3011/api');
 });
 
-test('cadastro de Licitações usa os dados da empresa, sem modulo; PF é recusada antes da rede', async (context) => {
+test('cadastro de Licitações usa os dados da empresa, sem modulo e sem enquadramento; PF é recusada antes da rede', async (context) => {
   browserForTest(context);
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   context.mock.method(globalThis, 'fetch', async (url: string, options?: RequestInit) => {
@@ -114,14 +114,32 @@ test('cadastro de Licitações usa os dados da empresa, sem modulo; PF é recusa
       documento: '11222333000181',
       razao_social: 'Empresa Ltda',
       nome_fantasia: 'Empresa',
-      enquadramento: 'LTDA',
       data_abertura: '2020-01-01',
       email: 'company@example.test',
       senha: 'password',
     },
   }]);
+  assert.equal('enquadramento' in requests[0].body, false, 'porte e tipo jurídico vêm da consulta do CNPJ, no app');
   await assert.rejects(auth.registerPersonal({ nome: 'Pessoa', documento: '123', email: 'person@example.test', senha: 'password' }), /CNPJ/);
   assert.equal(requests.length, 1);
+});
+
+test('cadastro PJ de Finanças continua enviando o enquadramento (a mudança é só de Licitações)', async (context) => {
+  browserForTest(context);
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
+  context.mock.method(globalThis, 'fetch', async (url: string, options?: RequestInit) => {
+    requests.push({ url, body: JSON.parse(String(options?.body)) as Record<string, unknown> });
+    return Response.json({ success: true, data: { token: 'new-token', usuario: { id: 3 } } });
+  });
+  await createAuthAdapter('finance').registerCompany({
+    documento: '11222333000181',
+    razaoSocial: 'Empresa Ltda',
+    enquadramento: 'LTDA',
+    email: 'company@example.test',
+    senha: 'password',
+  });
+  assert.equal(requests[0].url, '/api/auth/register');
+  assert.equal(requests[0].body['enquadramento'], 'LTDA');
 });
 
 test('Google e recuperação de Licitações ficam nas rotas próprias, inclusive o 401 sem apagar sessões', async (context) => {

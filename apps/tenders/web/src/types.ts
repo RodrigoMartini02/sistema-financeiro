@@ -480,6 +480,9 @@ export interface DomainLists {
   /** Setores e cargos padrão do colaborador; o `id` é o código gravado e o `name`, o texto da tela. */
   memberSectors: Array<{ id: string; name: string }>;
   memberJobTitles: Array<{ id: string; name: string }>;
+  /** Porte (MEI, ME, EPP, Demais) e tipo jurídico (Ltda., SLU, EIRELI, S.A., Outros) da empresa; o `id` é o código gravado. */
+  companySizes: Array<{ id: string; name: string }>;
+  legalTypes: Array<{ id: string; name: string }>;
   municipalities: Municipality[];
 }
 
@@ -771,6 +774,74 @@ export interface OwnerProfileUpdate {
   name?: string;
   lastName?: string;
   phone?: string;
+}
+
+// ---- Perfil da empresa (item 1C, plano .plans/licitacoes-1c-perfil-da-empresa.md) ----
+
+/** Um CNAE da empresa: o código de 7 dígitos e o nome da atividade. */
+export interface CnaeEntry {
+  code: string;
+  description: string;
+}
+
+/** Situação cadastral da empresa na Receita. */
+export type RegistrationStatus = 'ATIVA' | 'SUSPENSA' | 'INAPTA' | 'BAIXADA' | 'NULA';
+
+/**
+ * Perfil da empresa (GET /api/tenders/company): os dados cadastrais da conta, que é a própria empresa. Sem dado, o campo
+ * vem `null` (e os CNAEs secundários, `[]`). Situação cadastral, natureza jurídica e CNAEs são fatos da Receita, só
+ * leitura: só a consulta do CNPJ os grava.
+ */
+export interface CompanyProfile {
+  accountId: number;
+  /** Os 14 dígitos do CNPJ; não se edita. */
+  document: string | null;
+  legalName: string | null;
+  tradeName: string | null;
+  /** AAAA-MM-DD. */
+  openingDate: string | null;
+  /** Códigos das listas padrão (`DomainLists.companySizes` e `legalTypes`). */
+  size: string | null;
+  legalType: string | null;
+  legalNature: { code: string | null; description: string | null } | null;
+  registrationStatus: { code: RegistrationStatus; since: string | null } | null;
+  mainCnae: CnaeEntry | null;
+  secondaryCnaes: CnaeEntry[];
+  /** Só os 8 dígitos do CEP. */
+  zipCode: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  email: string | null;
+  /** Quando a consulta do CNPJ gravou os dados pela última vez (ISO com o fuso de Brasília); nulo se nunca consultou. */
+  lookedUpAt: string | null;
+}
+
+/** Resposta das rotas da empresa. */
+export interface CompanyChange {
+  company: CompanyProfile;
+}
+
+/** Corpo de PATCH /api/tenders/company. Campo ausente mantém; texto vazio limpa tudo menos a razão social. */
+export interface CompanyUpdate {
+  legalName?: string;
+  tradeName?: string;
+  openingDate?: string;
+  size?: string;
+  legalType?: string;
+  zipCode?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  phone?: string;
+  email?: string;
 }
 
 // ---- Página do CNPJ (plano .plans/licitacoes-pagina-cnpj.md) ----

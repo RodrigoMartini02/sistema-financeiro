@@ -328,6 +328,21 @@ Content-Type: application/json
 DELETE {{baseUrl}}/profile/photo?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
+### Perfil da empresa (só o titular; data: { company }; sem dado vem null, e os CNAEs secundários, [])
+GET {{baseUrl}}/company?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Alterar o perfil da empresa (campo ausente mantém, vazio limpa; razão social é obrigatória; o CNPJ e os fatos da Receita não se editam)
+PATCH {{baseUrl}}/company?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "tradeName": "Alfa", "size": "EPP", "legalType": "LTDA", "zipCode": "01310-100", "state": "SP", "phone": "(11) 3000-0000", "email": "contato@exemplo.com.br" }
+
+### Consultar o CNPJ da conta e gravar o resultado (sem corpo; serviço público de terceiros; 5 a cada 10 minutos; 422 não achou, 503 fora do ar)
+POST {{baseUrl}}/company/lookup?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
 ### Ativação: contas do titular sem o módulo (fora da trava)
 GET {{baseUrl}}/activation
 Authorization: Bearer {{token}}

@@ -47,6 +47,8 @@ export const NOT_FOUND_TITLE = 'Página não encontrada';
 /** Permissões que `GET /api/tenders/access` devolve. */
 export interface TendersPermissions {
   manageTeam: boolean;
+  /** Perfil da empresa (ver, editar e consultar o CNPJ): só o titular. */
+  manageCompany: boolean;
   /** Assinatura (pagar e cancelar): só o titular. */
   manageBilling: boolean;
   viewCollectionRuns: boolean;

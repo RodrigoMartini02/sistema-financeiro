@@ -328,14 +328,17 @@ export function LoginPage({ initialMode = 'login', tone = 'dark', context }: { i
                   <Input name="nome_fantasia" maxLength={150} placeholder="Ex: ABC Stores" />
                 </Field>
                 {documentoField}
-                <Field label="Enquadramento">
-                  <Select name="enquadramento" defaultValue="">
-                    <option value="">Selecione...</option>
-                    {COMPANY_CLASSIFICATION_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
-                    ))}
-                  </Select>
-                </Field>
+                {/* Licitações não pede o enquadramento: porte e tipo jurídico vêm da consulta do CNPJ no Perfil da empresa. */}
+                {!isTendersLogin && (
+                  <Field label="Enquadramento">
+                    <Select name="enquadramento" defaultValue="">
+                      <option value="">Selecione...</option>
+                      {COMPANY_CLASSIFICATION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                      ))}
+                    </Select>
+                  </Field>
+                )}
                 <Field label="Data de abertura da empresa">
                   <IsoDateField name="data_abertura" label="Data de abertura da empresa" inputClassName={inputBase} height={32} />
                 </Field>
