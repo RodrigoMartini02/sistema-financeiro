@@ -16,6 +16,7 @@ import { RequestInputError } from '../utils/requestInput';
 import { readBillingUrls } from '../config/billing';
 import type { TendersDb } from '../collector/database';
 import { isAccountMember, type TenderAccount, type TenderRequester } from '../services/access';
+import { describePayment, listBillingEvents, recordRefusedPayment } from '../services/billingHistory';
 import {
   buildTendersPaymentReference,
   centsToAmount,
@@ -86,12 +87,17 @@ async function readPayerEmail(db: TendersDb, userId: number): Promise<string> {
   return user.email;
 }
 
-/** Valor do mês (em reais) e a descrição da cobrança, pela quantidade atual de usuários. */
-async function currentCharge(db: TendersDb, accountId: number): Promise<{ amount: number; description: string; usersCount: number }> {
+/** Valor do mês (em reais e em centavos) e a descrição da cobrança, pela quantidade atual de usuários. */
+async function currentCharge(
+  db: TendersDb,
+  accountId: number,
+): Promise<{ amount: number; amountCents: number; description: string; usersCount: number }> {
   const usersCount = await countModuleUsers(db, accountId);
   const label = usersCount === 1 ? '1 usuário' : `${usersCount} usuários`;
+  const amountCents = monthlyAmountCents(usersCount);
   return {
-    amount: centsToAmount(monthlyAmountCents(usersCount)),
+    amount: centsToAmount(amountCents),
+    amountCents,
     description: `Licitações - assinatura mensal (${label})`,
     usersCount,
   };
@@ -118,6 +124,17 @@ export function billingRoutes(deps: TendersApiDeps): Router {
       const { account } = await resolveBillingAccount(deps.db, requesterOf(req), Number(req.query['accountId']), { allowCourtesy: true });
       const subscription = await readSubscription(deps.db, account.id, deps.now());
       res.json({ success: true, data: { account, subscription, price: TENDERS_PRICE } });
+    }),
+  );
+
+  // GET /api/tenders/billing/history?accountId=: os eventos de cobrança e de cancelamento da conta, do mais recente
+  // para o mais antigo (até 200). Só o titular, em conta dele; em cortesia a lista pode vir vazia.
+  router.get(
+    '/history',
+    accountIdQuery,
+    tenderRoute('Tender billing history failed:', 'Não foi possível carregar o histórico de cobrança agora.', async (req, res) => {
+      const { account } = await resolveBillingAccount(deps.db, requesterOf(req), Number(req.query['accountId']), { allowCourtesy: true });
+      res.json({ success: true, data: { events: await listBillingEvents(deps.db, account.id) } });
     }),
   );
 
@@ -157,14 +174,24 @@ export function billingRoutes(deps: TendersApiDeps): Router {
         cpf,
       });
 
+      const details = { amountCents: charge.amountCents, method: 'CARTAO' as const };
       if (payment.status === 'approved' && payment.id !== undefined) {
-        await applyOneTimePayment(deps.db, account.id, String(payment.id), deps.now());
+        await applyOneTimePayment(deps.db, account.id, String(payment.id), deps.now(), details);
         res.json({ success: true, message: 'Pagamento aprovado.' });
         return;
       }
       if (payment.status === 'in_process' || payment.status === 'pending') {
         res.json({ success: false, message: 'Pagamento em análise. A assinatura é liberada quando ele for aprovado.' });
         return;
+      }
+      if (payment.status === 'rejected') {
+        await recordRefusedPayment(deps.db, {
+          accountId: account.id,
+          paymentId: payment.id === undefined ? undefined : String(payment.id),
+          details,
+          detail: payment.statusDetail,
+          now: deps.now(),
+        });
       }
       res.json({ success: false, message: `Pagamento recusado (${payment.statusDetail ?? payment.status}). Confira os dados do cartão.` });
     }),
@@ -217,7 +244,7 @@ export function billingRoutes(deps: TendersApiDeps): Router {
       });
 
       if (recurring.status === 'authorized' && recurring.id) {
-        await setRecurring(deps.db, account.id, recurring.id, charge.usersCount, deps.now());
+        await setRecurring(deps.db, account.id, recurring.id, charge.usersCount, deps.now(), charge.amountCents);
         res.json({ success: true, message: 'Assinatura recorrente ativa.' });
         return;
       }
@@ -234,7 +261,7 @@ export function billingRoutes(deps: TendersApiDeps): Router {
       const { account, recurringId } = await resolveBillingAccount(deps.db, requesterOf(req), Number(req.body.accountId), { allowCourtesy: true });
       if (recurringId) {
         await cancelRecurring(recurringId);
-        await clearRecurring(deps.db, account.id, recurringId, deps.now());
+        await clearRecurring(deps.db, account.id, recurringId, deps.now(), 'TITULAR');
       }
       res.json({ success: true, data: await readSubscription(deps.db, account.id, deps.now()) });
     }),
@@ -270,16 +297,26 @@ export function createBillingWebhook(deps: TendersApiDeps): RequestHandler {
         if (accountId === null || payment.id === undefined) {
           return;
         }
+        const details = describePayment(payment);
         if (payment.status === 'approved') {
           const applied = payment.recurringId
-            ? await applyRecurringCharge(deps.db, accountId, payment.recurringId, String(payment.id), deps.now())
-            : await applyOneTimePayment(deps.db, accountId, String(payment.id), deps.now());
+            ? await applyRecurringCharge(deps.db, accountId, payment.recurringId, String(payment.id), deps.now(), details.amountCents)
+            : await applyOneTimePayment(deps.db, accountId, String(payment.id), deps.now(), details);
           if (applied) {
             console.log(`[Tenders webhook] Payment ${payment.id} applied to account ${accountId}`);
           }
-        } else if (payment.status === 'rejected' && payment.recurringId) {
-          await clearRecurring(deps.db, accountId, payment.recurringId, deps.now());
-          console.warn(`[Tenders webhook] Recurring charge rejected for account ${accountId}: ${payment.statusDetail}`);
+        } else if (payment.status === 'rejected') {
+          await recordRefusedPayment(deps.db, {
+            accountId,
+            paymentId: String(payment.id),
+            details,
+            detail: payment.statusDetail,
+            now: deps.now(),
+          });
+          if (payment.recurringId) {
+            await clearRecurring(deps.db, accountId, payment.recurringId, deps.now(), 'COBRANCA_RECUSADA');
+            console.warn(`[Tenders webhook] Recurring charge rejected for account ${accountId}: ${payment.statusDetail}`);
+          }
         }
         return;
       }
@@ -291,7 +328,7 @@ export function createBillingWebhook(deps: TendersApiDeps): RequestHandler {
           return;
         }
         if (recurring.status === 'cancelled' || recurring.status === 'paused') {
-          const cleared = await clearRecurring(deps.db, accountId, recurring.id, deps.now());
+          const cleared = await clearRecurring(deps.db, accountId, recurring.id, deps.now(), 'MERCADO_PAGO');
           if (cleared) {
             console.log(`[Tenders webhook] Recurring ${recurring.id} ${recurring.status} for account ${accountId}`);
           }

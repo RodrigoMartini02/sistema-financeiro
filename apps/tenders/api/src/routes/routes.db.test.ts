@@ -38,7 +38,8 @@ import {
 import type { CompanyProfileView } from '../services/companyProfile';
 import type { ProfileView } from '../services/profile';
 import type { SavedSearchView } from '../services/savedSearches';
-import { startTenderTrial, type SubscriptionView } from '../services/subscription';
+import type { BillingEventView } from '../services/billingHistory';
+import { applyOneTimePayment, clearRecurring, setRecurring, startTenderTrial, type SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
 import { CNPJ_RATE_LIMIT } from './cnpj';
 import { COMPANY_LOOKUP_RATE_LIMIT } from './company';
@@ -481,6 +482,65 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(billing.body.data.subscription.usersCount, 3);
         assert.equal(billing.body.data.subscription.monthlyAmountCents, 798);
         assert.equal((await call('POST', '/api/tenders/billing/pix', { as: titular, body: { accountId: account.accountId } })).status, 409);
+      });
+    });
+  });
+
+  test('histórico de cobrança por HTTP: só o titular, só da própria conta, mais recente primeiro e sem identificadores do Mercado Pago', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-historico');
+      const other = await createTestAccount(tx, 'http-historico-outra');
+      const empty = await createTestAccount(tx, 'http-historico-vazio');
+      const member = await addAccountMember(tx, account, 'http-historico-membro', { access: true });
+      const start = new Date('2026-11-10T15:00:00.000Z');
+      const at = (minutes: number) => new Date(start.getTime() + minutes * 60_000);
+
+      // O que a cobrança já fez: um Pix, a ativação da assinatura recorrente e o cancelamento pelo titular.
+      await applyOneTimePayment(tx, account.accountId, 'pag-http-1', at(0), { amountCents: 798, method: 'PIX' });
+      await setRecurring(tx, account.accountId, 'pre-http', 3, at(1), 798);
+      await clearRecurring(tx, account.accountId, 'pre-http', at(2), 'TITULAR');
+      await applyOneTimePayment(tx, other.accountId, 'pag-http-outra', at(3), { amountCents: 499, method: 'CARTAO' });
+      // Depois disso a assinatura da conta venceu: o módulo trava, mas a cobrança (e o histórico) fica fora da trava.
+      await tx
+        .update(tenderEnabledAccounts)
+        .set({ accessType: 'assinatura', trialUntil: new Date(Date.now() - 60_000).toISOString(), paidUntil: new Date(Date.now() - 60_000).toISOString() })
+        .where(eq(tenderEnabledAccounts.accountId, account.accountId));
+
+      await withApi(tx, async (call) => {
+        const titular = { id: account.ownerId, type: 'titular' as const };
+        assert.equal((await call('GET', '/api/tenders/access', { as: titular })).status, 402, 'a conta está vencida');
+
+        const history = await call<{ events: BillingEventView[] }>('GET', `/api/tenders/billing/history?accountId=${account.accountId}`, { as: titular });
+        assert.equal(history.status, 200);
+        assert.equal(history.body.success, true);
+        assert.deepEqual(
+          history.body.data.events.map((event) => [event.type, event.status, event.method, event.origin, event.amountCents, event.occurredAt]),
+          [
+            ['CANCELAMENTO', 'CANCELADA', null, 'TITULAR', null, '2026-11-10T12:02:00-03:00'],
+            ['ASSINATURA', 'ATIVADA', null, null, 798, '2026-11-10T12:01:00-03:00'],
+            ['PAGAMENTO', 'APROVADO', 'PIX', null, 798, '2026-11-10T12:00:00-03:00'],
+          ],
+        );
+        const text = JSON.stringify(history.body);
+        for (const hidden of ['pag-http-1', 'pre-http', 'paymentId', 'recurringId']) {
+          assert.equal(text.includes(hidden), false, hidden);
+        }
+
+        // Cada titular vê só o histórico da própria conta; a outra conta, que o pedido nomeia, não existe para ele.
+        const otherTitular = { id: other.ownerId, type: 'titular' as const };
+        const ownHistory = await call<{ events: BillingEventView[] }>('GET', `/api/tenders/billing/history?accountId=${other.accountId}`, { as: otherTitular });
+        assert.deepEqual(ownHistory.body.data.events.map((event) => [event.method, event.amountCents]), [['CARTAO', 499]]);
+        assert.equal((await call('GET', `/api/tenders/billing/history?accountId=${account.accountId}`, { as: otherTitular })).status, 404);
+
+        // Colaborador, mesmo com acesso ao módulo, não vê a cobrança; sem a conta ou com a conta inválida, 400.
+        assert.equal((await call('GET', `/api/tenders/billing/history?accountId=${account.accountId}`, { as: { id: member, type: 'membro' as const } })).status, 403);
+        assert.equal((await call('GET', '/api/tenders/billing/history', { as: titular })).status, 400);
+        assert.equal((await call('GET', '/api/tenders/billing/history?accountId=abc', { as: titular })).status, 400);
+
+        // Cortesia, sem nenhuma cobrança: lista vazia, não erro.
+        const emptyHistory = await call<{ events: BillingEventView[] }>('GET', `/api/tenders/billing/history?accountId=${empty.accountId}`, { as: { id: empty.ownerId, type: 'titular' as const } });
+        assert.equal(emptyHistory.status, 200);
+        assert.deepEqual(emptyHistory.body.data.events, []);
       });
     });
   });

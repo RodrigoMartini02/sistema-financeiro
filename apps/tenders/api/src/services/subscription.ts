@@ -4,7 +4,8 @@ import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { accountMembers } from '../db/identity';
 import type { TendersDb } from '../collector/database';
 import { tenderEnabledAccounts, tenderMemberAccess } from '../db/schema';
-import type { TenderAccessType } from '../domains';
+import type { BillingCancelOrigin, TenderAccessType } from '../domains';
+import { recordBillingEvent, type PaymentDetails } from './billingHistory';
 import {
   addDays,
   monthlyAmountCents,
@@ -117,9 +118,16 @@ export async function startTenderTrial<TFullSchema extends Record<string, unknow
 /**
  * Pagamento avulso aprovado (Pix, cartão ou checkout): soma 30 dias a partir do
  * maior entre agora, o fim do teste e o pago até. O mesmo pagamento avisado de
- * novo é ignorado.
+ * novo é ignorado, mesmo que outro pagamento tenha sido aplicado no meio. O
+ * evento do histórico de cobrança é gravado na mesma transação.
  */
-export async function applyOneTimePayment(db: TendersDb, accountId: number, paymentId: string, now: Date): Promise<boolean> {
+export async function applyOneTimePayment(
+  db: TendersDb,
+  accountId: number,
+  paymentId: string,
+  now: Date,
+  details: PaymentDetails,
+): Promise<boolean> {
   return db.transaction(async (transaction) => {
     const [row] = await transaction
       .select()
@@ -128,6 +136,21 @@ export async function applyOneTimePayment(db: TendersDb, accountId: number, paym
       .for('update')
       .limit(1);
     if (!row || row.lastPaymentId === paymentId) {
+      return false;
+    }
+
+    const usersCount = await countModuleUsers(transaction, accountId);
+    const recorded = await recordBillingEvent(transaction, {
+      accountId,
+      type: 'PAGAMENTO',
+      status: 'APROVADO',
+      occurredAt: now,
+      method: details.method,
+      amountCents: details.amountCents,
+      users: usersCount,
+      paymentId,
+    });
+    if (!recorded) {
       return false;
     }
 
@@ -140,7 +163,7 @@ export async function applyOneTimePayment(db: TendersDb, accountId: number, paym
       .update(tenderEnabledAccounts)
       .set({
         paidUntil: paidUntil.toISOString(),
-        billedUsers: await countModuleUsers(transaction, accountId),
+        billedUsers: usersCount,
         lastPaymentId: paymentId,
         updatedAt: now.toISOString(),
       })
@@ -149,13 +172,17 @@ export async function applyOneTimePayment(db: TendersDb, accountId: number, paym
   });
 }
 
-/** Cobrança aprovada da assinatura recorrente da conta: o período vale 30 dias a partir de agora. */
+/**
+ * Cobrança aprovada da assinatura recorrente da conta: o período vale 30 dias a partir de agora. O evento do
+ * histórico de cobrança é gravado na mesma transação.
+ */
 export async function applyRecurringCharge(
   db: TendersDb,
   accountId: number,
   recurringId: string,
   paymentId: string,
   now: Date,
+  amountCents: number | null,
 ): Promise<boolean> {
   return db.transaction(async (transaction) => {
     const [row] = await transaction
@@ -168,11 +195,27 @@ export async function applyRecurringCharge(
       return false;
     }
 
+    const usersCount = await countModuleUsers(transaction, accountId);
+    const recorded = await recordBillingEvent(transaction, {
+      accountId,
+      type: 'PAGAMENTO',
+      status: 'APROVADO',
+      occurredAt: now,
+      method: 'RECORRENTE',
+      amountCents,
+      users: usersCount,
+      paymentId,
+      recurringId,
+    });
+    if (!recorded) {
+      return false;
+    }
+
     await transaction
       .update(tenderEnabledAccounts)
       .set({
         paidUntil: addDays(now, PAID_PERIOD_DAYS).toISOString(),
-        billedUsers: await countModuleUsers(transaction, accountId),
+        billedUsers: usersCount,
         lastPaymentId: paymentId,
         updatedAt: now.toISOString(),
       })
@@ -181,29 +224,74 @@ export async function applyRecurringCharge(
   });
 }
 
-/** Assinatura recorrente criada e autorizada para a conta. */
-export async function setRecurring(db: TendersDb, accountId: number, recurringId: string, billedUsers: number, now: Date): Promise<void> {
-  await db
-    .update(tenderEnabledAccounts)
-    .set({ recurringId, billedUsers, updatedAt: now.toISOString() })
-    .where(eq(tenderEnabledAccounts.accountId, accountId));
+/**
+ * Assinatura recorrente criada e autorizada para a conta. `monthlyAmountCents` é o valor do mês que ela cobra; o
+ * evento "ativada" do histórico é gravado na mesma transação.
+ */
+export async function setRecurring(
+  db: TendersDb,
+  accountId: number,
+  recurringId: string,
+  billedUsers: number,
+  now: Date,
+  monthlyAmountCents: number,
+): Promise<void> {
+  await db.transaction(async (transaction) => {
+    await transaction
+      .update(tenderEnabledAccounts)
+      .set({ recurringId, billedUsers, updatedAt: now.toISOString() })
+      .where(eq(tenderEnabledAccounts.accountId, accountId));
+    await recordBillingEvent(transaction, {
+      accountId,
+      type: 'ASSINATURA',
+      status: 'ATIVADA',
+      occurredAt: now,
+      amountCents: monthlyAmountCents,
+      users: billedUsers,
+      recurringId,
+    });
+  });
 }
 
 /**
  * Recorrente encerrado (cancelado, pausado ou cobrança recusada): a conta segue
  * até o fim do teste ou do período pago. Com `recurringId`, só se ainda for o
- * da conta (um aviso antigo não apaga uma assinatura nova).
+ * da conta (um aviso antigo não apaga uma assinatura nova); sem ele, encerra a
+ * que a conta tiver. Só quando encerrou de fato devolve `true` e grava o evento
+ * de cancelamento do histórico (com a origem), na mesma transação.
  */
-export async function clearRecurring(db: TendersDb, accountId: number, recurringId: string | null, now: Date): Promise<boolean> {
-  const condition = recurringId === null
-    ? eq(tenderEnabledAccounts.accountId, accountId)
-    : and(eq(tenderEnabledAccounts.accountId, accountId), eq(tenderEnabledAccounts.recurringId, recurringId));
-  const updated = await db
-    .update(tenderEnabledAccounts)
-    .set({ recurringId: null, updatedAt: now.toISOString() })
-    .where(condition)
-    .returning({ accountId: tenderEnabledAccounts.accountId });
-  return updated.length > 0;
+export async function clearRecurring(
+  db: TendersDb,
+  accountId: number,
+  recurringId: string | null,
+  now: Date,
+  origin: BillingCancelOrigin,
+): Promise<boolean> {
+  return db.transaction(async (transaction) => {
+    const [row] = await transaction
+      .select({ recurringId: tenderEnabledAccounts.recurringId })
+      .from(tenderEnabledAccounts)
+      .where(eq(tenderEnabledAccounts.accountId, accountId))
+      .for('update')
+      .limit(1);
+    if (!row?.recurringId || (recurringId !== null && row.recurringId !== recurringId)) {
+      return false;
+    }
+
+    await transaction
+      .update(tenderEnabledAccounts)
+      .set({ recurringId: null, updatedAt: now.toISOString() })
+      .where(eq(tenderEnabledAccounts.accountId, accountId));
+    await recordBillingEvent(transaction, {
+      accountId,
+      type: 'CANCELAMENTO',
+      status: 'CANCELADA',
+      occurredAt: now,
+      origin,
+      recurringId: row.recurringId,
+    });
+    return true;
+  });
 }
 
 /** Usuários contados no valor atual da assinatura recorrente. */

@@ -20,6 +20,10 @@ import {
 import { sql } from 'drizzle-orm';
 import { accounts, users } from './identity';
 import type {
+  BillingCancelOrigin,
+  BillingEventStatus,
+  BillingEventType,
+  BillingMethod,
   CollectionRunStatus,
   CollectionRunType,
   DetailCacheType,
@@ -170,6 +174,36 @@ export const tenderEnabledAccounts = tendersSchema.table('conta_habilitada', {
   lastPaymentId: varchar('ultimo_pagamento_id', { length: 40 }),
   updatedAt: timestampWithZone('atualizada_em').defaultNow().notNull(),
 });
+
+/**
+ * Histórico de cobrança da assinatura (migration 0004): uma linha por pagamento aprovado ou recusado, assinatura
+ * recorrente ativada e cancelada. Sem dado de cartão ou do pagador; o índice único parcial
+ * (conta, pagamento, status) impede gravar o mesmo aviso do Mercado Pago duas vezes.
+ */
+export const tenderBillingHistory = tendersSchema.table(
+  'cobranca_historico',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    type: varchar('tipo', { length: 20 }).$type<BillingEventType>().notNull(),
+    status: varchar('status', { length: 20 }).$type<BillingEventStatus>().notNull(),
+    method: varchar('meio', { length: 20 }).$type<BillingMethod>(),
+    origin: varchar('origem', { length: 30 }).$type<BillingCancelOrigin>(),
+    amountCents: integer('valor_centavos'),
+    users: integer('usuarios'),
+    paymentId: varchar('pagamento_id', { length: 40 }),
+    recurringId: varchar('recorrente_id', { length: 100 }),
+    /** Código da recusa no Mercado Pago (`status_detail`); a tela não o mostra. */
+    detail: varchar('detalhe', { length: 100 }),
+    occurredAt: timestampWithZone('ocorrido_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    accountIdx: index('ix_cobranca_historico_conta').on(table.accountId, table.occurredAt, table.id),
+    paymentUnique: uniqueIndex('ux_cobranca_historico_pagamento')
+      .on(table.accountId, table.paymentId, table.status)
+      .where(sql`${table.paymentId} is not null`),
+  }),
+);
 
 /** Colaboradores com acesso ao módulo: trava da conta, gerida pelo titular (que tem acesso sem linha aqui). */
 export const tenderMemberAccess = tendersSchema.table(

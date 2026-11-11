@@ -151,6 +151,23 @@ export type TenderRole = (typeof TENDER_ROLES)[number];
 export const TENDER_ACCESS_TYPES = ['cortesia', 'assinatura'] as const;
 export type TenderAccessType = (typeof TENDER_ACCESS_TYPES)[number];
 
+// Histórico de cobrança da assinatura (item 1B), gravado em `cobranca_historico`. Os códigos ficam validados aqui,
+// sem CHECK no banco.
+export const BILLING_EVENT_TYPES = ['PAGAMENTO', 'ASSINATURA', 'CANCELAMENTO'] as const;
+export type BillingEventType = (typeof BILLING_EVENT_TYPES)[number];
+
+/** APROVADO e RECUSADO valem para PAGAMENTO; ATIVADA, para ASSINATURA; CANCELADA, para CANCELAMENTO. */
+export const BILLING_EVENT_STATUSES = ['APROVADO', 'RECUSADO', 'ATIVADA', 'CANCELADA'] as const;
+export type BillingEventStatus = (typeof BILLING_EVENT_STATUSES)[number];
+
+/** Como o pagamento foi feito; RECORRENTE é a cobrança mensal da assinatura no cartão. */
+export const BILLING_METHODS = ['PIX', 'CARTAO', 'RECORRENTE'] as const;
+export type BillingMethod = (typeof BILLING_METHODS)[number];
+
+/** Quem encerrou a assinatura recorrente. */
+export const BILLING_CANCEL_ORIGINS = ['TITULAR', 'MERCADO_PAGO', 'COBRANCA_RECUSADA'] as const;
+export type BillingCancelOrigin = (typeof BILLING_CANCEL_ORIGINS)[number];
+
 /** Avisos do módulo; os de contratos são da migration 0086. */
 export const TENDER_NOTIFICATION_TYPES = [
   'NOVO_EDITAL',

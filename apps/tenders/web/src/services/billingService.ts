@@ -1,5 +1,5 @@
 import type { PaymentEndpoints } from '@ui/payments/paymentRequests';
-import type { TenderBilling, TenderSubscription } from '../types';
+import type { BillingHistory, TenderBilling, TenderSubscription } from '../types';
 import { tendersRequest } from './tendersApi';
 
 // Assinatura da empresa (titular). Fica fora da trava para permitir a renovação
@@ -15,6 +15,11 @@ export const TENDERS_PAYMENT_ENDPOINTS: PaymentEndpoints = {
 
 export function fetchBilling(accountId: number): Promise<TenderBilling> {
   return tendersRequest<TenderBilling>(`/billing?accountId=${accountId}`);
+}
+
+/** Pagamentos, recusas, ativação e cancelamentos da assinatura da conta (até 200, do mais recente ao mais antigo). */
+export function fetchBillingHistory(accountId: number): Promise<BillingHistory> {
+  return tendersRequest<BillingHistory>(`/billing/history?accountId=${accountId}`);
 }
 
 /** Para a assinatura recorrente; o acesso vai até o fim do teste ou do período pago. */

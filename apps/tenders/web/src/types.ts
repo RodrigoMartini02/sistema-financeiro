@@ -541,6 +541,34 @@ export interface TenderBilling {
   price: TenderPrice;
 }
 
+// ---- Histórico de cobrança (item 1B, plano .plans/licitacoes-1b-assinatura-e-historico.md) ----
+
+export type BillingEventType = 'PAGAMENTO' | 'ASSINATURA' | 'CANCELAMENTO';
+export type BillingEventStatus = 'APROVADO' | 'RECUSADO' | 'ATIVADA' | 'CANCELADA';
+/** Como o pagamento foi feito; RECORRENTE é a cobrança mensal da assinatura no cartão. */
+export type BillingMethod = 'PIX' | 'CARTAO' | 'RECORRENTE';
+/** Quem encerrou a assinatura recorrente. */
+export type BillingCancelOrigin = 'TITULAR' | 'MERCADO_PAGO' | 'COBRANCA_RECUSADA';
+
+/** Um evento da cobrança da conta. Pagamento tem método e valor; cancelamento tem origem. */
+export interface BillingEvent {
+  id: number;
+  type: BillingEventType;
+  status: BillingEventStatus;
+  method: BillingMethod | null;
+  origin: BillingCancelOrigin | null;
+  amountCents: number | null;
+  /** Usuários cobrados no pagamento ou na ativação. */
+  users: number | null;
+  /** ISO 8601 com o fuso de Brasília. */
+  occurredAt: string;
+}
+
+/** Resposta de GET /api/tenders/billing/history: do mais recente ao mais antigo, até 200. */
+export interface BillingHistory {
+  events: BillingEvent[];
+}
+
 /** `data` do 402 (assinatura vencida). */
 export interface ExpiredSubscriptionInfo {
   role: 'TITULAR' | 'COLABORADOR';

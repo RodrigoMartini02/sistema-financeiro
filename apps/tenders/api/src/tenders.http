@@ -358,6 +358,10 @@ Content-Type: application/json
 GET {{baseUrl}}/billing?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
+### Histórico de cobrança: pagamentos aprovados e recusados, assinatura recorrente ativada e cancelada (titular; fora da trava; até 200, do mais recente ao mais antigo; data: { events })
+GET {{baseUrl}}/billing/history?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
 ### Pix do mês (referência lic:<conta>; a liberação vem pelo webhook)
 POST {{baseUrl}}/billing/pix
 Authorization: Bearer {{token}}

@@ -9,12 +9,14 @@ import { tendersQueryKeys } from '../services/queryKeys';
 import type { TendersApiError } from '../services/tendersApiError';
 import type { TenderBilling, TenderSubscription } from '../types';
 import { formatCents, priceNote, situationLabel, usersLabel } from '../utils/billing';
+import { BillingHistory } from './BillingHistory';
 import { LoadError, LoadingBlock } from './LoadStates';
 
 /**
  * Assinatura de Licitações da conta (só o titular): situação, valor do mês,
- * pagar (Pix, cartão ou recorrente) e cancelar o recorrente. Serve também à
- * conta vencida, porque as rotas de cobrança ficam fora da trava do módulo.
+ * pagar (Pix, cartão ou recorrente), cancelar o recorrente e o histórico de
+ * cobrança. Serve também à conta vencida, porque as rotas de cobrança ficam
+ * fora da trava do módulo.
  */
 export function BillingPanel({ accountId }: { accountId: number }) {
   const queryClient = useQueryClient();
@@ -100,6 +102,8 @@ export function BillingPanel({ accountId }: { accountId: number }) {
       {cancel.error && (
         <p role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">{cancel.error.message}</p>
       )}
+
+      <BillingHistory accountId={accountId} courtesy={subscription.accessType === 'cortesia'} />
 
       {paying && (
         <PaymentDialog

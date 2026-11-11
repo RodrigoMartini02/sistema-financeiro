@@ -163,6 +163,11 @@ export interface PaymentInfo {
   externalReference: string | undefined;
   /** Cobrança gerada por uma assinatura recorrente. */
   recurringId: string | undefined;
+  /** Valor cobrado, em reais (`transaction_amount`). */
+  amount: number | undefined;
+  /** Tipo (`credit_card`, `debit_card`, `bank_transfer`...) e meio (`visa`, `pix`...) do pagamento. */
+  paymentTypeId: string | undefined;
+  paymentMethodId: string | undefined;
 }
 
 export async function getPayment(paymentId: string): Promise<PaymentInfo> {
@@ -174,6 +179,9 @@ export async function getPayment(paymentId: string): Promise<PaymentInfo> {
     statusDetail: raw['status_detail'] === undefined ? undefined : String(raw['status_detail']),
     externalReference: payment.external_reference,
     recurringId: raw['preapproval_id'] ? String(raw['preapproval_id']) : undefined,
+    amount: payment.transaction_amount,
+    paymentTypeId: payment.payment_type_id,
+    paymentMethodId: payment.payment_method_id,
   };
 }
 
