@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNotNull, sql } from 'drizzle-orm';
 import type { TendersDb } from '../collector/database';
-import { tenderDocuments, tenderPeople } from '../db/schema';
+import { tenderDocuments, tenderPeople, tenderSanctionChecks } from '../db/schema';
 import type { PersonRole } from '../domains';
 import type { ObjectStorage } from '../objectStorage';
 import { isUniqueViolation } from '../utils/dbErrors';
@@ -142,18 +142,31 @@ export function createPerson(
   });
 }
 
-/** Altera os campos que vieram; o CPF novo não pode ser de outra pessoa da conta. Pessoa de outra conta: não encontrada. */
+/**
+ * Altera os campos que vieram; o CPF novo não pode ser de outra pessoa da conta. Pessoa de outra conta: não encontrada. Mudar
+ * o CPF apaga as consultas de sanções guardadas da pessoa (item 6), na mesma transação: eram do CPF antigo.
+ */
 export function updatePerson(db: TendersDb, accountId: number, personId: number, changes: PersonChanges): Promise<PersonView> {
   return writingPerson('update', async () => {
     const current = await findOwnPerson(db, accountId, personId);
-    if (changes.cpf !== undefined && changes.cpf !== current.cpf) {
-      await assertCpfFree(db, accountId, changes.cpf, personId);
+    // O CPF novo; nulo: o CPF não muda (não veio, ou é o mesmo).
+    const newCpf = changes.cpf !== undefined && changes.cpf !== current.cpf ? changes.cpf : null;
+    if (newCpf !== null) {
+      await assertCpfFree(db, accountId, newCpf, personId);
     }
-    const [row] = await db
-      .update(tenderPeople)
-      .set({ ...changes, updatedAt: sql`now()` })
-      .where(ownPerson(accountId, personId))
-      .returning();
+    const row = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(tenderPeople)
+        .set({ ...changes, updatedAt: sql`now()` })
+        .where(ownPerson(accountId, personId))
+        .returning();
+      if (updated && newCpf !== null) {
+        await tx
+          .delete(tenderSanctionChecks)
+          .where(and(eq(tenderSanctionChecks.accountId, accountId), eq(tenderSanctionChecks.personId, personId)));
+      }
+      return updated;
+    });
     if (!row) {
       throw new RequestInputError(NOT_FOUND_MESSAGE, 404);
     }

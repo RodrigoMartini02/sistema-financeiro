@@ -1081,6 +1081,76 @@ export interface VaultDocumentLink {
   fileName: string;
 }
 
+/** Os cadastros federais de sanções consultados na aba Sanções (API `/sanctions`). */
+export type SanctionBase = 'CEIS' | 'CNEP' | 'CEPIM';
+
+/** Situação de uma base no dia, calculada pela API: o app só mostra. `NAO_CONSULTADO`: nunca consultada. */
+export type SanctionStatus = 'NAO_CONSULTADO' | 'SEM_REGISTRO' | 'EM_VIGOR' | 'ENCERRADA';
+
+export interface SanctionRecord {
+  /** O tipo da sanção (CEIS e CNEP) ou o motivo do impedimento (CEPIM). */
+  category: string | null;
+  organ: string | null;
+  /** AAAA-MM-DD. */
+  startDate: string | null;
+  /** AAAA-MM-DD; nulo: sem data final. */
+  endDate: string | null;
+  legalBasis: string | null;
+  process: string | null;
+  note: string | null;
+  /** Ainda vale no dia de referência (sem data final, vale; no CEPIM, sempre). */
+  inForce: boolean;
+}
+
+export interface SanctionBaseResult {
+  base: SanctionBase;
+  status: SanctionStatus;
+  /** Quando foi consultada (ISO de Brasília); nulo: nunca. */
+  checkedAt: string | null;
+  /** A consulta tem mais de 7 dias. */
+  stale: boolean;
+  /** A fonte tinha mais registros do que os guardados. */
+  truncated: boolean;
+  records: SanctionRecord[];
+}
+
+export interface SanctionCompany {
+  name: string | null;
+  /** Os 14 dígitos; nulo: a conta não tem CNPJ e a empresa não pode ser consultada. */
+  cnpj: string | null;
+  /** A situação cadastral que o Perfil guarda (Receita), só leitura; nulo: nunca consultada. */
+  registration: { code: RegistrationStatus; since: string | null; lookedUpAt: string | null } | null;
+  bases: SanctionBaseResult[];
+}
+
+export interface SanctionPerson {
+  id: number;
+  name: string;
+  roles: string[];
+  bases: SanctionBaseResult[];
+}
+
+export interface SanctionOverview {
+  /** Há chave do portal configurada: sem ela, a consulta fica indisponível. */
+  available: boolean;
+  /** O dia da situação (hoje em Brasília), AAAA-MM-DD. */
+  referenceDate: string;
+  /** Uma consulta de menos de tantos minutos vale: a API não chama a fonte de novo. */
+  reuseMinutes: number;
+  staleDays: number;
+  company: SanctionCompany;
+  /** As pessoas do cofre, só para o titular; nulo para o colaborador. */
+  people: SanctionPerson[] | null;
+}
+
+export interface SanctionCheckResult {
+  /** O assunto consultado, atualizado; o outro vem nulo. */
+  company: SanctionCompany | null;
+  person: SanctionPerson | null;
+  /** As bases que não puderam ser consultadas agora (as outras foram guardadas). */
+  failed: SanctionBase[];
+}
+
 export interface CnpjSummary {
   cnpj: string;
   name: string | null;

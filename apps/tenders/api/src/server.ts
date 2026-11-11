@@ -9,6 +9,7 @@ import { createTendersPool } from './db/pool';
 import * as schema from './db/schema';
 import { createUserFilesStorageFromEnv, type ObjectStorage } from './objectStorage';
 import { tendersApiDepsFromPool, tendersAuthDepsFromEnv } from './routes';
+import { createPortalSanctionSourceFromEnv } from './services/sanctionSource';
 
 export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): Promise<{ server: Server; close: () => Promise<void> }> {
   if (env['NODE_ENV'] !== 'production') loadEnvironment(env);
@@ -25,7 +26,8 @@ export async function startTendersServer(env: NodeJS.ProcessEnv = process.env): 
     const logger = createCollectorLogger('info');
     contractStore = startContractStoreFromEnv(env, logger);
     userFiles = createUserFilesStorageFromEnv(env, logger);
-    const api = tendersApiDepsFromPool(pool, contractStore, userFiles);
+    // Sem PORTAL_TRANSPARENCIA_API_KEY a fonte é nula: a consulta de sanções fica "indisponível" e o resto do módulo segue.
+    const api = tendersApiDepsFromPool(pool, contractStore, userFiles, createPortalSanctionSourceFromEnv(env));
     const app = createTendersApp({ api, auth, checkDatabase, env });
     const server = await new Promise<Server>((resolve, reject) => {
       const listener = app.listen(port, () => resolve(listener));

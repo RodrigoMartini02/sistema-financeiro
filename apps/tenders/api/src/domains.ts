@@ -404,6 +404,43 @@ export const DOCUMENT_STATUSES = ['VALID', 'EXPIRING', 'EXPIRED'] as const;
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
 /**
+ * Cadastros federais de sanções consultados no item 6 (migration 0007): CEIS (empresas inidôneas e suspensas), CNEP (empresas
+ * punidas) e CEPIM (entidades privadas sem fins lucrativos impedidas). Os nomes por extenso são texto de tela, do app.
+ */
+export const SANCTION_BASES = ['CEIS', 'CNEP', 'CEPIM'] as const;
+export type SanctionBase = (typeof SANCTION_BASES)[number];
+
+/** Quem se consulta: a empresa (pelo CNPJ) ou uma pessoa do cofre (pelo CPF). O CEPIM só aceita CNPJ: pessoa não o consulta. */
+export const SANCTION_SUBJECT_BASES: Readonly<Record<'COMPANY' | 'PERSON', readonly SanctionBase[]>> = {
+  COMPANY: ['CEIS', 'CNEP', 'CEPIM'],
+  PERSON: ['CEIS', 'CNEP'],
+};
+
+/** Situação de uma base no dia: calculada dos registros e da data de referência (services/sanctionStatus.ts), nunca gravada. */
+export const SANCTION_STATUSES = ['NAO_CONSULTADO', 'SEM_REGISTRO', 'EM_VIGOR', 'ENCERRADA'] as const;
+export type SanctionStatus = (typeof SANCTION_STATUSES)[number];
+
+/**
+ * Um registro de sanção já reduzido ao que a tela usa (guardado em `consulta_sancao.registros`). Nada de quem foi sancionado
+ * (nome, CPF ou CNPJ) é guardado: o assunto da consulta já é conhecido, e o resto da resposta é descartado na leitura.
+ */
+export interface SanctionRecord {
+  /** O identificador do registro na fonte, só para não repetir um registro que vem em duas páginas; pode faltar. */
+  id: string | null;
+  /** O tipo da sanção (CEIS e CNEP) ou o motivo do impedimento (CEPIM). */
+  category: string | null;
+  /** O órgão que sancionou (CEIS e CNEP) ou o órgão superior (CEPIM). */
+  organ: string | null;
+  /** AAAA-MM-DD; nulo quando a fonte não informou ou a data não se lê. */
+  startDate: string | null;
+  /** AAAA-MM-DD; nulo: sem data final (ou que não se lê), e o registro vale como em vigor. */
+  endDate: string | null;
+  legalBasis: string | null;
+  process: string | null;
+  note: string | null;
+}
+
+/**
  * Avisos do módulo; os de contratos são da migration 0086, o de contrato novo de concorrente, da 0005 e os de vencimento de
  * documento, da 0006 (CHECK de `notificacao.tipo`).
  */

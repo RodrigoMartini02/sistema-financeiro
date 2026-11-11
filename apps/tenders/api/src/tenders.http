@@ -340,6 +340,24 @@ Content-Type: application/json
 DELETE {{baseUrl}}/vault/people/{{createVaultPerson.response.body.data.person.id}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
+### Sanções: o que já foi consultado, sem chamar o portal. A empresa (CEIS, CNEP e CEPIM) vem para todos com acesso; `people` (CEIS e CNEP de cada pessoa do cofre) só para o titular (null para o colaborador). `available: false` = sem a chave do portal. Cada base: status (NAO_CONSULTADO, SEM_REGISTRO, EM_VIGOR, ENCERRADA), checkedAt, stale (mais de 7 dias), truncated e os registros. O CPF nunca vem
+GET {{baseUrl}}/sanctions?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Sanções: consultar a empresa (sem corpo: o CNPJ é o da conta). Reaproveita a consulta de menos de 15 minutos; as bases que falharem voltam em `failed` e as outras ficam guardadas. 30 a cada 10 minutos por usuário; 503 sem a chave do portal ou com ele fora do ar; 429 se o portal limitar
+POST {{baseUrl}}/sanctions/check?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+### Sanções: consultar uma pessoa do cofre (só o titular, 403 para o colaborador; 404 se não for da conta). O CPF é o gravado na pessoa, nunca vai no pedido
+POST {{baseUrl}}/sanctions/check?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "personId": {{createVaultPerson.response.body.data.person.id}} }
+
 ### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE; os de documento do cofre: DOCUMENTO_VENCE_30D e DOCUMENTO_VENCE_7D
 GET {{baseUrl}}/notifications?accountId={{accountId}}&unreadOnly=true&type=NOVO_EDITAL&page=1&perPage=20
 Authorization: Bearer {{token}}

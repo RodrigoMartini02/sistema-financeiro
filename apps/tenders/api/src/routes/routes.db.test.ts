@@ -38,6 +38,8 @@ import {
 } from '../services/companyLookup';
 import type { CompanyProfileView } from '../services/companyProfile';
 import type { ProfileView } from '../services/profile';
+import type { SanctionSource } from '../services/sanctionSource';
+import type { SanctionCheckResult, SanctionOverview } from '../services/sanctions';
 import type { SavedSearchView } from '../services/savedSearches';
 import type { BillingEventView } from '../services/billingHistory';
 import { applyOneTimePayment, clearRecurring, setRecurring, startTenderTrial, type SubscriptionView } from '../services/subscription';
@@ -47,6 +49,7 @@ import type { PersonList, PersonView } from '../services/vaultPeople';
 import { CNPJ_RATE_LIMIT } from './cnpj';
 import { COMPANY_LOOKUP_RATE_LIMIT } from './company';
 import { createTendersRoutes } from './index';
+import { SANCTION_CHECK_RATE_LIMIT } from './sanctions';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
 import { DOCUMENT_UPLOAD_RATE_LIMIT } from './vault';
 
@@ -177,6 +180,7 @@ async function withApi(
   contractStore: ContractStoreAccess = UPDATING_STORE,
   userFiles: ObjectStorage | null = null,
   companyLookup: CompanyLookupSource = UNAVAILABLE_COMPANY_LOOKUP,
+  sanctions: SanctionSource | null = null,
 ): Promise<void> {
   let currentUser: TestUser | undefined;
   const app = express();
@@ -193,6 +197,7 @@ async function withApi(
     companyLookup,
     contractStore,
     userFiles,
+    sanctions,
     now: () => new Date(),
   });
   app.use(
@@ -1311,6 +1316,128 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         UPDATING_STORE,
         storage,
       );
+    });
+  });
+
+  test('sanções por HTTP: a empresa de todos e as pessoas só do titular; consulta com a fonte simulada, validações, 503 sem a chave, isolamento e o limite de consultas', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-sancoes');
+      const other = await createTestAccount(tx, 'http-sancoes-outra');
+      const colleagueId = await addAccountMember(tx, account, 'http-sancoes-colega', { access: true });
+      const cnpj = testCnpj(7301);
+      await tx
+        .update(accounts)
+        .set({ document: cnpj, registrationStatus: 'ATIVA', registrationStatusDate: '2005-11-03', lookedUpAt: '2026-11-10T12:00:00-03:00' })
+        .where(eq(accounts.id, account.accountId));
+      const calls: Array<{ base: string; document: string }> = [];
+      const source: SanctionSource = {
+        search: async (base, document) => {
+          calls.push({ base, document });
+          return {
+            records: base === 'CEIS' ? [{ id: '1', category: 'Impedimento de licitar', organ: 'Ministério Exemplo', startDate: '2025-01-01', endDate: '2099-12-31', legalBasis: null, process: null, note: null }] : [],
+            truncated: false,
+            discarded: 0,
+          };
+        },
+      };
+
+      await withApi(
+        tx,
+        async (call) => {
+          const owner = { id: account.ownerId, type: 'titular' as const };
+          const colleague = { id: colleagueId, type: 'membro' as const };
+          const outsider = { id: other.ownerId, type: 'titular' as const };
+          const overview = async (as: TestUser) => (await call<SanctionOverview>('GET', '/api/tenders/sanctions', { as })).body.data;
+
+          const createdPerson = await call<{ person: PersonView }>('POST', '/api/tenders/vault/people', {
+            as: owner,
+            body: { name: 'Ana Souza', cpf: testCpf(7302), roles: ['SOCIO'] },
+          });
+          const person = createdPerson.body.data.person;
+
+          // Antes de consultar: a empresa com a situação da Receita e as bases "não consultado"; as pessoas só para o titular.
+          const before = await call<SanctionOverview>('GET', '/api/tenders/sanctions', { as: owner });
+          assert.equal(before.status, 200);
+          assert.deepEqual(
+            [before.body.data.available, before.body.data.company.cnpj, before.body.data.company.registration?.code, before.body.data.company.bases.map((base) => base.status)],
+            [true, cnpj, 'ATIVA', ['NAO_CONSULTADO', 'NAO_CONSULTADO', 'NAO_CONSULTADO']],
+          );
+          assert.deepEqual(before.body.data.people?.map((item) => item.name), ['Ana Souza']);
+          assert.equal((await overview(colleague)).people, null, 'o colaborador não recebe as pessoas');
+          assert.equal((await overview(colleague)).company.bases.length, 3);
+
+          // Validações do pedido: nada chega à fonte.
+          for (const body of [{ personId: 0 }, { personId: -1 }, { personId: 1.5 }, { personId: '7' }, { personId: [1] }]) {
+            const response = await call('POST', '/api/tenders/sanctions/check', { as: owner, body });
+            assert.deepEqual([response.status, response.body.message], [400, 'Pessoa inválida'], JSON.stringify(body));
+          }
+          for (const body of [{ personId: person.id, cpf: testCpf(7302) }, { cnpj }, { document: cnpj }, []]) {
+            const response = await call('POST', '/api/tenders/sanctions/check', { as: owner, body });
+            assert.deepEqual([response.status, response.body.message], [400, 'Pedido inválido'], JSON.stringify(body));
+          }
+          assert.equal(calls.length, 0);
+
+          // O colaborador consulta a empresa (o CNPJ é o da conta) e não consulta pessoa.
+          const company = await call<SanctionCheckResult>('POST', '/api/tenders/sanctions/check', { as: colleague, body: {} });
+          assert.equal(company.status, 200);
+          assert.deepEqual(company.body.data.company?.bases.map((base) => [base.base, base.status]), [['CEIS', 'EM_VIGOR'], ['CNEP', 'SEM_REGISTRO'], ['CEPIM', 'SEM_REGISTRO']]);
+          assert.deepEqual([company.body.data.person, company.body.data.failed], [null, []]);
+          assert.deepEqual(calls.map((item) => [item.base, item.document]), [['CEIS', cnpj], ['CNEP', cnpj], ['CEPIM', cnpj]]);
+          const denied = await call('POST', '/api/tenders/sanctions/check', { as: colleague, body: { personId: person.id } });
+          assert.equal(denied.status, 403);
+          assert.equal(calls.length, 3);
+
+          // O titular consulta a pessoa (CEIS e CNEP, pelo CPF gravado) e a leitura dele a mostra.
+          const consulted = await call<SanctionCheckResult>('POST', '/api/tenders/sanctions/check', { as: owner, body: { personId: person.id } });
+          assert.equal(consulted.status, 200);
+          assert.equal(consulted.body.data.company, null);
+          assert.deepEqual(consulted.body.data.person?.bases.map((base) => [base.base, base.status]), [['CEIS', 'EM_VIGOR'], ['CNEP', 'SEM_REGISTRO']]);
+          assert.deepEqual(calls.slice(3).map((item) => [item.base, item.document]), [['CEIS', testCpf(7302)], ['CNEP', testCpf(7302)]]);
+          const afterwards = await overview(owner);
+          assert.deepEqual(afterwards.people?.[0]?.bases.map((base) => base.status), ['EM_VIGOR', 'SEM_REGISTRO']);
+          assert.equal((await overview(colleague)).people, null);
+
+          // Reaproveita a consulta de menos de 15 minutos.
+          await call('POST', '/api/tenders/sanctions/check', { as: owner, body: {} });
+          assert.equal(calls.length, 5, 'a fonte não foi chamada de novo');
+
+          // O CPF nunca sai nas respostas.
+          const raw = JSON.stringify([before.body, afterwards, consulted.body, (await overview(colleague))]);
+          assert.ok(!raw.includes(testCpf(7302)));
+
+          // Outra conta: nada da conta de cima, e a pessoa dela é "não encontrada".
+          const outsiderView = await overview(outsider);
+          assert.deepEqual(outsiderView.company.bases.map((base) => base.status), ['NAO_CONSULTADO', 'NAO_CONSULTADO', 'NAO_CONSULTADO']);
+          assert.deepEqual(outsiderView.people, []);
+          const stranger = await call('POST', '/api/tenders/sanctions/check', { as: outsider, body: { personId: person.id } });
+          assert.deepEqual([stranger.status, stranger.body.message], [404, 'Pessoa não encontrada']);
+          const noDocument = await call('POST', '/api/tenders/sanctions/check', { as: outsider, body: {} });
+          assert.deepEqual([noDocument.status, noDocument.body.message], [400, 'Esta conta não tem CNPJ cadastrado.']);
+          assert.equal(calls.length, 5);
+        },
+        UPDATING_STORE,
+        null,
+        UNAVAILABLE_COMPANY_LOOKUP,
+        source,
+      );
+
+      // Sem a chave do portal (fonte nula): a leitura diz `available: false` e a consulta responde 503; o limite por usuário vale.
+      await withApi(tx, async (call) => {
+        const owner = { id: account.ownerId, type: 'titular' as const };
+        const read = await call<SanctionOverview>('GET', '/api/tenders/sanctions', { as: owner });
+        assert.deepEqual([read.status, read.body.data.available], [200, false]);
+        assert.equal(read.body.data.company.bases[0]?.status, 'EM_VIGOR', 'o que já foi consultado continua à vista');
+        const unavailable = await call('POST', '/api/tenders/sanctions/check', { as: owner, body: {} });
+        assert.equal(unavailable.status, 503);
+        assert.match(unavailable.body.message ?? '', /não está disponível/);
+
+        let limited = 0;
+        for (let index = 0; index < SANCTION_CHECK_RATE_LIMIT.max + 2; index += 1) {
+          if ((await call('POST', '/api/tenders/sanctions/check', { as: owner, body: {} })).status === 429) limited += 1;
+        }
+        assert.ok(limited >= 1, 'passou do limite: 429');
+        assert.equal((await call('GET', '/api/tenders/sanctions', { as: owner })).status, 200, 'ler não conta no limite');
+      });
     });
   });
 

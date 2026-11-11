@@ -20,25 +20,30 @@ import { addDaysToIsoDate, formatIsoDate, isValidIsoDate } from './dates';
 export const VAULT_TABS = [
   { id: 'cofre', label: 'Cofre' },
   { id: 'pessoas', label: 'Pessoas' },
+  { id: 'sancoes', label: 'Sanções' },
 ] as const;
 export type VaultTab = (typeof VAULT_TABS)[number]['id'];
 
 export const VAULT_TAB_URL_PARAM = 'aba';
 
-/** As abas da pessoa: a de Pessoas é só do titular (dado pessoal de terceiros). */
+/**
+ * As abas da pessoa: a de Pessoas é só do titular (dado pessoal de terceiros). O Cofre e as Sanções são de todos com acesso ao
+ * módulo (nas Sanções, o colaborador só vê a empresa; as pessoas são do titular).
+ */
 export function vaultTabsFor(canSeePeople: boolean): ReadonlyArray<(typeof VAULT_TABS)[number]> {
-  return canSeePeople ? VAULT_TABS : VAULT_TABS.filter((tab) => tab.id === 'cofre');
+  return canSeePeople ? VAULT_TABS : VAULT_TABS.filter((tab) => tab.id !== 'pessoas');
 }
 
-/** Aba da URL (`?aba=pessoas`); sem ela, desconhecida ou sem permissão, o Cofre. */
+/** Aba da URL (`?aba=pessoas` ou `?aba=sancoes`); sem ela, desconhecida ou sem permissão, o Cofre. */
 export function vaultTabOf(params: URLSearchParams, canSeePeople: boolean): VaultTab {
-  return canSeePeople && params.get(VAULT_TAB_URL_PARAM) === 'pessoas' ? 'pessoas' : 'cofre';
+  const requested = params.get(VAULT_TAB_URL_PARAM);
+  return vaultTabsFor(canSeePeople).find((tab) => tab.id === requested)?.id ?? 'cofre';
 }
 
 /** Parâmetros só com a aba (o Cofre é o padrão e fica fora da URL). */
 export function vaultTabParams(tab: VaultTab): URLSearchParams {
   const params = new URLSearchParams();
-  if (tab === 'pessoas') params.set(VAULT_TAB_URL_PARAM, tab);
+  if (tab !== 'cofre') params.set(VAULT_TAB_URL_PARAM, tab);
   return params;
 }
 

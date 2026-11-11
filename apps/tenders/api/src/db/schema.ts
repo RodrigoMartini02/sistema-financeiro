@@ -31,6 +31,8 @@ import type {
   DetailCacheType,
   DocumentTypeId,
   PersonRole,
+  SanctionBase,
+  SanctionRecord,
   SearchTermsMode,
   TenderAccessType,
   TenderNotificationType,
@@ -405,6 +407,38 @@ export const tenderDocuments = tendersSchema.table(
     accountTypeIdx: index('ix_documento_conta_tipo').on(table.accountId, table.type, table.personId),
     validityIdx: index('ix_documento_validade').on(table.validUntil).where(sql`valido_ate IS NOT NULL`),
     personIdx: index('ix_documento_pessoa').on(table.personId, table.accountId).where(sql`pessoa_id IS NOT NULL`),
+  }),
+);
+
+/**
+ * Última consulta de uma base de sanções (migration 0007): da empresa da conta (`personId` nulo) ou de uma pessoa do cofre.
+ * Guarda só a data, quem consultou e os registros já reduzidos; nada de CPF, CNPJ ou nome do sancionado. A situação (sem
+ * registro, em vigor, encerrada) sai dos registros e do dia de hoje. Apagar a pessoa apaga as consultas dela.
+ */
+export const tenderSanctionChecks = tendersSchema.table(
+  'consulta_sancao',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    personId: bigint('pessoa_id', { mode: 'number' }),
+    base: varchar('base', { length: 5 }).$type<SanctionBase>().notNull(),
+    records: jsonb('registros').$type<SanctionRecord[]>().notNull().default(sql`'[]'::jsonb`),
+    /** A fonte tinha mais registros do que os guardados (a API lê até 3 páginas por base). */
+    truncated: boolean('truncado').default(false).notNull(),
+    checkedAt: timestampWithZone('consultado_em').defaultNow().notNull(),
+    checkedBy: integer('consultado_por').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => ({
+    // Chave composta: a consulta nunca aponta para uma pessoa de outra conta. Apagar a pessoa apaga as consultas.
+    personFk: foreignKey({
+      name: 'consulta_sancao_pessoa_fkey',
+      columns: [table.personId, table.accountId],
+      foreignColumns: [tenderPeople.id, tenderPeople.accountId],
+    }).onDelete('cascade'),
+    companyKey: uniqueIndex('ux_consulta_sancao_empresa').on(table.accountId, table.base).where(sql`pessoa_id IS NULL`),
+    personKey: uniqueIndex('ux_consulta_sancao_pessoa')
+      .on(table.accountId, table.personId, table.base)
+      .where(sql`pessoa_id IS NOT NULL`),
   }),
 );
 

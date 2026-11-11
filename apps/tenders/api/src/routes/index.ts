@@ -15,6 +15,7 @@ import { noticeRoutes } from './notices';
 import { notificationRoutes } from './notifications';
 import { overviewRoutes } from './overview';
 import { profileRoutes } from './profile';
+import { sanctionRoutes } from './sanctions';
 import { savedSearchRoutes } from './savedSearches';
 import { teamRoutes } from './team';
 import { idParam } from './validators';
@@ -54,6 +55,7 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use('/profile', profileRoutes(deps));
   routes.use('/company', companyRoutes(deps));
   routes.use('/vault', vaultRoutes(deps));
+  routes.use('/sanctions', sanctionRoutes(deps));
   routes.use(overviewRoutes(deps));
 
   const adminRoutes = Router();

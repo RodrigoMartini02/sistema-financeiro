@@ -99,15 +99,18 @@ const person = (overrides: Partial<VaultPerson> = {}): VaultPerson => ({
 const NO_FILE = null;
 const PDF_FILE = { name: 'a.pdf', size: 1000, type: 'application/pdf' };
 
-test('abas: Cofre e Pessoas; a de Pessoas só para o titular; a URL guarda só a aba Pessoas', () => {
-  assert.deepEqual(VAULT_TABS.map((tab) => tab.id), ['cofre', 'pessoas']);
-  assert.deepEqual(vaultTabsFor(true).map((tab) => tab.id), ['cofre', 'pessoas']);
-  assert.deepEqual(vaultTabsFor(false).map((tab) => tab.id), ['cofre']);
+test('abas: Cofre, Pessoas e Sanções; a de Pessoas só para o titular; a URL guarda só a aba que não é o Cofre', () => {
+  assert.deepEqual(VAULT_TABS.map((tab) => tab.id), ['cofre', 'pessoas', 'sancoes']);
+  assert.deepEqual(vaultTabsFor(true).map((tab) => tab.id), ['cofre', 'pessoas', 'sancoes']);
+  assert.deepEqual(vaultTabsFor(false).map((tab) => tab.id), ['cofre', 'sancoes'], 'o colaborador vê o Cofre e as Sanções (só a empresa)');
   assert.equal(vaultTabOf(new URLSearchParams('aba=pessoas'), true), 'pessoas');
   assert.equal(vaultTabOf(new URLSearchParams('aba=pessoas'), false), 'cofre', 'sem permissão, o Cofre');
+  assert.equal(vaultTabOf(new URLSearchParams('aba=sancoes'), true), 'sancoes');
+  assert.equal(vaultTabOf(new URLSearchParams('aba=sancoes'), false), 'sancoes', 'as Sanções são de todos com acesso ao módulo');
   assert.equal(vaultTabOf(new URLSearchParams(''), true), 'cofre');
   assert.equal(vaultTabOf(new URLSearchParams('aba=outra'), true), 'cofre');
   assert.equal(vaultTabParams('pessoas').toString(), 'aba=pessoas');
+  assert.equal(vaultTabParams('sancoes').toString(), 'aba=sancoes');
   assert.equal(vaultTabParams('cofre').toString(), '');
 });
 

@@ -45,6 +45,8 @@ export const tendersQueryKeys = {
   vault: ['tenders', 'vault'] as const,
   vaultDocuments: ['tenders', 'vault', 'documents'] as const,
   vaultPeople: ['tenders', 'vault', 'people'] as const,
+  /** Sanções: a empresa e, para o titular, as pessoas do cofre, numa leitura só (a consulta atualiza esta chave). */
+  sanctions: ['tenders', 'sanctions'] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   /** Contratos que vencem, do Dashboard: lê o armazém, então tem consulta própria. */
   dashboardContracts: ['tenders', 'dashboard', 'contracts'] as const,

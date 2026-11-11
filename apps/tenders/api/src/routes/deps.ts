@@ -9,10 +9,11 @@ import { createBrasilApiCompanySource, type CompanyLookupSource } from '../servi
 import { createGoogleProfileReader, type GoogleProfileReader } from '../services/googleAuth';
 import { createPncpDetailSource, type PncpDetailSource } from '../services/pncpDetails';
 import { createRecoveryEmailSender, type RecoveryEmailSender } from '../services/recoveryEmail';
+import type { SanctionSource } from '../services/sanctionSource';
 
 /**
  * O que as rotas do módulo usam; os testes trocam o banco (transação desfeita),
- * o PNCP (simulado), a consulta do CNPJ (simulada) e o armazém de contratos (um armazém de exemplo).
+ * o PNCP (simulado), a consulta do CNPJ (simulada), a consulta de sanções (simulada) e o armazém de contratos (um armazém de exemplo).
  */
 export interface TendersApiDeps {
   db: TendersDb;
@@ -23,17 +24,23 @@ export interface TendersApiDeps {
   contractStore: ContractStoreAccess;
   /** O R2 dos arquivos dos usuários (foto de perfil); null sem as variáveis `R2_*`: o envio de foto fica indisponível. */
   userFiles: ObjectStorage | null;
+  /**
+   * A consulta de sanções (CEIS, CNEP e CEPIM, no Portal da Transparência); null sem a chave
+   * `PORTAL_TRANSPARENCIA_API_KEY`: a tela mostra "consulta indisponível".
+   */
+  sanctions: SanctionSource | null;
   now: () => Date;
 }
 
 /**
  * No servidor: o pool do app (fuso de Brasília e datas como texto), o PNCP e a consulta do CNPJ de verdade, o armazém
- * do Web Service e o R2 dos arquivos dos usuários.
+ * do Web Service, o R2 dos arquivos dos usuários e a fonte das sanções (nula sem a chave).
  */
 export function tendersApiDepsFromPool(
   pool: Pool,
   contractStore: ContractStoreAccess,
   userFiles: ObjectStorage | null,
+  sanctions: SanctionSource | null,
 ): TendersApiDeps {
   return {
     db: drizzle(pool, { schema: tendersTables }),
@@ -41,6 +48,7 @@ export function tendersApiDepsFromPool(
     companyLookup: createBrasilApiCompanySource(),
     contractStore,
     userFiles,
+    sanctions,
     now: () => new Date(),
   };
 }

@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { loadEnvironment } from '../config/environment';
 import { BRAZILIAN_STATES, TENDER_MODALITY_IDS, type BrazilianState } from '../domains';
+import { PORTAL_API_KEY_VARIABLE, PORTAL_REQUEST_INTERVAL_VARIABLE, readSanctionRequestInterval } from '../services/sanctionSource';
 import { ComprasGovClient } from './comprasGovClient';
 import { CollectorConfigError, databaseHost, loadComprasGovSettings } from './config';
 import { runContractReminders, runContractsBackfill, runContractsDaily } from './contractRuns';
@@ -11,6 +12,7 @@ import { errorMessage } from './logger';
 import { runNoticesPayloadExport } from './noticePayloadExport';
 import { renderProbeReport, runResultProbe } from './resultProbe';
 import { runResultsBackfill, runResultsDaily } from './resultRuns';
+import { renderSanctionProbeReport, runSanctionProbe } from './sanctionProbe';
 import { renderSupplierCheck, runSupplierCheck } from './supplierCheck';
 import { runWinnersLookup, DEFAULT_LOOKUP_LIMIT, MAX_LOOKUP_LIMIT } from './winnersLookup';
 import {
@@ -40,6 +42,7 @@ import { createCollectorRuntime } from './runtime';
 //   npm --prefix apps/tenders/api run tenders -- federal-probe [--orgao 26238,52121] [--amostra 8] [--from 2024-01-01 --to 2024-12-31]   (sondagem dos contratos federais: sem banco e sem R2)
 //   npm --prefix apps/tenders/api run tenders -- federal-load [--orgao 26238] [--from 2021-01-01] [--max-minutes 60]   (carga dos contratos federais; com --orgao ou --from relê a faixa inteira)
 //   npm --prefix apps/tenders/api run tenders -- federal-cycle [--orgao 26238] [--max-minutes 60]   (ciclo de 7 dias: os vigentes e os recentes dos órgãos com contrato)
+//   npm --prefix apps/tenders/api run tenders -- sanctions-probe [--cnpj 11222333000181[,...]] [--cpf-env NOME_DA_VARIAVEL]   (sondagem do portal de sanções: sem banco e sem R2; precisa de PORTAL_TRANSPARENCIA_API_KEY no ambiente do processo)
 // Só carrega arquivo de ambiente quando DOTENV_CONFIG_PATH está definido
 // (script tenders:dev): nunca cai no .env de produção por padrão.
 
@@ -62,6 +65,7 @@ export const CLI_COMMANDS = [
   'federal-probe',
   'federal-load',
   'federal-cycle',
+  'sanctions-probe',
 ] as const;
 export type CliCommandName = (typeof CLI_COMMANDS)[number];
 
@@ -109,7 +113,14 @@ export type CliCommand =
       from: string | null;
       maxMinutes: number | null;
     }
-  | { name: 'federal-cycle'; agencyCode: string | null; maxMinutes: number | null };
+  | { name: 'federal-cycle'; agencyCode: string | null; maxMinutes: number | null }
+  | {
+      name: 'sanctions-probe';
+      /** CNPJs a consultar nas três bases (14 dígitos); vazio: só a primeira página sem filtro de cada base. */
+      cnpjs: string[];
+      /** O NOME da variável de ambiente que guarda o CPF a consultar (nunca o CPF, para não ir ao histórico do terminal). */
+      cpfEnv: string | null;
+    };
 
 export class CliUsageError extends Error {
   constructor(message: string) {
@@ -134,6 +145,7 @@ const USAGE = [
   '  federal-probe [--orgao 26238[,52121]] [--amostra N] [--from AAAA-MM-DD --to AAAA-MM-DD] [--max-pages N]',
   '  federal-load [--orgao 26238] [--from AAAA-MM-DD] [--max-minutes N]',
   '  federal-cycle [--orgao 26238] [--max-minutes N]',
+  '  sanctions-probe [--cnpj 00000000000000[,11111111111111]] [--cpf-env NOME_DA_VARIAVEL]',
 ].join('\n');
 
 const CLI_OPTIONS = {
@@ -150,6 +162,7 @@ const CLI_OPTIONS = {
   fornecedor: { type: 'string' },
   orgao: { type: 'string' },
   amostra: { type: 'string' },
+  'cpf-env': { type: 'string' },
 } as const;
 type CliOptionName = keyof typeof CLI_OPTIONS;
 
@@ -172,6 +185,7 @@ const OPTIONS_BY_COMMAND: Record<CliCommandName, readonly CliOptionName[]> = {
   'federal-probe': ['orgao', 'amostra', 'from', 'to', 'max-pages'],
   'federal-load': ['orgao', 'from', 'max-minutes'],
   'federal-cycle': ['orgao', 'max-minutes'],
+  'sanctions-probe': ['cnpj', 'cpf-env'],
 };
 
 const MAX_PAGES_LIMIT = 10_000;
@@ -300,7 +314,27 @@ export function parseCliArgs(argv: string[]): CliCommand {
     return parseFederalRunOptions(name, values);
   }
 
+  if (name === 'sanctions-probe') {
+    return parseSanctionsProbeOptions(values);
+  }
+
   return { name };
+}
+
+/** A sondagem do portal de sanções faz 3 pedidos sem filtro e mais 3 por CNPJ (e 2 pelo CPF): o teto de CNPJs a limita. */
+const MAX_PROBE_CNPJS = 5;
+
+/** `--cnpj` com um ou mais CNPJs (14 dígitos, separados por vírgula) e `--cpf-env` com o NOME da variável que guarda o CPF. */
+function parseSanctionsProbeOptions(values: Partial<Record<CliOptionName, string>>): CliCommand {
+  const cnpjs = values.cnpj === undefined ? [] : values.cnpj.split(',').map((cnpj) => cnpj.trim());
+  if (values.cnpj !== undefined && (cnpjs.length > MAX_PROBE_CNPJS || cnpjs.some((cnpj) => !/^\d{14}$/.test(cnpj)))) {
+    throw new CliUsageError(`--cnpj deve ter de 1 a ${MAX_PROBE_CNPJS} CNPJs de 14 dígitos, sem pontos nem barra, separados por vírgula`);
+  }
+  const cpfEnv = values['cpf-env'] ?? null;
+  if (cpfEnv !== null && !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(cpfEnv)) {
+    throw new CliUsageError('--cpf-env deve ser o NOME da variável de ambiente que guarda o CPF (nunca o próprio CPF)');
+  }
+  return { name: 'sanctions-probe', cnpjs, cpfEnv };
 }
 
 /** O órgão da carga e do ciclo: um só código, só dígitos. */
@@ -368,10 +402,42 @@ function parseBackfillOptions(name: 'contracts-backfill' | 'winners-backfill', v
 }
 
 /** Comandos que não precisam do runtime do coletor (URL do banco, conexão e R2): saem antes de criá-lo. */
-type CommandWithoutRuntime = Extract<CliCommand, { name: 'winners-probe' | 'federal-probe' }>;
+type CommandWithoutRuntime = Extract<CliCommand, { name: 'winners-probe' | 'federal-probe' | 'sanctions-probe' }>;
 
 function needsNoRuntime(command: CliCommand): command is CommandWithoutRuntime {
-  return command.name === 'winners-probe' || command.name === 'federal-probe';
+  return command.name === 'winners-probe' || command.name === 'federal-probe' || command.name === 'sanctions-probe';
+}
+
+/**
+ * Sondagem do portal de sanções: lê só a fonte (a chave vem do ambiente do processo, o CPF de uma variável que o próprio
+ * usuário nomeia) e imprime o relatório de ESTRUTURA na saída padrão; o andamento vai para a saída de erro. Nunca o banco nem o R2.
+ */
+async function runSanctionsProbe(command: Extract<CommandWithoutRuntime, { name: 'sanctions-probe' }>): Promise<void> {
+  const apiKey = process.env[PORTAL_API_KEY_VARIABLE]?.trim();
+  if (!apiKey) {
+    throw new CliUsageError(`Defina ${PORTAL_API_KEY_VARIABLE} no ambiente do processo para rodar a sondagem (a chave nunca vai para o relatório).`);
+  }
+  let cpf: string | null = null;
+  if (command.cpfEnv !== null) {
+    const digits = (process.env[command.cpfEnv] ?? '').replace(/\D/g, '');
+    if (!/^\d{11}$/.test(digits)) {
+      throw new CliUsageError(`A variável ${command.cpfEnv} precisa guardar um CPF de 11 dígitos.`);
+    }
+    cpf = digits;
+  }
+  const report = await runSanctionProbe(
+    {
+      apiKey,
+      requestIntervalMs: readSanctionRequestInterval(process.env[PORTAL_REQUEST_INTERVAL_VARIABLE]),
+      progress: (message) => console.error(message),
+    },
+    { cnpjs: command.cnpjs, cpf },
+  );
+  console.log(renderSanctionProbeReport(report));
+  // Alguma base sem filtro que não entregou uma lista: a sondagem não serve de base para ligar a consulta.
+  if (!report.ok) {
+    process.exitCode = 1;
+  }
 }
 
 /** O ano passado inteiro (a janela da `federal-probe` sem --from e --to): o que a sondagem de 26/10/2026 mediu. */
@@ -385,6 +451,10 @@ function lastYearWindow(now: Date): { from: string; to: string } {
  * para a saída de erro. Só precisa de COMPRASGOV_REQUEST_INTERVAL_MS (opcional), nunca do banco nem do R2.
  */
 async function runWithoutRuntime(command: CommandWithoutRuntime): Promise<void> {
+  if (command.name === 'sanctions-probe') {
+    await runSanctionsProbe(command);
+    return;
+  }
   const settings = loadComprasGovSettings(process.env);
   const client = new ComprasGovClient({ requestIntervalMs: settings.requestIntervalMs });
   if (command.name === 'federal-probe') {

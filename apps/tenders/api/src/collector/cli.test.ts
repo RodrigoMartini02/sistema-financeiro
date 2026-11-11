@@ -209,6 +209,31 @@ test('collect: modalidade obrigatória, UF e limite de páginas opcionais', () =
   assertUsageError(['collect', '--modality', '6', '--max-pages', '0'], /max-pages/);
 });
 
+test('sanctions-probe: sem opções, com CNPJs (de 1 a 5, 14 dígitos) e com o NOME da variável que guarda o CPF', () => {
+  assert.deepEqual(parseCliArgs(['sanctions-probe']), { name: 'sanctions-probe', cnpjs: [], cpfEnv: null });
+  assert.deepEqual(parseCliArgs(['sanctions-probe', '--cnpj', '11222333000181']), { name: 'sanctions-probe', cnpjs: ['11222333000181'], cpfEnv: null });
+  assert.deepEqual(parseCliArgs(['sanctions-probe', '--cnpj', '11222333000181, 12345678000195', '--cpf-env', 'SANCTION_PROBE_CPF']), {
+    name: 'sanctions-probe',
+    cnpjs: ['11222333000181', '12345678000195'],
+    cpfEnv: 'SANCTION_PROBE_CPF',
+  });
+});
+
+test('sanctions-probe: CNPJ só com os 14 dígitos, no máximo 5; o CPF nunca vai na linha de comando; nenhuma opção de outro comando', () => {
+  assertUsageError(['sanctions-probe', '--cnpj', '11.222.333/0001-81'], /--cnpj/);
+  assertUsageError(['sanctions-probe', '--cnpj', '1122233300018'], /--cnpj/);
+  assertUsageError(['sanctions-probe', '--cnpj', ''], /--cnpj/);
+  assertUsageError(['sanctions-probe', '--cnpj', '11222333000181,'], /--cnpj/);
+  assertUsageError(['sanctions-probe', '--cnpj', Array.from({ length: 6 }, () => '11222333000181').join(',')], /de 1 a 5/);
+  assertUsageError(['sanctions-probe', '--cpf-env', '52998224725'], /NOME da variável/);
+  assertUsageError(['sanctions-probe', '--cpf-env', '529.982.247-25'], /NOME da variável/);
+  assertUsageError(['sanctions-probe', '--cpf-env', 'COM ESPACO'], /NOME da variável/);
+  assertUsageError(['sanctions-probe', '--cpf', '52998224725'], /--cpf/);
+  assertUsageError(['sanctions-probe', '--day', '2026-09-14'], /não vale/);
+  assertUsageError(['winners-probe', '--cpf-env', 'X'], /não vale/);
+  assertUsageError(['winners-lookup', '--cnpj', '11222333000181', '--cpf-env', 'X'], /não vale/);
+});
+
 test('recusa comando desconhecido, opção de outro comando e argumento a mais', () => {
   assertUsageError([]);
   assertUsageError(['varrer'], /desconhecido/);

@@ -42,6 +42,16 @@ function useInvalidateVault() {
   return () => queryClient.invalidateQueries({ queryKey: tendersQueryKeys.vault });
 }
 
+/** Alterar as pessoas também muda a aba Sanções (os nomes e as consultas guardadas de cada uma: o CPF novo apaga as antigas). */
+function useInvalidateVaultPeople() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: tendersQueryKeys.vault }),
+      queryClient.invalidateQueries({ queryKey: tendersQueryKeys.sanctions }),
+    ]);
+}
+
 export function useCreateVaultDocument() {
   const invalidate = useInvalidateVault();
   return useMutation<VaultDocument, TendersApiError, NewVaultDocument>({ mutationFn: createVaultDocument, onSuccess: invalidate });
@@ -89,12 +99,12 @@ export function useOpenVaultDocument() {
 }
 
 export function useCreateVaultPerson() {
-  const invalidate = useInvalidateVault();
+  const invalidate = useInvalidateVaultPeople();
   return useMutation<VaultPerson, TendersApiError, NewVaultPerson>({ mutationFn: createVaultPerson, onSuccess: invalidate });
 }
 
 export function useUpdateVaultPerson() {
-  const invalidate = useInvalidateVault();
+  const invalidate = useInvalidateVaultPeople();
   return useMutation<VaultPerson, TendersApiError, { id: number; changes: VaultPersonChanges }>({
     mutationFn: ({ id, changes }) => updateVaultPerson(id, changes),
     onSuccess: invalidate,
@@ -102,7 +112,7 @@ export function useUpdateVaultPerson() {
 }
 
 export function useDeleteVaultPerson() {
-  const invalidate = useInvalidateVault();
+  const invalidate = useInvalidateVaultPeople();
   return useMutation<{ id: number; removedDocuments: number }, TendersApiError, number>({
     mutationFn: deleteVaultPerson,
     onSuccess: invalidate,
