@@ -12,6 +12,7 @@ import {
   TRACKING_FILTERS,
 } from '../domains';
 import { isCnpjFormat, isValidCnpj, normalizeCnpj } from '../cnpj';
+import { MAX_COMPETITOR_NICKNAME_LENGTH } from '../services/competitors';
 import { MAX_SAVED_SEARCH_NAME_LENGTH } from '../services/savedSearches';
 import { MAX_SEARCH_TEXT_LENGTH, MAX_TERM_LENGTH, MAX_TERMS, MIN_TERM_LENGTH } from '../services/searchText';
 
@@ -233,3 +234,32 @@ export const contractSavedSearchCriteriaValidators: ValidationChain[] = [
 ];
 
 export const contractSavedSearchBodyValidators: ValidationChain[] = savedSearchBody(contractSavedSearchCriteriaValidators);
+
+/** O CNPJ do corpo: com ou sem máscara, mas com os 14 dígitos e os dígitos verificadores certos (`isValidCnpj`). */
+const isValidCnpjText = (value: unknown) => typeof value === 'string' && isValidCnpj(normalizeCnpj(value));
+
+/** Apelido do concorrente: texto com até 80 caracteres; vazio ou `null` limpa. */
+function competitorNickname(): ValidationChain {
+  return body('nickname')
+    .optional({ values: 'null' })
+    .isString()
+    .trim()
+    .isLength({ max: MAX_COMPETITOR_NICKNAME_LENGTH })
+    .withMessage(`Apelido com até ${MAX_COMPETITOR_NICKNAME_LENGTH} caracteres`);
+}
+
+/** Corpo de `POST /competitors`: o CNPJ e o apelido opcional. */
+export const competitorBodyValidators: ValidationChain[] = [
+  body('cnpj').custom(isValidCnpjText).withMessage('CNPJ inválido'),
+  competitorNickname(),
+];
+
+/** Corpo de `PATCH /competitors/:cnpj`: o apelido e/ou o aviso (ao menos um). */
+export const competitorPatchValidators: ValidationChain[] = [
+  competitorNickname(),
+  body('notify').optional().isBoolean({ strict: true }).withMessage('Use true ou false'),
+  // Só confere que veio algum dos dois; o formato de cada um é dos validadores acima (sem mensagem repetida).
+  body()
+    .custom((value: Record<string, unknown> | undefined) => value?.['nickname'] !== undefined || value?.['notify'] !== undefined)
+    .withMessage('Informe nickname ou notify'),
+];

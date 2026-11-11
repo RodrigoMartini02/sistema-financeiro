@@ -37,6 +37,10 @@ export const tendersQueryKeys = {
   /** Página do CNPJ: o resumo e as licitações vencidas, em lista infinita (as listas curtas usam as chaves de contratos e editais). */
   cnpj: (cnpj: string) => ['tenders', 'cnpj', cnpj] as const,
   cnpjWinners: (cnpj: string) => ['tenders', 'cnpj', cnpj, 'winners'] as const,
+  /** Concorrentes monitorados da pessoa: a lista (só Postgres) e os números do armazém, sob o mesmo prefixo. */
+  competitors: ['tenders', 'competitors'] as const,
+  competitorList: ['tenders', 'competitors', 'list'] as const,
+  competitorSummary: ['tenders', 'competitors', 'summary'] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   /** Contratos que vencem, do Dashboard: lê o armazém, então tem consulta própria. */
   dashboardContracts: ['tenders', 'dashboard', 'contracts'] as const,

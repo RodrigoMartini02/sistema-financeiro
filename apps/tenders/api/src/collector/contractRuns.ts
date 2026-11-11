@@ -10,7 +10,7 @@ import {
   type ContractWithoutExpiryReason,
   type TenderContractRow,
 } from './contractMapping';
-import { notifyContractExpirations, updateSavedSearchTotals, type ChangedContractExpiry } from './contractNotifications';
+import { notifyCompetitorContracts, notifyContractExpirations, updateSavedSearchTotals, type ChangedContractExpiry } from './contractNotifications';
 import { markBackfillDayCompleted, readCompletedBackfillDays, readLastCompletedDailyDays, readNewestBackfillDay, type BackfillDayCounts } from './contractProgress';
 import type { TendersDb } from './database';
 import { PNCP_CONTRACT_ENDPOINTS, PncpRequestError, type PncpContractEndpoint, type PncpQueryParams } from './pncpClient';
@@ -646,10 +646,12 @@ export async function runContractsBackfill(context: CollectorContext, options: B
 }
 
 /**
- * Avisos de vencimento do dia (Brasília): 90 e 30 dias, para favoritos e buscas
- * salvas com Notificar, e o total "vigentes agora" de todas as buscas salvas.
- * Lê o armazém publicado (a cópia que a coleta deixou na pasta de trabalho, ou
- * baixada do R2); sem cópia pronta, a execução falha e os avisos esperam a seguinte.
+ * Avisos de contratos do dia (Brasília): vencimento em 90 e 30 dias, para favoritos
+ * e buscas salvas com Notificar; contrato novo dos concorrentes monitorados com o
+ * aviso ligado (`details.competitors`); e o total "vigentes agora" de todas as
+ * buscas salvas. Lê o armazém publicado (a cópia que a coleta deixou na pasta de
+ * trabalho, ou baixada do R2); sem cópia pronta, a execução falha e os avisos
+ * esperam a seguinte.
  */
 export function runContractReminders(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(context, 'CONTRATOS_AVISOS', COLLECTOR_LOCK_KEYS.contracts, async (tally) => {
@@ -667,6 +669,9 @@ export function runContractReminders(context: CollectorContext): Promise<RunOutc
       }
       const notificationContext = { db: context.db, contractStore: reader, now: context.now, logger: context.logger };
       tally.notificationCount += await notifyContractExpirations(notificationContext, today);
+      const competitors = await notifyCompetitorContracts(notificationContext, today);
+      tally.notificationCount += competitors.created;
+      tally.details['competitors'] = { ...competitors };
       tally.details['savedSearchTotals'] = { ...(await updateSavedSearchTotals(notificationContext)) };
     } finally {
       await reader.close();

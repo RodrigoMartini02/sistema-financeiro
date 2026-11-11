@@ -8,6 +8,7 @@ export type TendersRouteKey =
   | 'buscar'
   | 'contratos'
   | 'contrato'
+  | 'concorrentes'
   | 'cnpj'
   | 'edital'
   | 'buscas'
@@ -31,6 +32,7 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'buscar', path: '/buscar', title: 'Editais', inMenu: true, platformAdminOnly: false },
   { key: 'contratos', path: '/contratos', title: 'Contratos a vencer', inMenu: true, platformAdminOnly: false },
   { key: 'contrato', path: '/contratos/:chave', title: 'Contrato', inMenu: false, platformAdminOnly: false },
+  { key: 'concorrentes', path: '/concorrentes', title: 'Concorrentes', inMenu: true, platformAdminOnly: false },
   { key: 'cnpj', path: '/cnpj/:cnpj', title: 'CNPJ', inMenu: false, platformAdminOnly: false },
   { key: 'edital', path: '/editais/:id', title: 'Edital', inMenu: false, platformAdminOnly: false },
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, platformAdminOnly: false },

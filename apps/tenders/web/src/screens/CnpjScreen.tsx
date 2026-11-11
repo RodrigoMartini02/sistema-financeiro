@@ -5,6 +5,7 @@ import { EmptyState } from '@ui/components/EmptyState';
 import { isValidCnpj, onlyDigits } from '@ui/utils/brazilDocuments';
 import { CnpjContractList, CnpjNoticeList, CnpjWinnersList } from '../components/CnpjLists';
 import { CnpjSection, PartnerRanking, StatTiles, WinnersByYear, type StatTile } from '../components/CnpjSections';
+import { CompetitorButton } from '../components/CompetitorButton';
 import { ContractsUpdating, LoadError, LoadingBlock } from '../components/LoadStates';
 import { Pill } from '../components/Pill';
 import { TabPanel, Tabs } from '../components/Tabs';
@@ -130,14 +131,19 @@ function CnpjContent({ cnpj, summary }: { cnpj: string; summary: CnpjSummary }) 
   };
   const notes = cnpjCoverageNotes(summary.coverage);
   const hasData = summary.supplier !== null || summary.agency !== null;
+  // Quem só aparece como órgão contratante não é concorrente; o resto (fornecedor ou sem registro ainda) pode ser acompanhado.
+  const canFollow = summary.supplier !== null || summary.agency === null;
 
   return (
     <div className="grid grid-cols-1 gap-5">
       <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:p-5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {summary.supplier && <Pill tone="brand">Fornecedor</Pill>}
-          {summary.agency && <Pill tone="success">Órgão contratante</Pill>}
-          {!hasData && <Pill tone="muted">Sem registros</Pill>}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {summary.supplier && <Pill tone="brand">Fornecedor</Pill>}
+            {summary.agency && <Pill tone="success">Órgão contratante</Pill>}
+            {!hasData && <Pill tone="muted">Sem registros</Pill>}
+          </div>
+          {canFollow && <CompetitorButton cnpj={cnpj} />}
         </div>
         <h2 className="mt-2 flex items-start gap-2 text-lg font-bold leading-snug text-slate-900 dark:text-white">
           <Building2 size={20} className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden="true" />

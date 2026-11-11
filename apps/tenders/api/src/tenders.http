@@ -245,7 +245,33 @@ Authorization: Bearer {{token}}
 DELETE {{baseUrl}}/contract-searches/{{createContractSearch.response.body.data.id}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
-### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO
+### Concorrentes monitorados da pessoa: a lista (só Postgres; até 30 por pessoa)
+GET {{baseUrl}}/competitors?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Concorrentes: os números do armazém (contratos, vigentes, novos em 30 dias, última publicação e nome); 503 com o armazém atualizando
+GET {{baseUrl}}/competitors/summary?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Acompanhar um concorrente (CNPJ com ou sem máscara; apelido opcional; 201 criado, 200 se já acompanhava)
+POST {{baseUrl}}/competitors?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "cnpj": "11.222.333/0001-81", "nickname": "Concorrente do Sul" }
+
+### Concorrente: apelido (vazio limpa) e/ou aviso de contrato novo; religar o aviso recomeça o aviso_desde
+PATCH {{baseUrl}}/competitors/11222333000181?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "notify": false }
+
+### Deixar de acompanhar (idempotente)
+DELETE {{baseUrl}}/competitors/11222333000181?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE
 GET {{baseUrl}}/notifications?accountId={{accountId}}&unreadOnly=true&type=NOVO_EDITAL&page=1&perPage=20
 Authorization: Bearer {{token}}
 

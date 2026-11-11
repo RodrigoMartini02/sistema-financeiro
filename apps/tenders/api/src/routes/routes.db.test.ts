@@ -15,11 +15,12 @@ import { ContractStoreUnavailableError, type ContractStoreAccess } from '../cont
 import { openTestContractStore, sampleContract, sampleResult, sampleSupplier } from '../contractStore/storeTestSupport';
 import { postgresSearchFields } from '../contractStore/textSearch';
 import { accounts } from '../db/identity';
-import { tenderEnabledAccounts } from '../db/schema';
+import { tenderCompetitors, tenderEnabledAccounts } from '../db/schema';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
 import type { TenderAccount } from '../services/access';
 import type { CnpjSummary, CnpjWinnerItem } from '../services/cnpjPage';
+import type { CompetitorList, CompetitorSummaryView, CompetitorView } from '../services/competitors';
 import type { ContractDetail } from '../services/contractDetail';
 import type { ContractSavedSearchView } from '../services/contractSavedSearches';
 import type { ContractListItem } from '../services/contractSearch';
@@ -989,6 +990,132 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
           },
           store.reader,
         );
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
+  test('concorrentes por HTTP: salvar, listar, apelido, aviso, remover, limite, validações, isolamento e os números do armazém', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-concorrentes');
+      const other = await createTestAccount(tx, 'http-concorrentes-outra');
+      const colleagueId = await addAccountMember(tx, account, 'http-concorrentes-colega', { access: true });
+      const alfa = testCnpj(7301);
+      const beta = testCnpj(7302);
+      const gama = testCnpj(7303);
+      const maskedAlfa = `${alfa.slice(0, 2)}.${alfa.slice(2, 5)}.${alfa.slice(5, 8)}/${alfa.slice(8, 12)}-${alfa.slice(12)}`;
+      const store = await openTestContractStore([
+        sampleContract(21, { supplierDocument: alfa, supplierName: 'Alfa Ltda', expiresOn: '2030-01-01' }),
+        sampleContract(22, { supplierDocument: alfa, supplierName: 'Alfa Ltda', expiresOn: '2020-01-01', originalTermEnd: '2020-01-01' }),
+      ]);
+      try {
+        await withApi(
+          tx,
+          async (call) => {
+            const owner = { id: account.ownerId, type: 'titular' as const };
+            const colleague = { id: colleagueId, type: 'membro' as const };
+            const outsider = { id: other.ownerId, type: 'titular' as const };
+            const list = async (as: TestUser) => (await call<CompetitorList>('GET', '/api/tenders/competitors', { as })).body.data;
+            const fields = (response: ApiResponse<unknown>) => response.body.errors?.map((error) => error.field).sort();
+
+            // Validações do formato.
+            const noBody = await call('POST', '/api/tenders/competitors', { as: owner, body: {} });
+            assert.equal(noBody.status, 400);
+            assert.deepEqual(fields(noBody), ['cnpj']);
+            assert.equal((await call('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: '11222333000180' } })).status, 400, 'dígito verificador errado');
+            assert.deepEqual(fields(await call('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: alfa, nickname: 'x'.repeat(81) } })), ['nickname']);
+            assert.deepEqual(fields(await call('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: alfa, nickname: 123 } })), ['nickname']);
+            const emptyPatch = await call('PATCH', `/api/tenders/competitors/${alfa}`, { as: owner, body: {} });
+            assert.equal(emptyPatch.status, 400);
+            assert.deepEqual(emptyPatch.body.errors?.map((error) => error.message), ['Informe nickname ou notify']);
+            assert.deepEqual(fields(await call('PATCH', `/api/tenders/competitors/${alfa}`, { as: owner, body: { notify: 'sim' } })), ['notify']);
+            assert.equal((await call('PATCH', '/api/tenders/competitors/123', { as: owner, body: { notify: true } })).status, 400, 'CNPJ da rota inválido');
+            assert.equal((await call('DELETE', '/api/tenders/competitors/abc', { as: owner })).status, 400);
+            assert.deepEqual((await list(owner)).items, [], 'nada foi gravado pelos pedidos inválidos');
+
+            // Salvar: com a máscara e o apelido aparado; de novo, 200 e nada muda.
+            const created = await call<CompetitorView>('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: maskedAlfa, nickname: '  Alfa  Principal ' } });
+            assert.equal(created.status, 201);
+            assert.deepEqual({ cnpj: created.body.data.cnpj, nickname: created.body.data.nickname, notify: created.body.data.notify }, { cnpj: alfa, nickname: 'Alfa Principal', notify: true });
+            assert.match(created.body.data.createdAt ?? '', /-03:00$/);
+            const again = await call<CompetitorView>('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: alfa, nickname: 'Outro' } });
+            assert.equal(again.status, 200);
+            assert.equal(again.body.data.nickname, 'Alfa Principal');
+            const withoutNickname = await call<CompetitorView>('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: beta } });
+            assert.equal(withoutNickname.status, 201);
+            assert.equal(withoutNickname.body.data.nickname, null);
+
+            const listed = await list(owner);
+            assert.equal(listed.limit, 30);
+            assert.deepEqual(listed.items.map((item) => [item.cnpj, item.nickname, item.notify]), [[alfa, 'Alfa Principal', true], [beta, null, true]]);
+
+            // Alterar: aviso, apelido (vazio limpa) e os dois juntos; o que não é da pessoa, 404.
+            const muted = await call<CompetitorView>('PATCH', `/api/tenders/competitors/${alfa}`, { as: owner, body: { notify: false } });
+            assert.deepEqual([muted.status, muted.body.data.notify, muted.body.data.nickname], [200, false, 'Alfa Principal']);
+            assert.equal((await call<CompetitorView>('PATCH', `/api/tenders/competitors/${alfa}`, { as: owner, body: { nickname: '' } })).body.data.nickname, null);
+            const both = await call<CompetitorView>('PATCH', `/api/tenders/competitors/${alfa}`, { as: owner, body: { notify: true, nickname: 'Alfa' } });
+            assert.deepEqual([both.body.data.notify, both.body.data.nickname], [true, 'Alfa']);
+            assert.equal((await call('PATCH', `/api/tenders/competitors/${gama}`, { as: owner, body: { notify: false } })).status, 404, 'quem não acompanha');
+
+            // Os números do armazém, na ordem da lista; quem não tem contrato vem zerado.
+            const summary = await call<{ items: CompetitorSummaryView[] }>('GET', '/api/tenders/competitors/summary', { as: owner });
+            assert.equal(summary.status, 200);
+            assert.deepEqual(summary.body.data.items, [
+              { cnpj: alfa, name: 'Alfa Ltda', total: 2, active: 1, last30Days: 0, lastPublishedAt: '2026-01-12T10:00:00-03:00' },
+              { cnpj: beta, name: null, total: 0, active: 0, last30Days: 0, lastPublishedAt: null },
+            ]);
+
+            // Isolamento: a colega e a outra conta não veem, não alteram e não apagam os meus.
+            assert.deepEqual((await list(colleague)).items, []);
+            assert.deepEqual((await list(outsider)).items, []);
+            assert.equal((await call('PATCH', `/api/tenders/competitors/${alfa}`, { as: colleague, body: { nickname: 'Dela' } })).status, 404);
+            assert.equal((await call('DELETE', `/api/tenders/competitors/${alfa}`, { as: colleague })).status, 200, 'remover é idempotente, mesmo sem ter');
+            assert.equal((await list(owner)).items.length, 2, 'o que a colega removeu não era meu');
+            assert.equal((await call('POST', '/api/tenders/competitors', { as: colleague, body: { cnpj: alfa, nickname: 'Dela' } })).status, 201, 'cada pessoa tem o seu');
+            assert.deepEqual((await list(owner)).items.map((item) => item.nickname), ['Alfa', null], 'o apelido dela não é o meu');
+
+            // Limite de 30 por pessoa: o 31º dá 400, e quem já acompanha continua podendo ser salvo de novo.
+            await tx.insert(tenderCompetitors).values(
+              Array.from({ length: 28 }, (_, index) => ({ accountId: account.accountId, userId: account.ownerId, cnpj: testCnpj(8000 + index) })),
+            );
+            const overLimit = await call('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: gama } });
+            assert.equal(overLimit.status, 400);
+            assert.match(overLimit.body.message ?? '', /30 concorrentes/);
+            assert.equal((await call('POST', '/api/tenders/competitors', { as: owner, body: { cnpj: alfa } })).status, 200);
+
+            // Remover: idempotente.
+            const removed = await call<{ cnpj: string }>('DELETE', `/api/tenders/competitors/${beta}`, { as: owner });
+            assert.deepEqual([removed.status, removed.body.data], [200, { cnpj: beta }]);
+            assert.equal((await call('DELETE', `/api/tenders/competitors/${beta}`, { as: owner })).status, 200);
+            assert.equal((await list(owner)).items.some((item) => item.cnpj === beta), false);
+          },
+          store.reader,
+        );
+
+        // Armazém ainda sem cópia pronta: a lista e o resto não dependem dele; os números esperam (503), e quem não tem
+        // concorrente nem consulta o armazém.
+        await withApi(tx, async (call) => {
+          const owner = { id: account.ownerId, type: 'titular' as const };
+          const outsider = { id: other.ownerId, type: 'titular' as const };
+          assert.equal((await call('GET', '/api/tenders/competitors', { as: owner })).status, 200);
+          const updating = await call('GET', '/api/tenders/competitors/summary', { as: owner });
+          assert.equal(updating.status, 503);
+          assert.deepEqual(updating.body, {
+            success: false,
+            code: 'CONTRACT_STORE_UPDATING',
+            message: 'Os contratos estão sendo atualizados. Tente de novo em instantes.',
+          });
+          const empty = await call<{ items: CompetitorSummaryView[] }>('GET', '/api/tenders/competitors/summary', { as: outsider });
+          assert.deepEqual([empty.status, empty.body.data.items], [200, []]);
+
+          // O resumo tem o limite por pessoa da página do CNPJ (60 por minuto; os pedidos de antes já contam).
+          let limited = 0;
+          for (let index = 0; index < CNPJ_RATE_LIMIT.max + 1; index += 1) {
+            if ((await call('GET', '/api/tenders/competitors/summary', { as: outsider })).status === 429) limited += 1;
+          }
+          assert.ok(limited >= 1, 'passou do limite: 429');
+        });
       } finally {
         await store.close();
       }

@@ -14,7 +14,7 @@ As seções técnicas preservam o histórico da construção do módulo. As migr
 
 ## Estrutura
 
-A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
+A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql,0005_competitors.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
 
 ```
 apps/tenders/api/src/
@@ -39,6 +39,7 @@ apps/tenders/api/src/
 │   ├── criteria.ts                  a regra única dos critérios de contratos, em SQL do DuckDB, e a escolha do conjunto da lista
 │   ├── queries.ts                   consultas da API e dos avisos: lista, detalhe, contagem e janelas de vencimento
 │   ├── cnpjQueries.ts               página do CNPJ: contratos como fornecedor e como órgão, parceiros e cobertura
+│   ├── competitorQueries.ts         concorrentes monitorados: o resumo de cada CNPJ, em lote, e os contratos publicados desde um dia
 │   ├── writer.ts                    gravação (coletor): mudanças, partes regravadas e publicação
 │   ├── reader.ts                    leitura (Web Service): cópia local, troca de versão, fila e limite de tempo
 │   ├── service.ts                   o armazém do Web Service: começa com o servidor, sem atrasar o /health
@@ -59,7 +60,7 @@ apps/tenders/api/src/
 │   ├── contractMapping.ts           contrato do PNCP → contrato do armazém; vencimento pelos termos
 │   ├── contractProgress.ts          andamento no Postgres: último dia lido da coleta diária e dias da carga
 │   ├── contractRuns.ts              contratos: coleta diária, carga inicial e avisos, publicando o armazém
-│   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D e CONTRATO_ALTERADO; total das buscas salvas
+│   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE; total das buscas salvas
 │   ├── archive.ts                   arquivo bruto das coletas no Cloudflare R2 (JSON Lines compactado)
 │   ├── noticePayloadExport.ts       exportação do JSON dos editais do banco para o R2 (antes da 0088)
 │   ├── comprasGovClient.ts          cliente dos resultados das licitações (Compras.gov.br): paginação, repetição e erro tipado
@@ -334,6 +335,8 @@ Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`
 
 O perfil da empresa, também sem banco: a leitura da resposta da fonte e o cliente HTTP com `fetch` simulado (`services/companyLookup.test.ts`: porte e tipo jurídico pelos códigos da Receita, situação cadastral, CNAEs, endereço e contato, o que é descartado, 404, repetição em 429 e 5xx, tempo esgotado, JSON quebrado e a trava dos 14 dígitos) e a leitura da edição (`services/companyInput.test.ts`).
 
+Os concorrentes monitorados, também sem banco (`contractStore/competitorQueries.test.ts`, sobre um armazém de exemplo): o resumo em lote (total, vigentes, recentes, última publicação e o nome do contrato mais recente), CNPJ sem contrato que não volta, a janela dos recentes, os contratos publicados desde um dia (por CNPJ e pela publicação, com a chave federal) e a recusa de CNPJ fora do formato (CPF mascarado, texto e tentativa de injeção) antes de qualquer consulta; e a máscara do CNPJ (`cnpj.test.ts`).
+
 `test:tenders-db` roda os testes de banco do módulo:
 - **Um arquivo por vez** (`--test-concurrency=1`): vários arquivos disputam a mesma trava dos contratos e dos vencedores (a mesma, de propósito: os dois gravadores publicam no mesmo manifesto). Em paralelo, uma execução de um arquivo sai "coleta já em execução" por causa da de outro.
 - **Onde:** só no banco local, pelo `TENDERS_DATABASE_URL` do `.env.dev`; recusa URL diferente de `localhost:5433/fingerence_licitacoes_dev`.
@@ -349,6 +352,7 @@ O perfil da empresa, também sem banco: a leitura da resposta da fonte e o clien
   - contratos a vencer (`services/contractSearch.db.test.ts`, `contractSavedSearches.db.test.ts`, `contractDetail.db.test.ts` e `collector/contractNotifications.db.test.ts`), sobre um armazém de exemplo e o Postgres do banco local: cada filtro, singular e plural, só vigentes e "Só favoritos" com os vencidos, tipo de contrato e "Incluir encerrados" (com os sem vencimento), ordenações e relevância, paginação, paridade com a busca salva, total gravado com a data (e sem total com o armazém atualizando), limite de 50 à parte, prévia, isolamento, edital de origem, favoritos pela chave, as janelas dos avisos, CONTRATO_ALTERADO e o total das buscas salvas;
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes (nem depois de outro pagamento ter sido aplicado) e recorrente; e o histórico de cobrança: ativação, cobrança, recusa e cancelamento (com a origem) gravados na ordem e sem duplicar, o que não mudou nada não grava, os identificadores do Mercado Pago não saem na lista, cada conta vê só os seus eventos e a lista traz no máximo os 200 mais recentes;
   - perfil da empresa (`services/companyProfile.db.test.ts`, com a fonte da consulta simulada): conta nova sem dados, edição só do que veio (vazio limpa) com o nome da conta acompanhando o fantasia ou a razão social, consulta gravando os dados e a hora, a consulta que nunca apaga o que a fonte não informou (e a lista vazia de CNAEs que limpa), falhas sem gravar nada (sem CNPJ, não achado, fonte fora do ar) e isolamento entre contas;
+  - concorrentes monitorados (`services/competitors.db.test.ts` e `collector/competitorNotifications.db.test.ts`, sobre um armazém de exemplo): salvar (apelido aparado, idempotente, ordem da lista), limite de 30 por pessoa, alterar o apelido e o aviso (religar recomeça o `aviso_desde`), 404 do que não é da pessoa, isolamento entre pessoas e contas, o CHECK de 14 dígitos, o resumo (zerado para quem não tem contrato; recusa com o armazém atualizando) e os avisos: um por contrato e por pessoa nos últimos 7 dias, título pelo apelido, pelo nome ou pelo CNPJ, `aviso_desde` pelo dia de Brasília, aviso desligado e conta sem o módulo que não recebem, sem repetir numa segunda execução;
   - identidade própria: cadastro PJ transacional com teste de 15 dias, login, usuário bloqueado, Google existente, recuperação com validade, limite de erros e consumo único, e criação do admin;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
@@ -357,6 +361,7 @@ O perfil da empresa, também sem banco: a leitura da resposta da fonte e o clien
     - buscas salvas: validações, limite de 50 e prévia;
     - acompanhamento e histórico, notificações, painel e equipe (cadastro com dados de trabalho, edição, conflito de e-mail e CPF, isolamento entre contas, foto no R2 simulado e perfil do titular) e empresa (ler, editar, consultar o CNPJ da conta com a fonte simulada, 403 do colaborador, 404 de outra conta, 400, 422, 503 e 500 sem detalhe interno e o limite de consultas);
     - favoritos: de cada pessoa, sem duplicar, na busca, no detalhe e no filtro `favoritesOnly`;
+    - concorrentes por HTTP: validações (CNPJ, apelido, corpo vazio), salvar com máscara (201 e 200), listar, alterar, resumo do armazém (e o 503 com ele atualizando, com a lista seguindo), isolamento da colega e de outra conta, limite de 30 e o limite de consultas do resumo;
     - contratos por HTTP: a chave com a barra codificada na URL, chave fora do formato (404), armazém atualizando (503 com o código `CONTRACT_STORE_UPDATING`) e os totais da Coleta vindos do manifesto;
     - itens e arquivos do PNCP com cache;
     - rotas por HTTP (`routes/routes.db.test.ts`).
@@ -525,6 +530,30 @@ A página do CNPJ: o que um CNPJ é nos dados, como fornecedor (contratos e lici
 - **Tela** `/cnpj/:cnpj` (`apps/tenders/web/src/screens/CnpjScreen.tsx`): cabeçalho com o nome, o CNPJ e a nota de cobertura (sem citar a fonte); abas "Como fornecedor" e "Como órgão" (`aba=fornecedor|orgao`, a que tem dado primeiro); indicadores, licitações vencidas por ano, ranking de parceiros (com link para o CNPJ de cada um), os 10 contratos mais recentes e "Ver todos" (a tela Contratos a vencer já filtrada, com os encerrados), os editais abertos do órgão e as licitações vencidas, com rolagem infinita.
 - **Entradas:** as três caixas de busca (barra superior, Editais e Contratos a vencer) abrem a página quando o texto é um CNPJ válido, com ou sem pontuação; os nomes de órgão e fornecedor viram link quando o CNPJ é válido (cards, tabelas, detalhes, vencedores e rankings); as etiquetas dos filtros "Órgão (CNPJ)" e "Fornecedor (CNPJ)" têm o atalho "Abrir a página do CNPJ".
 
+## Concorrentes monitorados
+
+Item 4 de Licitações (plano `.plans/licitacoes-4-concorrentes-monitorados.md`, migration `0005_competitors.sql`): cada pessoa guarda os fornecedores (CNPJ) que acompanha, vê os números e os contratos recentes de cada um e recebe no sino um aviso quando sai contrato novo deles.
+
+- **Dados** (`licitacoes.concorrente_monitorado`, `db/schema.ts`):
+  - chave primária (conta, pessoa, CNPJ); `apelido` (até 80 caracteres), `notificar` e `aviso_desde` (o instante em que o aviso passou a valer: na criação e quando o aviso é religado);
+  - **pessoal**, como as buscas salvas e os favoritos: toda leitura e escrita filtra a conta e a pessoa da sessão (nunca do pedido), e cada pessoa tem até **30**;
+  - o CNPJ só tem 14 dígitos (CHECK da tabela, porque ele vira literal nas consultas do armazém); os dígitos verificadores são conferidos na rota (`isValidCnpj`, com ou sem máscara). Qualquer CNPJ válido pode ser acompanhado, mesmo sem contrato hoje; pessoa física (CPF mascarado) não;
+  - o nome do concorrente **não é gravado**: vem do contrato mais recente no armazém, e o apelido, se houver, tem prioridade.
+- **API** (`routes/competitors.ts`, `services/competitors.ts`, atrás da trava do módulo):
+  - `GET /competitors` → `{ items: [{ cnpj, nickname, notify, createdAt }], limit }`: só o Postgres, nunca espera o armazém;
+  - `GET /competitors/summary` → `{ items: [{ cnpj, name, total, active, last30Days, lastPublishedAt }] }`, um item por concorrente na ordem da lista (zerado e sem nome quando não tem contrato): lê o armazém; sem cópia pronta, 503 `CONTRACT_STORE_UPDATING`; consulta longa demais, 504; 60 por minuto por pessoa, como a página do CNPJ; sem concorrente, responde vazio sem consultar o armazém;
+  - `POST /competitors { cnpj, nickname? }` → 201 criado, ou 200 se a pessoa já acompanhava (nada muda: nem apelido, nem aviso); o 31º dá 400;
+  - `PATCH /competitors/:cnpj { nickname?, notify? }` (ao menos um; apelido vazio ou `null` limpa; 404 se não é da pessoa). **Religar o aviso** (de desligado para ligado) recomeça o `aviso_desde`, então o que foi publicado enquanto esteve desligado não gera aviso retroativo; desligar não mexe;
+  - `DELETE /competitors/:cnpj`: idempotente.
+- **Armazém** (`contractStore/competitorQueries.ts`): uma consulta em lote no conjunto `fornecedor` (ordenado pelo CNPJ), com os CNPJs como literais depois de conferidos (o DuckDB usa os mínimos e máximos dos arquivos e pula os que não têm o CNPJ), no resumo (`count`, vigentes, publicados nos últimos 30 dias, última publicação e `arg_max` do nome) e nos contratos publicados desde um dia.
+- **Aviso** (`collector/contractNotifications.ts`, `notifyCompetitorContracts`, chamado por `runContractReminders`, a etapa `tenders-contract-reminders`, sem etapa nova; o resultado vai para `details.competitors` da execução `CONTRATOS_AVISOS`: monitorados, CNPJs, contratos achados e avisos criados):
+  - `CONTRATO_NOVO_CONCORRENTE`, um aviso por contrato e por pessoa que acompanha o fornecedor com o aviso ligado, de conta com acesso valendo (`fn_conta_com_acesso`);
+  - vale para contratos publicados nos **últimos 7 dias** e **no dia do `aviso_desde` (em Brasília) ou depois**: nada retroativo ao adicionar ou religar. Contrato publicado há mais de 7 dias e só coletado agora não avisa;
+  - os CNPJs distintos de todas as contas vão ao armazém em lotes de 500; o índice único (conta, pessoa, tipo, contrato, referência) com `ON CONFLICT DO NOTHING` impede repetir numa segunda execução. A referência é o dia da publicação (AAAA-MM-DD);
+  - título `Novo contrato de <apelido, ou nome no contrato, ou CNPJ formatado>`, mensagem com o trecho do objeto (200 caracteres) e link `/contratos/<chave codificada>` (a chave federal também vale);
+  - **a `0005` tem de estar aplicada antes** de a API e o coletor novos rodarem: sem a tabela e sem o tipo no CHECK, a etapa falharia depois de gravar os avisos de vencimento.
+- **Tela** (`/concorrentes`, item de menu depois de Contratos a vencer, e o botão "Acompanhar concorrente" no cabeçalho da página do CNPJ): ver a seção [Telas](#telas-fase-4).
+
 ## Contratos a vencer (dados)
 
 Contratos a vencer: os contratos do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria, com uma carga inicial e uma coleta diária. Desde a adoção do armazém Parquet, essa base é o [armazém no R2](#armazém-de-contratos-no-r2), e não mais a tabela `licitacoes.contrato` (migrations 0085 a 0087, removida pela 0087b).
@@ -605,6 +634,7 @@ Parte B do plano dos contratos a vencer (migration `0086_licitacoes_contratos_fa
 - **buscas salvas** ativas com Notificar: `CONTRATO_VENCE_90D` para vencimento entre hoje + 84 e + 90 dias, e `CONTRATO_VENCE_30D` entre hoje + 24 e + 30. Assim, ao criar a busca, não chegam avisos em massa dos contratos que já estavam na janela;
 - **favoritos:** `CONTRATO_VENCE_90D` entre hoje + 31 e + 90, e `CONTRATO_VENCE_30D` de hoje até + 30, um aviso por janela. O favorito avisa primeiro: o mesmo contrato não recebe de novo pela busca salva;
 - **`CONTRATO_ALTERADO`:** quando a coleta ou a reconsulta dos termos grava um vencimento diferente do anterior, quem favoritou recebe "Vencimento de contrato favorito mudou para dd/mm/aaaa", depois da publicação do armazém. Contrato que ficou sem vencimento não gera aviso;
+- **`CONTRATO_NOVO_CONCORRENTE`:** contrato novo de um concorrente monitorado, na mesma etapa (`runContractReminders`); regras na seção [Concorrentes monitorados](#concorrentes-monitorados);
 - link `/contratos/<chave codificada>` (a barra vira `%2F`). A 0087b trocou o id pela chave nos links dos avisos que já existiam. Como o contrato mora no armazém, o aviso não tem chave estrangeira.
 
 ## Singular e plural na busca (migrations 0075 e 0077)
@@ -712,6 +742,9 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - `GET /cnpj/:cnpj` e `GET /cnpj/:cnpj/winners`: a página do CNPJ (seção [Página do CNPJ](#página-do-cnpj));
   - `GET /collection/status`: "Contratos na base" e os vigentes vêm do manifesto do armazém (`contracts`, `activeContracts` e a data da contagem `countedOn`), ou `null` sem cópia pronta;
   - `/contract-searches`: as mesmas rotas de `/saved-searches` (listar, criar, alterar, `PATCH` de `active` e `notify`, excluir, duplicar e `POST /preview`, também com 60 por minuto por usuário).
+- **Concorrentes monitorados** (seção [Concorrentes monitorados](#concorrentes-monitorados); só do usuário logado na conta):
+  - `GET /competitors` e `POST /competitors { cnpj, nickname? }`; `PATCH` e `DELETE /competitors/:cnpj`;
+  - `GET /competitors/summary`: os números do armazém (503 com o armazém atualizando, como as rotas de contratos).
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
 ## Assinatura
@@ -840,6 +873,13 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - **contratos sendo atualizados:** com o 503 da API, a lista, o detalhe e os Favoritos mostram "Atualizando os contratos" (não é falha) e tentam de novo a cada 15 s, com o botão "Tentar de novo";
   - **busca em todos os contratos:** com "Incluir encerrados", a tela mostra "Buscando em todos os contratos…" enquanto a consulta roda;
   - no rodapé, a última coleta diária de contratos.
+- **Concorrentes (`/concorrentes`):** os fornecedores que a pessoa acompanha (até 30; ver a seção [Concorrentes monitorados](#concorrentes-monitorados)):
+  - cabeçalho "N de 30 concorrentes" e "Adicionar concorrente" (CNPJ com máscara e conferência dos dígitos, apelido opcional; desabilitado no limite);
+  - um card por concorrente: título (o apelido, senão o nome no contrato mais recente, senão o CNPJ), nome e CNPJ, os números (contratos, vigentes, novos em 30 dias e o último publicado), "Contratos recentes" (abre a mesma lista curta da página do CNPJ), "Ver todos os contratos" (Contratos a vencer filtrado pelo fornecedor, com os encerrados), "Página do CNPJ" e o interruptor "Avisar contratos novos"; o menu do card edita o apelido e deixa de acompanhar (com confirmação);
+  - a lista vem do Postgres e aparece sempre; com o armazém atualizando, os cards seguem sem os números ("Atualizando os contratos") e a tela tenta de novo a cada 15 s; outra falha dos números mostra o aviso com "Tentar de novo";
+  - estados: carregando, erro com "Tentar de novo", vazio (explica e oferece adicionar) e limite atingido;
+  - na página do CNPJ, o botão "Acompanhar concorrente" (vira "Acompanhando") fica no cabeçalho de quem é fornecedor ou ainda não tem registro; quem só aparece como órgão contratante não o tem. Lê a lista de concorrentes (não os números), então a página não depende do armazém para isso;
+  - o sino mostra o aviso `CONTRATO_NOVO_CONCORRENTE` ("Novo contrato de …"), que abre o contrato.
 - **Página do CNPJ (`/cnpj/:cnpj`):** ver a seção [Página do CNPJ](#página-do-cnpj); abre pelas caixas de busca, pelos nomes de órgãos e fornecedores e pelo atalho dos filtros de CNPJ.
 - **Telas sem a marca da fonte** (crédito da fonte nos termos e na privacidade):
   - nenhum texto de tela cita o PNCP: "Número de controle", "Abrir edital original", "Ver documento original", "Buscando os itens…", "Edital" nas ações rápidas e avisos neutros;

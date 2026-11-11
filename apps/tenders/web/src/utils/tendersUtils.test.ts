@@ -32,7 +32,7 @@ test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta 
 test('menu: as páginas do módulo; Configurações abre em modal e não é item de menu', () => {
   const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   const colaborador = { manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
-  const pages = ['dashboard', 'buscar', 'contratos', 'buscas', 'favoritos', 'acompanhamento'];
+  const pages = ['dashboard', 'buscar', 'contratos', 'concorrentes', 'buscas', 'favoritos', 'acompanhamento'];
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), pages);
   assert.deepEqual(menuRoutes(colaborador).map((route) => route.key), pages);
   assert.equal(menuRoutes(titular).some((route) => route.key === 'configuracoes'), false);
@@ -56,6 +56,7 @@ test('título da barra pela rota; rota desconhecida não tem título de menu', (
   assert.equal(routeForPath('/editais/123')?.title, 'Edital');
   assert.equal(routeForPath('/contratos')?.title, 'Contratos a vencer');
   assert.equal(routeForPath('/contratos/45')?.title, 'Contrato');
+  assert.equal(routeForPath('/concorrentes')?.title, 'Concorrentes');
   assert.equal(routeForPath('/favoritos')?.title, 'Favoritos');
   assert.equal(routeForPath('/nao-existe'), null);
   assert.equal(NOT_FOUND_TITLE, 'Página não encontrada');

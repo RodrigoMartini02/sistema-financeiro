@@ -1,14 +1,17 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
+import { formatCnpj } from '../cnpj';
+import { COMPETITOR_CNPJS_PER_QUERY, queryContractsPublishedSince, type PublishedContract } from '../contractStore/competitorQueries';
 import { phraseContractCriteria } from '../contractStore/criteria';
 import { readExpiringByCriteria, readExpiringByKeys, type DayWindow, type ExpiringContract } from '../contractStore/queries';
 import { isContractStoreBusy } from '../contractStore/reader';
 import { postgresSearchPhrases } from '../contractStore/textSearch';
-import { tenderContractFavorites, tenderContractSavedSearches, tenderEnabledAccounts } from '../db/schema';
+import { tenderCompetitors, tenderContractFavorites, tenderContractSavedSearches, tenderEnabledAccounts } from '../db/schema';
 import type { TenderNotificationType } from '../domains';
 import { contractSavedSearchCriteria, countActiveMatches, saveSavedSearchTotal } from '../services/contractSavedSearches';
 import type { ContractContext } from '../services/contractSearch';
 import type { TendersDb } from './database';
+import { addCalendarDays } from './dates';
 import type { CollectorLogger } from './logger';
 
 // Avisos de contratos (planos .plans/licitacoes-contratos-a-vencer.md, Parte B,
@@ -23,6 +26,11 @@ import type { CollectorLogger } from './logger';
 //
 // O link é o caminho a partir do início do app do módulo, com a chave do contrato
 // codificada (/contratos/<chave>, a barra vira %2F).
+//
+// Também sai daqui o aviso de contrato novo dos concorrentes monitorados (plano
+// .plans/licitacoes-4-concorrentes-monitorados.md): os destinatários saem de
+// licitacoes.concorrente_monitorado, e quem diz quais contratos foram publicados é o
+// armazém. A referência desse aviso é o dia da publicação.
 
 const MESSAGE_LENGTH = 200;
 const INSERT_BATCH_SIZE = 500;
@@ -77,7 +85,7 @@ interface NewContractNotification extends Recipient {
   message: string;
   link: string;
   contractKey: string;
-  /** O vencimento (AAAA-MM-DD). */
+  /** O vencimento (avisos de vencimento) ou o dia da publicação (contrato novo de concorrente), em AAAA-MM-DD. */
   reference: string;
 }
 
@@ -268,6 +276,93 @@ async function notifySavedSearches(context: NotificationContext, today: string):
  */
 export async function notifyContractExpirations(context: NotificationContext, today: string): Promise<number> {
   return (await notifyFavorites(context, today)) + (await notifySavedSearches(context, today));
+}
+
+/** Só contratos publicados nos últimos 7 dias geram aviso de concorrente: sem aviso retroativo em massa. */
+const COMPETITOR_WINDOW_DAYS = 7;
+
+interface CompetitorRecipient extends Recipient {
+  cnpj: string;
+  nickname: string | null;
+  /** O primeiro dia (AAAA-MM-DD, Brasília) em que o aviso vale: o dia do `aviso_desde`. */
+  noticeFrom: string;
+}
+
+/** O que a etapa fez com os concorrentes, para `details.competitors` da execução. */
+export interface CompetitorNoticeSummary {
+  /** Concorrentes com aviso ligado, de contas com acesso (uma linha por pessoa e CNPJ). */
+  monitored: number;
+  /** CNPJs distintos consultados no armazém. */
+  cnpjs: number;
+  /** Contratos achados na janela, antes de separar por pessoa. */
+  contractsFound: number;
+  /** Avisos criados (os repetidos não contam). */
+  created: number;
+}
+
+/** Concorrentes de contas com acesso e com o aviso ligado; o dia do `aviso_desde` já em Brasília. */
+async function readCompetitorRecipients(db: TendersDb): Promise<CompetitorRecipient[]> {
+  return db
+    .select({
+      accountId: tenderCompetitors.accountId,
+      userId: tenderCompetitors.userId,
+      cnpj: tenderCompetitors.cnpj,
+      nickname: tenderCompetitors.nickname,
+      noticeFrom: sql<string>`to_char(${tenderCompetitors.notifySince} AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD')`,
+    })
+    .from(tenderCompetitors)
+    .innerJoin(accessibleAccount, eq(accessibleAccount.accountId, tenderCompetitors.accountId))
+    .where(and(eq(tenderCompetitors.notify, true), hasAccess));
+}
+
+function competitorNotificationOf(recipient: CompetitorRecipient, contract: PublishedContract): NewContractNotification {
+  // Apelido ou nome em branco valem como ausentes (a API grava o apelido em branco como nulo, mas o banco aceita o resto).
+  const who = recipient.nickname?.trim() || contract.supplierName?.trim() || formatCnpj(recipient.cnpj);
+  return {
+    accountId: recipient.accountId,
+    userId: recipient.userId,
+    type: 'CONTRATO_NOVO_CONCORRENTE',
+    title: `Novo contrato de ${who}`,
+    message: excerptOf(contract.contractObject),
+    link: `/contratos/${encodeURIComponent(contract.controlNumber)}`,
+    contractKey: contract.controlNumber,
+    reference: contract.publishedOn,
+  };
+}
+
+/**
+ * CONTRATO_NOVO_CONCORRENTE do dia `today` (AAAA-MM-DD, Brasília): um aviso por contrato e por pessoa que monitora o
+ * fornecedor com o aviso ligado, para os contratos publicados nos últimos 7 dias e no dia do `aviso_desde` ou depois
+ * (religar o aviso recomeça o `aviso_desde`, então nada retroativo). Os CNPJs distintos de todas as contas vão ao armazém
+ * em lotes; o índice único (conta, pessoa, tipo, contrato, referência) com ON CONFLICT DO NOTHING impede repetir numa
+ * segunda execução. Só contas com acesso valendo recebem.
+ */
+export async function notifyCompetitorContracts(context: NotificationContext, today: string): Promise<CompetitorNoticeSummary> {
+  const recipients = await readCompetitorRecipients(context.db);
+  const cnpjs = [...new Set(recipients.map((recipient) => recipient.cnpj))];
+  const summary: CompetitorNoticeSummary = { monitored: recipients.length, cnpjs: cnpjs.length, contractsFound: 0, created: 0 };
+  if (recipients.length === 0) {
+    return summary;
+  }
+  const windowStart = addCalendarDays(today, -COMPETITOR_WINDOW_DAYS);
+  const firstDayOf = (recipient: CompetitorRecipient) => (recipient.noticeFrom > windowStart ? recipient.noticeFrom : windowStart);
+  // O armazém devolve de uma vez o que a pessoa mais antiga precisa; cada pessoa recebe só o que vale para ela.
+  const since = recipients.map(firstDayOf).reduce((earliest, day) => (day < earliest ? day : earliest));
+  const recipientsByCnpj = new Map<string, CompetitorRecipient[]>();
+  for (const recipient of recipients) {
+    recipientsByCnpj.set(recipient.cnpj, [...(recipientsByCnpj.get(recipient.cnpj) ?? []), recipient]);
+  }
+  for (const chunk of chunksOf(cnpjs, COMPETITOR_CNPJS_PER_QUERY)) {
+    const contracts = await context.contractStore.query((connection) => queryContractsPublishedSince(connection, chunk, since));
+    summary.contractsFound += contracts.length;
+    const notifications = contracts.flatMap((contract) =>
+      (recipientsByCnpj.get(contract.supplierCnpj) ?? []).flatMap((recipient) =>
+        contract.publishedOn >= firstDayOf(recipient) ? [competitorNotificationOf(recipient, contract)] : [],
+      ),
+    );
+    summary.created += await insertNotifications(context.db, notifications);
+  }
+  return summary;
 }
 
 export interface SavedSearchTotalsSummary {

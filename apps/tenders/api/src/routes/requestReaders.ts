@@ -1,4 +1,5 @@
 import { RequestInputError } from '../utils/requestInput';
+import { normalizeCnpj } from '../cnpj';
 import type { ContractSort, NoticeSort, SearchTermsMode, TrackingFilter } from '../domains';
 import type { ContractSavedSearchInput } from '../services/contractSavedSearches';
 import type { ContractCriteria, ContractSearchFilters } from '../services/contractSearch';
@@ -244,5 +245,21 @@ export function readContractSavedSearchInput(body: RequestValues): ContractSaved
     name: String(body['name'] ?? '').trim(),
     ...(typeof body['notify'] === 'boolean' ? { notify: body['notify'] } : {}),
     ...(typeof body['active'] === 'boolean' ? { active: body['active'] } : {}),
+  };
+}
+
+/** Corpo de `POST /competitors` (já validado): o CNPJ só com os dígitos e o apelido, se veio texto. */
+export function readCompetitorInput(body: RequestValues): { cnpj: string; nickname: string | null } {
+  return {
+    cnpj: normalizeCnpj(String(body['cnpj'] ?? '')),
+    nickname: typeof body['nickname'] === 'string' ? body['nickname'] : null,
+  };
+}
+
+/** Corpo de `PATCH /competitors/:cnpj` (já validado): campo ausente fica de fora e mantém o que está gravado. */
+export function readCompetitorChanges(body: RequestValues): { nickname?: string | null; notify?: boolean } {
+  return {
+    ...(body['nickname'] !== undefined ? { nickname: typeof body['nickname'] === 'string' ? body['nickname'] : null } : {}),
+    ...(typeof body['notify'] === 'boolean' ? { notify: body['notify'] } : {}),
   };
 }

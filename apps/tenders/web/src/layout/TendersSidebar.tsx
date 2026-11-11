@@ -1,4 +1,4 @@
-import { Bookmark, Building2, CalendarClock, ClipboardList, Heart, LayoutDashboard, Search, Settings, type LucideIcon } from 'lucide-react';
+import { Bookmark, Building2, CalendarClock, ClipboardList, Heart, LayoutDashboard, Radar, Search, Settings, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import type { TendersRoute, TendersRouteKey } from '../utils/navigation';
 
@@ -12,6 +12,7 @@ const ICONS: Record<TendersRouteKey, LucideIcon> = {
   buscar: Search,
   contratos: CalendarClock,
   contrato: CalendarClock,
+  concorrentes: Radar,
   cnpj: Building2,
   edital: Search,
   buscas: Bookmark,

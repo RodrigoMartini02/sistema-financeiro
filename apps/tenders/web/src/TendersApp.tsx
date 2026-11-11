@@ -4,6 +4,7 @@ import { useTenderAccess } from './hooks/useTenderAccess';
 import { TendersShell } from './layout/TendersShell';
 import { AdminAccountsScreen } from './screens/AdminAccountsScreen';
 import { CnpjScreen } from './screens/CnpjScreen';
+import { CompetitorsScreen } from './screens/CompetitorsScreen';
 import { ContractScreen } from './screens/ContractScreen';
 import { ContractsScreen } from './screens/ContractsScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
@@ -63,6 +64,7 @@ export function TendersApp() {
         <Route path="buscar" element={<SearchScreen />} />
         <Route path="contratos" element={<ContractsScreen />} />
         <Route path="contratos/:chave" element={<ContractScreen />} />
+        <Route path="concorrentes" element={<CompetitorsScreen />} />
         <Route path="cnpj/:cnpj" element={<CnpjScreen />} />
         <Route path="editais/:id" element={<NoticeScreen />} />
         <Route path="buscas" element={<SavedSearchesScreen />} />

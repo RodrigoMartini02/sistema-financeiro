@@ -591,6 +591,7 @@ export const TENDER_NOTIFICATION_TYPES = [
   'CONTRATO_VENCE_90D',
   'CONTRATO_VENCE_30D',
   'CONTRATO_ALTERADO',
+  'CONTRATO_NOVO_CONCORRENTE',
 ] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
@@ -926,6 +927,39 @@ export interface CnpjCoverage {
   /** Primeiro e último dia (AAAA-MM-DD) de resultado entre as licitações vencidas. */
   winnersFrom: string | null;
   winnersTo: string | null;
+}
+
+/** Concorrente monitorado da pessoa (API `/competitors`): o CNPJ, o apelido e o aviso de contrato novo. */
+export interface Competitor {
+  cnpj: string;
+  nickname: string | null;
+  /** Avisar no sino quando o concorrente tiver contrato novo. */
+  notify: boolean;
+  createdAt: string | null;
+}
+
+export interface CompetitorList {
+  items: Competitor[];
+  /** O limite por pessoa na conta (30). */
+  limit: number;
+}
+
+/** Os números de um concorrente no armazém (API `/competitors/summary`); sem contrato, zeros e sem nome. */
+export interface CompetitorSummary {
+  cnpj: string;
+  /** O nome no contrato mais recente. */
+  name: string | null;
+  total: number;
+  /** Vigentes hoje. */
+  active: number;
+  /** Publicados nos últimos 30 dias. */
+  last30Days: number;
+  /** ISO 8601 com o fuso de Brasília. */
+  lastPublishedAt: string | null;
+}
+
+export interface CompetitorSummaryList {
+  items: CompetitorSummary[];
 }
 
 export interface CnpjSummary {

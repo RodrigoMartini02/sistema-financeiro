@@ -18,6 +18,11 @@ export function isCnpjFormat(value: unknown): value is string {
   return typeof value === 'string' && CNPJ_FORMAT.test(value);
 }
 
+/** "22493902000140" vira "22.493.902/0001-40"; o que não tem 14 dígitos volta como veio. */
+export function formatCnpj(value: string): string {
+  return isCnpjFormat(value) ? value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : value;
+}
+
 function checkDigit(digits: string, weights: readonly number[]): number {
   let sum = 0;
   for (const [index, weight] of weights.entries()) {

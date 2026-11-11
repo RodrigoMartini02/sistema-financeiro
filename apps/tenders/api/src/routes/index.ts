@@ -6,6 +6,7 @@ import { listAccountsForTenders, setAccountCourtesy } from '../services/team';
 import { billingRoutes, createBillingWebhook } from './billing';
 import { cnpjRoutes } from './cnpj';
 import { companyRoutes } from './company';
+import { competitorRoutes } from './competitors';
 import { contractRoutes } from './contracts';
 import { contractSearchRoutes } from './contractSearches';
 import type { TendersApiDeps } from './deps';
@@ -46,6 +47,7 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use('/contracts', contractRoutes(deps));
   routes.use('/contract-searches', contractSearchRoutes(deps));
   routes.use('/cnpj', cnpjRoutes(deps));
+  routes.use('/competitors', competitorRoutes(deps));
   routes.use('/notifications', notificationRoutes(deps));
   routes.use('/team', teamRoutes(deps));
   routes.use('/profile', profileRoutes(deps));

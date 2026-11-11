@@ -11,9 +11,17 @@ import { ContractStoreReader } from '../contractStore/reader';
 import { postgresSearchFields } from '../contractStore/textSearch';
 import { publishWith, quietLogger, sampleContract, withTempDirectory } from '../contractStore/storeTestSupport';
 import type { StoredContract } from '../contractStore/layout';
-import { tenderCollectionRuns, tenderContractBackfillDays, tenderContractFavorites, tenderContractSavedSearches, tenderNotifications } from '../db/schema';
+import {
+  tenderCollectionRuns,
+  tenderCompetitors,
+  tenderContractBackfillDays,
+  tenderContractFavorites,
+  tenderContractSavedSearches,
+  tenderNotifications,
+} from '../db/schema';
 import type { ObjectStorage } from '../objectStorage';
 import { createMemoryStorage } from '../objectStorageTestSupport';
+import { testCnpj } from '../services/apiTestSupport';
 import {
   BACKFILL_FINISHED,
   BACKFILL_NOT_STARTED,
@@ -890,6 +898,36 @@ describe('execuções de contratos (banco local e armazém de exemplo)', { skip:
         const [updated] = await tx.select().from(tenderContractSavedSearches).where(eq(tenderContractSavedSearches.id, search!.id));
         assert.equal(updated?.activeTotal, 1);
         assert.ok(updated?.activeTotalAt);
+      });
+    });
+  });
+
+  test('avisos: o contrato novo de um concorrente entra na execução CONTRATOS_AVISOS, no total de avisos e em details.competitors', async () => {
+    await withRollback(async (tx) => {
+      await withEnvironment(async (env) => {
+        const account = await createTestAccount(tx, 'avisos-concorrente');
+        const cnpj = testCnpj(5301);
+        const contract = sampleContract(1, { supplierDocument: cnpj, supplierName: 'Alfa Ltda', contractObject: 'Limpeza predial', publishedAt: '2026-10-13T08:00:00' });
+        await seedStore(tx, env, [contract]);
+        await tx.insert(tenderCompetitors).values({ accountId: account.accountId, userId: account.ownerId, cnpj, notifySince: '2026-01-01 00:00:00-03' });
+        const context = contextOf(tx, env, { contractsFetch: () => pageOf([]), now: () => NOW });
+
+        const outcome = assertRan(await runContractReminders(context));
+        assert.equal(outcome.status, 'SUCESSO');
+        assert.equal(outcome.notificationCount, 1, 'o aviso do concorrente conta no total da execução');
+        const competitors = outcome.details['competitors'] as Record<string, number>;
+        assert.deepEqual([competitors['contractsFound'], competitors['created']], [1, 1]);
+        assert.ok((competitors['monitored'] ?? 0) >= 1 && (competitors['cnpjs'] ?? 0) >= 1);
+        const [notice] = await tx
+          .select({ type: tenderNotifications.type, title: tenderNotifications.title, reference: tenderNotifications.reference })
+          .from(tenderNotifications)
+          .where(and(eq(tenderNotifications.contractKey, contract.pncpControlNumber), eq(tenderNotifications.accountId, account.accountId)));
+        assert.deepEqual(notice, { type: 'CONTRATO_NOVO_CONCORRENTE', title: 'Novo contrato de Alfa Ltda', reference: '2026-10-13' });
+
+        // Outra execução no mesmo dia não repete o aviso.
+        const again = assertRan(await runContractReminders(context));
+        assert.equal(again.notificationCount, 0);
+        assert.equal((again.details['competitors'] as Record<string, number>)['created'], 0);
       });
     });
   });

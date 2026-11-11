@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isCnpjFormat, isValidCnpj, normalizeCnpj } from './cnpj';
+import { formatCnpj, isCnpjFormat, isValidCnpj, normalizeCnpj } from './cnpj';
 
 // CNPJ do módulo (plano .plans/licitacoes-pagina-cnpj.md): o formato e os dígitos verificadores, com CNPJs reais.
+
+test('formatCnpj: máscara nos 14 dígitos; o resto volta como veio', () => {
+  assert.equal(formatCnpj('22493902000140'), '22.493.902/0001-40');
+  assert.equal(formatCnpj('22.493.902/0001-40'), '22.493.902/0001-40');
+  assert.equal(formatCnpj('***.123.456-**'), '***.123.456-**');
+  assert.equal(formatCnpj('2249390200014'), '2249390200014');
+});
 
 test('normalizeCnpj: só os dígitos, com ou sem máscara', () => {
   assert.equal(normalizeCnpj('22.493.902/0001-40'), '22493902000140');

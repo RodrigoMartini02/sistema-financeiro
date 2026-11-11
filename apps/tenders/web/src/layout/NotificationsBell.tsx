@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, Radar, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
 import { Z_SYSTEM_OVERLAY } from '@ui/components/zIndex';
 import { LoadError } from '../components/LoadStates';
 import { useMarkAllNotificationsRead, useOpenNotification } from '../hooks/useNotificationActions';
@@ -32,6 +32,7 @@ const TYPE_STYLES: Record<TenderNotificationType, { icon: LucideIcon; circle: st
   CONTRATO_VENCE_90D: { icon: CalendarClock, circle: AMBER_CIRCLE },
   CONTRATO_VENCE_30D: { icon: CalendarClock, circle: ROSE_CIRCLE },
   CONTRATO_ALTERADO: { icon: CalendarSync, circle: CYAN_CIRCLE },
+  CONTRATO_NOVO_CONCORRENTE: { icon: Radar, circle: CYAN_CIRCLE },
 };
 
 const linkClass =

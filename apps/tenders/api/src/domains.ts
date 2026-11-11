@@ -185,7 +185,7 @@ export type BillingMethod = (typeof BILLING_METHODS)[number];
 export const BILLING_CANCEL_ORIGINS = ['TITULAR', 'MERCADO_PAGO', 'COBRANCA_RECUSADA'] as const;
 export type BillingCancelOrigin = (typeof BILLING_CANCEL_ORIGINS)[number];
 
-/** Avisos do módulo; os de contratos são da migration 0086. */
+/** Avisos do módulo; os de contratos são da migration 0086 e o de contrato novo de concorrente, da 0005 (CHECK de `notificacao.tipo`). */
 export const TENDER_NOTIFICATION_TYPES = [
   'NOVO_EDITAL',
   'EDITAL_ALTERADO',
@@ -194,6 +194,7 @@ export const TENDER_NOTIFICATION_TYPES = [
   'CONTRATO_VENCE_90D',
   'CONTRATO_VENCE_30D',
   'CONTRATO_ALTERADO',
+  'CONTRATO_NOVO_CONCORRENTE',
 ] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 

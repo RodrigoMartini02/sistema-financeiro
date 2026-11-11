@@ -304,6 +304,28 @@ export const tenderContractFavorites = tendersSchema.table(
   }),
 );
 
+/**
+ * Concorrentes monitorados de cada pessoa na conta (migration 0005): o CNPJ do fornecedor que ela acompanha, com um
+ * apelido opcional; só ela vê os seus. O nome vem do armazém de contratos (nada dele é gravado aqui). `notifySince` é o
+ * instante em que o aviso de contrato novo passou a valer (criação e religação): só contratos publicados no dia dele ou
+ * depois geram aviso.
+ */
+export const tenderCompetitors = tendersSchema.table(
+  'concorrente_monitorado',
+  {
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    userId: integer('usuario_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    cnpj: varchar('cnpj', { length: 14 }).notNull(),
+    nickname: varchar('apelido', { length: 80 }),
+    notify: boolean('notificar').default(true).notNull(),
+    notifySince: timestampWithZone('aviso_desde').defaultNow().notNull(),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.accountId, table.userId, table.cnpj] }),
+  }),
+);
+
 /** Favoritos de cada pessoa na conta (migration 0078): só ela vê os seus. */
 export const tenderFavorites = tendersSchema.table(
   'favorito',
