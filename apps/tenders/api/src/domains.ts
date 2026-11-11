@@ -35,6 +35,23 @@ export const TENDER_SITUATIONS = [
   { id: 4, name: 'Suspensa' },
 ] as const;
 
+/**
+ * Esfera do órgão no PNCP (`esferaId` do órgão; `esfera` dos editais e dos contratos): o `id` é o código gravado e o
+ * `name`, o texto da tela. Os contratos federais do Compras.gov.br gravam `F`. Edital ou contrato sem esfera (ou com
+ * outro código) só aparece sem o filtro.
+ */
+export const GOVERNMENT_SPHERES = [
+  { id: 'F', name: 'Federal' },
+  { id: 'E', name: 'Estadual' },
+  { id: 'M', name: 'Municipal' },
+  { id: 'D', name: 'Distrital' },
+] as const;
+export type GovernmentSphere = (typeof GOVERNMENT_SPHERES)[number]['id'];
+export const GOVERNMENT_SPHERE_IDS: readonly string[] = GOVERNMENT_SPHERES.map((sphere) => sphere.id);
+
+/** Códigos das situações do PNCP (`TENDER_SITUATIONS`), para validar o filtro da busca. */
+export const TENDER_SITUATION_IDS: readonly number[] = TENDER_SITUATIONS.map((situation) => situation.id);
+
 export const BRAZILIAN_STATES = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA',
   'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',

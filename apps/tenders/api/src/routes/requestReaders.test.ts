@@ -67,6 +67,25 @@ test('busca com todos os filtros', () => {
   assert.equal(filters.perPage, 50);
 });
 
+test('esfera e situação: sem parâmetro, vazios; com parâmetro, esfera em maiúsculas e situação em números, sem repetir', () => {
+  const none = readNoticeSearchRequest({}).filters;
+  assert.deepEqual([none.spheres, none.situations], [[], []]);
+
+  const { filters, savedSearchId } = readNoticeSearchRequest({ sphere: ['m', 'F', 'M'], situation: ['2', '4', '2'], savedSearchId: '3' });
+  assert.deepEqual(filters.spheres, ['M', 'F']);
+  assert.deepEqual(filters.situations, [2, 4]);
+  assert.equal(savedSearchId, 3, 'valem por cima de uma busca salva: os critérios dela não os incluem');
+  assert.deepEqual(readNoticeSearchRequest({ sphere: 'e' }).filters.spheres, ['E'], 'um valor só, fora de lista');
+  assert.equal('spheres' in filters.criteria, false, 'esfera e situação não são critérios da busca salva');
+  assert.equal('situations' in filters.criteria, false);
+});
+
+test('contratos: esfera em maiúsculas e sem repetição; sem parâmetro, vazia', () => {
+  assert.deepEqual(readContractSearchRequest({}).filters.spheres, []);
+  assert.deepEqual(readContractSearchRequest({ sphere: ['f', 'E', 'F'] }).filters.spheres, ['F', 'E']);
+  assert.equal('spheres' in readContractSearchRequest({ sphere: 'F' }).filters.criteria, false, 'fora dos critérios da busca salva');
+});
+
 test('mínimo maior que o máximo e período invertido recusam a busca', () => {
   assert.throws(() => readNoticeSearchRequest({ minValue: '200', maxValue: '100' }), RequestInputError);
   assert.throws(() => readNoticeSearchRequest({ closingFrom: '2026-10-10', closingTo: '2026-10-01' }), RequestInputError);

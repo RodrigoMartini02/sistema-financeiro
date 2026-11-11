@@ -22,9 +22,13 @@ export interface DomainLookups {
   categoryName: (id: number) => string | undefined;
   /** Tipo de contrato (contrato, empenho, carta contrato...). */
   contractTypeName: (id: number) => string | undefined;
+  /** Esfera do órgão ("Federal"...), pelo código (F, E, M, D). */
+  sphereName: (code: string) => string | undefined;
+  /** Situação da contratação no PNCP ("Divulgada", "Revogada"...). */
+  situationName: (id: number) => string | undefined;
 }
 
-/** Nomes de município, modalidade, categoria e tipo de contrato para chips e resumos. */
+/** Nomes de município, modalidade, categoria, tipo de contrato, esfera e situação para chips e resumos. */
 export function useDomainLookups(): DomainLookups {
   const { data } = useDomainLists();
   return useMemo(() => {
@@ -32,11 +36,15 @@ export function useDomainLookups(): DomainLookups {
     const modalities = new Map((data?.modalities ?? []).map((item) => [item.id, item.name]));
     const categories = new Map((data?.contractCategories ?? []).map((item) => [item.id, item.name]));
     const contractTypes = new Map((data?.contractTypes ?? []).map((item) => [item.id, item.name]));
+    const spheres = new Map((data?.spheres ?? []).map((item) => [item.id, item.name]));
+    const situations = new Map((data?.situations ?? []).map((item) => [item.id, item.name]));
     return {
       municipalityName: (code: string) => municipalities.get(code),
       modalityName: (id: number) => modalities.get(id),
       categoryName: (id: number) => categories.get(id),
       contractTypeName: (id: number) => contractTypes.get(id),
+      sphereName: (code: string) => spheres.get(code),
+      situationName: (id: number) => situations.get(id),
     };
   }, [data]);
 }

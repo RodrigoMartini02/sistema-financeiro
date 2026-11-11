@@ -4,9 +4,11 @@ import {
   CONTRACT_CATEGORY_IDS,
   CONTRACT_SORTS,
   CONTRACT_TYPE_IDS,
+  GOVERNMENT_SPHERE_IDS,
   NOTICE_SORTS,
   SEARCH_TERMS_MODES,
   TENDER_MODALITY_IDS,
+  TENDER_SITUATION_IDS,
   TRACKING_FILTERS,
 } from '../domains';
 import { isCnpjFormat, isValidCnpj, normalizeCnpj } from '../cnpj';
@@ -26,6 +28,8 @@ export const MAX_STATES = BRAZILIAN_STATES.length;
 export const MAX_MUNICIPALITIES = 100;
 export const MAX_AGENCIES = 50;
 export const MAX_MODALITIES = TENDER_MODALITY_IDS.length;
+export const MAX_SPHERES = GOVERNMENT_SPHERE_IDS.length;
+export const MAX_SITUATIONS = TENDER_SITUATION_IDS.length;
 export const MAX_CONTRACT_CATEGORIES = CONTRACT_CATEGORY_IDS.length;
 export const MAX_CONTRACT_TYPES = CONTRACT_TYPE_IDS.length;
 export const MAX_SUPPLIERS = 50;
@@ -42,6 +46,8 @@ const MONEY_VALUE = /^\d{1,16}(\.\d{1,2})?$/;
 const isState = (value: unknown) => typeof value === 'string' && (BRAZILIAN_STATES as readonly string[]).includes(value.toUpperCase());
 const isMunicipalityCode = (value: unknown) => typeof value === 'string' && /^\d{7}$/.test(value);
 const isModality = (value: unknown) => TENDER_MODALITY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
+const isSituation = (value: unknown) => TENDER_SITUATION_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
+const isSphere = (value: unknown) => typeof value === 'string' && GOVERNMENT_SPHERE_IDS.includes(value.toUpperCase());
 const isContractCategory = (value: unknown) => CONTRACT_CATEGORY_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 const isContractType = (value: unknown) => CONTRACT_TYPE_IDS.includes(Number(value)) && /^\d+$/.test(String(value));
 
@@ -127,6 +133,7 @@ function sharedSearchQueryValidators(): ValidationChain[] {
     listQuery('state', isState, 'UF inválida', MAX_STATES, (item) => item.toUpperCase()),
     listQuery('municipalityCode', isMunicipalityCode, 'Município inválido (código IBGE com 7 dígitos)', MAX_MUNICIPALITIES),
     listQuery('agencyCnpj', isCnpjFormat, 'CNPJ do órgão inválido (14 dígitos)', MAX_AGENCIES, normalizeCnpj),
+    listQuery('sphere', isSphere, 'Esfera inválida (F, E, M ou D)', MAX_SPHERES, (item) => item.toUpperCase()),
     query('minValue').optional().custom(isMoneyValue).withMessage('Valor mínimo inválido'),
     query('maxValue').optional().custom(isMoneyValue).withMessage('Valor máximo inválido'),
     booleanQuery('includeWithoutValue'),
@@ -142,6 +149,7 @@ function sharedSearchQueryValidators(): ValidationChain[] {
 export const noticeSearchValidators: ValidationChain[] = [
   ...sharedSearchQueryValidators(),
   listQuery('modality', isModality, 'Modalidade inválida', MAX_MODALITIES),
+  listQuery('situation', isSituation, 'Situação inválida', MAX_SITUATIONS),
   ...dateQueries(['closingFrom', 'closingTo']),
   booleanQuery('openOnly'),
   listQuery('trackingStatus', (item) => (TRACKING_FILTERS as readonly string[]).includes(item), 'Status de acompanhamento inválido', TRACKING_FILTERS.length, (item) => item.toUpperCase()),

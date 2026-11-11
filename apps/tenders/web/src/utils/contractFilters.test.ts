@@ -42,11 +42,13 @@ test('contratos: URL ↔ estado ida e volta, sem os padrões na URL', () => {
     favoritesOnly: true,
     includeClosed: true,
     contractTypes: [7, 12],
+    spheres: ['F', 'M'],
     number: '352/2026',
     contractYear: 2026,
     sort: 'valueDesc',
   };
   const url = toContractSearchParams(state);
+  assert.deepEqual(url.getAll('esfera'), ['F', 'M']);
   assert.equal(url.has('pagina'), false, 'a lista tem rolagem infinita: a página não vai para a URL');
   assert.equal(url.has('porPagina'), false);
   assert.deepEqual(parseContractSearchParams(url), state);
@@ -98,6 +100,15 @@ test('contratos: valores inválidos da URL ficam de fora', () => {
   assert.equal(state.number, '', 'número sem dígito sai');
 });
 
+test('contratos: esfera na URL só com os códigos que existem, em maiúsculas e sem repetir; vale por cima da busca salva', () => {
+  const state = parseContractSearchParams(params('esfera=m&esfera=M&esfera=f&esfera=X&esfera='));
+  assert.deepEqual(state.spheres, ['M', 'F']);
+  assert.equal(toContractSearchParams(state).toString(), 'esfera=M&esfera=F');
+  assert.deepEqual(parseContractSearchParams(params('')).spheres, []);
+  const fromSaved = parseContractSearchParams(params('busca=7&uf=SP&esfera=e'));
+  assert.deepEqual([fromSaved.states, fromSaved.spheres], [[], ['E']], 'a esfera é da tela: os critérios da busca salva não a incluem');
+});
+
 test('contratos: relevância só com texto; com busca salva, os critérios da URL ficam de fora', () => {
   assert.equal(parseContractSearchParams(params('ordem=relevancia')).sort, 'expiryAsc');
   assert.equal(parseContractSearchParams(params('q=limpeza&ordem=relevancia')).sort, 'relevance');
@@ -137,6 +148,11 @@ test('contratos: query da API, com e sem busca salva', () => {
     toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, savedSearchId: 3, includeClosed: true, contractTypes: [1, 7], sort: 'publishedDesc' }),
     'savedSearchId=3&includeClosed=true&contractType=1&contractType=7&sort=publishedDesc',
     'tipo e encerrados valem também com a busca salva',
+  );
+  assert.equal(
+    toContractApiQuery({ ...DEFAULT_CONTRACT_SEARCH_STATE, savedSearchId: 3, spheres: ['F', 'E'] }),
+    'savedSearchId=3&sphere=F&sphere=E&sort=expiryAsc',
+    'a esfera vale também com a busca salva',
   );
   assert.equal(
     withPaging(toContractApiQuery(DEFAULT_CONTRACT_SEARCH_STATE), { page: 2, perPage: 50 }),
@@ -206,6 +222,15 @@ test('contratos: chips do tipo e de "Com encerrados"; tirar os encerrados volta 
   assert.equal(withoutClosed?.includeClosed, false);
   assert.equal(withoutClosed?.sort, 'expiryAsc');
   assert.deepEqual(chips.find((chip) => chip.key === 'contractType:7')?.without.contractTypes, []);
+});
+
+test('contratos: chip de cada esfera, com o nome quando a lista já chegou; cada um remove só o seu', () => {
+  const state = withContractFilters(DEFAULT_CONTRACT_SEARCH_STATE, { spheres: ['F', 'M'] });
+  const chips = contractFilterChips(state, { sphereName: (code) => (code === 'F' ? 'Federal' : undefined) });
+  assert.deepEqual(chips.map((chip) => chip.label), ['Esfera: Federal', 'Esfera: M']);
+  assert.deepEqual(chips.find((chip) => chip.key === 'sphere:F')?.without.spheres, ['M']);
+  assert.deepEqual(chips.find((chip) => chip.key === 'sphere:M')?.without.spheres, ['F']);
+  assert.deepEqual(clearAllContractFilters(state).spheres, [], 'Limpar tudo tira a esfera');
 });
 
 test('contratos: anos da lista, do próximo até 6 anos atrás, com o escolhido fora da faixa', () => {

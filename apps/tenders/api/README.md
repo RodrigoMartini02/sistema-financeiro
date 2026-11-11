@@ -328,7 +328,7 @@ npm --prefix apps/tenders/api test               # testes sem banco (inclui os d
 npm --prefix apps/tenders/api run test:tenders-db
 ```
 
-Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `objectStorage.test.ts`) usam o R2 simulado e um S3 local: formato, chave do contrato e ida e volta da linha, critérios, consultas da API e dos avisos (`queries.test.ts`: paginação e total, ordens, filtros, número, chaves, detalhe, contagem e janelas de vencimento), gravação (estado anterior, partes regravadas só onde mudou, divisão, mudança de UF, limpeza das versões, falha no envio, várias publicações na mesma execução e os termos pendentes e a reconsulta) e leitura (sem cópia, armazém vazio, troca de versão, arquivos da versão anterior, limite de tempo, fila e R2 fora do ar), e o armazém do Web Service sem o R2 (`service.test.ts`).
+Sem banco, os testes do armazém de contratos (`contractStore/*.test.ts` e `objectStorage.test.ts`) usam o R2 simulado e um S3 local: formato, chave do contrato e ida e volta da linha, critérios, consultas da API e dos avisos (`queries.test.ts`: paginação e total, ordens, filtros (a esfera, uma ou várias, sem diferenciar maiúsculas nem espaços), número, chaves, detalhe, contagem e janelas de vencimento), gravação (estado anterior, partes regravadas só onde mudou, divisão, mudança de UF, limpeza das versões, falha no envio, várias publicações na mesma execução e os termos pendentes e a reconsulta) e leitura (sem cópia, armazém vazio, troca de versão, arquivos da versão anterior, limite de tempo, fila e R2 fora do ar), e o armazém do Web Service sem o R2 (`service.test.ts`).
 
 Os testes dos vencedores, também sem banco: a agregação (`winnerRows.test.ts`, com a propriedade de mil permutações do lote), o mapeamento da fonte com a página real da sondagem (`resultMapping.test.ts`), o gravador com o DuckDB de verdade (`winnerWriter.test.ts`: ano inteiro regravado só onde mudou, lápide, falha no envio, convivência com o escritor de contratos e o leitor), as consultas (`winnerQueries.test.ts`), o cliente da fonte (`comprasGovClient.test.ts`), a sondagem e a conferência por fornecedor (`resultProbe.test.ts` e `supplierCheck.test.ts`), a janela e os dias pendentes (`resultRuns.test.ts`), o `winners-lookup` (`winnersLookup.test.ts`) e a rotina (`collector/dailyRoutineSteps.test.ts` e `collector/dailyRoutine.test.ts`: nomes e ordem das etapas e vencedores desligados).
 
@@ -353,7 +353,7 @@ O perfil da empresa, também sem banco: a leitura da resposta da fonte e o clien
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
     - isolamento entre contas e entre pessoas da mesma conta;
-    - busca: filtros, ordenações, paginação e paridade com a busca salva;
+    - busca: filtros, ordenações, paginação e paridade com a busca salva; esfera e situação (por cima de uma busca salva, nos editais; esfera nos contratos e a lista `spheres` de `/domains`), com o 400 de esfera ou situação inválida;
     - buscas salvas: validações, limite de 50 e prévia;
     - acompanhamento e histórico, notificações, painel e equipe (cadastro com dados de trabalho, edição, conflito de e-mail e CPF, isolamento entre contas, foto no R2 simulado e perfil do titular) e empresa (ler, editar, consultar o CNPJ da conta com a fonte simulada, 403 do colaborador, 404 de outra conta, 400, 422, 503 e 500 sem detalhe interno e o limite de consultas);
     - favoritos: de cada pessoa, sem duplicar, na busca, no detalhe e no filtro `favoritesOnly`;
@@ -585,6 +585,7 @@ Parte B do plano dos contratos a vencer (migration `0086_licitacoes_contratos_fa
 - mostra só os contratos vigentes (conjunto `vigentes`: vencimento de hoje em diante, em Brasília; sem vencimento, fica de fora). Com "Só favoritos", aparecem também os favoritos vencidos: as chaves da pessoa vão para a consulta do conjunto `contratos`;
 - **"Incluir encerrados"** (`includeClosed`): todos, inclusive os vencidos e os sem vencimento (conjunto `contratos`). A ordem padrão passa a ser a publicação mais recente. É a busca mais lenta (a palavra em todos os contratos, de 3 a 12 s);
 - **tipo de contrato** (`contractType`, repetível): os ids da lista `CONTRACT_TYPES` (`domains.ts`, a mesma do PNCP), com nomes curtos para a tela. O tipo e os encerrados são só da tela: a busca salva e os avisos continuam com os vigentes;
+- **esfera** (`sphere`, repetível: `F`, `E`, `M` ou `D`, a lista `GOVERNMENT_SPHERES`): também só da tela, no mesmo modelo do tipo. Vale em todos os conjuntos (a coluna `esfera` existe em `vigentes`, `contratos` e `fornecedor`) e compara sem diferenciar maiúsculas nem espaços; contrato sem esfera não entra quando há esfera escolhida;
 - palavras como na busca de editais, no objeto e na informação complementar. As frases de cada termo (com singular e plural) vêm do Postgres (`licitacoes.fn_frases_termo`, migration 0087a), e os radicais já estão nos arquivos;
 - **número** (grupos de dígitos, como na 0079): número do contrato + ano, processo + ano, controle PNCP do contrato ou controle da compra; todos os grupos no mesmo campo;
 - critérios em comum com a busca salva e os avisos (`contractStore/criteria.ts`): termos, exclusões, UF, município, órgão, categoria, fornecedor (CNPJ) e faixa de valor global, com "incluir sem valor";
@@ -663,6 +664,10 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
     - o edital entra se todos os grupos estiverem num mesmo campo: número da compra + ano, processo + ano ou controle PNCP;
     - a função `licitacoes.fn_grupos_digitos` e três índices GIN de expressão deixam a busca em 1 a 2 ms. A consulta (`services/noticeSearch.ts`) usa as mesmas expressões dos índices: mudar uma exige mudar a outra;
     - número e ano são filtros da tela: valem por cima de uma busca salva e não são gravados nela.
+  - **Esfera** (`sphere`, repetível: `F`, `E`, `M` ou `D`, a lista `GOVERNMENT_SPHERES` de `domains.ts`, que o `GET /domains` devolve em `spheres`) e **situação** (`situation`, repetível: 1 Divulgada, 2 Revogada, 3 Anulada, 4 Suspensa, a lista `TENDER_SITUATIONS`):
+    - são filtros da tela, como número e ano: valem por cima de uma busca salva, não são gravados nela e não passam pela `fn_edital_atende_criterios` (`services/noticeSearch.ts`). Não há migration;
+    - a esfera é comparada sem diferenciar maiúsculas nem espaços (`upper(btrim(esfera))`), porque a coleta grava o que o PNCP manda;
+    - "só abertos" já é situação Divulgada com prazo por vencer: na API, pedir uma situação diferente com "só abertos" ligado não traz nada. A tela desabilita a seção Situação enquanto "Só editais abertos" está ligado, limpa as situações escolhidas ao ligá-lo e descarta a `situacao` de um link que também esteja com "só abertos" ligado.
 - **Busca salva:** tem `includeWithoutValue`. Com faixa de valor, o edital sem valor só entra com a opção ligada.
 - **Acompanhamento:**
   - o histórico é gravado na mesma transação, só quando o status ou a observação mudam;
@@ -682,6 +687,7 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - `PATCH /team/:userId`: edita o colaborador. Campo ausente mantém; vazio ou `null` limpa sobrenome, CPF, telefone, setor, cargo e admissão; `newPassword` só quando informada. E-mail e CPF não podem ser de outro acesso (o próprio não conta). Não mexe no acesso nem no valor da assinatura;
   - `PUT /team/:userId/photo { image }` e `DELETE /team/:userId/photo`: troca e tira a foto. `image` é o data URL do recorte feito pelo app (`data:image/jpeg|png|webp;base64,...`); o tipo vale pelo conteúdo (assinatura do arquivo), até 1 MB. Grava o objeto novo, aponta a coluna e só então apaga o antigo;
   - `GET /profile` e `PATCH /profile { name?, lastName?, phone? }`, `PUT` e `DELETE /profile/photo`: o perfil do próprio titular (o usuário é sempre o da sessão). E-mail, CPF e senha dele não mudam por aqui;
+  - `GET /domains` também traz `spheres` (`F` Federal, `E` Estadual, `M` Municipal e `D` Distrital), a lista dos filtros de esfera de Editais e de Contratos;
   - `GET /domains` ganha `memberSectors` e `memberJobTitles`: as listas padrão (`domains.ts`: os mesmos 8 setores e 10 cargos com que as contas de Finanças começam), sem tela para editar. A API grava o código (`financeiro`, `gerente`), valida no código e não há CHECK no banco. Também traz `companySizes` (`MEI`, `ME`, `EPP`, `DEMAIS`) e `legalTypes` (`LTDA`, `SLU`, `EIRELI`, `SA`, `OUTROS`), as listas da seção Empresa.
 - **Empresa** (item 1C, só o titular; `routes/company.ts`, `services/companyProfile.ts`; a empresa é sempre a conta resolvida pela trava do módulo, nunca um identificador do pedido; colaborador recebe 403 e `?accountId=` de outra conta, 404):
   - `GET /company`: `{ company }` com `accountId`, `document` (os 14 dígitos), `legalName`, `tradeName`, `openingDate` (AAAA-MM-DD), `size` e `legalType` (códigos das listas), `legalNature` (`{ code, description }`), `registrationStatus` (`{ code, since }`, com `code` em `ATIVA`, `SUSPENSA`, `INAPTA`, `BAIXADA` ou `NULA`), `mainCnae` e `secondaryCnaes` (`{ code, description }`), `zipCode`, `street`, `number`, `complement`, `district`, `city`, `state`, `phone`, `email` e `lookedUpAt` (hora da última consulta, de Brasília; nulo se nunca consultou). Sem dado é `null`; CNAEs secundários sem dado é `[]`;
@@ -699,7 +705,7 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
   - consulta do CNPJ da empresa (`POST /company/lookup`): 5 a cada 10 minutos por usuário, em memória; as que falham também contam, ler e editar não;
   - é por usuário porque o servidor não configura `trust proxy`.
 - **Contratos a vencer** (seção [Contratos a vencer: busca, favoritos e avisos](#contratos-a-vencer-busca-favoritos-e-avisos)):
-  - `GET /contracts` (filtros `q`, `termsMode`, `state`, `municipalityCode`, `agencyCnpj`, `category`, `supplierCnpj`, `minValue`, `maxValue`, `includeWithoutValue`, `publishedFrom/To`, `expiryFrom/To`, `favoritesOnly`, `number`, `contractYear`, `savedSearchId`, `sort` e paginação), com `parsedQuery`;
+  - `GET /contracts` (filtros `q`, `termsMode`, `state`, `municipalityCode`, `agencyCnpj`, `category`, `supplierCnpj`, `minValue`, `maxValue`, `includeWithoutValue`, `publishedFrom/To`, `expiryFrom/To`, `favoritesOnly`, `number`, `contractYear`, `sphere`, `savedSearchId`, `sort` e paginação), com `parsedQuery`;
   - `GET /contracts/:chave`: detalhe, aditivos, `originNoticeId` (edital de origem na base) ou `originPncpLink` (a compra no PNCP), `pncpLink` e `origin` (`NATIONAL`, a base nacional de contratações, ou `FEDERAL`, o sistema de contratos do governo federal). A chave é o número de controle do PNCP ou, nos contratos federais, `comprasgov-<unidade>-<tipo>-<número>`, com a barra codificada (`%2F`); chave fora do formato ou contrato fora do armazém dá 404. No contrato federal o `pncpLink` é `null` (o documento não tem página pública), o `amendments` é sempre `null` e a tela avisa que o vencimento pode estar sem o último aditivo (a lista de contratos também traz `pncpLink` nulo);
   - `PUT` e `DELETE /contracts/:chave/favorite`, idempotentes; o `PUT` de contrato fora do armazém dá 404;
   - **armazém sem cópia pronta:** todas as rotas que consultam contratos respondem **503** com `{ success: false, code: "CONTRACT_STORE_UPDATING", message }` (cerca de 1 minuto depois de um deploy ou reinício); consulta que passa de 20 s responde **504** com `CONTRACT_SEARCH_TIMEOUT`. Editais, favoritos (tirar), buscas salvas (listar, salvar, alterar) e o resto do módulo não param;
@@ -823,11 +829,12 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - cards com rolagem infinita (50 por vez);
   - ações rápidas, coração de favorito e "Salvar esta busca";
   - filtro "Só favoritos" (`favoritos=1`);
+  - **Esfera** (depois de Modalidade) e **Situação** (depois de Encerramento), no painel de filtros: listas de marcar, com várias escolhas, chips removíveis e URL (`esfera`, `situacao`). A esfera e a situação valem por cima de uma busca salva aberta (não são travadas por ela). Com "Só editais abertos" ligado, a seção Situação fica desabilitada, com a dica de que os abertos são os Divulgados; ligar "Só editais abertos" limpa as situações escolhidas. Em "Salvar esta busca", as duas ficam de fora e o aviso as nomeia;
   - "Número e ano", no topo do painel de filtros: o campo "Número, processo ou controle" (número da compra, processo ou número de controle) vale ao sair dele ou com Enter, e "Ano da compra" lista do ano seguinte até 4 anos atrás.
 - **Detalhe:** abre no painel lateral (`?edital=<id>` em Editais) e na rota `/editais/:id`, com o botão Favoritar no cabeçalho. Itens e arquivos do PNCP só são pedidos quando a aba abre.
 - **Contratos a vencer (`/contratos`):**
   - os contratos vigentes, no modelo de Editais: filtros na URL, chips, "Limpar tudo", cards com rolagem infinita, coração de favorito e "Salvar esta busca";
-  - filtros: vencimento de/até, com os atalhos de 30, 90, 180 e 365 dias, "Só favoritos", número e ano do contrato, UF, município, categoria, valor global, publicação, órgão e fornecedor (CNPJ);
+  - filtros: vencimento de/até, com os atalhos de 30, 90, 180 e 365 dias, "Só favoritos", número e ano do contrato, UF, município, categoria, valor global, publicação, órgão, fornecedor (CNPJ) e esfera (depois do tipo de contrato; vale por cima de uma busca salva e fica de fora de "Salvar esta busca", com o aviso);
   - o card mostra o objeto, o órgão e o local, o fornecedor, o valor global e o vencimento, com "Vence em N dias" (vermelho até 30, âmbar até 90) e os selos "Prorrogado" e "Vencido";
   - detalhe no painel lateral (`?contrato=<chave>`) e na rota `/contratos/:chave` (a barra da chave vai codificada): vigência, aditivos e rescisões, dados do contrato, fornecedor e valores, "Ver documento original" e "Edital de origem";
   - **contratos sendo atualizados:** com o 503 da API, a lista, o detalhe e os Favoritos mostram "Atualizando os contratos" (não é falha) e tentam de novo a cada 15 s, com o botão "Tentar de novo";
@@ -865,9 +872,10 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 | --- | --- | --- |
 | `q`, `modo=ou` | `q`, `termsMode` | o modo E é o padrão |
 | `uf`, `municipio`, `orgao`, `modalidade` | `state`, `municipalityCode`, `agencyCnpj`, `modality` | repetíveis |
+| `esfera`, `situacao` | `sphere`, `situation` | repetíveis; esfera `F`, `E`, `M` ou `D`; situação 1 a 4. São da tela (valem por cima da busca salva); valor inválido é ignorado na URL |
 | `valorMin`, `valorMax`, `semValor=1` | `minValue`, `maxValue`, `includeWithoutValue` | decimal com ponto |
 | `publicacaoDe`, `publicacaoAte`, `encerramentoDe`, `encerramentoAte` | `publishedFrom` … `closingTo` | AAAA-MM-DD |
-| `abertos=0`, `descartados=1` | `openOnly=false`, `hideDiscarded=false` | |
+| `abertos=0`, `descartados=1` | `openOnly=false`, `hideDiscarded=false` | sem `abertos=0` ("só abertos" ligado, o padrão), a `situacao` da URL é descartada: só há editais Divulgados |
 | `prazoCurto=1` | sem `closingFrom` mínimo | sem ele, o front envia `closingFrom` = hoje + 3 dias (salvo as exceções da regra) |
 | `acompanhamento` | `trackingStatus` | `analisar`, `participar`, `descartado` ou `sem` |
 | `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa; sem prazo mínimo |
@@ -881,6 +889,7 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
 | --- | --- | --- |
 | `q`, `modo=ou` | `q`, `termsMode` | o modo E é o padrão |
 | `uf`, `municipio`, `orgao`, `categoria`, `fornecedor` | `state`, `municipalityCode`, `agencyCnpj`, `category`, `supplierCnpj` | repetíveis |
+| `esfera` | `sphere` | repetível: `F`, `E`, `M` ou `D`; da tela, vale por cima da busca salva; valor inválido é ignorado na URL |
 | `valorMin`, `valorMax`, `semValor=1` | `minValue`, `maxValue`, `includeWithoutValue` | valor global, decimal com ponto |
 | `publicacaoDe`, `publicacaoAte`, `vencimentoDe`, `vencimentoAte` | `publishedFrom` … `expiryTo` | AAAA-MM-DD |
 | `favoritos=1` | `favoritesOnly=true` | só os favoritos da pessoa, inclusive os vencidos |

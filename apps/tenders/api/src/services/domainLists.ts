@@ -5,6 +5,7 @@ import {
   COMPANY_SIZES,
   CONTRACT_CATEGORIES,
   CONTRACT_TYPES,
+  GOVERNMENT_SPHERES,
   LEGAL_TYPES,
   MEMBER_JOB_TITLES,
   MEMBER_SECTORS,
@@ -29,6 +30,8 @@ export interface Municipality {
 export interface DomainLists {
   modalities: typeof TENDER_MODALITIES;
   situations: typeof TENDER_SITUATIONS;
+  /** Esfera do órgão (filtro de Editais e de Contratos). */
+  spheres: typeof GOVERNMENT_SPHERES;
   states: typeof BRAZILIAN_STATES;
   trackingStatuses: typeof TRACKING_STATUSES;
   contractCategories: typeof CONTRACT_CATEGORIES;
@@ -67,6 +70,7 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
     return {
       modalities: TENDER_MODALITIES,
       situations: TENDER_SITUATIONS,
+      spheres: GOVERNMENT_SPHERES,
       states: BRAZILIAN_STATES,
       trackingStatuses: TRACKING_STATUSES,
       contractCategories: CONTRACT_CATEGORIES,

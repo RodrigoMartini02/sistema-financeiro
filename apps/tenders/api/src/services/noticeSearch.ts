@@ -62,6 +62,10 @@ export interface NoticeSearchFilters {
   publishedTo: string | null;
   closingFrom: string | null;
   closingTo: string | null;
+  /** Esfera do órgão (`GOVERNMENT_SPHERES`), em maiúsculas; vazio = todas. Filtro da tela: fica fora da busca salva. */
+  spheres: string[];
+  /** Situação da contratação no PNCP (`TENDER_SITUATIONS`); vazio = todas. Filtro da tela: fica fora da busca salva. */
+  situations: number[];
   openOnly: boolean;
   trackingStatuses: TrackingFilter[];
   hideDiscarded: boolean;
@@ -220,6 +224,13 @@ function filterConditions(filters: NoticeSearchFilters, favorite: SQL): SQL[] {
   if (filters.purchaseYear !== null) {
     conditions.push(eq(searchedNotice.purchaseYear, filters.purchaseYear));
   }
+  if (filters.spheres.length > 0) {
+    // Em maiúsculas dos dois lados, como o Dashboard agrupa a esfera; sem esfera (nula), o edital fica de fora.
+    conditions.push(sql`upper(btrim(${searchedNotice.governmentSphere})) IN (${sql.join(filters.spheres.map((sphere) => sql`${sphere}`), sql`, `)})`);
+  }
+  if (filters.situations.length > 0) {
+    conditions.push(inArray(searchedNotice.situationId, filters.situations));
+  }
   if (filters.publishedFrom) {
     conditions.push(sql`${searchedNotice.publishedAt} >= ${startOfBrasiliaDay(filters.publishedFrom)}`);
   }
@@ -349,6 +360,8 @@ export function criteriaOnlyFilters(criteria: NoticeCriteria, perPage: number): 
     publishedTo: null,
     closingFrom: null,
     closingTo: null,
+    spheres: [],
+    situations: [],
     openOnly: true,
     trackingStatuses: [],
     hideDiscarded: false,

@@ -921,6 +921,80 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
     });
   });
 
+  test('esfera e situação por HTTP: nos editais (por cima de uma busca salva), nos contratos, nas listas e com validação', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-esfera');
+      const token = uniqueToken();
+      const base = { procurementObject: `Esfera http ${token}`, proposalClosesAt: new Date(Date.now() + 10 * 86_400_000).toISOString() };
+      const federal = await insertTestNotice(tx, { ...base, governmentSphere: 'F' });
+      const municipal = await insertTestNotice(tx, { ...base, governmentSphere: 'M' });
+      const revoked = await insertTestNotice(tx, { ...base, governmentSphere: 'M', situationId: 2 });
+      const federalContract = sampleContract(11, { contractObject: `Contrato ${token} federal`, expiresOn: '2030-01-01', governmentSphere: 'F' });
+      const municipalContract = sampleContract(12, { contractObject: `Contrato ${token} municipal`, expiresOn: '2030-02-01', governmentSphere: 'M' });
+      const store = await openTestContractStore([federalContract, municipalContract], { searchFields: postgresSearchFields(tx) });
+      try {
+        await withApi(
+          tx,
+          async (call) => {
+            const as = { id: account.ownerId, type: 'titular' as const };
+            type ContractSearchData = Paginated<ContractListItem> & { parsedQuery: { terms: string[] } };
+            const noticeIds = async (path: string) =>
+              (await call<SearchData>('GET', path, { as })).body.data.items.map((item) => item.id).sort((a, b) => a - b);
+            const sorted = (ids: number[]) => [...ids].sort((a, b) => a - b);
+            const contractKeys = async (path: string) =>
+              (await call<ContractSearchData>('GET', path, { as })).body.data.items.map((item) => item.pncpControlNumber);
+
+            // Editais: o padrão é só abertos (situação 1); a esfera filtra, em qualquer caixa; a situação vale sem "só abertos".
+            const created = await call<SavedSearchView>('POST', '/api/tenders/saved-searches', { as, body: { name: 'Esfera http', terms: [token] } });
+            assert.equal(created.status, 201);
+            const saved = `/api/tenders/notices?savedSearchId=${created.body.data.id}`;
+            assert.deepEqual(await noticeIds(saved), sorted([federal, municipal]), 'a busca salva sozinha: os abertos');
+            assert.deepEqual(await noticeIds(`${saved}&sphere=F`), [federal], 'a esfera por cima da busca salva');
+            assert.deepEqual(await noticeIds(`${saved}&sphere=m`), [municipal], 'em minúscula também vale');
+            assert.deepEqual(await noticeIds(`${saved}&openOnly=false&sphere=M&situation=2`), [revoked], 'esfera e situação juntas');
+            assert.deepEqual(await noticeIds(`${saved}&openOnly=false&situation=1&situation=2`), sorted([federal, municipal, revoked]));
+            assert.deepEqual(await noticeIds(`/api/tenders/notices?q=${token}&sphere=F&sphere=M`), sorted([federal, municipal]), 'sem busca salva, com a busca da tela');
+            assert.deepEqual(await noticeIds(`/api/tenders/notices?q=${token}&sphere=D`), [], 'nenhum distrital');
+
+            // Contratos: a esfera filtra a lista, por cima de uma busca salva também.
+            assert.deepEqual(await contractKeys(`/api/tenders/contracts?q=${token}`), [federalContract.pncpControlNumber, municipalContract.pncpControlNumber]);
+            assert.deepEqual(await contractKeys(`/api/tenders/contracts?q=${token}&sphere=F`), [federalContract.pncpControlNumber]);
+            assert.deepEqual(await contractKeys(`/api/tenders/contracts?q=${token}&sphere=m`), [municipalContract.pncpControlNumber]);
+            assert.deepEqual(
+              await contractKeys(`/api/tenders/contracts?q=${token}&sphere=F&sphere=M`),
+              [federalContract.pncpControlNumber, municipalContract.pncpControlNumber],
+            );
+            const contractSearch = await call<ContractSavedSearchView>('POST', '/api/tenders/contract-searches', { as, body: { name: 'Esfera http', terms: [token] } });
+            assert.equal(contractSearch.status, 201);
+            assert.deepEqual(
+              await contractKeys(`/api/tenders/contracts?savedSearchId=${contractSearch.body.data.id}&sphere=M`),
+              [municipalContract.pncpControlNumber],
+              'a esfera por cima da busca salva de contratos',
+            );
+
+            // A lista de esferas sai com as outras listas, na ordem da tela.
+            const domains = await call<DomainLists>('GET', '/api/tenders/domains', { as });
+            assert.deepEqual(domains.body.data.spheres, [
+              { id: 'F', name: 'Federal' }, { id: 'E', name: 'Estadual' }, { id: 'M', name: 'Municipal' }, { id: 'D', name: 'Distrital' },
+            ]);
+
+            // Valor fora das listas: 400 nos dois filtros.
+            const badNotices = await call('GET', '/api/tenders/notices?sphere=X&situation=9', { as });
+            assert.equal(badNotices.status, 400);
+            assert.deepEqual(badNotices.body.errors?.map((error) => error.field).sort(), ['situation', 'sphere']);
+            assert.equal((await call('GET', '/api/tenders/notices?situation=abc', { as })).status, 400);
+            const badContracts = await call('GET', '/api/tenders/contracts?sphere=Z', { as });
+            assert.equal(badContracts.status, 400);
+            assert.deepEqual(badContracts.body.errors?.map((error) => error.field), ['sphere']);
+          },
+          store.reader,
+        );
+      } finally {
+        await store.close();
+      }
+    });
+  });
+
   test('contratos por HTTP: busca, detalhe, favorito, buscas salvas e validações', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'http-contratos');

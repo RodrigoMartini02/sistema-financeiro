@@ -66,6 +66,7 @@ test('busca salva de contratos: "Salvar esta busca" leva os critérios e avisa o
       favoritesOnly: true,
       number: '15',
       contractYear: 2026,
+      spheres: ['F'],
     },
     { terms: ['limpeza'], excludedTerms: ['hospitalar'], termsMode: 'E' },
   );
@@ -80,6 +81,7 @@ test('busca salva de contratos: "Salvar esta busca" leva os critérios e avisa o
     CONTRACT_LEFT_OUT_LABELS.favorites,
     CONTRACT_LEFT_OUT_LABELS.number,
     CONTRACT_LEFT_OUT_LABELS.contractYear,
+    CONTRACT_LEFT_OUT_LABELS.sphere,
   ]);
 });
 

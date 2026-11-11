@@ -28,6 +28,12 @@ export type ContractSort = (typeof CONTRACT_SORTS)[number];
 /** Situação "Divulgada no PNCP": o card só mostra as outras. */
 export const SITUATION_PUBLISHED_ID = 1;
 
+/** Situações do PNCP que o filtro de Editais aceita (a API valida; os nomes vêm de `DomainLists.situations`). */
+export const TENDER_SITUATION_IDS = [1, 2, 3, 4] as const;
+
+/** Esfera do órgão: F federal, E estadual, M municipal e D distrital (a API valida; os nomes vêm de `DomainLists.spheres`). */
+export const GOVERNMENT_SPHERE_IDS = ['F', 'E', 'M', 'D'] as const;
+
 /** Observação do acompanhamento: até 2.000 caracteres (API). */
 export const MAX_TRACKING_NOTE_LENGTH = 2000;
 
@@ -471,6 +477,8 @@ export interface Municipality {
 export interface DomainLists {
   modalities: Array<{ id: number; name: string }>;
   situations: Array<{ id: number; name: string }>;
+  /** Esfera do órgão (filtro de Editais e de Contratos); o `id` é o código (F, E, M, D). */
+  spheres: Array<{ id: string; name: string }>;
   states: string[];
   trackingStatuses: TrackingStatus[];
   /** Categorias dos contratos do PNCP. */

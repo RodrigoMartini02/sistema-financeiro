@@ -35,6 +35,8 @@ const FULL_STATE: SearchState = {
   publishedTo: '2026-10-05',
   closingFrom: '2026-10-05',
   closingTo: '2026-10-20',
+  spheres: ['M', 'F'],
+  situations: [2, 4],
   openOnly: false,
   includeClosingSoon: true,
   trackingStatuses: ['ANALISAR', 'SEM'],
@@ -54,6 +56,8 @@ test('filtros: ida e volta pela URL com todos os parâmetros', () => {
   assert.equal(url.get('modo'), 'ou');
   assert.deepEqual(url.getAll('uf'), ['SP', 'RJ']);
   assert.deepEqual(url.getAll('acompanhamento'), ['analisar', 'sem']);
+  assert.deepEqual(url.getAll('esfera'), ['M', 'F']);
+  assert.deepEqual(url.getAll('situacao'), ['2', '4']);
   assert.equal(url.get('ordem'), 'relevancia');
   assert.equal(url.has('pagina'), false, 'a lista tem rolagem infinita: a página não vai para a URL');
   assert.equal(url.has('porPagina'), false);
@@ -91,6 +95,26 @@ test('filtros: valor inválido ou repetido na URL fica de fora', () => {
   assert.equal(state.sort, 'closingAsc');
 });
 
+test('esfera e situação na URL: só os códigos que existem, esfera em maiúsculas, sem repetir; fora disso, de fora', () => {
+  const state = parseSearchParams(
+    params('abertos=0&esfera=m&esfera=M&esfera=f&esfera=X&esfera=&situacao=2&situacao=2&situacao=4&situacao=9&situacao=abc&situacao=0'),
+  );
+  assert.deepEqual(state.spheres, ['M', 'F']);
+  assert.deepEqual(state.situations, [2, 4]);
+  assert.deepEqual(parseSearchParams(params('')).spheres, []);
+  assert.deepEqual(parseSearchParams(params('')).situations, []);
+  assert.equal(toSearchParams(state).toString(), 'esfera=M&esfera=F&situacao=2&situacao=4&abertos=0');
+});
+
+test('situação na URL com "só abertos" ligado (o padrão) é descartada: a seção fica desabilitada e só há Divulgados', () => {
+  const withOpen = parseSearchParams(params('esfera=F&situacao=2&situacao=4'));
+  assert.equal(withOpen.openOnly, true);
+  assert.deepEqual(withOpen.situations, []);
+  assert.deepEqual(withOpen.spheres, ['F'], 'a esfera não depende de "só abertos"');
+  assert.equal(toSearchParams(withOpen).toString(), 'esfera=F');
+  assert.deepEqual(parseSearchParams(params('abertos=0&situacao=3')).situations, [3]);
+});
+
 test('filtros: link antigo com página e itens por página abre do início, sem erro', () => {
   const state = parseSearchParams(params('uf=SP&pagina=3&porPagina=50'));
   assert.deepEqual(state, { ...DEFAULT_SEARCH_STATE, states: ['SP'] });
@@ -110,17 +134,19 @@ test('filtros: relevância sem texto de busca volta para o prazo', () => {
 });
 
 test('filtros: busca salva na URL deixa de fora os critérios da tela', () => {
-  const state = parseSearchParams(params('busca=7&q=obra&uf=SP&valorMin=10&abertos=0&ordem=recentes'));
+  const state = parseSearchParams(params('busca=7&q=obra&uf=SP&valorMin=10&abertos=0&esfera=f&situacao=2&ordem=recentes'));
   assert.equal(state.savedSearchId, 7);
   assert.equal(state.q, '');
   assert.deepEqual(state.states, []);
   assert.equal(state.minValue, null);
   assert.equal(state.openOnly, false, 'os filtros fora dos critérios continuam');
+  assert.deepEqual([state.spheres, state.situations], [['F'], [2]], 'esfera e situação são da tela: valem por cima da busca salva');
   assert.equal(state.sort, 'publishedDesc');
   const api = new URLSearchParams(toApiQuery(state));
   assert.equal(api.get('savedSearchId'), '7');
   assert.equal(api.get('q'), null);
   assert.equal(api.get('openOnly'), 'false');
+  assert.deepEqual([api.getAll('sphere'), api.getAll('situation')], [['F'], ['2']]);
 });
 
 test('filtros: query da API com os nomes da API', () => {
@@ -135,6 +161,8 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(api.get('maxValue'), '500000.50');
   assert.equal(api.get('includeWithoutValue'), 'true');
   assert.equal(api.get('closingTo'), '2026-10-20');
+  assert.deepEqual(api.getAll('sphere'), ['M', 'F']);
+  assert.deepEqual(api.getAll('situation'), ['2', '4']);
   assert.equal(api.get('openOnly'), 'false');
   assert.deepEqual(api.getAll('trackingStatus'), ['ANALISAR', 'SEM']);
   assert.equal(api.get('hideDiscarded'), 'false');
@@ -153,6 +181,7 @@ test('filtros: query da API com os nomes da API', () => {
   assert.equal(plain.get('hideDiscarded'), 'true');
   assert.equal(plain.get('favoritesOnly'), null, 'sem o filtro, a API traz todos');
   assert.deepEqual([plain.get('number'), plain.get('purchaseYear')], [null, null]);
+  assert.deepEqual([plain.getAll('sphere'), plain.getAll('situation')], [[], []], 'sem escolha, sem parâmetro: a API traz todas');
 });
 
 test('filtros: mudar um filtro mantém os outros', () => {
@@ -162,10 +191,23 @@ test('filtros: mudar um filtro mantém os outros', () => {
   assert.equal(next.sort, 'valueDesc');
 });
 
+test('filtros: a situação só existe com "só abertos" desligado; ligá-lo (botão ou chip) a tira', () => {
+  const closed = { ...DEFAULT_SEARCH_STATE, openOnly: false };
+  assert.deepEqual(withFilters(closed, { situations: [2, 4] }).situations, [2, 4]);
+  assert.deepEqual(withFilters({ ...closed, situations: [2, 4], spheres: ['F'] }, { openOnly: true }), {
+    ...DEFAULT_SEARCH_STATE,
+    spheres: ['F'],
+  });
+  assert.deepEqual(withFilters(DEFAULT_SEARCH_STATE, { situations: [2] }).situations, [], 'com "só abertos" não há situação a escolher');
+  assert.deepEqual(withFilters({ ...closed, situations: [3] }, { q: 'obra' }).situations, [3], 'outras mudanças não mexem nela');
+});
+
 test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   const chips = filterChips(FULL_STATE, {
     municipalityName: (code) => (code === '3509502' ? 'Campinas/SP' : undefined),
     modalityName: (id) => (id === 6 ? 'Pregão – Eletrônico' : undefined),
+    sphereName: (code) => (code === 'M' ? 'Municipal' : undefined),
+    situationName: (id) => (id === 2 ? 'Revogada' : undefined),
   });
   const labels = chips.map((chip) => chip.label);
   assert.deepEqual(labels, [
@@ -178,6 +220,10 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
     'Órgão: 46.395.000/0001-39',
     'Modalidade: Pregão – Eletrônico',
     'Modalidade: 8',
+    'Esfera: Municipal',
+    'Esfera: F',
+    'Situação: Revogada',
+    'Situação: 4',
     `Valor: de ${formatCurrency(10000)} a ${formatCurrency(500000.5)}, inclui sem valor`,
     'Publicação: de 01/10/2026 a 05/10/2026',
     'Encerramento: de 05/10/2026 a 20/10/2026',
@@ -195,6 +241,7 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   assert.equal(byKey('q').sort, 'closingAsc', 'sem texto, a relevância sai');
   assert.deepEqual(byKey('value'), withFilters(FULL_STATE, { minValue: null, maxValue: null, includeWithoutValue: false }));
   assert.equal(byKey('openOnly').openOnly, true);
+  assert.deepEqual(byKey('openOnly').situations, [], 'voltar a "só abertos" tira a situação: os abertos são os Divulgados');
   assert.equal(byKey('includeClosingSoon').includeClosingSoon, false);
   assert.equal(byKey('showDiscarded').hideDiscarded, true);
   assert.equal(byKey('favoritesOnly').favoritesOnly, false);
@@ -202,6 +249,9 @@ test('chips: um por filtro ativo, e cada um remove só o seu', () => {
   assert.equal(byKey('number').purchaseYear, 2026, 'cada chip remove só o seu');
   assert.equal(byKey('purchaseYear').purchaseYear, null);
   assert.deepEqual(byKey('tracking:SEM').trackingStatuses, ['ANALISAR']);
+  assert.deepEqual(byKey('sphere:M').spheres, ['F'], 'cada chip de esfera remove só a sua');
+  assert.deepEqual(byKey('situation:2').situations, [4], 'e cada chip de situação, só a sua');
+  assert.deepEqual(byKey('sphere:F').situations, [2, 4]);
 });
 
 test('chips: busca no padrão não tem chip; busca salva mostra o nome', () => {

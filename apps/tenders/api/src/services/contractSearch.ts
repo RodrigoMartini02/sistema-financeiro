@@ -74,6 +74,8 @@ export interface ContractSearchFilters {
   includeClosed: boolean;
   /** Tipos de contrato (`CONTRACT_TYPES`); vazio = todos. */
   contractTypes: number[];
+  /** Esfera do órgão (`GOVERNMENT_SPHERES`), em maiúsculas; vazio = todas. Filtro da tela: fica fora da busca salva. */
+  spheres: string[];
   /** Grupos de dígitos do "Número, processo ou controle PNCP" (`numberGroupsOf`); vazio = sem filtro. */
   numberGroups: string[];
   /** Ano do contrato no PNCP; null = qualquer ano. */
@@ -202,6 +204,7 @@ export async function searchContracts(
       activeOn: allContracts ? null : today,
       keys,
       contractTypes: filters.contractTypes,
+      spheres: filters.spheres,
       numberGroups: filters.numberGroups,
       contractYear: filters.contractYear,
       publishedFrom: filters.publishedFrom,
@@ -239,6 +242,7 @@ export function contractCriteriaOnlyFilters(criteria: ContractCriteria, perPage:
     favoritesOnly: false,
     includeClosed: false,
     contractTypes: [],
+    spheres: [],
     numberGroups: [],
     contractYear: null,
     sort: 'expiryAsc',

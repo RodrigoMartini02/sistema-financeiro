@@ -1,5 +1,7 @@
 import {
+  GOVERNMENT_SPHERE_IDS,
   NOTICE_SORTS,
+  TENDER_SITUATION_IDS,
   TRACKING_FILTER_NONE,
   TRACKING_FILTERS,
   type NoticeSort,
@@ -57,6 +59,10 @@ export interface SearchState {
   publishedTo: string | null;
   closingFrom: string | null;
   closingTo: string | null;
+  /** Esfera do órgão (F, E, M, D); vazio = todas. Filtro da tela: vale também com busca salva aberta. */
+  spheres: string[];
+  /** Situação da contratação no PNCP (1 a 4); vazio = todas. Os abertos são os Divulgados: só muda o resultado com "Só editais abertos" desligado. */
+  situations: number[];
   openOnly: boolean;
   /** Inclui os que encerram antes do prazo mínimo (hoje + MIN_DAYS_TO_CLOSE). */
   includeClosingSoon: boolean;
@@ -87,6 +93,8 @@ export const DEFAULT_SEARCH_STATE: SearchState = {
   publishedTo: null,
   closingFrom: null,
   closingTo: null,
+  spheres: [],
+  situations: [],
   openOnly: true,
   includeClosingSoon: false,
   trackingStatuses: [],
@@ -113,6 +121,8 @@ export const SEARCH_URL_PARAMS = {
   publishedTo: 'publicacaoAte',
   closingFrom: 'encerramentoDe',
   closingTo: 'encerramentoAte',
+  sphere: 'esfera',
+  situation: 'situacao',
   openOnly: 'abertos',
   includeClosingSoon: 'prazoCurto',
   tracking: 'acompanhamento',
@@ -199,6 +209,7 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
 
   const minValue = decimalParam(params.get(P.minValue));
   const maxValue = decimalParam(params.get(P.maxValue));
+  const openOnly = params.get(P.openOnly) !== '0';
   const criteria =
     savedSearchId !== null
       ? {}
@@ -221,7 +232,16 @@ export function parseSearchParams(params: URLSearchParams): SearchState {
     publishedTo,
     closingFrom,
     closingTo,
-    openOnly: params.get(P.openOnly) !== '0',
+    spheres: uniqueValid(params.getAll(P.sphere), (value) => value.toUpperCase(), (value) => (GOVERNMENT_SPHERE_IDS as readonly string[]).includes(value)),
+    // Com "só abertos" ligado só há editais Divulgados e a seção Situação fica desabilitada: o link que traz as duas coisas perde a situação.
+    situations: openOnly
+      ? []
+      : uniqueValid(
+          params.getAll(P.situation),
+          (value) => value,
+          (value) => /^\d+$/.test(value) && (TENDER_SITUATION_IDS as readonly number[]).includes(Number(value)),
+        ).map(Number),
+    openOnly,
     includeClosingSoon: params.get(P.includeClosingSoon) === '1',
     trackingStatuses: uniqueValid(
       params.getAll(P.tracking),
@@ -255,6 +275,8 @@ export function toSearchParams(state: SearchState): URLSearchParams {
   if (state.publishedTo) params.set(P.publishedTo, state.publishedTo);
   if (state.closingFrom) params.set(P.closingFrom, state.closingFrom);
   if (state.closingTo) params.set(P.closingTo, state.closingTo);
+  state.spheres.forEach((value) => params.append(P.sphere, value));
+  state.situations.forEach((value) => params.append(P.situation, String(value)));
   if (!state.openOnly) params.set(P.openOnly, '0');
   if (state.includeClosingSoon) params.set(P.includeClosingSoon, '1');
   state.trackingStatuses.forEach((value) => params.append(P.tracking, value.toLowerCase()));
@@ -292,6 +314,9 @@ export function toApiQuery(state: SearchState): string {
   if (state.publishedTo) params.set('publishedTo', state.publishedTo);
   if (state.closingFrom) params.set('closingFrom', state.closingFrom);
   if (state.closingTo) params.set('closingTo', state.closingTo);
+  // Esfera e situação são filtros da tela: valem também com uma busca salva aberta.
+  state.spheres.forEach((value) => params.append('sphere', value));
+  state.situations.forEach((value) => params.append('situation', String(value)));
   params.set('openOnly', String(state.openOnly));
   state.trackingStatuses.forEach((value) => params.append('trackingStatus', value));
   params.set('hideDiscarded', String(state.hideDiscarded));
@@ -310,10 +335,14 @@ export function favoritesApiQuery(): string {
   return toApiQuery({ ...DEFAULT_SEARCH_STATE, openOnly: false, hideDiscarded: false, favoritesOnly: true });
 }
 
-/** Muda filtros; a relevância sai se a busca ficou sem texto. */
+/**
+ * Muda filtros; a relevância sai se a busca ficou sem texto, e a situação sai com "só abertos" ligado (os abertos são
+ * os Divulgados: a seção Situação fica desabilitada e uma situação escolhida só deixaria a lista vazia). Vale para o
+ * botão do painel e para o chip "Inclui encerrados".
+ */
 export function withFilters(state: SearchState, changes: Partial<SearchState>): SearchState {
   const next = { ...state, ...changes };
-  return { ...next, sort: sortFor(next.sort, next.q) };
+  return { ...next, sort: sortFor(next.sort, next.q), situations: next.openOnly ? [] : next.situations };
 }
 
 /** "Limpar tudo": filtros e busca salva saem; a ordenação fica. */
@@ -404,6 +433,8 @@ export interface FilterChip {
 export interface ChipLookups {
   municipalityName?: (code: string) => string | undefined;
   modalityName?: (id: number) => string | undefined;
+  sphereName?: (code: string) => string | undefined;
+  situationName?: (id: number) => string | undefined;
   savedSearchName?: (id: number) => string | undefined;
 }
 
@@ -442,6 +473,16 @@ export function filterChips(state: SearchState, lookups: ChipLookups = {}): Filt
   state.modalities.forEach((id) =>
     add(`modality:${id}`, `Modalidade: ${lookups.modalityName?.(id) ?? id}`, {
       modalities: state.modalities.filter((item) => item !== id),
+    }),
+  );
+  state.spheres.forEach((code) =>
+    add(`sphere:${code}`, `Esfera: ${lookups.sphereName?.(code) ?? code}`, {
+      spheres: state.spheres.filter((item) => item !== code),
+    }),
+  );
+  state.situations.forEach((id) =>
+    add(`situation:${id}`, `Situação: ${lookups.situationName?.(id) ?? id}`, {
+      situations: state.situations.filter((item) => item !== id),
     }),
   );
   const valueRange = valueRangeLabel(decimalToReais(state.minValue), decimalToReais(state.maxValue));

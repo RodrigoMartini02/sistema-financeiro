@@ -51,6 +51,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/notices?accountId={{accountId}}&number=PE 352/2026&purchaseYear=2026
 Authorization: Bearer {{token}}
 
+### Busca: esfera (F, E, M ou D) e situação (1 Divulgada, 2 Revogada, 3 Anulada, 4 Suspensa); filtros da tela, valem por cima de uma busca salva. Situação diferente de 1 pede openOnly=false
+GET {{baseUrl}}/notices?accountId={{accountId}}&sphere=M&sphere=E&situation=2&situation=4&openOnly=false
+Authorization: Bearer {{token}}
+
 ### Detalhe do edital (acompanhamento da conta e buscas salvas que batem)
 GET {{baseUrl}}/notices/{{noticeId}}?accountId={{accountId}}
 Authorization: Bearer {{token}}
@@ -153,6 +157,10 @@ Authorization: Bearer {{token}}
 
 ### Contratos: UF, município, órgão, categoria, fornecedor (CNPJ), valor global e vencimento de/até
 GET {{baseUrl}}/contracts?accountId={{accountId}}&state=SP&category=8&supplierCnpj=12345678000195&minValue=10000&includeWithoutValue=true&expiryFrom=2026-10-14&expiryTo=2027-01-12
+Authorization: Bearer {{token}}
+
+### Contratos: esfera (F, E, M ou D; filtro da tela, vale por cima de uma busca salva)
+GET {{baseUrl}}/contracts?accountId={{accountId}}&sphere=F&sphere=D
 Authorization: Bearer {{token}}
 
 ### Contratos: número do contrato, processo ou controle PNCP (do contrato ou da compra) e ano do contrato

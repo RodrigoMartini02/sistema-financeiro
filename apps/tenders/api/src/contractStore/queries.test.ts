@@ -25,10 +25,10 @@ const day = (offset: number) => new Date(Date.UTC(2026, 9, 19 + offset)).toISOSt
 
 const contracts: TenderContractRow[] = [
   sampleContract(1, { contractObject: 'Limpeza e conservação predial', expiresOn: day(10), globalValue: '300.00', publishedAt: '2026-03-01T10:00:00', state: 'SP', contractNumber: '11/2026', processNumber: 'P-900' }),
-  sampleContract(2, { contractObject: 'Serviços de limpeza', expiresOn: day(5), globalValue: '100.00', publishedAt: '2026-03-02T23:59:59', state: 'MG', contractNumber: '22/2025', contractYear: 2025 }),
-  sampleContract(3, { contractObject: 'Obra de pavimentação com limpeza do terreno', expiresOn: day(30), globalValue: null, publishedAt: '2026-03-03T00:00:00', state: 'SP', contractTypeId: 7, contractTypeName: 'Empenho' }),
-  sampleContract(4, { contractObject: 'Vigilância armada', expiresOn: day(-3), originalTermEnd: day(-3), termStart: '2024-01-01', globalValue: '50.00', publishedAt: '2026-02-01T10:00:00', state: 'RJ' }),
-  sampleContract(5, { contractObject: 'Fornecimento de material', expiresOn: null, originalTermEnd: null, globalValue: '900.00', publishedAt: '2026-04-01T10:00:00', state: 'SP' }),
+  sampleContract(2, { contractObject: 'Serviços de limpeza', expiresOn: day(5), globalValue: '100.00', publishedAt: '2026-03-02T23:59:59', state: 'MG', contractNumber: '22/2025', contractYear: 2025, governmentSphere: 'F' }),
+  sampleContract(3, { contractObject: 'Obra de pavimentação com limpeza do terreno', expiresOn: day(30), globalValue: null, publishedAt: '2026-03-03T00:00:00', state: 'SP', contractTypeId: 7, contractTypeName: 'Empenho', governmentSphere: 'e' }),
+  sampleContract(4, { contractObject: 'Vigilância armada', expiresOn: day(-3), originalTermEnd: day(-3), termStart: '2024-01-01', globalValue: '50.00', publishedAt: '2026-02-01T10:00:00', state: 'RJ', governmentSphere: ' D ' }),
+  sampleContract(5, { contractObject: 'Fornecimento de material', expiresOn: null, originalTermEnd: null, globalValue: '900.00', publishedAt: '2026-04-01T10:00:00', state: 'SP', governmentSphere: null }),
 ];
 const key = (sequence: number) => sampleContract(sequence, sequence === 2 ? { contractYear: 2025 } : {}).pncpControlNumber;
 const keys = (rows: Array<{ numero_controle_pncp: string }>) => rows.map((row) => row.numero_controle_pncp);
@@ -54,6 +54,7 @@ async function baseQuery(overrides: Partial<ContractListQuery> = {}, criteria: P
     activeOn: TODAY,
     keys: null,
     contractTypes: [],
+    spheres: [],
     numberGroups: [],
     contractYear: null,
     publishedFrom: null,
@@ -122,6 +123,25 @@ test('filtros: tipo, UF, ano, publicação (dia inteiro) e vencimento', async ()
   assert.deepEqual(keys((await page(await baseQuery({ ...all, publishedFrom: '2026-03-02', publishedBefore: '2026-03-04', sort: 'publishedDesc' }))).rows), [key(3), key(2)]);
   assert.deepEqual(keys((await page(await baseQuery({ expiryFrom: day(6), expiryTo: day(10) }))).rows), [key(1)]);
   assert.deepEqual(keys((await page(await baseQuery({ expiryTo: day(5) }))).rows), [key(2)], 'o vencimento do próprio dia entra');
+});
+
+test('esfera: uma ou várias, sem diferenciar maiúsculas nem espaços do que está gravado; sem esfera, o contrato fica de fora; combina com os outros filtros', async () => {
+  const all = { dataset: 'contratos', activeOn: null } as const;
+  const sphere = async (spheres: string[], overrides: Partial<ContractListQuery> = {}, criteria: Partial<ContractCriteria> = {}) =>
+    keys((await page(await baseQuery({ ...all, spheres, ...overrides }, criteria))).rows);
+  assert.deepEqual(await sphere([]), [key(4), key(2), key(1), key(3), key(5)], 'sem o filtro, todos entram, até o sem esfera');
+  assert.deepEqual(await sphere(['M']), [key(1)]);
+  assert.deepEqual(await sphere(['F']), [key(2)]);
+  assert.deepEqual(await sphere(['E']), [key(3)], 'gravada em minúscula');
+  assert.deepEqual(await sphere(['D']), [key(4)], 'gravada com espaços');
+  assert.deepEqual(await sphere(['F', 'E']), [key(2), key(3)], 'várias esferas: qualquer uma');
+  assert.deepEqual(await sphere(['F', 'E', 'M', 'D']), [key(4), key(2), key(1), key(3)], 'todas as esferas não trazem o sem esfera');
+  assert.deepEqual(await sphere(['M'], {}, { states: ['SP'] }), [key(1)], 'com a UF');
+  assert.deepEqual(await sphere(['F'], {}, { states: ['SP'] }), [], 'esfera e UF que não se encontram');
+  assert.deepEqual(await sphere(['D'], { dataset: 'vigentes', activeOn: TODAY }), [], 'o distrital está vencido e a lista é só dos vigentes');
+  assert.deepEqual(await sphere(['E'], { dataset: 'vigentes', activeOn: TODAY }), [key(3)]);
+  const counted = await page(await baseQuery({ ...all, spheres: ['F', 'E'] }));
+  assert.equal(counted.total, 2, 'o total acompanha o filtro');
 });
 
 test('número: todos os grupos no mesmo campo; grupos de campos diferentes não se misturam', async () => {

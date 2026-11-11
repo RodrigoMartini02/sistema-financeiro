@@ -1,4 +1,4 @@
-import { CONTRACT_SORTS, type ContractSort, type SearchTermsMode } from '../types';
+import { CONTRACT_SORTS, GOVERNMENT_SPHERE_IDS, type ContractSort, type SearchTermsMode } from '../types';
 import { onlyDigits } from '@ui/utils/brazilDocuments';
 import { isCnpjFormat } from './cnpj';
 import { addDaysToIsoDate } from './dates';
@@ -54,6 +54,8 @@ export interface ContractSearchState {
   includeClosed: boolean;
   /** Tipos de contrato; vazio = todos. */
   contractTypes: number[];
+  /** Esfera do órgão (F, E, M, D); vazio = todas. Filtro da tela: vale também com busca salva aberta. */
+  spheres: string[];
   /** Número do contrato, processo ou controle PNCP, como digitado; vazio = sem filtro. */
   number: string;
   /** Ano do contrato; null = qualquer ano. */
@@ -81,6 +83,7 @@ export const DEFAULT_CONTRACT_SEARCH_STATE: ContractSearchState = {
   favoritesOnly: false,
   includeClosed: false,
   contractTypes: [],
+  spheres: [],
   number: '',
   contractYear: null,
   savedSearchId: null,
@@ -111,6 +114,7 @@ export const CONTRACT_URL_PARAMS = {
   favoritesOnly: 'favoritos',
   includeClosed: 'encerrados',
   contractType: 'tipo',
+  sphere: 'esfera',
   number: 'numero',
   contractYear: 'ano',
   savedSearch: 'busca',
@@ -177,6 +181,7 @@ export function parseContractSearchParams(params: URLSearchParams): ContractSear
     favoritesOnly: params.get(P.favoritesOnly) === '1',
     includeClosed,
     contractTypes: uniqueValid(params.getAll(P.contractType), (value) => value, (value) => positiveInt(value) !== null).map(Number),
+    spheres: uniqueValid(params.getAll(P.sphere), (value) => value.toUpperCase(), (value) => (GOVERNMENT_SPHERE_IDS as readonly string[]).includes(value)),
     number: numberParam(params.get(P.number)),
     contractYear: contractYearParam(params.get(P.contractYear)),
     savedSearchId,
@@ -206,6 +211,7 @@ export function toContractSearchParams(state: ContractSearchState): URLSearchPar
   if (state.favoritesOnly) params.set(P.favoritesOnly, '1');
   if (state.includeClosed) params.set(P.includeClosed, '1');
   state.contractTypes.forEach((value) => params.append(P.contractType, String(value)));
+  state.spheres.forEach((value) => params.append(P.sphere, value));
   if (state.number) params.set(P.number, state.number);
   if (state.contractYear !== null) params.set(P.contractYear, String(state.contractYear));
   if (state.savedSearchId !== null) params.set(P.savedSearch, String(state.savedSearchId));
@@ -242,6 +248,8 @@ export function toContractApiQuery(state: ContractSearchState): string {
   if (state.favoritesOnly) params.set('favoritesOnly', 'true');
   if (state.includeClosed) params.set('includeClosed', 'true');
   state.contractTypes.forEach((value) => params.append('contractType', String(value)));
+  // A esfera é filtro da tela: vale também com uma busca salva aberta.
+  state.spheres.forEach((value) => params.append('sphere', value));
   if (state.number) params.set('number', state.number);
   if (state.contractYear !== null) params.set('contractYear', String(state.contractYear));
   params.set('sort', state.sort);
@@ -324,6 +332,7 @@ export interface ContractChipLookups {
   municipalityName?: (code: string) => string | undefined;
   categoryName?: (id: number) => string | undefined;
   contractTypeName?: (id: number) => string | undefined;
+  sphereName?: (code: string) => string | undefined;
   savedSearchName?: (id: number) => string | undefined;
 }
 
@@ -386,6 +395,11 @@ export function contractFilterChips(state: ContractSearchState, lookups: Contrac
   state.contractTypes.forEach((id) =>
     add(`contractType:${id}`, `Tipo: ${lookups.contractTypeName?.(id) ?? id}`, {
       contractTypes: state.contractTypes.filter((item) => item !== id),
+    }),
+  );
+  state.spheres.forEach((code) =>
+    add(`sphere:${code}`, `Esfera: ${lookups.sphereName?.(code) ?? code}`, {
+      spheres: state.spheres.filter((item) => item !== code),
     }),
   );
   if (state.includeClosed) {

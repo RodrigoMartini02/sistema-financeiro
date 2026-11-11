@@ -131,6 +131,45 @@ describe('busca de editais (banco local)', { skip: databaseTestsSkipReason }, ()
     });
   });
 
+  test('esfera e situação: filtros da tela, sem diferenciar maiúsculas; combinam entre si, com os critérios e com "só abertos"; sem esfera fica de fora', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'busca-esfera');
+      const requester = requesterOf(account);
+      const token = uniqueToken();
+      const base = { procurementObject: `Aquisição ${token}`, proposalClosesAt: inDays(10) };
+      const federal = await insertTestNotice(tx, { ...base, governmentSphere: 'F', state: 'MA' });
+      const municipal = await insertTestNotice(tx, { ...base, governmentSphere: ' m ', state: 'PI' });
+      const revoked = await insertTestNotice(tx, { ...base, governmentSphere: 'E', situationId: 2, state: 'MA' });
+      const suspended = await insertTestNotice(tx, { ...base, governmentSphere: 'M', situationId: 4, state: 'MA' });
+      const withoutSphere = await insertTestNotice(tx, { ...base, governmentSphere: null });
+      const sorted = (ids: number[]) => [...ids].sort((a, b) => a - b);
+      const search = async (overrides: Partial<NoticeSearchFilters>, criteria: Partial<NoticeCriteria> = {}) =>
+        sorted(await idsOf(tx, requester, filtersFor(token, overrides, criteria)));
+
+      // Só abertos (o padrão): é a situação 1, e o filtro de esfera age sobre os abertos.
+      assert.deepEqual(await search({}), sorted([federal, municipal, withoutSphere]));
+      assert.deepEqual(await search({ spheres: ['M'] }), [municipal], 'gravada em minúscula e com espaços');
+      assert.deepEqual(await search({ spheres: ['F', 'M'] }), sorted([federal, municipal]));
+      assert.deepEqual(await search({ spheres: ['E'] }), [], 'o estadual é revogado: não é aberto');
+
+      // Sem "só abertos": todas as situações entram, e a situação filtra.
+      assert.deepEqual(await search({ openOnly: false }), sorted([federal, municipal, revoked, suspended, withoutSphere]));
+      assert.deepEqual(await search({ openOnly: false, situations: [2] }), [revoked]);
+      assert.deepEqual(await search({ openOnly: false, situations: [2, 4] }), sorted([revoked, suspended]));
+      assert.deepEqual(await search({ openOnly: false, situations: [1] }), sorted([federal, municipal, withoutSphere]));
+      assert.deepEqual(await search({ openOnly: false, spheres: ['E'] }), [revoked]);
+      assert.deepEqual(await search({ openOnly: false, spheres: ['M'], situations: [4] }), [suspended], 'esfera e situação juntas');
+      assert.deepEqual(await search({ openOnly: false, spheres: ['F'], situations: [4] }), [], 'esfera e situação que não se encontram');
+      assert.deepEqual(await search({ openOnly: false, spheres: ['M'] }, { states: ['MA'] }), [suspended], 'com a UF');
+      assert.deepEqual(
+        await search({ openOnly: false, spheres: ['F', 'E', 'M', 'D'] }),
+        sorted([federal, municipal, revoked, suspended]),
+        'todas as esferas não trazem o edital sem esfera',
+      );
+      assert.equal((await searchNotices(tx, requester, filtersFor(token, { openOnly: false, situations: [2, 4] }))).total, 2, 'o total acompanha');
+    });
+  });
+
   test('acompanhamento: status da conta no item, filtro por status, sem acompanhamento e ocultar descartados', async () => {
     await withRollback(async (tx) => {
       const account = await createTestAccount(tx, 'busca-acomp');

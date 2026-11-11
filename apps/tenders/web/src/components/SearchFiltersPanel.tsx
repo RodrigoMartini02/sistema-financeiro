@@ -203,6 +203,15 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
               disabled={locked}
             />
           </FilterSection>
+
+          <FilterSection title="Esfera">
+            <CheckList
+              label="Esfera"
+              options={domainLists.spheres.map((sphere) => ({ value: sphere.id, label: sphere.name }))}
+              selected={state.spheres}
+              onChange={(spheres) => update({ spheres })}
+            />
+          </FilterSection>
         </>
       )}
 
@@ -271,6 +280,23 @@ export function SearchFiltersPanel({ state, onChange, domains, lookups, todayIso
           onChange={() => update({ includeClosingSoon: !state.includeClosingSoon })}
         />
       </FilterSection>
+
+      {domainLists && (
+        <FilterSection title="Situação">
+          <CheckList
+            label="Situação"
+            options={domainLists.situations.map((situation) => ({ value: situation.id, label: situation.name }))}
+            selected={state.situations}
+            onChange={(situations) => update({ situations })}
+            disabled={state.openOnly}
+          />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {state.openOnly
+              ? 'Os editais abertos são os Divulgados. Desligue "Só editais abertos" para ver os outros.'
+              : 'Mostra só os editais nas situações marcadas.'}
+          </p>
+        </FilterSection>
+      )}
 
       <FilterSection title="Acompanhamento">
         <CheckList

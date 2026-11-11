@@ -180,6 +180,8 @@ export const LEFT_OUT_LABELS = {
   favorites: 'só favoritos',
   number: 'número',
   purchaseYear: 'ano da compra',
+  sphere: 'esfera',
+  situation: 'situação',
 } as const;
 
 /**
@@ -212,6 +214,8 @@ export function searchStateToForm(
   if (state.favoritesOnly) leftOut.push(LEFT_OUT_LABELS.favorites);
   if (state.number) leftOut.push(LEFT_OUT_LABELS.number);
   if (state.purchaseYear !== null) leftOut.push(LEFT_OUT_LABELS.purchaseYear);
+  if (state.spheres.length > 0) leftOut.push(LEFT_OUT_LABELS.sphere);
+  if (state.situations.length > 0) leftOut.push(LEFT_OUT_LABELS.situation);
   return { values, leftOut };
 }
 

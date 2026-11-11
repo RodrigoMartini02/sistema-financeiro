@@ -163,6 +163,8 @@ test('"Salvar esta busca": critérios entendidos e filtros em comum; o resto é 
       favoritesOnly: true,
       number: '352/2026',
       purchaseYear: 2026,
+      spheres: ['M'],
+      situations: [2],
     },
     { terms: ['software'], excludedTerms: ['obra'], termsMode: 'E' },
   );
@@ -186,7 +188,14 @@ test('"Salvar esta busca": critérios entendidos e filtros em comum; o resto é 
     LEFT_OUT_LABELS.favorites,
     LEFT_OUT_LABELS.number,
     LEFT_OUT_LABELS.purchaseYear,
+    LEFT_OUT_LABELS.sphere,
+    LEFT_OUT_LABELS.situation,
   ]);
+  assert.deepEqual(
+    searchStateToForm({ ...DEFAULT_SEARCH_STATE, spheres: ['F'] }, { terms: [], excludedTerms: [], termsMode: 'E' }).leftOut,
+    ['esfera'],
+    'só a esfera: a esfera e a situação ficam de fora da busca salva, cada uma com o seu aviso',
+  );
   assert.deepEqual(searchStateToForm(DEFAULT_SEARCH_STATE, { terms: [], excludedTerms: [], termsMode: 'E' }).leftOut, []);
   assert.deepEqual(
     searchStateToForm({ ...DEFAULT_SEARCH_STATE, hideDiscarded: false }, { terms: [], excludedTerms: [], termsMode: 'E' }).leftOut,

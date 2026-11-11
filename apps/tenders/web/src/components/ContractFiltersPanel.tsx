@@ -225,6 +225,15 @@ export function ContractFiltersPanel({ state, onChange, domains, lookups, todayI
               onChange={(contractTypes) => update({ contractTypes })}
             />
           </FilterSection>
+
+          <FilterSection title="Esfera">
+            <CheckList
+              label="Esfera"
+              options={domainLists.spheres.map((sphere) => ({ value: sphere.id, label: sphere.name }))}
+              selected={state.spheres}
+              onChange={(spheres) => update({ spheres })}
+            />
+          </FilterSection>
         </>
       )}
 

@@ -81,6 +81,8 @@ export interface ContractListQuery {
   /** Só estes contratos (os favoritos da pessoa); null = qualquer um. */
   keys: readonly string[] | null;
   contractTypes: readonly number[];
+  /** Esfera do órgão em maiúsculas (`F`, `E`, `M`, `D`); vazio = todas. */
+  spheres: readonly string[];
   /** Grupos de dígitos do "Número, processo ou controle PNCP"; vazio = sem filtro. */
   numberGroups: readonly string[];
   contractYear: number | null;
@@ -116,6 +118,10 @@ function listConditions(query: ContractListQuery, params: SqlParameters): string
   }
   if (query.contractTypes.length > 0) {
     conditions.push(`list_contains(${params.add(listValue([...query.contractTypes]))}, tipo_contrato_id)`);
+  }
+  if (query.spheres.length > 0) {
+    // Em maiúsculas dos dois lados, como o Dashboard agrupa a esfera; contrato sem esfera (nula) fica de fora.
+    conditions.push(`list_contains(${params.add(listValue([...query.spheres]))}, upper(trim(esfera)))`);
   }
   if (query.numberGroups.length > 0) {
     const groups = params.add(listValue([...query.numberGroups]));

@@ -123,6 +123,7 @@ export const CONTRACT_LEFT_OUT_LABELS = {
   favorites: 'só favoritos',
   number: 'número',
   contractYear: 'ano do contrato',
+  sphere: 'esfera',
 } as const;
 
 /**
@@ -154,6 +155,7 @@ export function contractStateToForm(
   if (state.favoritesOnly) leftOut.push(CONTRACT_LEFT_OUT_LABELS.favorites);
   if (state.number) leftOut.push(CONTRACT_LEFT_OUT_LABELS.number);
   if (state.contractYear !== null) leftOut.push(CONTRACT_LEFT_OUT_LABELS.contractYear);
+  if (state.spheres.length > 0) leftOut.push(CONTRACT_LEFT_OUT_LABELS.sphere);
   return { values, leftOut };
 }
 

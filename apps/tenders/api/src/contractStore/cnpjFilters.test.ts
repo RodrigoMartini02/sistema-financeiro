@@ -81,6 +81,7 @@ async function baseQuery(dataset: ContractListQuery['dataset'], activeOn: string
     activeOn,
     keys: null,
     contractTypes: [],
+    spheres: [],
     numberGroups: [],
     contractYear: null,
     publishedFrom: null,
