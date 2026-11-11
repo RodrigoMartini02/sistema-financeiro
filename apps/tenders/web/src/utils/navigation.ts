@@ -14,6 +14,7 @@ export type TendersRouteKey =
   | 'buscas'
   | 'favoritos'
   | 'acompanhamento'
+  | 'documentacao'
   | 'configuracoes'
   | 'contas';
 
@@ -38,6 +39,8 @@ export const TENDERS_ROUTES: readonly TendersRoute[] = [
   { key: 'buscas', path: '/buscas', title: 'Buscas salvas', inMenu: true, platformAdminOnly: false },
   { key: 'favoritos', path: '/favoritos', title: 'Favoritos', inMenu: true, platformAdminOnly: false },
   { key: 'acompanhamento', path: '/acompanhamento', title: 'Acompanhamento', inMenu: true, platformAdminOnly: false },
+  // Documentação: o cofre de documentos da empresa e das pessoas (e, mais adiante, os modelos de documentos).
+  { key: 'documentacao', path: '/documentacao', title: 'Documentação', inMenu: true, platformAdminOnly: false },
   // Configurações não é uma página: abre em modal (botão no menu lateral). A rota fica só para o retorno da cobrança do
   // Mercado Pago, que redireciona para o modal (utils/settings.ts).
   { key: 'configuracoes', path: '/configuracoes', title: 'Configurações', inMenu: false, platformAdminOnly: false },
@@ -53,6 +56,8 @@ export interface TendersPermissions {
   manageCompany: boolean;
   /** Assinatura (pagar e cancelar): só o titular. */
   manageBilling: boolean;
+  /** Pessoas do cofre e os documentos delas (dado pessoal de terceiros): só o titular. */
+  manageVaultPeople: boolean;
   viewCollectionRuns: boolean;
   /** Cortesia das contas no módulo: só o admin da plataforma. */
   manageEnabledAccounts: boolean;

@@ -10,9 +10,9 @@ import {
   withSettingsParam,
 } from './settings';
 
-const titular: TendersPermissions = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
-const platformAdmin: TendersPermissions = { manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: true, manageEnabledAccounts: true };
-const colaborador: TendersPermissions = { manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
+const titular: TendersPermissions = { manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+const platformAdmin: TendersPermissions = { manageTeam: false, manageCompany: false, manageBilling: false, manageVaultPeople: false, viewCollectionRuns: true, manageEnabledAccounts: true };
+const colaborador: TendersPermissions = { manageTeam: false, manageCompany: false, manageBilling: false, manageVaultPeople: false, viewCollectionRuns: false, manageEnabledAccounts: false };
 
 test('seções: o titular vê Perfil, Usuários, Assinatura e Coleta; o admin só a Coleta; o colaborador, nenhuma', () => {
   assert.deepEqual(visibleSettingsItems(titular).map((item) => item.id), ['perfil', 'usuarios', 'assinatura', 'coleta']);

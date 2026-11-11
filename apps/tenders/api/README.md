@@ -14,7 +14,7 @@ As seções técnicas preservam o histórico da construção do módulo. As migr
 
 ## Estrutura
 
-A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql,0005_competitors.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
+A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql,0005_competitors.sql,0006_vault.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
 
 ```
 apps/tenders/api/src/
@@ -61,6 +61,7 @@ apps/tenders/api/src/
 │   ├── contractProgress.ts          andamento no Postgres: último dia lido da coleta diária e dias da carga
 │   ├── contractRuns.ts              contratos: coleta diária, carga inicial e avisos, publicando o armazém
 │   ├── contractNotifications.ts     CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE; total das buscas salvas
+│   ├── documentNotifications.ts     DOCUMENTO_VENCE_30D e DOCUMENTO_VENCE_7D: o aviso de vencimento dos documentos do cofre (etapa de lembretes de prazo)
 │   ├── archive.ts                   arquivo bruto das coletas no Cloudflare R2 (JSON Lines compactado)
 │   ├── noticePayloadExport.ts       exportação do JSON dos editais do banco para o R2 (antes da 0088)
 │   ├── comprasGovClient.ts          cliente dos resultados das licitações (Compras.gov.br): paginação, repetição e erro tipado
@@ -80,7 +81,7 @@ apps/tenders/api/src/
 │   ├── runtime.ts                   config, log, banco, PNCP, Compras.gov.br e R2 de uma execução (CLI e rotina diária)
 │   └── cli.ts                       comandos
 ├── middleware/             trava do módulo (conta e acesso), limite por usuário e `validation.ts` (cópia enxuta da de Finanças)
-├── services/               regras da API (busca, buscas salvas, acompanhamento, painel, equipe, perfil e foto...) e as cópias enxutas de `memberInput`, `documentConflicts`, `accountMemberCreation` e `mercadoPagoCharges`
+├── services/               regras da API (busca, buscas salvas, acompanhamento, painel, equipe, perfil e foto, cofre de documentos: `vaultPeople`, `vaultDocuments`, `vaultFiles`, `vaultInput`, `documentStatus`, `documentUpload`, `documentRecency`...) e as cópias enxutas de `memberInput`, `documentConflicts`, `accountMemberCreation` e `mercadoPagoCharges`
 ├── utils/                  `requestInput.ts`: erro de pedido e leitura do corpo (cópia enxuta da de Finanças)
 └── routes/                 rotas Express e validações (express-validator)
 ```
@@ -205,7 +206,7 @@ O CLI **só** lê arquivo de ambiente quando `DOTENV_CONFIG_PATH` está definido
 ```bash
 npm --prefix apps/tenders/api run tenders -- sweep                     # varredura completa (endpoint proposta)
 npm --prefix apps/tenders/api run tenders -- incremental               # publicadas e atualizadas de ontem a hoje
-npm --prefix apps/tenders/api run tenders -- deadline-reminders        # lembretes de prazo (PRAZO_3D e PRAZO_1D)
+npm --prefix apps/tenders/api run tenders -- deadline-reminders        # lembretes de prazo (PRAZO_3D e PRAZO_1D) e de vencimento dos documentos do cofre
 npm --prefix apps/tenders/api run tenders -- cleanup                   # encerrados há 12 meses e editais sem prazo
 npm --prefix apps/tenders/api run tenders -- status                    # última execução de cada tipo e totais
 npm --prefix apps/tenders/api run tenders -- reprocess-notifications --since 2026-10-01
@@ -245,7 +246,7 @@ O Cron existente permanece **suspenso**. A rotina de Licitações tem comando pr
 
 **Etapas, em sequência:**
 1. varredura (`sweep`);
-2. lembretes de prazo (`deadline-reminders`);
+2. lembretes de prazo (`deadline-reminders`), que também geram o aviso de vencimento dos documentos do cofre (`details.documents`);
 3. coleta diária de contratos (`contracts-daily`);
 4. avisos de vencimento dos contratos (`contract-reminders`);
 5. coleta diária dos vencedores (`winners-daily`), só com `TENDERS_WINNERS_ENABLED=1`: é curta e diária, por isso vem antes das cargas;
@@ -319,6 +320,8 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA licitacoes TO licitacoes_coletor;
 ```
 
 - Historicamente, esses grants acompanhavam as migrations 0072 a 0077; as 0080 e 0085 ampliaram as permissões. Hoje Licitações usa `migrations/0001_baseline.sql`, já aplicada. Não executar migrations históricas de Finanças nesse banco. `GRANT ... ON ALL` vale para os objetos existentes; mudanças futuras de privilégios exigem revisão e autorização próprias.
+- **Tabelas criadas depois do GRANT não herdam permissão.** Toda migration que cria uma tabela que a rotina diária lê precisa conceder `SELECT` (e o que mais precisar) ao papel, num bloco `DO $$ ... IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'licitacoes_coletor') ... $$` (no banco local o coletor usa o usuário do app). A `0005` não o fez (`concorrente_monitorado`); a `0006` corrige isso e concede o das tabelas do cofre e o da view `usuario_com_acesso`. Conferência de leitura, sem gravar nada (com autorização para consultar o banco): `SELECT has_table_privilege('licitacoes_coletor', 'licitacoes.concorrente_monitorado', 'SELECT')`.
+- A identidade em `public` (`usuarios`, `contas`, `conta_membros`) continua **fechada** para o coletor. O que ele precisa saber de lá (quem é o titular e quem são os colaboradores com acesso) vem da view `licitacoes.usuario_com_acesso`, que expõe só `(conta_id, usuario_id, papel)`.
 - O usuário do backend é o dono das tabelas e já tem todas as permissões.
 - No banco local, o coletor pode usar o mesmo usuário do `.env.dev`.
 
@@ -337,6 +340,8 @@ O perfil da empresa, também sem banco: a leitura da resposta da fonte e o clien
 
 Os concorrentes monitorados, também sem banco (`contractStore/competitorQueries.test.ts`, sobre um armazém de exemplo): o resumo em lote (total, vigentes, recentes, última publicação e o nome do contrato mais recente), CNPJ sem contrato que não volta, a janela dos recentes, os contratos publicados desde um dia (por CNPJ e pela publicação, com a chave federal) e a recusa de CNPJ fora do formato (CPF mascarado, texto e tentativa de injeção) antes de qualquer consulta; e a máscara do CNPJ (`cnpj.test.ts`).
 
+O cofre de documentos, também sem banco: a situação por data, com o dia da validade, o 30º e o 31º dia e a data de referência como parâmetro, e a faixa do aviso (`services/documentStatus.test.ts`); a leitura do arquivo, com o tipo pelo conteúdo, o teto de 10 MB, o nome limpo e o cabeçalho de abertura (`services/documentUpload.test.ts`); os pedidos de pessoa e de documento (`services/vaultInput.test.ts`); os arquivos no R2 simulado (`services/vaultFiles.test.ts`); o CPF fora do log numa falha do banco (`services/vaultPeople.test.ts`); as invariantes do catálogo (`documentCatalog.test.ts`) e o texto do aviso (`collector/documentNotifications.test.ts`).
+
 `test:tenders-db` roda os testes de banco do módulo:
 - **Um arquivo por vez** (`--test-concurrency=1`): vários arquivos disputam a mesma trava dos contratos e dos vencedores (a mesma, de propósito: os dois gravadores publicam no mesmo manifesto). Em paralelo, uma execução de um arquivo sai "coleta já em execução" por causa da de outro.
 - **Onde:** só no banco local, pelo `TENDERS_DATABASE_URL` do `.env.dev`; recusa URL diferente de `localhost:5433/fingerence_licitacoes_dev`.
@@ -353,6 +358,7 @@ Os concorrentes monitorados, também sem banco (`contractStore/competitorQueries
   - assinatura (`services/subscription.db.test.ts`): regra de acesso, teste uma vez por conta, pagamento avulso sem aplicar duas vezes (nem depois de outro pagamento ter sido aplicado) e recorrente; e o histórico de cobrança: ativação, cobrança, recusa e cancelamento (com a origem) gravados na ordem e sem duplicar, o que não mudou nada não grava, os identificadores do Mercado Pago não saem na lista, cada conta vê só os seus eventos e a lista traz no máximo os 200 mais recentes;
   - perfil da empresa (`services/companyProfile.db.test.ts`, com a fonte da consulta simulada): conta nova sem dados, edição só do que veio (vazio limpa) com o nome da conta acompanhando o fantasia ou a razão social, consulta gravando os dados e a hora, a consulta que nunca apaga o que a fonte não informou (e a lista vazia de CNAEs que limpa), falhas sem gravar nada (sem CNPJ, não achado, fonte fora do ar) e isolamento entre contas;
   - concorrentes monitorados (`services/competitors.db.test.ts` e `collector/competitorNotifications.db.test.ts`, sobre um armazém de exemplo): salvar (apelido aparado, idempotente, ordem da lista), limite de 30 por pessoa, alterar o apelido e o aviso (religar recomeça o `aviso_desde`), 404 do que não é da pessoa, isolamento entre pessoas e contas, o CHECK de 14 dígitos, o resumo (zerado para quem não tem contrato; recusa com o armazém atualizando) e os avisos: um por contrato e por pessoa nos últimos 7 dias, título pelo apelido, pelo nome ou pelo CNPJ, `aviso_desde` pelo dia de Brasília, aviso desligado e conta sem o módulo que não recebem, sem repetir numa segunda execução;
+  - cofre de documentos (`services/vaultPeople.db.test.ts`, `services/vaultDocuments.db.test.ts` e `collector/documentNotifications.db.test.ts`, com o R2 simulado; precisam da `0006`): pessoas (CPF único na conta, limite de 50, edição, 404 de outra conta, apagar com a cascata dos documentos e dos avisos e só depois os arquivos do R2, e as restrições do banco), documentos (o arquivo no R2 com a chave da conta e a resposta sem ela, a situação pelo dia, o vigente de cada tipo, documento de pessoa que o colaborador não vê nem abre, pessoa de outra conta recusada, limite de 300, sem R2, R2 e banco falhando sem deixar objeto solto, trocar o arquivo, apagar, link e isolamento) e os avisos (as faixas de 8 a 30 e de 0 a 7 dias, sem repetir, a validade nova que avisa de novo, os destinatários, só conta com acesso, só o vigente, o texto, a view `usuario_com_acesso`, a etapa de lembretes da rotina e, **se o papel `licitacoes_coletor` existir no banco**, a leitura sob esse papel e a identidade fechada);
   - identidade própria: cadastro PJ transacional com teste de 15 dias, login, usuário bloqueado, Google existente, recuperação com validade, limite de erros e consumo único, e criação do admin;
   - API:
     - travas: conta sem o módulo, inativa ou alheia dá 404, colaborador sem acesso dá 403 e assinatura vencida dá 402;
@@ -362,6 +368,7 @@ Os concorrentes monitorados, também sem banco (`contractStore/competitorQueries
     - acompanhamento e histórico, notificações, painel e equipe (cadastro com dados de trabalho, edição, conflito de e-mail e CPF, isolamento entre contas, foto no R2 simulado e perfil do titular) e empresa (ler, editar, consultar o CNPJ da conta com a fonte simulada, 403 do colaborador, 404 de outra conta, 400, 422, 503 e 500 sem detalhe interno e o limite de consultas);
     - favoritos: de cada pessoa, sem duplicar, na busca, no detalhe e no filtro `favoritesOnly`;
     - concorrentes por HTTP: validações (CNPJ, apelido, corpo vazio), salvar com máscara (201 e 200), listar, alterar, resumo do armazém (e o 503 com ele atualizando, com a lista seguindo), isolamento da colega e de outra conta, limite de 30 e o limite de consultas do resumo;
+    - cofre por HTTP: as listas em `/domains`, o 403 do colaborador nas pessoas, as validações (CPF, papéis, tipo, validade, arquivo), guardar documento da empresa (titular e colaborador) e de pessoa (só o titular), a lista por papel sem a chave do R2, alterar e trocar o arquivo, link, apagar, apagar a pessoa com os documentos, o 503 sem R2 e o limite de envios;
     - contratos por HTTP: a chave com a barra codificada na URL, chave fora do formato (404), armazém atualizando (503 com o código `CONTRACT_STORE_UPDATING`) e os totais da Coleta vindos do manifesto;
     - itens e arquivos do PNCP com cache;
     - rotas por HTTP (`routes/routes.db.test.ts`).
@@ -554,6 +561,40 @@ Item 4 de Licitações (plano `.plans/licitacoes-4-concorrentes-monitorados.md`,
   - **a `0005` tem de estar aplicada antes** de a API e o coletor novos rodarem: sem a tabela e sem o tipo no CHECK, a etapa falharia depois de gravar os avisos de vencimento.
 - **Tela** (`/concorrentes`, item de menu depois de Contratos a vencer, e o botão "Acompanhar concorrente" no cabeçalho da página do CNPJ): ver a seção [Telas](#telas-fase-4).
 
+## Documentação › Cofre
+
+Item 5 de Licitações (plano `.plans/licitacoes-5-cofre-de-documentos.md`, migration `0006_vault.sql`): os documentos de habilitação da empresa (certidões, contrato social, atestados...), as pessoas ligadas a ela (sócios, representantes, procuradores e responsáveis técnicos) com os documentos pessoais delas, cada documento com emissão, validade e o arquivo, a situação (válido, vencendo, vencido) e o aviso de vencimento no sino. Sem IA: a leitura do documento, as sanções, os modelos e o checklist por edital são itens futuros (a função de situação já recebe a data de referência para eles).
+
+- **Quem acessa** (a regra de privacidade do item):
+  - **documentos da empresa:** todos com acesso ao módulo (titular e colaboradores com acesso) veem, guardam, editam, abrem e apagam;
+  - **pessoas e documentos de pessoa** (RG ou CNH, procuração...): dado pessoal de terceiros, só o **titular**. Para o colaborador, o documento de pessoa não existe: não vem na lista e pedir um (abrir, editar, apagar) dá 404; guardar um dá 403; as rotas de pessoas dão 403. `GET /access` devolve `permissions.manageVaultPeople` (só o titular);
+  - tudo filtra a conta da sessão (nunca a do pedido) e a pessoa do documento é da mesma conta, garantido também pela chave estrangeira composta `(pessoa_id, conta_id)`.
+- **Dados** (`db/schema.ts`):
+  - `licitacoes.pessoa`: nome (até 120), CPF (11 dígitos, **único na conta**, com os dígitos verificadores conferidos na API), `papeis` (um ou mais códigos de `PERSON_ROLES`: `SOCIO`, `SOCIO_ADMINISTRADOR`, `REPRESENTANTE_LEGAL`, `PROCURADOR`, `RESPONSAVEL_TECNICO`), cargo, e-mail e telefone opcionais; até **50** por conta;
+  - `licitacoes.documento`: `tipo` (código do catálogo), `pessoa_id` (nulo no documento da empresa), descrição (até 120), `emitido_em` e `valido_ate` (datas, emissão antes da validade), e do arquivo só a chave no R2, o nome, o tipo e o tamanho; até **300** por conta;
+  - `notificacao.documento_id` (o aviso de vencimento, que se apaga com o documento) e o índice único `(conta, pessoa, tipo, documento, referência)`; apagar uma pessoa apaga os documentos dela e os avisos deles (cascata).
+- **Catálogo de tipos** (`domains.ts`, `DOCUMENT_TYPES`; sem tabela nem CHECK: a API valida o código e a lista cresce sem migration; `GET /domains` devolve `documentTypes` e `personRoles`): cada tipo tem o dono (`EMPRESA` ou `PESSOA`), se a validade é obrigatória (certidões e registro no conselho), os dias de validade padrão (só **sugestão** de preenchimento a partir da emissão: o prazo real varia por estado, município e tribunal, e vale o do documento), se a descrição é obrigatória (os tipos "Outro"), se o documento novo substitui o anterior (`latestOnly`) e o site do órgão emissor quando há um só (Receita, gov.br, Caixa, TST; estadual, municipal e falência ficam sem link). Os 12 tipos da empresa e os 4 de pessoa estão no arquivo.
+- **Arquivo** (`services/documentUpload.ts`, `vaultFiles.ts`): PDF, JPG ou PNG de até **10 MB**, um por documento, no corpo JSON como data URL `{ name, data }` (como a foto de perfil; o limite do corpo do servidor é 50 MB). O tipo vale pelo **conteúdo** (assinatura do arquivo) e precisa bater com o declarado; o nome é só um rótulo limpo (sem caminho nem caracteres reservados, com a extensão do conteúdo). Mora no R2 em `documentos/<conta>/<uuid>.<extensão>`, privado, com `Content-Disposition: inline` e o nome original codificado; **a chave nunca sai na API**: o app abre por `GET /vault/documents/:id/link`, um link assinado de **2 minutos**. Envio com limite de **30 a cada 10 minutos** por usuário (só o pedido com arquivo conta).
+  - a ordem é a da foto de perfil: o objeto novo vai ao R2, depois a linha; se a linha falhar, o objeto novo é desfeito. Trocar o arquivo grava o novo, aponta a linha e só então apaga o antigo. Apagar o documento (ou a pessoa) apaga as linhas e só depois os objetos (chaves colhidas antes, como manda o AGENT.md); falha no R2 nessa hora fica só no log, com a chave (sem dado pessoal);
+  - **sem R2 configurado** (variáveis `R2_*` ausentes), guardar, trocar e abrir arquivo dão **503** e o resto segue; `GET /vault/documents` devolve `storageAvailable: false` e a tela avisa. O token do R2 da API precisa ter **escrita**, como na foto de perfil.
+- **Situação** (`services/documentStatus.ts`, pura, com a data de referência como parâmetro): sem validade, **válido**; vence em mais de 30 dias, válido; de 0 a 30 dias, **vencendo** (o **próprio dia da validade ainda vale**); antes da data de referência, **vencido**. A API calcula contra o dia de hoje em Brasília e devolve `status` e `daysToExpire`; a tela não recalcula.
+- **Vigente e histórico** (`services/documentRecency.ts`): cada envio é um documento. Nos tipos com `latestOnly` (certidões, cartão do CNPJ, contrato social, documento de identificação, registro profissional) só o **mais recente** do tipo (e da pessoa) é o vigente (a emissão mais nova; no empate ou sem emissão, o último enviado) e os outros são histórico (`current: false`); nos demais tipos (atestados, balanço, procurações, "Outro") todos são vigentes. O resumo da tela e os avisos contam só os vigentes: renovar uma certidão não deixa a antiga avisando que venceu. A tela e o aviso usam a mesma ordem.
+- **API** (`routes/vault.ts`, atrás da trava do módulo; corpo e respostas em inglês, textos em português):
+  - `GET /vault/documents` → `{ items, limit: 300, storageAvailable }`, cada item com `id`, `type`, `personId`, `description`, `issuedOn`, `validUntil`, `fileName`, `fileType`, `fileSize`, `status`, `daysToExpire`, `current`, `createdAt` e `updatedAt`; o colaborador só recebe os da empresa;
+  - `POST /vault/documents { type, personId?, description?, issuedOn?, validUntil?, file: { name, data } }` → 201 `{ document }`. Tipo da empresa não aceita pessoa; tipo de pessoa exige uma pessoa da conta (404 se for de outra); validade obrigatória nos tipos que vencem; descrição nos tipos "Outro"; emissão não depois da validade;
+  - `PATCH /vault/documents/:id { description?, issuedOn?, validUntil?, file? }`: o tipo e a pessoa não mudam; campo ausente mantém e vazio limpa; as regras do tipo valem sobre o que ficaria gravado;
+  - `DELETE /vault/documents/:id`; `GET /vault/documents/:id/link` → `{ url, expiresInSeconds, fileName }`;
+  - `GET /vault/people` → `{ items, limit: 50 }` (com `documentCount` de cada pessoa), `POST /vault/people { name, cpf, roles, jobTitle?, email?, phone? }` → 201 `{ person }`, `PATCH /vault/people/:id` e `DELETE /vault/people/:id` → `{ id, removedDocuments }`: só o titular. CPF repetido na conta dá 400. **O CPF não vai para o log:** uma falha inesperada do banco ao gravar uma pessoa vira 500 genérico e o log leva só o código do Postgres e o nome da restrição (o erro do Drizzle traz os valores).
+- **Aviso** (`collector/documentNotifications.ts`, `notifyExpiringDocuments`, chamado por `runDeadlineReminders`, a etapa `tenders-deadline-reminders`, sem etapa nova; o resultado vai para `details.documents` da execução `LEMBRETES`: documentos que vencem e avisos criados):
+  - `DOCUMENTO_VENCE_30D` (de 8 a 30 dias para vencer) e `DOCUMENTO_VENCE_7D` (de 0 a 7), um por documento vigente e por pessoa que pode vê-lo. Quem entra a menos de 8 dias do vencimento só recebe o urgente. Documento vencido não gera aviso novo;
+  - a referência é a validade (AAAA-MM-DD): o índice único com `ON CONFLICT DO NOTHING` impede repetir numa segunda execução, e uma validade nova (a data foi editada) avisa de novo;
+  - destinatários: o titular e os colaboradores ativos com acesso, para documento da empresa; só o titular, para documento de pessoa; só contas com acesso valendo (`fn_conta_com_acesso`);
+  - título `<tipo, ou a descrição nos tipos "Outro"> [de <pessoa>] vence em DD/MM/AAAA`, mensagem com a descrição e link `/documentacao` (ou `/documentacao?aba=pessoas`, para documento de pessoa).
+- **Permissões do coletor e a view `licitacoes.usuario_com_acesso`:** a rotina diária roda com o usuário restrito `licitacoes_coletor`, que **não lê a identidade** em `public` (ver [Usuário de banco restrito](#usuário-de-banco-restrito)). Para saber a quem avisar, a `0006` cria a view `licitacoes.usuario_com_acesso`, que só expõe `(conta_id, usuario_id, papel)` de quem pode usar o módulo agora (o titular ativo da conta ativa e os colaboradores ativos com vínculo ativo e linha em `acesso_membro`); a view roda com os direitos de quem a criou, então o coletor lê só essas três colunas. A migration também concede ao papel (se ele existir) o `SELECT` nas tabelas novas e na view, **e em `concorrente_monitorado`, da `0005`, que ficou sem o GRANT**: sem ele, a etapa de avisos de contratos falharia no banco de produção depois de o coletor receber o código novo (provado numa instância descartável com o papel simulado: "permissão negada para tabela concorrente_monitorado").
+- **Publicação:** a `0006` tem de estar aplicada no banco **antes** de a API e o coletor novos rodarem (a listagem de notificações lê a coluna nova e as rotas e a etapa de lembretes leem as tabelas). O aviso só sai quando a máquina da coleta rodar a rotina diária com o código novo.
+- **LGPD:** o cofre guarda CPF e documentos de sócios e procuradores. Hoje há só contas de cortesia; a Política de Privacidade e os Termos (item 9 do ESCOPO) precisam cobrir isso **antes de abrir a clientes**.
+- **Tela** (`/documentacao`, item de menu "Documentação", abas Cofre e Pessoas; a de Pessoas só para o titular): ver a seção [Telas](#telas-fase-4).
+
 ## Contratos a vencer (dados)
 
 Contratos a vencer: os contratos do PNCP, com o vencimento atual pelos aditivos, para a área "Contratos a vencer" (Parte B). A API do PNCP só filtra contratos por data de publicação, data de atualização e órgão. Por isso eles ficam numa base própria, com uma carga inicial e uma coleta diária. Desde a adoção do armazém Parquet, essa base é o [armazém no R2](#armazém-de-contratos-no-r2), e não mais a tabela `licitacoes.contrato` (migrations 0085 a 0087, removida pela 0087b).
@@ -745,6 +786,11 @@ Coleção completa em `tenders.http`. Montagem no `server.ts`:
 - **Concorrentes monitorados** (seção [Concorrentes monitorados](#concorrentes-monitorados); só do usuário logado na conta):
   - `GET /competitors` e `POST /competitors { cnpj, nickname? }`; `PATCH` e `DELETE /competitors/:cnpj`;
   - `GET /competitors/summary`: os números do armazém (503 com o armazém atualizando, como as rotas de contratos).
+- **Cofre de documentos** (seção [Documentação › Cofre](#documentação--cofre); documentos da empresa de todos com acesso, pessoas e documentos de pessoa só do titular):
+  - `GET`, `POST`, `PATCH /:id` e `DELETE /:id` em `/vault/documents`, e `GET /vault/documents/:id/link` (link do arquivo, de 2 minutos);
+  - `GET`, `POST`, `PATCH /:id` e `DELETE /:id` em `/vault/people` (403 para o colaborador);
+  - `GET /domains` traz também `documentTypes` e `personRoles`, e `GET /access`, `permissions.manageVaultPeople`;
+  - envio de arquivo: 30 a cada 10 minutos por usuário; sem R2 configurado, 503.
 - **Exportação CSV/XLSX:** fora do módulo (decisão do plano da Fase 2).
 
 ## Assinatura
@@ -897,6 +943,11 @@ As telas usam a largura toda da janela. UF, Modalidade e Acompanhamento têm "To
   - quadro com as colunas Analisar, Vou participar e Descartado (até 100 por coluna, inclusive os encerrados), ordenadas pelo prazo;
   - arrastar e soltar no desktop e "Mover para…" em cada card, para o teclado e o celular; a mudança mantém a observação gravada;
   - só o quadro: não há visão em tabela.
+- **Documentação (`/documentacao`):** item de menu depois de Acompanhamento, com as abas Cofre e Pessoas (`?aba=pessoas`; a de Pessoas só para o titular, e o colaborador vê só o Cofre, sem barra de abas, mesmo que abra a URL da outra); ver a seção [Documentação › Cofre](#documentação--cofre):
+  - **Cofre:** os documentos da empresa, de todos com acesso; resumo por situação que filtra a lista (Todos, Vencidos, Vencendo e Válidos, contando só os vigentes); um card por documento vigente, com o selo da situação, "Vence em N dias (data)" ou "Venceu há N dias", a emissão, a descrição, o arquivo e o tamanho; "Abrir" (link de 2 minutos, numa aba nova), "Emitir no site do órgão" (nos tipos que têm um site único) e "Anteriores (N)", que recolhe os documentos que o vigente substituiu; o menu do card edita e exclui (com confirmação). "Guardar documento": tipo, descrição (obrigatória nos tipos "Outro"), emissão, validade (obrigatória nos que vencem, **sugerida** a partir da emissão com o aviso "Confira a validade no documento") e o arquivo (PDF, JPG ou PNG, até 10 MB); ao editar, o tipo não muda e o arquivo só se quiser trocar;
+  - **Pessoas:** "N de 50 pessoas" e "Cadastrar pessoa" (nome, CPF com máscara e conferência, papéis, cargo, e-mail e telefone, com o aviso sobre guardar só dados que a empresa pode guardar); um card por pessoa, com os papéis, o CPF e os documentos dela (o vigente de cada tipo e, marcados "Anterior", os que ele substituiu), "Guardar documento" e, no menu, editar e excluir (a confirmação diz quantos documentos saem junto);
+  - estados: carregando, erro com "Tentar de novo", vazio (explica e oferece guardar o primeiro), filtro sem resultado e, sem R2, o aviso "O envio e a abertura de arquivos estão indisponíveis agora" com o envio e o "Abrir" desabilitados (as datas e os outros dados seguem editáveis);
+  - o sino mostra `DOCUMENTO_VENCE_30D` e `DOCUMENTO_VENCE_7D` ("<documento> vence em DD/MM/AAAA"), que abrem a aba certa.
 - **Notificações:**
   - o sino abre um painel lateral à direita, no visual do painel de notificações do app de finanças, com as 10 mais recentes e "Marcar todas como lidas"; não há página de notificações, o sino é o único lugar;
   - o clique marca como lida e abre o `link` gravado (relativo à base do app).

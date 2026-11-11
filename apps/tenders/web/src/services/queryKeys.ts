@@ -41,6 +41,10 @@ export const tendersQueryKeys = {
   competitors: ['tenders', 'competitors'] as const,
   competitorList: ['tenders', 'competitors', 'list'] as const,
   competitorSummary: ['tenders', 'competitors', 'summary'] as const,
+  /** Cofre de documentos: os documentos (os da empresa e, para o titular, os de pessoa) e as pessoas, sob o mesmo prefixo. */
+  vault: ['tenders', 'vault'] as const,
+  vaultDocuments: ['tenders', 'vault', 'documents'] as const,
+  vaultPeople: ['tenders', 'vault', 'people'] as const,
   dashboard: ['tenders', 'dashboard'] as const,
   /** Contratos que vencem, do Dashboard: lê o armazém, então tem consulta própria. */
   dashboardContracts: ['tenders', 'dashboard', 'contracts'] as const,

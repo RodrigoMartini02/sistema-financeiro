@@ -491,6 +491,9 @@ export interface DomainLists {
   /** Porte (MEI, ME, EPP, Demais) e tipo jurídico (Ltda., SLU, EIRELI, S.A., Outros) da empresa; o `id` é o código gravado. */
   companySizes: Array<{ id: string; name: string }>;
   legalTypes: Array<{ id: string; name: string }>;
+  /** Tipos de documento do cofre (catálogo da API) e papéis das pessoas; o `id` é o código gravado. */
+  documentTypes: DocumentTypeInfo[];
+  personRoles: Array<{ id: string; name: string }>;
   municipalities: Municipality[];
 }
 
@@ -592,6 +595,8 @@ export const TENDER_NOTIFICATION_TYPES = [
   'CONTRATO_VENCE_30D',
   'CONTRATO_ALTERADO',
   'CONTRATO_NOVO_CONCORRENTE',
+  'DOCUMENTO_VENCE_30D',
+  'DOCUMENTO_VENCE_7D',
 ] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 
@@ -960,6 +965,120 @@ export interface CompetitorSummary {
 
 export interface CompetitorSummaryList {
   items: CompetitorSummary[];
+}
+
+/** De quem é o documento do cofre: da empresa (a conta) ou de uma pessoa cadastrada. */
+export type DocumentOwner = 'EMPRESA' | 'PESSOA';
+
+/** Situação do documento no dia, calculada pela API (válido, vencendo em até 30 dias ou vencido). */
+export type DocumentStatus = 'VALID' | 'EXPIRING' | 'EXPIRED';
+
+/** Um tipo do catálogo de documentos (`GET /domains`, `documentTypes`). */
+export interface DocumentTypeInfo {
+  id: string;
+  name: string;
+  owner: DocumentOwner;
+  /** Certidões e registros que vencem: a validade é obrigatória. */
+  validityRequired: boolean;
+  /** Dias de validade a partir da emissão, só para sugerir a data (o prazo real varia). */
+  defaultValidityDays: number | null;
+  /** O tipo é genérico ("Outro documento"): a descrição é obrigatória. */
+  descriptionRequired: boolean;
+  /** Um documento novo do mesmo tipo (e da mesma pessoa) substitui o anterior, que vai para o histórico. */
+  latestOnly: boolean;
+  /** O site oficial para emitir o documento, quando há um só para o país; senão nulo. */
+  issuerUrl: string | null;
+}
+
+/** Documento do cofre (API `/vault/documents`); a chave do arquivo no R2 nunca vem. */
+export interface VaultDocument {
+  id: number;
+  type: string;
+  /** A pessoa do documento; nulo nos documentos da empresa. */
+  personId: number | null;
+  description: string | null;
+  /** AAAA-MM-DD. */
+  issuedOn: string | null;
+  /** AAAA-MM-DD; o próprio dia ainda vale. */
+  validUntil: string | null;
+  fileName: string;
+  /** application/pdf, image/jpeg ou image/png. */
+  fileType: string;
+  /** Bytes. */
+  fileSize: number;
+  status: DocumentStatus;
+  /** Dias até vencer (0 no dia, negativo depois de vencer); nulo sem validade. */
+  daysToExpire: number | null;
+  /** O vigente do tipo (e da pessoa); falso: histórico de um documento mais novo do mesmo tipo. */
+  current: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface VaultDocumentList {
+  items: VaultDocument[];
+  /** O limite por conta (300). */
+  limit: number;
+  /** Há R2 configurado: sem ele, enviar e abrir arquivo fica indisponível. */
+  storageAvailable: boolean;
+}
+
+/** O que a API recebe para guardar um documento: o arquivo vai como data URL. */
+export interface NewVaultDocument {
+  type: string;
+  personId?: number;
+  description?: string;
+  issuedOn?: string;
+  validUntil?: string;
+  file: { name: string; data: string };
+}
+
+/** Na alteração, campo ausente mantém e vazio limpa; o arquivo só vai quando troca. */
+export interface VaultDocumentChanges {
+  description?: string | null;
+  issuedOn?: string | null;
+  validUntil?: string | null;
+  file?: { name: string; data: string };
+}
+
+/** Pessoa ligada à empresa (API `/vault/people`, só o titular). */
+export interface VaultPerson {
+  id: number;
+  name: string;
+  /** Só os 11 dígitos. */
+  cpf: string;
+  roles: string[];
+  jobTitle: string | null;
+  email: string | null;
+  phone: string | null;
+  /** Documentos da pessoa no cofre. */
+  documentCount: number;
+  createdAt: string | null;
+}
+
+export interface VaultPersonList {
+  items: VaultPerson[];
+  /** O limite por conta (50). */
+  limit: number;
+}
+
+export interface NewVaultPerson {
+  name: string;
+  cpf: string;
+  roles: string[];
+  jobTitle?: string;
+  email?: string;
+  phone?: string;
+}
+
+/** Na alteração, campo ausente mantém e vazio limpa (o que pode ficar vazio). */
+export type VaultPersonChanges = Partial<NewVaultPerson>;
+
+/** O link de abertura do arquivo, de vida curta, direto do R2. */
+export interface VaultDocumentLink {
+  url: string;
+  expiresInSeconds: number;
+  fileName: string;
 }
 
 export interface CnpjSummary {

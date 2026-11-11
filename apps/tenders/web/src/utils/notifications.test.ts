@@ -27,6 +27,12 @@ test('notificação de contrato: abre o contrato pelo link gravado (a barra da c
   assert.equal(notificationTarget({ link: '', noticeId: null, contractKey: 'qualquer coisa' }), null, 'chave fora do formato não vira link');
 });
 
+test('notificação de documento do cofre: abre a página Documentação, na aba Pessoas quando o documento é de pessoa', () => {
+  assert.equal(notificationTarget({ link: '/documentacao', noticeId: null }), '/documentacao');
+  assert.equal(notificationTarget({ link: '/documentacao?aba=pessoas', noticeId: null }), '/documentacao?aba=pessoas');
+  assert.equal(notificationTarget({ link: '/licitacoes/app/documentacao?aba=pessoas', noticeId: null }), '/documentacao?aba=pessoas', 'link com a base');
+});
+
 const run = (startedAt: string | null, finishedAt: string | null): Pick<CollectionRun, 'startedAt' | 'finishedAt'> => ({ startedAt, finishedAt });
 
 test('coleta: duração da execução', () => {

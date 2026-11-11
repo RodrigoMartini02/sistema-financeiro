@@ -30,11 +30,11 @@ test('assinatura vencida (402): papel e conta vêm em data; resposta incompleta 
 });
 
 test('menu: as páginas do módulo; Configurações abre em modal e não é item de menu', () => {
-  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
-  const colaborador = { manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false };
-  const pages = ['dashboard', 'buscar', 'contratos', 'concorrentes', 'buscas', 'favoritos', 'acompanhamento'];
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const colaborador = { manageTeam: false, manageCompany: false, manageBilling: false, manageVaultPeople: false, viewCollectionRuns: false, manageEnabledAccounts: false };
+  const pages = ['dashboard', 'buscar', 'contratos', 'concorrentes', 'buscas', 'favoritos', 'acompanhamento', 'documentacao'];
   assert.deepEqual(menuRoutes(titular).map((route) => route.key), pages);
-  assert.deepEqual(menuRoutes(colaborador).map((route) => route.key), pages);
+  assert.deepEqual(menuRoutes(colaborador).map((route) => route.key), pages, 'Documentação é de todos com acesso: o colaborador vê o Cofre da empresa');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'configuracoes'), false);
   assert.equal(routeForPath('/configuracoes')?.title, 'Configurações', 'a rota fica para o retorno da cobrança do Mercado Pago');
   assert.equal(menuRoutes(colaborador).some((route) => route.key === 'edital'), false, 'o edital abre pela lista');
@@ -42,8 +42,8 @@ test('menu: as páginas do módulo; Configurações abre em modal e não é item
 });
 
 test('menu: Contas habilitadas só para o admin da plataforma, no fim do menu', () => {
-  const titularAdmin = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: true };
-  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const titularAdmin = { manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: true };
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   assert.equal(menuRoutes(titularAdmin).at(-1)?.key, 'contas');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'contas'), false);
   assert.equal(routeForPath('/admin/contas')?.title, 'Contas habilitadas');
@@ -58,6 +58,7 @@ test('título da barra pela rota; rota desconhecida não tem título de menu', (
   assert.equal(routeForPath('/contratos/45')?.title, 'Contrato');
   assert.equal(routeForPath('/concorrentes')?.title, 'Concorrentes');
   assert.equal(routeForPath('/favoritos')?.title, 'Favoritos');
+  assert.equal(routeForPath('/documentacao')?.title, 'Documentação');
   assert.equal(routeForPath('/nao-existe'), null);
   assert.equal(NOT_FOUND_TITLE, 'Página não encontrada');
 });
@@ -75,7 +76,7 @@ test('busca rápida: um CNPJ válido (com ou sem pontuação) leva à página de
 });
 
 test('página do CNPJ: título da barra e fora do menu', () => {
-  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false };
+  const titular = { manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: false };
   assert.equal(routeForPath('/cnpj/22493902000140')?.title, 'CNPJ');
   assert.equal(menuRoutes(titular).some((route) => route.key === 'cnpj'), false, 'a página abre pelas buscas e pelos nomes, não pelo menu');
 });

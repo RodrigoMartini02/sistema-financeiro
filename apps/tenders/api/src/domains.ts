@@ -185,7 +185,228 @@ export type BillingMethod = (typeof BILLING_METHODS)[number];
 export const BILLING_CANCEL_ORIGINS = ['TITULAR', 'MERCADO_PAGO', 'COBRANCA_RECUSADA'] as const;
 export type BillingCancelOrigin = (typeof BILLING_CANCEL_ORIGINS)[number];
 
-/** Avisos do módulo; os de contratos são da migration 0086 e o de contrato novo de concorrente, da 0005 (CHECK de `notificacao.tipo`). */
+/**
+ * Cofre de documentos (item 5): de quem é o documento. A empresa é a própria conta; a pessoa é uma das cadastradas em
+ * `pessoa` (sócio, representante, procurador...).
+ */
+export const DOCUMENT_OWNERS = ['EMPRESA', 'PESSOA'] as const;
+export type DocumentOwner = (typeof DOCUMENT_OWNERS)[number];
+
+/** Um tipo de documento do catálogo. O `id` é o código gravado em `documento.tipo` e o `name`, o texto da tela. */
+export interface DocumentTypeDefinition {
+  id: string;
+  name: string;
+  owner: DocumentOwner;
+  /** Certidões e registros que vencem: sem a data de validade o documento não tem situação, então ela é obrigatória. */
+  validityRequired: boolean;
+  /** Dias de validade a partir da emissão, só para a tela sugerir a data (o prazo real varia e vale o do documento). */
+  defaultValidityDays: number | null;
+  /** A descrição é obrigatória: o tipo é genérico ("Outro documento"), e ela diz do que se trata. */
+  descriptionRequired: boolean;
+  /**
+   * Um documento novo do mesmo tipo (e da mesma pessoa) substitui o anterior, que vai para o histórico: certidões, cartão do
+   * CNPJ, contrato social, documento de identificação. Nos outros tipos vários convivem (atestados, balanços, procurações,
+   * "outro"), cada um por si.
+   */
+  latestOnly: boolean;
+  /** O site oficial para emitir o documento, quando há um único para o país todo; senão nulo (estadual, municipal...). */
+  issuerUrl: string | null;
+}
+
+/**
+ * Catálogo de tipos do cofre, na ordem da tela. Fica no código (como as outras listas do módulo): a API valida o código e a
+ * lista cresce sem migration. Os prazos são só sugestões de preenchimento.
+ */
+export const DOCUMENT_TYPES = [
+  {
+    id: 'CONTRATO_SOCIAL',
+    name: 'Contrato social ou estatuto, com alterações',
+    owner: 'EMPRESA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'CARTAO_CNPJ',
+    name: 'Cartão do CNPJ',
+    owner: 'EMPRESA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: 'https://solucoes.receita.fazenda.gov.br/servicos/cnpjreva/cnpjreva_solicitacao.asp',
+  },
+  {
+    id: 'CERTIDAO_FEDERAL',
+    name: 'Certidão de débitos federais e dívida ativa da União',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 180,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: 'https://www.gov.br/pt-br/servicos/emitir-certidao-de-regularidade-fiscal',
+  },
+  {
+    id: 'CERTIDAO_ESTADUAL',
+    name: 'Certidão negativa de débitos estaduais',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 90,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'CERTIDAO_MUNICIPAL',
+    name: 'Certidão negativa de débitos municipais',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 90,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'CERTIDAO_FGTS',
+    name: 'Certificado de regularidade do FGTS',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 30,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: 'https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf',
+  },
+  {
+    id: 'CERTIDAO_TRABALHISTA',
+    name: 'Certidão negativa de débitos trabalhistas (CNDT)',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 180,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: 'https://cndt-certidao.tst.jus.br/',
+  },
+  {
+    id: 'CERTIDAO_FALENCIA',
+    name: 'Certidão negativa de falência e recuperação judicial',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 90,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'REGISTRO_CONSELHO',
+    name: 'Registro no conselho profissional (CREA, CAU, CRA...)',
+    owner: 'EMPRESA',
+    validityRequired: true,
+    defaultValidityDays: 365,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'BALANCO_PATRIMONIAL',
+    name: 'Balanço patrimonial e demonstrações contábeis',
+    owner: 'EMPRESA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: false,
+    issuerUrl: null,
+  },
+  {
+    id: 'ATESTADO_CAPACIDADE',
+    name: 'Atestado de capacidade técnica',
+    owner: 'EMPRESA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: false,
+    issuerUrl: null,
+  },
+  {
+    id: 'OUTRO_EMPRESA',
+    name: 'Outro documento da empresa',
+    owner: 'EMPRESA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: true,
+    latestOnly: false,
+    issuerUrl: null,
+  },
+  {
+    id: 'DOCUMENTO_IDENTIDADE',
+    name: 'Documento de identificação (RG ou CNH)',
+    owner: 'PESSOA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'PROCURACAO',
+    name: 'Procuração',
+    owner: 'PESSOA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: false,
+    issuerUrl: null,
+  },
+  {
+    id: 'REGISTRO_PROFISSIONAL',
+    name: 'Registro profissional do responsável técnico',
+    owner: 'PESSOA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: false,
+    latestOnly: true,
+    issuerUrl: null,
+  },
+  {
+    id: 'OUTRO_PESSOA',
+    name: 'Outro documento da pessoa',
+    owner: 'PESSOA',
+    validityRequired: false,
+    defaultValidityDays: null,
+    descriptionRequired: true,
+    latestOnly: false,
+    issuerUrl: null,
+  },
+] as const satisfies readonly DocumentTypeDefinition[];
+export type DocumentTypeId = (typeof DOCUMENT_TYPES)[number]['id'];
+/** Uma entrada do catálogo, com o código do tipo já estreito (o que a coluna `documento.tipo` aceita). */
+export type DocumentCatalogEntry = (typeof DOCUMENT_TYPES)[number];
+
+/** O tipo do catálogo pelo código; código fora do catálogo, undefined. */
+export function findDocumentType(id: string): DocumentCatalogEntry | undefined {
+  return DOCUMENT_TYPES.find((type) => type.id === id);
+}
+
+/** Papéis da pessoa na empresa (item 5), gravados em `pessoa.papeis`: a pessoa pode ter mais de um. */
+export const PERSON_ROLES = [
+  { id: 'SOCIO', name: 'Sócio' },
+  { id: 'SOCIO_ADMINISTRADOR', name: 'Sócio-administrador' },
+  { id: 'REPRESENTANTE_LEGAL', name: 'Representante legal' },
+  { id: 'PROCURADOR', name: 'Procurador' },
+  { id: 'RESPONSAVEL_TECNICO', name: 'Responsável técnico' },
+] as const;
+export type PersonRole = (typeof PERSON_ROLES)[number]['id'];
+export const PERSON_ROLE_IDS: readonly string[] = PERSON_ROLES.map((role) => role.id);
+
+/** Situação do documento no dia: calculada da validade, nunca gravada (services/documentStatus.ts). */
+export const DOCUMENT_STATUSES = ['VALID', 'EXPIRING', 'EXPIRED'] as const;
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
+
+/**
+ * Avisos do módulo; os de contratos são da migration 0086, o de contrato novo de concorrente, da 0005 e os de vencimento de
+ * documento, da 0006 (CHECK de `notificacao.tipo`).
+ */
 export const TENDER_NOTIFICATION_TYPES = [
   'NOVO_EDITAL',
   'EDITAL_ALTERADO',
@@ -195,6 +416,8 @@ export const TENDER_NOTIFICATION_TYPES = [
   'CONTRATO_VENCE_30D',
   'CONTRATO_ALTERADO',
   'CONTRATO_NOVO_CONCORRENTE',
+  'DOCUMENTO_VENCE_30D',
+  'DOCUMENTO_VENCE_7D',
 ] as const;
 export type TenderNotificationType = (typeof TENDER_NOTIFICATION_TYPES)[number];
 

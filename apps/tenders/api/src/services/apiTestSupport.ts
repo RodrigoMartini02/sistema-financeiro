@@ -29,6 +29,18 @@ export function testCnpj(seed: number): string {
   return `${base}${first}${checkDigit(`${base}${first}`)}`;
 }
 
+/** CPF com os dígitos verificadores certos, a partir de um número: o mesmo número dá sempre o mesmo CPF (use sementes variadas). */
+export function testCpf(seed: number): string {
+  const base = String(seed).padStart(9, '0').slice(-9);
+  const checkDigit = (digits: string): number => {
+    const sum = [...digits].reduce((total, char, index) => total + Number(char) * (digits.length + 1 - index), 0);
+    const remainder = (sum * 10) % 11;
+    return remainder >= 10 ? 0 : remainder;
+  };
+  const first = checkDigit(base);
+  return `${base}${first}${checkDigit(`${base}${first}`)}`;
+}
+
 export interface TestAccount {
   accountId: number;
   ownerId: number;

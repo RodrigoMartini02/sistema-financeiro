@@ -67,6 +67,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<TenderNotificationType, string> = 
   CONTRATO_VENCE_30D: 'Contrato vence em até 30 dias',
   CONTRATO_ALTERADO: 'Vencimento alterado',
   CONTRATO_NOVO_CONCORRENTE: 'Contrato novo de concorrente',
+  DOCUMENTO_VENCE_30D: 'Documento vence em até 30 dias',
+  DOCUMENTO_VENCE_7D: 'Documento vence em até 7 dias',
 };
 
 export const RUN_TYPE_LABELS: Record<CollectionRunType, string> = {

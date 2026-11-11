@@ -75,6 +75,8 @@ export function overviewRoutes(deps: TendersApiDeps): Router {
             manageCompany: access.role === 'TITULAR',
             // Assinatura (pagar e cancelar): só o titular (as rotas de cobrança conferem de novo).
             manageBilling: access.role === 'TITULAR',
+            // Pessoas do cofre e os documentos delas (dado pessoal de terceiros): só o titular (as rotas conferem de novo).
+            manageVaultPeople: access.role === 'TITULAR',
             viewCollectionRuns: access.role === 'TITULAR' || access.isPlatformAdmin,
             // Tela "Contas habilitadas": só o admin da plataforma (as rotas de admin conferem de novo).
             manageEnabledAccounts: access.isPlatformAdmin,

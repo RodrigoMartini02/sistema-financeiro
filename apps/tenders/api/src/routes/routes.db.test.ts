@@ -24,7 +24,7 @@ import type { CompetitorList, CompetitorSummaryView, CompetitorView } from '../s
 import type { ContractDetail } from '../services/contractDetail';
 import type { ContractSavedSearchView } from '../services/contractSavedSearches';
 import type { ContractListItem } from '../services/contractSearch';
-import { addAccountMember, testCnpj, uniqueToken } from '../services/apiTestSupport';
+import { addAccountMember, testCnpj, testCpf, uniqueToken } from '../services/apiTestSupport';
 import type { DashboardView } from '../services/dashboard';
 import type { ExpiringContractsView } from '../services/dashboardContracts';
 import type { DomainLists } from '../services/domainLists';
@@ -42,10 +42,13 @@ import type { SavedSearchView } from '../services/savedSearches';
 import type { BillingEventView } from '../services/billingHistory';
 import { applyOneTimePayment, clearRecurring, setRecurring, startTenderTrial, type SubscriptionView } from '../services/subscription';
 import type { CourtesyChangeView, TeamMemberView, TenderAccountAdminView } from '../services/team';
+import type { DocumentList, DocumentView } from '../services/vaultDocuments';
+import type { PersonList, PersonView } from '../services/vaultPeople';
 import { CNPJ_RATE_LIMIT } from './cnpj';
 import { COMPANY_LOOKUP_RATE_LIMIT } from './company';
 import { createTendersRoutes } from './index';
 import { PREVIEW_RATE_LIMIT } from './savedSearches';
+import { DOCUMENT_UPLOAD_RATE_LIMIT } from './vault';
 
 // Rotas por HTTP, montadas como no server.ts (authenticate simulado com o
 // usuário do teste) e com o banco da transação desfeita do teste.
@@ -71,7 +74,14 @@ interface ApiResponse<T> {
 interface AccessData {
   account: TenderAccount;
   role: string;
-  permissions: { manageTeam: boolean; manageCompany: boolean; manageBilling: boolean; viewCollectionRuns: boolean; manageEnabledAccounts: boolean };
+  permissions: {
+    manageTeam: boolean;
+    manageCompany: boolean;
+    manageBilling: boolean;
+    manageVaultPeople: boolean;
+    viewCollectionRuns: boolean;
+    manageEnabledAccounts: boolean;
+  };
   subscription: SubscriptionView | null;
 }
 
@@ -94,6 +104,16 @@ interface CompanyData {
 
 /** Um JPEG mínimo (só a assinatura e uns bytes): o servidor confere o tipo pelo conteúdo, não decodifica a imagem. */
 const JPEG_DATA_URL = `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]).toString('base64')}`;
+
+/** Um PDF mínimo (só a assinatura e uns bytes): o servidor confere o tipo pelo conteúdo, não lê o PDF. */
+function pdfFile(name = 'certidao.pdf'): { name: string; data: string } {
+  return { name, data: `data:application/pdf;base64,${Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 1, 2, 3]).toString('base64')}` };
+}
+
+/** 12345678909 vira 123.456.789-09. */
+function maskCpf(cpf: string): string {
+  return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+}
 
 interface BillingData {
   account: TenderAccount;
@@ -291,7 +311,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         assert.equal(access.body.success, true);
         assert.equal(access.body.data.role, 'TITULAR');
         assert.deepEqual(access.body.data.permissions, {
-          manageTeam: true, manageCompany: true, manageBilling: true, viewCollectionRuns: true, manageEnabledAccounts: false,
+          manageTeam: true, manageCompany: true, manageBilling: true, manageVaultPeople: true, viewCollectionRuns: true, manageEnabledAccounts: false,
         });
         assert.equal(access.body.data.subscription?.situation, 'cortesia');
 
@@ -372,7 +392,7 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
         const access = await call<AccessData>('GET', '/api/tenders/access', { as });
         assert.equal(access.body.data.role, 'COLABORADOR');
         assert.deepEqual(access.body.data.permissions, {
-          manageTeam: false, manageCompany: false, manageBilling: false, viewCollectionRuns: false, manageEnabledAccounts: false,
+          manageTeam: false, manageCompany: false, manageBilling: false, manageVaultPeople: false, viewCollectionRuns: false, manageEnabledAccounts: false,
         });
         assert.equal((await call('GET', '/api/tenders/notices', { as })).status, 200);
         assert.equal((await call('GET', '/api/tenders/team', { as })).status, 403);
@@ -1119,6 +1139,178 @@ describe('rotas /api/tenders (banco local)', { skip: databaseTestsSkipReason }, 
       } finally {
         await store.close();
       }
+    });
+  });
+
+  test('cofre por HTTP: pessoas só do titular; documentos da empresa de todos e os de pessoa só do titular; arquivo, link, validações e isolamento', async () => {
+    await withRollback(async (tx) => {
+      const account = await createTestAccount(tx, 'http-cofre');
+      const other = await createTestAccount(tx, 'http-cofre-outra');
+      const colleagueId = await addAccountMember(tx, account, 'http-cofre-colega', { access: true });
+      const { storage, objects } = createMemoryStorage();
+      const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+      await withApi(
+        tx,
+        async (call) => {
+          const owner = { id: account.ownerId, type: 'titular' as const };
+          const colleague = { id: colleagueId, type: 'membro' as const };
+          const outsider = { id: other.ownerId, type: 'titular' as const };
+          const documents = async (as: TestUser) => (await call<DocumentList>('GET', '/api/tenders/vault/documents', { as })).body.data;
+          const people = async (as: TestUser) => (await call<PersonList>('GET', '/api/tenders/vault/people', { as })).body.data;
+
+          // As listas do cofre vão em /domains.
+          const domains = await call<DomainLists>('GET', '/api/tenders/domains', { as: owner });
+          assert.equal(domains.body.data.documentTypes.length, 16);
+          assert.equal(domains.body.data.personRoles.length, 5);
+          assert.equal(domains.body.data.documentTypes.find((type) => type.id === 'CERTIDAO_FGTS')?.defaultValidityDays, 30);
+          assert.deepEqual(domains.body.data.personRoles[0], { id: 'SOCIO', name: 'Sócio' });
+
+          // As pessoas são do titular: o colaborador recebe 403 em tudo.
+          for (const [method, path, body] of [
+            ['GET', '/api/tenders/vault/people', undefined],
+            ['POST', '/api/tenders/vault/people', { name: 'Ana', cpf: testCpf(5001), roles: ['SOCIO'] }],
+            ['PATCH', '/api/tenders/vault/people/1', { name: 'Ana' }],
+            ['DELETE', '/api/tenders/vault/people/1', undefined],
+          ] as const) {
+            assert.equal((await call(method, path, { as: colleague, ...(body ? { body } : {}) })).status, 403, `${method} ${path}`);
+          }
+
+          // Pessoa: validações e cadastro.
+          const badCpf = await call('POST', '/api/tenders/vault/people', { as: owner, body: { name: 'Ana', cpf: '111.111.111-11', roles: ['SOCIO'] } });
+          assert.deepEqual([badCpf.status, badCpf.body.message], [400, 'CPF inválido: confira os 11 dígitos']);
+          const noRole = await call('POST', '/api/tenders/vault/people', { as: owner, body: { name: 'Ana', cpf: testCpf(5001), roles: [] } });
+          assert.deepEqual([noRole.status, noRole.body.message], [400, 'Escolha ao menos um papel para a pessoa']);
+          assert.deepEqual((await people(owner)).items, [], 'nada foi gravado pelos pedidos inválidos');
+
+          const createdPerson = await call<{ person: PersonView }>('POST', '/api/tenders/vault/people', {
+            as: owner,
+            body: { name: ' Ana  Souza ', cpf: maskCpf(testCpf(5001)), roles: ['SOCIO', 'PROCURADOR'], email: 'ANA@exemplo.com' },
+          });
+          assert.equal(createdPerson.status, 201);
+          const person = createdPerson.body.data.person;
+          assert.deepEqual({ name: person.name, cpf: person.cpf, roles: person.roles, email: person.email, documentCount: person.documentCount }, { name: 'Ana Souza', cpf: testCpf(5001), roles: ['SOCIO', 'PROCURADOR'], email: 'ana@exemplo.com', documentCount: 0 });
+          const duplicate = await call('POST', '/api/tenders/vault/people', { as: owner, body: { name: 'Outra', cpf: testCpf(5001), roles: ['SOCIO'] } });
+          assert.deepEqual([duplicate.status, duplicate.body.message], [400, 'Já existe uma pessoa com este CPF nesta conta']);
+          const renamed = await call<{ person: PersonView }>('PATCH', `/api/tenders/vault/people/${person.id}`, { as: owner, body: { jobTitle: 'Diretora' } });
+          assert.deepEqual([renamed.status, renamed.body.data.person.jobTitle, renamed.body.data.person.name], [200, 'Diretora', 'Ana Souza']);
+          assert.equal((await call('PATCH', `/api/tenders/vault/people/${person.id}`, { as: owner, body: {} })).status, 400);
+          assert.equal((await call('PATCH', '/api/tenders/vault/people/abc', { as: owner, body: { name: 'x' } })).status, 400, 'identificador inválido');
+
+          // Documento: validações do pedido.
+          const post = (as: TestUser, body: unknown) => call<{ document: DocumentView }>('POST', '/api/tenders/vault/documents', { as, body });
+          assert.deepEqual([(await post(owner, {})).status, (await post(owner, {})).body.message], [400, 'Tipo de documento inválido']);
+          assert.equal((await post(owner, { type: 'CERTIDAO_FGTS', file: pdfFile() })).body.message, 'Informe a validade do documento');
+          assert.equal((await post(owner, { type: 'CERTIDAO_FGTS', validUntil: inDays(10) })).body.message, 'Envie o arquivo do documento');
+          assert.equal((await post(owner, { type: 'CERTIDAO_FGTS', validUntil: inDays(10), file: { name: 'a.txt', data: 'data:text/plain;base64,aGVsbG8=' } })).body.message, 'O arquivo deve ser um PDF, JPG ou PNG');
+          assert.equal((await post(owner, { type: 'CERTIDAO_FGTS', personId: person.id, validUntil: inDays(10), file: pdfFile() })).body.message, 'Este tipo de documento é da empresa e não tem pessoa');
+          assert.equal((await post(owner, { type: 'DOCUMENTO_IDENTIDADE', file: pdfFile() })).body.message, 'Escolha a pessoa do documento');
+          assert.equal((await documents(owner)).items.length, 0);
+          assert.equal(objects.size, 0, 'nenhum pedido inválido chegou ao R2');
+
+          // Guardar: o titular e o colaborador guardam documento da empresa; só o titular guarda o de pessoa.
+          const company = await post(owner, { type: 'CERTIDAO_FGTS', issuedOn: inDays(-20), validUntil: inDays(10), file: pdfFile('Certidão FGTS.pdf') });
+          assert.equal(company.status, 201);
+          assert.deepEqual(
+            { type: company.body.data.document.type, status: company.body.data.document.status, daysToExpire: company.body.data.document.daysToExpire, fileName: company.body.data.document.fileName, current: company.body.data.document.current },
+            { type: 'CERTIDAO_FGTS', status: 'EXPIRING', daysToExpire: 10, fileName: 'Certidão FGTS.pdf', current: true },
+          );
+          const byColleague = await post(colleague, { type: 'CONTRATO_SOCIAL', file: pdfFile('contrato.pdf') });
+          assert.equal(byColleague.status, 201, 'o colaborador com acesso guarda documento da empresa');
+          const personal = await post(owner, { type: 'PROCURACAO', personId: person.id, description: 'Pregão 4/2026', validUntil: inDays(400), file: pdfFile('procuração.pdf') });
+          assert.equal(personal.status, 201);
+          assert.equal(personal.body.data.document.personId, person.id);
+          const forbidden = await post(colleague, { type: 'PROCURACAO', personId: person.id, description: 'x', file: pdfFile() });
+          assert.deepEqual([forbidden.status, forbidden.body.message], [403, 'Só o titular da conta pode guardar documentos de pessoas.']);
+          const strangerPerson = await post(outsider, { type: 'PROCURACAO', personId: person.id, description: 'x', file: pdfFile() });
+          assert.deepEqual([strangerPerson.status, strangerPerson.body.message], [404, 'Pessoa não encontrada']);
+          assert.equal(objects.size, 3);
+          assert.ok([...objects.keys()].every((key) => key.startsWith(`documentos/${account.accountId}/`)), 'os arquivos ficam na pasta da conta');
+
+          // Lista: o titular vê tudo; o colaborador, só os da empresa; a chave do R2 não sai.
+          const asOwner = await documents(owner);
+          assert.equal(asOwner.limit, 300);
+          assert.equal(asOwner.storageAvailable, true);
+          assert.deepEqual(asOwner.items.map((item) => item.type).sort(), ['CERTIDAO_FGTS', 'CONTRATO_SOCIAL', 'PROCURACAO']);
+          assert.deepEqual((await documents(colleague)).items.map((item) => item.type).sort(), ['CERTIDAO_FGTS', 'CONTRATO_SOCIAL']);
+          assert.deepEqual((await documents(outsider)).items, []);
+          const raw = JSON.stringify((await call('GET', '/api/tenders/vault/documents', { as: owner })).body);
+          assert.ok(!raw.includes('documentos/') && !raw.includes('arquivo_chave') && !raw.includes('fileKey'), 'a chave do R2 não sai na API');
+          assert.equal((await people(owner)).items[0]?.documentCount, 1, 'a pessoa conta o documento dela');
+
+          // Alterar: datas, descrição e arquivo; documento de pessoa o colaborador nem enxerga.
+          const documentId = company.body.data.document.id;
+          const personalId = personal.body.data.document.id;
+          const patched = await call<{ document: DocumentView }>('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: owner, body: { validUntil: inDays(60), description: 'Matriz' } });
+          assert.deepEqual([patched.status, patched.body.data.document.validUntil, patched.body.data.document.description, patched.body.data.document.status], [200, inDays(60), 'Matriz', 'VALID']);
+          assert.equal((await call('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: owner, body: {} })).body.message, 'Informe o que alterar');
+          assert.equal((await call('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: owner, body: { validUntil: '2026-02-30' } })).body.message, 'Data de validade inválida');
+          assert.equal((await call('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: owner, body: { validUntil: null } })).body.message, 'Informe a validade do documento');
+          assert.equal((await call('PATCH', '/api/tenders/vault/documents/abc', { as: owner, body: { description: 'x' } })).status, 400);
+          const swapped = await call<{ document: DocumentView }>('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: owner, body: { file: pdfFile('nova.pdf') } });
+          assert.equal(swapped.body.data.document.fileName, 'nova.pdf');
+          assert.equal(objects.size, 3, 'o arquivo antigo saiu depois de o novo entrar');
+          assert.equal((await call('PATCH', `/api/tenders/vault/documents/${personalId}`, { as: colleague, body: { description: 'invasão' } })).status, 404);
+          assert.equal((await call('PATCH', `/api/tenders/vault/documents/${documentId}`, { as: outsider, body: { description: 'invasão' } })).status, 404);
+
+          // Link de abertura: do titular e do colaborador (da empresa); o de pessoa, só do titular.
+          const link = await call<{ url: string; expiresInSeconds: number; fileName: string }>('GET', `/api/tenders/vault/documents/${documentId}/link`, { as: colleague });
+          assert.equal(link.status, 200);
+          assert.match(link.body.data.url, new RegExp(`^memory://documentos/${account.accountId}/[0-9a-f-]{36}\\.pdf\\?expires=120$`));
+          assert.deepEqual([link.body.data.expiresInSeconds, link.body.data.fileName], [120, 'nova.pdf']);
+          assert.equal((await call('GET', `/api/tenders/vault/documents/${personalId}/link`, { as: owner })).status, 200);
+          assert.equal((await call('GET', `/api/tenders/vault/documents/${personalId}/link`, { as: colleague })).status, 404);
+          assert.equal((await call('GET', `/api/tenders/vault/documents/${documentId}/link`, { as: outsider })).status, 404);
+          assert.equal((await call('GET', '/api/tenders/vault/documents/abc/link', { as: owner })).status, 400);
+
+          // Apagar: o colaborador apaga o da empresa, não o de pessoa; a outra conta não apaga nenhum.
+          assert.equal((await call('DELETE', `/api/tenders/vault/documents/${personalId}`, { as: colleague })).status, 404);
+          assert.equal((await call('DELETE', `/api/tenders/vault/documents/${documentId}`, { as: outsider })).status, 404);
+          const removed = await call<{ id: number }>('DELETE', `/api/tenders/vault/documents/${byColleague.body.data.document.id}`, { as: colleague });
+          assert.deepEqual([removed.status, removed.body.data.id], [200, byColleague.body.data.document.id]);
+          assert.equal(objects.size, 2);
+
+          // Apagar a pessoa leva os documentos e os arquivos dela.
+          const removedPerson = await call<{ id: number; removedDocuments: number }>('DELETE', `/api/tenders/vault/people/${person.id}`, { as: owner });
+          assert.deepEqual([removedPerson.status, removedPerson.body.data], [200, { id: person.id, removedDocuments: 1 }]);
+          assert.deepEqual((await people(owner)).items, []);
+          assert.deepEqual((await documents(owner)).items.map((item) => item.id), [documentId]);
+          assert.equal(objects.size, 1);
+          assert.equal((await call('DELETE', `/api/tenders/vault/people/${person.id}`, { as: owner })).status, 404, 'apagar de novo: não encontrada');
+        },
+        UPDATING_STORE,
+        storage,
+      );
+
+      // Sem R2 configurado (as variáveis R2_* não estão definidas): guardar e abrir dão 503; a lista segue, avisando.
+      await withApi(tx, async (call) => {
+        const owner = { id: account.ownerId, type: 'titular' as const };
+        const stored = await call('POST', '/api/tenders/vault/documents', { as: owner, body: { type: 'CONTRATO_SOCIAL', file: pdfFile() } });
+        assert.equal(stored.status, 503);
+        assert.match(stored.body.message ?? '', /não estão disponíveis agora/);
+        const list = await call<DocumentList>('GET', '/api/tenders/vault/documents', { as: owner });
+        assert.deepEqual([list.status, list.body.data.storageAvailable], [200, false]);
+        const documentId = list.body.data.items[0]?.id ?? 0;
+        assert.equal((await call('GET', `/api/tenders/vault/documents/${documentId}/link`, { as: owner })).status, 503);
+      });
+
+      // Os envios têm limite por usuário: 30 a cada 10 minutos.
+      await withApi(
+        tx,
+        async (call) => {
+          const owner = { id: account.ownerId, type: 'titular' as const };
+          let limited = 0;
+          for (let index = 0; index < DOCUMENT_UPLOAD_RATE_LIMIT.max + 2; index += 1) {
+            const response = await call('POST', '/api/tenders/vault/documents', { as: owner, body: { type: 'CONTRATO_SOCIAL', file: {} } });
+            if (response.status === 429) limited += 1;
+          }
+          assert.ok(limited >= 1, 'passou do limite: 429');
+          const withoutFile = await call('PATCH', '/api/tenders/vault/documents/1', { as: owner, body: { description: 'sem arquivo' } });
+          assert.notEqual(withoutFile.status, 429, 'pedido sem arquivo não conta no limite de envios');
+        },
+        UPDATING_STORE,
+        storage,
+      );
     });
   });
 

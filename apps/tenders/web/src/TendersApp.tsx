@@ -8,6 +8,7 @@ import { CompetitorsScreen } from './screens/CompetitorsScreen';
 import { ContractScreen } from './screens/ContractScreen';
 import { ContractsScreen } from './screens/ContractsScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { DocumentationScreen } from './screens/DocumentationScreen';
 import { FavoritesScreen } from './screens/FavoritesScreen';
 import { ExpiredScreen, GateErrorScreen, NoAccessScreen } from './screens/GateScreens';
 import { NoticeScreen } from './screens/NoticeScreen';
@@ -70,6 +71,7 @@ export function TendersApp() {
         <Route path="buscas" element={<SavedSearchesScreen />} />
         <Route path="favoritos" element={<FavoritesScreen />} />
         <Route path="acompanhamento" element={<TrackingScreen />} />
+        <Route path="documentacao" element={<DocumentationScreen />} />
         {/* O Mercado Pago volta por aqui depois da cobrança: abre a página inicial com as Configurações em modal. */}
         <Route path="configuracoes" element={<Navigate to={settingsRouteTarget(access.data.permissions)} replace />} />
         <Route path="admin/contas" element={<AdminAccountsScreen />} />

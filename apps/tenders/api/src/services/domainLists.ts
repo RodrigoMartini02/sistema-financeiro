@@ -5,10 +5,12 @@ import {
   COMPANY_SIZES,
   CONTRACT_CATEGORIES,
   CONTRACT_TYPES,
+  DOCUMENT_TYPES,
   GOVERNMENT_SPHERES,
   LEGAL_TYPES,
   MEMBER_JOB_TITLES,
   MEMBER_SECTORS,
+  PERSON_ROLES,
   TENDER_MODALITIES,
   TENDER_SITUATIONS,
   TRACKING_STATUSES,
@@ -42,6 +44,9 @@ export interface DomainLists {
   /** Porte e tipo jurídico da empresa (perfil da empresa). */
   companySizes: typeof COMPANY_SIZES;
   legalTypes: typeof LEGAL_TYPES;
+  /** Tipos de documento do cofre (com o dono, a validade padrão e o site do órgão emissor) e papéis das pessoas. */
+  documentTypes: typeof DOCUMENT_TYPES;
+  personRoles: typeof PERSON_ROLES;
   municipalities: Municipality[];
 }
 
@@ -79,6 +84,8 @@ export function createDomainListsReader(db: TendersDb, now: () => number = Date.
       memberJobTitles: MEMBER_JOB_TITLES,
       companySizes: COMPANY_SIZES,
       legalTypes: LEGAL_TYPES,
+      documentTypes: DOCUMENT_TYPES,
+      personRoles: PERSON_ROLES,
       municipalities: cached.municipalities,
     };
   };

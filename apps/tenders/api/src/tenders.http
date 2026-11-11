@@ -271,7 +271,76 @@ Content-Type: application/json
 DELETE {{baseUrl}}/competitors/11222333000181?accountId={{accountId}}
 Authorization: Bearer {{token}}
 
-### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE
+### Cofre: os documentos que a pessoa vê (a empresa, de todos com acesso; os de pessoa, só o titular). Cada um com a situação (VALID, EXPIRING, EXPIRED) e `current`; a chave do R2 nunca vem
+GET {{baseUrl}}/vault/documents?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Cofre: guardar um documento da empresa (o arquivo vai como data URL de PDF, JPG ou PNG, até 10 MB; 201). Sem R2 configurado, 503. Troque o conteúdo de `data` por um arquivo seu
+# @name createVaultDocument
+POST {{baseUrl}}/vault/documents?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": "CERTIDAO_FGTS",
+  "description": "Matriz",
+  "issuedOn": "2026-11-01",
+  "validUntil": "2026-12-01",
+  "file": { "name": "crf.pdf", "data": "data:application/pdf;base64,JVBERi0xLjQKJSVFT0YK" }
+}
+
+### Cofre: alterar datas e descrição (o tipo e a pessoa não mudam; vazio limpa) e, se quiser, trocar o arquivo com "file"
+PATCH {{baseUrl}}/vault/documents/{{createVaultDocument.response.body.data.document.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "validUntil": "2027-01-15" }
+
+### Cofre: o link do arquivo (vale por 2 minutos; o colaborador só abre os da empresa)
+GET {{baseUrl}}/vault/documents/{{createVaultDocument.response.body.data.document.id}}/link?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Cofre: apagar o documento (e o arquivo no R2)
+DELETE {{baseUrl}}/vault/documents/{{createVaultDocument.response.body.data.document.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Cofre: as pessoas ligadas à empresa (só o titular; até 50)
+GET {{baseUrl}}/vault/people?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Cofre: cadastrar uma pessoa (CPF válido e único na conta, ao menos um papel: SOCIO, SOCIO_ADMINISTRADOR, REPRESENTANTE_LEGAL, PROCURADOR, RESPONSAVEL_TECNICO)
+# @name createVaultPerson
+POST {{baseUrl}}/vault/people?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "Ana Souza", "cpf": "529.982.247-25", "roles": ["SOCIO", "PROCURADOR"], "jobTitle": "Diretora", "email": "ana@exemplo.com" }
+
+### Cofre: guardar um documento da pessoa (tipo de pessoa, com "personId"; só o titular)
+POST {{baseUrl}}/vault/documents?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": "PROCURACAO",
+  "personId": {{createVaultPerson.response.body.data.person.id}},
+  "description": "Pregão 4/2026",
+  "validUntil": "2027-06-30",
+  "file": { "name": "procuracao.pdf", "data": "data:application/pdf;base64,JVBERi0xLjQKJSVFT0YK" }
+}
+
+### Cofre: alterar a pessoa (só o que veio; vazio limpa)
+PATCH {{baseUrl}}/vault/people/{{createVaultPerson.response.body.data.person.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "jobTitle": "Diretora comercial" }
+
+### Cofre: apagar a pessoa, os documentos dela e os arquivos
+DELETE {{baseUrl}}/vault/people/{{createVaultPerson.response.body.data.person.id}}?accountId={{accountId}}
+Authorization: Bearer {{token}}
+
+### Notificações (unreadOnly, type, paginação); os tipos de contrato: CONTRATO_VENCE_90D, CONTRATO_VENCE_30D, CONTRATO_ALTERADO e CONTRATO_NOVO_CONCORRENTE; os de documento do cofre: DOCUMENTO_VENCE_30D e DOCUMENTO_VENCE_7D
 GET {{baseUrl}}/notifications?accountId={{accountId}}&unreadOnly=true&type=NOVO_EDITAL&page=1&perPage=20
 Authorization: Bearer {{token}}
 

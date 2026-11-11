@@ -9,6 +9,7 @@ import type { CollectorConfig } from './config';
 import type { TendersDb } from './database';
 import { addCalendarDays, brasiliaDate, brasiliaDateTime, toPncpDate } from './dates';
 import { readFederalProgress } from './federalProgress';
+import { notifyExpiringDocuments } from './documentNotifications';
 import { errorMessage, type CollectorLogger } from './logger';
 import { mapPncpRecord, type TenderNoticeRow } from './mapping';
 import { notifyChangedNotices, notifyNewNotices, notifyNewNoticesCollectedSince, notifyUpcomingDeadlines } from './notifications';
@@ -343,10 +344,16 @@ export function runManualCollect(
   });
 }
 
-/** Lembretes de prazo (PRAZO_3D e PRAZO_1D) dos acompanhamentos "Vou participar". */
+/**
+ * Lembretes de prazo (PRAZO_3D e PRAZO_1D) dos acompanhamentos "Vou participar" e de vencimento dos documentos do cofre
+ * (DOCUMENTO_VENCE_30D e DOCUMENTO_VENCE_7D, `details.documents`).
+ */
 export function runDeadlineReminders(context: CollectorContext): Promise<RunOutcome> {
   return withCollectionRun(context, 'LEMBRETES', COLLECTOR_LOCK_KEYS.maintenance, async (tally) => {
     tally.notificationCount += await notifyUpcomingDeadlines(context.db);
+    const documents = await notifyExpiringDocuments(context.db, brasiliaDate(context.now()));
+    tally.notificationCount += documents.created;
+    tally.details['documents'] = { ...documents };
   });
 }
 

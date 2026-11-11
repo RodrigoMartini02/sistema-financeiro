@@ -15,7 +15,9 @@ import {
   customType,
   index,
   uniqueIndex,
+  unique,
   primaryKey,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { accounts, users } from './identity';
@@ -27,9 +29,12 @@ import type {
   CollectionRunStatus,
   CollectionRunType,
   DetailCacheType,
+  DocumentTypeId,
+  PersonRole,
   SearchTermsMode,
   TenderAccessType,
   TenderNotificationType,
+  TenderRole,
   TrackingHistoryStatus,
   TrackingStatus,
 } from '../domains';
@@ -219,6 +224,18 @@ export const tenderMemberAccess = tendersSchema.table(
   }),
 );
 
+/**
+ * Quem pode usar o módulo em cada conta agora (view da migration 0006): o titular e os colaboradores ativos com acesso. É
+ * por ela que a rotina diária sabe a quem avisar sem ler a identidade em `public`; só leitura.
+ */
+export const tenderUsersWithAccess = tendersSchema
+  .view('usuario_com_acesso', {
+    accountId: integer('conta_id').notNull(),
+    userId: integer('usuario_id').notNull(),
+    role: varchar('papel', { length: 12 }).$type<TenderRole>().notNull(),
+  })
+  .existing();
+
 export const tenderSavedSearches = tendersSchema.table(
   'busca_salva',
   {
@@ -326,6 +343,71 @@ export const tenderCompetitors = tendersSchema.table(
   }),
 );
 
+/**
+ * Pessoas ligadas à empresa (migration 0006): sócios, representantes, procuradores e responsáveis técnicos, com o CPF
+ * (único na conta) e os papéis. Dado pessoal de terceiros: só o titular da conta lê e altera (a API confere).
+ */
+export const tenderPeople = tendersSchema.table(
+  'pessoa',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    name: varchar('nome', { length: 120 }).notNull(),
+    /** Só os 11 dígitos. */
+    cpf: varchar('cpf', { length: 11 }).notNull(),
+    roles: text('papeis').array().$type<PersonRole[]>().notNull(),
+    jobTitle: varchar('cargo', { length: 80 }),
+    email: varchar('email', { length: 255 }),
+    phone: varchar('telefone', { length: 20 }),
+    createdBy: integer('criado_por').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+    updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    accountCpfKey: unique('pessoa_conta_cpf_key').on(table.accountId, table.cpf),
+    // Alvo da chave estrangeira composta de `documento`: o documento só aponta para uma pessoa da mesma conta.
+    idAccountKey: unique('pessoa_id_conta_key').on(table.id, table.accountId),
+  }),
+);
+
+/**
+ * Documentos do cofre (migration 0006): da empresa (`personId` nulo) ou de uma pessoa, com emissão, validade e o arquivo no
+ * R2 (só a chave, o nome, o tipo e o tamanho ficam aqui). A situação (válido, vencendo, vencido) sai da validade e do dia.
+ */
+export const tenderDocuments = tendersSchema.table(
+  'documento',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    accountId: integer('conta_id').notNull().references(() => accounts.id, { onDelete: 'cascade' }),
+    type: varchar('tipo', { length: 30 }).$type<DocumentTypeId>().notNull(),
+    personId: bigint('pessoa_id', { mode: 'number' }),
+    description: varchar('descricao', { length: 120 }),
+    /** AAAA-MM-DD. */
+    issuedOn: date('emitido_em', { mode: 'string' }),
+    /** AAAA-MM-DD; o próprio dia ainda vale. */
+    validUntil: date('valido_ate', { mode: 'string' }),
+    /** Chave do objeto no R2 (relativa à pasta do ambiente); nunca sai na API. */
+    fileKey: varchar('arquivo_chave', { length: 255 }).notNull(),
+    fileName: varchar('arquivo_nome', { length: 200 }).notNull(),
+    fileType: varchar('arquivo_tipo', { length: 100 }).notNull(),
+    fileSize: integer('arquivo_bytes').notNull(),
+    createdBy: integer('criado_por').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestampWithZone('criado_em').defaultNow().notNull(),
+    updatedAt: timestampWithZone('atualizado_em').defaultNow().notNull(),
+  },
+  (table) => ({
+    // Chave composta: o documento nunca aponta para uma pessoa de outra conta. Apagar a pessoa apaga os documentos.
+    personFk: foreignKey({
+      name: 'documento_pessoa_fkey',
+      columns: [table.personId, table.accountId],
+      foreignColumns: [tenderPeople.id, tenderPeople.accountId],
+    }).onDelete('cascade'),
+    accountTypeIdx: index('ix_documento_conta_tipo').on(table.accountId, table.type, table.personId),
+    validityIdx: index('ix_documento_validade').on(table.validUntil).where(sql`valido_ate IS NOT NULL`),
+    personIdx: index('ix_documento_pessoa').on(table.personId, table.accountId).where(sql`pessoa_id IS NOT NULL`),
+  }),
+);
+
 /** Favoritos de cada pessoa na conta (migration 0078): só ela vê os seus. */
 export const tenderFavorites = tendersSchema.table(
   'favorito',
@@ -390,8 +472,10 @@ export const tenderNotifications = tendersSchema.table(
     savedSearchId: bigint('busca_salva_id', { mode: 'number' }).references(() => tenderSavedSearches.id, { onDelete: 'set null' }),
     // Aviso de contrato (migrations 0086 e 0087b): um aviso é de um edital ou de um contrato (número de controle), nunca dos dois.
     contractKey: varchar('contrato_chave', { length: 60 }),
+    // Aviso de vencimento de documento do cofre (migration 0006): o documento, que leva o aviso junto ao ser apagado.
+    documentId: bigint('documento_id', { mode: 'number' }).references(() => tenderDocuments.id, { onDelete: 'cascade' }),
     // Desambigua EDITAL_ALTERADO (data de atualização), prazos (data de encerramento) e
-    // os avisos de contrato (vencimento, AAAA-MM-DD).
+    // os avisos de contrato e de documento (vencimento, AAAA-MM-DD).
     reference: text('referencia'),
     readAt: timestampWithZone('lida_em'),
     createdAt: timestampWithZone('criada_em').defaultNow().notNull(),
@@ -410,6 +494,9 @@ export const tenderNotifications = tendersSchema.table(
     uniqueContractNotification: uniqueIndex('ux_notificacao_contrato_unica')
       .on(table.accountId, table.userId, table.type, table.contractKey, sql`coalesce(${table.reference}, '')`)
       .where(sql`contrato_chave IS NOT NULL`),
+    uniqueDocumentNotification: uniqueIndex('ux_notificacao_documento_unica')
+      .on(table.accountId, table.userId, table.type, table.documentId, sql`coalesce(${table.reference}, '')`)
+      .where(sql`documento_id IS NOT NULL`),
   }),
 );
 

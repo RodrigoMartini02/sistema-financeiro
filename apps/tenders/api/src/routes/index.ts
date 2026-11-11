@@ -18,6 +18,7 @@ import { profileRoutes } from './profile';
 import { savedSearchRoutes } from './savedSearches';
 import { teamRoutes } from './team';
 import { idParam } from './validators';
+import { vaultRoutes } from './vault';
 
 export { createTendersAuth } from './auth';
 export { tendersApiDepsFromPool, tendersAuthDepsFromEnv, type TendersApiDeps, type TendersAuthDeps } from './deps';
@@ -52,6 +53,7 @@ export function createTendersRoutes(deps: TendersApiDeps): {
   routes.use('/team', teamRoutes(deps));
   routes.use('/profile', profileRoutes(deps));
   routes.use('/company', companyRoutes(deps));
+  routes.use('/vault', vaultRoutes(deps));
   routes.use(overviewRoutes(deps));
 
   const adminRoutes = Router();

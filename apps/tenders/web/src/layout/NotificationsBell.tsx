@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, Radar, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, CalendarClock, CalendarSync, Clock, FileClock, FileWarning, Radar, RefreshCw, Sparkles, X, type LucideIcon } from 'lucide-react';
 import { Z_SYSTEM_OVERLAY } from '@ui/components/zIndex';
 import { LoadError } from '../components/LoadStates';
 import { useMarkAllNotificationsRead, useOpenNotification } from '../hooks/useNotificationActions';
@@ -33,6 +33,8 @@ const TYPE_STYLES: Record<TenderNotificationType, { icon: LucideIcon; circle: st
   CONTRATO_VENCE_30D: { icon: CalendarClock, circle: ROSE_CIRCLE },
   CONTRATO_ALTERADO: { icon: CalendarSync, circle: CYAN_CIRCLE },
   CONTRATO_NOVO_CONCORRENTE: { icon: Radar, circle: CYAN_CIRCLE },
+  DOCUMENTO_VENCE_30D: { icon: FileClock, circle: AMBER_CIRCLE },
+  DOCUMENTO_VENCE_7D: { icon: FileWarning, circle: ROSE_CIRCLE },
 };
 
 const linkClass =
@@ -201,7 +203,7 @@ export function NotificationsBell({ unreadCount, buttonClassName }: Notification
                   <p id={titleId} className="text-base font-bold text-slate-950 dark:text-white">
                     Notificações
                   </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Editais novos, alterados e prazos</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Editais, contratos, prazos e documentos</p>
                 </div>
                 <button
                   type="button"
