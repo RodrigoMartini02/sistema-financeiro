@@ -145,11 +145,12 @@ test('vigente: vencimento de hoje em diante; sem vencimento não é vigente', as
   assert.deepEqual(await matching({}, '2026-10-18'), [1, 2, 3], 'vence no próprio dia: ainda vigente');
 });
 
-test('conjunto da lista: "fornecedor" só com filtro de fornecedor e sem critério que use o texto do contrato', async () => {
-  const dataset = async (criteria: Partial<ContractCriteria>, options: { allContracts?: boolean; numberGroups?: string[] } = {}) =>
+test('conjunto da lista: "fornecedor" só com filtro de fornecedor e sem critério que use o texto do contrato ou a esfera', async () => {
+  const dataset = async (criteria: Partial<ContractCriteria>, options: { allContracts?: boolean; numberGroups?: string[]; spheres?: string[] } = {}) =>
     contractListDataset(await phraseContractCriteria(simplePhrases, { ...EMPTY_CONTRACT_CRITERIA, ...criteria }), {
       allContracts: false,
       numberGroups: [],
+      spheres: [],
       ...options,
     });
   const supplierCnpjs = ['11222333000181'];
@@ -163,6 +164,9 @@ test('conjunto da lista: "fornecedor" só com filtro de fornecedor e sem critér
   assert.equal(await dataset({ supplierCnpjs, excludedTerms: ['de'] }), 'fornecedor', 'exclusão sem radical não vira condição');
   assert.equal(await dataset({ supplierCnpjs }, { numberGroups: ['11', '2026'] }), 'vigentes', 'os grupos de dígitos só existem em vigentes e contratos');
   assert.equal(await dataset({ supplierCnpjs }, { allContracts: true, numberGroups: ['11'] }), 'contratos');
+  assert.equal(await dataset({ supplierCnpjs }, { spheres: ['F'] }), 'vigentes', 'o conjunto fornecedor não tem a coluna esfera');
+  assert.equal(await dataset({ supplierCnpjs }, { allContracts: true, spheres: ['F', 'M'] }), 'contratos');
+  assert.equal(await dataset({ supplierCnpjs, states: ['SP'] }, { spheres: [] }), 'fornecedor', 'esfera vazia é sem filtro: o fornecedor continua');
   assert.equal(await dataset({}), 'vigentes');
   assert.equal(await dataset({ agencyCnpjs: ['29138278000101'] }, { allContracts: true }), 'contratos', 'só o fornecedor tem conjunto próprio');
 });

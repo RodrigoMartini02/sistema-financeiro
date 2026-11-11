@@ -124,16 +124,19 @@ export type ContractListDataset = 'vigentes' | 'contratos' | 'fornecedor';
 
 /**
  * O conjunto que atende a busca (plano .plans/licitacoes-pagina-cnpj.md). Com filtro de fornecedor e sem critério que
- * precise do texto do contrato (termos, exclusões e grupos de dígitos do número, que só `vigentes` e `contratos`
- * guardam), a busca lê o `fornecedor`: todos os contratos, em arquivos ordenados pelo CNPJ do fornecedor, dos quais
- * o DuckDB pula quase todos. Nos outros casos, `contratos` (todos) ou `vigentes`, como sempre.
+ * precise de uma coluna que o `fornecedor` não tem, a busca lê o `fornecedor`: todos os contratos, em arquivos ordenados
+ * pelo CNPJ do fornecedor, dos quais o DuckDB pula quase todos. Esse conjunto guarda só as colunas da lista
+ * (`SUPPLIER_COLUMNS`), então ficam de fora o texto do contrato (termos, exclusões e grupos de dígitos do número, que só
+ * `vigentes` e `contratos` guardam) e a esfera. Nos outros casos, `contratos` (todos) ou `vigentes`, como sempre.
+ * Filtro novo da lista que use uma coluna fora de `SUPPLIER_COLUMNS` entra aqui também (e na matriz de
+ * `cnpjFilters.test.ts`), senão a busca com fornecedor falha no DuckDB.
  */
 export function contractListDataset(
   phrased: PhrasedContractCriteria,
-  options: { allContracts: boolean; numberGroups: readonly string[] },
+  options: { allContracts: boolean; numberGroups: readonly string[]; spheres: readonly string[] },
 ): ContractListDataset {
   const usesText = phrased.termPhrases.length > 0 || phrased.excludedPhrases.some((phrases) => phrases.length > 0);
-  if (phrased.criteria.supplierCnpjs.length > 0 && !usesText && options.numberGroups.length === 0) {
+  if (phrased.criteria.supplierCnpjs.length > 0 && !usesText && options.numberGroups.length === 0 && options.spheres.length === 0) {
     return 'fornecedor';
   }
   return options.allContracts ? 'contratos' : 'vigentes';

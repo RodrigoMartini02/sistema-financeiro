@@ -199,7 +199,7 @@ export async function searchContracts(
 
   const { rows, total } = await context.contractStore.query((connection) =>
     queryContractPage(connection, {
-      dataset: contractListDataset(phrased, { allContracts, numberGroups: filters.numberGroups }),
+      dataset: contractListDataset(phrased, { allContracts, numberGroups: filters.numberGroups, spheres: filters.spheres }),
       phrased,
       activeOn: allContracts ? null : today,
       keys,

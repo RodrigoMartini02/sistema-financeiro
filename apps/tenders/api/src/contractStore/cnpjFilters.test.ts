@@ -6,7 +6,7 @@ import { after, before, test } from 'node:test';
 import type { TenderContractRow } from '../collector/contractMapping';
 import { createMemoryStorage } from '../objectStorageTestSupport';
 import { EMPTY_CONTRACT_CRITERIA, type ContractCriteria } from '../services/contractSearch';
-import { SqlParameters, activeContractCondition, contractCriteriaCondition, phraseContractCriteria } from './criteria';
+import { SqlParameters, activeContractCondition, contractCriteriaCondition, contractListDataset, phraseContractCriteria } from './criteria';
 import { MANIFEST_KEY } from './layout';
 import { parseManifest } from './manifest';
 import { queryContractPage, type ContractListQuery } from './queries';
@@ -24,8 +24,13 @@ const AGENCIES = ['00394460005887', '12345678000195', '33000167000101'];
 const SUPPLIERS = ['11222333000181', '11222333000182', '99887766000155'];
 const PERSON = '***.123.456-**';
 const STATES = ['SP', 'MG', 'RJ'];
+/** A esfera como a coleta grava: maiúscula, minúscula e com espaços nas pontas. */
+const SPHERES = ['F', 'e', ' M ', 'D'];
 
-/** 18 contratos: o órgão e a UF giram de 3 em 3, o fornecedor troca a cada 3, e o último é de pessoa física. */
+/**
+ * 18 contratos: o órgão e a UF giram de 3 em 3, o fornecedor troca a cada 3, a esfera gira de 4 em 4 e o último é de
+ * pessoa física.
+ */
 const contracts: TenderContractRow[] = Array.from({ length: 18 }, (_, index) => {
   const sequence = index + 1;
   const expiresOn = sequence % 4 === 0 ? null : day(sequence - 9);
@@ -33,6 +38,7 @@ const contracts: TenderContractRow[] = Array.from({ length: 18 }, (_, index) => 
     agencyCnpj: AGENCIES[sequence % 3]!,
     supplierDocument: sequence === 18 ? PERSON : SUPPLIERS[Math.floor(sequence / 3) % 3]!,
     state: STATES[sequence % 3]!,
+    governmentSphere: SPHERES[(sequence - 1) % 4]!,
     contractTypeId: sequence % 2 === 0 ? 1 : 7,
     contractTypeName: sequence % 2 === 0 ? 'Contrato' : 'Empenho',
     globalValue: sequence % 5 === 0 ? null : `${sequence * 100}.00`,
@@ -179,4 +185,43 @@ test('fornecedor e contratos dão a mesma lista, com os mesmos filtros, ordens, 
   }
   const sample = await page(await baseQuery('fornecedor', null, criteria, { perPage: 4 }));
   assert.equal(sample.total, 11, 'os sequenciais 1, 2, 9, 10 e 11 (um fornecedor) e 3, 4, 5, 12, 13 e 14 (o outro)');
+});
+
+// O conjunto `fornecedor` só tem as colunas da lista (SUPPLIER_COLUMNS), sem a esfera: com esfera, a busca tem de ir
+// para `contratos` ou `vigentes`. Foi o que faltou quando a esfera entrou na lista (erro do DuckDB na busca com
+// fornecedor). Filtro novo da lista entra nas variações abaixo.
+test('fornecedor com cada filtro da lista: o conjunto que a busca escolhe responde igual a `contratos`', async () => {
+  const criteria: Partial<ContractCriteria> = { supplierCnpjs: [S1] };
+  const variations: Array<Partial<ContractListQuery>> = [
+    {},
+    { contractTypes: [7] },
+    { contractYear: 2026 },
+    { publishedFrom: '2026-03-04', publishedBefore: '2026-03-13' },
+    { expiryFrom: day(0), expiryTo: day(4) },
+    { keys: [contracts[2]!.pncpControlNumber, contracts[4]!.pncpControlNumber, 'lixo'] },
+    { sort: 'publishedDesc', perPage: 3, page: 2 },
+    { sort: 'valueDesc' },
+    { spheres: ['F'] },
+    { spheres: ['M'] },
+    { spheres: ['E'] },
+    { spheres: ['D', 'F'] },
+    { spheres: ['F', 'E', 'M', 'D'], contractTypes: [7], sort: 'valueDesc' },
+    { spheres: ['Z'] },
+  ];
+  const phrasedCriteria = await phrased(criteria);
+  for (const activeOn of [null, TODAY]) {
+    for (const overrides of variations) {
+      const spheres = overrides.spheres ?? [];
+      const dataset = contractListDataset(phrasedCriteria, { allContracts: activeOn === null, numberGroups: [], spheres });
+      assert.equal(dataset === 'fornecedor', spheres.length === 0, `conjunto escolhido: ${dataset} ${JSON.stringify({ activeOn, overrides })}`);
+      const expected = await page(await baseQuery('contratos', activeOn, criteria, overrides));
+      const actual = await page(await baseQuery(dataset, activeOn, criteria, overrides));
+      assert.deepEqual(actual, expected, JSON.stringify({ activeOn, overrides, dataset }));
+    }
+  }
+
+  // Não é um teste vazio: a esfera acha contratos do fornecedor (os sequenciais 3, 4, 5, 12, 13 e 14), com a caixa e os
+  // espaços do que está gravado.
+  const total = async (spheres: string[]) => (await page(await baseQuery('contratos', null, criteria, { spheres }))).total;
+  assert.deepEqual([await total(['F']), await total(['E']), await total(['M']), await total(['D']), await total(['Z'])], [2, 1, 1, 2, 0]);
 });
