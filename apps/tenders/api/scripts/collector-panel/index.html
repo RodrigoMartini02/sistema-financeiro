@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coleta de Licitações — painel local</title>
+<style nonce="__CSP_NONCE__">
+  :root {
+    color-scheme: light dark;
+    --bg: #f4f5f7; --card: #fff; --text: #1d2330; --muted: #5d6676; --line: #dde1e8;
+    --ok: #17803d; --bad: #c0262d; --warn: #9a6200; --info: #1a5fb4; --primary: #1a5fb4; --primary-text: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d; --card: #1d222b; --text: #e8ebf0; --muted: #9aa3b2; --line: #2d3441;
+      --ok: #4cc27a; --bad: #ff7b7f; --warn: #e0a93b; --info: #6ea8ff; --primary: #4f8fe8; --primary-text: #0c1018;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0; font-size: 22px; }
+  h2 { margin: 0 0 12px; font-size: 16px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-top: 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; font-weight: 600; font-size: 13px; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); } .info { color: var(--info); }
+  button { font: inherit; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  input[type="time"] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  th { color: var(--muted); font-weight: 600; }
+  pre { margin: 12px 0 0; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+  #notice { margin-top: 16px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); }
+  #notice.error { border-color: var(--bad); color: var(--bad); }
+  #log { height: 320px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: 12.5px/1.45 ui-monospace, Consolas, monospace; }
+  .log-line { white-space: pre-wrap; word-break: break-word; }
+  .log-line time { color: var(--muted); margin-right: 8px; }
+  .log-line.warn { color: var(--warn); } .log-line.error { color: var(--bad); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Coleta de Licitações</h1>
+    <p class="muted small">Painel local: só funciona neste computador. A coleta continua rodando mesmo se você fechar esta página.</p>
+  </header>
+
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+
+  <section class="card" aria-labelledby="state-title">
+    <h2 id="state-title">Estado</h2>
+    <p class="row"><span id="state-badge" class="badge muted">Carregando…</span><span id="state-detail" class="muted"></span></p>
+    <div class="row">
+      <button id="run-button" type="button" class="primary" disabled>Rodar agora</button>
+      <button id="dry-run-button" type="button">Conferir (sem gravar)</button>
+    </div>
+    <p class="muted small">“Rodar agora” grava na produção e abre uma janela do PowerShell com a rotina diária. “Conferir” só valida o ambiente (<code>-DryRun</code>).</p>
+    <pre id="dry-run-output" hidden></pre>
+  </section>
+
+  <section class="card" aria-labelledby="last-title">
+    <h2 id="last-title">Última rodada</h2>
+    <p id="last-empty" class="muted">Nenhuma rodada registrada em <span id="log-file-hint">logs</span>.</p>
+    <div id="last-run" hidden>
+      <p class="row"><span id="last-badge" class="badge"></span><span id="last-summary" class="muted"></span></p>
+      <p id="last-error" class="bad" hidden></p>
+      <table>
+        <thead><tr><th>Etapa</th><th>Situação</th><th>Duração</th></tr></thead>
+        <tbody id="steps-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="schedule-title">
+    <h2 id="schedule-title">Rodar sozinho todo dia</h2>
+    <p id="schedule-summary" class="muted">Carregando…</p>
+    <div class="row">
+      <label for="schedule-time">Horário</label>
+      <input id="schedule-time" type="time" value="19:00" required>
+      <button id="schedule-save" type="button">Salvar horário</button>
+      <button id="schedule-toggle" type="button" hidden>Desativar</button>
+    </div>
+    <p class="muted small">Usa o Agendador de Tarefas do Windows (tarefa “Licitacoes - rotina diaria”): vale mesmo com o painel fechado. O PC precisa estar ligado e logado. A rotina leva horas; não deixe uma rodada manual perto do horário.</p>
+  </section>
+
+  <section class="card" aria-labelledby="log-title">
+    <div class="row">
+      <h2 id="log-title">Log ao vivo</h2>
+      <span id="log-file" class="muted small"></span>
+    </div>
+    <div id="log" role="log" aria-live="off" tabindex="0"></div>
+  </section>
+</main>
+
+<script nonce="__CSP_NONCE__">
+'use strict';
+const TOKEN = '__PANEL_TOKEN__';
+const REFRESH_INTERVAL_MS = 5000;
+const LOG_LINES = 100;
+
+const RESULT_LABELS = {
+  'in-progress': 'Em andamento', success: 'Concluída sem falhas', failed: 'Com falhas',
+  interrupted: 'Interrompida', none: 'Sem rodada',
+};
+const RESULT_CLASSES = { 'in-progress': 'info', success: 'ok', failed: 'bad', interrupted: 'warn', none: 'muted' };
+// Códigos do Agendador de Tarefas: 0 = concluída; 267009 = em execução; 267011 = ainda não rodou.
+const TASK_RESULT_LABELS = { 0: 'concluída', 267009: 'em execução', 267011: 'ainda não rodou' };
+
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
+
+const $ = (id) => document.getElementById(id);
+let lastScheduleTime = null;
+let lastStatus = null;
+let refreshNoticeActive = false;
+
+async function request(method, path, body) {
+  const headers = { 'X-Panel-Token': TOKEN };
+  if (body !== undefined) { headers['Content-Type'] = 'application/json'; }
+  const response = await fetch(path, { method, headers, cache: 'no-store', body: body === undefined ? undefined : JSON.stringify(body) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) { throw new Error(payload.error || `Erro ${response.status}`); }
+  return payload;
+}
+
+function showNotice(message, isError, fromRefresh = false) {
+  const notice = $('notice');
+  notice.textContent = message;
+  notice.classList.toggle('error', Boolean(isError));
+  notice.hidden = false;
+  refreshNoticeActive = fromRefresh;
+}
+
+// Aviso de falha da própria atualização some sozinho quando a próxima volta a funcionar; o de uma ação fica até a próxima.
+function clearRefreshNotice() {
+  if (refreshNoticeActive) {
+    $('notice').hidden = true;
+    refreshNoticeActive = false;
+  }
+}
+
+function formatDuration(milliseconds) {
+  if (milliseconds === null || milliseconds === undefined) { return '—'; }
+  const totalSeconds = Math.round(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) { return `${hours} h ${String(minutes).padStart(2, '0')} min`; }
+  if (minutes > 0) { return `${minutes} min ${String(seconds).padStart(2, '0')} s`; }
+  return `${seconds} s`;
+}
+
+function formatDateTime(isoText) {
+  if (!isoText) { return '—'; }
+  return new Date(isoText).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function setBadge(element, text, tone) {
+  element.textContent = text;
+  element.className = `badge ${tone}`;
+}
+
+function renderState(status) {
+  // Só o log em andamento descreve a rodada de agora; um log já concluído é da rodada anterior.
+  const liveRun = status.lastRun && status.lastRun.result === 'in-progress' ? status.lastRun : null;
+  if (status.running === null) {
+    setBadge($('state-badge'), 'Estado desconhecido', 'warn');
+    $('state-detail').textContent = '';
+  } else if (status.running) {
+    setBadge($('state-badge'), 'Rodando', 'info');
+    $('state-detail').textContent = liveRun
+      ? `${liveRun.currentStep ? `etapa ${liveRun.currentStep}` : 'entre etapas'} · há ${formatDuration(liveRun.durationMs)}`
+      : 'iniciando as etapas';
+  } else if (status.launching) {
+    setBadge($('state-badge'), 'Iniciando…', 'info');
+    $('state-detail').textContent = 'a janela do PowerShell foi aberta';
+  } else {
+    setBadge($('state-badge'), 'Parado', 'muted');
+    $('state-detail').textContent = '';
+  }
+  $('run-button').disabled = status.running !== false || status.launching;
+}
+
+function renderLastRun(status) {
+  const lastRun = status.lastRun;
+  $('last-empty').hidden = lastRun !== null;
+  $('last-run').hidden = lastRun === null;
+  if (lastRun === null) { return; }
+
+  setBadge($('last-badge'), RESULT_LABELS[lastRun.result] || lastRun.result, RESULT_CLASSES[lastRun.result] || 'muted');
+  const parts = [
+    `início ${formatDateTime(lastRun.startedAt)}`,
+    `duração ${formatDuration(lastRun.durationMs)}`,
+    `${lastRun.warnings} avisos`,
+    `${lastRun.errors} erros`,
+  ];
+  $('last-summary').textContent = parts.join(' · ');
+
+  const errorLine = $('last-error');
+  errorLine.hidden = lastRun.firstError === null;
+  if (lastRun.firstError !== null) {
+    const where = lastRun.firstError.step ? `${lastRun.firstError.step}: ` : '';
+    errorLine.textContent = `Primeiro erro — ${where}${lastRun.firstError.message || 'sem mensagem'}`;
+  }
+
+  const body = $('steps-body');
+  body.replaceChildren();
+  const names = lastRun.plannedSteps.length > 0 ? lastRun.plannedSteps : lastRun.steps.map((step) => step.step);
+  for (const name of names) {
+    const finished = lastRun.steps.find((step) => step.step === name);
+    let label = 'Pendente';
+    let tone = 'muted';
+    let duration = '';
+    if (finished) {
+      label = finished.status === 'failed' ? 'Falhou' : 'Concluída';
+      tone = finished.status === 'failed' ? 'bad' : 'ok';
+      duration = formatDuration(finished.durationMs);
+    } else if (lastRun.currentStep === name) {
+      label = 'Rodando';
+      tone = 'info';
+      duration = formatDuration(Date.parse(status.serverTime) - Date.parse(lastRun.currentStepStartedAt));
+    }
+    const row = body.insertRow();
+    row.insertCell().textContent = name;
+    const situation = row.insertCell();
+    situation.textContent = label;
+    situation.className = tone;
+    row.insertCell().textContent = duration;
+  }
+}
+
+function renderSchedule(schedule) {
+  const summary = $('schedule-summary');
+  const timeInput = $('schedule-time');
+  const save = $('schedule-save');
+  const toggle = $('schedule-toggle');
+  if (schedule === null) {
+    summary.textContent = 'Não foi possível ler o Agendador de Tarefas.';
+    save.disabled = true;
+    toggle.hidden = true;
+    return;
+  }
+  save.disabled = false;
+  if (!schedule.exists) {
+    summary.textContent = 'A tarefa diária ainda não foi criada.';
+    save.textContent = 'Criar tarefa';
+    toggle.hidden = true;
+    return;
+  }
+  const result = schedule.lastResult === null || schedule.lastResult === undefined ? '—' : (TASK_RESULT_LABELS[schedule.lastResult] || `código ${schedule.lastResult}`);
+  summary.textContent = `Todos os dias às ${schedule.time || '?'} · ${schedule.enabled ? 'ativa' : 'desativada'} · próxima: ${schedule.enabled ? formatDateTime(schedule.nextRun) : '—'} · última: ${formatDateTime(schedule.lastRun)} (${result})`;
+  save.textContent = 'Salvar horário';
+  toggle.hidden = false;
+  toggle.textContent = schedule.enabled ? 'Desativar' : 'Ativar';
+  toggle.dataset.enable = schedule.enabled ? 'false' : 'true';
+  if (schedule.time && schedule.time !== lastScheduleTime && document.activeElement !== timeInput) {
+    timeInput.value = schedule.time;
+    lastScheduleTime = schedule.time;
+  }
+}
+
+function renderLog(log) {
+  $('log-file').textContent = log.file || '';
+  $('log-file-hint').textContent = log.file || 'logs';
+  const container = $('log');
+  const stickToBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+  container.replaceChildren();
+  for (const entry of log.entries) {
+    const line = document.createElement('div');
+    line.className = `log-line ${LOG_LEVELS.includes(entry.level) ? entry.level : ''}`;
+    if (entry.time) {
+      const time = document.createElement('time');
+      time.textContent = new Date(entry.time).toLocaleTimeString('pt-BR');
+      line.append(time);
+    }
+    line.append(entry.text);
+    container.append(line);
+  }
+  if (stickToBottom) { container.scrollTop = container.scrollHeight; }
+}
+
+async function refresh() {
+  if (document.hidden) { return; }
+  try {
+    const [status, log] = await Promise.all([request('GET', '/api/status'), request('GET', `/api/log?lines=${LOG_LINES}`)]);
+    lastStatus = status;
+    renderState(status);
+    renderLastRun(status);
+    renderSchedule(status.schedule);
+    renderLog(log);
+    if (status.problems.length > 0) {
+      showNotice(status.problems.join(' · '), true, true);
+    } else {
+      clearRefreshNotice();
+    }
+  } catch (error) {
+    showNotice(`Sem resposta do painel: ${error.message}`, true, true);
+  }
+}
+
+// Desabilita o botão durante a ação e, ao fim, devolve cada botão ao estado certo (o de rodar depende do estado da rotina).
+async function guarded(button, action) {
+  button.disabled = true;
+  try { await action(); } catch (error) { showNotice(error.message, true); }
+  await refresh();
+  button.disabled = false;
+  if (lastStatus !== null) { renderState(lastStatus); }
+}
+
+$('run-button').addEventListener('click', () => {
+  const confirmed = window.confirm('Isto grava na PRODUÇÃO. Iniciar a rotina diária agora?\n\nSe mudou alguma configuração, use antes “Conferir (sem gravar)”.');
+  if (!confirmed) { return; }
+  guarded($('run-button'), async () => {
+    await request('POST', '/api/run', {});
+    showNotice('Rotina iniciada: uma janela do PowerShell foi aberta. Não feche essa janela até o fim.', false);
+  });
+});
+
+$('dry-run-button').addEventListener('click', () => {
+  const button = $('dry-run-button');
+  const output = $('dry-run-output');
+  guarded(button, async () => {
+    button.textContent = 'Conferindo…';
+    output.hidden = true;
+    try {
+      const result = await request('POST', '/api/dry-run', {});
+      output.textContent = result.output || '(sem saída)';
+      output.hidden = false;
+      showNotice(result.ok ? 'Conferência concluída: nada foi gravado.' : 'A conferência encontrou um problema (veja abaixo).', !result.ok);
+    } finally {
+      button.textContent = 'Conferir (sem gravar)';
+    }
+  });
+});
+
+$('schedule-save').addEventListener('click', () => {
+  const time = $('schedule-time').value;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) { showNotice('Informe um horário válido (HH:mm).', true); return; }
+  guarded($('schedule-save'), async () => {
+    await request('POST', '/api/schedule', { time });
+    lastScheduleTime = null;
+    showNotice(`Tarefa diária salva para ${time}.`, false);
+  });
+});
+
+$('schedule-toggle').addEventListener('click', () => {
+  const enabled = $('schedule-toggle').dataset.enable === 'true';
+  guarded($('schedule-toggle'), async () => {
+    await request('POST', '/api/schedule', { enabled });
+    showNotice(enabled ? 'Tarefa diária ativada.' : 'Tarefa diária desativada.', false);
+  });
+});
+
+document.addEventListener('visibilitychange', refresh);
+setInterval(refresh, REFRESH_INTERVAL_MS);
+refresh();
+</script>
+</body>
+</html>
