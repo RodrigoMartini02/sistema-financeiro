@@ -16,6 +16,8 @@
     "tenders:create-admin": "tsx src/cli/createAdmin.ts",
     "tenders:create-admin:dev": "set DOTENV_CONFIG_PATH=../../../.env.dev&& tsx src/cli/createAdmin.ts",
     "daily-jobs": "tsx src/collector/dailyRoutineCli.ts",
+    "collector-panel": "node scripts/collector-panel/main.mjs --open",
+    "test:collector-panel": "node --test scripts/collector-panel/*.test.mjs",
     "migrations:status": "tsx scripts/migrations.ts status",
     "migrations:aplicar": "tsx scripts/migrations.ts aplicar",
     "migrations:registrar-existentes": "tsx scripts/migrations.ts registrar-existentes"

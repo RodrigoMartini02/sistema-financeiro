@@ -14,7 +14,7 @@ As seções técnicas preservam o histórico da construção do módulo. As migr
 
 ## Estrutura
 
-A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql,0005_competitors.sql,0006_vault.sql,0007_sanctions.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
+A raiz `apps/tenders/api` contém `package.json`, lockfile, `tsconfig.json`, este README, `migrations/{0001_baseline.sql,0002_member_profile.sql,0003_company_profile.sql,0004_billing_history.sql,0005_competitors.sql,0006_vault.sql,0007_sanctions.sql}` e `scripts/{migrations.ts,run-collector-on-pc.ps1,collector-panel/}`. A baseline já aplicada é preservada; a sequência de migrations é própria desta API. O código fica em:
 
 ```
 apps/tenders/api/src/
@@ -308,6 +308,26 @@ Depois da carga, o Agendador de Tarefas do Windows chama o modo `daily` (por exe
 **Cuidados**
 - Queda de energia ou de internet com a conexão do Postgres aberta pode deixar a trava presa até o banco notar. O próximo bloco sai sem coletar até lá, e o script espera e tenta de novo. Interromper com Ctrl+C é seguro: perde só o que ainda não foi publicado.
 - Se uma mudança de agendador for autorizada depois, parar o escritor anterior entre blocos e conferir banco, prefixo, memória e disco antes de ligar o seguinte. Manter as datas e o progresso já usados; o novo caminho não justifica começar novamente. A trava dos contratos continua impedindo duas publicações simultâneas.
+
+### Painel local da coleta (Windows)
+
+Para iniciar e acompanhar a rotina diária sem digitar comandos, o PC da coleta tem dois atalhos em `apps/tenders/api/scripts/collector-panel/` (plano `.plans/painel-local-coleta-licitacoes.md`):
+
+- `run-collection.cmd`: clique duplo roda `run-collector-on-pc.ps1 -Mode daily`, com a confirmação `SIM` digitada e a janela aberta no fim. Repassa parâmetros extras ao script (por exemplo, `-EnvFile` e `-WorkDir`).
+- `open-panel.cmd` (ou `npm --prefix apps/tenders/api run collector-panel`): sobe o painel em `http://localhost:3099` e abre o navegador. Deixe a janela do painel aberta enquanto o usa; a coleta, depois de iniciada, continua se ele for fechado.
+
+O painel mostra se a rotina está rodando (pelo processo `dailyRoutineCli`, então vale também para rodadas do Agendador ou de outra janela), a última rodada (etapas, durações, avisos, erros e a primeira mensagem de erro), o log ao vivo e a tarefa diária. Botões:
+
+- **Rodar agora**: abre uma janela própria do PowerShell com `-Mode daily -Yes`, que continua se o painel fechar. Fica bloqueado enquanto houver rodada em andamento (duas ao mesmo tempo não funcionam). A confirmação no navegador substitui o `SIM` digitado.
+- **Conferir (sem gravar)**: roda `-DryRun` e mostra a saída.
+- **Rodar sozinho todo dia**: cria ou altera a tarefa "Licitacoes - rotina diaria" do Agendador de Tarefas (um horário por dia, com os mesmos parâmetros do agendamento acima) e permite ativá-la e desativá-la. O horário vale com o painel fechado.
+
+Limites e cuidados:
+
+- Só escuta em `127.0.0.1`, valida `Host` e `Origin` e exige um token novo a cada abertura. Não lê o `collector.env`, não conecta no banco e só executa comandos fixos; o log exibido tem senhas de URL mascaradas.
+- Variáveis opcionais: `PANEL_PORT` (padrão 3099); `PANEL_ENV_FILE`, `PANEL_WORK_DIR`, `PANEL_DUCKDB_MEMORY_MB` e `PANEL_DISK_LIMIT_MB`, repassados ao script como `-EnvFile`, `-WorkDir`, `-DuckDbMemoryMb` e `-DiskLimitMb` (`PANEL_WORK_DIR` também define a pasta de logs lida); e `PANEL_TASK_NAME`.
+- **Preserve os parâmetros da carga já feita no PC.** Variável vazia vale o padrão do script (3072 MB de DuckDB e 20000 MB de disco), que pode ser alto demais para a máquina. Defina os valores uma vez (por exemplo, `setx PANEL_DUCKDB_MEMORY_MB <MB>` e `setx PANEL_DISK_LIMIT_MB <MB>`) e reabra o painel. Eles valem para **Rodar agora**, **Conferir** (que mostra os valores que seriam usados) e para a tarefa criada pelo painel; o `run-collection.cmd` usa os de memória e disco.
+- O painel só existe no Windows (usa o PowerShell e o Agendador de Tarefas). Testes: `npm --prefix apps/tenders/api run test:collector-panel`.
 
 ## Usuário de banco restrito
 
