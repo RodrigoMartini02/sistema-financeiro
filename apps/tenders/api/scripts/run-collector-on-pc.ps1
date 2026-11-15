@@ -86,7 +86,7 @@ Set-StrictMode -Version 2.0
 $ShortBlockMinutes = 5
 $MaxShortBlocksInARow = 6
 $MaxFailedBlocksInARow = 3
-$WaitBetweenAttemptsSeconds = 600
+$WaitBetweenAttemptsSeconds = 60
 
 $RequiredKeys = @(
     'TENDERS_COLLECTOR_DATABASE_URL',
@@ -155,7 +155,14 @@ function Invoke-CollectorCommand {
 
     # No Windows PowerShell 5.1, o stderr de um programa nativo redirecionado com 2>&1 vira erro terminante com 'Stop'.
     $ErrorActionPreference = 'Continue'
-    $result = [pscustomobject]@{ ExitCode = 0; Finished = $false; NotStarted = $false; FailedSteps = @() }
+    $result = [pscustomobject]@{
+        ExitCode = 0
+        Finished = $false
+        NotStarted = $false
+        RetryablePncp503 = $false
+        OtherError = $false
+        FailedSteps = @()
+    }
     $failedSteps = New-Object System.Collections.Generic.List[string]
     $npm = if ($IsWindowsHost) { 'npm.cmd' } else { 'npm' }
     $logWriter = New-Object System.IO.StreamWriter($LogFile, $true, (New-Object System.Text.UTF8Encoding($false)))
@@ -170,6 +177,11 @@ function Invoke-CollectorCommand {
             }
             if ($line -match 'Carga de contratos n.+o iniciada') {
                 $result.NotStarted = $true
+            }
+            if ($line -match '"endpoint":"contratos".*"name":"PncpRequestError".*"message":".*HTTP 503') {
+                $result.RetryablePncp503 = $true
+            } elseif ($line -match '"level":"error"') {
+                $result.OtherError = $true
             }
             if ($line -match '"msg":"Etapa falhou".*?"step":"([a-z-]+)"') {
                 $failedSteps.Add($Matches[1])
@@ -200,6 +212,13 @@ function Invoke-Backfill {
         }
         if ($result.NotStarted) {
             Stop-Script 'A carga nao iniciou porque o R2 nao esta configurado: confira as variaveis do R2 no arquivo de ambiente.'
+        }
+        if ($result.RetryablePncp503 -and -not $result.OtherError) {
+            $failedBlocks = 0
+            $shortBlocks = 0
+            Write-Host ('PNCP retornou HTTP 503; tentando novamente em {0} segundos.' -f $WaitBetweenAttemptsSeconds) -ForegroundColor Yellow
+            Start-Sleep -Seconds $WaitBetweenAttemptsSeconds
+            continue
         }
 
         $minutes = ((Get-Date) - $startedAt).TotalMinutes
