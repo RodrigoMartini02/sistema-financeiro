@@ -314,7 +314,7 @@ Depois da carga, o Agendador de Tarefas do Windows chama o modo `daily` (por exe
 Para iniciar e acompanhar a rotina diária sem digitar comandos, o PC da coleta tem dois atalhos em `apps/tenders/api/scripts/collector-panel/` (plano `.plans/painel-local-coleta-licitacoes.md`):
 
 - `run-collection.cmd`: clique duplo roda `run-collector-on-pc.ps1 -Mode daily`, com a confirmação `SIM` digitada e a janela aberta no fim. Repassa parâmetros extras ao script (por exemplo, `-EnvFile` e `-WorkDir`).
-- `open-panel.cmd` (ou `npm --prefix apps/tenders/api run collector-panel`): sobe o painel em `http://localhost:3099` e abre o navegador. Deixe a janela do painel aberta enquanto o usa; a coleta, depois de iniciada, continua se ele for fechado.
+- `open-panel.cmd`: sobe o painel em `http://localhost:3099` **em segundo plano, sem janela**, e abre o navegador (se já estiver aberto, só abre o navegador). As mensagens dele ficam em `<WorkDir>\panel.log`. `close-panel.cmd` encerra o painel; uma coleta em andamento não é afetada. Para ver as mensagens numa janela (depuração), use `npm --prefix apps/tenders/api run collector-panel`.
 
 O painel mostra se a rotina está rodando (pelo processo `dailyRoutineCli`, então vale também para rodadas do Agendador ou de outra janela), a última rodada (etapas, durações, avisos, erros e a primeira mensagem de erro), o log ao vivo e a tarefa diária. Botões:
 
